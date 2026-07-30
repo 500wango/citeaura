@@ -1,6 +1,8 @@
 """项目 CRUD、Bootstrap 和任务查询 API。"""
 
+import re
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
@@ -13,7 +15,7 @@ from api.adapters.exceptions import GeoEngineError
 from api.auth.deps import get_current_user
 from api.db import get_db
 from api.models import Job, Project, Tenant, User
-from api.worker.tasks import task_bootstrap
+from api.worker.tasks import task_bootstrap, task_sample
 
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
@@ -43,6 +45,11 @@ class ProjectCreate(BaseModel):
         if value not in ("cn", "global", "both"):
             raise ValueError("market must be cn, global, or both")
         return value
+
+
+class SampleRequest(BaseModel):
+    limit: int | None = Field(default=None, ge=1, le=1000)
+    platforms: list[str] | None = None
 
 
 def _error(status_code: int, message: str):
@@ -88,6 +95,20 @@ def _job_payload(job: Job, include_log: bool = True) -> dict:
         "log_path": job.log_path,
         "log": log,
     }
+
+
+def _latest_file(directory: Path, pattern: str):
+    files = sorted(directory.glob(pattern)) if directory.exists() else []
+    return files[-1] if files else None
+
+
+def _active_job(db: Session, project_id: int, action: str):
+    return (
+        db.query(Job)
+        .filter(Job.project_id == project_id, Job.action == action, Job.status.in_(("queued", "running")))
+        .order_by(Job.id.desc())
+        .first()
+    )
 
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
@@ -240,3 +261,93 @@ def project_job(
         _error(status.HTTP_404_NOT_FOUND, "job_not_found")
     return {"job": _job_payload(job)}
 
+
+@router.post("/{project_id}/sample", status_code=status.HTTP_202_ACCEPTED)
+def sample_project(
+    project_id: int,
+    payload: SampleRequest | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """投递一次 API 采样任务。"""
+    project = _project_for_user(db, current_user, project_id)
+    if _active_job(db, project.id, "sample") is not None:
+        _error(status.HTTP_409_CONFLICT, "project_sample_already_running")
+    payload = payload or SampleRequest()
+    job = Job(project_id=project.id, action="sample", status="queued")
+    db.add(job)
+    project.status = "sampling"
+    db.commit()
+    db.refresh(job)
+    tenant = _tenant_for_user(db, current_user)
+    try:
+        task = task_sample.delay(
+            tenant.name,
+            project.slug,
+            limit=payload.limit,
+            platforms=payload.platforms,
+            job_id=job.id,
+        )
+        job.log_path = f"celery://{task.id}"
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        job.status = "failed"
+        job.error = f"{type(exc).__name__}: {exc}"
+        job.finished_at = datetime.now(timezone.utc)
+        project.status = "failed"
+        db.commit()
+        _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
+    return {"job_id": job.id, "project_id": project.id, "status": project.status}
+
+
+@router.get("/{project_id}/report")
+def project_report(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """返回最新 metrics 报告。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.name, project.slug):
+        path = _latest_file(geolib.project_dir(project.slug) / "metrics", "*.json")
+        if path is None:
+            _error(status.HTTP_404_NOT_FOUND, "report_not_found")
+        metrics = geolib.read_json(path, None)
+    return {"report": metrics, "date": metrics.get("date") if metrics else None}
+
+
+@router.get("/{project_id}/engines")
+def project_engines(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """返回分引擎指标，并标明 API 采样模式。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.name, project.slug):
+        pdir = geolib.project_dir(project.slug)
+        metrics_path = _latest_file(pdir / "metrics", "*.json")
+        sample_path = _latest_file(pdir / "samples", "*.jsonl")
+        metrics = geolib.read_json(metrics_path, None) if metrics_path else None
+        rows = geolib.read_jsonl(sample_path) if sample_path else []
+        import analytics
+
+        engines = analytics.engines(project.slug, rows, metrics)
+    for item in engines:
+        item["sample_mode"] = "api"
+        item["sampling_mode"] = "API·联网" if item.get("searched") else "API·参数化"
+    return {"date": metrics.get("date") if metrics else None, "engines": engines}
+
+
+@router.get("/{project_id}/samples/{sample_date}")
+def project_samples(
+    project_id: int,
+    sample_date: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """按日期返回原始答案回放。"""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", sample_date):
+        _error(status.HTTP_400_BAD_REQUEST, "invalid_sample_date")
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.name, project.slug):
+        path = geolib.project_dir(project.slug) / "samples" / f"{sample_date}.jsonl"
+        if not path.is_file():
+            _error(status.HTTP_404_NOT_FOUND, "samples_not_found")
+        rows = geolib.read_jsonl(path)
+    return {"date": sample_date, "samples": rows}

@@ -109,13 +109,19 @@ def task_bootstrap(tenant_id: str, project_slug: str, skip_llm: bool = False, jo
 
 
 @celery_app.task(name="disvorai.sample")
-def task_sample(tenant_id: str, project_slug: str, limit: int | None = None, job_id=None):
+def task_sample(
+    tenant_id: str,
+    project_slug: str,
+    limit: int | None = None,
+    platforms: list[str] | None = None,
+    job_id=None,
+):
     """执行 API 采样和指标聚合。"""
     import sample
 
     with _job_status(tenant_id, project_slug, "sample", job_id):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
-            return sample.run(project_slug, limit=limit)
+            return sample.run(project_slug, platforms=platforms, limit=limit)
 
 
 @celery_app.task(name="disvorai.cycle")
