@@ -1,0 +1,56 @@
+x-app: &app
+  image: python:3.12-slim
+  working_dir: /app
+  volumes:
+    - .:/app
+  environment:
+    DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://disvorai:disvorai@postgres:5432/disvorai}
+    REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    JWT_SECRET: ${JWT_SECRET:-}
+    AES_KEY: ${AES_KEY:-}
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-disvorai}
+      POSTGRES_USER: ${POSTGRES_USER:-disvorai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-disvorai}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    <<: *app
+    command: >-
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      uvicorn api.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+
+  worker:
+    <<: *app
+    command: >-
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      celery --broker=$${REDIS_URL} worker --loglevel=INFO"
+
+volumes:
+  postgres_data:
+
