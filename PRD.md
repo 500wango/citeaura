@@ -1,57 +1,99 @@
 # DisvorAI（基于 GeoLook 开源二次开发）产品需求文档 PRD
 
-> **版本**：v1.1  
-> **日期**：2026-07-30  
+> **版本**：v2.0  
+> **日期**：2026-07-31  
+> **变更**：基于开源代码审查修订；修正能力映射、精简 P0、明确 SSOT 决策、补成本模型  
 > **状态**：可交付 AI 编程助手实现  
 > **产品目录**：`~/project/disvorai`  
-> **开源基线**：https://github.com/aigclink/geolook（MIT，fork 来源 aigclink/geolook；用户 fork：500wango/geolook）  
+> **开源基线**：`geolook-upstream/`（克隆自 https://github.com/aigclink/geolook, MIT）  
 > **官网参考竞品**：https://www.higeo.ai/  
-> **对比文档**：`~/project/geolook-saas/higeo-vs-geolook-comparison.md`  
+> **对比文档**：`higeo-vs-geolook-comparison.md`  
 > **约束**：**所有开发工作基于开源版二次开发**，禁止从零重写核心 GEO 管线；在其之上加多租户 SaaS、商业包装与 HiGEO 级体验。
 
 ---
 
 ## 0. 给实现者的硬约束
 
-1. **Fork / 引入** `aigclink/geolook`（或 `500wango/geolook`）代码与 `scripts/`、`references/`、测试，作为业务内核。  
+1. **开源代码已引入** `geolook-upstream/`，测试全绿（109 tests, 0.056s）。SaaS 层须**调用或包装**现有模块。  
 2. **不要**用全新 stack 重写 sample/audit/plan/verify 逻辑，除非有测试证明行为等价且 PR 明确说明。  
-3. SaaS 层（账号、计费、多租户、调度、API 网关）可新建，但须 **调用或包装** 现有 CLI/模块（`geo.py`、`sample.py`、`audit.py`、`tasks.py`、`verify.py`、`deliver.py` 等）。  
-4. 数据默认落在 per-tenant 的 `work/<tenant>/<slug>/`（或等价 DB + 对象存储镜像）；保留 JSON/Markdown 可导出。  
+3. SaaS 层（账号、计费、多租户、调度、API 网关）可新建，但须**直接 import** 现有 Python 模块（`geolib`、`sample`、`audit`、`tasks`、`verify`、`deliver` 等）。  
+4. **SSOT 决策**：文件系统为管线 SSOT（`work/<tenant>/<slug>/`），Postgres 只存索引、元数据和账务。管线产物以 JSON/JSONL 文件为准，DB 存衍生视图，不双写。  
 5. 指标诚实：未测显示 unmeasured，不伪造引擎覆盖。  
-6. 中文优先文案可配置；引擎矩阵保留 CN 一等公民。
+6. 中文优先文案可配置；引擎矩阵保留 CN 一等公民。  
+7. **API 采样 ≠ 用户端体验**：UI 中每个引擎必须标注采样模式（API 裸模型 / API+联网 / 人工网页端），不允许暗示 API 结果等同于用户在网页/App 上看到的答案。
 
 ---
 
-## 1. 背景与问题
+## 1. 代码审查核心发现
 
-### 1.1 GEO 定义
+### 1.1 开源已有能力（比 PRD v1.1 预估更强）
 
-GEO = **Generative Engine Optimization**：让 ChatGPT / Perplexity / Gemini / DeepSeek / 豆包等在回答用户问题时 **主动提及并引用你的品牌**。不是 IP 地理位置，也不是传统 SEO 排名工具。
+| 能力 | 实现位置 | 成熟度 | SaaS 可直接复用 |
+|------|----------|--------|----------------|
+| 域名一键建项 | `geo.py init / new` | 生产级 | ✓ |
+| 官网抓取 + 正文抽取 | `crawl.py` + `geolib.py` | 生产级，含去重/限速/编码 | ✓ |
+| LLM 自动推导品牌事实/竞品/问题库 | `bootstrap.py` | 生产级，含编造防线 | ✓ |
+| 6 维页面体检（可计算分数） | `audit.py` | 生产级，每条规则可追溯到论文 | ✓ |
+| 多引擎 API 采样（10+ 引擎） | `sample.py` | 生产级，并发+重试+增量落盘 | ✓ |
+| 人工/浏览器采样导入 | `sample.py sheet/import` | 完整 | ✓ |
+| 答案解析（提及/排名/引用/负面检测） | `sample.py analyze_answer` | 精细，含边界策略 | ✓ |
+| 品牌认知 vs 可见性分离 | `sample.py aggregate` | 已实现 | ✓ |
+| 结构化工单生成（含验收标准） | `tasks.py` | 生产级 | ✓ |
+| 自动验收（16+ 种 checker 表达式） | `verify.py` | 生产级，含回归 reopen | ✓ |
+| 客户交付包（6 份文档 + assets） | `deliver.py` | 生产级 | ✓ |
+| 三份交付物（诊断/优化/执行）| `deliverables.py` | 完整 | ✓ |
+| 资产生成（llms.txt/JSON-LD/片段/大纲/AI初稿） | `generate.py` | 完整 | ✓ |
+| 编造检测（lint） | `generate.py lint_all` | 完整 | ✓ |
+| 发布渠道（GitHub/WordPress/微信草稿/Webhook） | `publish.py` | 完整，强制人工确认 | ✓ |
+| 建设蓝图（渠道覆盖+内容承接） | `blueprint.py` | 完整 | ✓ |
+| 拓词（百度下拉/Google suggest） | `expand.py` | 完整 | ✓ |
+| 后台任务管理（子进程隔离、日志、并发保护） | `jobs.py` | 生产级 | ✓ |
+| 可观测看板（单页应用 + REST API） | `dashboard.py` + `ui.html` | 功能完整，2342 行前端 | 可嵌入 |
+| 健康分（五项加权 GEO 分数） | `analytics.py` | 完整 | ✓ |
+| 项目级文件锁 | `geolib.py project_lock` | 跨进程安全 | ✓ |
+| 报告生成（HTML+MD） | `report.py` | 完整 | ✓ |
 
-### 1.2 用户痛点
+### 1.2 开源的架构特点（影响 SaaS 化方案）
 
-| 痛点 | 开源已解决部分 | 仍缺（SaaS 要补） |
-|------|----------------|-------------------|
-| AI 从不提及品牌 | 多引擎采样 + 提及/排名/引用 | 零配置上手、云端持续扫 |
-| 不知道为什么 | 6 维审计 + gap + 渠道图 | Impact×Effort 可读 Playbook |
-| 建议落不了地 | 工单 + 验收标准 | 团队协作、状态同步 |
-| 做完有没有用 | 自动 verify + before/after | 定时 re-scan、趋势 |
-| 代理交付痛苦 | 一键交付包 | 多客户项目、白标、计费 |
-| 自托管无账号 | 刻意设计 | 多租户、权限、账单 |
+1. **文件系统为中心**：所有状态在 `work/<slug>/` 下的 JSON/JSONL 文件中，无数据库依赖。  
+2. **跨进程锁**：`geolib.project_lock()` 用 `fcntl.flock` 实现，**仅限单机**；分布式部署需替换为 Redis/PG 锁。  
+3. **并发模型**：`sample.py` 用 `ThreadPoolExecutor`，平台间并发、平台内串行，设计合理。  
+4. **LLM 调用链**：`sample.pick_llm()` 按 `deepseek → glm → doubao → openai → gemini` 优先级选最便宜的可用引擎。  
+5. **每项目单任务**：`jobs.py` 限制同一 slug 同时只有一个后台任务（`_running` dict），天然防并发踩踏。  
+6. **配置备份机制**：`save_config` 每次写入前备份，保留最近 10 份——多租户下需考虑存储膨胀。  
+7. **`sys.exit` 调用**：`geolib.die()` 直接 `sys.exit(1)`，SaaS 包装时需替换为抛异常。
 
-### 1.3 竞品一句话
+### 1.3 SaaS 化关键风险
 
-| 产品 | 定位 |
-|------|------|
-| **HiGEO** | 云端监控 + 优先级 Playbook；$99/月；3 引擎；**不写内容、不闭环验收** |
-| **Peec / Scrunch / AthenaHQ / Goodie 等** | 多为 AI 可见性 **监控** SaaS |
-| **GeoLook 开源** | 自托管 **端到端实施**；无 SaaS |
-| **本产品 DisvorAI** | 开源闭环为内核 + HiGEO 级体验壳 + 交付/CN/验证护城河 |
+| 风险 | 严重性 | 缓解方案 |
+|------|--------|----------|
+| `fcntl.flock` 仅限单机 | 高 | MVP 单节点部署；P1 引入 Redis 分布式锁 |
+| `sys.exit` 导致 worker 进程退出 | 高 | 包装层 monkey-patch `die()` 为 raise |
+| 环境变量管理 API Keys | 中 | 改为 per-tenant encrypted store，运行时注入 |
+| `work/` 磁盘空间线性增长 | 中 | 对象存储归档 + 保留策略 |
+| 无速率限制 | 中 | API 网关层加 rate limiter |
+| 现有 UI 绑定 `localhost` | 低 | 前端重做；后端 API 可复用 |
 
-### 1.4 产品一句话卖点
+### 1.4 引擎采样真实能力（修正 PRD v1.1 预期）
 
-> 多数工具停在 playbook；**DisvorAI 把 playbook 变成可验收工单、内容与客户交付包，并支持中文引擎。**  
-> （对标：HiGEO 告诉你做什么；我们基于 GeoLook 让你做完并能证明做完。）
+开源 `sample.py` 已支持的引擎及实际采样模式：
+
+| 引擎 | 市场 | API 可用 | 联网 | 采样代表性 |
+|------|------|---------|------|-----------|
+| DeepSeek | CN | ✓ | ✗ | 参数化知识，≠网页端 |
+| 智谱 GLM | CN | ✓ | ✗ | 参数化知识，≠清言网页 |
+| 豆包(方舟) | CN | ✓ | ✓* | *需开通内容插件，否则降级 |
+| Kimi | CN | ✓ | ✗ | 参数化知识 |
+| MiniMax | CN | ✓ | ✗ | 参数化知识 |
+| 纳米AI | CN | ✗ | — | 仅人工采样 |
+| 百度AI搜索 | CN | ✗ | — | 仅人工采样 |
+| Gemini | Global | ✓ | ✗ | 无 grounding，≠AI Overview |
+| OpenAI/ChatGPT | Global | ✓ | ✗ | ≠ChatGPT网页Search |
+| Claude | Global | ✓ | ✗ | ≠Claude网页Web Search |
+| Grok | Global | ✓ | ✗ | ≠X内嵌Grok |
+| Perplexity | Global | ✓ | ✓ | 原生联网+citations，最高证据等级 |
+
+**结论**：大部分引擎 API 采样的是"模型参数化知识中是否认识这个品牌"，而非"用户在产品端搜索时 AI 会不会推荐你"。仅 Perplexity 和开通了内容插件的豆包方舟能测到联网搜索行为。产品 UI 必须明确区分这两种信号。
 
 ---
 
@@ -59,11 +101,11 @@ GEO = **Generative Engine Optimization**：让 ChatGPT / Perplexity / Gemini / D
 
 ### 2.1 目标（MVP 30 天可演示）
 
-- 用户注册 → 只填 **域名** → 自动 bootstrap → 看到 Visibility Report + Playbook  
-- 可将 Playbook 项转为 **工单**，执行后 **自动验证**  
-- 一键导出 **客户交付包**（HTML/CSV/报告）  
+- 用户注册 → 只填**域名** → 自动 bootstrap → 看到 Visibility Report + Playbook  
+- 可将 Playbook 项转为**工单**，执行后**自动验证**  
+- 一键导出**客户交付包**  
 - 支持市场：`cn` / `global` / `both`  
-- 计费：至少一种订阅（对标 $99 单档可先做）+ 14 天试用模型（可配置）
+- 计费：强制 BYOK（用户自带 API Key）为默认模式；平台 Key 池为可选增值
 
 ### 2.2 非目标（MVP 不做）
 
@@ -71,7 +113,10 @@ GEO = **Generative Engine Optimization**：让 ChatGPT / Perplexity / Gemini / D
 - 覆盖「所有」助手却不点名（禁止虚报）  
 - 替用户全自动发布到全网无确认  
 - 从零重写采样/审计算法  
-- 电影解说/视频解说类方向（与产品无关，禁止塞进 roadmap）
+- 微信公众号发布集成（P1）  
+- WordPress 发布集成（P1）  
+- 词云 framing（P1，非核心路径）  
+- 竞品自动发现可视化（P1，逻辑已有）
 
 ---
 
@@ -86,15 +131,15 @@ GEO = **Generative Engine Optimization**：让 ChatGPT / Perplexity / Gemini / D
 | **内容运营** | 工单、workbench、渠道清单 | 执行模块 |
 | **管理员** | 成员、权限、账单、API Key 池 | Enterprise |
 
-### 3.2 核心用户旅程（对齐 HiGEO 三步再延伸）
+### 3.2 核心用户旅程
 
 ```
-1. Enter domain only
-2. System crawls + infers brand/topics/questions (~50–100)
-3. Sample engines → Brand Visibility Report + Playbook (impact×effort)
-4. [DisvorAI+] Convert to tickets → Workbench/assets → Publish (confirm)
-5. Auto-verify + next sample round → before/after
-6. One-click client delivery package
+1. Enter domain only → 系统创建项目（geo.py init 等价）
+2. System crawls + bootstrap → 品牌事实/竞品/问题库（带"待确认"标记）
+3. Sample engines → Brand Visibility Report（分引擎提及率/排名/引用，raw answer 回放）
+4. Playbook + Tickets → 用户转为工单并执行
+5. Auto-verify → before/after 比较
+6. One-click delivery package → 下载 zip
 7. Schedule 7/14/30 day re-run
 ```
 
@@ -106,156 +151,138 @@ GEO = **Generative Engine Optimization**：让 ChatGPT / Perplexity / Gemini / D
 App
 ├── Auth / Billing / Team
 ├── Projects
-│   ├── Overview（健康分、一句话结论、词云 framing）
-│   ├── Engines（分引擎提及/引用、raw answer 回放）
+│   ├── Overview（健康分、一句话结论）
+│   ├── Engines（分引擎提及/引用、raw answer 回放、采样模式标注）
 │   ├── Questions（题库、诊断类型、编辑）
-│   ├── Competitors（答案自动发现 + 可锁定）
-│   ├── Diagnosis（Site audit / Gaps / Channels）
+│   ├── Competitors（从 sample 答案中解析）
+│   ├── Diagnosis（Site audit / Gaps / Blueprint 建设地图）
 │   ├── Playbook（Facts/Content/Tech/Off-site，impact×effort）
 │   ├── Tickets（结构化 + 验收 + 回归重开）
-│   ├── Workbench（话题池、草稿、可引用性、发布清单）
-│   ├── Assets（llms.txt、JSON-LD、snippets、DEPLOY）
-│   ├── Verification（任务级/问题级 before-after）
-│   └── Delivery（客户包、报告）
-├── Settings（引擎 Keys、市场、调度、成员）
-└── Public Marketing（Method、Sample Report、Guides）— 可后置
+│   ├── Assets（llms.txt、JSON-LD、snippets、drafts + lint 结果）
+│   ├── Verification（任务级 before-after + 验收历史）
+│   └── Delivery（客户包下载）
+├── Settings（API Keys、市场、调度、成员）
+└── Public Marketing — 后置
 ```
 
 ---
 
 ## 5. 功能需求（按优先级）
 
-### 5.1 P0 — Must（含 HiGEO 合并项 + 开源护城河）
+### 5.1 P0 — Must（MVP 核心路径）
 
-#### F-P0-01 Domain-only Onboarding（学 HiGEO）
+#### F-P0-01 Domain-only Onboarding
 
-- **输入**：URL + market（默认 both 或用户选 cn/global/both）  
-- **系统**：爬取 → 推断 brand name / short description / topics / seed questions  
-- **UI**：首屏禁止强制填竞品列表、大量手工字段；高级设置折叠  
-- **验收**：新用户 3 分钟内进入「扫描中/已出报告」状态  
+- **包装**：`geo.py init` + `crawl.run()` + `bootstrap.run()`
+- **输入**：URL + market（默认 both）
+- **系统**：爬取 → LLM 推导 brand/topics/questions（含编造防线）
+- **UI**：首屏只需一个 URL 输入框；高级设置折叠
+- **验收**：新用户 3 分钟内进入「扫描中/已出报告」状态
 
 #### F-P0-02 引擎采样与 Visibility Report
 
-- **包装开源** `sample` / analytics  
-- **默认引擎策略**：  
-  - Global 核心可配置为 ChatGPT / Perplexity / AI Overviews 等（能自动化的 API 优先）  
-  - CN 包：DeepSeek / 豆包 / Kimi / GLM 等（开源矩阵保留）  
-  - **UI 必须点名实际覆盖引擎**，与 HiGEO 同样诚实  
-- **指标**：mention rate、rank、citation share；每条可打开 **raw answer**  
-- **词云 framing**（学 HiGEO）：AI 描述品牌用词，点击跳到来源答案  
-- **验收**：样本项目能出分引擎表 + raw 回放  
+- **包装**：`sample.run()` + `analytics.py`
+- **默认引擎**：取 `sample.PROVIDERS` 中用户配了 Key 的引擎
+- **指标**：mention rate、rank、citation share；每条可打开 raw answer
+- **采样模式标注**：每个引擎旁边显示「API 参数化知识」或「API+联网」或「人工网页端」
+- **验收**：样本项目能出分引擎表 + raw 回放 + 采样模式说明
 
 #### F-P0-03 自动问题集
 
-- 生成约 50–100 买家问题（可配置数量）  
-- 用户可一键接受或编辑  
-- 开源 keyword mining（百度 suggest / Google autocomplete）作为「候选扩展」，**加入题库需确认**（保持开源纪律）  
-- 诊断类型：suspected-negative > competitor-dominated > absent > low-ranked  
+- **包装**：`bootstrap.question_bank()` + `expand.run()`
+- 生成约 20–40 题（取决于市场），七组分类
+- 用户可编辑；拓词结果需确认后入库
+- 问题带 market 标签路由到对应引擎
 
-#### F-P0-04 竞品自动发现（学 HiGEO）
+#### F-P0-04 站点审计 + Gap + 建设地图
 
-- 从采样答案解析竞品及 share of AI voice  
-- 无需预填；支持「锁定竞品」高级选项  
-- 与开源 Competitors 页合并  
+- **包装**：`audit.run()` + `blueprint.build()`
+- 6 维 audit（可抓取性/长度/结构/可抽取块/权威信号/对题性）
+- 渠道建设地图：19 渠道优先级 + 覆盖度
+- CN/Global 分开度量
 
-#### F-P0-05 Playbook（Impact × Effort）（学 HiGEO）
+#### F-P0-05 Playbook + 结构化工单
 
-四类：
+- **包装**：`tasks.build()` → 自动从 audit + metrics + benchmark 生成
+- 四类：实体消歧 / 页面技术 / 内容矩阵 / 外部证据 / 知识库 / 监测闭环
+- 每条工单：why / action / owner / effort(S/M/L) / acceptance criteria
+- 支持手动创建 offsite 工单（url + ask_text + 影响问题）
+- 一键创建 + 状态管理
 
-| type | 含义 | 与开源映射 |
-|------|------|------------|
-| `facts` | 要发布的 LLM-ready 事实 | brand facts / /facts 页 |
-| `content` | 要写的页面/文章 brief | workbench topics |
-| `technical` | 站点技术修复 | audit → ticket |
-| `offsite` | 站外引用争取 | **新增强化** |
+#### F-P0-06 自动验证 + 回归重开
 
-- 每条：title、rationale、impact(0-100)、effort(0-100)、priority(P0/P1/P2)、status  
-- 默认排序：impact/effort 降序（或 impact 高且 effort 低优先）  
-- **一键「转为工单」**  
+- **包装**：`verify.run()`
+- 16+ 种 checker 表达式，自动判定通过/未达标
+- 通过的工单自动标 done；回归的自动 reopen
+- 保留 progress 快照（before/after）
+- **验收矩阵**：
 
-#### F-P0-06 Off-site 工单颗粒度（学 HiGEO，开源弱项补齐）
+| 工单类型 | 验收方式 | 说明 |
+|----------|----------|------|
+| 页面技术 (SPA/JSON-LD/sitemap) | 自动：重抓判定 | 100% 可自动化 |
+| 内容矩阵 (长度/抽取块/标题) | 自动：重抓判定 | 100% 可自动化 |
+| 外部证据 (榜单/平台) | 半自动：采样中出现目标域名 | 依赖下一轮采样 |
+| 提及率/引用率目标 | 半自动：metrics 聚合 | 依赖下一轮采样 |
+| 实体消歧/百科/一句话定义 | 人工确认 | UI 提供确认按钮 |
+| Offsite (联系外站加入) | 人工确认 | 无法自动判定 |
 
-工单/playbook 项字段：
+#### F-P0-07 资产生成
 
-```text
-type: offsite
-url: https://...
-ask_text: "请将我品牌加入该 listicle，作为 X/Y 的替代"
-influenced_questions: [q_id...]
-mention_you: bool
-mention_competitors: [names]
-channel: reddit|zhihu|listicle|baike|wechat|...
-```
+- **包装**：`generate.run()`
+- 产出：llms.txt（中英）、JSON-LD、HTML 片段、内容大纲
+- AI 初稿（可选）+ 编造风险 lint
+- **不含**：发布动作（MVP 只下载）
 
-- 验收：代理可直接把 `ask_text` 派给运营  
+#### F-P0-08 客户交付包
 
-#### F-P0-07 站点审计 + Gap + 渠道图（开源已有）
+- **包装**：`deliver.run()`
+- 输出：6 份文档 + assets 目录，zip 下载
+- 包含诊断报告、执行方案、工单表(CSV+HTML)、验收表、初稿风险清单、建设地图
 
-- 6 维 audit：robots / sitemap / llms.txt / accessibility / language / extraction blocks  
-- 点击缺失 → 对应 technical 工单  
-- 19 渠道地图 + 权重（references/）保留  
-- CN/Global 分开度量  
+#### F-P0-09 多租户与项目
 
-#### F-P0-08 结构化工单 + 自动验证（开源护城河）
+- Tenant → Members(role) → Projects
+- 每 project 对应 `work/<tenant_slug>/<project_slug>/`
+- **文件系统隔离**：不同 tenant 的 work 目录互不可见
+- 项目列表、健康分总览
 
-- 字段：rationale / owner / effort / window / acceptance criteria  
-- 进度：first-measured → current → target  
-- `verify`：重爬 + 规则判定；回归自动 reopen  
-- 验收：演示项目中可验证类工单能自动变 done/reopen  
+#### F-P0-10 用户 API Key 管理（BYOK）
 
-#### F-P0-09 Brand Facts + Deploy Assets（开源 + HiGEO 包装）
+- 用户在 Settings 中配置各引擎 API Key
+- Key 加密存储（AES-256-GCM），运行时解密注入环境变量
+- 缺 Key 的引擎在采样时跳过（已有逻辑），UI 引导设置
+- **平台 Key 池为后期增值**，MVP 不提供
 
-- 事实库 SSOT → 生成 llms.txt、JSON-LD、HTML snippets、DEPLOY.md  
-- 提供「/facts 页」LLM-ready 事实列表（学 HiGEO 表述）  
-- 未知标 unconfirmed，禁止一本正经瞎编（开源 lint 保留）  
+#### F-P0-11 计费（MVP 简版）
 
-#### F-P0-10 Content Workbench（开源差异化，HiGEO 明确不做）
+- 单档 Pro：¥199/月（或 $29/月，配置化）
+- 14 天全功能试用，**试用期限额**：3 个项目、每项目 2 次采样
+- 计量：projects 数 × 每月 sample runs
+- 不强制绑卡（试用可无卡）
 
-- 话题池：未提及 + 无内容优先  
-- AI 草稿 + 可引用性预检 + fabrication-risk lint  
-- 分发 checklist 对齐目标渠道  
-- 发布：GitHub / WordPress draft / 微信公众号草稿 / webhook — **必须人工确认**  
+#### F-P0-12 诚实边界
 
-#### F-P0-11 Delivery 客户包（开源护城河）
-
-- 一键：诊断报告、策略、执行计划、ticket CSV、验收表、HTML  
-- 代理场景：按 project + date 打包下载  
-- 验收：与开源 `deliver` / `deliverables` 行为对齐并云端可下  
-
-#### F-P0-12 多租户与项目
-
-- Tenant → Members(role) → Projects  
-- 每 project 对应开源 `work/<slug>/` 语义  
-- 多品牌切换  
-
-#### F-P0-13 计费（MVP 可简）
-
-- 建议先 **单档 Pro**（对标 HiGEO $99 或国内定价 99–299 元，配置化）  
-- 14 天全功能试用、**不强制绑卡**（若支付栈暂不支持，文档标明后续）  
-- 计量：projects 数、每月 sample runs / question×engine 次数  
-- FAQ 文案：不保证 mention；不写「覆盖所有 AI」  
-
-#### F-P0-14 诚实边界与法务文案（学 HiGEO）
-
-产品内固定：
-
-- 点名引擎列表  
-- 不保证上榜/提及  
-- 采样有噪声；趋势需多轮  
-- 不替代律师/医疗建议等（若行业模板涉及）  
+- 点名覆盖引擎列表 + 采样模式
+- 不保证上榜/提及
+- "API 采样反映模型记忆，非用户端实时搜索结果"
+- 采样有噪声；趋势需多轮
 
 ---
 
 ### 5.2 P1 — Should（30–60 天）
 
-- 调度：7/14/30 天 full cycle / light loop（开源 operations）  
-- 团队：邀请、角色（owner/editor/viewer）  
-- 手动 sampling sheet 导入导出（开源已有）  
-- 白标交付 PDF 页眉页脚  
-- 公开 Method + Sample Report 营销页  
-- 行业 Guides（B2B SaaS/电商/fintech/代理/房产/律所/医疗）— 内容运营可后置  
-- 用户自带 API Key + 平台 Key 池（成本隔离）  
-- 年付折扣  
+| 编号 | 功能 | 说明 |
+|------|------|------|
+| P1-01 | 调度 | 7/14/30 天自动 re-run cycle |
+| P1-02 | 竞品自动发现可视化 | 逻辑已有（`confirm_competitors`），加 UI |
+| P1-03 | 词云 framing | 从 raw answer 提取品牌描述词 |
+| P1-04 | 发布集成 | GitHub/WordPress/微信草稿（代码已有） |
+| P1-05 | 团队邀请 | owner/editor/viewer 角色 |
+| P1-06 | 手动 sampling sheet 导入 | 代码已有，加 UI |
+| P1-07 | 白标交付 PDF 页眉 | deliver 模板化 |
+| P1-08 | 平台 Key 池 | 平台代付采样费用，按量计费 |
+| P1-09 | 分布式锁 | Redis 锁替换 fcntl，支持多节点 |
+| P1-10 | Impact×Effort 可视排序 | Playbook 二维矩阵视图 |
 
 ### 5.3 P2 — Later
 
@@ -263,126 +290,169 @@ channel: reddit|zhihu|listicle|baike|wechat|...
 - 与 Semrush/Search Console 集成  
 - 自动外链 outreach 发送（高风险，需人工）  
 - 移动 App  
+- 年付折扣  
+- 对象存储归档
 
 ---
 
-## 6. 开源能力映射（实现索引）
+## 6. 开源能力映射（经代码审查确认）
 
-| 开源模块（约） | SaaS 功能 |
-|----------------|-----------|
-| `scripts/geo.py` | CLI 兼容入口 / job runner |
-| `bootstrap.py` / `crawl.py` | Onboarding、推断 |
-| `sample.py` | 引擎采样、sheet |
-| `audit.py` | 站点审计 |
-| `analytics.py` | 指标、词云可加在其上 |
-| `tasks.py` / `plan` | 工单、playbook 映射 |
-| `generate.py` / `lint` | 资产与草稿质检 |
-| `verify.py` | 自动验收 |
-| `deliver.py` / `deliverables.py` / `report.py` | 交付与报告 |
-| `publish.py` | 受控发布 |
-| `jobs.py` | 后台任务 |
-| `dashboard.py` + `ui.html` | 可先嵌入再替换为现代前端 |
-| `references/` | 方法与渠道权重，禁止丢掉 |
+| 开源模块 | 行数 | SaaS 功能 | 包装方式 |
+|----------|------|-----------|----------|
+| `geolib.py` | 354 | 共用基础（路径/配置/HTTP/正文抽取）| 直接 import |
+| `geo.py` | 598 | CLI 入口（init/new/cycle/serve 等） | API 层调同名函数 |
+| `crawl.py` | ~150 | 站点抓取 | `crawl.run(slug)` |
+| `bootstrap.py` | 335 | LLM 自动推导品牌/竞品/问题 | `bootstrap.run(slug)` |
+| `audit.py` | 286 | 6 维页面体检 | `audit.run(slug)` |
+| `sample.py` | 716 | 多引擎采样 + 答案解析 + 聚合 | `sample.run(slug)` |
+| `tasks.py` | 349 | 工单生成 + 状态管理 | `tasks.build(slug)` / `tasks.set_status()` |
+| `verify.py` | 228 | 自动验收（16+ checker） | `verify.run(slug)` |
+| `deliver.py` | 393 | 客户交付包 | `deliver.run(slug)` |
+| `deliverables.py` | 302 | 三份正式交付物 | `deliverables.run(slug)` |
+| `generate.py` | ~300 | 资产生成 + lint | `generate.run(slug)` / `generate.lint_all(slug)` |
+| `publish.py` | ~120 | 发布渠道（4 种） | `publish.publish(slug, platform, path, title)` |
+| `blueprint.py` | 284 | 建设蓝图 | `blueprint.build(slug)` |
+| `expand.py` | 299 | 拓词（下拉词 + LLM 转问句）| `expand.run(slug)` |
+| `analytics.py` | ~140 | 健康分 + 派生指标 | 直接 import |
+| `report.py` | 407 | 报告生成（HTML+MD） | `report.run(slug)` |
+| `jobs.py` | 245 | 后台任务管理 | 需适配为异步任务队列 |
+| `dashboard.py` | 607 | REST API + WebSocket | API 可复用 |
+| `ui.html` | 2342 | 单页前端（暗色主题） | MVP 嵌入；后期重做 |
+| `benchmark.py` | ~200 | 国内信源对标 | `benchmark.compare(domains)` |
+| `references/` | 6 files | 方法论/渠道/权重数据 | 保留不动 |
+| **tests/** | 109 tests | 全部通过 | 保持绿灯 |
 
-**二次开发原则**：SaaS API 一层 `POST /projects/:id/cycle` 内部调用与 `geo.py cycle` 等价流水线。
-
----
-
-## 7. 非功能需求
-
-| 类别 | 要求 |
-|------|------|
-| 安全 | 租户隔离；`.env`/Keys 加密；默认不公网暴露无鉴权的开源 UI |
-| 隐私 | 原始答案与客户站点数据按租户隔离；可删除导出 |
-| 性能 | 单 project 全量采样异步队列；UI 不阻塞 |
-| 可观测 | job 状态、失败原因、token/API 费用日志 |
-| 合规 | 文案诚实；GDPR 删除权（P1） |
-| 国际化 | UI i18n：zh-CN / en；市场 cn/global |
-| 可靠性 | 采样失败单引擎降级，不整单失败吞掉 |
+**二次开发原则**：SaaS API `POST /projects/:id/cycle` 内部等价于 `geo.py cycle`。每个 API 端点对应一个开源模块的 `run()` 调用。
 
 ---
 
-## 8. 技术架构建议（可调整，但须满足第 0 节）
+## 7. 成本模型
 
-### 8.1 推荐形态
+### 7.1 单次采样成本估算
+
+| 引擎 | 模型 | 输入/输出价格 | 单题成本（约 200 token 输入 + 800 token 输出） |
+|------|------|--------------|----------------------------------------------|
+| DeepSeek | deepseek-v4-flash | ¥0.5/1M in, ¥2/1M out | ¥0.0018 |
+| GLM | glm-4-flash | ¥0.1/1M in, ¥0.1/1M out | ¥0.0001 |
+| 豆包 | doubao-seed-1-6 | ¥0.3/1M in, ¥0.6/1M out | ¥0.0005 |
+| Kimi | kimi-k2 | ¥1/1M in, ¥2/1M out | ¥0.0018 |
+| OpenAI | gpt-4o-mini | $0.15/1M in, $0.6/1M out | $0.0006 |
+| Perplexity | sonar | $1/1M in, $1/1M out | $0.001 |
+
+### 7.2 每项目每周期成本（BYOK 模式）
+
+- 默认 30 题 × 8 引擎 × 1 轮 = 240 次调用
+- 总成本约 ¥0.5–2 / 项目 / 采样周期（用户自付）
+- Bootstrap（一次）：1 次 LLM 调用 ≈ ¥0.01
+
+### 7.3 平台成本（如提供 Key 池）
+
+- 按 ¥0.5/次（含利润）向用户收费
+- 10 个项目/月 × 4 周期 × 240 次 = 9600 次 → 平台成本约 ¥20，收入 ¥4800
+- **结论**：BYOK 模式 MVP 零 LLM 成本；Key 池模式利润健康
+
+---
+
+## 8. 技术架构
+
+### 8.1 MVP 架构（单节点）
 
 ```
-[Next.js Web] → [API Gateway / Nest 或 FastAPI]
-                    ↓
-            [Job Queue: Redis/BullMQ 或 RQ]
-                    ↓
-            [GeoLook Worker：复用 scripts/*]
-                    ↓
-         [Object store: work 快照] + [Postgres：账号/项目/账单/job 元数据]
+[Next.js/React Web] → [FastAPI Gateway]
+                          ↓
+                  [BullMQ/RQ Job Queue (Redis)]
+                          ↓
+                  [Python Worker: import geolook-upstream/scripts/*]
+                          ↓
+               [Filesystem: work/<tenant>/<slug>/]
+               [Postgres: auth/billing/project-index/job-meta]
+               [Redis: session/lock/queue]
 ```
 
-- **短期**：FastAPI 包一层 + 原 `ui.html` 增强，加速 MVP  
-- **中期**：Next.js 重做壳，worker 仍调 Python 开源管线  
+- **短期 MVP**：FastAPI + Celery/RQ worker + 现有 `ui.html` 嵌入，单 VPS 部署
+- **中期**：Next.js 前端重做，worker 仍调 Python 管线
 
-### 8.2 数据模型（逻辑）
+### 8.2 关键适配点
+
+1. **`geolib.die()` → raise GeoException**：SaaS worker 中不能 sys.exit  
+2. **环境变量 → 运行时注入**：从加密 store 解密 Key，注入 `os.environ` 后调模块  
+3. **`project_dir(slug)` → `project_dir(tenant, slug)`**：加 tenant 前缀  
+4. **`jobs.py` → Celery/RQ**：复用白名单和日志机制，替换子进程为任务队列  
+5. **`dashboard.py` API → FastAPI 路由**：dashboard 里的 `list_projects()`、`project()` 等函数可直接复用
+
+### 8.3 数据模型（逻辑）
 
 ```text
 Tenant(id, name, plan, trial_ends_at)
-User(id, email, ...)
+User(id, email, password_hash, ...)
 Membership(tenant_id, user_id, role)
-Project(id, tenant_id, slug, url, market, brand_json, status)
-EngineConfig(project_id, engine_id, enabled, model_pin)
-Question(id, project_id, text, category, diagnosis_type)
-SampleRun(id, project_id, started_at, status)
-SampleAnswer(run_id, question_id, engine_id, raw_text, mentioned, cited, rank, ...)
-Competitor(project_id, name, share, source=auto|manual)
-PlaybookItem(id, project_id, type, title, impact, effort, status, payload_json)
-Ticket(id, playbook_item_id?, acceptance, owner, state, metrics_json)
-Fact(id, project_id, key, value, confirmed)
-Asset(id, project_id, kind, path_or_blob)
-Delivery(id, project_id, created_at, files[])
-Job(id, type, payload, status, error)
-Subscription / UsageCounter
+Project(id, tenant_id, slug, url, market, status, created_at)
+  → 对应 work/<tenant_slug>/<slug>/geo.json
+ApiKey(id, tenant_id, engine_code, encrypted_value)
+Job(id, project_id, action, status, started_at, finished_at, log_path)
+Subscription(tenant_id, plan, started_at, expires_at)
+UsageCounter(tenant_id, month, sample_runs, projects_active)
 ```
 
-Offsite payload 示例见 F-P0-06。
+管线产物（audit.json, tasks.json, metrics/*.json, delivery/*）全在文件系统，不入 DB。
 
-### 8.3 API 草图（MVP）
+### 8.4 API 草图（MVP）
 
 ```text
-POST   /auth/register|login
+POST   /auth/register | /auth/login
 GET    /me
-POST   /projects                 { url, market }
-GET    /projects/:id
-POST   /projects/:id/bootstrap
-POST   /projects/:id/sample
+
+POST   /projects                     { url, market }  → 触发 init+crawl+bootstrap job
+GET    /projects
+GET    /projects/:id                 → 复用 dashboard.project()
+GET    /projects/:id/status          → 复用 geo.py status 逻辑
+
+POST   /projects/:id/sample          → 返回 job_id（异步）
 GET    /projects/:id/report
 GET    /projects/:id/playbook
-POST   /projects/:id/playbook/:itemId/to-ticket
 GET    /projects/:id/tickets
-POST   /projects/:id/verify
-POST   /projects/:id/deliver
-POST   /projects/:id/schedule
-GET    /projects/:id/samples/:answerId   # raw
+PATCH  /projects/:id/tickets/:tid    { status, note }
+
+POST   /projects/:id/verify          → 返回 job_id（异步）
+POST   /projects/:id/deliver         → 返回 download URL
+GET    /projects/:id/delivery/:date  → zip 下载
+
+POST   /projects/:id/schedule        { interval_days }
+GET    /projects/:id/jobs            → 复用 jobs.recent()
+GET    /projects/:id/jobs/:jid/log   → 复用 jobs.tail()
+
+PUT    /settings/keys                { engine, encrypted_key }
+GET    /settings/keys                → 列出已配引擎（不返回明文）
+
+GET    /billing/usage
+POST   /billing/subscribe
 ```
 
----
-
-## 9. UX 与文案要点（学 HiGEO）
-
-- Hero 级产品句：See how AI talks about your brand. **Then ship the work and prove it.**  
-- 定价页：One plan / 或清晰两档；写清 vs 代理 / vs 自建 / vs 纯监控  
-- 空状态：引导「只输入域名」  
-- 错误：引擎 Key 缺失时引导手动 sheet 或设置 Key，不装死  
-- 数字旁：「单轮波动是观察值；连续两轮同向才标趋势」（开源 FAQ 精神）  
+所有 POST 操作返回 `{ job_id }` 供前端轮询进度。
 
 ---
 
-## 10. 定价与包装（配置，非写死代码）
+## 9. UX 要点
 
-| 方案 | 建议 | 包含 |
+- **空状态**：只一个 URL 输入框 + "开始分析"按钮
+- **采样模式透明**：每个引擎名旁标 `API·参数化` 或 `API·联网` 或 `人工·网页端`
+- **数字旁注**：「单轮波动是观察值；连续两轮同向才标趋势」
+- **工单详情**：显示 why / action / acceptance 三段式，不需要用户理解代码
+- **验收历史**：时间线展示 before → after（progress_first vs progress）
+- **错误引导**：引擎 Key 缺失时引导设置，不装死
+
+---
+
+## 10. 定价
+
+| 方案 | 价格 | 包含 |
 |------|------|------|
-| Trial | 14 天全功能 | 同 Pro |
-| Pro | $99 或 ¥99–299/月 | 3–10 projects、月采样额度、playbook+tickets+verify、基础 delivery |
-| Agency | 更高 | 多客户、白标、更多 runs、优先队列 |
-| Enterprise | 定制 | 私有化、SSO、合同 SLA |
+| Trial | 14 天免费 | 3 项目，每项目 2 次采样，BYOK |
+| Pro | ¥199/月 或 $29/月 | 10 项目，无限采样（BYOK），完整交付 |
+| Agency | ¥599/月 或 $79/月 | 30 项目，白标，优先队列 |
+| Enterprise | 定制 | 私有化部署，SSO，SLA |
 
-**计量建议**：`questions × engines × runs / month`，超限排队或升级。
+试用限额：3 projects × 2 runs × 30 questions × 8 engines = 1440 次调用（用户自付 Key）
 
 ---
 
@@ -390,10 +460,10 @@ GET    /projects/:id/samples/:answerId   # raw
 
 | 周 | 交付 |
 |----|------|
-| W1 | 引入开源仓库；租户/项目；domain onboarding 调通 bootstrap+crawl |
-| W2 | sample 异步化；Report + raw answer + 基础 playbook 映射 |
-| W3 | tickets + verify；offsite 字段；facts/assets |
-| W4 | delivery 下载；试用/订阅骨架；打磨诚实文案与 demo 数据 |
+| W1 | 适配层：`die()→raise`、tenant 前缀、Key 注入；FastAPI 骨架；Auth + Project CRUD；调通 bootstrap 流程 |
+| W2 | Sample 异步化（Celery/RQ）；Report API + 前端嵌入现有 ui.html；基础 Playbook 展示 |
+| W3 | Tickets + Verify API；验收历史展示；Delivery zip 下载 |
+| W4 | 计费骨架（Stripe/支付宝）；试用限额；诚实文案；Demo 部署 |
 
 **Demo 脚本**：输入一真实站点 → 出报告 → 转 1 个 technical + 1 个 offsite 工单 → verify → 下载 delivery zip。
 
@@ -403,23 +473,26 @@ GET    /projects/:id/samples/:answerId   # raw
 
 ### 12.1 继承开源测试
 
-运行并保持绿灯：`tests/test_*.py`（analytics/audit/bootstrap/crawl/deliver/geolib/jobs/sample/tasks/report…）。
+保持 `tests/test_*.py` 全绿（109 tests），每次 CI 跑。
 
 ### 12.2 新增 SaaS 测试
 
-- 租户 A 不能读租户 B 的 project  
-- onboarding 仅 URL 可创建 project  
-- playbook 排序稳定  
-- offsite ticket 含 url+ask_text  
-- verify 失败 reopen  
-- delivery 包文件清单非空  
+- 租户 A 不能读租户 B 的 project
+- `die()` 在 worker 中抛异常而非退出进程
+- API Key 加密存储、运行时解密正确
+- Job 队列任务正确路由到 worker
+- 试用限额到达后拒绝新采样
+- Playbook 排序稳定
+- Delivery 包文件清单非空
 
-### 12.3 产品验收清单（PO）
+### 12.3 产品验收清单
 
-- [ ] 与 HiGEO 对比：上手同样「只填域名」  
-- [ ] 比 HiGEO 多：工单验证、交付包、CN 市场  
-- [ ] 引擎列表与真实采样一致  
-- [ ] 无「保证上首页」类宣传  
+- [ ] 新用户只填 URL，3 分钟内看到报告
+- [ ] 分引擎表每个引擎标注采样模式
+- [ ] 工单可自动验收、回归可 reopen
+- [ ] 交付包 zip 含完整 6 份文档
+- [ ] 无「保证上首页」「覆盖所有 AI」类宣传
+- [ ] 未配 Key 的引擎显示「未测」不显示 0%
 
 ---
 
@@ -427,54 +500,55 @@ GET    /projects/:id/samples/:answerId   # raw
 
 | 风险 | 缓解 |
 |------|------|
-| 采样 API 成本高 | 用户自带 Key；额度；手动 sheet |
+| 采样 API 成本高 | MVP 强制 BYOK；试用有限额 |
 | 答案随机性 | 多问聚合、repeat、文案降级承诺 |
-| 开源快速演进 | 跟踪 upstream；子模块或定期 merge |
-| 与 GEOforge/HiGEO 品牌/功能撞车 | 产品名 DisvorAI；卖点钉死闭环+CN+交付 |
-| 开源无 auth 误暴露 | 禁止裸绑 0.0.0.0；强制网关鉴权 |
+| 开源快速演进 | upstream 在 geolook-upstream/，定期 git pull + rebase |
+| 品牌/功能撞车 | 产品名 DisvorAI；卖点钉死闭环+CN+交付 |
+| 安全暴露 | 所有 API 需 JWT 认证；work 目录 per-tenant 隔离；Key AES 加密 |
+| fcntl 仅单机 | MVP 单节点 + P1 Redis 锁 |
+| `sys.exit` 在 worker 中 | W1 第一件事适配 |
 
 ---
 
 ## 14. 品牌与目录说明
 
-- 工作区文件夹：**disvorai**（本 PRD 所在）  
-- 开源项目名仍为 GeoLook；商业产品名以 **DisvorAI** 为准（可配置 white-label）  
-- 避免使用已冲突品牌：GeoForge / GEOforge / getgeoforge 等  
+- 工作区文件夹：**disvorai**
+- 开源代码位于：`geolook-upstream/`（作为 git 子目录，不是 submodule）
+- 商业产品名：**DisvorAI**
+- 避免使用已冲突品牌：GeoForge / GEOforge
 
 ---
 
-## 15. 附录 A — HiGEO 合并项检查表
+## 附录 A — 开源代码审查总结
 
-| # | 来源 | 状态 |
-|---|------|------|
-| 1 | Domain-only onboarding | P0 |
-| 2 | Impact×Effort playbook 四类 | P0 |
-| 3 | Off-site 到 URL+ask | P0 |
-| 4 | Raw answer 可点 | P0 |
-| 5 | 竞品自动发现 | P0 |
-| 6 | Framing 词云 | P0 |
-| 7 | 单档价+试用叙事 | P0 文案/计费 |
-| 8 | 诚实 scope | P0 |
-| 9 | 行业 Guides | P1 内容 |
-| 10 | vs 代理/自建 价值叙事 | 营销页 P1 |
+**代码质量**：高。模块化清晰（每个文件一个职责），测试覆盖完整（109 tests），注释充分解释 why not just what，错误处理到位（单引擎失败不崩全管线）。
 
-## 附录 B — 开源护城河检查表
+**设计亮点**：
+- `sample.py` 的品牌认知 vs 可见性分离防止假阳性
+- `verify.py` 的 checker DSL 使验收规则声明式且可扩展
+- `bootstrap.py` 的编造防线（只从官网正文抽取，标"待确认"）
+- `jobs.py` 的并发保护（每项目单任务 + 孤儿回收）
+- `deliver.py` 的口径一致性检查（验收日期对齐体检日期）
 
-| # | 能力 | 状态 |
-|---|------|------|
-| 1 | 端到端 tickets→verify→reopen | P0 |
-| 2 | 客户 delivery 包 | P0 |
-| 3 | CN 引擎与渠道 | P0 |
-| 4 | Workbench + lint | P0 |
-| 5 | 可复现指标 / unmeasured | P0 |
-| 6 | 私有化路径 | P1/P2 |
+**SaaS 化需要改的**：
+1. `geolib.die()` → raise（5 处调用）
+2. `project_dir()` → 加 tenant 前缀
+3. API Key 从 `.env` → 加密 store + 运行时注入
+4. `jobs.py` 子进程模型 → Celery/RQ 任务队列
+5. `fcntl.flock` → Redis 锁（P1）
 
-## 附录 C — 参考链接
+## 附录 B — PRD v1.1 → v2.0 变更摘要
 
-- 开源：https://github.com/aigclink/geolook  
-- Demo：https://geolook.cc/  
-- HiGEO：https://www.higeo.ai/  
-- 对比：`/home/michael/project/geolook-saas/higeo-vs-geolook-comparison.md`  
+| 变更项 | v1.1 | v2.0 | 原因 |
+|--------|------|------|------|
+| P0 数量 | 14 项 | 12 项 | 词云/竞品可视化/发布集成降至 P1 |
+| SSOT | 模糊("或等价 DB") | 文件系统 SSOT，DB 只存索引 | 避免双写 |
+| BYOK | P1 | P0 必选 | 成本模型验证后发现 MVP 无法承担代付 |
+| 采样模式标注 | 无 | P0 强制 | 代码审查发现 API≠用户端 |
+| 验收方式矩阵 | 一句话 | 按类型展开 | offsite 无法自动验收需明确 |
+| 成本模型 | 无 | 新增第 7 节 | 验证定价可行性 |
+| 技术适配点 | 未列 | 5 项明确清单 | 代码审查发现的必改项 |
+| 架构 | "建议形态" | 明确决策（FastAPI + Celery + 单节点） | 降低 MVP 复杂度 |
 
 ---
 
