@@ -15,7 +15,7 @@ from api.adapters.exceptions import GeoEngineError
 from api.auth.deps import get_current_user
 from api.db import get_db
 from api.models import Job, Project, Tenant, User
-from api.worker.tasks import task_bootstrap, task_sample
+from api.worker.tasks import task_bootstrap, task_sample, task_verify
 
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
@@ -50,6 +50,18 @@ class ProjectCreate(BaseModel):
 class SampleRequest(BaseModel):
     limit: int | None = Field(default=None, ge=1, le=1000)
     platforms: list[str] | None = None
+
+
+class TicketUpdate(BaseModel):
+    status: str
+    note: str = Field(default="", max_length=2000)
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value: str):
+        if value not in ("todo", "doing", "done", "blocked", "wontfix"):
+            raise ValueError("invalid ticket status")
+        return value
 
 
 def _error(status_code: int, message: str):
@@ -351,3 +363,78 @@ def project_samples(
             _error(status.HTTP_404_NOT_FOUND, "samples_not_found")
         rows = geolib.read_jsonl(path)
     return {"date": sample_date, "samples": rows}
+
+
+@router.get("/{project_id}/tickets")
+def project_tickets(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """读取 engine 生成的工单列表。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.name, project.slug):
+        import tasks as engine_tasks
+
+        data = engine_tasks.load(project.slug)
+    return {"tickets": data.get("tasks", []), "summary": data.get("summary", {})}
+
+
+@router.patch("/{project_id}/tickets/{ticket_id}")
+def update_ticket(
+    project_id: int,
+    ticket_id: str,
+    payload: TicketUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """调用 engine tasks.set_status 更新工单状态。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    try:
+        with with_tenant_context(tenant.name, project.slug):
+            import tasks as engine_tasks
+
+            ticket = engine_tasks.set_status(project.slug, ticket_id, payload.status, payload.note)
+    except KeyError:
+        _error(status.HTTP_404_NOT_FOUND, "ticket_not_found")
+    except GeoEngineError:
+        _error(status.HTTP_400_BAD_REQUEST, "ticket_update_failed")
+    return {"ticket": ticket}
+
+
+@router.post("/{project_id}/verify", status_code=status.HTTP_202_ACCEPTED)
+def verify_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """投递工单自动验收任务。"""
+    project = _project_for_user(db, current_user, project_id)
+    if _active_job(db, project.id, "verify") is not None:
+        _error(status.HTTP_409_CONFLICT, "project_verify_already_running")
+    job = Job(project_id=project.id, action="verify", status="queued")
+    db.add(job)
+    project.status = "verifying"
+    db.commit()
+    db.refresh(job)
+    tenant = _tenant_for_user(db, current_user)
+    try:
+        task = task_verify.delay(tenant.name, project.slug, job_id=job.id)
+        job.log_path = f"celery://{task.id}"
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        job.status = "failed"
+        job.error = f"{type(exc).__name__}: {exc}"
+        job.finished_at = datetime.now(timezone.utc)
+        project.status = "failed"
+        db.commit()
+        _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
+    return {"job_id": job.id, "project_id": project.id, "status": project.status}
+
+
+@router.get("/{project_id}/verify/history")
+def verify_history(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """返回 engine verify 生成的验收历史。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.name, project.slug):
+        import verify as engine_verify
+
+        directory = geolib.project_dir(project.slug) / "verify"
+        files = sorted(directory.glob("*.json"), key=engine_verify.report_key) if directory.exists() else []
+        history = [geolib.read_json(path, {}) for path in files]
+    return {"history": history}

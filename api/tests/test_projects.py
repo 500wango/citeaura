@@ -151,6 +151,41 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert sampled.status_code == 202
     assert sampled.json()["job_id"] == 2
 
+    geolib.write_json(
+        project_dir / "tasks.json",
+        {
+            "summary": {"total": 1, "by_status": {"todo": 1}},
+            "tasks": [{
+                "id": "T-001", "title": "Fix it", "priority": "P0", "package": "页面技术",
+                "market": "both", "status": "todo", "evidence": [],
+                "acceptance": {"type": "manual", "desc": "done"},
+            }],
+        },
+    )
+    tickets = client.get(f"/api/v1/projects/{body['project_id']}/tickets", headers=headers)
+    assert tickets.status_code == 200
+    assert tickets.json()["tickets"][0]["id"] == "T-001"
+    updated = client.patch(
+        f"/api/v1/projects/{body['project_id']}/tickets/T-001",
+        headers=headers,
+        json={"status": "done", "note": "verified manually"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["ticket"]["status"] == "done"
+
+    geolib.write_json(
+        project_dir / "verify" / "2026-07-31-120000.json",
+        {"verified_at": "2026-07-31T12:00:00+00:00", "changed": 1, "results": []},
+    )
+    history = client.get(f"/api/v1/projects/{body['project_id']}/verify/history", headers=headers)
+    assert history.status_code == 200
+    assert history.json()["history"][0]["changed"] == 1
+
+    monkeypatch.setattr(project_router.task_verify, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-3"))
+    verified = client.post(f"/api/v1/projects/{body['project_id']}/verify", headers=headers)
+    assert verified.status_code == 202
+    assert verified.json()["job_id"] == 3
+
     jobs = client.get(f"/api/v1/projects/{body['project_id']}/jobs", headers=headers)
     assert jobs.status_code == 200
     assert jobs.json()["jobs"][0]["status"] == "queued"
