@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from api.adapters.engine import geolib, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 from api.auth.deps import get_current_user
+from api.billing.limits import check_project_creation, check_sample_run
 from api.db import get_db
 from api.models import Job, Project, Tenant, User
 from api.worker.tasks import task_bootstrap, task_deliver, task_sample, task_verify
@@ -134,6 +135,7 @@ def create_project(
 ):
     """创建项目、初始化引擎目录并投递 Bootstrap 任务。"""
     tenant = _tenant_for_user(db, current_user)
+    check_project_creation(db, tenant)
     slug = geolib.slugify(payload.url)
     if db.query(Project.id).filter(Project.tenant_id == tenant.id, Project.slug == slug).first() is not None:
         _error(status.HTTP_409_CONFLICT, "project_already_exists")
@@ -286,6 +288,8 @@ def sample_project(
 ):
     """投递一次 API 采样任务。"""
     project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    check_sample_run(db, tenant, project)
     if _active_job(db, project.id, "sample") is not None:
         _error(status.HTTP_409_CONFLICT, "project_sample_already_running")
     payload = payload or SampleRequest()
@@ -294,7 +298,6 @@ def sample_project(
     project.status = "sampling"
     db.commit()
     db.refresh(job)
-    tenant = _tenant_for_user(db, current_user)
     try:
         task = task_sample.delay(
             tenant.name,

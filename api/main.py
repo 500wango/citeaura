@@ -4,12 +4,14 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from api.auth.router import router as auth_router
+from api.billing.router import router as billing_router
 from api.projects.router import router as projects_router
 from api.settings.router import router as settings_router
 
 
 app = FastAPI(title="DisvorAI API", version="1.0.0")
 app.include_router(auth_router)
+app.include_router(billing_router)
 app.include_router(projects_router)
 app.include_router(settings_router)
 
