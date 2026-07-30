@@ -1,8 +1,8 @@
-# HiGEO vs GeoLook（开源）对比与可借鉴点
+# HiGEO vs DisvorAI（开源）对比与可借鉴点
 
 > 更新：2026-07-30  
-> 来源：https://www.higeo.ai/ 、https://github.com/aigclink/geolook 、https://geolook.cc  
-> 用途：为 ForgeGeo / GeoLook SaaS 二次开发提供产品参考
+> 来源：https://www.higeo.ai/ 、https://github.com/aigclink/disvorai 、https://disvorai.cc  
+> 用途：为 ForgeGeo / DisvorAI SaaS 二次开发提供产品参考
 
 ---
 
@@ -11,28 +11,28 @@
 | 产品 | 定位 |
 |------|------|
 | **HiGEO** | 精简云端 GEO：**监控 + 优先级 Playbook**。输入域名 → 扫 3 引擎 → 给你要做什么。**不写内容、不交付工单闭环**。 |
-| **GeoLook 开源** | 端到端 **实施平台**：现状 → 诊断 → 策略 → 工单 → 资产 → 执行 → **自动验证 → 客户交付包**。自托管、无账号。 |
+| **DisvorAI 开源** | 端到端 **实施平台**：现状 → 诊断 → 策略 → 工单 → 资产 → 执行 → **自动验证 → 客户交付包**。自托管、无账号。 |
 | **我们的 SaaS 方向** | 以开源闭环为内核，吸收 HiGEO 的 **上手体验 / 商业包装 / 站外引用颗粒度 / 诚实叙事**，做成 **可交付的多租户 GEO 实施 SaaS**。 |
 
 ---
 
 ## 2. 功能对照表
 
-| 维度 | HiGEO | GeoLook 开源 | 谁更强 | SaaS 该怎么做 |
+| 维度 | HiGEO | DisvorAI 开源 | 谁更强 | SaaS 该怎么做 |
 |------|-------|--------------|--------|---------------|
 | 上手 | 只输域名，自动推断品牌/话题/约 100 题 | 向导 + CLI；事实/题库需人工校对 | **HiGEO** | 必须学：零配置 onboarding |
-| 引擎覆盖 | **3 个且点名**：ChatGPT(browsing)、Perplexity、Google AI Overviews | **15 引擎矩阵**（含 CN：Doubao/DeepSeek/Kimi/GLM…）+ 手动 sheet | **GeoLook 广度**；HiGEO 诚实 | 默认 3 全球核心 + CN 包可开关 |
+| 引擎覆盖 | **3 个且点名**：ChatGPT(browsing)、Perplexity、Google AI Overviews | **15 引擎矩阵**（含 CN：Doubao/DeepSeek/Kimi/GLM…）+ 手动 sheet | **DisvorAI 广度**；HiGEO 诚实 | 默认 3 全球核心 + CN 包可开关 |
 | 问题集 | ~100 买家问题，可编辑 | 7 类问题库 + 百度/Google 联想扩展 | 各有千秋 | 自动生成 + 可编辑 + 需求词挖掘 |
-| 监控指标 | 提及率、引用率、原始答案、词云 | 提及/排名/引用份额、样本回放、诊断类型 | **GeoLook 更细** | 两者都要；词云学 HiGEO |
+| 监控指标 | 提及率、引用率、原始答案、词云 | 提及/排名/引用份额、样本回放、诊断类型 | **DisvorAI 更细** | 两者都要；词云学 HiGEO |
 | 竞品 | **答案里自动发现**，无需预填 | 有竞品表 + 最强引擎 | **HiGEO 更省事** | 默认自动发现 + 可锁定名单 |
-| 行动输出 | **Impact×Effort 排序的 Playbook**（Facts / Content / Tech / Off-site） | 结构化工单 + 验收标准 + 进度条 + 回归重开 | **GeoLook 更深** | Playbook UI 学 HiGEO，底层用工单模型 |
+| 行动输出 | **Impact×Effort 排序的 Playbook**（Facts / Content / Tech / Off-site） | 结构化工单 + 验收标准 + 进度条 + 回归重开 | **DisvorAI 更深** | Playbook UI 学 HiGEO，底层用工单模型 |
 | 站外引用 | **到具体 URL/帖子 + 精确 ask**（加入 listicle / 回帖） | 19 渠道地图 + 权重，粒度偏渠道 | **HiGEO 更可执行** | 必须学：page-level off-site tickets |
-| 内容生产 | **明确不做**：只给 brief | **Workbench + AI 草稿 + 可引用性预检 + 发布清单** | **GeoLook** | 保留 workbench（差异化） |
-| 技术修复 | schema 等建议 | 6 维站点审计 + 点到工单 | **GeoLook** | 保留并接到 playbook |
-| 品牌事实 | LLM-ready facts + sample schema | 事实库 → llms.txt / JSON-LD 生成 | **GeoLook 更深** | 事实库 + /facts 页模板（学 HiGEO 包装） |
-| 验证闭环 | 可 re-scan 看趋势；无程序化验收 | **自动 verify + 回归重开工单 + before/after** | **GeoLook** | 核心护城河，必须保留 |
-| 交付物 | Brand Visibility Report + playbook | 诊断报告/策略/计划/CSV/客户包 | **GeoLook 更适合代理** | 一键客户交付包 = 代理卖点 |
-| 多市场 | markets/languages 高级设置 | CN / Global / Both 一等公民 | **GeoLook CN** | 中文引擎+渠道是中国市场壁垒 |
+| 内容生产 | **明确不做**：只给 brief | **Workbench + AI 草稿 + 可引用性预检 + 发布清单** | **DisvorAI** | 保留 workbench（差异化） |
+| 技术修复 | schema 等建议 | 6 维站点审计 + 点到工单 | **DisvorAI** | 保留并接到 playbook |
+| 品牌事实 | LLM-ready facts + sample schema | 事实库 → llms.txt / JSON-LD 生成 | **DisvorAI 更深** | 事实库 + /facts 页模板（学 HiGEO 包装） |
+| 验证闭环 | 可 re-scan 看趋势；无程序化验收 | **自动 verify + 回归重开工单 + before/after** | **DisvorAI** | 核心护城河，必须保留 |
+| 交付物 | Brand Visibility Report + playbook | 诊断报告/策略/计划/CSV/客户包 | **DisvorAI 更适合代理** | 一键客户交付包 = 代理卖点 |
+| 多市场 | markets/languages 高级设置 | CN / Global / Both 一等公民 | **DisvorAI CN** | 中文引擎+渠道是中国市场壁垒 |
 | 协作/账号 | 完整 SaaS 账号 | **无**（127.0.0.1、无 auth） | **HiGEO** | 多租户/角色必做 |
 | 定价 | **$99/月 单档**，14 天试用无卡 | 免费；自付采样 API | HiGEO 商业化清晰 | 可抄单档或 Starter/Pro，先简单 |
 | 叙事诚实 | 不写内容、不保证上榜、不虚报引擎 | 不造假指标、未测显示 unmeasured | 都好 | **必须抄诚实边界** |
@@ -74,7 +74,7 @@
 
 ---
 
-## 4. GeoLook 开源必须保留的优势（相对 HiGEO 的护城河）
+## 4. DisvorAI 开源必须保留的优势（相对 HiGEO 的护城河）
 
 1. **端到端闭环**：工单 → 资产 → 发布 → **程序化验证 → 回归重开**  
 2. **客户交付包**（代理/咨询刚需）：报告 + 策略 + CSV + 验收表  
@@ -95,7 +95,7 @@
                       |
     ──────────────────┼──────────────────→ 落地深度
                       |
-         GeoLook OSS  |  ★ ForgeGeo SaaS
+         DisvorAI OSS  |  ★ ForgeGeo SaaS
          （全闭环自托管）|  （云端闭环 + HiGEO体验
                       |   + 交付包 + CN）
 ```
@@ -145,8 +145,8 @@
 ## 8. 结论
 
 - **HiGEO** = 优秀的 **GEO 产品化教科书**：零配置、Playbook、站外颗粒度、诚实叙事、单档定价、内容获客。  
-- **GeoLook** = 更强的 **实施与验证引擎** + **CN** + **代理交付**，缺的是 SaaS 体验与商业包装。  
-- **最好做法**：二次开发时 **内核用 GeoLook 闭环**，**壳与关键路径学 HiGEO**；差异化钉死在 **可验证工单 + 交付包 + 中文矩阵 + 可选内容工作台**，避免做成第三个「只看排名的 $99 监控工具」。
+- **DisvorAI** = 更强的 **实施与验证引擎** + **CN** + **代理交付**，缺的是 SaaS 体验与商业包装。  
+- **最好做法**：二次开发时 **内核用 DisvorAI 闭环**，**壳与关键路径学 HiGEO**；差异化钉死在 **可验证工单 + 交付包 + 中文矩阵 + 可选内容工作台**，避免做成第三个「只看排名的 $99 监控工具」。
 
 ---
 

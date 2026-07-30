@@ -1,6 +1,6 @@
 <div align="center">
 
-# Geo**Look**
+# Disvor**AI**
 
 **Open-source, self-hosted platform for end-to-end GEO implementation**
 
@@ -12,9 +12,9 @@ English · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 ![Product demo](docs/demo.en.gif)
 
-🌐 [Website geolook.cc](https://geolook.cc) · 🔍 [Live demo (read-only)](https://geolook.cc/demo/) · 📹 [HD demo video (mp4)](docs/demo.en.mp4) · 🖼 [All screenshots](docs/screenshots-en/)
+🌐 [Website disvorai.cc](https://disvorai.cc) · 🔍 [Live demo (read-only)](https://disvorai.cc/demo/) · 📹 [HD demo video (mp4)](docs/demo.en.mp4) · 🖼 [All screenshots](docs/screenshots-en/)
 
-<sub>Mirror while DNS propagates: [geolook.cc](https://geolook.cc) · [demo](https://geolook.cc/demo/)</sub>
+<sub>Mirror while DNS propagates: [disvorai.cc](https://disvorai.cc) · [demo](https://disvorai.cc/demo/)</sub>
 
 </div>
 
@@ -24,7 +24,7 @@ English · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 More and more users ask AI directly — "best tools for X", "X vs Y, which one". If your brand:
 
-| Problem | What GeoLook gives you |
+| Problem | What DisvorAI gives you |
 |---|---|
 | **AI never mentions you** — you're not in the candidate set for category questions | Samples real answers engine by engine; quantifies mention rate / rank / citation share; diagnoses "absent" vs "competitor-dominated" |
 | **You don't know why** — AI is a black box | 6-dimension site audit + gap diagnosis: uncrawlable pages? missing extraction blocks? absent from the channels AI actually cites? inconsistent messaging? |
@@ -57,9 +57,9 @@ Four stages plus operations, all in one self-hosted dashboard:
 
 ## 3. How it differs from other GEO tools
 
-Most GEO products are **monitoring SaaS**: they show mention rates and rankings, charge monthly, and keep your data in their cloud. GeoLook is an **implementation platform**:
+Most GEO products are **monitoring SaaS**: they show mention rates and rankings, charge monthly, and keep your data in their cloud. DisvorAI is an **implementation platform**:
 
-| | Typical GEO monitoring SaaS | GeoLook |
+| | Typical GEO monitoring SaaS | DisvorAI |
 |---|---|---|
 | **Loop depth** | Monitor + advise | Monitor → diagnose → **tickets → assets → auto-verify → deliver** |
 | **Verification** | None (or manual check-off) | Programmatic: re-crawl + next sampling round decide; regressions reopen automatically |
@@ -84,8 +84,8 @@ Honest limits: single-machine tool, no accounts or team collaboration; sampling 
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/aigclink/geolook.git
-cd geolook
+git clone https://github.com/aigclink/disvorai.git
+cd disvorai
 pip3 install requests beautifulsoup4 lxml
 
 # 2. Start the dashboard (opens your browser)
@@ -159,7 +159,7 @@ Every command has `--help`.
 
 **Q: AI answers differ every time — how can sampling results be stable?**
 
-A single AI answer is inherently stochastic, so GeoLook **never reads a single answer** as a metric. Stability comes from four layers:
+A single AI answer is inherently stochastic, so DisvorAI **never reads a single answer** as a metric. Stability comes from four layers:
 
 1. **Aggregation** — mention rate and friends are ratios over dozens of questions × multiple engines; per-question jitter averages out.
 2. **Fixed variables** — each engine's sampling model is pinned (visible and changeable in Settings), the question bank is fixed, and the same set is reused across rounds; the only thing that changes is time.
@@ -205,7 +205,7 @@ docs/             Screenshots and the 40-second demo video
 
 ## Contact
 
-Questions, ideas or collaboration — email [bingqiang2008@gmail.com](mailto:bingqiang2008@gmail.com), or open an [issue](https://github.com/aigclink/geolook/issues).
+Questions, ideas or collaboration — email [bingqiang2008@gmail.com](mailto:bingqiang2008@gmail.com), or open an [issue](https://github.com/aigclink/disvorai/issues).
 
 ## License
 

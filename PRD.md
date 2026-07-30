@@ -1,20 +1,20 @@
-# DisvorAI（基于 GeoLook 开源二次开发）产品需求文档 PRD
+# DisvorAI 产品需求文档 PRD
 
 > **版本**：v2.0  
 > **日期**：2026-07-31  
 > **变更**：基于开源代码审查修订；修正能力映射、精简 P0、明确 SSOT 决策、补成本模型  
 > **状态**：可交付 AI 编程助手实现  
 > **产品目录**：`~/project/disvorai`  
-> **开源基线**：`geolook-upstream/`（克隆自 https://github.com/aigclink/geolook, MIT）  
+> **开源基线**：`engine/`（克隆自 https://github.com/aigclink/geolook, MIT，已去品牌化）  
 > **官网参考竞品**：https://www.higeo.ai/  
-> **对比文档**：`higeo-vs-geolook-comparison.md`  
+> **对比文档**：`higeo-vs-disvorai-comparison.md`  
 > **约束**：**所有开发工作基于开源版二次开发**，禁止从零重写核心 GEO 管线；在其之上加多租户 SaaS、商业包装与 HiGEO 级体验。
 
 ---
 
 ## 0. 给实现者的硬约束
 
-1. **开源代码已引入** `geolook-upstream/`，测试全绿（109 tests, 0.056s）。SaaS 层须**调用或包装**现有模块。  
+1. **开源代码已引入** `engine/`，测试全绿（109 tests, 0.056s）。SaaS 层须**调用或包装**现有模块。  
 2. **不要**用全新 stack 重写 sample/audit/plan/verify 逻辑，除非有测试证明行为等价且 PR 明确说明。  
 3. SaaS 层（账号、计费、多租户、调度、API 网关）可新建，但须**直接 import** 现有 Python 模块（`geolib`、`sample`、`audit`、`tasks`、`verify`、`deliver` 等）。  
 4. **SSOT 决策**：文件系统为管线 SSOT（`work/<tenant>/<slug>/`），Postgres 只存索引、元数据和账务。管线产物以 JSON/JSONL 文件为准，DB 存衍生视图，不双写。  
@@ -362,7 +362,7 @@ App
                           ↓
                   [BullMQ/RQ Job Queue (Redis)]
                           ↓
-                  [Python Worker: import geolook-upstream/scripts/*]
+                  [Python Worker: import engine/scripts/*]
                           ↓
                [Filesystem: work/<tenant>/<slug>/]
                [Postgres: auth/billing/project-index/job-meta]
@@ -502,7 +502,7 @@ POST   /billing/subscribe
 |------|------|
 | 采样 API 成本高 | MVP 强制 BYOK；试用有限额 |
 | 答案随机性 | 多问聚合、repeat、文案降级承诺 |
-| 开源快速演进 | upstream 在 geolook-upstream/，定期 git pull + rebase |
+| 开源快速演进 | upstream 在 engine/，定期 git pull + rebase |
 | 品牌/功能撞车 | 产品名 DisvorAI；卖点钉死闭环+CN+交付 |
 | 安全暴露 | 所有 API 需 JWT 认证；work 目录 per-tenant 隔离；Key AES 加密 |
 | fcntl 仅单机 | MVP 单节点 + P1 Redis 锁 |
@@ -513,7 +513,7 @@ POST   /billing/subscribe
 ## 14. 品牌与目录说明
 
 - 工作区文件夹：**disvorai**
-- 开源代码位于：`geolook-upstream/`（作为 git 子目录，不是 submodule）
+- 开源代码位于：`engine/`（已去品牌化，作为 git 子目录）
 - 商业产品名：**DisvorAI**
 - 避免使用已冲突品牌：GeoForge / GEOforge
 
