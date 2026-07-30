@@ -92,3 +92,19 @@ def test_trial_sample_limit_is_per_project(billing_client, monkeypatch):
     assert blocked.status_code == 403
     assert blocked.json()["error"] == "trial_limit_exceeded"
 
+
+def test_subscribe_upgrades_plan_and_opens_limits(billing_client):
+    client, _ = billing_client
+    headers = _register(client, "owner@example.com")
+    plans = client.get("/api/v1/billing/plans")
+    assert plans.status_code == 200
+    assert {plan["code"] for plan in plans.json()["plans"]} == {"pro", "agency", "enterprise"}
+
+    subscribed = client.post("/api/v1/billing/subscribe", headers=headers, json={"plan": "pro"})
+    assert subscribed.status_code == 200
+    assert subscribed.json()["plan"] == "pro"
+    assert subscribed.json()["payment"] == "mock"
+    usage = client.get("/api/v1/billing/usage", headers=headers)
+    assert usage.json()["plan"] == "pro"
+    assert usage.json()["projects_limit"] is None
+    assert usage.json()["sample_runs_limit_per_project"] is None
