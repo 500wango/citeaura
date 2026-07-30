@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.env.*
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+work
+deploy/certs
+*.db
+*.sqlite*
+
