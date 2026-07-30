@@ -94,7 +94,11 @@ def inject_keys(keys: dict | None):
 @contextmanager
 def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = None):
     """在租户隔离、Key 注入和异常转换上下文中运行引擎代码。"""
-    tenant_slug = _valid_slug(str(tenant_id), "tenant")
+    raw_tenant = str(tenant_id or "")
+    if "/" in raw_tenant or "\\" in raw_tenant or ".." in raw_tenant:
+        raise ValueError(f"invalid tenant slug: {raw_tenant!r}")
+    tenant_slug = geolib.slugify(raw_tenant)
+    tenant_slug = _valid_slug(tenant_slug, "tenant")
     project_slug = _valid_slug(project_slug, "project")
     previous_die = patch_die()
     previous_root, previous_work = patch_paths(tenant_slug, project_slug)
