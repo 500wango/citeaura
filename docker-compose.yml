@@ -49,8 +49,7 @@ services:
     <<: *app
     command: >-
       sh -c "pip install --no-cache-dir -r requirements.txt &&
-      celery --broker=$${REDIS_URL} worker --loglevel=INFO"
+      celery -A api.worker.celery_app worker --loglevel=INFO"
 
 volumes:
   postgres_data:
-
