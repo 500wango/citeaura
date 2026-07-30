@@ -1,12 +1,15 @@
 """项目 CRUD、Bootstrap 和任务查询 API。"""
 
+import io
 import re
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
@@ -15,7 +18,7 @@ from api.adapters.exceptions import GeoEngineError
 from api.auth.deps import get_current_user
 from api.db import get_db
 from api.models import Job, Project, Tenant, User
-from api.worker.tasks import task_bootstrap, task_sample, task_verify
+from api.worker.tasks import task_bootstrap, task_deliver, task_sample, task_verify
 
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
@@ -438,3 +441,70 @@ def verify_history(project_id: int, current_user: User = Depends(get_current_use
         files = sorted(directory.glob("*.json"), key=engine_verify.report_key) if directory.exists() else []
         history = [geolib.read_json(path, {}) for path in files]
     return {"history": history}
+
+
+@router.post("/{project_id}/deliver", status_code=status.HTTP_202_ACCEPTED)
+def deliver_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """投递客户交付包生成任务。"""
+    project = _project_for_user(db, current_user, project_id)
+    if _active_job(db, project.id, "deliver") is not None:
+        _error(status.HTTP_409_CONFLICT, "project_delivery_already_running")
+    job = Job(project_id=project.id, action="deliver", status="queued")
+    db.add(job)
+    project.status = "delivering"
+    db.commit()
+    db.refresh(job)
+    tenant = _tenant_for_user(db, current_user)
+    try:
+        task = task_deliver.delay(tenant.name, project.slug, job_id=job.id)
+        job.log_path = f"celery://{task.id}"
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        job.status = "failed"
+        job.error = f"{type(exc).__name__}: {exc}"
+        job.finished_at = datetime.now(timezone.utc)
+        project.status = "failed"
+        db.commit()
+        _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
+    return {"job_id": job.id, "project_id": project.id, "status": project.status}
+
+
+@router.get("/{project_id}/deliveries")
+def deliveries(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """返回已生成的交付日期列表。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.name, project.slug):
+        directory = geolib.project_dir(project.slug) / "delivery"
+        dates = sorted((item.name for item in directory.iterdir() if item.is_dir()), reverse=True) \
+            if directory.exists() else []
+    return {"deliveries": dates}
+
+
+@router.get("/{project_id}/deliveries/{delivery_date}")
+def download_delivery(
+    project_id: int,
+    delivery_date: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """把指定交付目录打成 zip 下载。"""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", delivery_date):
+        _error(status.HTTP_400_BAD_REQUEST, "invalid_delivery_date")
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.name, project.slug):
+        directory = geolib.project_dir(project.slug) / "delivery" / delivery_date
+        if not directory.is_dir():
+            _error(status.HTTP_404_NOT_FOUND, "delivery_not_found")
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            for file_path in sorted(directory.rglob("*")):
+                if file_path.is_file():
+                    bundle.write(file_path, file_path.relative_to(directory).as_posix())
+    archive.seek(0)
+    return StreamingResponse(
+        archive,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="delivery-{delivery_date}.zip"'},
+    )

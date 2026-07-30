@@ -1,6 +1,7 @@
 import json
 import sys
 import types
+import zipfile
 from contextlib import contextmanager
 
 import pytest
@@ -185,6 +186,22 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     verified = client.post(f"/api/v1/projects/{body['project_id']}/verify", headers=headers)
     assert verified.status_code == 202
     assert verified.json()["job_id"] == 3
+
+    (project_dir / "delivery" / "2026-07-31").mkdir(parents=True, exist_ok=True)
+    (project_dir / "delivery" / "2026-07-31" / "index.html").write_text("<h1>Delivery</h1>", "utf-8")
+    deliveries = client.get(f"/api/v1/projects/{body['project_id']}/deliveries", headers=headers)
+    assert deliveries.status_code == 200
+    assert deliveries.json()["deliveries"] == ["2026-07-31"]
+    monkeypatch.setattr(project_router.task_deliver, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-4"))
+    delivered = client.post(f"/api/v1/projects/{body['project_id']}/deliver", headers=headers)
+    assert delivered.status_code == 202
+    assert delivered.json()["job_id"] == 4
+    archive = client.get(f"/api/v1/projects/{body['project_id']}/deliveries/2026-07-31", headers=headers)
+    assert archive.status_code == 200
+    assert archive.headers["content-type"] == "application/zip"
+    import io
+    with zipfile.ZipFile(io.BytesIO(archive.content)) as bundle:
+        assert bundle.namelist() == ["index.html"]
 
     jobs = client.get(f"/api/v1/projects/{body['project_id']}/jobs", headers=headers)
     assert jobs.status_code == 200
