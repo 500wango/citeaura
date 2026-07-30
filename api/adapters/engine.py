@@ -91,6 +91,21 @@ def inject_keys(keys: dict | None):
                 os.environ[env_name] = old_value
 
 
+def load_tenant_keys(db, tenant_id):
+    """从数据库解密当前租户的 Key，供 worker 注入环境变量。"""
+    from api.models import ApiKey, Tenant
+    from api.settings.crypto import decrypt_key
+
+    try:
+        tenant = db.get(Tenant, int(tenant_id))
+    except (TypeError, ValueError):
+        tenant = db.query(Tenant).filter(Tenant.name == str(tenant_id)).first()
+    if tenant is None:
+        return {}
+    rows = db.query(ApiKey).filter(ApiKey.tenant_id == tenant.id).all()
+    return {row.engine_code: decrypt_key(row.encrypted_value) for row in rows}
+
+
 @contextmanager
 def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = None):
     """在租户隔离、Key 注入和异常转换上下文中运行引擎代码。"""

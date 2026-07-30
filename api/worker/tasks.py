@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from api.adapters.engine import with_tenant_context
+from api.adapters.engine import load_tenant_keys, with_tenant_context
 from api.db import SessionLocal
 from api.models import Job, Project, Tenant
 from api.worker.celery_app import celery_app
@@ -42,6 +42,18 @@ def _find_job(db, tenant_id, project_slug, action, job_id):
         .order_by(Job.id.desc())
         .first()
     )
+
+
+def _engine_keys(tenant_id):
+    """读取租户 Key；直接调用任务且没有数据库时降级为空集合。"""
+    db = SessionLocal()
+    try:
+        return load_tenant_keys(db, tenant_id)
+    except SQLAlchemyError:
+        db.rollback()
+        return {}
+    finally:
+        db.close()
 
 
 @contextmanager
@@ -92,7 +104,7 @@ def task_bootstrap(tenant_id: str, project_slug: str, skip_llm: bool = False, jo
     import bootstrap
 
     with _job_status(tenant_id, project_slug, "bootstrap", job_id):
-        with with_tenant_context(str(tenant_id), project_slug):
+        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             return bootstrap.run(project_slug, skip_llm=skip_llm)
 
 
@@ -102,7 +114,7 @@ def task_sample(tenant_id: str, project_slug: str, limit: int | None = None, job
     import sample
 
     with _job_status(tenant_id, project_slug, "sample", job_id):
-        with with_tenant_context(str(tenant_id), project_slug):
+        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             return sample.run(project_slug, limit=limit)
 
 
@@ -113,7 +125,7 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
 
     args = SimpleNamespace(slug=project_slug, max_pages=None, limit=None)
     with _job_status(tenant_id, project_slug, "cycle", job_id):
-        with with_tenant_context(str(tenant_id), project_slug):
+        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             geo.cmd_cycle(args)
             return {"status": "done", "project_slug": project_slug}
 
@@ -124,7 +136,7 @@ def task_verify(tenant_id: str, project_slug: str, job_id=None):
     import verify
 
     with _job_status(tenant_id, project_slug, "verify", job_id):
-        with with_tenant_context(str(tenant_id), project_slug):
+        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             return verify.run(project_slug)
 
 
@@ -134,5 +146,5 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
     import deliver
 
     with _job_status(tenant_id, project_slug, "deliver", job_id):
-        with with_tenant_context(str(tenant_id), project_slug):
+        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             return str(deliver.run(project_slug))
