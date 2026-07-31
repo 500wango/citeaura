@@ -154,6 +154,13 @@ FETCH_ADAPTER = r"""
           data.analytics = data.analytics || {};
           data.analytics.engines = engineData.engines || [];
         }
+        const framingResponse = await nativeFetch('/api/v1/projects/' + id + '/framing', init);
+        if (framingResponse.ok) {
+          const framingData = await framingResponse.json();
+          data.framing = framingData.framing || {};
+        } else {
+          data.framing = {status:'error'};
+        }
       }
       return response(data, r.status);
     }
@@ -436,6 +443,66 @@ async function createOffsiteTicket() {
   toast('Offsite 工单已创建');
   await load(SLUG, true);
 }
+
+Object.assign(UI_D.en, {
+  'AI 如何描述你':'How AI describes you',
+  '基于品牌被实际提及的回答短语，词频按样本去重。':'Based on phrases from answers that actually mention the brand. Counts are deduplicated per sample.',
+  '暂无采样，完成一期采样后这里会显示品牌印象。':'No samples yet. Run a sampling cycle to see brand framing.',
+  '本期回答没有主动提及品牌，暂无可提取的描述。':'The brand was not mentioned this round, so no framing can be extracted.',
+  '本期提到了品牌，但没有匹配到明确的描述关系。':'The brand was mentioned, but no explicit descriptive phrasing was found.',
+  '品牌印象加载失败，请刷新后重试。':'Brand framing failed to load. Refresh and try again.',
+  '原文证据':'Source evidence'
+});
+Object.assign(UI_D.ja, {
+  'AI 如何描述你':'AI によるブランドの説明',
+  '基于品牌被实际提及的回答短语，词频按样本去重。':'ブランドが実際に言及された回答の表現を使用し、頻度はサンプル単位で重複排除します。',
+  '暂无采样，完成一期采样后这里会显示品牌印象。':'サンプルはまだありません。サンプリング後にブランド表現が表示されます。',
+  '本期回答没有主动提及品牌，暂无可提取的描述。':'今回はブランドへの言及がなく、抽出できる表現はありません。',
+  '本期提到了品牌，但没有匹配到明确的描述关系。':'ブランドへの言及はありましたが、明確な説明表現は見つかりませんでした。',
+  '品牌印象加载失败，请刷新后重试。':'ブランド表現を読み込めませんでした。更新して再試行してください。',
+  '原文证据':'原文の根拠'
+});
+
+function framingPanel() {
+  const framing = D.framing || {}, terms = framing.terms || [];
+  const empty = {
+    no_samples:'暂无采样，完成一期采样后这里会显示品牌印象。',
+    brand_not_mentioned:'本期回答没有主动提及品牌，暂无可提取的描述。',
+    no_descriptors:'本期提到了品牌，但没有匹配到明确的描述关系。',
+    error:'品牌印象加载失败，请刷新后重试。'
+  }[framing.status] || '暂无采样，完成一期采样后这里会显示品牌印象。';
+  const maximum = Math.max(1, ...terms.map(function (item) { return item.count || 0; }));
+  return `<section style="margin-top:24px;padding-top:22px;box-shadow:inset 0 1px 0 var(--line)">
+    <h4 style="font-size:16px;margin:0 0 5px">AI 如何描述你</h4>
+    <p class="muted" style="font-size:12px;margin:0 0 14px">基于品牌被实际提及的回答短语，词频按样本去重。${framing.date?` 数据 ${esc(framing.date)}，${framing.mentioned_samples||0} 条提及样本。`:''}</p>
+    ${terms.length?`<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:88px">
+      ${terms.map(function (item, index) {
+        const size = 13 + Math.round(8 * (item.count || 0) / maximum);
+        return `<button class="btn btn-ghost" style="max-width:100%;padding:6px 9px;font-size:${size}px;overflow-wrap:anywhere" onclick="showFramingEvidence(${index})">
+          ${esc(item.term)} <span class="muted" style="font-size:10px">${item.count}</span></button>`;
+      }).join('')}</div>`:`<div style="padding:16px;border:1px solid var(--line);border-radius:var(--r-md);font-size:12.5px;color:var(--t500)">${empty}</div>`}
+  </section>`;
+}
+
+function showFramingEvidence(index) {
+  const item = (((D.framing || {}).terms) || [])[index];
+  if (!item) return;
+  modal(`<h4 style="font-size:17px">${esc(item.term)}</h4>
+    <p class="muted" style="font-size:12px;margin:5px 0 12px">${item.count} 条样本，${(item.engines || []).map(esc).join(' / ')}</p>
+    <div style="font-size:12px;color:var(--t500);margin-bottom:5px">原文证据</div>
+    ${(item.evidence || []).map(function (evidence) { return `<div style="padding:11px 0;box-shadow:inset 0 -1px 0 var(--line)">
+      <div class="row" style="gap:6px;margin-bottom:5px"><span class="tag tag-outline">${esc(evidence.platform_name)}</span><span class="tag tag-neutral">${esc(evidence.sampling_mode)}</span></div>
+      <div style="font-size:12px;color:var(--t500);margin-bottom:4px">${esc(evidence.question || '')}</div>
+      <div style="font-size:13px;line-height:1.65;color:var(--t300)">${esc(evidence.excerpt || '')}</div></div>`; }).join('')}
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn btn-primary" onclick="closeModal()">关闭</button></div>`);
+}
+
+const engineCompetitorsView = vCompetitors;
+vCompetitors = function () {
+  const html = engineCompetitorsView();
+  const anchor = '<div class="tabs" style="margin-top:18px">';
+  return html.replace(anchor, framingPanel() + anchor);
+};
 
 const engineTaskModal = taskModal;
 taskModal = function (id) {

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from api.adapters.engine import geolib, job_log_path, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import workspace
+from api.adapters import framing, workspace
 from api.auth.deps import get_current_user
 from api.billing.limits import check_project_creation, check_sample_run
 from api.db import get_db
@@ -530,6 +530,16 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
             "人工·网页端" if manual else ("API·联网" if item.get("searched") else "API·参数化")
         )
     return {"date": metrics.get("date") if metrics else None, "engines": engines}
+
+
+@router.get("/{project_id}/framing")
+def project_framing(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """返回最新采样中 AI 对品牌的描述短语和原文证据。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.name, project.slug):
+        result = framing.build(project.slug)
+    return {"framing": result}
 
 
 @router.get("/{project_id}/samples/{sample_date}")

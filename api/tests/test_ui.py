@@ -82,11 +82,19 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "URL.createObjectURL(await result.blob())" in response.text
     assert "采样为手动触发或由 schedule 驱动" in response.text
     assert "/api/v1/projects/' + id + '/schedule" in response.text
+    assert "/api/v1/projects/' + id + '/framing" in response.text
     assert "Object.keys(updates).length === 1" in response.text
     assert "delete updates.monitor" in response.text
     assert "周期复跑" in response.text
     assert "async function setMonitor(days)" in response.text
     assert "由后台调度自动跑完整一期" in response.text
+    assert "function framingPanel()" in response.text
+    assert "function showFramingEvidence(index)" in response.text
+    assert "const engineCompetitorsView = vCompetitors" in response.text
+    assert "AI 如何描述你" in response.text
+    assert "基于品牌被实际提及的回答短语，词频按样本去重。" in response.text
+    assert "品牌印象加载失败，请刷新后重试。" in response.text
+    assert "原文证据" in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text
     assert "后台任务队列执行" in response.text

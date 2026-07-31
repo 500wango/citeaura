@@ -142,7 +142,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
                 "sample_mode": "api",
                 "search_enabled": False,
                 "question": "What is Example?",
-                "answer": "Example is a product.",
+                "answer": "Example is a reliable AI visibility platform.",
                 "elapsed_ms": 12,
                 "analysis": {
                     "brand_mentioned": True,
@@ -184,7 +184,11 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert modes == {"deepseek": "API·参数化", "chatgpt": "人工·网页端"}
     samples = client.get(f"/api/v1/projects/{body['project_id']}/samples/2026-07-31", headers=headers)
     assert samples.status_code == 200
-    assert samples.json()["samples"][0]["answer"] == "Example is a product."
+    assert samples.json()["samples"][0]["answer"] == "Example is a reliable AI visibility platform."
+    framing = client.get(f"/api/v1/projects/{body['project_id']}/framing", headers=headers)
+    assert framing.status_code == 200
+    assert framing.json()["framing"]["terms"][0]["term"] == "reliable AI visibility platform"
+    assert framing.json()["framing"]["terms"][0]["evidence"][0]["sampling_mode"] == "API·参数化"
 
     monkeypatch.setattr(project_router.task_sample, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-2"))
     sampled = client.post(
@@ -305,6 +309,8 @@ def test_project_isolation_and_duplicate_rejection(project_client, monkeypatch):
     assert hidden.status_code == 404
     hidden_status = client.get(f"/api/v1/projects/{created.json()['project_id']}/status", headers=other_headers)
     assert hidden_status.status_code == 404
+    hidden_framing = client.get(f"/api/v1/projects/{created.json()['project_id']}/framing", headers=other_headers)
+    assert hidden_framing.status_code == 404
     assert client.get("/api/v1/projects", headers=other_headers).json()["projects"] == []
 
 
