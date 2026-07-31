@@ -40,7 +40,20 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert 'Geo<span style="color:var(--accent)">Look</span>' not in response.text
     assert "/api/v1/auth/login" in response.text
     assert "/api/v1/auth/refresh" in response.text
+    assert "/api/v1/auth/logout" in response.text
+    assert "/api/v1/auth/password/forgot" in response.text
+    assert "/api/v1/auth/password/reset" in response.text
     assert "async function refreshAccessToken()" in response.text
+    assert "data-auth-mode=\"login\"" in response.text
+    assert "data-auth-mode=\"register\"" in response.text
+    assert "name=\"tenant_name\"" in response.text
+    assert "name=\"confirm_password\"" in response.text
+    assert "const resetToken = new URLSearchParams(location.search).get('reset_token')" in response.text
+    assert "email_already_registered:'该邮箱已注册，请切换到登录。'" in response.text
+    assert "if (!registered.result.ok)" in response.text
+    assert "if (!r.ok) {\n        const registration" not in response.text
+    assert "id = 'disvorai-logout'" in response.text
+    assert "window.disvoraiLogout = logout" in response.text
     assert "const rawFetch = window.fetch.bind(window)" in response.text
     assert "/api/v1/projects" in response.text
     assert "/api/v1/settings/keys" in response.text

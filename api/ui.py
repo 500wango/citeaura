@@ -85,6 +85,7 @@ FETCH_ADAPTER = r"""
   let configuredKeyCount = 0;
   let refreshRequest = null;
   const invitationToken = new URLSearchParams(location.search).get('invite') || '';
+  const resetToken = new URLSearchParams(location.search).get('reset_token') || '';
   const keyCatalog = [
     {code:'glm', label:'智谱GLM', market:'cn', env:'ZHIPUAI_API_KEY', search:false},
     {code:'doubao', label:'豆包(方舟API)', market:'cn', env:'ARK_API_KEY', search:true},
@@ -167,46 +168,181 @@ FETCH_ADAPTER = r"""
     (data.projects || []).forEach(function (p) { projectIds.set(p.slug, p.id); });
   }
 
+  const authStyles = `
+    #disvorai-login{position:fixed;inset:0;z-index:9999;background:#161826;display:grid;place-items:center;padding:24px;overflow:auto;font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#e9e9ed}
+    #disvorai-login *{box-sizing:border-box}
+    .disvorai-auth-card{width:min(420px,100%);padding:28px;background:#232532;border:1px solid #343747;border-radius:8px;box-shadow:0 18px 60px #0008}
+    .disvorai-auth-brand{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px}
+    .disvorai-auth-brand strong{font-size:20px;font-weight:600;letter-spacing:0}
+    .disvorai-auth-kicker{font-size:11px;letter-spacing:0;text-transform:uppercase;color:#858aa1}
+    .disvorai-auth-copy{margin:0 0 18px;color:#b2b6ca;font-size:13px;line-height:1.55}
+    .disvorai-auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin:0 0 18px;padding:3px;background:#1b1d2b;border:1px solid #3d4151;border-radius:6px}
+    .disvorai-auth-tabs button{border:0;border-radius:4px;background:transparent;color:#9da2b7;padding:9px 8px;font:600 12.5px system-ui;cursor:pointer}
+    .disvorai-auth-tabs button[aria-selected="true"]{background:#393449;color:#eeeaff;box-shadow:0 0 0 1px #6d5fb0}
+    .disvorai-auth-field{display:block;margin:0 0 13px;color:#bfc3d2;font-size:12px}
+    .disvorai-auth-field input{display:block;width:100%;margin-top:5px;padding:10px 11px;background:#1b1d2b;color:#e9e9ed;border:1px solid #595d6c;border-radius:6px;font:14px system-ui}
+    .disvorai-auth-field input:focus{outline:2px solid #7e71c5;outline-offset:1px;border-color:#a69be6}
+    .disvorai-auth-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 0 15px}
+    .disvorai-auth-link{border:0;background:transparent;color:#a69be6;padding:3px 0;font:12px system-ui;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+    .disvorai-auth-submit{display:block;width:100%;padding:10px 12px;background:#9184d9;color:#161826;border:0;border-radius:6px;font:600 13px system-ui;cursor:pointer}
+    .disvorai-auth-submit:hover{background:#a69be6}
+    .disvorai-auth-submit:disabled{cursor:wait;opacity:.55}
+    .disvorai-auth-message{min-height:20px;margin:12px 0 0;font-size:12px;line-height:1.5}
+    .disvorai-auth-message[data-kind="error"]{color:#f09a9a}
+    .disvorai-auth-message[data-kind="success"]{color:#9fd5b2}
+    .disvorai-auth-message[data-kind="info"]{color:#b2b6ca}
+    .disvorai-auth-footer{margin:16px 0 0;text-align:center;color:#747a92;font-size:11px}
+    @media (max-width:480px){#disvorai-login{padding:14px}.disvorai-auth-card{padding:22px 18px}.disvorai-auth-actions{align-items:flex-start;flex-direction:column}.disvorai-auth-link{padding:0}}
+  `;
+
+  function authErrorMessage(data, statusCode, action) {
+    const raw = (data && (data.error || (data.detail && data.detail.error) || data.detail)) || '';
+    const messages = {
+      invalid_credentials:'邮箱或密码不正确。', email_already_registered:'该邮箱已注册，请切换到登录。',
+      invitation_invalid:'邀请链接无效或已失效。', invitation_already_accepted:'该邀请已被接受。', invitation_expired:'邀请链接已过期。',
+      invitation_email_mismatch:'注册邮箱必须与邀请邮箱一致。', password_reset_token_invalid:'重置链接无效或已过期，请重新申请。',
+      no_tenant_membership:'该账号暂未加入工作区。', rate_limited:'操作过于频繁，请稍后再试。'
+    };
+    if (messages[raw]) return messages[raw];
+    if (Array.isArray(raw)) return raw.map(function (item) { return item.msg || item.message || ''; }).filter(Boolean).join('；') || '请检查输入。';
+    if (statusCode === 429) return messages.rate_limited;
+    return action === 'login' ? '登录失败，请检查邮箱和密码。' : action === 'register' ? '注册失败，请检查填写的信息。' : '操作失败，请稍后再试。';
+  }
+
+  async function authJson(url, body) {
+    const result = await rawFetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data = await result.json().catch(function () { return {}; });
+    return {result:result,data:data};
+  }
+
+  function clearAuthQuery() {
+    history.replaceState({}, '', location.pathname + location.hash);
+  }
+
+  async function acceptInvitationWithToken(token, accessToken) {
+    if (!token) return {access_token:accessToken};
+    const accepted = await rawFetch('/api/v1/team/invitations/accept', {
+      method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer ' + accessToken},
+      body:JSON.stringify({token:token})
+    });
+    const data = await accepted.json().catch(function () { return {}; });
+    return {result:accepted,data:data,access_token:data.access_token || accessToken};
+  }
+
   function showLogin() {
-    if (loginShown || localStorage.getItem('disvorai_access_token')) return;
+    if (loginShown || (localStorage.getItem('disvorai_access_token') && !resetToken)) return;
     loginShown = true;
     const box = document.createElement('div');
     box.id = 'disvorai-login';
-    box.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#161826;display:grid;place-items:center;font:15px system-ui;color:#e9e9ed';
-    box.innerHTML = '<form style="width:min(360px,calc(100% - 40px));padding:28px;background:#232532;border-radius:8px;box-shadow:0 6px 18px #0008">' +
-      '<h2 style="margin:0 0 8px;color:#e9e9ed">DisvorAI</h2><p style="color:#b2b6ca;margin:0 0 18px">' + (invitationToken ? 'Accept workspace invitation' : 'Sign in or create your workspace') + '</p>' +
-      '<label>Email<input name="email" type="email" required style="display:block;width:100%;margin:5px 0 12px;padding:9px;background:#1b1d2b;color:#e9e9ed;border:1px solid #595d6c;border-radius:6px"></label>' +
-      '<label>Password<input name="password" type="password" minlength="8" required style="display:block;width:100%;margin:5px 0 16px;padding:9px;background:#1b1d2b;color:#e9e9ed;border:1px solid #595d6c;border-radius:6px"></label>' +
-      '<button style="width:100%;padding:9px;background:#9184d9;color:#161826;border:0;border-radius:6px;cursor:pointer">Continue</button>' +
-      '<p data-error style="color:#e88;margin:12px 0 0"></p></form>';
+    if (!document.getElementById('disvorai-auth-styles')) {
+      const style = document.createElement('style');
+      style.id = 'disvorai-auth-styles';
+      style.textContent = authStyles;
+      document.head.appendChild(style);
+    }
     document.body.appendChild(box);
-    box.querySelector('form').addEventListener('submit', async function (event) {
+    let mode = resetToken ? 'reset' : 'login';
+    let busy = false;
+    let message = resetToken ? {kind:'info',text:'请输入新密码。'} : null;
+    let savedEmail = '';
+
+    function setMessage(kind, text) { message = text ? {kind:kind,text:text} : null; }
+    function renderAuth() {
+      const invitationCopy = invitationToken ? '你正在接受工作区邀请。已有账号请选择登录，新账号请选择注册。' : '登录后查看项目报告，或创建一个新的工作区。';
+      const isReset = mode === 'reset', isForgot = mode === 'forgot', isRegister = mode === 'register';
+      const title = isReset ? '设置新密码' : isForgot ? '找回密码' : isRegister ? '创建工作区' : '登录 DisvorAI';
+      const copy = isReset ? '设置完成后，之前的登录会话将失效。' : isForgot ? '输入账号邮箱，我们会发送重置链接。' : (isRegister ? invitationCopy : (invitationToken ? invitationCopy : '登录后查看项目报告，或创建一个新的工作区。'));
+      const tabs = (!isReset && !isForgot) ? `<div class="disvorai-auth-tabs" role="tablist" aria-label="认证模式">
+        <button type="button" data-auth-mode="login" role="tab" aria-selected="${mode==='login'}">登录</button>
+        <button type="button" data-auth-mode="register" role="tab" aria-selected="${isRegister}">注册</button></div>` : '';
+      let fields = '';
+      if (isReset) fields = `<label class="disvorai-auth-field">新密码<input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
+        <label class="disvorai-auth-field">确认新密码<input name="confirm_password" type="password" minlength="8" autocomplete="new-password" required></label>`;
+      else {
+        fields += '<label class="disvorai-auth-field">邮箱<input name="email" type="email" autocomplete="email" required></label>';
+        if (isRegister) fields += invitationToken ? '<div class="disvorai-auth-field" style="padding:9px 10px;border:1px solid #3d4151;border-radius:6px;background:#1b1d2b;color:#9da2b7">邀请将加入已有工作区</div>' : '<label class="disvorai-auth-field">工作区名称<input name="tenant_name" type="text" minlength="2" maxlength="128" autocomplete="organization" required></label>';
+        if (!isForgot) fields += `<label class="disvorai-auth-field">密码<input name="password" type="password" minlength="8" autocomplete="${isRegister?'new-password':'current-password'}" required></label>`;
+        if (isRegister) fields += '<label class="disvorai-auth-field">确认密码<input name="confirm_password" type="password" minlength="8" autocomplete="new-password" required></label>';
+      }
+      const actions = isReset ? '<button type="button" class="disvorai-auth-link" data-auth-mode="login">返回登录</button>' : isForgot ? '<button type="button" class="disvorai-auth-link" data-auth-mode="login">返回登录</button>' : (mode==='login' ? '<button type="button" class="disvorai-auth-link" data-auth-mode="forgot">忘记密码？</button>' : '<span></span>');
+      const submit = isReset ? '更新密码' : isForgot ? '发送重置链接' : isRegister ? '创建账号' : '登录';
+      box.innerHTML = `<div class="disvorai-auth-card" role="dialog" aria-labelledby="disvorai-auth-title"><div class="disvorai-auth-brand"><strong id="disvorai-auth-title">${title}</strong><span class="disvorai-auth-kicker">DisvorAI</span></div>
+        <p class="disvorai-auth-copy">${copy}</p>${tabs}<form novalidate>${fields}<div class="disvorai-auth-actions">${actions}</div>
+        <button class="disvorai-auth-submit" type="submit" ${busy?'disabled':''}>${busy?'处理中…':submit}</button>
+        <p class="disvorai-auth-message" data-kind="${message ? message.kind : 'info'}" role="${message && message.kind==='error'?'alert':'status'}"></p></form>
+        <p class="disvorai-auth-footer">你的工作区数据按租户隔离保存</p></div>`;
+      const messageNode = box.querySelector('.disvorai-auth-message');
+      if (message) messageNode.textContent = message.text;
+      box.querySelectorAll('[data-auth-mode]').forEach(function (button) {
+        button.addEventListener('click', function () { if (busy) return; mode = button.getAttribute('data-auth-mode'); setMessage(null, ''); renderAuth(); });
+      });
+      const form = box.querySelector('form');
+      form.addEventListener('submit', handleSubmit);
+      const emailInput = form.querySelector('[name="email"]');
+      if (emailInput) {
+        emailInput.value = savedEmail;
+        emailInput.addEventListener('input', function () { savedEmail = emailInput.value; });
+      }
+      const first = form.querySelector('input');
+      if (first) setTimeout(function () { first.focus(); }, 0);
+    }
+
+    async function handleSubmit(event) {
       event.preventDefault();
-      const email = this.email.value, password = this.password.value;
-      const options = {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:email,password:password})};
-      let r = await nativeFetch('/api/v1/auth/login', options);
-      if (!r.ok) {
-        const registration = {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
-          email:email,password:password,invitation_token:invitationToken || null
-        })};
-        await nativeFetch('/api/v1/auth/register', registration);
-        r = await nativeFetch('/api/v1/auth/login', options);
+      if (busy) return;
+      const form = event.currentTarget;
+      const value = function (name) { const field = form.elements[name]; return field ? String(field.value || '').trim() : ''; };
+      const email = value('email'), password = value('password'), confirmPassword = value('confirm_password');
+      savedEmail = email;
+      if ((mode === 'login' || mode === 'register' || mode === 'forgot') && (!email || !email.includes('@'))) { setMessage('error', '请输入有效的邮箱地址。'); renderAuth(); return; }
+      if ((mode === 'login' || mode === 'register') && password.length < 8) { setMessage('error', '密码至少需要 8 个字符。'); renderAuth(); return; }
+      if ((mode === 'register' || mode === 'reset') && password !== confirmPassword) { setMessage('error', '两次输入的密码不一致。'); renderAuth(); return; }
+      if (mode === 'register' && !invitationToken && value('tenant_name').length < 2) { setMessage('error', '请填写工作区名称。'); renderAuth(); return; }
+      const action = mode;
+      busy = true; setMessage('info', ''); renderAuth();
+      try {
+        if (action === 'forgot') {
+          const answer = await authJson('/api/v1/auth/password/forgot', {email:email});
+          busy = false; setMessage(answer.result.ok ? 'success' : 'error', answer.result.ok ? '如果邮箱已注册，重置链接会发送到你的邮箱。' : authErrorMessage(answer.data, answer.result.status, 'forgot')); renderAuth(); return;
+        }
+        if (action === 'reset') {
+          const answer = await authJson('/api/v1/auth/password/reset', {token:resetToken,password:password});
+          busy = false;
+          if (!answer.result.ok) { setMessage('error', authErrorMessage(answer.data, answer.result.status, 'reset')); renderAuth(); return; }
+          localStorage.removeItem('disvorai_access_token'); projectIds.clear(); clearAuthQuery(); mode = 'login'; setMessage('success', '密码已更新，请使用新密码登录。'); renderAuth(); return;
+        }
+        if (action === 'register') {
+          const registration = {email:email,password:password,tenant_name:invitationToken ? null : value('tenant_name'),invitation_token:invitationToken || null};
+          const registered = await authJson('/api/v1/auth/register', registration);
+          if (!registered.result.ok) { busy = false; setMessage('error', authErrorMessage(registered.data, registered.result.status, 'register')); renderAuth(); return; }
+        }
+        const loggedIn = await authJson('/api/v1/auth/login', {email:email,password:password});
+        if (!loggedIn.result.ok || !loggedIn.data.access_token) { busy = false; setMessage('error', authErrorMessage(loggedIn.data, loggedIn.result.status, 'login')); renderAuth(); return; }
+        let accessToken = loggedIn.data.access_token;
+        if (invitationToken) {
+          const accepted = await acceptInvitationWithToken(invitationToken, accessToken);
+          if (!accepted.result || !accepted.result.ok) { busy = false; setMessage('error', authErrorMessage(accepted.data, accepted.result && accepted.result.status, 'invite')); renderAuth(); return; }
+          accessToken = accepted.access_token;
+        }
+        localStorage.setItem('disvorai_access_token', accessToken); projectIds.clear(); clearAuthQuery(); location.reload();
+      } catch (error) {
+        busy = false; setMessage('error', '网络暂时不可用，请稍后再试。'); renderAuth();
       }
-      if (!r.ok) { this.querySelector('[data-error]').textContent = 'Unable to sign in with these credentials.'; return; }
-      let data = await r.json();
-      if (invitationToken) {
-        const accepted = await nativeFetch('/api/v1/team/invitations/accept', {
-          method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer ' + data.access_token},
-          body:JSON.stringify({token:invitationToken})
-        });
-        if (!accepted.ok) { this.querySelector('[data-error]').textContent = 'Unable to accept this invitation.'; return; }
-        data = await accepted.json();
-      }
-      localStorage.setItem('disvorai_access_token', data.access_token);
-      if (invitationToken) history.replaceState({}, '', location.pathname + location.hash);
-      location.reload();
-    });
+    }
+    renderAuth();
   }
+
+  async function logout() {
+    try { await rawFetch('/api/v1/auth/logout', {method:'POST'}); }
+    finally {
+      localStorage.removeItem('disvorai_access_token');
+      projectIds.clear();
+      configuredKeyCount = 0;
+      refreshRequest = null;
+      location.assign('/app');
+    }
+  }
+  window.disvoraiLogout = logout;
 
   window.fetch = async function (input, init) {
     let url = typeof input === 'string' ? input : input.url;
@@ -635,7 +771,7 @@ FETCH_ADAPTER = r"""
     localStorage.removeItem('disvorai_access_token');
     showLogin();
   }
-  if (!localStorage.getItem('disvorai_access_token')) setTimeout(showLogin, 0);
+  if (resetToken || !localStorage.getItem('disvorai_access_token')) setTimeout(showLogin, 0);
   else if (invitationToken) setTimeout(acceptPendingInvitation, 0);
 })();
 </script>
@@ -644,6 +780,29 @@ FETCH_ADAPTER = r"""
 
 UI_EXTENSION = r"""
 <script>
+function installAccountActions() {
+  const side = document.querySelector('#side'), nav = side && side.querySelector('nav');
+  if (!nav || document.querySelector('#disvorai-logout')) return;
+  const accountGroup = nav.lastElementChild;
+  if (!accountGroup) return;
+  const labels = {zh:'退出登录',en:'Sign out',ja:'ログアウト'};
+  const button = document.createElement('button');
+  button.id = 'disvorai-logout';
+  button.className = 'navit';
+  button.type = 'button';
+  button.setAttribute('aria-label', labels[ULANG] || labels.zh);
+  button.innerHTML = '<span class="mark"></span><span>' + (labels[ULANG] || labels.zh) + '</span>';
+  button.addEventListener('click', function () { button.disabled = true; window.disvoraiLogout(); });
+  accountGroup.appendChild(button);
+}
+
+const engineRenderSideWithAccount = renderSide;
+renderSide = function () {
+  engineRenderSideWithAccount();
+  installAccountActions();
+};
+setTimeout(installAccountActions, 0);
+
 async function downloadDelivery(date) {
   const result = await fetch('/api/delivery-zip/' + encodeURIComponent(SLUG) + '/' + encodeURIComponent(date));
   if (!result.ok) {
