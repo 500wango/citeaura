@@ -1,5 +1,6 @@
 import base64
 import types
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import Job, Project
+from api.models import Job, Project, Tenant
 from api.projects import router as project_router
 
 
@@ -108,3 +109,20 @@ def test_subscribe_upgrades_plan_and_opens_limits(billing_client):
     assert usage.json()["plan"] == "pro"
     assert usage.json()["projects_limit"] is None
     assert usage.json()["sample_runs_limit_per_project"] is None
+
+
+def test_expired_trial_cannot_create_projects(billing_client):
+    client, session_factory = billing_client
+    headers = _register(client, "expired@example.com")
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "expired").one()
+        tenant.trial_ends_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        db.commit()
+
+    blocked = client.post(
+        "/api/v1/projects",
+        headers=headers,
+        json={"url": "expired.example"},
+    )
+    assert blocked.status_code == 403
+    assert blocked.json() == {"error": "trial_limit_exceeded", "detail": "trial has expired"}

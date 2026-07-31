@@ -14,7 +14,7 @@ TRIAL_SAMPLE_LIMIT_PER_PROJECT = 2
 
 
 def _trial_active(tenant: Tenant) -> bool:
-    """判断租户是否仍在试用期；过期试用也按额度拒绝。"""
+    """判断租户是否受试用额度约束；过期试用直接拒绝。"""
     if tenant.plan != "trial":
         return False
     if tenant.trial_ends_at is None:
@@ -22,7 +22,9 @@ def _trial_active(tenant: Tenant) -> bool:
     ends_at = tenant.trial_ends_at
     if ends_at.tzinfo is None:
         ends_at = ends_at.replace(tzinfo=timezone.utc)
-    return datetime.now(timezone.utc) <= ends_at
+    if datetime.now(timezone.utc) > ends_at:
+        _raise_limit("trial has expired")
+    return True
 
 
 def _raise_limit(detail: str):
