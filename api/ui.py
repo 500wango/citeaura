@@ -471,6 +471,11 @@ FETCH_ADAPTER = r"""
         method:'POST', headers:init.headers, body:JSON.stringify({file:body.file,text:body.text})
       });
     }
+    if (url === '/api/delivery-branding') {
+      return nativeFetch('/api/v1/settings/delivery-branding', {
+        method:init.body ? 'PUT' : 'GET', headers:init.headers, body:init.body
+      });
+    }
     return response({error:'legacy_ui_endpoint_not_supported'}, 404);
   };
   async function acceptPendingInvitation() {
@@ -618,17 +623,90 @@ Object.assign(UI_D.en, {
   '团队成员':'Team members','工作区':'Workspace','邀请成员':'Invite member','待接受邀请':'Pending invitations',
   '复制邀请链接':'Copy invitation link','撤销':'Revoke','移除':'Remove','你':'You',
   '所有者':'Owner','编辑者':'Editor','只读成员':'Viewer','邀请链接已创建':'Invitation link created',
-  '团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'Team members use owner, editor, and viewer roles. Invitation links expire after 7 days.'
+  '团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'Team members use owner, editor, and viewer roles. Invitation links expire after 7 days.',
+  '白标交付':'White-label delivery','打印 / PDF 页眉':'Print / PDF header','机构名称':'Organization name',
+  '主题色':'Accent color','页脚文字':'Footer text','启用白标':'Enable white label','选择 Logo':'Choose logo',
+  '移除 Logo':'Remove logo','保存白标设置':'Save branding','Agency 套餐可用':'Available on Agency plan'
 });
 Object.assign(UI_D.ja, {
   '团队成员':'チームメンバー','工作区':'ワークスペース','邀请成员':'メンバーを招待','待接受邀请':'保留中の招待',
   '复制邀请链接':'招待リンクをコピー','撤销':'取り消す','移除':'削除','你':'自分',
   '所有者':'オーナー','编辑者':'編集者','只读成员':'閲覧者','邀请链接已创建':'招待リンクを作成しました',
-  '团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'メンバーは owner、editor、viewer のロールで管理され、招待リンクは 7 日間有効です。'
+  '团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'メンバーは owner、editor、viewer のロールで管理され、招待リンクは 7 日間有効です。',
+  '白标交付':'ホワイトラベル納品','打印 / PDF 页眉':'印刷 / PDF ヘッダー','机构名称':'組織名',
+  '主题色':'アクセントカラー','页脚文字':'フッターテキスト','启用白标':'ホワイトラベルを有効化','选择 Logo':'ロゴを選択',
+  '移除 Logo':'ロゴを削除','保存白标设置':'ブランド設定を保存','Agency 套餐可用':'Agency プランで利用可能'
 });
 
 let TEAM_STATE = null;
+let BRANDING_STATE = null;
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
+
+function deliveryBrandingPanel() {
+  const state = BRANDING_STATE || {}, value = state.branding || {};
+  if (!state.available) return `<h4 style="font-size:16px;margin:28px 0 10px">白标交付</h4>
+    <div class="card elev" style="padding:18px"><div class="row"><div style="flex:1">
+      <div style="font-size:14px;font-weight:500">打印 / PDF 页眉</div>
+      <div style="font-size:12px;color:var(--t600);margin-top:3px">Agency 套餐可用</div></div>
+      <span class="tag tag-outline">${esc(String(state.plan || 'trial').toUpperCase())}</span></div></div>`;
+  const editable = !!state.can_edit, logo = value.logo_data_url || '';
+  return `<h4 style="font-size:16px;margin:28px 0 10px">白标交付</h4>
+    <div class="card elev" style="padding:18px;gap:14px">
+      <div class="row"><div style="flex:1"><div style="font-size:14px;font-weight:500">打印 / PDF 页眉</div></div>
+        <label class="row" style="gap:7px;font-size:12.5px"><input id="delivery-branding-enabled" type="checkbox" ${value.enabled?'checked':''} ${editable?'':'disabled'}>启用白标</label></div>
+      <div class="row" style="align-items:stretch;gap:14px;flex-wrap:wrap">
+        <label style="display:block;flex:1;min-width:220px;font-size:12px;color:var(--t500)">机构名称
+          <input id="delivery-branding-name" class="input" maxlength="120" value="${esc(value.company_name || '')}" ${editable?'':'disabled'} style="margin-top:5px"></label>
+        <label style="display:block;width:130px;font-size:12px;color:var(--t500)">主题色
+          <input id="delivery-branding-color" class="input" type="color" value="${esc(value.accent_color || '#1F4E79')}" ${editable?'':'disabled'} style="margin-top:5px;height:38px;padding:3px"></label>
+      </div>
+      <label style="display:block;font-size:12px;color:var(--t500)">页脚文字
+        <input id="delivery-branding-footer" class="input" maxlength="240" value="${esc(value.footer_text || '')}" ${editable?'':'disabled'} style="margin-top:5px"></label>
+      <div class="row" style="gap:12px;flex-wrap:wrap">
+        <div id="delivery-branding-logo-preview" style="display:grid;place-items:center;width:180px;height:54px;border:1px solid var(--line);background:var(--bg);overflow:hidden">
+          ${logo?`<img src="${esc(logo)}" alt="" style="display:block;max-width:168px;max-height:42px;object-fit:contain">`:'<span class="muted" style="font-size:12px">Logo</span>'}</div>
+        ${editable?`<label class="btn btn-secondary" style="font-size:12px;cursor:pointer">选择 Logo
+          <input type="file" accept="image/png,image/jpeg,image/webp" onchange="setDeliveryBrandingLogo(this)" style="display:none"></label>
+          <button class="btn btn-ghost" style="font-size:12px" onclick="clearDeliveryBrandingLogo()">移除 Logo</button>`:''}
+        ${editable?'<button class="btn btn-primary" style="font-size:12px;margin-left:auto" onclick="saveDeliveryBranding()">保存白标设置</button>':''}
+      </div>
+    </div>`;
+}
+
+function setDeliveryBrandingLogo(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 524288) {
+    toast('Logo 必须是 512KB 内的 PNG、JPEG 或 WebP','err');input.value='';return;
+  }
+  const reader = new FileReader();
+  reader.onload = function () {
+    BRANDING_STATE.branding.logo_data_url = String(reader.result || '');
+    const preview = $('#delivery-branding-logo-preview');
+    if (preview) preview.innerHTML = `<img src="${esc(BRANDING_STATE.branding.logo_data_url)}" alt="" style="display:block;max-width:168px;max-height:42px;object-fit:contain">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearDeliveryBrandingLogo() {
+  if (!BRANDING_STATE || !BRANDING_STATE.branding) return;
+  BRANDING_STATE.branding.logo_data_url = '';
+  const preview = $('#delivery-branding-logo-preview');
+  if (preview) preview.innerHTML = '<span class="muted" style="font-size:12px">Logo</span>';
+}
+
+async function saveDeliveryBranding() {
+  const payload = {
+    enabled:!!($('#delivery-branding-enabled') || {}).checked,
+    company_name:(($('#delivery-branding-name') || {}).value || '').trim(),
+    logo_data_url:((BRANDING_STATE.branding || {}).logo_data_url || ''),
+    accent_color:(($('#delivery-branding-color') || {}).value || '#1F4E79'),
+    footer_text:(($('#delivery-branding-footer') || {}).value || '').trim()
+  };
+  const result = await post('/api/delivery-branding',payload);
+  if (result.error || result.detail) { toast('保存失败：'+(result.error || 'invalid_delivery_branding'),'err'); return; }
+  BRANDING_STATE=result;toast('白标设置已保存');render();
+}
 
 function teamPanel() {
   const state = TEAM_STATE || {}, members = state.members || [], invitations = state.invitations || [];
@@ -716,9 +794,11 @@ async function switchTeamWorkspace(tenantId) {
 const engineSettingsView = VIEWS.settings;
 vSettings = async function () {
   if (!TEAM_STATE) TEAM_STATE = await api('/api/team');
+  if (!BRANDING_STATE) BRANDING_STATE = await api('/api/delivery-branding');
   const html = await engineSettingsView();
   const index = html.lastIndexOf('</div>');
-  return index < 0 ? html + teamPanel() : html.slice(0,index) + teamPanel() + html.slice(index);
+  const panels = deliveryBrandingPanel() + teamPanel();
+  return index < 0 ? html + panels : html.slice(0,index) + panels + html.slice(index);
 };
 VIEWS.settings = vSettings;
 

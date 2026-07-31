@@ -110,6 +110,12 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "VIEWS.settings = vSettings" in response.text
     assert "团队成员按 owner/editor/viewer 分级" in response.text
     assert "成员邀请与角色管理暂未开放" not in response.text
+    assert "/api/v1/settings/delivery-branding" in response.text
+    assert "function deliveryBrandingPanel()" in response.text
+    assert "function setDeliveryBrandingLogo(input)" in response.text
+    assert "function saveDeliveryBranding()" in response.text
+    assert "打印 / PDF 页眉" in response.text
+    assert "Agency 套餐可用" in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text
     assert "后台任务队列执行" in response.text

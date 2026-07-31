@@ -3,6 +3,7 @@
 import shutil
 from pathlib import Path
 
+from api.adapters.branding import apply_delivery_branding
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
 
@@ -71,4 +72,5 @@ def ensure_delivery_contract(project_slug: str, delivery_directory: Path | None 
     ]
     if missing:
         raise GeoEngineError("incomplete delivery: " + ", ".join(missing))
+    apply_delivery_branding(delivery_directory)
     return delivery_directory
