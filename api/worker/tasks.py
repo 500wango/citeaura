@@ -22,11 +22,6 @@ def _tenant_record(db, tenant_id):
 
 def _find_job(db, tenant_id, project_slug, action, job_id):
     """定位 API 预创建的 Job，兼容 worker 直接调用。"""
-    if job_id is not None:
-        try:
-            return db.get(Job, int(job_id))
-        except (TypeError, ValueError):
-            return None
     tenant = _tenant_record(db, tenant_id)
     if tenant is None:
         return None
@@ -36,6 +31,16 @@ def _find_job(db, tenant_id, project_slug, action, job_id):
     ).first()
     if project is None:
         return None
+    if job_id is not None:
+        try:
+            job_id = int(job_id)
+        except (TypeError, ValueError):
+            return None
+        return db.query(Job).filter(
+            Job.id == job_id,
+            Job.project_id == project.id,
+            Job.action == action,
+        ).first()
     return (
         db.query(Job)
         .filter(Job.project_id == project.id, Job.action == action, Job.status.in_(("queued", "running")))

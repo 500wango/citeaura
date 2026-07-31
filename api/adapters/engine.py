@@ -2,6 +2,7 @@
 
 import os
 import sys
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -19,6 +20,7 @@ import geolib  # noqa: E402 - 引擎路径必须先加入 sys.path
 
 
 _MISSING = object()
+_CONTEXT_LOCK = threading.RLock()
 ENGINE_KEY_ENV = {
     "glm": "ZHIPUAI_API_KEY",
     "doubao": "ARK_API_KEY",
@@ -75,11 +77,14 @@ def _environment_name(name: str) -> str:
 @contextmanager
 def inject_keys(keys: dict | None):
     """临时注入 API Key 环境变量，并准确恢复原值。"""
+    updates = {_environment_name(name): value for name, value in (keys or {}).items()}
     previous = {}
-    for name, value in (keys or {}).items():
-        env_name = _environment_name(name)
+    for env_name in set(ENGINE_KEY_ENV.values()) | set(updates):
         previous[env_name] = os.environ.get(env_name, _MISSING)
-        if value is not None:
+        value = updates.get(env_name, _MISSING)
+        if value is _MISSING or value is None:
+            os.environ.pop(env_name, None)
+        else:
             os.environ[env_name] = str(value)
     try:
         yield
@@ -115,12 +120,13 @@ def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = N
     tenant_slug = geolib.slugify(raw_tenant)
     tenant_slug = _valid_slug(tenant_slug, "tenant")
     project_slug = _valid_slug(project_slug, "project")
-    previous_die = patch_die()
-    previous_root, previous_work = patch_paths(tenant_slug, project_slug)
-    try:
-        with inject_keys(keys):
-            yield
-    finally:
-        geolib.die = previous_die
-        geolib.ROOT = previous_root
-        geolib.WORK = previous_work
+    with _CONTEXT_LOCK:
+        previous_die = patch_die()
+        previous_root, previous_work = patch_paths(tenant_slug, project_slug)
+        try:
+            with inject_keys(keys):
+                yield
+        finally:
+            geolib.die = previous_die
+            geolib.ROOT = previous_root
+            geolib.WORK = previous_work
