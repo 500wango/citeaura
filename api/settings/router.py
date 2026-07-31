@@ -74,7 +74,12 @@ def put_key(payload: KeyPayload, current_user: User = Depends(get_current_user),
 def list_keys(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """列出已配置引擎，绝不返回明文。"""
     tenant = _tenant_for_user(db, current_user)
-    rows = db.query(ApiKey).filter(ApiKey.tenant_id == tenant.id).order_by(ApiKey.engine_code).all()
+    rows = (
+        db.query(ApiKey)
+        .filter(ApiKey.tenant_id == tenant.id, ApiKey.engine_code.in_(SUPPORTED_ENGINE_CODES))
+        .order_by(ApiKey.engine_code)
+        .all()
+    )
     items = []
     for row in rows:
         # 只在请求内解密用于掩码，响应和日志都不携带明文。
@@ -101,4 +106,3 @@ def delete_key(engine_code: str, current_user: User = Depends(get_current_user),
     db.delete(row)
     db.commit()
     return {"deleted": True, "engine_code": engine_code}
-

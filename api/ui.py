@@ -43,6 +43,14 @@ FETCH_ADAPTER = r"""
     {code:'claude_web', label:'Claude 网页版（开 Web Search）', market:'global', env:null, search:true, manual:true}
   ];
   const envToCode = Object.fromEntries(keyCatalog.filter(function (k) { return k.env; }).map(function (k) { return [k.env, k.code]; }));
+  const publisherEnvToCode = {
+    GITHUB_TOKEN:'github',
+    WP_USER:'wordpress',
+    WP_APP_PASSWORD:'wordpress',
+    WECHAT_APPID:'wechat_draft',
+    WECHAT_APPSECRET:'wechat_draft',
+    PUBLISH_WEBHOOK_URL:'webhook'
+  };
 
   async function refreshAccessToken() {
     if (!refreshRequest) {
@@ -260,8 +268,26 @@ FETCH_ADAPTER = r"""
       }) : response({error:'project_not_found'}, 404);
     }
     const publishMatch = url.match(/^\/api\/publish\/([^?]+)/);
-    if (publishMatch && !init.body) return response({publishers:[],records:[]});
-    if (publishMatch || url.startsWith('/api/publishcfg/')) return response({ok:false,error:'publishing_not_available_in_mvp'}, 400);
+    if (publishMatch) {
+      const id = projectIds.get(decodeURIComponent(publishMatch[1]));
+      if (!id) return response({error:'project_not_found'}, 404);
+      if (!init.body) return nativeFetch('/api/v1/projects/' + id + '/publishing', init);
+      const body = JSON.parse(init.body), platform = String(body.platform || '');
+      return nativeFetch('/api/v1/projects/' + id + '/publishing/' + encodeURIComponent(platform), {
+        method:'POST', headers:init.headers, body:JSON.stringify({
+          path:body.path, title:body.title || '', confirmed:true
+        })
+      });
+    }
+    const publishConfigMatch = url.match(/^\/api\/publishcfg\/([^?]+)/);
+    if (publishConfigMatch && init.body) {
+      const id = projectIds.get(decodeURIComponent(publishConfigMatch[1]));
+      if (!id) return response({error:'project_not_found'}, 404);
+      const body = JSON.parse(init.body), platform = String(body.platform || '');
+      return nativeFetch('/api/v1/projects/' + id + '/publishing/' + encodeURIComponent(platform), {
+        method:'PUT', headers:init.headers, body:JSON.stringify({config:body.cfg || {}})
+      });
+    }
     if (url === '/api/projects') {
       const r = await nativeFetch('/api/v1/projects', init);
       if (r.status === 401) { localStorage.removeItem('disvorai_access_token'); showLogin(); }
@@ -325,13 +351,29 @@ FETCH_ADAPTER = r"""
     }
     if (url === '/api/keys' && init.body) {
       const updates = JSON.parse(init.body).updates || {};
+      const publisherUpdates = {};
       for (const env of Object.keys(updates)) {
         const code = envToCode[env];
-        if (!code) return response({ok:false,error:'unsupported_key'}, 400);
+        if (!code) {
+          const platform = publisherEnvToCode[env];
+          if (!platform) return response({ok:false,error:'unsupported_key'}, 400);
+          publisherUpdates[platform] = publisherUpdates[platform] || {};
+          publisherUpdates[platform][env] = String(updates[env] || '').trim() || null;
+          continue;
+        }
         const value = String(updates[env] || '').trim();
         const r = value
           ? await nativeFetch('/api/v1/settings/keys', {method:'PUT', headers:Object.assign({}, init.headers, {'Content-Type':'application/json'}), body:JSON.stringify({engine_code:code,key_value:value})})
           : await nativeFetch('/api/v1/settings/keys/' + code, {method:'DELETE', headers:init.headers});
+        if (!r.ok) { const data = await r.json().catch(function () { return {}; }); return response({ok:false,error:data.error || data.detail}, r.status); }
+      }
+      const id = projectIds.get(SLUG);
+      for (const platform of Object.keys(publisherUpdates)) {
+        if (!id) return response({ok:false,error:'project_not_found'}, 404);
+        const r = await nativeFetch('/api/v1/projects/' + id + '/publishing/' + encodeURIComponent(platform), {
+          method:'PUT', headers:Object.assign({}, init.headers, {'Content-Type':'application/json'}),
+          body:JSON.stringify({credentials:publisherUpdates[platform]})
+        });
         if (!r.ok) { const data = await r.json().catch(function () { return {}; }); return response({ok:false,error:data.error || data.detail}, r.status); }
       }
       return response({ok:true});
@@ -545,6 +587,10 @@ def serve_ui():
         'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。',
     )
     html = html.replace(
+        '把成稿从「内容工作台」发到你自己的渠道。凭证写 .env；',
+        '把成稿从「内容工作台」发到你自己的渠道。凭证使用 AES-256-GCM 加密保存；',
+    )
+    html = html.replace(
         "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。':'Click Configure to set keys & models (written to local .env, effective immediately). Engines without APIs use manual sheets.'",
         "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。':'API keys are encrypted with AES-256-GCM and injected only while a job runs. Engines without public APIs use manual sample sheets.'",
     )
@@ -635,34 +681,14 @@ def serve_ui():
         "",
     )
     html = html.replace(
-        "'把成稿从「内容工作台」发到你自己的渠道。凭证写 .env；':'Publish finals from the Workbench to your own channels. Credentials live in .env; ',\n",
-        "",
+        "'把成稿从「内容工作台」发到你自己的渠道。凭证使用 AES-256-GCM 加密保存；':'Publish finals from the Workbench to your own channels. Credentials live in .env; '",
+        "'把成稿从「内容工作台」发到你自己的渠道。凭证使用 AES-256-GCM 加密保存；':'Publish finals from the Workbench to your own channels. Credentials are encrypted with AES-256-GCM; '",
     )
     html = html.replace(
-        "'把成稿从「内容工作台」发到你自己的渠道。凭证写 .env；':'完成稿をワークベンチから自分のチャネルへ公開。認証情報は .env に。',\n",
-        "",
-    )
-    html = html.replace(
-        "${WB.cur&&WB.cur.kind==='content'?`<button class=\"btn btn-primary\" style=\"font-size:12px\" onclick=\"pubModal()\">发布到渠道…</button>`:''}",
-        "",
+        "'把成稿从「内容工作台」发到你自己的渠道。凭证使用 AES-256-GCM 加密保存；':'完成稿をワークベンチから自分のチャネルへ公開。認証情報は .env に。'",
+        "'把成稿从「内容工作台」发到你自己的渠道。凭证使用 AES-256-GCM 加密保存；':'完成稿をワークベンチから自分のチャネルへ公開。認証情報は AES-256-GCM で暗号化保存します。'",
     )
     html = html.replace("到期后看板运行时自动跑完整一期", "由后台调度自动跑完整一期")
-    html = html.replace(
-        '''    <div class="card elev" style="padding:18px;gap:10px;margin-top:14px">
-      <div><div style="font-size:15px;font-weight:500">发布渠道</div>
-        <div style="font-size:11.5px;color:var(--t600)">把成稿从「内容工作台」发到你自己的渠道。凭证写 .env；<b>发布永远由你手动点击，没有自动发布</b>；公众号 / WordPress 只建草稿，在各自后台确认后才对外。</div></div>
-      ${((PUB&&PUB.publishers)||[]).map((x,i)=>`<div class="row" style="padding:6px 0;box-shadow:inset 0 -1px 0 var(--line)">
-        <span class="dot" style="background:${x.missing.length?'#595d6c':'var(--a400)'}"></span>
-        <span style="flex:1;font-size:13px">${esc(x.name)}<span class="muted" style="font-size:11px;margin-left:6px">${esc(x.note)}</span></span>
-        <span style="font-size:11.5px;color:var(--t600)">${x.missing.length?('缺 '+x.missing.map(esc).join('、')):'已就绪'}</span>
-        <button class="btn btn-ghost" style="font-size:12px;padding:2px 8px" onclick="editPub(${i})">配置</button></div>`).join('')}
-      ${(PUB&&(PUB.records||[]).length)?`<div style="font-size:12px;color:var(--t500);margin-top:4px">最近发布：
-        ${PUB.records.slice(-3).reverse().map(r=>`<div style="padding:2px 0;color:var(--t400)">${r.ok?'✓':'✗'} ${esc((r.at||'').slice(0,16).replace('T',' '))} ${esc(r.platform_name)} · ${esc(r.title)} ${r.url?`<a href="${esc(r.url)}" target="_blank" style="color:var(--a300)">链接</a>`:esc(r.note||r.error||'')}</div>`).join('')}</div>`:''}
-    </div>
-''',
-        "",
-        1,
-    )
     html = html.replace(
         '''      <div class="field"><label>官网域名 *</label><input id="ob-url" class="input" placeholder="https://example.com" value="${esc(ST.obUrl||'')}"></div>
       <div class="field"><label>品牌名称（留空自动从网页识别）</label><input id="ob-name" class="input" value="${esc(ST.obName||'')}"></div>

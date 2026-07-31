@@ -71,7 +71,12 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "单机自托管版，无账号体系" not in response.text
     assert 'onclick="setMonitor(' in response.text
     assert 'onclick="stopJob()"' not in response.text
-    assert 'onclick="pubModal()"' not in response.text
+    assert 'onclick="pubModal()"' in response.text
+    assert "/api/v1/projects/' + id + '/publishing" in response.text
+    assert "confirmed:true" in response.text
+    assert "publisherEnvToCode" in response.text
+    assert "publishing_not_available_in_mvp" not in response.text
+    assert "凭证使用 AES-256-GCM 加密保存" in response.text
     assert "/api/v1/projects/' + id + '/samples/import" in response.text
     assert "人工·网页端" in response.text
     assert "x.sampling_mode" in response.text

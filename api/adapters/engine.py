@@ -122,7 +122,10 @@ def load_tenant_keys(db, tenant_id):
         tenant = db.query(Tenant).filter(Tenant.name == str(tenant_id)).first()
     if tenant is None:
         return {}
-    rows = db.query(ApiKey).filter(ApiKey.tenant_id == tenant.id).all()
+    rows = db.query(ApiKey).filter(
+        ApiKey.tenant_id == tenant.id,
+        ApiKey.engine_code.in_(tuple(ENGINE_KEY_ENV)),
+    ).all()
     return {row.engine_code: decrypt_key(row.encrypted_value) for row in rows}
 
 
