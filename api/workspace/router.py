@@ -1,5 +1,7 @@
 """问题库、资产、事实库和内容工作台 API。"""
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -8,6 +10,7 @@ from api.adapters.engine import with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import workspace
 from api.auth.deps import get_current_user
+from api.billing.limits import check_sample_run
 from api.db import get_db
 from api.models import Job, Project, Tenant, User
 
@@ -35,6 +38,11 @@ class DistributionRequest(BaseModel):
 
 class QuestionsRequest(BaseModel):
     items: list[dict] = Field(min_length=1, max_length=200)
+
+
+class SampleImportRequest(BaseModel):
+    file: str = Field(min_length=1, max_length=128)
+    text: str = Field(max_length=5_000_000)
 
 
 def _error(status_code: int, message: str):
@@ -238,3 +246,42 @@ def add_project_questions(
 @router.get("/api/v1/projects/{project_id}/files")
 def project_files(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _call(db, current_user, project_id, workspace.project_files)
+
+
+@router.post("/api/v1/projects/{project_id}/samples/import")
+def import_project_samples(
+    project_id: int,
+    payload: SampleImportRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    tenant, project = _tenant_project(db, current_user, project_id)
+    check_sample_run(db, tenant, project)
+    _ensure_idle(db, project)
+    started_at = datetime.now(timezone.utc)
+    job = Job(project_id=project.id, action="sample-import", status="running", started_at=started_at)
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    try:
+        metrics = _call(
+            db,
+            current_user,
+            project_id,
+            workspace.import_sample_sheet,
+            payload.file,
+            payload.text,
+        )
+    except Exception:
+        db.delete(job)
+        db.commit()
+        raise
+    job.status = "done"
+    job.finished_at = datetime.now(timezone.utc)
+    db.commit()
+    return {
+        "ok": True,
+        "job_id": job.id,
+        "date": metrics.get("date"),
+        "sample_count": metrics.get("sample_count", 0),
+    }

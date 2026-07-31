@@ -359,6 +359,43 @@ def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced
     return ticket
 
 
+def import_sample_sheet(project_slug: str, filename: str, text: str):
+    """保存并导入项目内的人工网页端采样表。"""
+    filename = str(filename or "").strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}-manual\.md", filename):
+        raise ValueError("sample sheet filename must be YYYY-MM-DD-manual.md")
+    if not isinstance(text, str) or len(text) > 5_000_000:
+        raise ValueError("sample sheet must not exceed 5000000 characters")
+
+    import sample
+
+    platforms = re.findall(r"(?m)^##\s+platform:\s*(\S+)\s*$", text)
+    allowed_platforms = set(sample.PROVIDERS) | set(sample.MANUAL_ONLY)
+    invalid_platforms = sorted(set(platforms) - allowed_platforms)
+    if not platforms or invalid_platforms:
+        detail = ", ".join(invalid_platforms) if invalid_platforms else "none"
+        raise ValueError(f"sample sheet contains invalid platforms: {detail}")
+
+    config = geolib.load_config(project_slug)
+    known_questions = {
+        str(question.get("id") or "")
+        for question in config.get("questions", [])
+        if isinstance(question, dict)
+    }
+    sheet_questions = set(re.findall(r"(?m)^###\s+(\S+)\s*·", text))
+    unknown_questions = sorted(sheet_questions - known_questions)
+    if not sheet_questions or unknown_questions:
+        detail = ", ".join(unknown_questions) if unknown_questions else "none"
+        raise ValueError(f"sample sheet contains invalid questions: {detail}")
+
+    target = _safe_target(geolib.project_dir(project_slug) / "samples", filename, {".md"})
+    if not target.is_file():
+        raise FileNotFoundError(filename)
+    with geolib.project_lock(project_slug):
+        _write_text(target, text)
+        return sample.sample_import(project_slug, str(target))
+
+
 def project_files(project_slug: str):
     directory = geolib.project_dir(project_slug)
 

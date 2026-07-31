@@ -114,7 +114,15 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
                     "top3_rate": 0.5,
                     "avg_rank": 1,
                     "own_domain_cite_rate": 0,
-                }
+                },
+                "chatgpt": {
+                    "market": "global",
+                    "label": "ChatGPT 网页版",
+                    "mention_rate": 0,
+                    "top3_rate": 0,
+                    "avg_rank": None,
+                    "own_domain_cite_rate": 0,
+                },
             },
         },
     )
@@ -139,7 +147,26 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
                     "candidates": ["Example"],
                     "negative_cues": [],
                 },
-            }
+            },
+            {
+                "platform": "chatgpt",
+                "platform_name": "ChatGPT 网页版",
+                "market": "global",
+                "terminal": "web",
+                "sample_mode": "manual",
+                "search_enabled": True,
+                "question": "What is Example?",
+                "answer": "No result.",
+                "analysis": {
+                    "brand_mentioned": False,
+                    "brand_rank": 0,
+                    "own_domain_cited": False,
+                    "cited_domains": [],
+                    "competitors_mentioned": [],
+                    "candidates": [],
+                    "negative_cues": [],
+                },
+            },
         ],
     )
     report = client.get(f"/api/v1/projects/{body['project_id']}/report", headers=headers)
@@ -147,7 +174,8 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert report.json()["report"]["platforms"]["deepseek"]["mention_rate"] == 0.5
     engines = client.get(f"/api/v1/projects/{body['project_id']}/engines", headers=headers)
     assert engines.status_code == 200
-    assert engines.json()["engines"][0]["sampling_mode"] == "API·参数化"
+    modes = {item["platform"]: item["sampling_mode"] for item in engines.json()["engines"]}
+    assert modes == {"deepseek": "API·参数化", "chatgpt": "人工·网页端"}
     samples = client.get(f"/api/v1/projects/{body['project_id']}/samples/2026-07-31", headers=headers)
     assert samples.status_code == 200
     assert samples.json()["samples"][0]["answer"] == "Example is a product."

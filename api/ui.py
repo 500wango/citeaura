@@ -115,7 +115,16 @@ FETCH_ADAPTER = r"""
     if (match) {
       const id = projectIds.get(decodeURIComponent(match[1]));
       if (!id) return response({error:'project_not_found'}, 404);
-      return nativeFetch('/api/v1/projects/' + id, init);
+      const r = await nativeFetch('/api/v1/projects/' + id, init), data = await r.json();
+      if (r.ok) {
+        const er = await nativeFetch('/api/v1/projects/' + id + '/engines', init);
+        if (er.ok) {
+          const engineData = await er.json();
+          data.analytics = data.analytics || {};
+          data.analytics.engines = engineData.engines || [];
+        }
+      }
+      return response(data, r.status);
     }
     const configMatch = url.match(/^\/api\/config\/([^?]+)/);
     if (configMatch) {
@@ -292,6 +301,13 @@ FETCH_ADAPTER = r"""
         })
       });
     }
+    if (url === '/api/sample-import' && init.body) {
+      const body = JSON.parse(init.body), id = projectIds.get(body.slug);
+      if (!id) return response({error:'project_not_found'}, 404);
+      return nativeFetch('/api/v1/projects/' + id + '/samples/import', {
+        method:'POST', headers:init.headers, body:JSON.stringify({file:body.file,text:body.text})
+      });
+    }
     return response({error:'legacy_ui_endpoint_not_supported'}, 404);
   };
   if (!localStorage.getItem('disvorai_access_token')) setTimeout(showLogin, 0);
@@ -387,6 +403,14 @@ def serve_ui():
     html = html.replace(
         '<td style="font-size:13px;color:var(--t600)">0</td>\n        <td><span class="tag tag-dim">未采样</span></td>',
         '<td style="font-size:13px;color:var(--t600)">—</td>\n        <td><span class="tag tag-dim">未测</span></td>',
+    )
+    html = html.replace(
+        "${mktLabel(x.market)} · ${x.searched?'联网':'参数化知识'}",
+        "${mktLabel(x.market)} · ${esc(x.sampling_mode || (x.searched?'API·联网':'API·参数化'))}",
+    )
+    html = html.replace(
+        "${mktLabel(k.market)} · ${k.ok===false?'缺 API Key':'仅人工采样'}",
+        "${mktLabel(k.market)} · ${k.ok===false?(k.search?'API·联网 · 缺 Key':'API·参数化 · 缺 Key'):'人工·网页端'}",
     )
     html = html.replace(
         "${WB.cur&&WB.cur.kind==='content'?`<button class=\"btn btn-primary\" style=\"font-size:12px\" onclick=\"pubModal()\">发布到渠道…</button>`:''}",

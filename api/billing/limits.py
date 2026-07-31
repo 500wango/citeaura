@@ -11,7 +11,7 @@ from api.models import Job, Project, Tenant
 
 TRIAL_PROJECT_LIMIT = 3
 TRIAL_SAMPLE_LIMIT_PER_PROJECT = 2
-SAMPLE_JOB_ACTIONS = ("sample", "cycle", "autopilot", "serve")
+SAMPLE_JOB_ACTIONS = ("sample", "sample-import", "cycle", "autopilot", "serve")
 
 
 def _trial_active(tenant: Tenant) -> bool:

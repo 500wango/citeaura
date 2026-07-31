@@ -86,6 +86,11 @@ def _seed_workspace(tmp_path):
     (root / "assets" / "outlines").mkdir(parents=True)
     (root / "assets" / "outlines" / "q001.md").write_text("# Outline\n", "utf-8")
     (root / "expand.json").write_text(json.dumps({"terms": [{"question": "Example 价格？"}]}), "utf-8")
+    (root / "samples").mkdir()
+    (root / "samples" / "2026-07-31-manual.md").write_text(
+        "# Manual samples\n\n## platform: chatgpt\n\n### q001 · 推荐 Example 吗？\n\n```answer\n\n```\n",
+        "utf-8",
+    )
     (root / "reports").mkdir()
     (root / "reports" / "2026-07-31.html").write_text("report", "utf-8")
     (root / "deliverables").mkdir()
@@ -155,6 +160,35 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client):
     assert second_offsite.json()["ticket"]["id"] == "M-002"
     stored_tickets = json.loads((root / "tasks.json").read_text("utf-8"))
     assert stored_tickets["summary"]["total"] == 3
+
+    sample_text = (
+        "# Manual samples\n\n## platform: chatgpt\n\n### q001 · Best Example tools?\n\n"
+        "```answer\nExample is listed with a link to https://example.com.\n```\n"
+    )
+    imported = client.post(
+        f"/api/v1/projects/{project_id}/samples/import",
+        headers=headers,
+        json={"file": "2026-07-31-manual.md", "text": sample_text},
+    )
+    assert imported.status_code == 200
+    assert imported.json()["sample_count"] == 1
+    with session_factory() as db:
+        import_job = db.query(Job).filter(Job.project_id == project_id, Job.action == "sample-import").one()
+        assert import_job.status == "done"
+    sample_rows = [json.loads(line) for line in (root / "samples" / "2026-07-31.jsonl").read_text("utf-8").splitlines()]
+    assert sample_rows[0]["sample_mode"] == "manual"
+    assert sample_rows[0]["terminal"] == "web"
+    engine_rows = client.get(f"/api/v1/projects/{project_id}/engines", headers=headers).json()["engines"]
+    assert engine_rows[0]["sampling_mode"] == "人工·网页端"
+
+    invalid_import = client.post(
+        f"/api/v1/projects/{project_id}/samples/import",
+        headers=headers,
+        json={"file": "../manual.md", "text": sample_text},
+    )
+    assert invalid_import.status_code == 400
+    with session_factory() as db:
+        assert db.query(Job).filter(Job.project_id == project_id, Job.action == "sample-import").count() == 1
 
     assert client.put(
         f"/api/v1/projects/{project_id}/facts",
@@ -246,6 +280,12 @@ def test_workspace_is_tenant_isolated_blocks_active_writes_and_traversal(workspa
         json={"url": "https://outside.example/page", "ask_text": "Update it", "influenced_questions": ["q001"]},
     )
     assert hidden_ticket.status_code == 404
+    hidden_import = client.post(
+        f"/api/v1/projects/{project_id}/samples/import",
+        headers=second_headers,
+        json={"file": "2026-07-31-manual.md", "text": "sample"},
+    )
+    assert hidden_import.status_code == 404
     with session_factory() as db:
         db.add(Job(project_id=project_id, action="audit", status="running"))
         db.commit()
@@ -267,6 +307,12 @@ def test_workspace_is_tenant_isolated_blocks_active_writes_and_traversal(workspa
         json={"status": "doing"},
     )
     assert blocked_status.status_code == 409
+    blocked_import = client.post(
+        f"/api/v1/projects/{project_id}/samples/import",
+        headers=first_headers,
+        json={"file": "2026-07-31-manual.md", "text": "sample"},
+    )
+    assert blocked_import.status_code == 409
 
     with session_factory() as db:
         db.query(Job).filter(Job.project_id == project_id).update({"status": "done"})

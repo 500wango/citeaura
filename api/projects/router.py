@@ -438,8 +438,15 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
 
         engines = analytics.engines(project.slug, rows, metrics)
     for item in engines:
-        item["sample_mode"] = "api"
-        item["sampling_mode"] = "API·联网" if item.get("searched") else "API·参数化"
+        platform_rows = [row for row in rows if row.get("platform") == item.get("platform")]
+        manual = any(
+            row.get("sample_mode") == "manual" or row.get("terminal") == "web"
+            for row in platform_rows
+        )
+        item["sample_mode"] = "manual" if manual else "api"
+        item["sampling_mode"] = (
+            "人工·网页端" if manual else ("API·联网" if item.get("searched") else "API·参数化")
+        )
     return {"date": metrics.get("date") if metrics else None, "engines": engines}
 
 
