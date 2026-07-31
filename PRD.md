@@ -19,7 +19,7 @@
 3. SaaS 层（账号、计费、多租户、调度、API 网关）可新建，但须**直接 import** 现有 Python 模块（`geolib`、`sample`、`audit`、`tasks`、`verify`、`deliver` 等）。  
 4. **SSOT 决策**：文件系统为管线 SSOT（`work/<tenant>/<slug>/`），Postgres 只存索引、元数据和账务。管线产物以 JSON/JSONL 文件为准，DB 存衍生视图，不双写。  
 5. 指标诚实：未测显示 unmeasured，不伪造引擎覆盖。  
-6. 中文优先文案可配置；引擎矩阵保留 CN 一等公民。  
+6. 中文优先文案可配置；引擎矩阵统一展示，不按国内/海外分类。
 7. **API 采样 ≠ 用户端体验**：UI 中每个引擎必须标注采样模式（API 裸模型 / API+联网 / 人工网页端），不允许暗示 API 结果等同于用户在网页/App 上看到的答案。
 
 ---
@@ -78,20 +78,20 @@
 
 开源 `sample.py` 已支持的引擎及实际采样模式：
 
-| 引擎 | 市场 | API 可用 | 联网 | 采样代表性 |
-|------|------|---------|------|-----------|
-| DeepSeek | CN | ✓ | ✗ | 参数化知识，≠网页端 |
-| 智谱 GLM | CN | ✓ | ✗ | 参数化知识，≠清言网页 |
-| 豆包(方舟) | CN | ✓ | ✓* | *需开通内容插件，否则降级 |
-| Kimi | CN | ✓ | ✗ | 参数化知识 |
-| MiniMax | CN | ✓ | ✗ | 参数化知识 |
-| 纳米AI | CN | ✗ | — | 仅人工采样 |
-| 百度AI搜索 | CN | ✗ | — | 仅人工采样 |
-| Gemini | Global | ✓ | ✗ | 无 grounding，≠AI Overview |
-| OpenAI/ChatGPT | Global | ✓ | ✗ | ≠ChatGPT网页Search |
-| Claude | Global | ✓ | ✗ | ≠Claude网页Web Search |
-| Grok | Global | ✓ | ✗ | ≠X内嵌Grok |
-| Perplexity | Global | ✓ | ✓ | 原生联网+citations，最高证据等级 |
+| 引擎 | API 可用 | 联网 | 采样代表性 |
+|------|---------|------|-----------|
+| DeepSeek | ✓ | ✗ | 参数化知识，≠网页端 |
+| 智谱 GLM | ✓ | ✗ | 参数化知识，≠清言网页 |
+| 豆包(方舟) | ✓ | ✓* | *需开通内容插件，否则降级 |
+| Kimi | ✓ | ✗ | 参数化知识 |
+| MiniMax | ✓ | ✗ | 参数化知识 |
+| 纳米AI | ✗ | — | 仅人工采样 |
+| 百度AI搜索 | ✗ | — | 仅人工采样 |
+| Gemini | ✓ | ✗ | 无 grounding，≠AI Overview |
+| OpenAI/ChatGPT | ✓ | ✗ | ≠ChatGPT网页Search |
+| Claude | ✓ | ✗ | ≠Claude网页Web Search |
+| Grok | ✓ | ✗ | ≠X内嵌Grok |
+| Perplexity | ✓ | ✓ | 原生联网+citations，最高证据等级 |
 
 **结论**：大部分引擎 API 采样的是"模型参数化知识中是否认识这个品牌"，而非"用户在产品端搜索时 AI 会不会推荐你"。仅 Perplexity 和开通了内容插件的豆包方舟能测到联网搜索行为。产品 UI 必须明确区分这两种信号。
 
@@ -104,7 +104,7 @@
 - 用户注册 → 只填**域名** → 自动 bootstrap → 看到 Visibility Report + Playbook  
 - 可将 Playbook 项转为**工单**，执行后**自动验证**  
 - 一键导出**客户交付包**  
-- 支持市场：`cn` / `global` / `both`  
+- 所有项目统一覆盖全部已配置引擎，不提供国内/海外引擎范围选择
 - 计费：强制 BYOK（用户自带 API Key）为默认模式；平台 Key 池为可选增值
 
 ### 2.2 非目标（MVP 不做）
@@ -161,7 +161,7 @@ App
 │   ├── Assets（llms.txt、JSON-LD、snippets、drafts + lint 结果）
 │   ├── Verification（任务级 before-after + 验收历史）
 │   └── Delivery（客户包下载）
-├── Settings（API Keys、市场、调度、成员）
+├── Settings（API Keys、调度、成员）
 └── Public Marketing — 后置
 ```
 
@@ -174,7 +174,7 @@ App
 #### F-P0-01 Domain-only Onboarding
 
 - **包装**：`geo.py init` + `crawl.run()` + `bootstrap.run()`
-- **输入**：URL + market（默认 both）
+- **输入**：URL；系统固定使用全引擎范围
 - **系统**：爬取 → LLM 推导 brand/topics/questions（含编造防线）
 - **UI**：首屏只需一个 URL 输入框；高级设置折叠
 - **验收**：新用户 3 分钟内进入「扫描中/已出报告」状态
@@ -190,16 +190,16 @@ App
 #### F-P0-03 自动问题集
 
 - **包装**：`bootstrap.question_bank()` + `expand.run()`
-- 生成约 20–40 题（取决于市场），七组分类
+- 生成约 20–40 题（取决于语言覆盖），七组分类
 - 用户可编辑；拓词结果需确认后入库
-- 问题带 market 标签路由到对应引擎
+- 问题保留内部语言路由标签，但不作为产品层的引擎分类或筛选项
 
 #### F-P0-04 站点审计 + Gap + 建设地图
 
 - **包装**：`audit.run()` + `blueprint.build()`
 - 6 维 audit（可抓取性/长度/结构/可抽取块/权威信号/对题性）
 - 渠道建设地图：19 渠道优先级 + 覆盖度
-- CN/Global 分开度量
+- 所有引擎统一展示；语言与来源维度仅作为内部统计元数据
 
 #### F-P0-05 Playbook + 结构化工单
 
@@ -402,7 +402,7 @@ UsageCounter(tenant_id, month, sample_runs, projects_active)
 POST   /auth/register | /auth/login
 GET    /me
 
-POST   /projects                     { url, market }  → 触发 init+crawl+bootstrap job
+POST   /projects                     { url }          → 触发 init+crawl+bootstrap job
 GET    /projects
 GET    /projects/:id                 → 复用 dashboard.project()
 GET    /projects/:id/status          → 复用 geo.py status 逻辑
@@ -503,7 +503,7 @@ POST   /billing/subscribe
 | 采样 API 成本高 | MVP 强制 BYOK；试用有限额 |
 | 答案随机性 | 多问聚合、repeat、文案降级承诺 |
 | 开源快速演进 | upstream 在 engine/，定期 git pull + rebase |
-| 品牌/功能撞车 | 产品名 DisvorAI；卖点钉死闭环+CN+交付 |
+| 品牌/功能撞车 | 产品名 DisvorAI；卖点钉死闭环+多引擎+交付 |
 | 安全暴露 | 所有 API 需 JWT 认证；work 目录 per-tenant 隔离；Key AES 加密 |
 | fcntl 仅单机 | MVP 单节点 + P1 Redis 锁 |
 | `sys.exit` 在 worker 中 | W1 第一件事适配 |

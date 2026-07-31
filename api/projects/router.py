@@ -32,7 +32,6 @@ PLAYBOOK_EFFORT = {"S": 0, "M": 1, "L": 2}
 class ProjectCreate(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
     name: str | None = Field(default=None, max_length=128)
-    market: str = Field(default="both")
     skip_llm: bool = False
     no_sample: bool = False
 
@@ -48,14 +47,6 @@ class ProjectCreate(BaseModel):
         if parsed.scheme not in ("http", "https") or not parsed.hostname:
             raise ValueError("url must be a valid http(s) URL")
         return value.rstrip("/")
-
-    @field_validator("market")
-    @classmethod
-    def validate_market(cls, value: str):
-        if value not in ("cn", "global", "both"):
-            raise ValueError("market must be cn, global, or both")
-        return value
-
 
 class SampleRequest(BaseModel):
     limit: int | None = Field(default=None, ge=1, le=1000)
@@ -250,7 +241,7 @@ def create_project(
         tenant_id=tenant.id,
         slug=slug,
         url=payload.url,
-        market=payload.market,
+        market="both",
         status="initializing",
     )
     db.add(project)
@@ -275,7 +266,7 @@ def create_project(
             url=payload.url,
             name=payload.name.strip() if payload.name else None,
             slug=slug,
-            market=payload.market,
+            market="both",
             max_pages=25,
             force=False,
         )
@@ -335,6 +326,8 @@ def list_projects(current_user: User = Depends(get_current_user), db: Session = 
             with with_tenant_context(tenant.name, projects[0].slug):
                 import dashboard
 
+                for project in projects:
+                    workspace.ensure_all_engine_scope(project.slug)
                 summaries = {item["slug"]: item for item in dashboard.list_projects()}
         except Exception:  # noqa: BLE001 - 损坏的管线摘要不能阻断 DB 项目列表
             summaries = {}
@@ -375,8 +368,8 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
         with with_tenant_context(tenant.name, project.slug):
             import dashboard
 
+            cfg = workspace.ensure_all_engine_scope(project.slug)
             detail = dashboard.project(project.slug)
-            cfg = geolib.load_config(project.slug)
             detail["questions"] = cfg.get("questions", [])
             detail["competitor_discovery"] = _competitor_discovery_payload(cfg)
     except GeoEngineError:
@@ -405,6 +398,7 @@ def project_status(project_id: int, current_user: User = Depends(get_current_use
     with with_tenant_context(tenant.name, project.slug):
         import dashboard
 
+        workspace.ensure_all_engine_scope(project.slug)
         summary = next(
             (item for item in dashboard.list_projects() if item.get("slug") == project.slug),
             {
@@ -634,6 +628,7 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
         item["sampling_mode"] = (
             "人工·网页端" if manual else ("API·联网" if item.get("searched") else "API·参数化")
         )
+        item.pop("market", None)
     return {"date": metrics.get("date") if metrics else None, "engines": engines}
 
 

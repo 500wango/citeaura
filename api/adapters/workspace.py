@@ -60,7 +60,17 @@ def _validated_questions(questions):
 
 
 def read_config(project_slug: str) -> dict:
-    return geolib.load_config(project_slug)
+    return ensure_all_engine_scope(project_slug)
+
+
+def ensure_all_engine_scope(project_slug: str) -> dict:
+    """把历史项目归一为全引擎范围，保留问题级语言路由。"""
+    with geolib.project_lock(project_slug):
+        current = geolib.load_config(project_slug)
+        if current.get("market") != "both":
+            current["market"] = "both"
+            geolib.save_config(project_slug, current)
+    return current
 
 
 def update_config(project_slug: str, updates: dict) -> dict:
@@ -72,8 +82,7 @@ def update_config(project_slug: str, updates: dict) -> dict:
             raise ValueError("project slug cannot be changed")
         current.update(updates)
         current["slug"] = project_slug
-        if current.get("market") not in QUESTION_MARKETS:
-            raise ValueError("market must be cn, global, or both")
+        current["market"] = "both"
         if "questions" in current:
             current["questions"] = _validated_questions(current["questions"])
         geolib.save_config(project_slug, current)

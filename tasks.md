@@ -102,14 +102,14 @@ with with_tenant_context("test-tenant", "example"):
 **输出**：创建项目自动触发 bootstrap  
 
 - 创建 `api/projects/router.py`：
-  - `POST /api/v1/projects` { url, market } → 创建 DB 记录 → 调引擎 `geo.cmd_init()` → 触发 Celery `task_bootstrap` → 返回 `{project_id, job_id}`
+  - `POST /api/v1/projects` { url } → 创建 DB 记录（全引擎范围）→ 调引擎 `geo.cmd_init()` → 触发 Celery `task_bootstrap` → 返回 `{project_id, job_id}`
   - `GET /api/v1/projects` → 列表（当前 tenant）
   - `GET /api/v1/projects/:id` → 详情（复用 `dashboard.project()` 逻辑）
   - `GET /api/v1/projects/:id/jobs` → 任务历史
   - `GET /api/v1/projects/:id/jobs/:jid` → 任务状态 + 日志
 - 租户隔离：所有查询过滤 `tenant_id = current_user.tenant_id`
 
-**验收**：`POST /projects {url: "https://example.com", market: "cn"}` → 返回 project + job_id → 轮询 job 状态变为 done → `GET /projects/:id` 返回品牌信息和问题库
+**验收**：`POST /projects {url: "https://example.com"}` → 返回 project + job_id → 轮询 job 状态变为 done → `GET /projects/:id` 返回品牌信息和问题库
 
 ---
 

@@ -66,7 +66,7 @@ def _seed_workspace(tmp_path):
     root.mkdir(parents=True)
     (root / "geo.json").write_text(json.dumps({
         "slug": "example-com",
-        "market": "both",
+        "market": "global",
         "brand": {"name": "Example", "site": "https://example.com"},
         "questions": [{"id": "q001", "group": "推荐", "market": "both", "text": "推荐 Example 吗？"}],
     }), "utf-8")
@@ -108,6 +108,7 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
 
     config = client.get(f"/api/v1/projects/{project_id}/config", headers=headers)
     assert config.status_code == 200
+    assert config.json()["market"] == "both"
     assert config.json()["questions"][0]["id"] == "q001"
     updated = client.patch(
         f"/api/v1/projects/{project_id}/config",
@@ -118,8 +119,10 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
         },
     )
     assert updated.status_code == 200
+    assert updated.json()["config"]["market"] == "both"
     with session_factory() as db:
-        assert db.get(Project, project_id).market == "global"
+        assert db.get(Project, project_id).market == "both"
+    assert json.loads((root / "geo.json").read_text("utf-8"))["market"] == "both"
 
     added = client.post(
         f"/api/v1/projects/{project_id}/questions",

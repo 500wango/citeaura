@@ -549,7 +549,7 @@ FETCH_ADAPTER = r"""
       const r = await nativeFetch('/api/v1/projects', {
         method:'POST', headers:Object.assign({}, init.headers, {'Content-Type':'application/json'}),
         body:JSON.stringify({
-          url:body.url, name:body.name || null, market:body.market || 'both', skip_llm:configuredKeyCount === 0,
+          url:body.url, name:body.name || null, skip_llm:configuredKeyCount === 0,
           no_sample:configuredKeyCount === 0 || !!document.querySelector('#ob-nosample')?.checked
         })
       });
@@ -915,13 +915,13 @@ function competitorDiscoveryPanel() {
   const copies={
     zh:{title:'自动发现竞品',desc:'候选由项目初始化自动推导；只有在真实采样回答中出现后，才标记为采样已确认。',
       empty:'尚未发现竞品候选。重新运行项目初始化，或在设置中手动配置竞品。',candidate:'待采样确认',confirmed:'采样已确认',configured:'手动配置',aliases:'别名',
-      count:function(){return `${summary.total||0} 个竞品，${summary.sample_confirmed||0} 个经采样确认`;},markets:{cn:'国内',global:'海外',both:'通用'}},
+      count:function(){return `${summary.total||0} 个竞品，${summary.sample_confirmed||0} 个经采样确认`;}},
     en:{title:'Discovered competitors',desc:'Candidates are inferred during project setup. They are confirmed only after appearing in real sampled answers.',
       empty:'No competitor candidates yet. Run project setup again or configure competitors in Settings.',candidate:'Awaiting sample confirmation',confirmed:'Sample confirmed',configured:'Manually configured',aliases:'Aliases',
-      count:function(){return `${summary.total||0} competitors, ${summary.sample_confirmed||0} sample confirmed`;},markets:{cn:'CN',global:'Global',both:'Both'}},
+      count:function(){return `${summary.total||0} competitors, ${summary.sample_confirmed||0} sample confirmed`;}},
     ja:{title:'自動検出した競合',desc:'候補はプロジェクト初期化時に推定され、実際のサンプル回答に出現した場合のみ確認済みになります。',
       empty:'競合候補はまだありません。プロジェクト初期化を再実行するか、設定で競合を追加してください。',candidate:'サンプル確認待ち',confirmed:'サンプル確認済み',configured:'手動設定',aliases:'別名',
-      count:function(){return `${summary.total||0} 件中 ${summary.sample_confirmed||0} 件をサンプル確認済み`;},markets:{cn:'中国',global:'海外',both:'共通'}}
+      count:function(){return `${summary.total||0} 件中 ${summary.sample_confirmed||0} 件をサンプル確認済み`;}}
   };
   const text=copies[ULANG]||copies.zh;
   const status={candidate:[text.candidate,'tag-accent'],sample_confirmed:[text.confirmed,'pill-good'],configured:[text.configured,'tag-outline']};
@@ -931,7 +931,7 @@ function competitorDiscoveryPanel() {
       <span style="font-size:11.5px;color:var(--t500)">${text.count()}</span></div>
     ${items.length?`<div style="margin-top:13px;border-top:1px solid var(--divider)">${items.map(function(item){const current=status[item.discovery_status]||status.configured;return `<div class="row" style="padding:9px 0;box-shadow:inset 0 -1px 0 var(--line);gap:8px">
         <span style="flex:1;min-width:180px;font-size:13px;overflow-wrap:anywhere">${esc(item.name)}${(item.aliases||[]).length?`<span style="display:block;font-size:10.5px;color:var(--t600);margin-top:1px">${text.aliases}: ${item.aliases.map(esc).join(' / ')}</span>`:''}</span>
-        <span class="tag tag-dim">${esc(text.markets[item.market]||item.market||text.markets.both)}</span><span class="tag ${current[1]}">${current[0]}</span></div>`;}).join('')}</div>`
+        <span class="tag ${current[1]}">${current[0]}</span></div>`;}).join('')}</div>`
       :`<div style="margin-top:13px;padding:14px;border:1px solid var(--line);border-radius:var(--r-md);font-size:12.5px;color:var(--t500)">${text.empty}</div>`}
   </section>`;
 }
@@ -1521,7 +1521,7 @@ taskModal = function (id) {
   modal(`<h4 style="font-size:17px">${esc(ticket.id)} · ${esc(ticket.title)}</h4>
     <div class="row" style="gap:6px;margin-top:6px"><span class="tag tag-neutral">${esc(ticket.priority)}</span>
       <span class="tag tag-outline">Offsite · 人工</span>
-      <span style="font-size:11.5px;color:var(--t600)">负责：${esc(ticket.owner)} · 工作量 ${esc(ticket.effort)} · ${mktLabel(ticket.market)}</span></div>
+      <span style="font-size:11.5px;color:var(--t600)">负责：${esc(ticket.owner)} · 工作量 ${esc(ticket.effort)}</span></div>
     <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">目标页面</div>
     <a href="${esc(ticket.url)}" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:var(--a300);overflow-wrap:anywhere">${esc(ticket.url)}</a>
     <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">为什么做</div>
@@ -1623,6 +1623,38 @@ VIEWS.plan = vPlan;
 def serve_ui():
     """返回经过品牌和 SaaS API 适配的 engine 单页 UI。"""
     html = UI_PATH.read_text("utf-8")
+    html = html.replace(
+        "const mktLabel=m=>m==='cn'?'国内':m==='global'?'海外':'通用';",
+        "const mktLabel=m=>m==='cn'?'中文':m==='global'?'英文':'通用';",
+    )
+    html = html.replace("[['cn','国内市场'],['global','海外市场']]", "[['cn','中文问题'],['global','英文问题']]")
+    html = html.replace("tbl(T.cn||[],NS.cn||0,'国内市场')", "tbl(T.cn||[],NS.cn||0,'中文问题')")
+    html = html.replace("tbl(T.global||[],NS.global||0,'海外市场')", "tbl(T.global||[],NS.global||0,'英文问题')")
+    html = html.replace("${mtab('cn','国内')}${mtab('global','海外')}", "${mtab('cn','中文')}${mtab('global','英文')}")
+    html = html.replace(
+        "'全部':'All','国内':'CN','海外':'Global','通用':'Both'",
+        "'全部':'All','中文':'Chinese','英文':'English','通用':'All languages'",
+    )
+    html = html.replace(
+        "'全部':'すべて','国内':'中国','海外':'グローバル','通用':'共通'",
+        "'全部':'すべて','中文':'中国語','英文':'英語','通用':'共通'",
+    )
+    html = html.replace("['国内','CN'],['海外','Global']", "['中文','Chinese'],['英文','English']")
+    html = html.replace("['国内','中国'],['海外','海外']", "['中文','中国語'],['英文','英語']")
+    html = html.replace(
+        "题量按市场定：国内 18–24 题；海外 14–20 题；双市场 = 国内 16–20 + 海外 12–16 + 通用 2。编号 q001 起为国内、q101 起为海外、q901 起为通用。",
+        "题量按语言覆盖确定：中文 18–24 题；英文 14–20 题；双语覆盖 = 中文 16–20 + 英文 12–16 + 通用 2。编号 q001 起为中文、q101 起为英文、q901 起为通用。",
+    )
+    html = html.replace(
+        "要求真实口语问法：国内题像真人在 AI 里打的字；海外题是<b>英文原生问法</b>，不是中文题翻译。",
+        "要求真实口语问法：中文题像真人在 AI 里输入的内容；英文题使用<b>英文原生问法</b>，不是中文题翻译。",
+    )
+    html = html.replace("校验分组与市场标记", "校验分组与语言路由标记")
+    html = html.replace(
+        "市场路由：中文题只问国内引擎，英文题只问海外引擎，通用题两边都问；两套市场的指标分开算，分母各用各的。",
+        "语言路由：中文题匹配中文回答能力，英文题匹配英文回答能力，通用题参与全部采样；不同语言问题组独立计算分母。",
+    )
+    html = html.replace("严格高于同市场所有引擎", "严格高于同语言问题组所有引擎")
     html = html.replace("GeoLook", "DisvorAI").replace("geolook", "disvorai")
     html = html.replace(
         'Geo<span style="color:var(--accent)">Look</span>',
@@ -1688,12 +1720,13 @@ def serve_ui():
     )
     html = html.replace(
         "${mktLabel(x.market)} · ${x.searched?'联网':'参数化知识'}",
-        "${mktLabel(x.market)} · ${esc(x.sampling_mode || (x.searched?'API·联网':'API·参数化'))}",
+        "${esc(x.sampling_mode || (x.searched?'API·联网':'API·参数化'))}",
     )
     html = html.replace(
         "${mktLabel(k.market)} · ${k.ok===false?'缺 API Key':'仅人工采样'}",
-        "${mktLabel(k.market)} · ${k.ok===false?(k.search?'API·联网 · 缺 Key':'API·参数化 · 缺 Key'):'人工·网页端'}",
+        "${k.ok===false?(k.search?'API·联网 · 缺 Key':'API·参数化 · 缺 Key'):'人工·网页端'}",
     )
+    html = html.replace("${mktLabel(k.market)}${k.search?' · 联网':''}", "${k.search?'联网':'参数化'}")
     html = html.replace(
         '''    {who:'给客户',name:'交付包',desc:'诊断报告、优化方案、工单表（CSV）、验收表、资产目录与说明。',
      act:(D.deliveries||[]).length?`<a class="btn btn-primary" style="font-size:12px" target="_blank" href="/files/${SLUG}/delivery/${D.deliveries[0]}/index.html">打开</a>`
@@ -1751,12 +1784,43 @@ def serve_ui():
         '''      <div class="field"><label>官网域名 *</label><input id="ob-url" class="input" placeholder="https://example.com" value="${esc(ST.obUrl||'')}"></div>
       <details style="padding-top:2px"><summary style="font-size:12.5px;color:var(--t500);cursor:pointer">高级设置</summary>
         <div class="field"><label>品牌名称（留空自动从网页识别）</label><input id="ob-name" class="input" value="${esc(ST.obName||'')}"></div>
-        <div class="field"><label>目标市场</label><div class="seg">
-          ${[['cn','国内引擎'],['global','海外引擎'],['both','两者都要']].map(([m,l])=>`<label class="seg-opt"><input type="radio" name="obm" value="${m}" ${(ST.obMkt||'both')===m?'checked':''}>${l}</label>`).join('')}</div></div>
         <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" id="ob-nosample" style="width:auto" ${ST.obNoSample?'checked':''}> 首期跳过采样（省时间，可稍后补）</label>
       </details>
 ''',
         1,
+    )
+    html = html.replace(
+        "ST.obMkt=document.querySelector('input[name=obm]:checked').value;",
+        "ST.obMkt='both';",
+    )
+    html = html.replace(
+        r'''  const mkNeed=ST.obMkt==='both'?['cn','global']:[ST.obMkt];
+  const miss=mkNeed.filter(m=>!okKeys.some(k=>k.market===m));
+  if(okKeys.length&&miss.length&&!confirm(`所选市场里 ${miss.map(m=>m==='cn'?'国内':'海外').join('、')} 尚无已配置的引擎 Key，该市场的自动采样会被跳过（可稍后补 Key 或用人工采样表）。\n\n仍要继续吗？`))
+    {go('settings');return}
+''',
+        "",
+        1,
+    )
+    html = html.replace(
+        '''`<div class="muted" style="font-size:12px">已配置引擎：国内 ${okCn} 个 · 海外 ${okGl} 个（可在「设置」增改）${(ST.obMkt||'both')!=='global'&&!okCn?'——注意国内市场尚无可用 Key':''}${(ST.obMkt||'both')!=='cn'&&!okGl?'——注意海外市场尚无可用 Key':''}</div>`''',
+        '''`<div class="muted" style="font-size:12px">已配置引擎：${okCn+okGl} 个（可在「设置」增改）</div>`''',
+        1,
+    )
+    html = html.replace(
+        '''    <div class="field"><label>市场</label><div class="seg">
+      ${['cn','global','both'].map(m=>`<label class="seg-opt"><input type="radio" name="cmkt" value="${m}" ${cfg.market===m?'checked':''}>${({cn:'国内',global:'海外',both:'两者都要'})[m]}</label>`).join('')}</div></div>
+''',
+        "",
+        1,
+    )
+    html = html.replace(
+        "cfg.competitors=sp($('#c-comp').value).map(n=>old[n]||{name:n,aliases:[],market:cfg.market==='global'?'global':'cn'});",
+        "cfg.competitors=sp($('#c-comp').value).map(n=>old[n]||{name:n,aliases:[],market:'both'});",
+    )
+    html = html.replace(
+        "cfg.market=document.querySelector('input[name=cmkt]:checked').value;",
+        "cfg.market='both';",
     )
     html = html.replace(
         "${RUNNING?`<button class=\"btn btn-secondary\" style=\"font-size:12px\" onclick=\"stopJob()\">停止任务</button>`:''}",

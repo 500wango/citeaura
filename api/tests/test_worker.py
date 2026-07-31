@@ -107,6 +107,44 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
         tasks._action_namespace("sample", {"limit": 0})
 
 
+def test_funded_context_unifies_historical_project_scope(monkeypatch):
+    calls = []
+    funding = {
+        "keys": {"OPENAI_API_KEY": "secret"},
+        "pool_codes": frozenset(),
+        "rates": {},
+        "tenant_id": 1,
+        "project_id": 2,
+    }
+
+    @contextmanager
+    def fake_tenant_context(tenant_id, project_slug, keys=None):
+        calls.append(("tenant", tenant_id, project_slug, keys))
+        yield
+
+    @contextmanager
+    def fake_meter(pool_codes):
+        calls.append(("meter", pool_codes))
+        yield {}
+
+    monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: funding)
+    monkeypatch.setattr(tasks, "with_tenant_context", fake_tenant_context)
+    monkeypatch.setattr(tasks, "ensure_all_engine_scope", lambda slug: calls.append(("scope", slug)))
+    monkeypatch.setattr(tasks, "meter_platform_calls", fake_meter)
+    monkeypatch.setattr(tasks, "record_usage", lambda *args, **kwargs: calls.append(("usage", args[2])))
+
+    with tasks._funded_engine_context("tenant-a", "example", "sample"):
+        calls.append(("run", "sample"))
+
+    assert calls == [
+        ("tenant", "tenant-a", "example", funding["keys"]),
+        ("scope", "example"),
+        ("meter", frozenset()),
+        ("run", "sample"),
+        ("usage", "sample"),
+    ]
+
+
 def test_find_job_rejects_cross_tenant_or_wrong_action(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'worker.sqlite'}")
     Base.metadata.create_all(engine)

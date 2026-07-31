@@ -80,6 +80,9 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     monkeypatch.setitem(sys.modules, "geo", fake_geo)
     monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-1"))
 
+    create_schema = client.app.openapi()["components"]["schemas"]["ProjectCreate"]
+    assert "market" not in create_schema["properties"]
+
     created = client.post(
         "/api/v1/projects",
         headers=headers,
@@ -91,10 +94,18 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert body["job_id"] == 1
     assert calls[0].url == "https://example.com"
     assert calls[0].name == "Example Brand"
+    assert calls[0].market == "both"
+
+    config_path = next((tmp_path / "work").glob("*/example-com/geo.json"))
+    legacy_config = json.loads(config_path.read_text("utf-8"))
+    legacy_config["market"] = "global"
+    config_path.write_text(json.dumps(legacy_config), "utf-8")
 
     listed = client.get("/api/v1/projects", headers=headers)
     assert listed.status_code == 200
     assert listed.json()["projects"][0]["slug"] == "example-com"
+    assert listed.json()["projects"][0]["market"] == "both"
+    assert json.loads(config_path.read_text("utf-8"))["market"] == "both"
 
     detail = client.get(f"/api/v1/projects/{body['project_id']}", headers=headers)
     assert detail.status_code == 200
@@ -193,6 +204,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert engines.status_code == 200
     modes = {item["platform"]: item["sampling_mode"] for item in engines.json()["engines"]}
     assert modes == {"deepseek": "API·参数化", "chatgpt": "人工·网页端"}
+    assert all("market" not in item for item in engines.json()["engines"])
     samples = client.get(f"/api/v1/projects/{body['project_id']}/samples/2026-07-31", headers=headers)
     assert samples.status_code == 200
     assert samples.json()["samples"][0]["answer"] == "Example is a reliable AI visibility platform."

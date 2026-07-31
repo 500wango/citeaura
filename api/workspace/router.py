@@ -97,7 +97,7 @@ def update_project_config(
     _, project = _tenant_project(db, current_user, project_id)
     _ensure_idle(db, project)
     config = _call(db, current_user, project_id, workspace.update_config, payload)
-    project.market = config["market"]
+    project.market = "both"
     db.commit()
     return {"ok": True, "config": config}
 

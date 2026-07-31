@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from api.adapters.delivery import ensure_delivery_contract
 from api.adapters.engine import job_log_path, load_tenant_keys, with_tenant_context
-from api.adapters.workspace import preserve_manual_tickets
+from api.adapters.workspace import ensure_all_engine_scope, preserve_manual_tickets
 from api.billing.limits import check_sample_run
 from api.billing.platform_pool import meter_platform_calls, record_usage, resolve_funding
 from api.db import SessionLocal
@@ -200,6 +200,7 @@ def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_p
     """注入 BYOK/平台池密钥，并在退出时持久化平台代付逻辑调用。"""
     funding = _engine_funding(tenant_id, project_slug, allow_pool=allow_pool)
     with with_tenant_context(str(tenant_id), project_slug, keys=funding["keys"]):
+        ensure_all_engine_scope(project_slug)
         with meter_platform_calls(funding["pool_codes"]) as counts:
             try:
                 yield

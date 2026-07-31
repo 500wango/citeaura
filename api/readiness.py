@@ -8,7 +8,7 @@ from api.billing import stripe as stripe_adapter
 from api.settings.crypto import _master_key
 
 
-EXPECTED_DB_REVISION = "0009_auth_password_reset"
+EXPECTED_DB_REVISION = "0010_unified_engine_scope"
 
 
 def readiness_checks(db):

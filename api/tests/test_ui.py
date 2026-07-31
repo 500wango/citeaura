@@ -62,6 +62,20 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "skip_llm:configuredKeyCount === 0" in response.text
     assert "document.querySelector('#ob-nosample')?.checked" in response.text
     assert "name:body.name || null" in response.text
+    assert "url:body.url, name:body.name || null, skip_llm:" in response.text
+    assert "market:body.market" not in response.text
+    assert 'name="obm"' not in response.text
+    assert 'name="cmkt"' not in response.text
+    assert "const mkNeed=" not in response.text
+    assert "已配置引擎：${okCn+okGl} 个" in response.text
+    assert "cfg.market='both'" in response.text
+    assert "${mktLabel(x.market)} ·" not in response.text
+    assert "${mktLabel(k.market)}" not in response.text
+    assert "中文题只问国内引擎" not in response.text
+    assert "英文题只问海外引擎" not in response.text
+    assert "语言路由：中文题匹配中文回答能力" in response.text
+    assert "const mktLabel=m=>m==='cn'?'中文':m==='global'?'英文':'通用';" in response.text
+    assert "['中文','Chinese'],['英文','English']" in response.text
     assert "data.job.log_offset || requested" in response.text
     assert "/api/v1/projects/actions" in response.text
     assert "'/actions/' + encodeURIComponent(action)" in response.text
