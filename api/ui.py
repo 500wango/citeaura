@@ -55,6 +55,9 @@ SETTINGS_RESPONSIVE_STYLE = r"""
   .sso-audit-target{grid-column:1/-1}
   .sso-section-title{padding-left:20px;scroll-margin-top:12px}
   .integration-section-title{padding-left:20px;scroll-margin-top:12px}
+  .outreach-section-title{padding-left:20px;scroll-margin-top:12px}
+  .settings-section-subtitle{padding-left:20px}
+  .outreach-smtp-grid,.outreach-identity-grid{grid-template-columns:1fr!important}
   .integration-grid{grid-template-columns:1fr}
   .playbook-page{padding:24px 18px 56px}
   .playbook-page-head{align-items:flex-start!important;flex-direction:column}
@@ -555,6 +558,26 @@ FETCH_ADAPTER = r"""
       }
       return response({error:'integration_action_invalid'}, 400);
     }
+    if (url === '/api/outreach') {
+      const id = projectIds.get(SLUG);
+      if (!id) return response({error:'project_not_found'}, 404);
+      if (!init.body) return nativeFetch('/api/v1/projects/' + id + '/outreach', init);
+      const body = JSON.parse(init.body), base = '/api/v1/projects/' + id + '/outreach';
+      if (body.action === 'save_smtp') return nativeFetch(base + '/smtp', {
+        method:'PUT',headers:init.headers,body:JSON.stringify(body.smtp)
+      });
+      if (body.action === 'delete_smtp') return nativeFetch(base + '/smtp', {method:'DELETE',headers:init.headers});
+      if (body.action === 'create_draft') return nativeFetch(base + '/drafts', {
+        method:'POST',headers:init.headers,body:JSON.stringify({ticket_id:body.ticket_id,recipient_email:body.recipient_email})
+      });
+      if (body.action === 'update_draft') return nativeFetch(base + '/drafts/' + encodeURIComponent(body.draft_id), {
+        method:'PUT',headers:init.headers,body:JSON.stringify(body.draft)
+      });
+      if (body.action === 'send') return nativeFetch(base + '/drafts/' + encodeURIComponent(body.draft_id) + '/send', {
+        method:'POST',headers:init.headers,body:JSON.stringify({revision:body.revision,confirmed:body.confirmed,confirmation_text:body.confirmation_text})
+      });
+      return response({error:'outreach_action_invalid'}, 400);
+    }
     return response({error:'legacy_ui_endpoint_not_supported'}, 404);
   };
   async function acceptPendingInvitation() {
@@ -756,6 +779,13 @@ Object.assign(UI_D.en, {
   '点击':'Clicks','展示':'Impressions','点击率':'CTR','平均排名':'Average position','尚未同步':'Not synced yet',
   'Search Console OAuth 未配置':'Search Console OAuth is not configured','仅所有者可管理连接':'Only owners can manage connections',
   '数据源连接已更新':'Data source connection updated','同步任务已创建':'Sync job created','外部搜索数据加载失败':'Failed to load external search data'
+  ,'外链联络':'Outreach','人工确认发送':'Human-confirmed sending','邮件服务器':'Mail server','发件邮箱':'From email','发件名称':'From name',
+  '保存 SMTP':'Save SMTP','联络草稿':'Outreach drafts','暂无联络草稿':'No outreach drafts','准备联络邮件':'Prepare outreach email','收件邮箱':'Recipient email',
+  '生成草稿':'Create draft','编辑草稿':'Edit draft','邮件主题':'Subject','邮件正文':'Message','保存草稿':'Save draft','检查并发送':'Review and send',
+  '最终发送确认':'Final send confirmation','我已核对收件人、主题和正文':'I reviewed the recipient, subject, and message','输入确认短语':'Type confirmation phrase',
+  '确认并入队':'Confirm and queue','草稿已保存':'Draft saved','发送任务已创建':'Send job created','SMTP 凭证使用 AES-256-GCM 加密保存。':'SMTP credentials are encrypted with AES-256-GCM.',
+  '发送前必须检查最终内容并输入与草稿匹配的确认短语。':'Before sending, review the final content and type the confirmation phrase for this draft.',
+  '待编辑':'Draft','已排队':'Queued','发送中':'Sending','已发送':'Sent','发送失败':'Failed'
 });
 Object.assign(UI_D.ja, {
   '团队成员':'チームメンバー','工作区':'ワークスペース','邀请成员':'メンバーを招待','待接受邀请':'保留中の招待',
@@ -784,6 +814,13 @@ Object.assign(UI_D.ja, {
   '点击':'クリック','展示':'表示回数','点击率':'CTR','平均排名':'平均掲載順位','尚未同步':'未同期',
   'Search Console OAuth 未配置':'Search Console OAuth が設定されていません','仅所有者可管理连接':'接続管理はオーナーのみ可能です',
   '数据源连接已更新':'データソース接続を更新しました','同步任务已创建':'同期ジョブを作成しました','外部搜索数据加载失败':'外部検索データを読み込めませんでした'
+  ,'外链联络':'アウトリーチ','人工确认发送':'人による確認後に送信','邮件服务器':'メールサーバー','发件邮箱':'送信元メール','发件名称':'送信者名',
+  '保存 SMTP':'SMTP を保存','联络草稿':'アウトリーチ下書き','暂无联络草稿':'アウトリーチ下書きはありません','准备联络邮件':'アウトリーチメールを準備','收件邮箱':'宛先メール',
+  '生成草稿':'下書きを作成','编辑草稿':'下書きを編集','邮件主题':'件名','邮件正文':'本文','保存草稿':'下書きを保存','检查并发送':'確認して送信',
+  '最终发送确认':'最終送信確認','我已核对收件人、主题和正文':'宛先、件名、本文を確認しました','输入确认短语':'確認フレーズを入力',
+  '确认并入队':'確認してキューへ','草稿已保存':'下書きを保存しました','发送任务已创建':'送信ジョブを作成しました','SMTP 凭证使用 AES-256-GCM 加密保存。':'SMTP 認証情報は AES-256-GCM で暗号化保存されます。',
+  '发送前必须检查最终内容并输入与草稿匹配的确认短语。':'送信前に最終内容を確認し、この下書き用の確認フレーズを入力してください。',
+  '待编辑':'下書き','已排队':'キュー済み','发送中':'送信中','已发送':'送信済み','发送失败':'送信失敗'
 });
 
 let TEAM_STATE = null;
@@ -791,6 +828,7 @@ let BRANDING_STATE = null;
 let SSO_STATE = null;
 let AUDIT_STATE = null;
 let INTEGRATION_STATE = null;
+let OUTREACH_STATE = null;
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
 
 function ssoPanel() {
@@ -862,7 +900,7 @@ function integrationPanel() {
   const editable=!!state.can_edit,canSync=TEAM_STATE&&TEAM_STATE.current_role!=='viewer'&&!!state.project_id;
   const database=semrush.database||'us',databases=['us','uk','de','fr','jp','au','ca'];
   if(!databases.includes(database))databases.unshift(database);
-  return `<h4 class="integration-section-title" style="font-size:16px;margin:28px 0 4px">搜索数据源</h4><p class="muted" style="font-size:12px;margin:0 0 10px">自然搜索与站点表现</p>
+  return `<h4 class="integration-section-title" style="font-size:16px;margin:28px 0 4px">搜索数据源</h4><p class="muted settings-section-subtitle" style="font-size:12px;margin:0 0 10px">自然搜索与站点表现</p>
     <div class="integration-grid">
       <div class="card elev" style="padding:18px;gap:13px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">Semrush</div><span class="tag ${semrush.configured?'pill-good':'tag-outline'}">${semrush.configured?'已连接':'未连接'}</span></div>
         <div class="row" style="align-items:flex-end;gap:10px;flex-wrap:wrap"><label style="display:block;flex:1;min-width:180px;font-size:12px;color:var(--t500)">API Key
@@ -908,6 +946,54 @@ async function syncIntegration(provider) {
   if(!result.job_id){toast('同步失败：'+(result.error||result.detail||'integration_sync_failed'),'err');return}
   INTEGRATION_STATE=null;RUNNING=result.job_id;LASTJOB=result.job_id;LOGOFF=0;renderSide();pollJob();toast('同步任务已创建');
 }
+
+const outreachStatusLabel={draft:'待编辑',queued:'已排队',sending:'发送中',sent:'已发送',failed:'发送失败'};
+
+function outreachPanel() {
+  const state=OUTREACH_STATE||{},smtp=state.smtp||{},drafts=state.drafts||[],owner=!!state.can_edit;
+  if(state.error||state.detail)return `<h4 class="outreach-section-title" style="font-size:16px;margin:28px 0 10px">外链联络</h4>
+    <div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">外链联络加载失败</div>`;
+  const port=Number(smtp.port||587),mode=smtp.security_mode||'starttls';
+  return `<h4 class="outreach-section-title" style="font-size:16px;margin:28px 0 4px">外链联络</h4><p class="muted settings-section-subtitle" style="font-size:12px;margin:0 0 10px">人工确认发送</p>
+    <div class="card elev" style="padding:18px;gap:12px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">SMTP</div><span class="tag ${smtp.configured?'pill-good':'tag-outline'}">${smtp.configured?'已连接':'未连接'}</span></div>
+      <div style="font-size:11.5px;color:var(--t600)">SMTP 凭证使用 AES-256-GCM 加密保存。</div>
+      <div class="outreach-smtp-grid" style="display:grid;grid-template-columns:minmax(180px,1fr) 90px 120px;gap:10px">
+        <label style="display:block;font-size:12px;color:var(--t500)">邮件服务器<input id="outreach-smtp-host" class="input" value="${esc(smtp.host||'')}" ${owner?'':'disabled'} style="margin-top:5px"></label>
+        <label style="display:block;font-size:12px;color:var(--t500)">Port<select id="outreach-smtp-port" class="input" ${owner?'':'disabled'} style="margin-top:5px">${[25,465,587,2525].map(function(value){return `<option value="${value}" ${value===port?'selected':''}>${value}</option>`;}).join('')}</select></label>
+        <label style="display:block;font-size:12px;color:var(--t500)">Security<select id="outreach-smtp-security" class="input" ${owner?'':'disabled'} style="margin-top:5px"><option value="starttls" ${mode==='starttls'?'selected':''}>STARTTLS</option><option value="ssl" ${mode==='ssl'?'selected':''}>SSL/TLS</option></select></label>
+      </div>
+      <div class="outreach-identity-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+        <label style="display:block;font-size:12px;color:var(--t500)">Username<input id="outreach-smtp-username" class="input" value="${esc(smtp.username||'')}" ${owner?'':'disabled'} style="margin-top:5px"></label>
+        <label style="display:block;font-size:12px;color:var(--t500)">Password<input id="outreach-smtp-password" class="input" type="password" placeholder="${smtp.password_configured?'保留已保存密钥':''}" ${owner?'':'disabled'} autocomplete="new-password" style="margin-top:5px"></label>
+        <label style="display:block;font-size:12px;color:var(--t500)">发件邮箱<input id="outreach-from-email" class="input" type="email" value="${esc(smtp.from_email||'')}" ${owner?'':'disabled'} style="margin-top:5px"></label>
+        <label style="display:block;font-size:12px;color:var(--t500)">发件名称<input id="outreach-from-name" class="input" value="${esc(smtp.from_name||'')}" ${owner?'':'disabled'} style="margin-top:5px"></label>
+      </div>
+      ${owner?`<div class="row" style="gap:8px;justify-content:flex-end">${smtp.configured?'<button class="btn btn-ghost" style="font-size:12px" onclick="deleteOutreachSmtp()">断开连接</button>':''}<button class="btn btn-secondary" style="font-size:12px" onclick="saveOutreachSmtp()">保存 SMTP</button></div>`:''}
+    </div>
+    <div class="card elev" style="padding:18px;gap:8px;margin-top:12px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">联络草稿</div><span class="tag tag-outline">${drafts.length}</span></div>
+      <div style="font-size:11.5px;color:var(--t600)">发送前必须检查最终内容并输入与草稿匹配的确认短语。</div>
+      ${drafts.length?drafts.map(function(draft){return `<div class="row" style="gap:8px;padding:9px 0;box-shadow:inset 0 -1px 0 var(--line)"><div style="flex:1;min-width:160px"><div style="font-size:13px;overflow-wrap:anywhere">${esc(draft.subject)}</div><div style="font-size:11px;color:var(--t600);margin-top:2px;overflow-wrap:anywhere">${esc(draft.recipient_email)} · ${esc(draft.id)}</div></div><span class="tag ${draft.status==='sent'?'pill-good':'tag-outline'}">${esc(outreachStatusLabel[draft.status]||draft.status)}</span>${['draft','failed'].includes(draft.status)&&TEAM_STATE&&TEAM_STATE.current_role!=='viewer'?`<button class="btn btn-ghost" style="font-size:12px" onclick="outreachEditModal('${esc(draft.id)}')">编辑草稿</button>`:''}</div>`;}).join(''):'<div style="padding:10px 0;font-size:12px;color:var(--t600)">暂无联络草稿</div>'}
+    </div>`;
+}
+
+async function saveOutreachSmtp() {
+  const smtp={host:(($('#outreach-smtp-host')||{}).value||'').trim(),port:Number((($('#outreach-smtp-port')||{}).value||587)),security_mode:(($('#outreach-smtp-security')||{}).value||'starttls'),username:(($('#outreach-smtp-username')||{}).value||'').trim(),password:(($('#outreach-smtp-password')||{}).value||'').trim()||null,from_email:(($('#outreach-from-email')||{}).value||'').trim(),from_name:(($('#outreach-from-name')||{}).value||'').trim()};
+  const result=await post('/api/outreach',{action:'save_smtp',smtp:smtp});if(result.error||result.detail){toast('保存失败：'+(result.error||result.detail),'err');return}OUTREACH_STATE=result;toast('SMTP 已保存');render();
+}
+
+async function deleteOutreachSmtp(){if(!confirm('确认断开 SMTP？'))return;const result=await post('/api/outreach',{action:'delete_smtp'});if(result.error){toast('断开失败：'+result.error,'err');return}OUTREACH_STATE=result;render();}
+
+function outreachRecipientModal(ticketId){modal(`<h4 style="font-size:17px">准备联络邮件</h4><label style="display:block;font-size:12px;color:var(--t500);margin-top:12px">收件邮箱<input id="outreach-recipient" class="input" type="email" autocomplete="email" style="margin-top:5px"></label><div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="createOutreachDraft('${esc(ticketId)}')">生成草稿</button></div>`);}
+
+async function createOutreachDraft(ticketId){const email=(($('#outreach-recipient')||{}).value||'').trim();if(!email){toast('请输入收件邮箱','err');return}const result=await post('/api/outreach',{action:'create_draft',ticket_id:ticketId,recipient_email:email});if(!result.draft){toast('生成失败：'+(result.error||result.detail||'outreach_draft_failed'),'err');return}OUTREACH_STATE=OUTREACH_STATE||{drafts:[]};OUTREACH_STATE.drafts=OUTREACH_STATE.drafts||[];OUTREACH_STATE.drafts.unshift(result.draft);outreachEditModal(result.draft);}
+
+function outreachEditModal(value){const draft=typeof value==='string'?((OUTREACH_STATE||{}).drafts||[]).find(function(item){return item.id===value;}):value;if(!draft)return;modal(`<h4 style="font-size:17px">编辑草稿</h4><input id="outreach-draft-revision" type="hidden" value="${draft.revision}"><label style="display:block;font-size:12px;color:var(--t500);margin-top:12px">收件邮箱<input id="outreach-draft-recipient" class="input" type="email" value="${esc(draft.recipient_email)}" style="margin-top:5px"></label><label style="display:block;font-size:12px;color:var(--t500);margin-top:12px">邮件主题<input id="outreach-draft-subject" class="input" maxlength="300" value="${esc(draft.subject)}" style="margin-top:5px"></label><label style="display:block;font-size:12px;color:var(--t500);margin-top:12px">邮件正文<textarea id="outreach-draft-body" class="input" rows="10" maxlength="20000" style="margin-top:5px">${esc(draft.body)}</textarea></label><div class="row" style="justify-content:flex-end;margin-top:14px;flex-wrap:wrap"><button class="btn btn-secondary" onclick="saveOutreachDraft('${esc(draft.id)}',false)">保存草稿</button><button class="btn btn-primary" onclick="saveOutreachDraft('${esc(draft.id)}',true)">检查并发送</button></div>`);}
+
+async function saveOutreachDraft(draftId,review){const payload={revision:Number((($('#outreach-draft-revision')||{}).value||0)),recipient_email:(($('#outreach-draft-recipient')||{}).value||'').trim(),subject:(($('#outreach-draft-subject')||{}).value||'').trim(),body:(($('#outreach-draft-body')||{}).value||'').trim()};const result=await post('/api/outreach',{action:'update_draft',draft_id:draftId,draft:payload});if(!result.draft){toast('保存失败：'+(result.error||result.detail||'outreach_update_failed'),'err');return}if(OUTREACH_STATE){const index=(OUTREACH_STATE.drafts||[]).findIndex(function(item){return item.id===draftId;});if(index>=0)OUTREACH_STATE.drafts[index]=result.draft;}toast('草稿已保存');if(review)outreachSendReview(result.draft);else{closeModal();render();}}
+
+function outreachSendReview(draft){const phrase='SEND '+draft.id;modal(`<h4 style="font-size:17px">最终发送确认</h4><div style="font-size:12px;color:var(--t600);margin-top:10px">收件邮箱</div><div style="font-size:13px;overflow-wrap:anywhere">${esc(draft.recipient_email)}</div><div style="font-size:12px;color:var(--t600);margin-top:10px">邮件主题</div><div style="font-size:13px;overflow-wrap:anywhere">${esc(draft.subject)}</div><div style="font-size:12px;color:var(--t600);margin-top:10px">邮件正文</div><div style="max-height:220px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;margin-top:4px;border:1px solid var(--line);font-size:12.5px;line-height:1.6">${esc(draft.body)}</div><label class="row" style="gap:7px;margin-top:12px;font-size:12.5px"><input id="outreach-confirm-check" type="checkbox">我已核对收件人、主题和正文</label><label style="display:block;font-size:12px;color:var(--t500);margin-top:10px">输入确认短语 <code>${esc(phrase)}</code><input id="outreach-confirm-text" class="input" autocomplete="off" style="margin-top:5px"></label><div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-secondary" onclick="outreachEditModal('${esc(draft.id)}')">返回编辑</button><button class="btn btn-primary" onclick="queueOutreachSend('${esc(draft.id)}',${draft.revision})">确认并入队</button></div>`);}
+
+async function queueOutreachSend(draftId,revision){const confirmed=!!($('#outreach-confirm-check')||{}).checked,text=(($('#outreach-confirm-text')||{}).value||'');if(!confirmed||text!=='SEND '+draftId){toast('请勾选确认并输入完整确认短语','err');return}const result=await post('/api/outreach',{action:'send',draft_id:draftId,revision:revision,confirmed:true,confirmation_text:text});if(!result.job_id){toast('发送失败：'+(result.error||result.detail||'outreach_send_failed'),'err');return}OUTREACH_STATE=null;closeModal();RUNNING=result.job_id;LASTJOB=result.job_id;LOGOFF=0;renderSide();pollJob();toast('发送任务已创建');}
 
 function samplingFundingPanel(state) {
   state = state || {};
@@ -1113,10 +1199,11 @@ vSettings = async function () {
   if (!SSO_STATE) SSO_STATE = await api('/api/v1/sso/config');
   if (SSO_STATE.can_edit && !AUDIT_STATE) AUDIT_STATE = await api('/api/v1/sso/audit-events');
   if (!INTEGRATION_STATE) INTEGRATION_STATE = await api('/api/integrations');
+  if (!OUTREACH_STATE) OUTREACH_STATE = await api('/api/outreach');
   const funding = await api('/api/sampling-funding');
   const html = await engineSettingsView();
   const index = html.lastIndexOf('</div>');
-  const panels = samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel() + integrationPanel() + ssoPanel();
+  const panels = samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel() + integrationPanel() + outreachPanel() + ssoPanel();
   return index < 0 ? html + panels : html.slice(0,index) + panels + html.slice(index);
 };
 VIEWS.settings = vSettings;
@@ -1152,7 +1239,7 @@ taskModal = function (id) {
     <div style="max-height:120px;overflow:auto;font-size:12px;color:var(--t400);line-height:1.7">${questions.map(function (question) { return '<div>' + esc(question) + '</div>'; }).join('')}</div>
     <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">怎么算做完（人工验收）</div>
     <div style="font-size:13px;line-height:1.6">${esc(acceptance.desc || '')}</div>
-    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-primary" onclick="closeModal()">关闭</button></div>`);
+    <div class="row" style="justify-content:flex-end;margin-top:14px">${TEAM_STATE&&TEAM_STATE.current_role!=='viewer'?`<button class="btn btn-secondary" onclick="outreachRecipientModal('${esc(ticket.id)}')">准备联络邮件</button>`:''}<button class="btn btn-primary" onclick="closeModal()">关闭</button></div>`);
 };
 
 Object.assign(UI_D.en, {

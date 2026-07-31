@@ -10,6 +10,7 @@ from api.auth.sso import router as sso_router
 from api.billing.router import router as billing_router
 from api.branding.router import router as branding_router
 from api.integrations.router import router as integrations_router
+from api.outreach.router import router as outreach_router
 from api.publishing.router import router as publishing_router
 from api.projects.router import router as projects_router
 from api.settings.router import router as settings_router
@@ -24,6 +25,7 @@ app.include_router(sso_router)
 app.include_router(billing_router)
 app.include_router(branding_router)
 app.include_router(integrations_router)
+app.include_router(outreach_router)
 app.include_router(publishing_router)
 app.include_router(projects_router)
 app.include_router(settings_router)

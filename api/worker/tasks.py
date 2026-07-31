@@ -1,5 +1,6 @@
 """引擎异步任务。"""
 
+import json
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -518,3 +519,49 @@ def task_sync_integration(tenant_id: str, project_slug: str, provider: str, job_
                 "project_slug": project_slug,
                 "metrics": snapshot.get("metrics", {}),
             }
+
+
+@celery_app.task(name="disvorai.send_outreach")
+def task_send_outreach(tenant_id: str, project_slug: str, draft_id: str, job_id=None):
+    """领取已人工确认的草稿并通过租户 SMTP 发送。"""
+    from api.adapters import outreach
+
+    action = "outreach_send"
+    db = SessionLocal()
+    try:
+        tenant = _tenant_record(db, tenant_id)
+        if tenant is None:
+            raise ValueError("tenant_not_found")
+        tenant_name = tenant.name
+        tenant_db_id = tenant.id
+    finally:
+        db.close()
+
+    with _job_status(tenant_name, project_slug, action, job_id):
+        try:
+            credential_db = SessionLocal()
+            try:
+                row = credential_db.query(IntegrationCredential).filter(
+                    IntegrationCredential.tenant_id == tenant_db_id,
+                    IntegrationCredential.provider == "outreach_smtp",
+                ).first()
+                if row is None:
+                    raise outreach.OutreachError("smtp_not_configured")
+                credentials = json.loads(decrypt_key(row.encrypted_value))
+                settings = json.loads(row.config_json or "{}")
+            finally:
+                credential_db.close()
+        except Exception as exc:
+            with with_tenant_context(tenant_name, project_slug):
+                outreach.mark_queued_failed(project_slug, draft_id, exc)
+            raise
+        with with_tenant_context(tenant_name, project_slug):
+            try:
+                draft = outreach.claim_for_sending(project_slug, draft_id)
+                result = outreach.send_smtp(draft, settings, credentials)
+            except Exception as exc:
+                outreach.mark_failed(project_slug, draft_id, exc)
+                outreach.mark_queued_failed(project_slug, draft_id, exc)
+                raise
+            outreach.mark_sent(project_slug, draft_id)
+            return {"status": "done", "draft_id": draft_id, **result}

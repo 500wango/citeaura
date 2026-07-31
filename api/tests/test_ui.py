@@ -163,6 +163,17 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "自然搜索与站点表现" in response.text
     assert ".integration-grid{grid-template-columns:1fr}" in response.text
     assert ".integration-section-title{padding-left:20px" in response.text
+    assert "base + '/drafts/' + encodeURIComponent(body.draft_id) + '/send'" in response.text
+    assert "function outreachPanel()" in response.text
+    assert "function outreachSendReview(draft)" in response.text
+    assert "confirmation_text:text" in response.text
+    assert "SEND '+draftId" in response.text
+    assert "我已核对收件人、主题和正文" in response.text
+    assert "人工确认发送" in response.text
+    assert ".outreach-section-title{padding-left:20px" in response.text
+    assert ".outreach-smtp-grid,.outreach-identity-grid{grid-template-columns:1fr!important}" in response.text
+    assert ".settings-section-subtitle{padding-left:20px}" in response.text
+    assert "white-space:pre-wrap;overflow-wrap:anywhere" in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text
     assert "后台任务队列执行" in response.text
