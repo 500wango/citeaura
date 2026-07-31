@@ -20,10 +20,11 @@ UI_PATH = Path(__file__).resolve().parents[1] / "engine" / "scripts" / "ui.html"
 FETCH_ADAPTER = r"""
 <script>
 (function () {
-  const nativeFetch = window.fetch.bind(window);
+  const rawFetch = window.fetch.bind(window);
   const projectIds = new Map();
   let loginShown = false;
   let configuredKeyCount = 0;
+  let refreshRequest = null;
   const keyCatalog = [
     {code:'glm', label:'智谱GLM', market:'cn', env:'ZHIPUAI_API_KEY', search:false},
     {code:'doubao', label:'豆包(方舟API)', market:'cn', env:'ARK_API_KEY', search:true},
@@ -42,6 +43,36 @@ FETCH_ADAPTER = r"""
     {code:'claude_web', label:'Claude 网页版（开 Web Search）', market:'global', env:null, search:true, manual:true}
   ];
   const envToCode = Object.fromEntries(keyCatalog.filter(function (k) { return k.env; }).map(function (k) { return [k.env, k.code]; }));
+
+  async function refreshAccessToken() {
+    if (!refreshRequest) {
+      refreshRequest = (async function () {
+        const result = await rawFetch('/api/v1/auth/refresh', {method:'POST'});
+        if (!result.ok) return null;
+        const data = await result.json();
+        if (!data.access_token) return null;
+        localStorage.setItem('disvorai_access_token', data.access_token);
+        return data.access_token;
+      })();
+    }
+    try { return await refreshRequest; }
+    finally { refreshRequest = null; }
+  }
+
+  async function nativeFetch(input, init) {
+    const result = await rawFetch(input, init);
+    const url = typeof input === 'string' ? input : input.url;
+    if (result.status !== 401 || url.startsWith('/api/v1/auth/')) return result;
+    const token = await refreshAccessToken();
+    if (!token) {
+      localStorage.removeItem('disvorai_access_token');
+      showLogin();
+      return result;
+    }
+    const retry = Object.assign({}, init || {});
+    retry.headers = Object.assign({}, retry.headers || {}, {Authorization:'Bearer ' + token});
+    return rawFetch(input, retry);
+  }
 
   function response(data, status) {
     return new Response(JSON.stringify(data), {

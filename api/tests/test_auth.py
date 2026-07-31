@@ -50,12 +50,29 @@ def test_register_login_and_me(client):
     assert tokens["refresh_token"]
     cookie = logged_in.headers["set-cookie"]
     assert "disvorai_access_token=" in cookie
+    assert "disvorai_refresh_token=" in cookie
     assert "HttpOnly" in cookie
     assert "SameSite=strict" in cookie
+    assert logged_in.headers["cache-control"] == "no-store"
+
+    client.cookies.delete("disvorai_access_token")
+    cookie_refreshed = client.post("/api/v1/auth/refresh")
+    assert cookie_refreshed.status_code == 200
+    assert cookie_refreshed.json()["access_token"]
+
+    refreshed = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": tokens["refresh_token"]},
+    )
+    assert refreshed.status_code == 200
+    refreshed_tokens = refreshed.json()
+    assert refreshed_tokens["access_token"]
+    assert refreshed_tokens["refresh_token"]
+    assert refreshed.headers["cache-control"] == "no-store"
 
     current = client.get(
         "/api/v1/me",
-        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        headers={"Authorization": f"Bearer {refreshed_tokens['access_token']}"},
     )
     assert current.status_code == 200
     assert current.json()["user"]["email"] == "owner@example.com"
@@ -87,6 +104,25 @@ def test_me_requires_valid_access_token(client):
 
     assert response.status_code == 401
     assert response.json() == {"error": "invalid_token"}
+
+
+def test_refresh_rejects_missing_invalid_and_access_tokens(client):
+    payload = {"email": "owner@example.com", "password": "correct-horse-battery"}
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    tokens = client.post("/api/v1/auth/login", json=payload).json()
+
+    client.cookies.clear()
+    missing = client.post("/api/v1/auth/refresh")
+    assert missing.status_code == 401
+    assert missing.json() == {"error": "invalid_refresh_token"}
+    invalid = client.post("/api/v1/auth/refresh", json={"refresh_token": "invalid"})
+    assert invalid.status_code == 401
+    access = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": tokens["access_token"]},
+    )
+    assert access.status_code == 401
+    assert access.json() == {"error": "invalid_refresh_token"}
 
 
 def test_long_tenant_names_get_distinct_directory_slugs(client):

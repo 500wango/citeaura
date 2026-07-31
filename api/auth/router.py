@@ -5,7 +5,8 @@ import re
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -15,8 +16,11 @@ from api.auth.deps import get_current_user
 from api.auth.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ACCESS_TOKEN_COOKIE,
+    REFRESH_TOKEN_COOKIE,
+    REFRESH_TOKEN_EXPIRE_DAYS,
     create_access_token,
     create_refresh_token,
+    decode_token,
     hash_password,
     verify_password,
 )
@@ -51,6 +55,10 @@ class LoginRequest(BaseModel):
         return value.strip().lower()
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(min_length=1, max_length=4096)
+
+
 def _error(status_code: int, message: str):
     """抛出统一错误响应。"""
     raise HTTPException(status_code=status_code, detail={"error": message})
@@ -63,6 +71,36 @@ def _tenant_name(db: Session, requested: str | None, email: str) -> str:
     while db.query(Tenant.id).filter(Tenant.name == candidate).first() is not None:
         candidate = f"{base[:39]}-{uuid.uuid4().hex[:8]}"
     return candidate
+
+
+def _token_response(response: Response, user_id: int, tenant_id: int):
+    """签发令牌并设置同站 HttpOnly 会话 Cookie。"""
+    access_token = create_access_token(user_id, tenant_id)
+    refresh_token = create_refresh_token(user_id, tenant_id)
+    cookie_secure = os.getenv("SESSION_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
+    response.set_cookie(
+        ACCESS_TOKEN_COOKIE,
+        access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=cookie_secure,
+        samesite="strict",
+    )
+    response.set_cookie(
+        REFRESH_TOKEN_COOKIE,
+        refresh_token,
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        httponly=True,
+        secure=cookie_secure,
+        samesite="strict",
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }
 
 
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
@@ -115,22 +153,31 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     if membership is None:
         _error(status.HTTP_403_FORBIDDEN, "no_tenant_membership")
 
-    access_token = create_access_token(user.id, membership.tenant_id)
-    cookie_secure = os.getenv("SESSION_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
-    response.set_cookie(
-        ACCESS_TOKEN_COOKIE,
-        access_token,
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        httponly=True,
-        secure=cookie_secure,
-        samesite="strict",
-    )
-    return {
-        "access_token": access_token,
-        "refresh_token": create_refresh_token(user.id, membership.tenant_id),
-        "token_type": "bearer",
-        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    }
+    return _token_response(response, user.id, membership.tenant_id)
+
+
+@router.post("/auth/refresh")
+def refresh(
+    request: Request,
+    response: Response,
+    payload: RefreshRequest | None = None,
+    db: Session = Depends(get_db),
+):
+    """使用 refresh token 轮换 access 和 refresh token。"""
+    token = payload.refresh_token if payload else request.cookies.get(REFRESH_TOKEN_COOKIE)
+    if not token:
+        _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
+    try:
+        claims = decode_token(token, expected_type="refresh")
+        user_id = int(claims["sub"])
+        tenant_id = int(claims["tenant_id"])
+    except (KeyError, TypeError, ValueError, jwt.PyJWTError, RuntimeError):
+        _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
+    user = db.get(User, user_id)
+    membership = db.get(Membership, {"tenant_id": tenant_id, "user_id": user_id})
+    if user is None or membership is None:
+        _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
+    return _token_response(response, user_id, tenant_id)
 
 
 @router.get("/me")
