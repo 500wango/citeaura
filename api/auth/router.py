@@ -26,6 +26,7 @@ from api.auth.security import (
 )
 from api.db import get_db
 from api.models import Membership, Tenant, User
+from api.team.invitations import invitation_for_token, is_expired
 
 
 router = APIRouter(prefix="/api/v1")
@@ -35,6 +36,7 @@ class RegisterRequest(BaseModel):
     email: str = Field(min_length=3, max_length=320)
     password: str = Field(min_length=8, max_length=128)
     tenant_name: str | None = Field(default=None, max_length=128)
+    invitation_token: str | None = Field(default=None, min_length=20, max_length=512)
 
     @field_validator("email")
     @classmethod
@@ -48,6 +50,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str = Field(min_length=3, max_length=320)
     password: str = Field(min_length=1, max_length=128)
+    tenant_id: int | None = Field(default=None, ge=1)
 
     @field_validator("email")
     @classmethod
@@ -57,6 +60,10 @@ class LoginRequest(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str = Field(min_length=1, max_length=4096)
+
+
+class SwitchTenantRequest(BaseModel):
+    tenant_id: int = Field(ge=1)
 
 
 def _error(status_code: int, message: str):
@@ -73,7 +80,7 @@ def _tenant_name(db: Session, requested: str | None, email: str) -> str:
     return candidate
 
 
-def _token_response(response: Response, user_id: int, tenant_id: int):
+def token_response(response: Response, user_id: int, tenant_id: int):
     """签发令牌并设置同站 HttpOnly 会话 Cookie。"""
     access_token = create_access_token(user_id, tenant_id)
     refresh_token = create_refresh_token(user_id, tenant_id)
@@ -109,16 +116,36 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User.id).filter(User.email == payload.email).first() is not None:
         _error(status.HTTP_409_CONFLICT, "email_already_registered")
 
+    invitation = invitation_for_token(db, payload.invitation_token, for_update=True) if payload.invitation_token else None
+    if payload.invitation_token:
+        if invitation is None:
+            _error(status.HTTP_400_BAD_REQUEST, "invitation_invalid")
+        if invitation.accepted_at is not None:
+            _error(status.HTTP_409_CONFLICT, "invitation_already_accepted")
+        if is_expired(invitation):
+            _error(status.HTTP_410_GONE, "invitation_expired")
+        if invitation.email != payload.email:
+            _error(status.HTTP_403_FORBIDDEN, "invitation_email_mismatch")
+        tenant = db.get(Tenant, invitation.tenant_id)
+        if tenant is None:
+            _error(status.HTTP_400_BAD_REQUEST, "invitation_invalid")
+    else:
+        tenant = Tenant(
+            name=_tenant_name(db, payload.tenant_name, payload.email),
+            plan="trial",
+            trial_ends_at=datetime.now(timezone.utc) + timedelta(days=14),
+        )
+
     user = User(email=payload.email, password_hash=hash_password(payload.password))
-    tenant = Tenant(
-        name=_tenant_name(db, payload.tenant_name, payload.email),
-        plan="trial",
-        trial_ends_at=datetime.now(timezone.utc) + timedelta(days=14),
-    )
-    db.add_all([user, tenant])
+    db.add(user)
+    if not payload.invitation_token:
+        db.add(tenant)
     try:
         db.flush()
-        db.add(Membership(tenant_id=tenant.id, user_id=user.id, role="owner"))
+        role = invitation.role if invitation else "owner"
+        db.add(Membership(tenant_id=tenant.id, user_id=user.id, role=role))
+        if invitation:
+            invitation.accepted_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(user)
         db.refresh(tenant)
@@ -134,6 +161,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
             "plan": tenant.plan,
             "trial_ends_at": tenant.trial_ends_at,
         },
+        "role": role,
     }
 
 
@@ -144,16 +172,14 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     if user is None or not verify_password(payload.password, user.password_hash):
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_credentials")
 
-    membership = (
-        db.query(Membership)
-        .filter(Membership.user_id == user.id)
-        .order_by(Membership.tenant_id)
-        .first()
-    )
+    membership_query = db.query(Membership).filter(Membership.user_id == user.id)
+    if payload.tenant_id is not None:
+        membership_query = membership_query.filter(Membership.tenant_id == payload.tenant_id)
+    membership = membership_query.order_by(Membership.tenant_id).first()
     if membership is None:
         _error(status.HTTP_403_FORBIDDEN, "no_tenant_membership")
 
-    return _token_response(response, user.id, membership.tenant_id)
+    return token_response(response, user.id, membership.tenant_id)
 
 
 @router.post("/auth/refresh")
@@ -177,7 +203,21 @@ def refresh(
     membership = db.get(Membership, {"tenant_id": tenant_id, "user_id": user_id})
     if user is None or membership is None:
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
-    return _token_response(response, user_id, tenant_id)
+    return token_response(response, user_id, tenant_id)
+
+
+@router.post("/auth/switch-tenant")
+def switch_tenant(
+    payload: SwitchTenantRequest,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """切换到当前用户所属的另一个工作区。"""
+    membership = db.get(Membership, {"tenant_id": payload.tenant_id, "user_id": current_user.id})
+    if membership is None:
+        _error(status.HTTP_404_NOT_FOUND, "tenant_membership_not_found")
+    return token_response(response, current_user.id, payload.tenant_id)
 
 
 @router.get("/me")
@@ -186,6 +226,13 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
     tenant = db.get(Tenant, current_user.tenant_id)
     if tenant is None:
         _error(status.HTTP_403_FORBIDDEN, "no_tenant_membership")
+    memberships = (
+        db.query(Membership, Tenant)
+        .join(Tenant, Tenant.id == Membership.tenant_id)
+        .filter(Membership.user_id == current_user.id)
+        .order_by(Tenant.name)
+        .all()
+    )
     return {
         "user": {"id": current_user.id, "email": current_user.email},
         "tenant": {
@@ -195,4 +242,8 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
             "trial_ends_at": tenant.trial_ends_at,
         },
         "role": getattr(current_user, "tenant_role", "viewer"),
+        "workspaces": [
+            {"id": workspace.id, "name": workspace.name, "plan": workspace.plan, "role": membership.role}
+            for membership, workspace in memberships
+        ],
     }

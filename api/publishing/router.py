@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from api.adapters import publishing
 from api.adapters.engine import with_tenant_context
 from api.adapters.exceptions import GeoEngineError
-from api.auth.deps import get_current_user
+from api.auth.deps import get_current_user, require_editor, require_owner
 from api.db import get_db
 from api.models import ApiKey, Project, Tenant, User
 from api.settings.crypto import decrypt_key, encrypt_key
@@ -94,7 +94,7 @@ def update_publisher(
     project_id: int,
     platform: str,
     payload: PublisherConfigRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_owner),
     db: Session = Depends(get_db),
 ):
     """保存渠道凭证和项目级非敏感配置。"""
@@ -134,7 +134,7 @@ def publish_content(
     project_id: int,
     platform: str,
     payload: PublishRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     """经用户明确确认后，把项目成稿发送到指定渠道。"""

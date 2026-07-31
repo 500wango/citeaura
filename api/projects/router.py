@@ -13,10 +13,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from api.adapters.engine import geolib, job_log_path, with_tenant_context
+from api.adapters.engine import ENGINE_KEY_ENV, geolib, job_log_path, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import framing, workspace
-from api.auth.deps import get_current_user
+from api.auth.deps import get_current_user, require_editor
 from api.billing.limits import check_project_creation, check_sample_run
 from api.db import get_db
 from api.models import ApiKey, Job, Project, Tenant, User
@@ -172,7 +172,7 @@ def _schedule_payload(project: Project):
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
 def create_project(
     payload: ProjectCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     """创建项目、初始化引擎目录并投递 Bootstrap 任务。"""
@@ -191,7 +191,10 @@ def create_project(
     )
     db.add(project)
     db.flush()
-    has_engine_keys = db.query(ApiKey.id).filter(ApiKey.tenant_id == tenant.id).first() is not None
+    has_engine_keys = db.query(ApiKey.id).filter(
+        ApiKey.tenant_id == tenant.id,
+        ApiKey.engine_code.in_(tuple(ENGINE_KEY_ENV)),
+    ).first() is not None
     skip_llm = payload.skip_llm or not has_engine_keys
     no_sample = payload.no_sample or not has_engine_keys
     job_action = "bootstrap" if no_sample else "autopilot"
@@ -367,7 +370,7 @@ def project_schedule(project_id: int, current_user: User = Depends(get_current_u
 def update_project_schedule(
     project_id: int,
     payload: ScheduleRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     """启用 7/14/30 天周期复跑，传 0 时关闭。"""
@@ -414,7 +417,7 @@ def project_job(
 def sample_project(
     project_id: int,
     payload: SampleRequest | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     """投递一次 API 采样任务。"""
@@ -454,7 +457,7 @@ def run_pipeline_action(
     project_id: int,
     action: str,
     payload: PipelineActionRequest | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     """投递一个白名单内的引擎管线动作。"""
@@ -605,7 +608,7 @@ def project_playbook(project_id: int, current_user: User = Depends(get_current_u
 def create_ticket(
     project_id: int,
     payload: OffsiteTicketCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     """创建需要人工验收的 offsite 工单。"""
@@ -634,7 +637,7 @@ def update_ticket(
     project_id: int,
     ticket_id: str,
     payload: TicketUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     """调用 engine tasks.set_status 更新工单状态。"""
@@ -655,7 +658,7 @@ def update_ticket(
 
 
 @router.post("/{project_id}/verify", status_code=status.HTTP_202_ACCEPTED)
-def verify_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def verify_project(project_id: int, current_user: User = Depends(require_editor), db: Session = Depends(get_db)):
     """投递工单自动验收任务。"""
     project = _project_for_user(db, current_user, project_id)
     if _active_job(db, project.id) is not None:
@@ -695,7 +698,7 @@ def verify_history(project_id: int, current_user: User = Depends(get_current_use
 
 
 @router.post("/{project_id}/deliver", status_code=status.HTTP_202_ACCEPTED)
-def deliver_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def deliver_project(project_id: int, current_user: User = Depends(require_editor), db: Session = Depends(get_db)):
     """投递客户交付包生成任务。"""
     project = _project_for_user(db, current_user, project_id)
     if _active_job(db, project.id) is not None:

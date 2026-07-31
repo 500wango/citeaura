@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
-from api.auth.deps import get_current_user
+from api.auth.deps import get_current_user, require_owner
 from api.billing.limits import usage
 from api.db import get_db
 from api.models import Subscription, Tenant, User
@@ -51,7 +51,7 @@ def billing_plans():
 @router.post("/subscribe")
 def subscribe(
     payload: SubscribePayload,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_owner),
     db: Session = Depends(get_db),
 ):
     """升级租户套餐；支付提供 mock 协议，后续可接 Stripe/支付宝。"""

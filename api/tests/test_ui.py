@@ -96,10 +96,20 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "function framingPanel()" in response.text
     assert "function showFramingEvidence(index)" in response.text
     assert "const engineCompetitorsView = vCompetitors" in response.text
+    assert "VIEWS.competitors = vCompetitors" in response.text
     assert "AI 如何描述你" in response.text
     assert "基于品牌被实际提及的回答短语，词频按样本去重。" in response.text
     assert "品牌印象加载失败，请刷新后重试。" in response.text
     assert "原文证据" in response.text
+    assert "/api/v1/team/members" in response.text
+    assert "/api/v1/team/invitations" in response.text
+    assert "/api/v1/auth/switch-tenant" in response.text
+    assert "invitation_token:invitationToken" in response.text
+    assert "function teamPanel()" in response.text
+    assert "function teamInviteModal()" in response.text
+    assert "VIEWS.settings = vSettings" in response.text
+    assert "团队成员按 owner/editor/viewer 分级" in response.text
+    assert "成员邀请与角色管理暂未开放" not in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text
     assert "后台任务队列执行" in response.text

@@ -47,3 +47,19 @@ def get_current_user(
     user.tenant_id = tenant_id
     user.tenant_role = membership.role
     return user
+
+
+def require_roles(*allowed_roles):
+    """构造按当前租户 membership 校验的角色依赖。"""
+    allowed = frozenset(allowed_roles)
+
+    def dependency(current_user: User = Depends(get_current_user)):
+        if getattr(current_user, "tenant_role", None) not in allowed:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "insufficient_role"})
+        return current_user
+
+    return dependency
+
+
+require_owner = require_roles("owner")
+require_editor = require_roles("owner", "editor")

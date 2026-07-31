@@ -25,6 +25,7 @@ FETCH_ADAPTER = r"""
   let loginShown = false;
   let configuredKeyCount = 0;
   let refreshRequest = null;
+  const invitationToken = new URLSearchParams(location.search).get('invite') || '';
   const keyCatalog = [
     {code:'glm', label:'智谱GLM', market:'cn', env:'ZHIPUAI_API_KEY', search:false},
     {code:'doubao', label:'豆包(方舟API)', market:'cn', env:'ARK_API_KEY', search:true},
@@ -114,7 +115,7 @@ FETCH_ADAPTER = r"""
     box.id = 'disvorai-login';
     box.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#161826;display:grid;place-items:center;font:15px system-ui;color:#e9e9ed';
     box.innerHTML = '<form style="width:min(360px,calc(100% - 40px));padding:28px;background:#232532;border-radius:8px;box-shadow:0 6px 18px #0008">' +
-      '<h2 style="margin:0 0 8px;color:#e9e9ed">DisvorAI</h2><p style="color:#b2b6ca;margin:0 0 18px">Sign in or create your workspace</p>' +
+      '<h2 style="margin:0 0 8px;color:#e9e9ed">DisvorAI</h2><p style="color:#b2b6ca;margin:0 0 18px">' + (invitationToken ? 'Accept workspace invitation' : 'Sign in or create your workspace') + '</p>' +
       '<label>Email<input name="email" type="email" required style="display:block;width:100%;margin:5px 0 12px;padding:9px;background:#1b1d2b;color:#e9e9ed;border:1px solid #595d6c;border-radius:6px"></label>' +
       '<label>Password<input name="password" type="password" minlength="8" required style="display:block;width:100%;margin:5px 0 16px;padding:9px;background:#1b1d2b;color:#e9e9ed;border:1px solid #595d6c;border-radius:6px"></label>' +
       '<button style="width:100%;padding:9px;background:#9184d9;color:#161826;border:0;border-radius:6px;cursor:pointer">Continue</button>' +
@@ -126,12 +127,24 @@ FETCH_ADAPTER = r"""
       const options = {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:email,password:password})};
       let r = await nativeFetch('/api/v1/auth/login', options);
       if (!r.ok) {
-        await nativeFetch('/api/v1/auth/register', options);
+        const registration = {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+          email:email,password:password,invitation_token:invitationToken || null
+        })};
+        await nativeFetch('/api/v1/auth/register', registration);
         r = await nativeFetch('/api/v1/auth/login', options);
       }
       if (!r.ok) { this.querySelector('[data-error]').textContent = 'Unable to sign in with these credentials.'; return; }
-      const data = await r.json();
+      let data = await r.json();
+      if (invitationToken) {
+        const accepted = await nativeFetch('/api/v1/team/invitations/accept', {
+          method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer ' + data.access_token},
+          body:JSON.stringify({token:invitationToken})
+        });
+        if (!accepted.ok) { this.querySelector('[data-error]').textContent = 'Unable to accept this invitation.'; return; }
+        data = await accepted.json();
+      }
       localStorage.setItem('disvorai_access_token', data.access_token);
+      if (invitationToken) history.replaceState({}, '', location.pathname + location.hash);
       location.reload();
     });
   }
@@ -266,6 +279,42 @@ FETCH_ADAPTER = r"""
       return id ? nativeFetch('/api/v1/projects/' + id + '/questions', {
         method:'POST',headers:init.headers,body:JSON.stringify({items:body.items || []})
       }) : response({error:'project_not_found'}, 404);
+    }
+    if (url === '/api/team' && !init.body) {
+      const membersResponse = await nativeFetch('/api/v1/team/members', init);
+      const members = await membersResponse.json().catch(function () { return {}; });
+      if (!membersResponse.ok) return response(members, membersResponse.status);
+      const meResponse = await nativeFetch('/api/v1/me', init);
+      const me = meResponse.ok ? await meResponse.json() : {};
+      let invitations = [];
+      if (members.current_role === 'owner') {
+        const invitationsResponse = await nativeFetch('/api/v1/team/invitations', init);
+        if (invitationsResponse.ok) invitations = (await invitationsResponse.json()).invitations || [];
+      }
+      return response(Object.assign({}, members, {invitations:invitations,workspaces:me.workspaces || []}), 200);
+    }
+    if (url === '/api/team/invite' && init.body) {
+      return nativeFetch('/api/v1/team/invitations', {
+        method:'POST', headers:init.headers, body:init.body
+      });
+    }
+    if (url === '/api/team/member' && init.body) {
+      const body = JSON.parse(init.body), target = '/api/v1/team/members/' + encodeURIComponent(body.user_id);
+      return nativeFetch(target, {
+        method:body.remove ? 'DELETE' : 'PATCH', headers:init.headers,
+        body:body.remove ? undefined : JSON.stringify({role:body.role})
+      });
+    }
+    if (url === '/api/team/revoke' && init.body) {
+      const body = JSON.parse(init.body);
+      return nativeFetch('/api/v1/team/invitations/' + encodeURIComponent(body.invitation_id), {
+        method:'DELETE', headers:init.headers
+      });
+    }
+    if (url === '/api/team/switch' && init.body) {
+      return nativeFetch('/api/v1/auth/switch-tenant', {
+        method:'POST', headers:init.headers, body:init.body
+      });
     }
     const publishMatch = url.match(/^\/api\/publish\/([^?]+)/);
     if (publishMatch) {
@@ -424,7 +473,25 @@ FETCH_ADAPTER = r"""
     }
     return response({error:'legacy_ui_endpoint_not_supported'}, 404);
   };
+  async function acceptPendingInvitation() {
+    const token = localStorage.getItem('disvorai_access_token');
+    if (!invitationToken || !token) return;
+    const result = await nativeFetch('/api/v1/team/invitations/accept', {
+      method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer ' + token},
+      body:JSON.stringify({token:invitationToken})
+    });
+    if (result.ok) {
+      const data = await result.json();
+      localStorage.setItem('disvorai_access_token', data.access_token);
+      history.replaceState({}, '', location.pathname + location.hash);
+      location.reload();
+      return;
+    }
+    localStorage.removeItem('disvorai_access_token');
+    showLogin();
+  }
   if (!localStorage.getItem('disvorai_access_token')) setTimeout(showLogin, 0);
+  else if (invitationToken) setTimeout(acceptPendingInvitation, 0);
 })();
 </script>
 """
@@ -545,6 +612,126 @@ vCompetitors = function () {
   const anchor = '<div class="tabs" style="margin-top:18px">';
   return html.replace(anchor, framingPanel() + anchor);
 };
+VIEWS.competitors = vCompetitors;
+
+Object.assign(UI_D.en, {
+  '团队成员':'Team members','工作区':'Workspace','邀请成员':'Invite member','待接受邀请':'Pending invitations',
+  '复制邀请链接':'Copy invitation link','撤销':'Revoke','移除':'Remove','你':'You',
+  '所有者':'Owner','编辑者':'Editor','只读成员':'Viewer','邀请链接已创建':'Invitation link created',
+  '团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'Team members use owner, editor, and viewer roles. Invitation links expire after 7 days.'
+});
+Object.assign(UI_D.ja, {
+  '团队成员':'チームメンバー','工作区':'ワークスペース','邀请成员':'メンバーを招待','待接受邀请':'保留中の招待',
+  '复制邀请链接':'招待リンクをコピー','撤销':'取り消す','移除':'削除','你':'自分',
+  '所有者':'オーナー','编辑者':'編集者','只读成员':'閲覧者','邀请链接已创建':'招待リンクを作成しました',
+  '团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'メンバーは owner、editor、viewer のロールで管理され、招待リンクは 7 日間有効です。'
+});
+
+let TEAM_STATE = null;
+const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
+
+function teamPanel() {
+  const state = TEAM_STATE || {}, members = state.members || [], invitations = state.invitations || [];
+  const owner = state.current_role === 'owner';
+  const pending = invitations.filter(function (item) { return item.status === 'pending'; });
+  return `<div class="card elev" style="padding:18px;gap:10px;margin-top:14px">
+    <div class="row"><div style="flex:1"><div style="font-size:15px;font-weight:500">团队成员</div>
+      <div style="font-size:11.5px;color:var(--t600)">${esc((state.tenant || {}).name || '')}</div></div>
+      ${owner?'<button class="btn btn-primary" style="font-size:12px" onclick="teamInviteModal()">邀请成员</button>':''}</div>
+    ${(state.workspaces || []).length > 1?`<label class="row" style="font-size:12px;color:var(--t500);gap:8px">工作区
+      <select class="input" style="width:auto;min-width:180px" onchange="switchTeamWorkspace(this.value)">
+        ${(state.workspaces || []).map(function (workspace) { return `<option value="${workspace.id}" ${workspace.id===(state.tenant || {}).id?'selected':''}>${esc(workspace.name)} · ${esc(teamRoleLabel[workspace.role] || workspace.role)}</option>`; }).join('')}
+      </select></label>`:''}
+    <div>${members.map(function (member) { return `<div class="row" style="padding:7px 0;box-shadow:inset 0 -1px 0 var(--line);gap:8px">
+      <span style="flex:1;font-size:13px;overflow-wrap:anywhere">${esc(member.email)}${member.is_current_user?' <span class="tag tag-neutral">你</span>':''}</span>
+      ${owner?`<select class="input" style="width:110px;padding:4px 7px;font-size:12px" onchange="updateTeamMember(${member.user_id},this.value)">
+        ${['owner','editor','viewer'].map(function (role) { return `<option value="${role}" ${member.role===role?'selected':''}>${teamRoleLabel[role]}</option>`; }).join('')}</select>
+        ${member.is_current_user?'':`<button class="btn btn-ghost" style="font-size:12px;padding:3px 7px" onclick="removeTeamMember(${member.user_id})">移除</button>`}`
+        :`<span class="tag tag-outline">${esc(teamRoleLabel[member.role] || member.role)}</span>`}</div>`; }).join('')}</div>
+    ${owner&&pending.length?`<div style="font-size:12px;color:var(--t500);margin-top:4px">待接受邀请</div>
+      ${pending.map(function (invitation) { return `<div class="row" style="padding:5px 0;gap:8px;font-size:12.5px">
+        <span style="flex:1;overflow-wrap:anywhere">${esc(invitation.email)}</span><span class="tag tag-outline">${esc(teamRoleLabel[invitation.role] || invitation.role)}</span>
+        <button class="btn btn-ghost" style="font-size:12px;padding:3px 7px" onclick="revokeTeamInvitation(${invitation.id})">撤销</button></div>`; }).join('')}`:''}
+  </div>`;
+}
+
+function teamInviteModal() {
+  modal(`<h4 style="font-size:17px">邀请成员</h4>
+    <label style="display:block;font-size:12px;color:var(--t500);margin-top:12px">Email
+      <input id="team-invite-email" class="input" type="email" autocomplete="email" style="margin-top:5px"></label>
+    <label style="display:block;font-size:12px;color:var(--t500);margin-top:12px">角色
+      <select id="team-invite-role" class="input" style="margin-top:5px"><option value="editor">编辑者</option><option value="viewer">只读成员</option><option value="owner">所有者</option></select></label>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="inviteTeamMember()">创建邀请</button></div>`);
+}
+
+async function inviteTeamMember() {
+  const email = (($('#team-invite-email') || {}).value || '').trim();
+  const role = (($('#team-invite-role') || {}).value || 'viewer');
+  if (!email) { toast('请输入成员邮箱','err'); return; }
+  const result = await post('/api/team/invite',{email:email,role:role});
+  if (result.error) { toast('邀请失败：'+result.error,'err'); return; }
+  TEAM_STATE = null;
+  const inviteUrl = new URL(result.invite_url || '/', location.origin).href;
+  modal(`<h4 style="font-size:17px">邀请链接已创建</h4>
+    <input id="team-invite-link" class="input" readonly value="${esc(inviteUrl)}" style="margin-top:12px">
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-secondary" onclick="closeModal();render()">关闭</button>
+      <button class="btn btn-primary" onclick="copyTeamInvite()">复制邀请链接</button></div>`);
+}
+
+async function copyTeamInvite() {
+  const input = $('#team-invite-link');
+  if (!input) return;
+  await navigator.clipboard.writeText(input.value);
+  toast('已复制');
+}
+
+async function updateTeamMember(userId, role) {
+  const result = await post('/api/team/member',{user_id:userId,role:role});
+  if (result.error) { toast('更新失败：'+result.error,'err'); TEAM_STATE=null; render(); return; }
+  TEAM_STATE=null;toast('角色已更新');render();
+}
+
+async function removeTeamMember(userId) {
+  if (!confirm('确认移除这名成员？')) return;
+  const result = await post('/api/team/member',{user_id:userId,remove:true});
+  if (result.error) { toast('移除失败：'+result.error,'err'); return; }
+  TEAM_STATE=null;render();
+}
+
+async function revokeTeamInvitation(invitationId) {
+  if (!confirm('确认撤销这条邀请？')) return;
+  const result = await post('/api/team/revoke',{invitation_id:invitationId});
+  if (result.error) { toast('撤销失败：'+result.error,'err'); return; }
+  TEAM_STATE=null;render();
+}
+
+async function switchTeamWorkspace(tenantId) {
+  const result = await post('/api/team/switch',{tenant_id:Number(tenantId)});
+  if (!result.access_token) { toast('切换失败：'+(result.error || ''),'err'); return; }
+  localStorage.setItem('disvorai_access_token', result.access_token);
+  location.reload();
+}
+
+const engineSettingsView = VIEWS.settings;
+vSettings = async function () {
+  if (!TEAM_STATE) TEAM_STATE = await api('/api/team');
+  const html = await engineSettingsView();
+  const index = html.lastIndexOf('</div>');
+  return index < 0 ? html + teamPanel() : html.slice(0,index) + teamPanel() + html.slice(index);
+};
+VIEWS.settings = vSettings;
+
+const engineEditKey = editKey;
+editKey = function (index) {
+  if (!TEAM_STATE || TEAM_STATE.current_role !== 'owner') { toast('仅所有者可配置 API Key','err'); return; }
+  engineEditKey(index);
+};
+const engineEditPublisher = editPub;
+editPub = function (index) {
+  if (!TEAM_STATE || TEAM_STATE.current_role !== 'owner') { toast('仅所有者可配置发布渠道','err'); return; }
+  engineEditPublisher(index);
+};
 
 const engineTaskModal = taskModal;
 taskModal = function (id) {
@@ -602,19 +789,19 @@ def serve_ui():
     html = html.replace("toast(r.ok?'已写入 .env'", "toast(r.ok?'Key 已加密保存'")
     html = html.replace(
         '团队与权限：单机自托管版，无账号体系；服务只绑定 127.0.0.1。多人使用需自行加反向代理与认证。',
-        '当前工作区按租户隔离；成员邀请与角色管理暂未开放。',
+        '团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。',
     )
     html = html.replace(
-        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'Teams & auth: single-machine self-hosted, no account system; the server binds to 127.0.0.1 only. For multi-user, add your own reverse proxy with auth.'",
-        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'This workspace is tenant-isolated. Member invitations and role management are not available yet.'",
+        "'团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'Teams & auth: single-machine self-hosted, no account system; the server binds to 127.0.0.1 only. For multi-user, add your own reverse proxy with auth.'",
+        "'团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'Team members use owner, editor, and viewer roles. Invitation links expire after 7 days.'",
     )
     html = html.replace(
-        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'チームと権限：単一マシンのセルフホスト版でアカウント機能なし。サービスは 127.0.0.1 のみにバインド。複数人利用はリバースプロキシと認証を追加。'",
-        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'このワークスペースはテナントごとに分離されています。メンバー招待とロール管理はまだ利用できません。'",
+        "'团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'チームと権限：単一マシンのセルフホスト版でアカウント機能なし。サービスは 127.0.0.1 のみにバインド。複数人利用はリバースプロキシと認証を追加。'",
+        "'团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'メンバーは owner、editor、viewer のロールで管理され、招待リンクは 7 日間有効です。'",
     )
     html = html.replace(
-        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'チームと権限：単機セルフホスト版でアカウント機構なし。サーバーは 127.0.0.1 のみにバインド。複数人利用はリバースプロキシ+認証を自前で。'",
-        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'このワークスペースはテナントごとに分離されています。メンバー招待とロール管理はまだ利用できません。'",
+        "'团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'チームと権限：単機セルフホスト版でアカウント機構なし。サーバーは 127.0.0.1 のみにバインド。複数人利用はリバースプロキシ+認証を自前で。'",
+        "'团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'メンバーは owner、editor、viewer のロールで管理され、招待リンクは 7 日間有効です。'",
     )
     html = html.replace(
         '后台子进程执行，关掉页面也会跑完。同一项目同时只跑一个。',

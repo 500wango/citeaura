@@ -31,6 +31,7 @@ class Tenant(Base):
     api_keys = relationship("ApiKey", back_populates="tenant", cascade="all, delete-orphan")
     subscriptions = relationship("Subscription", back_populates="tenant", cascade="all, delete-orphan")
     usage_counters = relationship("UsageCounter", back_populates="tenant", cascade="all, delete-orphan")
+    invitations = relationship("TeamInvitation", back_populates="tenant", cascade="all, delete-orphan")
 
 
 class User(Base):
@@ -46,6 +47,9 @@ class User(Base):
 
 class Membership(Base):
     __tablename__ = "memberships"
+    __table_args__ = (
+        CheckConstraint("role IN ('owner', 'editor', 'viewer')", name="ck_memberships_role"),
+    )
 
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
@@ -53,6 +57,25 @@ class Membership(Base):
 
     tenant = relationship("Tenant", back_populates="memberships")
     user = relationship("User", back_populates="memberships")
+
+
+class TeamInvitation(Base):
+    __tablename__ = "team_invitations"
+    __table_args__ = (
+        CheckConstraint("role IN ('owner', 'editor', 'viewer')", name="ck_team_invitations_role"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    email = Column(String(320), nullable=False, index=True)
+    role = Column(String(32), nullable=False)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    invited_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    accepted_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    tenant = relationship("Tenant", back_populates="invitations")
 
 
 class Project(Base):

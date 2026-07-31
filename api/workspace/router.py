@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from api.adapters.engine import with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import workspace
-from api.auth.deps import get_current_user
+from api.auth.deps import get_current_user, require_editor
 from api.billing.limits import check_sample_run
 from api.db import get_db
 from api.models import Job, Project, Tenant, User
@@ -91,7 +91,7 @@ def project_config(project_id: int, current_user: User = Depends(get_current_use
 def update_project_config(
     project_id: int,
     payload: dict = Body(...),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     _, project = _tenant_project(db, current_user, project_id)
@@ -111,7 +111,7 @@ def project_facts(project_id: int, current_user: User = Depends(get_current_user
 def update_project_facts(
     project_id: int,
     payload: TextRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     _, project = _tenant_project(db, current_user, project_id)
@@ -139,7 +139,7 @@ def project_asset(
 def update_project_asset(
     project_id: int,
     payload: AssetRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     _, project = _tenant_project(db, current_user, project_id)
@@ -172,7 +172,7 @@ def project_factcheck(project_id: int, current_user: User = Depends(get_current_
 def update_project_factcheck(
     project_id: int,
     payload: FactcheckRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     _, project = _tenant_project(db, current_user, project_id)
@@ -185,7 +185,7 @@ def update_project_factcheck(
 def update_project_distribution(
     project_id: int,
     payload: DistributionRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     _, project = _tenant_project(db, current_user, project_id)
@@ -216,7 +216,7 @@ def project_content(
 def update_project_content(
     project_id: int,
     payload: AssetRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     _, project = _tenant_project(db, current_user, project_id)
@@ -234,7 +234,7 @@ def project_expansion(project_id: int, current_user: User = Depends(get_current_
 def add_project_questions(
     project_id: int,
     payload: QuestionsRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     _, project = _tenant_project(db, current_user, project_id)
@@ -252,7 +252,7 @@ def project_files(project_id: int, current_user: User = Depends(get_current_user
 def import_project_samples(
     project_id: int,
     payload: SampleImportRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     tenant, project = _tenant_project(db, current_user, project_id)

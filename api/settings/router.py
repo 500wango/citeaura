@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from api.adapters.engine import ENGINE_KEY_ENV
-from api.auth.deps import get_current_user
+from api.auth.deps import get_current_user, require_owner
 from api.db import get_db
 from api.models import ApiKey, Tenant, User
 from api.settings.crypto import encrypt_key, mask_key
@@ -48,7 +48,7 @@ def _tenant_for_user(db: Session, user: User) -> Tenant:
 
 
 @router.put("")
-def put_key(payload: KeyPayload, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def put_key(payload: KeyPayload, current_user: User = Depends(require_owner), db: Session = Depends(get_db)):
     """新增或替换当前租户的引擎 API Key。"""
     tenant = _tenant_for_user(db, current_user)
     encrypted_value = encrypt_key(payload.key_value)
@@ -90,7 +90,7 @@ def list_keys(current_user: User = Depends(get_current_user), db: Session = Depe
 
 
 @router.delete("/{engine_code}")
-def delete_key(engine_code: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_key(engine_code: str, current_user: User = Depends(require_owner), db: Session = Depends(get_db)):
     """删除当前租户指定引擎的 API Key。"""
     engine_code = engine_code.strip().lower()
     if engine_code not in SUPPORTED_ENGINE_CODES:
