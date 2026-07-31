@@ -98,12 +98,17 @@ body{overflow-x:hidden}
 .module-heading strong{flex:1;min-width:0;font-size:16px;font-weight:600;letter-spacing:0}
 .module-close{display:none;width:30px;height:30px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--t500);cursor:pointer}
 .module-close:hover{background:rgba(233,233,237,.06);color:var(--text)}
-.project-switcher{display:flex;align-items:center;gap:9px;width:100%;min-height:58px;margin:0 0 16px;padding:9px 10px;border:1px solid var(--divider);border-radius:7px;background:var(--deep);color:var(--text);text-align:left;cursor:pointer}
+.project-switcher-row{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:6px;margin:0 0 16px}
+.project-switcher{display:flex;align-items:center;gap:9px;width:100%;min-height:58px;margin:0;padding:9px 10px;border:1px solid var(--divider);border-radius:7px;background:var(--deep);color:var(--text);text-align:left;cursor:pointer}
 .project-switcher:hover{border-color:var(--t700);background:var(--surface)}
 .project-switcher-copy{flex:1;min-width:0}
 .project-switcher-label{display:block;margin-bottom:2px;color:var(--t600);font-size:10px;line-height:1.2;letter-spacing:0}
 .project-switcher-name{display:block;overflow:hidden;color:var(--text);font-size:13px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap}
 .project-switcher .admin-icon{width:15px;height:15px;color:var(--t500)}
+.project-add{display:grid;place-items:center;width:40px;min-height:58px;padding:0;border:1px solid var(--a700);border-radius:7px;background:var(--a900);color:var(--a300);cursor:pointer}
+.project-add:hover{border-color:var(--a500);background:var(--a800);color:var(--text)}
+.project-add:active{transform:translateY(1px)}
+.project-add .admin-icon{width:19px;height:19px}
 .module-nav{display:flex;flex:1;min-height:0;flex-direction:column;gap:16px;overflow-y:auto;overscroll-behavior:contain;padding-right:1px}
 .module-nav-group{display:flex;flex-direction:column;gap:2px}
 .module-nav-label{padding:0 8px 5px;color:var(--t600);font-size:10px;font-weight:500;line-height:1.3;letter-spacing:0}
@@ -151,6 +156,7 @@ body{overflow-x:hidden}
 .icon-log-out{--admin-icon:url('/site-assets/icons/log-out.svg')}
 .icon-x{--admin-icon:url('/site-assets/icons/x.svg')}
 .icon-menu{--admin-icon:url('/site-assets/icons/menu.svg')}
+.icon-plus{--admin-icon:url('/site-assets/icons/plus.svg')}
 #burger{width:36px;height:36px;padding:0;border-color:var(--divider);background:var(--side);box-shadow:var(--sh-sm)}
 #burger .admin-icon{width:18px;height:18px}
 #nav-scrim{display:none;position:fixed;inset:0;z-index:45;border:0;background:rgba(9,10,17,.58);cursor:pointer}
@@ -944,7 +950,7 @@ const ADMIN_ROUTE_ALIASES = {settings:'project-settings'};
 
 Object.assign(UI_D.en, {
   '项目设置':'Project settings','管理项目清单、品牌信息、官网域名和竞品范围。':'Manage projects, brand details, website domains, and competitor scope.',
-  '项目':'Project','网站审计均分':'Website audit average','接入新项目':'Add project','编辑当前项目':'Edit current project',
+  '项目':'Project','网站审计均分':'Website audit average','添加品牌':'Add brand','编辑当前项目':'Edit current project',
   '运行与调度':'Runs and schedules','手动运行完整管线、执行单项任务，或设置固定复跑周期。':'Run the full pipeline, execute individual jobs, or set a recurring schedule.',
   '任务由后台队列执行，关闭页面后仍会继续。同一项目同时只运行一个任务。':'Jobs continue in the background queue after this page closes. Each project runs one job at a time.',
   '全自动引导':'Guided automation','跑完整一期':'Run full cycle','关闭':'Off','任务运行中':'Job running',
@@ -964,7 +970,7 @@ Object.assign(UI_D.en, {
 });
 Object.assign(UI_D.ja, {
   '项目设置':'プロジェクト設定','管理项目清单、品牌信息、官网域名和竞品范围。':'プロジェクト、ブランド情報、公式サイト、競合範囲を管理します。',
-  '项目':'プロジェクト','网站审计均分':'サイト監査平均','接入新项目':'プロジェクトを追加','编辑当前项目':'現在のプロジェクトを編集',
+  '项目':'プロジェクト','网站审计均分':'サイト監査平均','添加品牌':'ブランドを追加','编辑当前项目':'現在のプロジェクトを編集',
   '运行与调度':'実行とスケジュール','手动运行完整管线、执行单项任务，或设置固定复跑周期。':'パイプライン全体または個別ジョブを実行し、定期実行を設定します。',
   '任务由后台队列执行，关闭页面后仍会继续。同一项目同时只运行一个任务。':'ジョブはバックグラウンドキューで継続します。プロジェクトごとに同時実行は 1 件です。',
   '全自动引导':'自動ガイド','跑完整一期':'フルサイクルを実行','关闭':'オフ','任务运行中':'ジョブ実行中',
@@ -992,6 +998,10 @@ function adminModuleForRoute(route) {
   }) || ADMIN_MODULES[0];
 }
 function closeAdminNav(){const side=$('#side');if(side)side.classList.remove('open');}
+function startBrandOnboarding(){
+  ST.obStep=1;ST.obSlug=null;ST.obNoSample=false;ST.obFail=false;ST.obUrl='';ST.obName='';ST.obMkt='both';
+  go('onboard',{obStep:1});
+}
 function openAdminModule(moduleId){
   const module=ADMIN_MODULES.find(function(item){return item.id===moduleId;}) || ADMIN_MODULES[0];
   const current=adminModuleForRoute(R);
@@ -1027,7 +1037,7 @@ renderSide = function () {
   </div>
   <div class="module-panel">
     <div class="module-heading"><strong>${esc(adminText(module.label))}</strong><button class="module-close" type="button" onclick="closeAdminNav()" aria-label="${esc(({zh:'关闭导航',en:'Close navigation',ja:'ナビゲーションを閉じる'})[ULANG]||'关闭导航')}"><span class="admin-icon icon-x" aria-hidden="true"></span></button></div>
-    <button class="project-switcher" type="button" onclick="switchModal()"><span class="project-switcher-copy"><span class="project-switcher-label">${esc(adminText({zh:'当前项目',en:'Current project',ja:'現在のプロジェクト'}))}</span><span class="project-switcher-name" title="${esc(brand.name||'—')}">${esc(brand.name||'—')}</span></span><span class="admin-icon icon-chevron-down" aria-hidden="true"></span></button>
+    <div class="project-switcher-row"><button class="project-switcher" type="button" onclick="switchModal()"><span class="project-switcher-copy"><span class="project-switcher-label">${esc(adminText({zh:'当前品牌',en:'Current brand',ja:'現在のブランド'}))}</span><span class="project-switcher-name" title="${esc(brand.name||'—')}">${esc(brand.name||'—')}</span></span><span class="admin-icon icon-chevron-down" aria-hidden="true"></span></button><button class="project-add" type="button" onclick="startBrandOnboarding()" aria-label="${esc(adminText({zh:'添加品牌',en:'Add brand',ja:'ブランドを追加'}))}" title="${esc(adminText({zh:'添加品牌',en:'Add brand',ja:'ブランドを追加'}))}"><span class="admin-icon icon-plus" aria-hidden="true"></span></button></div>
     <nav class="module-nav" aria-label="${esc(adminText(module.label))}">
       ${module.groups.map(function(group){return `<div class="module-nav-group">${group.label?`<div class="module-nav-label">${esc(adminText(group.label))}</div>`:''}${group.items.map(function(item){const selected=item.route===activeRoute;return `<button class="module-link" type="button" ${selected?'aria-current="page"':''} onclick="go('${item.route}')"><span class="module-link-label">${esc(adminText(item.label))}</span><span class="bdg">${esc(badge(item.route))}</span></button>`;}).join('')}</div>`;}).join('')}
     </nav>
@@ -1733,7 +1743,7 @@ function projectSettingsPanel() {
   const projects=Array.isArray(PROJECTS)?PROJECTS:[];
   return `<div class="tbl"><table class="table"><thead><tr><th>项目</th><th style="width:210px">域名</th><th style="width:110px">网站审计均分</th><th style="width:90px">任务</th><th style="width:80px"></th></tr></thead><tbody>
     ${projects.map(function(project){return `<tr><td><span style="font-size:13.5px">${esc(project.name)}</span>${project.slug===SLUG?' <span class="tag tag-accent">当前</span>':''}</td><td style="font-size:12.5px;color:var(--t500)">${esc((project.site||'').replace('https://',''))}</td><td style="font-size:13px">${project.avg_score==null?'—':project.avg_score}</td><td style="font-size:12.5px;color:var(--t400)">${project.tasks_total||'—'}</td><td><button class="btn btn-ghost" style="font-size:12px" onclick="switchProject(${esc(JSON.stringify(project.slug))})">${project.slug===SLUG?'刷新':'进入'}</button></td></tr>`;}).join('')}
-    </tbody></table></div><div class="admin-project-actions"><button class="btn btn-primary" onclick="go('onboard',{obStep:1})">接入新项目</button><button class="btn btn-secondary" onclick="editConfig()">编辑当前项目</button></div>`;
+    </tbody></table></div><div class="admin-project-actions"><button class="btn btn-primary" onclick="startBrandOnboarding()">添加品牌</button><button class="btn btn-secondary" onclick="editConfig()">编辑当前项目</button></div>`;
 }
 
 async function vProjectSettings() {
@@ -2004,6 +2014,8 @@ def serve_ui():
     )
     html = html.replace("严格高于同市场所有引擎", "严格高于同语言问题组所有引擎")
     html = html.replace("GeoLook", "DisvorAI").replace("geolook", "disvorai")
+    html = html.replace("+ 接入新品牌", "添加品牌")
+    html = html.replace("go('onboard',{obStep:1})", "startBrandOnboarding()")
     html = html.replace(
         'Geo<span style="color:var(--accent)">Look</span>',
         'Disvor<span style="color:var(--accent)">AI</span>',

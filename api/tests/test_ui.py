@@ -60,6 +60,12 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert '.global-rail{position:relative;z-index:2;width:108px' in response.text
     assert '.rail-action{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:96px' in response.text
     assert '.module-panel{position:fixed;left:108px' in response.text
+    assert 'class="project-switcher-row"' in response.text
+    assert 'class="project-add"' in response.text
+    assert "onclick=\"startBrandOnboarding()\"" in response.text
+    assert "function startBrandOnboarding()" in response.text
+    assert "zh:'当前品牌',en:'Current brand',ja:'現在のブランド'" in response.text
+    assert "/site-assets/icons/plus.svg" in response.text
     assert "const ADMIN_MODULES = [" in response.text
     assert "{route:'engines',label:{zh:'AI 可见性'" in response.text
     assert "{route:'project-settings',label:{zh:'项目设置'" in response.text
@@ -269,7 +275,7 @@ def test_ui_compatibility_route_remains_available():
 
 @pytest.mark.parametrize(
     "name",
-    ["layout-dashboard", "radar", "scan-search", "list-checks", "package-check", "settings-2", "menu", "x"],
+    ["layout-dashboard", "radar", "scan-search", "list-checks", "package-check", "settings-2", "menu", "x", "plus"],
 )
 def test_admin_navigation_icons_are_served_locally(name):
     response = TestClient(app).get(f"/site-assets/icons/{name}.svg")
