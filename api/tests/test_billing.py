@@ -104,6 +104,41 @@ def test_trial_project_limit_and_usage(billing_client, monkeypatch):
     assert usage.json()["projects_limit"] == 3
 
 
+def test_paid_project_limits_are_enforced_and_reported(billing_client):
+    client, session_factory = billing_client
+    headers = _register(client, "pro-owner@example.com")
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "pro-owner").one()
+        tenant.plan = "pro"
+        db.add_all([
+            Project(tenant_id=tenant.id, slug=f"pro-{index}", url=f"https://pro-{index}.example", market="both")
+            for index in range(10)
+        ])
+        db.commit()
+
+    usage = client.get("/api/v1/billing/usage", headers=headers)
+    assert usage.status_code == 200
+    assert usage.json()["projects_active"] == 10
+    assert usage.json()["projects_limit"] == 10
+
+    blocked = client.post(
+        "/api/v1/projects",
+        headers=headers,
+        json={"url": "pro-over-limit.example"},
+    )
+    assert blocked.status_code == 403
+    assert blocked.json() == {
+        "error": "plan_limit_exceeded",
+        "detail": "pro projects limit is 10",
+    }
+
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "pro-owner").one()
+        tenant.plan = "enterprise"
+        db.commit()
+    assert client.get("/api/v1/billing/usage", headers=headers).json()["projects_limit"] is None
+
+
 def test_trial_sample_limit_is_per_project(billing_client, monkeypatch):
     client, session_factory = billing_client
     headers = _register(client, "owner@example.com")

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from api import config
 from api.auth.deps import get_current_user, require_owner
 from api.billing.limits import usage
+from api.billing.plans import PLANS, SUBSCRIBABLE_PLANS
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.billing import stripe as stripe_adapter
 from api.db import get_db
@@ -20,13 +21,6 @@ from api.models import BillingEvent, Subscription, Tenant, User
 
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
-
-PLANS = {
-    "pro": {"name": "Pro", "monthly_cny": 199, "monthly_usd": 29, "projects": 10, "sample_runs": None},
-    "agency": {"name": "Agency", "monthly_cny": 599, "monthly_usd": 79, "projects": 30, "sample_runs": None},
-    "enterprise": {"name": "Enterprise", "monthly_cny": None, "monthly_usd": None, "projects": None, "sample_runs": None},
-}
-
 
 class SubscribePayload(BaseModel):
     plan: str
@@ -36,7 +30,7 @@ class SubscribePayload(BaseModel):
     @classmethod
     def validate_plan(cls, value: str):
         value = value.strip().lower()
-        if value not in PLANS:
+        if value not in SUBSCRIBABLE_PLANS:
             raise ValueError("unsupported plan")
         return value
 
@@ -60,6 +54,8 @@ def _catalog():
     discount = config.billing_annual_discount_percent()
     plans = []
     for code, details in PLANS.items():
+        if code == "trial":
+            continue
         monthly_cny = details["monthly_cny"]
         monthly_usd = details["monthly_usd"]
         annual_cny = _annual_price(monthly_cny, discount)
@@ -138,7 +134,7 @@ def _validated_selection(value):
         tenant_id = int(metadata["tenant_id"])
     except (KeyError, TypeError, ValueError) as exc:
         raise stripe_adapter.StripeError("stripe_metadata_invalid") from exc
-    if plan_code not in PLANS or plan_code == "enterprise" or billing_interval not in ("monthly", "annual"):
+    if plan_code not in SUBSCRIBABLE_PLANS or plan_code == "enterprise" or billing_interval not in ("monthly", "annual"):
         raise stripe_adapter.StripeError("stripe_metadata_invalid")
     return tenant_id, plan_code, billing_interval, _plan(plan_code)
 

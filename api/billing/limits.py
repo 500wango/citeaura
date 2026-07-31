@@ -7,6 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from api.models import Job, Project, Tenant
+from api.billing.plans import PLANS
 
 
 TRIAL_PROJECT_LIMIT = 3
@@ -28,20 +29,24 @@ def _trial_active(tenant: Tenant) -> bool:
     return True
 
 
-def _raise_limit(detail: str):
+def _raise_limit(detail: str, error="trial_limit_exceeded"):
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail={"error": "trial_limit_exceeded", "detail": detail},
+        detail={"error": error, "detail": detail},
     )
 
 
 def check_project_creation(db: Session, tenant: Tenant):
-    """检查 trial 项目数量。"""
-    if not _trial_active(tenant):
+    """按租户套餐检查项目数量。"""
+    trial = _trial_active(tenant)
+    plan = PLANS.get(tenant.plan)
+    project_limit = plan.get("projects") if plan else None
+    if project_limit is None:
         return
     count = db.query(func.count(Project.id)).filter(Project.tenant_id == tenant.id).scalar() or 0
-    if count >= TRIAL_PROJECT_LIMIT:
-        _raise_limit(f"trial projects limit is {TRIAL_PROJECT_LIMIT}")
+    if count >= project_limit:
+        error = "trial_limit_exceeded" if trial else "plan_limit_exceeded"
+        _raise_limit(f"{tenant.plan} projects limit is {project_limit}", error=error)
 
 
 def check_sample_run(db: Session, tenant: Tenant, project: Project):
@@ -80,11 +85,12 @@ def usage(db: Session, tenant: Tenant) -> dict:
             or 0
         )
     trial = tenant.plan == "trial"
+    plan = PLANS.get(tenant.plan) or {}
     return {
         "plan": tenant.plan,
         "trial_ends_at": tenant.trial_ends_at,
         "projects_active": project_count,
-        "projects_limit": TRIAL_PROJECT_LIMIT if trial else None,
+        "projects_limit": plan.get("projects"),
         "sample_runs": sample_count,
         "sample_runs_limit_per_project": TRIAL_SAMPLE_LIMIT_PER_PROJECT if trial else None,
         "sample_runs_by_project": per_project,
