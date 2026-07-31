@@ -27,6 +27,7 @@ router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
 class ProjectCreate(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
+    name: str | None = Field(default=None, max_length=128)
     market: str = Field(default="both")
     skip_llm: bool = False
     no_sample: bool = False
@@ -176,7 +177,7 @@ def create_project(
 
         args = SimpleNamespace(
             url=payload.url,
-            name=None,
+            name=payload.name.strip() if payload.name else None,
             slug=slug,
             market=payload.market,
             max_pages=25,
@@ -232,14 +233,30 @@ def list_projects(current_user: User = Depends(get_current_user), db: Session = 
         .order_by(Project.created_at.desc(), Project.id.desc())
         .all()
     )
+    summaries = {}
+    if projects:
+        try:
+            with with_tenant_context(tenant.name, projects[0].slug):
+                import dashboard
+
+                summaries = {item["slug"]: item for item in dashboard.list_projects()}
+        except Exception:  # noqa: BLE001 - 损坏的管线摘要不能阻断 DB 项目列表
+            summaries = {}
     return {
         "projects": [
             {
                 "id": p.id,
                 "slug": p.slug,
                 "url": p.url,
+                "name": summaries.get(p.slug, {}).get("name", p.slug),
+                "site": summaries.get(p.slug, {}).get("site", p.url),
                 "market": p.market,
                 "status": p.status,
+                "avg_score": summaries.get(p.slug, {}).get("avg_score"),
+                "pages": summaries.get(p.slug, {}).get("pages"),
+                "tasks_total": summaries.get(p.slug, {}).get("tasks_total", 0),
+                "tasks_done": summaries.get(p.slug, {}).get("tasks_done", 0),
+                "p0_open": summaries.get(p.slug, {}).get("p0_open", 0),
                 "created_at": p.created_at,
             }
             for p in projects

@@ -75,12 +75,17 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     monkeypatch.setitem(sys.modules, "geo", fake_geo)
     monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-1"))
 
-    created = client.post("/api/v1/projects", headers=headers, json={"url": "example.com", "market": "global"})
+    created = client.post(
+        "/api/v1/projects",
+        headers=headers,
+        json={"url": "example.com", "name": "Example Brand", "market": "global"},
+    )
     assert created.status_code == 202
     body = created.json()
     assert body["project_id"] == 1
     assert body["job_id"] == 1
     assert calls[0].url == "https://example.com"
+    assert calls[0].name == "Example Brand"
 
     listed = client.get("/api/v1/projects", headers=headers)
     assert listed.status_code == 200

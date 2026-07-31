@@ -117,12 +117,84 @@ FETCH_ADAPTER = r"""
       if (!id) return response({error:'project_not_found'}, 404);
       return nativeFetch('/api/v1/projects/' + id, init);
     }
+    const configMatch = url.match(/^\/api\/config\/([^?]+)/);
+    if (configMatch) {
+      const id = projectIds.get(decodeURIComponent(configMatch[1]));
+      if (!id) return response({error:'project_not_found'}, 404);
+      return nativeFetch('/api/v1/projects/' + id + '/config', init.body
+        ? {method:'PATCH',headers:init.headers,body:init.body} : init);
+    }
+    const factsMatch = url.match(/^\/api\/facts\/([^?]+)/);
+    if (factsMatch) {
+      const id = projectIds.get(decodeURIComponent(factsMatch[1]));
+      if (!id) return response({error:'project_not_found'}, 404);
+      return nativeFetch('/api/v1/projects/' + id + '/facts', init.body
+        ? {method:'PUT',headers:init.headers,body:init.body} : init);
+    }
+    const assetsMatch = url.match(/^\/api\/assets\/([^?]+)/);
+    if (assetsMatch) {
+      const id = projectIds.get(decodeURIComponent(assetsMatch[1]));
+      return id ? nativeFetch('/api/v1/projects/' + id + '/assets', init) : response({error:'project_not_found'}, 404);
+    }
+    const assetMatch = url.match(/^\/api\/asset\/([^?]+)/);
+    if (assetMatch) {
+      const id = projectIds.get(decodeURIComponent(assetMatch[1]));
+      if (!id) return response({error:'project_not_found'}, 404);
+      if (init.body) return nativeFetch('/api/v1/projects/' + id + '/asset', {method:'PUT',headers:init.headers,body:init.body});
+      const path = new URL(url, location.origin).searchParams.get('path') || '';
+      return nativeFetch('/api/v1/projects/' + id + '/asset?path=' + encodeURIComponent(path), init);
+    }
+    const workbenchMatch = url.match(/^\/api\/workbench\/([^?]+)/);
+    if (workbenchMatch) {
+      const id = projectIds.get(decodeURIComponent(workbenchMatch[1]));
+      const qid = new URL(url, location.origin).searchParams.get('qid') || '';
+      return id ? nativeFetch('/api/v1/projects/' + id + '/workbench?qid=' + encodeURIComponent(qid), init)
+        : response({error:'project_not_found'}, 404);
+    }
+    if (url === '/api/precheck' && init.body) {
+      return nativeFetch('/api/v1/workspace/precheck', init);
+    }
+    const factcheckMatch = url.match(/^\/api\/factcheck\/([^?]+)/);
+    if (factcheckMatch) {
+      const id = projectIds.get(decodeURIComponent(factcheckMatch[1]));
+      if (!id) return response({error:'project_not_found'}, 404);
+      return nativeFetch('/api/v1/projects/' + id + '/factcheck', init.body
+        ? {method:'PUT',headers:init.headers,body:init.body} : init);
+    }
+    const distributionMatch = url.match(/^\/api\/distribution\/([^?]+)/);
+    if (distributionMatch && init.body) {
+      const id = projectIds.get(decodeURIComponent(distributionMatch[1]));
+      return id ? nativeFetch('/api/v1/projects/' + id + '/distribution', {method:'PUT',headers:init.headers,body:init.body})
+        : response({error:'project_not_found'}, 404);
+    }
+    const contentMatch = url.match(/^\/api\/content\/([^?]+)/);
+    if (contentMatch) {
+      const id = projectIds.get(decodeURIComponent(contentMatch[1]));
+      if (!id) return response({error:'project_not_found'}, 404);
+      if (init.body) return nativeFetch('/api/v1/projects/' + id + '/content', {method:'PUT',headers:init.headers,body:init.body});
+      const path = new URL(url, location.origin).searchParams.get('path');
+      return nativeFetch('/api/v1/projects/' + id + '/content' + (path ? '?path=' + encodeURIComponent(path) : ''), init);
+    }
+    const expandMatch = url.match(/^\/api\/expand\/([^?]+)/);
+    if (expandMatch) {
+      const id = projectIds.get(decodeURIComponent(expandMatch[1]));
+      return id ? nativeFetch('/api/v1/projects/' + id + '/expand', init) : response({error:'project_not_found'}, 404);
+    }
+    if (url === '/api/questions-add' && init.body) {
+      const body = JSON.parse(init.body), id = projectIds.get(body.slug);
+      return id ? nativeFetch('/api/v1/projects/' + id + '/questions', {
+        method:'POST',headers:init.headers,body:JSON.stringify({items:body.items || []})
+      }) : response({error:'project_not_found'}, 404);
+    }
+    const publishMatch = url.match(/^\/api\/publish\/([^?]+)/);
+    if (publishMatch && !init.body) return response({publishers:[],records:[]});
+    if (publishMatch || url.startsWith('/api/publishcfg/')) return response({ok:false,error:'publishing_not_available_in_mvp'}, 400);
     if (url === '/api/projects') {
       const r = await nativeFetch('/api/v1/projects', init);
       if (r.status === 401) { localStorage.removeItem('disvorai_access_token'); showLogin(); }
       const data = await r.json();
       return response((data.projects || []).map(function (p) {
-        return Object.assign({}, p, {name:p.slug,site:p.url});
+        return Object.assign({}, p, {name:p.name || p.slug,site:p.site || p.url});
       }), r.status);
     }
     if (url === '/api/actions') {
@@ -134,7 +206,7 @@ FETCH_ADAPTER = r"""
       const r = await nativeFetch('/api/v1/projects', {
         method:'POST', headers:Object.assign({}, init.headers, {'Content-Type':'application/json'}),
         body:JSON.stringify({
-          url:body.url, market:body.market || 'both', skip_llm:configuredKeyCount === 0,
+          url:body.url, name:body.name || null, market:body.market || 'both', skip_llm:configuredKeyCount === 0,
           no_sample:configuredKeyCount === 0 || !!document.querySelector('#ob-nosample')?.checked
         })
       });
@@ -145,9 +217,7 @@ FETCH_ADAPTER = r"""
     if (url.startsWith('/api/files/')) {
       const id = projectIds.get(decodeURIComponent(url.slice('/api/files/'.length)));
       if (!id) return response({error:'project_not_found'}, 404);
-      const deliveries = await nativeFetch('/api/v1/projects/' + id + '/deliveries', init);
-      const deliveryData = await deliveries.json();
-      return response({deliveries:deliveryData.deliveries || [], reports:[], samples:[], deliverables:[], content:[]}, deliveries.status);
+      return nativeFetch('/api/v1/projects/' + id + '/files', init);
     }
     if (url.startsWith('/api/jobs?')) {
       const slug = new URL(url, location.origin).searchParams.get('slug');
