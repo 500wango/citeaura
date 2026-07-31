@@ -303,6 +303,12 @@ FETCH_ADAPTER = r"""
         })
       });
     }
+    const deliveryZipMatch = url.match(/^\/api\/delivery-zip\/([^/?]+)\/(\d{4}-\d{2}-\d{2})$/);
+    if (deliveryZipMatch) {
+      const id = projectIds.get(decodeURIComponent(deliveryZipMatch[1]));
+      return id ? nativeFetch('/api/v1/projects/' + id + '/deliveries/' + deliveryZipMatch[2], init)
+        : response({error:'project_not_found'}, 404);
+    }
     if (url === '/api/sample-import' && init.body) {
       const body = JSON.parse(init.body), id = projectIds.get(body.slug);
       if (!id) return response({error:'project_not_found'}, 404);
@@ -320,6 +326,24 @@ FETCH_ADAPTER = r"""
 
 UI_EXTENSION = r"""
 <script>
+async function downloadDelivery(date) {
+  const result = await fetch('/api/delivery-zip/' + encodeURIComponent(SLUG) + '/' + encodeURIComponent(date));
+  if (!result.ok) {
+    const data = await result.json().catch(function () { return {}; });
+    const detail = data.error || (data.detail && data.detail.error) || data.detail || 'delivery_download_failed';
+    toast('下载失败：' + detail, 'err');
+    return;
+  }
+  const href = URL.createObjectURL(await result.blob());
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = SLUG + '-delivery-' + date + '.zip';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
+}
+
 function offsiteTicketModal() {
   const questions = (D.questions || []).filter(function (question) { return !question.brand_probe; });
   modal(`<h4 style="font-size:17px">创建 Offsite 工单</h4>
@@ -413,6 +437,53 @@ def serve_ui():
     html = html.replace(
         "${mktLabel(k.market)} · ${k.ok===false?'缺 API Key':'仅人工采样'}",
         "${mktLabel(k.market)} · ${k.ok===false?(k.search?'API·联网 · 缺 Key':'API·参数化 · 缺 Key'):'人工·网页端'}",
+    )
+    html = html.replace("采样为手动触发或由 schedule 驱动", "采样由用户手动触发")
+    html = html.replace(
+        "'采样由用户手动触发':'Sampling is manual or schedule-driven'",
+        "'采样由用户手动触发':'Sampling is started manually by the user'",
+    )
+    html = html.replace(
+        "'采样由用户手动触发':'サンプリングは手動または schedule 駆動'",
+        "'采样由用户手动触发':'サンプリングはユーザーが手動で開始'",
+    )
+    html = html.replace(
+        '''    {who:'给客户',name:'交付包',desc:'诊断报告、优化方案、工单表（CSV）、验收表、资产目录与说明。',
+     act:(D.deliveries||[]).length?`<a class="btn btn-primary" style="font-size:12px" target="_blank" href="/files/${SLUG}/delivery/${D.deliveries[0]}/index.html">打开</a>`
+        :`<button class="btn btn-secondary" style="font-size:12px" onclick="runAction('deliver')">生成</button>`},
+''',
+        '''    {who:'给客户',name:'交付包',desc:'诊断报告、优化方案、工单表（CSV）、验收表、资产目录与说明。',
+     act:(D.deliveries||[]).length?`<a class="btn btn-secondary" style="font-size:12px" target="_blank" href="/files/${SLUG}/delivery/${D.deliveries[0]}/index.html">打开</a>
+          <button class="btn btn-primary" style="font-size:12px" onclick="downloadDelivery('${D.deliveries[0]}')">下载 ZIP</button>`
+        :`<button class="btn btn-secondary" style="font-size:12px" onclick="runAction('deliver')">生成</button>`},
+''',
+        1,
+    )
+    html = html.replace(
+        '''        ${(D.deliveries||[]).map(d=>`<div style="font-size:13px"><a target="_blank" href="/files/${SLUG}/delivery/${d}/index.html">${d}</a>
+          <a class="muted" style="font-size:11.5px;margin-left:8px" href="/files/${SLUG}/delivery/${d}/03-工单表.csv">任务 CSV</a></div>`).join('')||'<span class="muted" style="font-size:12.5px">暂无</span>'}
+''',
+        '''        ${(D.deliveries||[]).map(d=>`<div class="row" style="font-size:13px;gap:8px"><a target="_blank" href="/files/${SLUG}/delivery/${d}/index.html">${d}</a>
+          <a class="muted" style="font-size:11.5px" href="/files/${SLUG}/delivery/${d}/03-工单表.csv">任务 CSV</a>
+          <button class="btn btn-ghost" style="font-size:11.5px;padding:2px 6px" onclick="downloadDelivery('${d}')">下载 ZIP</button></div>`).join('')||'<span class="muted" style="font-size:12.5px">暂无</span>'}
+''',
+        1,
+    )
+    html = html.replace(
+        '''    <h4 style="font-size:16px;margin:30px 0 8px">自动交付</h4>
+    <p class="muted" style="font-size:12.5px">本产品不内置定时器。要每周自动跑并发送，用 Claude 的 schedule 能力挂
+      <code>geo.py serve --slug ${esc(SLUG)}</code>，跑完把 deliverables/ 发给收件人。</p>
+''',
+        "",
+        1,
+    )
+    html = html.replace(
+        "'本产品不内置定时器。要每周自动跑并发送，用 Claude 的 schedule 能力挂':'No built-in timer. For a weekly auto-run with delivery, schedule it via Claude with',\n",
+        "",
+    )
+    html = html.replace(
+        "'本产品不内置定时器。要每周自动跑并发送，用 Claude 的 schedule 能力挂':'タイマーは非内蔵。週次自動実行と送信は Claude の schedule 機能で',\n",
+        "",
     )
     html = html.replace(
         "${WB.cur&&WB.cur.kind==='content'?`<button class=\"btn btn-primary\" style=\"font-size:12px\" onclick=\"pubModal()\">发布到渠道…</button>`:''}",

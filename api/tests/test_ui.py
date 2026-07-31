@@ -72,6 +72,15 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "/api/v1/projects/' + id + '/samples/import" in response.text
     assert "人工·网页端" in response.text
     assert "x.sampling_mode" in response.text
+    assert "/api/delivery-zip/" in response.text
+    assert "'/deliveries/' + deliveryZipMatch[2]" in response.text
+    assert "async function downloadDelivery(date)" in response.text
+    assert "下载 ZIP" in response.text
+    assert "URL.createObjectURL(await result.blob())" in response.text
+    assert "采样由用户手动触发" in response.text
+    assert "采样为手动触发或由 schedule 驱动" not in response.text
+    assert "geo.py serve --slug" not in response.text
+    assert "本产品不内置定时器" not in response.text
 
 
 def test_project_files_use_cookie_auth_and_remain_tenant_isolated(ui_client):
