@@ -62,6 +62,8 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert '.module-panel{position:fixed;left:108px' in response.text
     assert 'class="project-switcher-row"' in response.text
     assert 'class="project-add"' in response.text
+    assert '.project-add{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:34px' in response.text
+    assert "<span>${esc(adminText({zh:'添加品牌',en:'Add brand',ja:'ブランドを追加'}))}</span>" in response.text
     assert "onclick=\"startBrandOnboarding()\"" in response.text
     assert "function startBrandOnboarding()" in response.text
     assert "zh:'当前品牌',en:'Current brand',ja:'現在のブランド'" in response.text

@@ -98,17 +98,17 @@ body{overflow-x:hidden}
 .module-heading strong{flex:1;min-width:0;font-size:16px;font-weight:600;letter-spacing:0}
 .module-close{display:none;width:30px;height:30px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--t500);cursor:pointer}
 .module-close:hover{background:rgba(233,233,237,.06);color:var(--text)}
-.project-switcher-row{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:6px;margin:0 0 16px}
+.project-switcher-row{display:flex;flex-direction:column;gap:6px;margin:0 0 16px}
 .project-switcher{display:flex;align-items:center;gap:9px;width:100%;min-height:58px;margin:0;padding:9px 10px;border:1px solid var(--divider);border-radius:7px;background:var(--deep);color:var(--text);text-align:left;cursor:pointer}
 .project-switcher:hover{border-color:var(--t700);background:var(--surface)}
 .project-switcher-copy{flex:1;min-width:0}
 .project-switcher-label{display:block;margin-bottom:2px;color:var(--t600);font-size:10px;line-height:1.2;letter-spacing:0}
 .project-switcher-name{display:block;overflow:hidden;color:var(--text);font-size:13px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap}
 .project-switcher .admin-icon{width:15px;height:15px;color:var(--t500)}
-.project-add{display:grid;place-items:center;width:40px;min-height:58px;padding:0;border:1px solid var(--a700);border-radius:7px;background:var(--a900);color:var(--a300);cursor:pointer}
+.project-add{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:34px;padding:7px 10px;border:1px solid var(--a700);border-radius:7px;background:var(--a900);color:var(--a300);font:500 12px/1.2 var(--font);letter-spacing:0;cursor:pointer}
 .project-add:hover{border-color:var(--a500);background:var(--a800);color:var(--text)}
 .project-add:active{transform:translateY(1px)}
-.project-add .admin-icon{width:19px;height:19px}
+.project-add .admin-icon{width:16px;height:16px}
 .module-nav{display:flex;flex:1;min-height:0;flex-direction:column;gap:16px;overflow-y:auto;overscroll-behavior:contain;padding-right:1px}
 .module-nav-group{display:flex;flex-direction:column;gap:2px}
 .module-nav-label{padding:0 8px 5px;color:var(--t600);font-size:10px;font-weight:500;line-height:1.3;letter-spacing:0}
@@ -1037,7 +1037,7 @@ renderSide = function () {
   </div>
   <div class="module-panel">
     <div class="module-heading"><strong>${esc(adminText(module.label))}</strong><button class="module-close" type="button" onclick="closeAdminNav()" aria-label="${esc(({zh:'关闭导航',en:'Close navigation',ja:'ナビゲーションを閉じる'})[ULANG]||'关闭导航')}"><span class="admin-icon icon-x" aria-hidden="true"></span></button></div>
-    <div class="project-switcher-row"><button class="project-switcher" type="button" onclick="switchModal()"><span class="project-switcher-copy"><span class="project-switcher-label">${esc(adminText({zh:'当前品牌',en:'Current brand',ja:'現在のブランド'}))}</span><span class="project-switcher-name" title="${esc(brand.name||'—')}">${esc(brand.name||'—')}</span></span><span class="admin-icon icon-chevron-down" aria-hidden="true"></span></button><button class="project-add" type="button" onclick="startBrandOnboarding()" aria-label="${esc(adminText({zh:'添加品牌',en:'Add brand',ja:'ブランドを追加'}))}" title="${esc(adminText({zh:'添加品牌',en:'Add brand',ja:'ブランドを追加'}))}"><span class="admin-icon icon-plus" aria-hidden="true"></span></button></div>
+    <div class="project-switcher-row"><button class="project-switcher" type="button" onclick="switchModal()"><span class="project-switcher-copy"><span class="project-switcher-label">${esc(adminText({zh:'当前品牌',en:'Current brand',ja:'現在のブランド'}))}</span><span class="project-switcher-name" title="${esc(brand.name||'—')}">${esc(brand.name||'—')}</span></span><span class="admin-icon icon-chevron-down" aria-hidden="true"></span></button><button class="project-add" type="button" onclick="startBrandOnboarding()"><span class="admin-icon icon-plus" aria-hidden="true"></span><span>${esc(adminText({zh:'添加品牌',en:'Add brand',ja:'ブランドを追加'}))}</span></button></div>
     <nav class="module-nav" aria-label="${esc(adminText(module.label))}">
       ${module.groups.map(function(group){return `<div class="module-nav-group">${group.label?`<div class="module-nav-label">${esc(adminText(group.label))}</div>`:''}${group.items.map(function(item){const selected=item.route===activeRoute;return `<button class="module-link" type="button" ${selected?'aria-current="page"':''} onclick="go('${item.route}')"><span class="module-link-label">${esc(adminText(item.label))}</span><span class="bdg">${esc(badge(item.route))}</span></button>`;}).join('')}</div>`;}).join('')}
     </nav>
