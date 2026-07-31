@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 from sqlalchemy.exc import SQLAlchemyError
 
+from api.adapters.delivery import ensure_delivery_contract
 from api.adapters.engine import job_log_path, load_tenant_keys, with_tenant_context
 from api.adapters.workspace import preserve_manual_tickets
 from api.db import SessionLocal
@@ -265,6 +266,7 @@ def task_bootstrap(
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             with preserve_manual_tickets(project_slug):
                 geo.cmd_autopilot(args)
+            ensure_delivery_contract(project_slug)
             return {"status": "done", "action": job_action, "project_slug": project_slug}
 
 
@@ -313,7 +315,8 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
 
     with _job_status(tenant_id, project_slug, "deliver", job_id):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
-            return str(deliver.run(project_slug))
+            delivery_directory = deliver.run(project_slug)
+            return str(ensure_delivery_contract(project_slug, delivery_directory))
 
 
 @celery_app.task(name="disvorai.pipeline")
@@ -323,5 +326,9 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             if action in ("plan", "autopilot", "serve"):
                 with preserve_manual_tickets(project_slug):
-                    return _run_pipeline_action(action, project_slug, params)
-            return _run_pipeline_action(action, project_slug, params)
+                    result = _run_pipeline_action(action, project_slug, params)
+            else:
+                result = _run_pipeline_action(action, project_slug, params)
+            if action in ("deliver", "autopilot", "serve"):
+                ensure_delivery_contract(project_slug)
+            return result

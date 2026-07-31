@@ -44,6 +44,7 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
     monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_autopilot=fake_autopilot))
     monkeypatch.setattr(tasks, "with_tenant_context", fake_context)
     monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
+    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
     result = tasks.task_bootstrap.run("tenant-a", "example", skip_llm=True, no_sample=True)
@@ -53,6 +54,7 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
         ("tenant-a", "example"),
         ("preserve", "example"),
         ("autopilot", "example", True, True, None),
+        ("delivery", "example"),
     ]
 
 
@@ -75,6 +77,7 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
     monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_serve=fake_serve))
     monkeypatch.setattr(tasks, "with_tenant_context", fake_context)
     monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
+    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
     monkeypatch.setattr(tasks, "_engine_keys", lambda tenant_id: {"deepseek": "secret"})
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
@@ -90,6 +93,7 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
         ("context", "tenant-a", "example", {"deepseek": "secret"}),
         ("preserve", "example"),
         ("serve", "example", 8, 3, False, True),
+        ("delivery", "example"),
     ]
     with pytest.raises(ValueError, match="unsupported pipeline action"):
         tasks._action_namespace("publish", {})
