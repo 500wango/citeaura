@@ -59,6 +59,11 @@ def create_refresh_token(user_id: int, tenant_id: int) -> str:
     return create_token(user_id, tenant_id, "refresh", timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
 
 
+def create_sso_state(tenant_id: int) -> str:
+    """签发十分钟有效的 OIDC state。"""
+    return create_token(0, tenant_id, "sso_state", timedelta(minutes=10))
+
+
 def decode_token(token: str, expected_type: str = "access") -> dict:
     """验证 JWT 签名、有效期和 token 类型。"""
     payload = jwt.decode(token, _jwt_secret(), algorithms=[JWT_ALGORITHM])

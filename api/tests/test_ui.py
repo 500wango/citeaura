@@ -145,6 +145,16 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "アクションプラン表示" in response.text
     assert 'class="settings-core-grid"' in response.text
     assert ".settings-core-grid{grid-template-columns:1fr!important}" in response.text
+    assert "/api/v1/sso/config" in response.text
+    assert "/api/v1/sso/audit-events" in response.text
+    assert "function ssoPanel()" in response.text
+    assert "function saveSsoConfiguration()" in response.text
+    assert "控制措施已就绪，未获得 SOC 2 认证。" in response.text
+    assert "controls_ready_not_certified" in response.text
+    assert "Technical controls are ready; DisvorAI is not SOC 2 certified." in response.text
+    assert "技術的統制は準備済みですが、DisvorAI は SOC 2 認証を取得していません。" in response.text
+    assert ".sso-form-grid{grid-template-columns:1fr}" in response.text
+    assert ".sso-section-title{padding-left:20px" in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text
     assert "后台任务队列执行" in response.text

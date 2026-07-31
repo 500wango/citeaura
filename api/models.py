@@ -34,6 +34,10 @@ class Tenant(Base):
     usage_counters = relationship("UsageCounter", back_populates="tenant", cascade="all, delete-orphan")
     invitations = relationship("TeamInvitation", back_populates="tenant", cascade="all, delete-orphan")
     platform_usage = relationship("PlatformUsage", back_populates="tenant", cascade="all, delete-orphan")
+    sso_configuration = relationship(
+        "SsoConfiguration", back_populates="tenant", cascade="all, delete-orphan", uselist=False,
+    )
+    audit_events = relationship("AuditEvent", back_populates="tenant", cascade="all, delete-orphan")
 
 
 class User(Base):
@@ -184,3 +188,39 @@ class PlatformUsage(Base):
     tenant = relationship("Tenant", back_populates="platform_usage")
     project = relationship("Project", back_populates="platform_usage")
     job = relationship("Job", back_populates="platform_usage")
+
+
+class SsoConfiguration(Base):
+    __tablename__ = "sso_configurations"
+    __table_args__ = (
+        CheckConstraint("default_role IN ('editor', 'viewer')", name="ck_sso_configurations_default_role"),
+    )
+
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True)
+    provider_name = Column(String(128), nullable=False)
+    issuer_url = Column(String(2048), nullable=False)
+    client_id = Column(String(512), nullable=False)
+    encrypted_client_secret = Column(Text, nullable=True)
+    allowed_domains = Column(Text, nullable=False, default="[]", server_default="[]")
+    default_role = Column(String(32), nullable=False, default="viewer", server_default="viewer")
+    enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    tenant = relationship("Tenant", back_populates="sso_configuration")
+
+
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    action = Column(String(128), nullable=False, index=True)
+    target = Column(String(2048), nullable=False)
+    outcome = Column(String(32), nullable=False)
+    ip_address = Column(String(64), nullable=True)
+    details = Column(Text, nullable=False, default="{}", server_default="{}")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+
+    tenant = relationship("Tenant", back_populates="audit_events")

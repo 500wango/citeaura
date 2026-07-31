@@ -53,6 +53,10 @@ def session_cookie_secure():
     return os.getenv("SESSION_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
 
 
+def public_base_url():
+    return os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
+
+
 def work_root(default: Path):
     return Path(os.getenv("WORK_ROOT", str(default))).resolve()
 

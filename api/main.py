@@ -3,8 +3,10 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from api import config
 from api.adapters.exceptions import DistributedLockError
 from api.auth.router import router as auth_router
+from api.auth.sso import router as sso_router
 from api.billing.router import router as billing_router
 from api.branding.router import router as branding_router
 from api.publishing.router import router as publishing_router
@@ -17,6 +19,7 @@ from api.workspace.router import router as workspace_router
 
 app = FastAPI(title="DisvorAI API", version="1.0.0")
 app.include_router(auth_router)
+app.include_router(sso_router)
 app.include_router(billing_router)
 app.include_router(branding_router)
 app.include_router(publishing_router)
@@ -25,6 +28,22 @@ app.include_router(settings_router)
 app.include_router(team_router)
 app.include_router(workspace_router)
 app.include_router(ui_router)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """为 API 和嵌入式 UI 添加基础浏览器安全策略。"""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    )
+    if config.session_cookie_secure():
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 
 @app.exception_handler(DistributedLockError)

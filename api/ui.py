@@ -45,8 +45,14 @@ SETTINGS_RESPONSIVE_STYLE = r"""
 .playbook-unclassified{margin-top:12px;padding:11px 12px;border:1px solid var(--divider);border-radius:var(--r-md)}
 .playbook-unclassified-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:7px;margin-top:8px}
 .playbook-unclassified-list .playbook-task{margin-top:0}
+.sso-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.sso-audit-row{display:grid;grid-template-columns:minmax(128px,.7fr) minmax(180px,1fr) minmax(160px,1.4fr) auto;gap:10px;align-items:center;padding:8px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12px}
 @media (max-width:700px){
   .settings-core-grid{grid-template-columns:1fr!important}
+  .sso-form-grid{grid-template-columns:1fr}
+  .sso-audit-row{grid-template-columns:1fr auto;gap:3px 8px}
+  .sso-audit-target{grid-column:1/-1}
+  .sso-section-title{padding-left:20px;scroll-margin-top:12px}
   .playbook-page{padding:24px 18px 56px}
   .playbook-page-head{align-items:flex-start!important;flex-direction:column}
   .playbook-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
@@ -706,7 +712,16 @@ Object.assign(UI_D.en, {
   '采样费用':'Sampling costs','平台代付':'Platform-funded sampling','本月调用':'Calls this month','本月费用':'Cost this month',
   'BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台 Key 并按次计费。':'BYOK always takes priority. Platform keys are used and billed per call only when the matching API key is missing.',
   '当前套餐不可用':'Not available on the current plan','平台暂未配置可用引擎':'No platform-funded engines are currently available',
-  '仅所有者可更改':'Only owners can change this setting','费用信息加载失败':'Failed to load cost information'
+  '仅所有者可更改':'Only owners can change this setting','费用信息加载失败':'Failed to load cost information',
+  '企业登录与审计':'Enterprise sign-in and audit','OIDC 单点登录':'OIDC single sign-on','身份提供商名称':'Identity provider name',
+  '签发者地址':'Issuer URL','客户端 ID':'Client ID','客户端密钥':'Client secret','允许的邮箱域名':'Allowed email domains',
+  '新成员默认角色':'Default role for new members','启用单点登录':'Enable single sign-on','保存企业登录设置':'Save enterprise sign-in',
+  '单点登录地址':'Single sign-on URL','复制登录地址':'Copy sign-in URL','已复制登录地址':'Sign-in URL copied',
+  '控制措施已就绪，未获得 SOC 2 认证。':'Technical controls are ready; DisvorAI is not SOC 2 certified.',
+  '包含加密密钥、OIDC PKCE、租户权限、变更审计和浏览器安全策略。':'Includes encrypted secrets, OIDC PKCE, tenant authorization, change auditing, and browser security policies.',
+  'Enterprise 套餐可用':'Available on Enterprise plan','最近审计事件':'Recent audit events','暂无审计事件':'No audit events yet',
+  '保留已保存密钥':'Keep the saved secret','每行或逗号分隔':'One per line or comma-separated','企业登录设置已保存':'Enterprise sign-in settings saved',
+  '企业登录设置加载失败':'Failed to load enterprise sign-in settings','仅所有者可查看审计事件':'Only owners can view audit events'
 });
 Object.assign(UI_D.ja, {
   '团队成员':'チームメンバー','工作区':'ワークスペース','邀请成员':'メンバーを招待','待接受邀请':'保留中の招待',
@@ -719,12 +734,79 @@ Object.assign(UI_D.ja, {
   '采样费用':'サンプリング費用','平台代付':'プラットフォーム負担','本月调用':'今月の呼び出し','本月费用':'今月の費用',
   'BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台 Key 并按次计费。':'BYOK が常に優先されます。対応する API キーがない場合のみ、プラットフォームキーを使用して従量課金します。',
   '当前套餐不可用':'現在のプランでは利用できません','平台暂未配置可用引擎':'利用可能なプラットフォームエンジンはまだありません',
-  '仅所有者可更改':'オーナーのみ変更できます','费用信息加载失败':'費用情報を読み込めませんでした'
+  '仅所有者可更改':'オーナーのみ変更できます','费用信息加载失败':'費用情報を読み込めませんでした',
+  '企业登录与审计':'エンタープライズログインと監査','OIDC 单点登录':'OIDC シングルサインオン','身份提供商名称':'ID プロバイダー名',
+  '签发者地址':'Issuer URL','客户端 ID':'クライアント ID','客户端密钥':'クライアントシークレット','允许的邮箱域名':'許可するメールドメイン',
+  '新成员默认角色':'新規メンバーの既定ロール','启用单点登录':'シングルサインオンを有効化','保存企业登录设置':'エンタープライズログイン設定を保存',
+  '单点登录地址':'シングルサインオン URL','复制登录地址':'ログイン URL をコピー','已复制登录地址':'ログイン URL をコピーしました',
+  '控制措施已就绪，未获得 SOC 2 认证。':'技術的統制は準備済みですが、DisvorAI は SOC 2 認証を取得していません。',
+  '包含加密密钥、OIDC PKCE、租户权限、变更审计和浏览器安全策略。':'暗号化シークレット、OIDC PKCE、テナント認可、変更監査、ブラウザーセキュリティポリシーを含みます。',
+  'Enterprise 套餐可用':'Enterprise プランで利用可能','最近审计事件':'最近の監査イベント','暂无审计事件':'監査イベントはまだありません',
+  '保留已保存密钥':'保存済みシークレットを維持','每行或逗号分隔':'改行またはカンマで区切る','企业登录设置已保存':'エンタープライズログイン設定を保存しました',
+  '企业登录设置加载失败':'エンタープライズログイン設定を読み込めませんでした','仅所有者可查看审计事件':'監査イベントはオーナーのみ閲覧できます'
 });
 
 let TEAM_STATE = null;
 let BRANDING_STATE = null;
+let SSO_STATE = null;
+let AUDIT_STATE = null;
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
+
+function ssoPanel() {
+  const state=SSO_STATE||{};
+  if (state.error || state.detail) return `<h4 class="sso-section-title" style="font-size:16px;margin:28px 0 10px">企业登录与审计</h4>
+    <div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">企业登录设置加载失败</div>`;
+  const editable=!!state.can_edit, configured=!!state.configured;
+  if (!state.available) return `<h4 class="sso-section-title" style="font-size:16px;margin:28px 0 10px">企业登录与审计</h4>
+    <div class="card elev" style="padding:18px"><div class="row"><div style="flex:1;min-width:220px">
+      <div style="font-size:14px;font-weight:500">OIDC 单点登录</div><div style="font-size:12px;color:var(--t600);margin-top:3px">Enterprise 套餐可用</div></div>
+      <span class="tag tag-outline">${esc(String(state.plan||'trial').toUpperCase())}</span></div>
+      <div style="font-size:12px;color:var(--t500);padding-top:12px;box-shadow:inset 0 1px 0 var(--line)">控制措施已就绪，未获得 SOC 2 认证。</div></div>`;
+  const loginUrl=state.login_url?new URL(state.login_url,location.origin).href:'';
+  const events=(AUDIT_STATE||{}).events||[];
+  return `<h4 class="sso-section-title" style="font-size:16px;margin:28px 0 10px">企业登录与审计</h4>
+    <div class="card elev" style="padding:18px;gap:14px">
+      <div class="row" style="align-items:flex-start"><div style="flex:1;min-width:220px"><div style="font-size:15px;font-weight:500">OIDC 单点登录</div>
+        <div style="font-size:11.5px;color:var(--t600);margin-top:3px;line-height:1.55">控制措施已就绪，未获得 SOC 2 认证。</div></div>
+        <span class="tag tag-accent">CONTROLS READY</span></div>
+      <div style="font-size:11.5px;color:var(--t500);line-height:1.6">包含加密密钥、OIDC PKCE、租户权限、变更审计和浏览器安全策略。</div>
+      <div class="sso-form-grid">
+        <label style="display:block;font-size:12px;color:var(--t500)">身份提供商名称<input id="sso-provider-name" class="input" maxlength="128" value="${esc(state.provider_name||'')}" ${editable?'':'disabled'} style="margin-top:5px"></label>
+        <label style="display:block;font-size:12px;color:var(--t500)">签发者地址<input id="sso-issuer-url" class="input" type="url" maxlength="2048" value="${esc(state.issuer_url||'')}" placeholder="https://identity.example.com" ${editable?'':'disabled'} style="margin-top:5px"></label>
+        <label style="display:block;font-size:12px;color:var(--t500)">客户端 ID<input id="sso-client-id" class="input" maxlength="512" value="${esc(state.client_id||'')}" ${editable?'':'disabled'} style="margin-top:5px"></label>
+        <label style="display:block;font-size:12px;color:var(--t500)">客户端密钥<input id="sso-client-secret" class="input" type="password" maxlength="4096" placeholder="${state.client_secret_configured?'保留已保存密钥':''}" ${editable?'':'disabled'} autocomplete="new-password" style="margin-top:5px"></label>
+        <label style="display:block;font-size:12px;color:var(--t500)">允许的邮箱域名<textarea id="sso-allowed-domains" class="input" rows="2" maxlength="1600" placeholder="每行或逗号分隔" ${editable?'':'disabled'} style="margin-top:5px">${esc((state.allowed_domains||[]).join('\n'))}</textarea></label>
+        <label style="display:block;font-size:12px;color:var(--t500)">新成员默认角色<select id="sso-default-role" class="input" ${editable?'':'disabled'} style="margin-top:5px">
+          <option value="viewer" ${(state.default_role||'viewer')==='viewer'?'selected':''}>${teamRoleLabel.viewer}</option><option value="editor" ${state.default_role==='editor'?'selected':''}>${teamRoleLabel.editor}</option></select></label>
+      </div>
+      <div class="row" style="gap:10px;flex-wrap:wrap"><label class="row" style="gap:7px;font-size:12.5px"><input id="sso-enabled" type="checkbox" ${state.enabled?'checked':''} ${editable?'':'disabled'}>启用单点登录</label>
+        ${!editable?'<span style="font-size:12px;color:var(--t600)">仅所有者可更改</span>':''}
+        ${editable?'<button class="btn btn-primary" style="font-size:12px;margin-left:auto" onclick="saveSsoConfiguration()">保存企业登录设置</button>':''}</div>
+      ${loginUrl?`<div style="padding-top:12px;box-shadow:inset 0 1px 0 var(--line)"><div style="font-size:11.5px;color:var(--t600);margin-bottom:5px">单点登录地址</div>
+        <div class="row" style="gap:8px"><input id="sso-login-url" class="input" readonly value="${esc(loginUrl)}"><button class="btn btn-secondary" style="font-size:12px;white-space:nowrap" onclick="copySsoLoginUrl()">复制登录地址</button></div></div>`:''}
+      ${editable?`<div style="padding-top:12px;box-shadow:inset 0 1px 0 var(--line)"><div class="row"><div style="flex:1;font-size:13px;font-weight:500">最近审计事件</div><span class="tag tag-outline">${esc((AUDIT_STATE||{}).soc2_status||'controls_ready_not_certified')}</span></div>
+        <div style="margin-top:7px">${events.length?events.slice(0,10).map(function(event){return `<div class="sso-audit-row"><span>${esc(String(event.created_at||'').replace('T',' ').slice(0,19))}</span><span>${esc(event.action||'')}</span><span class="sso-audit-target" style="color:var(--t500);overflow-wrap:anywhere">${esc(event.target||'')}</span><span class="tag ${event.outcome==='succeeded'?'pill-good':'tag-outline'}">${esc(event.outcome||'')}</span></div>`;}).join(''):'<div style="padding:10px 0;font-size:12px;color:var(--t600)">暂无审计事件</div>'}</div></div>`
+        :'<div style="font-size:12px;color:var(--t600)">仅所有者可查看审计事件</div>'}
+    </div>`;
+}
+
+async function saveSsoConfiguration() {
+  const secret=(($('#sso-client-secret')||{}).value||'').trim();
+  const payload={
+    provider_name:(($('#sso-provider-name')||{}).value||'').trim(),issuer_url:(($('#sso-issuer-url')||{}).value||'').trim(),
+    client_id:(($('#sso-client-id')||{}).value||'').trim(),client_secret:secret||null,
+    allowed_domains:(($('#sso-allowed-domains')||{}).value||'').split(/[\n,]/).map(function(value){return value.trim();}).filter(Boolean),
+    default_role:(($('#sso-default-role')||{}).value||'viewer'),enabled:!!($('#sso-enabled')||{}).checked
+  };
+  const response=await fetch('/api/v1/sso/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const result=await response.json().catch(function(){return {};});
+  if (!response.ok) { toast('保存失败：'+(result.error||result.detail||'invalid_sso_configuration'),'err'); return; }
+  SSO_STATE=result;AUDIT_STATE=await api('/api/v1/sso/audit-events');toast('企业登录设置已保存');render();
+}
+
+async function copySsoLoginUrl() {
+  const input=$('#sso-login-url');if(!input)return;await navigator.clipboard.writeText(input.value);toast('已复制登录地址');
+}
 
 function samplingFundingPanel(state) {
   state = state || {};
@@ -927,10 +1009,12 @@ const engineSettingsView = VIEWS.settings;
 vSettings = async function () {
   if (!TEAM_STATE) TEAM_STATE = await api('/api/team');
   if (!BRANDING_STATE) BRANDING_STATE = await api('/api/delivery-branding');
+  if (!SSO_STATE) SSO_STATE = await api('/api/v1/sso/config');
+  if (SSO_STATE.can_edit && !AUDIT_STATE) AUDIT_STATE = await api('/api/v1/sso/audit-events');
   const funding = await api('/api/sampling-funding');
   const html = await engineSettingsView();
   const index = html.lastIndexOf('</div>');
-  const panels = samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel();
+  const panels = samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel() + ssoPanel();
   return index < 0 ? html + panels : html.slice(0,index) + panels + html.slice(index);
 };
 VIEWS.settings = vSettings;

@@ -12,6 +12,7 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     monkeypatch.setenv("JWT_SECRET", "runtime-secret")
     monkeypatch.setenv("AES_KEY", "runtime-aes-key")
     monkeypatch.setenv("SESSION_COOKIE_SECURE", "yes")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://app.example.test/")
     monkeypatch.setenv("WORK_ROOT", str(tmp_path / "tenant-work"))
 
     assert config.database_url() == "sqlite:///test.sqlite"
@@ -22,6 +23,7 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     assert config.jwt_secret() == "runtime-secret"
     assert config.aes_key() == "runtime-aes-key"
     assert config.session_cookie_secure() is True
+    assert config.public_base_url() == "https://app.example.test"
     assert config.work_root(Path("unused")) == (tmp_path / "tenant-work").resolve()
 
 
