@@ -283,10 +283,83 @@ FETCH_ADAPTER = r"""
       if (!id) return response({error:'project_not_found'}, 404);
       return nativeFetch('/api/v1/projects/' + id + '/tickets/' + encodeURIComponent(body.id), {method:'PATCH',headers:init.headers,body:JSON.stringify({status:body.status,note:body.note || ''})});
     }
+    if (url === '/api/task-create' && init.body) {
+      const body = JSON.parse(init.body), id = projectIds.get(body.slug);
+      if (!id) return response({error:'project_not_found'}, 404);
+      return nativeFetch('/api/v1/projects/' + id + '/tickets', {
+        method:'POST', headers:init.headers, body:JSON.stringify({
+          url:body.url, ask_text:body.ask_text, influenced_questions:body.influenced_questions || []
+        })
+      });
+    }
     return response({error:'legacy_ui_endpoint_not_supported'}, 404);
   };
   if (!localStorage.getItem('disvorai_access_token')) setTimeout(showLogin, 0);
 })();
+</script>
+"""
+
+
+UI_EXTENSION = r"""
+<script>
+function offsiteTicketModal() {
+  const questions = (D.questions || []).filter(function (question) { return !question.brand_probe; });
+  modal(`<h4 style="font-size:17px">创建 Offsite 工单</h4>
+    <p class="muted" style="font-size:12.5px;margin:5px 0 14px">记录需要外部页面负责人完成的具体更新；此类工单由人工验收。</p>
+    <label style="display:block;font-size:12px;color:var(--t500);margin-bottom:12px">外部页面 URL
+      <input id="offsite-url" class="input" type="url" placeholder="https://example.com/page" style="margin-top:5px" required></label>
+    <label style="display:block;font-size:12px;color:var(--t500);margin-bottom:12px">希望对方完成什么
+      <textarea id="offsite-ask" class="input" rows="4" maxlength="5000" placeholder="例如：补充品牌定义、官网链接和可核验的数据来源" style="margin-top:5px" required></textarea></label>
+    <div style="font-size:12px;color:var(--t500);margin-bottom:5px">影响问题</div>
+    <div style="max-height:210px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-md);padding:5px 10px">
+      ${questions.map(function (question) { return `<label class="row" style="gap:8px;padding:7px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12.5px;cursor:pointer">
+        <input data-offsite-question type="checkbox" value="${esc(question.id)}" style="width:auto">
+        <span style="flex:1">${esc(question.text)}</span><span class="muted" style="font-size:10.5px">${esc(question.id)}</span></label>`; }).join('') || '<div class="muted" style="font-size:12px;padding:8px 0">问题库为空，请先完成项目分析。</div>'}
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="createOffsiteTicket()">创建工单</button></div>`);
+}
+
+async function createOffsiteTicket() {
+  const url = ($('#offsite-url') || {}).value || '';
+  const askText = ($('#offsite-ask') || {}).value || '';
+  const influencedQuestions = Array.from(document.querySelectorAll('[data-offsite-question]:checked')).map(function (input) { return input.value; });
+  if (!url.trim() || !askText.trim() || !influencedQuestions.length) {
+    toast('请填写 URL、更新诉求并选择至少一个影响问题', 'err');
+    return;
+  }
+  const result = await post('/api/task-create', {
+    slug:SLUG, url:url.trim(), ask_text:askText.trim(), influenced_questions:influencedQuestions
+  });
+  if (result.error) { toast('创建失败：' + result.error, 'err'); return; }
+  closeModal();
+  toast('Offsite 工单已创建');
+  await load(SLUG, true);
+}
+
+const engineTaskModal = taskModal;
+taskModal = function (id) {
+  const ticket = (D.tasks || []).find(function (item) { return item.id === id; });
+  if (!ticket || ticket.kind !== 'offsite') { engineTaskModal(id); return; }
+  const acceptance = ticket.acceptance || {};
+  const questions = ticket.influenced_question_texts || ticket.influenced_questions || [];
+  modal(`<h4 style="font-size:17px">${esc(ticket.id)} · ${esc(ticket.title)}</h4>
+    <div class="row" style="gap:6px;margin-top:6px"><span class="tag tag-neutral">${esc(ticket.priority)}</span>
+      <span class="tag tag-outline">Offsite · 人工</span>
+      <span style="font-size:11.5px;color:var(--t600)">负责：${esc(ticket.owner)} · 工作量 ${esc(ticket.effort)} · ${mktLabel(ticket.market)}</span></div>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">目标页面</div>
+    <a href="${esc(ticket.url)}" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:var(--a300);overflow-wrap:anywhere">${esc(ticket.url)}</a>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">为什么做</div>
+    <div style="font-size:13px;line-height:1.6;color:var(--t400)">${esc(ticket.why)}</div>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">具体怎么干</div>
+    <div style="font-size:13px;line-height:1.6">${esc(ticket.action)}</div>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">影响问题（${questions.length}）</div>
+    <div style="max-height:120px;overflow:auto;font-size:12px;color:var(--t400);line-height:1.7">${questions.map(function (question) { return '<div>' + esc(question) + '</div>'; }).join('')}</div>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">怎么算做完（人工验收）</div>
+    <div style="font-size:13px;line-height:1.6">${esc(acceptance.desc || '')}</div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-primary" onclick="closeModal()">关闭</button></div>`);
+};
 </script>
 """
 
@@ -301,7 +374,14 @@ def serve_ui():
         'Geo<span style="color:var(--accent)">Look</span>',
         'Disvor<span style="color:var(--accent)">AI</span>',
     )
+    html = html.replace(
+        '<button class="btn btn-primary" onclick="runAction(\'verify\')">自动验收</button>',
+        '<button class="btn btn-secondary" onclick="offsiteTicketModal()">创建 Offsite 工单</button>'
+        '<button class="btn btn-primary" onclick="runAction(\'verify\')">自动验收</button>',
+        1,
+    )
     html = html.replace("<body>", "<body>" + FETCH_ADAPTER, 1)
+    html = html.replace("</body>", UI_EXTENSION + "</body>", 1)
     return HTMLResponse(html)
 
 

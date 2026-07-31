@@ -2,7 +2,10 @@
 
 import os
 import re
+from contextlib import contextmanager
+from copy import deepcopy
 from pathlib import Path
+from urllib.parse import urlparse
 
 from api.adapters.engine import geolib
 
@@ -210,6 +213,150 @@ def add_questions(project_slug: str, items: list):
         if added:
             geolib.save_config(project_slug, config)
     return added
+
+
+def _is_manual_offsite(ticket: dict) -> bool:
+    return ticket.get("source") == "manual" and ticket.get("kind") == "offsite"
+
+
+def _merge_manual_tickets(project_slug: str, manual_tickets: list[dict]):
+    """把 SaaS 手工工单合并回引擎生成的 tasks.json。"""
+    if not manual_tickets:
+        return None
+    import tasks as engine_tasks
+
+    with geolib.project_lock(project_slug):
+        data = engine_tasks.load(project_slug)
+        if not isinstance(data, dict):
+            data = {}
+        current = data.get("tasks") if isinstance(data.get("tasks"), list) else []
+        current_manual_ids = {
+            ticket.get("id") for ticket in current if _is_manual_offsite(ticket)
+        }
+        missing = [ticket for ticket in manual_tickets if ticket.get("id") not in current_manual_ids]
+        if not missing:
+            return data
+        merged = current + deepcopy(missing)
+        data["tasks"] = merged
+        engine_tasks.save(project_slug, data)
+    return data
+
+
+@contextmanager
+def preserve_manual_tickets(project_slug: str):
+    """引擎重建计划时保留 SaaS 创建的 offsite 工单。"""
+    import tasks as engine_tasks
+
+    data = engine_tasks.load(project_slug)
+    tickets = data.get("tasks", []) if isinstance(data, dict) else []
+    manual_tickets = [deepcopy(ticket) for ticket in tickets if _is_manual_offsite(ticket)]
+    if not manual_tickets:
+        yield
+        return
+
+    original_build = engine_tasks.build
+
+    def build_with_manual(slug):
+        rebuilt = original_build(slug)
+        if slug == project_slug:
+            return _merge_manual_tickets(project_slug, manual_tickets)
+        return rebuilt
+
+    engine_tasks.build = build_with_manual
+    try:
+        yield
+    finally:
+        engine_tasks.build = original_build
+        _merge_manual_tickets(project_slug, manual_tickets)
+
+
+def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced_questions: list[str]):
+    """创建需人工验收的外部页面工单并写入 tasks.json。"""
+    url = str(url or "").strip()
+    parsed = urlparse(url)
+    if len(url) > 2048 or parsed.scheme not in ("http", "https") or not parsed.hostname:
+        raise ValueError("url must be a valid http(s) URL")
+    if parsed.username or parsed.password:
+        raise ValueError("url must not contain credentials")
+    url = url.rstrip("/")
+
+    ask_text = str(ask_text or "").strip()
+    if not ask_text or len(ask_text) > 5000:
+        raise ValueError("ask_text is required and must not exceed 5000 characters")
+    if not isinstance(influenced_questions, list) or not 1 <= len(influenced_questions) <= 200:
+        raise ValueError("influenced_questions must contain 1 to 200 question ids")
+
+    config = geolib.load_config(project_slug)
+    question_by_id = {
+        str(question.get("id") or ""): question
+        for question in config.get("questions", [])
+        if isinstance(question, dict) and question.get("id")
+    }
+    question_ids = []
+    for raw_id in influenced_questions:
+        question_id = str(raw_id or "").strip()
+        if question_id not in question_by_id:
+            raise ValueError(f"unknown influenced question: {question_id}")
+        if question_id not in question_ids:
+            question_ids.append(question_id)
+    if not question_ids:
+        raise ValueError("at least one influenced question is required")
+
+    import tasks as engine_tasks
+
+    with geolib.project_lock(project_slug):
+        data = engine_tasks.load(project_slug)
+        if not isinstance(data, dict):
+            data = {}
+        tickets = data.get("tasks") if isinstance(data.get("tasks"), list) else []
+        if len(tickets) >= 5000:
+            raise ValueError("ticket limit reached")
+        used = {
+            int(match.group(1))
+            for ticket in tickets
+            if (match := re.fullmatch(r"M-(\d{3,6})", str(ticket.get("id") or "")))
+        }
+        number = 1
+        while number in used:
+            number += 1
+        ticket_id = f"M-{number:03d}"
+        question_texts = [str(question_by_id[qid].get("text") or qid) for qid in question_ids]
+        hostname = parsed.hostname.lower()
+        ticket = {
+            "id": ticket_id,
+            "priority": "P1",
+            "package": "外部证据",
+            "market": config.get("market", "both"),
+            "kind": "offsite",
+            "source": "manual",
+            "title": f"推动 {hostname} 页面补充品牌信息",
+            "why": f"该外部页面会影响 {len(question_ids)} 个用户问题的检索与引用，需要补充可核验的一手信息。",
+            "action": f"联系页面负责人并提出更新诉求：{ask_text}",
+            "owner": "市场",
+            "effort": "M",
+            "window": "60天",
+            "url": url,
+            "ask_text": ask_text,
+            "influenced_questions": question_ids,
+            "influenced_question_texts": question_texts,
+            "affected": [],
+            "acceptance": {
+                "type": "manual",
+                "desc": "人工确认外站已按诉求更新，并在工单证据中记录页面链接或沟通结果",
+            },
+            "status": "todo",
+            "assets": [],
+            "evidence": [],
+            "closed_at": None,
+        }
+        tickets.append(ticket)
+        data.setdefault("slug", project_slug)
+        data.setdefault("generated_at", geolib.now_iso())
+        data.setdefault("market", config.get("market", "both"))
+        data.setdefault("baseline", {})
+        data["tasks"] = tickets
+        engine_tasks.save(project_slug, data)
+    return ticket
 
 
 def project_files(project_slug: str):

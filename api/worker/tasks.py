@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from sqlalchemy.exc import SQLAlchemyError
 
 from api.adapters.engine import job_log_path, load_tenant_keys, with_tenant_context
+from api.adapters.workspace import preserve_manual_tickets
 from api.db import SessionLocal
 from api.models import Job, Project, Tenant
 from api.worker.celery_app import celery_app
@@ -262,7 +263,8 @@ def task_bootstrap(
     args = SimpleNamespace(slug=project_slug, skip_llm=skip_llm, no_sample=no_sample, limit=None)
     with _job_status(tenant_id, project_slug, job_action, job_id):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
-            geo.cmd_autopilot(args)
+            with preserve_manual_tickets(project_slug):
+                geo.cmd_autopilot(args)
             return {"status": "done", "action": job_action, "project_slug": project_slug}
 
 
@@ -319,4 +321,7 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
     """执行经过白名单校验的完整引擎动作。"""
     with _job_status(tenant_id, project_slug, action, job_id):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
+            if action in ("plan", "autopilot", "serve"):
+                with preserve_manual_tickets(project_slug):
+                    return _run_pipeline_action(action, project_slug, params)
             return _run_pipeline_action(action, project_slug, params)

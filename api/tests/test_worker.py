@@ -36,14 +36,24 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
     def fake_autopilot(args):
         calls.append(("autopilot", args.slug, args.skip_llm, args.no_sample, args.limit))
 
+    @contextmanager
+    def fake_preserve(project_slug):
+        calls.append(("preserve", project_slug))
+        yield
+
     monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_autopilot=fake_autopilot))
     monkeypatch.setattr(tasks, "with_tenant_context", fake_context)
+    monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
     result = tasks.task_bootstrap.run("tenant-a", "example", skip_llm=True, no_sample=True)
 
     assert result == {"status": "done", "action": "bootstrap", "project_slug": "example"}
-    assert calls == [("tenant-a", "example"), ("autopilot", "example", True, True, None)]
+    assert calls == [
+        ("tenant-a", "example"),
+        ("preserve", "example"),
+        ("autopilot", "example", True, True, None),
+    ]
 
 
 def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
@@ -57,8 +67,14 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
     def fake_serve(args):
         calls.append(("serve", args.slug, args.max_pages, args.limit, args.no_sample, args.draft))
 
+    @contextmanager
+    def fake_preserve(project_slug):
+        calls.append(("preserve", project_slug))
+        yield
+
     monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_serve=fake_serve))
     monkeypatch.setattr(tasks, "with_tenant_context", fake_context)
+    monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
     monkeypatch.setattr(tasks, "_engine_keys", lambda tenant_id: {"deepseek": "secret"})
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
@@ -72,6 +88,7 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
     assert result == {"status": "done", "action": "serve", "project_slug": "example"}
     assert calls == [
         ("context", "tenant-a", "example", {"deepseek": "secret"}),
+        ("preserve", "example"),
         ("serve", "example", 8, 3, False, True),
     ]
     with pytest.raises(ValueError, match="unsupported pipeline action"):

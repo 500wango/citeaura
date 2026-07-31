@@ -6,6 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.adapters import engine as engine_adapter
+from api.adapters import workspace
+from api.adapters.engine import with_tenant_context
 from api.db import Base, get_db
 from api.main import app
 from api.models import Job, Project
@@ -71,7 +73,13 @@ def _seed_workspace(tmp_path):
     (root / "audit.json").write_text(json.dumps({"avg_score": 72, "page_count": 3, "pages": []}), "utf-8")
     (root / "tasks.json").write_text(json.dumps({
         "summary": {"total": 1, "by_status": {"done": 0}},
-        "tasks": [{"id": "T-001", "priority": "P0", "status": "todo"}],
+        "tasks": [{
+            "id": "T-001", "priority": "P0", "package": "页面技术", "market": "both",
+            "title": "Fix site", "why": "Audit finding", "action": "Deploy fix", "owner": "开发",
+            "effort": "S", "window": "30天", "affected": [],
+            "acceptance": {"type": "manual", "desc": "Check fix"},
+            "status": "todo", "assets": [], "evidence": [], "closed_at": None,
+        }],
     }), "utf-8")
     (root / "content").mkdir()
     (root / "content" / "facts.md").write_text("# Facts\n", "utf-8")
@@ -114,6 +122,39 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client):
     )
     assert added.status_code == 200
     assert added.json()["ids"] == ["q101"]
+
+    first_offsite = client.post(
+        f"/api/v1/projects/{project_id}/tickets",
+        headers=headers,
+        json={
+            "url": "https://directory.example/vendors/example/",
+            "ask_text": "Add the official site and current pricing source.",
+            "influenced_questions": ["q001"],
+        },
+    )
+    assert first_offsite.status_code == 201
+    first_ticket = first_offsite.json()["ticket"]
+    assert first_ticket["id"] == "M-001"
+    assert first_ticket["kind"] == "offsite"
+    assert first_ticket["source"] == "manual"
+    assert first_ticket["url"] == "https://directory.example/vendors/example"
+    assert first_ticket["influenced_questions"] == ["q001"]
+    assert first_ticket["acceptance"]["type"] == "manual"
+    assert all(first_ticket.get(field) for field in ("why", "action", "owner", "effort"))
+
+    second_offsite = client.post(
+        f"/api/v1/projects/{project_id}/tickets",
+        headers=headers,
+        json={
+            "url": "https://reviews.example/example",
+            "ask_text": "Correct the product description.",
+            "influenced_questions": ["q101"],
+        },
+    )
+    assert second_offsite.status_code == 201
+    assert second_offsite.json()["ticket"]["id"] == "M-002"
+    stored_tickets = json.loads((root / "tasks.json").read_text("utf-8"))
+    assert stored_tickets["summary"]["total"] == 3
 
     assert client.put(
         f"/api/v1/projects/{project_id}/facts",
@@ -187,7 +228,7 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client):
     projects = client.get("/api/v1/projects", headers=headers).json()["projects"]
     assert projects[0]["name"] == "Example"
     assert projects[0]["avg_score"] == 72
-    assert projects[0]["tasks_total"] == 1
+    assert projects[0]["tasks_total"] == 3
     assert (root / "assets" / "outlines" / "q001.md").read_text("utf-8") == "# Better outline\n"
 
 
@@ -199,6 +240,12 @@ def test_workspace_is_tenant_isolated_blocks_active_writes_and_traversal(workspa
     _seed_workspace(tmp_path)
 
     assert client.get(f"/api/v1/projects/{project_id}/config", headers=second_headers).status_code == 404
+    hidden_ticket = client.post(
+        f"/api/v1/projects/{project_id}/tickets",
+        headers=second_headers,
+        json={"url": "https://outside.example/page", "ask_text": "Update it", "influenced_questions": ["q001"]},
+    )
+    assert hidden_ticket.status_code == 404
     with session_factory() as db:
         db.add(Job(project_id=project_id, action="audit", status="running"))
         db.commit()
@@ -208,6 +255,18 @@ def test_workspace_is_tenant_isolated_blocks_active_writes_and_traversal(workspa
         json={"text": "blocked"},
     )
     assert blocked.status_code == 409
+    blocked_ticket = client.post(
+        f"/api/v1/projects/{project_id}/tickets",
+        headers=first_headers,
+        json={"url": "https://outside.example/page", "ask_text": "Update it", "influenced_questions": ["q001"]},
+    )
+    assert blocked_ticket.status_code == 409
+    blocked_status = client.patch(
+        f"/api/v1/projects/{project_id}/tickets/T-001",
+        headers=first_headers,
+        json={"status": "doing"},
+    )
+    assert blocked_status.status_code == 409
 
     with session_factory() as db:
         db.query(Job).filter(Job.project_id == project_id).update({"status": "done"})
@@ -224,3 +283,37 @@ def test_workspace_is_tenant_isolated_blocks_active_writes_and_traversal(workspa
         params={"qid": "../../geo"},
     )
     assert invalid_question.status_code == 400
+
+
+def test_manual_offsite_ticket_survives_engine_plan_rebuild(workspace_client):
+    client, session_factory, tmp_path = workspace_client
+    tenant_id, headers = _register(client, "owner@example.com", "tenant-a")
+    project_id = _project(session_factory, tenant_id)
+    root = _seed_workspace(tmp_path)
+
+    created = client.post(
+        f"/api/v1/projects/{project_id}/tickets",
+        headers=headers,
+        json={
+            "url": "https://directory.example/example",
+            "ask_text": "Add the official brand definition and source link.",
+            "influenced_questions": ["q001"],
+        },
+    )
+    assert created.status_code == 201
+
+    with with_tenant_context("tenant-a", "example-com"):
+        import tasks as engine_tasks
+
+        with workspace.preserve_manual_tickets("example-com"):
+            engine_tasks.build("example-com")
+            engine_tasks.set_status("example-com", "M-001", "doing", "Outreach started")
+
+    data = json.loads((root / "tasks.json").read_text("utf-8"))
+    manual = [ticket for ticket in data["tasks"] if ticket.get("kind") == "offsite"]
+    assert len(manual) == 1
+    assert manual[0]["id"] == "M-001"
+    assert manual[0]["ask_text"] == "Add the official brand definition and source link."
+    assert manual[0]["status"] == "doing"
+    assert manual[0]["evidence"][-1]["note"] == "Outreach started"
+    assert data["summary"]["total"] == len(data["tasks"])

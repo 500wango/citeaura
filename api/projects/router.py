@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from api.adapters.engine import geolib, job_log_path, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
+from api.adapters import workspace
 from api.auth.deps import get_current_user
 from api.billing.limits import check_project_creation, check_sample_run
 from api.db import get_db
@@ -68,6 +69,12 @@ class TicketUpdate(BaseModel):
         if value not in ("todo", "doing", "done", "blocked", "wontfix"):
             raise ValueError("invalid ticket status")
         return value
+
+
+class OffsiteTicketCreate(BaseModel):
+    url: str = Field(min_length=1, max_length=2048)
+    ask_text: str = Field(min_length=1, max_length=5000)
+    influenced_questions: list[str] = Field(min_length=1, max_length=200)
 
 
 class PipelineActionRequest(BaseModel):
@@ -466,6 +473,34 @@ def project_tickets(project_id: int, current_user: User = Depends(get_current_us
     return {"tickets": data.get("tasks", []), "summary": data.get("summary", {})}
 
 
+@router.post("/{project_id}/tickets", status_code=status.HTTP_201_CREATED)
+def create_ticket(
+    project_id: int,
+    payload: OffsiteTicketCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """创建需要人工验收的 offsite 工单。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    if _active_job(db, project.id) is not None:
+        _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    try:
+        with with_tenant_context(tenant.name, project.slug):
+            ticket = workspace.create_offsite_ticket(
+                project.slug,
+                payload.url,
+                payload.ask_text,
+                payload.influenced_questions,
+            )
+    except (GeoEngineError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "ticket_creation_failed", "detail": str(exc)},
+        ) from exc
+    return {"ticket": ticket}
+
+
 @router.patch("/{project_id}/tickets/{ticket_id}")
 def update_ticket(
     project_id: int,
@@ -477,6 +512,8 @@ def update_ticket(
     """调用 engine tasks.set_status 更新工单状态。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
+    if _active_job(db, project.id) is not None:
+        _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     try:
         with with_tenant_context(tenant.name, project.slug):
             import tasks as engine_tasks
