@@ -8,12 +8,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from api.adapters.engine import geolib, with_tenant_context
+from api.adapters.engine import geolib, job_log_path, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 from api.auth.deps import get_current_user
 from api.billing.limits import check_project_creation, check_sample_run
@@ -92,12 +92,20 @@ def _project_for_user(db: Session, user: User, project_id: int) -> Project:
     return project
 
 
-def _job_payload(job: Job, include_log: bool = True) -> dict:
+def _job_payload(job: Job, include_log: bool = True, log_offset: int | None = None) -> dict:
     log = ""
+    next_offset = 0
     if include_log and job.log_path:
         try:
             with open(job.log_path, "r", encoding="utf-8", errors="replace") as handle:
-                log = handle.read()[-20000:]
+                contents = handle.read()
+            if log_offset is None:
+                log = contents[-20000:]
+                next_offset = len(contents)
+            else:
+                start = min(log_offset, len(contents))
+                log = contents[start:start + 20000]
+                next_offset = start + len(log)
         except OSError:
             log = ""
     return {
@@ -110,6 +118,7 @@ def _job_payload(job: Job, include_log: bool = True) -> dict:
         "error": job.error,
         "log_path": job.log_path,
         "log": log,
+        "log_offset": next_offset,
     }
 
 
@@ -184,17 +193,15 @@ def create_project(
         _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "project_init_failed")
 
     project.status = "bootstrapping"
+    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
     db.commit()
     try:
-        task = task_bootstrap.delay(
+        task_bootstrap.delay(
             tenant.name,
             slug,
             skip_llm=payload.skip_llm,
             job_id=job.id,
         )
-        # Celery task id 不是管线日志路径，但保存后便于排障和轮询关联。
-        job.log_path = f"celery://{task.id}"
-        db.commit()
     except Exception as exc:  # noqa: BLE001
         project.status = "failed"
         job.status = "failed"
@@ -268,6 +275,7 @@ def project_jobs(project_id: int, current_user: User = Depends(get_current_user)
 def project_job(
     project_id: int,
     job_id: int,
+    offset: int | None = Query(default=None, ge=0),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -276,7 +284,7 @@ def project_job(
     job = db.query(Job).filter(Job.id == job_id, Job.project_id == project.id).first()
     if job is None:
         _error(status.HTTP_404_NOT_FOUND, "job_not_found")
-    return {"job": _job_payload(job)}
+    return {"job": _job_payload(job, log_offset=offset)}
 
 
 @router.post("/{project_id}/sample", status_code=status.HTTP_202_ACCEPTED)
@@ -298,16 +306,16 @@ def sample_project(
     project.status = "sampling"
     db.commit()
     db.refresh(job)
+    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    db.commit()
     try:
-        task = task_sample.delay(
+        task_sample.delay(
             tenant.name,
             project.slug,
             limit=payload.limit,
             platforms=payload.platforms,
             job_id=job.id,
         )
-        job.log_path = f"celery://{task.id}"
-        db.commit()
     except Exception as exc:  # noqa: BLE001
         job.status = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
@@ -418,10 +426,10 @@ def verify_project(project_id: int, current_user: User = Depends(get_current_use
     db.commit()
     db.refresh(job)
     tenant = _tenant_for_user(db, current_user)
+    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    db.commit()
     try:
-        task = task_verify.delay(tenant.name, project.slug, job_id=job.id)
-        job.log_path = f"celery://{task.id}"
-        db.commit()
+        task_verify.delay(tenant.name, project.slug, job_id=job.id)
     except Exception as exc:  # noqa: BLE001
         job.status = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
@@ -458,10 +466,10 @@ def deliver_project(project_id: int, current_user: User = Depends(get_current_us
     db.commit()
     db.refresh(job)
     tenant = _tenant_for_user(db, current_user)
+    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    db.commit()
     try:
-        task = task_deliver.delay(tenant.name, project.slug, job_id=job.id)
-        job.log_path = f"celery://{task.id}"
-        db.commit()
+        task_deliver.delay(tenant.name, project.slug, job_id=job.id)
     except Exception as exc:  # noqa: BLE001
         job.status = "failed"
         job.error = f"{type(exc).__name__}: {exc}"

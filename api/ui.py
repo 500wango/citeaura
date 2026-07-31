@@ -156,8 +156,12 @@ FETCH_ADAPTER = r"""
     if (jobMatch) {
       const jobId = jobMatch[1];
       for (const id of projectIds.values()) {
-        const r = await nativeFetch('/api/v1/projects/' + id + '/jobs/' + jobId, init);
-        if (r.status !== 404) { const data = await r.json(); return response({job:legacyJob(data.job),log:data.job.log || '',offset:0}, r.status); }
+        const requested = Math.max(0, Number(new URL(url, location.origin).searchParams.get('offset') || 0) || 0);
+        const r = await nativeFetch('/api/v1/projects/' + id + '/jobs/' + jobId + '?offset=' + requested, init);
+        if (r.status !== 404) {
+          const data = await r.json();
+          return response({job:legacyJob(data.job),log:data.job.log || '',offset:data.job.log_offset || requested}, r.status);
+        }
       }
       return response({error:'job_not_found'}, 404);
     }

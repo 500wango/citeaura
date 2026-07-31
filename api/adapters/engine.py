@@ -48,6 +48,15 @@ def tenant_slug(value: str) -> str:
     return _valid_slug(geolib.slugify(str(value or "")), "tenant")
 
 
+def job_log_path(tenant_id: str, project_slug: str, job_id: int) -> Path:
+    """返回租户项目内的 worker 日志路径。"""
+    project_slug = _valid_slug(str(project_slug or ""), "project")
+    job_id = int(job_id)
+    if job_id <= 0:
+        raise ValueError("invalid job id")
+    return WORK_ROOT / tenant_slug(tenant_id) / project_slug / ".jobs" / f"{job_id}.log"
+
+
 def patch_die():
     """将引擎的 sys.exit 错误改为 GeoEngineError，并返回原函数。"""
     previous = geolib.die

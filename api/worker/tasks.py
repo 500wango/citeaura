@@ -1,12 +1,12 @@
 """引擎异步任务。"""
 
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from api.adapters.engine import load_tenant_keys, with_tenant_context
+from api.adapters.engine import job_log_path, load_tenant_keys, with_tenant_context
 from api.db import SessionLocal
 from api.models import Job, Project, Tenant
 from api.worker.celery_app import celery_app
@@ -62,16 +62,41 @@ def _engine_keys(tenant_id):
 
 
 @contextmanager
+def _capture_task_output(log_path):
+    """把引擎 print 输出写入当前 Job 日志。"""
+    if log_path is None:
+        yield
+        return
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("a", encoding="utf-8", buffering=1) as handle:
+        with redirect_stdout(handle), redirect_stderr(handle):
+            yield
+
+
+def _append_job_event(log_path, message):
+    if log_path is None:
+        return
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("a", encoding="utf-8") as handle:
+        handle.write(f"[disvorai] {message}\n")
+
+
+@contextmanager
 def _job_status(tenant_id, project_slug, action, job_id=None):
     """把 Job 标为 running/done/failed；DB 不可用时不阻断直接 worker 调用。"""
     db = SessionLocal()
     job = None
     project = None
+    log_path = None
     try:
         try:
             job = _find_job(db, tenant_id, project_slug, action, job_id)
             if job is not None:
                 project = db.get(Project, job.project_id)
+                tenant = db.get(Tenant, project.tenant_id) if project is not None else None
+                if tenant is not None:
+                    log_path = job_log_path(tenant.name, project.slug, job.id)
+                    job.log_path = str(log_path)
                 job.status = "running"
                 job.started_at = datetime.now(timezone.utc)
                 job.error = None
@@ -82,8 +107,11 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
             project = None
 
         try:
-            yield
+            _append_job_event(log_path, f"{action} started")
+            with _capture_task_output(log_path):
+                yield
         except Exception as exc:
+            _append_job_event(log_path, f"{action} failed: {type(exc).__name__}: {exc}")
             if job is not None:
                 job.status = "failed"
                 job.finished_at = datetime.now(timezone.utc)
@@ -96,6 +124,7 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                     db.rollback()
             raise
         else:
+            _append_job_event(log_path, f"{action} done")
             if job is not None:
                 job.status = "done"
                 job.finished_at = datetime.now(timezone.utc)

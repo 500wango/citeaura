@@ -209,7 +209,18 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
 
     job = client.get(f"/api/v1/projects/{body['project_id']}/jobs/{body['job_id']}", headers=headers)
     assert job.status_code == 200
-    assert job.json()["job"]["log_path"] == "celery://celery-1"
+    assert job.json()["job"]["log_path"] == str(project_dir / ".jobs" / "1.log")
+
+    log_path = project_dir / ".jobs" / "1.log"
+    log_path.parent.mkdir(parents=True)
+    log_path.write_text("first\nsecond\n", "utf-8")
+    incremental = client.get(
+        f"/api/v1/projects/{body['project_id']}/jobs/{body['job_id']}?offset=6",
+        headers=headers,
+    )
+    assert incremental.status_code == 200
+    assert incremental.json()["job"]["log"] == "second\n"
+    assert incremental.json()["job"]["log_offset"] == 13
 
 
 def test_project_isolation_and_duplicate_rejection(project_client, monkeypatch):

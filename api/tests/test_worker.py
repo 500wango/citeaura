@@ -109,8 +109,13 @@ def test_job_status_updates_project_on_success_and_failure(tmp_path, monkeypatch
         project_id = project.id
 
     monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(
+        tasks,
+        "job_log_path",
+        lambda tenant_id, project_slug, job_id: tmp_path / "logs" / f"{job_id}.log",
+    )
     with tasks._job_status("tenant-a", "example", "bootstrap", bootstrap_job_id):
-        pass
+        print("engine output")
     with session_factory() as db:
         assert db.get(Job, bootstrap_job_id).status == "done"
         assert db.get(Project, project_id).status == "ready"
@@ -125,6 +130,13 @@ def test_job_status_updates_project_on_success_and_failure(tmp_path, monkeypatch
     with session_factory() as db:
         assert db.get(Job, verify_job_id).status == "failed"
         assert db.get(Project, project_id).status == "failed"
+
+    bootstrap_log = (tmp_path / "logs" / f"{bootstrap_job_id}.log").read_text("utf-8")
+    verify_log = (tmp_path / "logs" / f"{verify_job_id}.log").read_text("utf-8")
+    assert "bootstrap started" in bootstrap_log
+    assert "engine output" in bootstrap_log
+    assert "bootstrap done" in bootstrap_log
+    assert "verify failed: RuntimeError: verification failed" in verify_log
 
 
 @contextmanager

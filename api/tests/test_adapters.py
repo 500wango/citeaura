@@ -4,7 +4,7 @@ import threading
 import pytest
 
 from api.adapters import engine as engine_adapter
-from api.adapters.engine import geolib, with_tenant_context
+from api.adapters.engine import geolib, job_log_path, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 
 
@@ -43,6 +43,18 @@ def test_context_rejects_path_traversal():
     with pytest.raises(ValueError):
         with with_tenant_context("../other-tenant", "project"):
             pass
+
+
+def test_job_log_path_is_tenant_scoped(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+
+    path = job_log_path("Tenant Name", "example-com", 7)
+
+    assert path == tmp_path / "work" / "tenant-name" / "example-com" / ".jobs" / "7.log"
+    with pytest.raises(ValueError, match="invalid project slug"):
+        job_log_path("tenant", "../example", 7)
+    with pytest.raises(ValueError, match="invalid job id"):
+        job_log_path("tenant", "example", 0)
 
 
 def test_tenant_context_serializes_process_global_state(tmp_path, monkeypatch):
