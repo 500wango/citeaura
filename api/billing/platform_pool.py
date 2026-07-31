@@ -58,7 +58,7 @@ def public_catalog():
         catalog.append({
             "engine_code": code,
             "engine_name": provider.get("name", code),
-            "sampling_mode": "API·联网" if provider.get("search") else "API·参数化",
+            "sampling_mode": "API·联网检索" if provider.get("search") else "API·参数化知识",
             "unit_price_cny_fen": item["unit_price_cny_fen"],
         })
     return catalog

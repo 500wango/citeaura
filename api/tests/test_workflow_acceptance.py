@@ -35,7 +35,7 @@ class Session:
         if path == "/api/v1/projects/7/report":
             return Response(body={"date": "2026-08-01", "report": {"sample_count": 2}})
         if path == "/api/v1/projects/7/engines":
-            return Response(body={"engines": [{"sampling_mode": "API·参数化"}]})
+            return Response(body={"engines": [{"sampling_mode": "API·参数化知识"}]})
         if path == "/api/v1/projects/7/samples/2026-08-01":
             return Response(body={"samples": [{"answer": "raw"}]})
         if path == "/api/v1/projects/7/tickets":

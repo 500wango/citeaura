@@ -37,7 +37,7 @@ disvorai/
 4. **BYOK 优先**。用户自带 API Key，加密存储，运行时注入 `os.environ`。
 5. **不出现 "geolook" / "GeoLook"**。产品名统一 **DisvorAI**。
 6. **引擎测试必须保持全绿**：`cd engine && python3 -m unittest discover -s tests`。
-7. **采样模式必须标注**。UI/API 返回时标明 "API·参数化" 或 "API·联网" 或 "人工·网页端"。
+7. **采样模式必须标注**。UI/API 返回时标明 "API·参数化知识" 或 "API·联网检索" 或 "人工·产品端"。
 
 ## 适配层要做的 5 件事
 

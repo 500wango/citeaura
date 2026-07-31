@@ -24,7 +24,7 @@ def collect_checks(base_url, production=False):
         check("landing", landing.status_code == 200 and "DisvorAI" in landing.text, landing.status_code)
         check(
             "truthful_sampling_copy",
-            all(label in landing.text for label in ("API·参数化", "API·联网", "人工·网页端"))
+            all(label in landing.text for label in ("API·参数化知识", "API·联网检索", "人工·产品端"))
             and "保证上首页" not in landing.text
             and "geolook" not in landing.text.lower(),
             "sampling labels and no forbidden claims",

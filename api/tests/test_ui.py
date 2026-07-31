@@ -105,7 +105,7 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "publishing_not_available_in_mvp" not in response.text
     assert "凭证使用 AES-256-GCM 加密保存" in response.text
     assert "/api/v1/projects/' + id + '/samples/import" in response.text
-    assert "人工·网页端" in response.text
+    assert "人工·产品端" in response.text
     assert "x.sampling_mode" in response.text
     assert "/api/delivery-zip/" in response.text
     assert "'/deliveries/' + deliveryZipMatch[2]" in response.text
@@ -155,8 +155,8 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "function samplingFundingPanel(state)" in response.text
     assert "async function setPlatformPool(enabled)" in response.text
     assert "BYOK 始终优先" in response.text
-    assert "API·联网" in response.text
-    assert "API·参数化" in response.text
+    assert "API·联网检索" in response.text
+    assert "API·参数化知识" in response.text
     assert "本月费用" in response.text
     assert "费用信息加载失败" in response.text
     assert "仅所有者可更改" in response.text

@@ -87,8 +87,8 @@ def _phrases(sentence, alias):
 
 def _sampling_mode(row):
     if row.get("sample_mode") == "manual" or row.get("terminal") == "web":
-        return "人工·网页端"
-    return "API·联网" if row.get("search_enabled") else "API·参数化"
+        return "人工·产品端"
+    return "API·联网检索" if row.get("search_enabled") else "API·参数化知识"
 
 
 def _latest_samples(project_slug):

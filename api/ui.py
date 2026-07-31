@@ -1668,19 +1668,19 @@ def serve_ui():
     )
     html = html.replace(
         '点「配置」填 Key 和模型，写入项目根目录 .env，立即生效。无 API 的引擎走人工采样表。',
-        'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。',
+        'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。参数化知识基于模型权重，不启用实时搜索或外部检索；无公开 API 的引擎走人工产品端采样表。',
     )
     html = html.replace(
         '把成稿从「内容工作台」发到你自己的渠道。凭证写 .env；',
         '把成稿从「内容工作台」发到你自己的渠道。凭证使用 AES-256-GCM 加密保存；',
     )
     html = html.replace(
-        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。':'Click Configure to set keys & models (written to local .env, effective immediately). Engines without APIs use manual sheets.'",
-        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。':'API keys are encrypted with AES-256-GCM and injected only while a job runs. Engines without public APIs use manual sample sheets.'",
+        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。参数化知识基于模型权重，不启用实时搜索或外部检索；无公开 API 的引擎走人工产品端采样表。':'Click Configure to set keys & models (written to local .env, effective immediately). Engines without APIs use manual sheets.'",
+        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。参数化知识基于模型权重，不启用实时搜索或外部检索；无公开 API 的引擎走人工产品端采样表。':'API keys are encrypted with AES-256-GCM and injected only while a job runs. Parametric knowledge uses model weights without live search or external retrieval; engines without public APIs use manual product sampling.'",
     )
     html = html.replace(
-        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。':'「設定」で Key とモデルを入力するとローカル .env に書き込まれ即時反映。API なしのエンジンは手動採取表で。'",
-        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。':'API キーは AES-256-GCM で暗号化保存し、ジョブ実行中のみ注入します。公開 API のないエンジンは手動採取表を使用します。'",
+        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。参数化知识基于模型权重，不启用实时搜索或外部检索；无公开 API 的引擎走人工产品端采样表。':'「設定」で Key とモデルを入力するとローカル .env に書き込まれ即時反映。API なしのエンジンは手動採取表で。'",
+        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。参数化知识基于模型权重，不启用实时搜索或外部检索；无公开 API 的引擎走人工产品端采样表。':'API キーは AES-256-GCM で暗号化保存し、ジョブ実行中のみ注入します。パラメトリック知識はリアルタイム検索や外部検索を使用せず、公開 API のないエンジンは製品画面で手動サンプリングします。'",
     )
     html = html.replace("确定从 .env 删除 ${esc(k.env)}？", "确定删除 ${esc(k.label)} 的 API Key？")
     html = html.replace("toast(r.ok?'已写入 .env'", "toast(r.ok?'Key 已加密保存'")
@@ -1720,13 +1720,16 @@ def serve_ui():
     )
     html = html.replace(
         "${mktLabel(x.market)} · ${x.searched?'联网':'参数化知识'}",
-        "${esc(x.sampling_mode || (x.searched?'API·联网':'API·参数化'))}",
+        "${esc(x.sampling_mode || (x.searched?'API·联网检索':'API·参数化知识'))}",
     )
     html = html.replace(
         "${mktLabel(k.market)} · ${k.ok===false?'缺 API Key':'仅人工采样'}",
-        "${k.ok===false?(k.search?'API·联网 · 缺 Key':'API·参数化 · 缺 Key'):'人工·网页端'}",
+        "${k.ok===false?(k.search?'API·联网检索 · 缺 Key':'API·参数化知识 · 缺 Key'):'人工·产品端'}",
     )
-    html = html.replace("${mktLabel(k.market)}${k.search?' · 联网':''}", "${k.search?'联网':'参数化'}")
+    html = html.replace(
+        "${mktLabel(k.market)}${k.search?' · 联网':''}",
+        "${k.manual?'人工·产品端':(k.search?'API·联网检索':'API·参数化知识')}",
+    )
     html = html.replace(
         '''    {who:'给客户',name:'交付包',desc:'诊断报告、优化方案、工单表（CSV）、验收表、资产目录与说明。',
      act:(D.deliveries||[]).length?`<a class="btn btn-primary" style="font-size:12px" target="_blank" href="/files/${SLUG}/delivery/${D.deliveries[0]}/index.html">打开</a>`

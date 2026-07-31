@@ -12,7 +12,7 @@ class Response:
 
 
 def test_acceptance_script_checks_public_surface(monkeypatch):
-    html = "DisvorAI API·参数化 API·联网 人工·网页端 /app"
+    html = "DisvorAI API·参数化知识 API·联网检索 人工·产品端 /app"
 
     def fake_get(_url, timeout):
         if _url.endswith("/api/v1/health"):

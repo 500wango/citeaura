@@ -626,7 +626,7 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
         )
         item["sample_mode"] = "manual" if manual else "api"
         item["sampling_mode"] = (
-            "人工·网页端" if manual else ("API·联网" if item.get("searched") else "API·参数化")
+            "人工·产品端" if manual else ("API·联网检索" if item.get("searched") else "API·参数化知识")
         )
         item.pop("market", None)
     return {"date": metrics.get("date") if metrics else None, "engines": engines}

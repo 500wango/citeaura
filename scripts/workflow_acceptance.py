@@ -14,7 +14,7 @@ import requests
 
 
 TERMINAL_JOB_STATUSES = frozenset(("done", "failed", "stopped", "interrupted"))
-SAMPLING_MODES = frozenset(("API·参数化", "API·联网", "人工·网页端"))
+SAMPLING_MODES = frozenset(("API·参数化知识", "API·联网检索", "人工·产品端"))
 
 
 class AcceptanceError(RuntimeError):

@@ -369,7 +369,7 @@ def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced
 
 
 def import_sample_sheet(project_slug: str, filename: str, text: str):
-    """保存并导入项目内的人工网页端采样表。"""
+    """保存并导入项目内的人工产品端采样表。"""
     filename = str(filename or "").strip()
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}-manual\.md", filename):
         raise ValueError("sample sheet filename must be YYYY-MM-DD-manual.md")

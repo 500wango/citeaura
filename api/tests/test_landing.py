@@ -13,9 +13,9 @@ def test_landing_page_is_public_and_links_to_application():
     assert response.headers["content-type"].startswith("text/html")
     assert "<h1 id=\"hero-title\">DisvorAI</h1>" in response.text
     assert 'href="/app"' in response.text
-    assert "API·参数化" in response.text
-    assert "API·联网" in response.text
-    assert "人工·网页端" in response.text
+    assert "API·参数化知识" in response.text
+    assert "API·联网检索" in response.text
+    assert "人工·产品端" in response.text
     assert "14 天" in response.text
     assert "¥199" in response.text
     assert "不保证被提及或排名" in response.text
