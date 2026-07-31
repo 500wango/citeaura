@@ -25,13 +25,21 @@ def test_celery_registers_all_pipeline_tasks():
 
 def test_bootstrap_task_uses_tenant_context(monkeypatch):
     calls = []
+    pipeline = []
 
     @contextmanager
     def fake_context(tenant_id, project_slug, keys=None):
         calls.append((tenant_id, project_slug))
         yield
 
-    fake_bootstrap = types.SimpleNamespace(run=lambda slug, skip_llm=False: {"slug": slug, "skip_llm": skip_llm})
+    fake_crawl = types.SimpleNamespace(run=lambda slug: pipeline.append(("crawl", slug)))
+
+    def fake_bootstrap_run(slug, skip_llm=False):
+        pipeline.append(("bootstrap", slug, skip_llm))
+        return {"slug": slug, "skip_llm": skip_llm}
+
+    fake_bootstrap = types.SimpleNamespace(run=fake_bootstrap_run)
+    monkeypatch.setitem(sys.modules, "crawl", fake_crawl)
     monkeypatch.setitem(sys.modules, "bootstrap", fake_bootstrap)
     monkeypatch.setattr(tasks, "with_tenant_context", fake_context)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
@@ -40,6 +48,7 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
 
     assert result == {"slug": "example", "skip_llm": True}
     assert calls == [("tenant-a", "example")]
+    assert pipeline == [("crawl", "example"), ("bootstrap", "example", True)]
 
 
 def test_find_job_rejects_cross_tenant_or_wrong_action(tmp_path):

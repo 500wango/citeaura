@@ -107,9 +107,11 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
 def task_bootstrap(tenant_id: str, project_slug: str, skip_llm: bool = False, job_id=None):
     """执行官网底座自动推导。"""
     import bootstrap
+    import crawl
 
     with _job_status(tenant_id, project_slug, "bootstrap", job_id):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
+            crawl.run(project_slug)
             return bootstrap.run(project_slug, skip_llm=skip_llm)
 
 
