@@ -420,12 +420,46 @@ def serve_ui():
         '点「配置」填 Key 和模型，写入项目根目录 .env，立即生效。无 API 的引擎走人工采样表。',
         'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。',
     )
+    html = html.replace(
+        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。':'Click Configure to set keys & models (written to local .env, effective immediately). Engines without APIs use manual sheets.'",
+        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。':'API keys are encrypted with AES-256-GCM and injected only while a job runs. Engines without public APIs use manual sample sheets.'",
+    )
+    html = html.replace(
+        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。':'「設定」で Key とモデルを入力するとローカル .env に書き込まれ即時反映。API なしのエンジンは手動採取表で。'",
+        "'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。':'API キーは AES-256-GCM で暗号化保存し、ジョブ実行中のみ注入します。公開 API のないエンジンは手動採取表を使用します。'",
+    )
     html = html.replace("确定从 .env 删除 ${esc(k.env)}？", "确定删除 ${esc(k.label)} 的 API Key？")
     html = html.replace("toast(r.ok?'已写入 .env'", "toast(r.ok?'Key 已加密保存'")
     html = html.replace(
         '团队与权限：单机自托管版，无账号体系；服务只绑定 127.0.0.1。多人使用需自行加反向代理与认证。',
         '当前工作区按租户隔离；成员邀请与角色管理暂未开放。',
     )
+    html = html.replace(
+        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'Teams & auth: single-machine self-hosted, no account system; the server binds to 127.0.0.1 only. For multi-user, add your own reverse proxy with auth.'",
+        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'This workspace is tenant-isolated. Member invitations and role management are not available yet.'",
+    )
+    html = html.replace(
+        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'チームと権限：単一マシンのセルフホスト版でアカウント機能なし。サービスは 127.0.0.1 のみにバインド。複数人利用はリバースプロキシと認証を追加。'",
+        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'このワークスペースはテナントごとに分離されています。メンバー招待とロール管理はまだ利用できません。'",
+    )
+    html = html.replace(
+        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'チームと権限：単機セルフホスト版でアカウント機構なし。サーバーは 127.0.0.1 のみにバインド。複数人利用はリバースプロキシ+認証を自前で。'",
+        "'当前工作区按租户隔离；成员邀请与角色管理暂未开放。':'このワークスペースはテナントごとに分離されています。メンバー招待とロール管理はまだ利用できません。'",
+    )
+    html = html.replace(
+        '后台子进程执行，关掉页面也会跑完。同一项目同时只跑一个。',
+        '后台任务队列执行，关掉页面也会跑完。同一项目同时只跑一个。',
+    )
+    html = html.replace(
+        "'后台任务队列执行，关掉页面也会跑完。同一项目同时只跑一个。':'Jobs run as background subprocesses. One at a time per project.'",
+        "'后台任务队列执行，关掉页面也会跑完。同一项目同时只跑一个。':'Jobs run in the background queue and continue after this page closes. One job runs per project at a time.'",
+    )
+    html = html.replace(
+        "'后台任务队列执行，关掉页面也会跑完。同一项目同时只跑一个。':'バックグラウンドのサブプロセスで実行され、ページを閉じても完走。同一プロジェクトは同時 1 件のみ。'",
+        "'后台任务队列执行，关掉页面也会跑完。同一项目同时只跑一个。':'ジョブはバックグラウンドキューで実行され、このページを閉じても継続します。プロジェクトごとに同時実行は 1 件です。'",
+    )
+    html = html.replace("'保存':'Save'", "'保存':'Save','下载 ZIP':'Download ZIP'", 1)
+    html = html.replace("'保存':'保存'", "'保存':'保存','下载 ZIP':'ZIP をダウンロード'", 1)
     html = html.replace(
         '<td style="font-size:13px;color:var(--t600)">0</td>\n        <td><span class="tag tag-dim">未采样</span></td>',
         '<td style="font-size:13px;color:var(--t600)">—</td>\n        <td><span class="tag tag-dim">未测</span></td>',
@@ -483,6 +517,14 @@ def serve_ui():
     )
     html = html.replace(
         "'本产品不内置定时器。要每周自动跑并发送，用 Claude 的 schedule 能力挂':'タイマーは非内蔵。週次自動実行と送信は Claude の schedule 機能で',\n",
+        "",
+    )
+    html = html.replace(
+        "'把成稿从「内容工作台」发到你自己的渠道。凭证写 .env；':'Publish finals from the Workbench to your own channels. Credentials live in .env; ',\n",
+        "",
+    )
+    html = html.replace(
+        "'把成稿从「内容工作台」发到你自己的渠道。凭证写 .env；':'完成稿をワークベンチから自分のチャネルへ公開。認証情報は .env に。',\n",
         "",
     )
     html = html.replace(

@@ -81,6 +81,14 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "采样为手动触发或由 schedule 驱动" not in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text
+    assert "后台任务队列执行" in response.text
+    assert "后台子进程执行" not in response.text
+    assert "written to local .env" not in response.text
+    assert "Credentials live in .env" not in response.text
+    assert "background subprocesses" not in response.text
+    assert "single-machine self-hosted, no account system" not in response.text
+    assert "単機セルフホスト版" not in response.text
+    assert "Download ZIP" in response.text
 
 
 def test_project_files_use_cookie_auth_and_remain_tenant_isolated(ui_client):
