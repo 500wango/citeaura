@@ -9,6 +9,11 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     monkeypatch.setenv("REDIS_URL", "redis://example.test:6379/4")
     monkeypatch.setenv("PROJECT_LOCK_TTL_SECONDS", "90")
     monkeypatch.setenv("PROJECT_LOCK_WAIT_SECONDS", "2.5")
+    monkeypatch.setenv("RATE_LIMIT_ENABLED", "yes")
+    monkeypatch.setenv("RATE_LIMIT_REQUESTS", "240")
+    monkeypatch.setenv("RATE_LIMIT_AUTH_REQUESTS", "12")
+    monkeypatch.setenv("RATE_LIMIT_WINDOW_SECONDS", "90")
+    monkeypatch.setenv("RATE_LIMIT_TRUST_PROXY_HEADERS", "true")
     monkeypatch.setenv("CELERY_RESULT_BACKEND", "redis://example.test:6379/5")
     monkeypatch.setenv("JWT_SECRET", "runtime-secret")
     monkeypatch.setenv("AES_KEY", "runtime-aes-key")
@@ -21,6 +26,11 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     assert config.redis_url() == "redis://example.test:6379/4"
     assert config.project_lock_ttl_seconds() == 90
     assert config.project_lock_wait_seconds() == 2.5
+    assert config.rate_limit_enabled() is True
+    assert config.rate_limit_requests() == 240
+    assert config.rate_limit_auth_requests() == 12
+    assert config.rate_limit_window_seconds() == 90
+    assert config.rate_limit_trust_proxy_headers() is True
     assert config.celery_result_backend() == "redis://example.test:6379/5"
     assert config.jwt_secret() == "runtime-secret"
     assert config.aes_key() == "runtime-aes-key"
@@ -36,6 +46,16 @@ def test_project_lock_config_rejects_invalid_ranges(monkeypatch):
 
     assert config.project_lock_ttl_seconds() == 60
     assert config.project_lock_wait_seconds() == 10
+
+
+def test_rate_limit_config_rejects_invalid_ranges(monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_REQUESTS", "0")
+    monkeypatch.setenv("RATE_LIMIT_AUTH_REQUESTS", "invalid")
+    monkeypatch.setenv("RATE_LIMIT_WINDOW_SECONDS", "3601")
+
+    assert config.rate_limit_requests() == 120
+    assert config.rate_limit_auth_requests() == 20
+    assert config.rate_limit_window_seconds() == 60
 
 
 def test_annual_discount_config_rejects_invalid_ranges(monkeypatch):

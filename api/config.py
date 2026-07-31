@@ -38,6 +38,34 @@ def project_lock_wait_seconds():
     return _seconds("PROJECT_LOCK_WAIT_SECONDS", 10, 0)
 
 
+def _integer(name, default, minimum=1, maximum=1_000_000):
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    return value if minimum <= value <= maximum else default
+
+
+def rate_limit_enabled():
+    return _enabled("RATE_LIMIT_ENABLED", "true")
+
+
+def rate_limit_requests():
+    return _integer("RATE_LIMIT_REQUESTS", 120)
+
+
+def rate_limit_auth_requests():
+    return _integer("RATE_LIMIT_AUTH_REQUESTS", 20)
+
+
+def rate_limit_window_seconds():
+    return _integer("RATE_LIMIT_WINDOW_SECONDS", 60, maximum=3600)
+
+
+def rate_limit_trust_proxy_headers():
+    return _enabled("RATE_LIMIT_TRUST_PROXY_HEADERS")
+
+
 def celery_result_backend():
     return os.getenv("CELERY_RESULT_BACKEND", redis_url())
 

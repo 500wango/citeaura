@@ -15,6 +15,11 @@ def _valid_environment():
         "JWT_SECRET": "j" * 48,
         "AES_KEY": base64.urlsafe_b64encode(b"a" * 32).decode(),
         "SESSION_COOKIE_SECURE": "true",
+        "RATE_LIMIT_ENABLED": "true",
+        "RATE_LIMIT_REQUESTS": "120",
+        "RATE_LIMIT_AUTH_REQUESTS": "20",
+        "RATE_LIMIT_WINDOW_SECONDS": "60",
+        "RATE_LIMIT_TRUST_PROXY_HEADERS": "true",
         "STRIPE_SECRET_KEY": "sk_live_valid",
         "STRIPE_WEBHOOK_SECRET": "whsec_valid",
         "STRIPE_CURRENCY": "cny",
@@ -40,6 +45,7 @@ def test_preflight_rejects_placeholders_insecure_url_and_test_payments():
         "JWT_SECRET": "short",
         "AES_KEY": "invalid",
         "SESSION_COOKIE_SECURE": "false",
+        "RATE_LIMIT_ENABLED": "false",
         "STRIPE_SECRET_KEY": "sk_test_not_live",
     })
 
@@ -50,6 +56,7 @@ def test_preflight_rejects_placeholders_insecure_url_and_test_payments():
     assert "JWT_SECRET must be a non-placeholder value of at least 32 characters" in errors
     assert "AES_KEY must be URL-safe base64 encoding of exactly 32 bytes" in errors
     assert "SESSION_COOKIE_SECURE must be true" in errors
+    assert "RATE_LIMIT_ENABLED must be true" in errors
     assert "STRIPE_SECRET_KEY must be a live-mode key" in errors
 
 

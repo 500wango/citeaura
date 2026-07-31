@@ -33,12 +33,19 @@ class MemoryRedis:
     def __init__(self):
         self.guards = {}
         self.created = []
+        self.values = {}
+        self.values_lock = threading.Lock()
 
     def lock(self, name, **options):
         guard = self.guards.setdefault(name, threading.Lock())
         lock = MemoryLock(guard, **options)
         self.created.append((name, lock))
         return lock
+
+    def eval(self, script, numkeys, key, ttl):
+        with self.values_lock:
+            self.values[key] = self.values.get(key, 0) + 1
+            return self.values[key]
 
 
 @pytest.fixture(autouse=True)

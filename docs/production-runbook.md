@@ -6,9 +6,10 @@
 
 1. 复制 `.env.production.example` 为 `.env.production`，填写真实域名、PostgreSQL 密码、`JWT_SECRET`、`AES_KEY`、Stripe live key 和 Stripe Webhook signing secret。
 2. 将 `PUBLIC_BASE_URL` 设置为 `https://DOMAIN`，并将 `SESSION_COOKIE_SECURE=true`。
-3. 在 Stripe Dashboard 创建订阅 Checkout Webhook，事件至少包括 `checkout.session.completed`、`checkout.session.async_payment_succeeded`、`customer.subscription.updated`、`customer.subscription.deleted`、`invoice.paid` 和 `invoice.payment_failed`，地址为 `https://DOMAIN/api/v1/billing/webhook`。
-4. 将真实证书和私钥放在 `deploy/certs/fullchain.pem` 与 `deploy/certs/privkey.pem`。部署脚本不会生成自签名证书。
-5. 如果启用归档，填写 S3 或 R2 兼容对象存储配置。Semrush、SMTP、OIDC 和 Search Console 凭证在租户工作台内配置，并由对应连接测试确认。
+3. 保持 `RATE_LIMIT_ENABLED=true` 和 `RATE_LIMIT_TRUST_PROXY_HEADERS=true`。默认每个用户或来源 IP 每分钟 120 个 API 请求，注册、登录和刷新每分钟 20 个；可通过 `RATE_LIMIT_*` 调整。
+4. 在 Stripe Dashboard 创建订阅 Checkout Webhook，事件至少包括 `checkout.session.completed`、`checkout.session.async_payment_succeeded`、`customer.subscription.updated`、`customer.subscription.deleted`、`invoice.paid` 和 `invoice.payment_failed`，地址为 `https://DOMAIN/api/v1/billing/webhook`。
+5. 将真实证书和私钥放在 `deploy/certs/fullchain.pem` 与 `deploy/certs/privkey.pem`。部署脚本不会生成自签名证书。
+6. 如果启用归档，填写 S3 或 R2 兼容对象存储配置。Semrush、SMTP、OIDC 和 Search Console 凭证在租户工作台内配置，并由对应连接测试确认。
 
 ## 预检与部署
 

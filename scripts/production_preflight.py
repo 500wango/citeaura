@@ -50,6 +50,8 @@ def validate_environment(values):
     required = (
         "DOMAIN", "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD", "DATABASE_URL",
         "PUBLIC_BASE_URL", "REDIS_URL", "JWT_SECRET", "AES_KEY", "SESSION_COOKIE_SECURE",
+        "RATE_LIMIT_ENABLED", "RATE_LIMIT_REQUESTS", "RATE_LIMIT_AUTH_REQUESTS",
+        "RATE_LIMIT_WINDOW_SECONDS", "RATE_LIMIT_TRUST_PROXY_HEADERS",
         "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_CURRENCY",
     )
     for key in required:
@@ -80,6 +82,17 @@ def validate_environment(values):
             errors.append("AES_KEY must be URL-safe base64 encoding of exactly 32 bytes")
     if values.get("SESSION_COOKIE_SECURE", "").lower() not in ("1", "true", "yes"):
         errors.append("SESSION_COOKIE_SECURE must be true")
+    if values.get("RATE_LIMIT_ENABLED", "").lower() not in ("1", "true", "yes"):
+        errors.append("RATE_LIMIT_ENABLED must be true")
+    if values.get("RATE_LIMIT_TRUST_PROXY_HEADERS", "").lower() not in ("1", "true", "yes"):
+        errors.append("RATE_LIMIT_TRUST_PROXY_HEADERS must be true behind the production proxy")
+    for key, maximum in (("RATE_LIMIT_REQUESTS", 1_000_000), ("RATE_LIMIT_AUTH_REQUESTS", 1_000_000), ("RATE_LIMIT_WINDOW_SECONDS", 3600)):
+        try:
+            number = int(values.get(key, ""))
+        except ValueError:
+            number = 0
+        if not 1 <= number <= maximum:
+            errors.append(f"{key} must be an integer between 1 and {maximum}")
     stripe_key = values.get("STRIPE_SECRET_KEY", "")
     if stripe_key and not stripe_key.startswith("sk_live_"):
         errors.append("STRIPE_SECRET_KEY must be a live-mode key")

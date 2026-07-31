@@ -1,5 +1,7 @@
 """FastAPI 应用入口。"""
 
+import time
+
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -22,6 +24,7 @@ from api.team.router import router as team_router
 from api.ui import router as ui_router
 from api.workspace.router import router as workspace_router
 from api.readiness import readiness_checks
+from api.rate_limit import RateLimitUnavailable, check_request
 
 
 app = FastAPI(title="DisvorAI API", version="1.0.0")
@@ -40,6 +43,37 @@ app.include_router(team_router)
 app.include_router(workspace_router)
 app.include_router(landing_router)
 app.include_router(ui_router)
+
+
+@app.middleware("http")
+async def api_rate_limiter(request: Request, call_next):
+    """对 API 请求应用共享 Redis 配额。"""
+    try:
+        decision = check_request(request)
+    except RateLimitUnavailable as exc:
+        return JSONResponse(
+            status_code=503,
+            content={"error": str(exc)},
+            headers={"Retry-After": "1"},
+        )
+    if decision is not None and not decision.allowed:
+        retry_after = max(1, decision.reset_at - int(time.time()))
+        return JSONResponse(
+            status_code=429,
+            content={"error": "rate_limit_exceeded", "detail": "request limit exceeded"},
+            headers={
+                "Retry-After": str(retry_after),
+                "X-RateLimit-Limit": str(decision.limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(decision.reset_at),
+            },
+        )
+    response = await call_next(request)
+    if decision is not None:
+        response.headers["X-RateLimit-Limit"] = str(decision.limit)
+        response.headers["X-RateLimit-Remaining"] = str(decision.remaining)
+        response.headers["X-RateLimit-Reset"] = str(decision.reset_at)
+    return response
 
 
 @app.middleware("http")
