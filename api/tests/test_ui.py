@@ -58,6 +58,7 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "offsiteTicketModal" in response.text
     assert "'/tickets'" in response.text
     assert "influenced_questions" in response.text
+    assert "{ok:r.ok,task:data.ticket,error:data.error || data.detail}" in response.text
     assert "AES-256-GCM 加密保存" in response.text
     assert "Key 已加密保存" in response.text
     assert "<summary style=\"font-size:12.5px;color:var(--t500);cursor:pointer\">高级设置</summary>" in response.text

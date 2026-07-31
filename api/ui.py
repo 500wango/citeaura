@@ -290,7 +290,9 @@ FETCH_ADAPTER = r"""
     if (url === '/api/task' && init.body) {
       const body = JSON.parse(init.body), id = projectIds.get(body.slug);
       if (!id) return response({error:'project_not_found'}, 404);
-      return nativeFetch('/api/v1/projects/' + id + '/tickets/' + encodeURIComponent(body.id), {method:'PATCH',headers:init.headers,body:JSON.stringify({status:body.status,note:body.note || ''})});
+      const r = await nativeFetch('/api/v1/projects/' + id + '/tickets/' + encodeURIComponent(body.id), {method:'PATCH',headers:init.headers,body:JSON.stringify({status:body.status,note:body.note || ''})});
+      const data = await r.json();
+      return response({ok:r.ok,task:data.ticket,error:data.error || data.detail}, r.status);
     }
     if (url === '/api/task-create' && init.body) {
       const body = JSON.parse(init.body), id = projectIds.get(body.slug);
