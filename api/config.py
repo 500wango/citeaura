@@ -85,3 +85,28 @@ def billing_annual_discount_percent():
     except InvalidOperation:
         return Decimal("16.67")
     return value if value.is_finite() and Decimal("0") <= value < Decimal("100") else Decimal("16.67")
+
+
+def _enabled(name, default="false"):
+    return os.getenv(name, default).lower() in ("1", "true", "yes")
+
+
+def object_storage_settings():
+    """返回 S3 兼容对象存储配置。"""
+    try:
+        retention_count = int(os.getenv("OBJECT_STORAGE_RETENTION_COUNT", "12"))
+    except ValueError:
+        retention_count = 12
+    if not 1 <= retention_count <= 1000:
+        retention_count = 12
+    return {
+        "bucket": os.getenv("OBJECT_STORAGE_BUCKET", "").strip(),
+        "endpoint_url": os.getenv("OBJECT_STORAGE_ENDPOINT_URL", "").strip() or None,
+        "region": os.getenv("OBJECT_STORAGE_REGION", "us-east-1").strip() or "us-east-1",
+        "access_key_id": os.getenv("OBJECT_STORAGE_ACCESS_KEY_ID", "").strip() or None,
+        "secret_access_key": os.getenv("OBJECT_STORAGE_SECRET_ACCESS_KEY", "").strip() or None,
+        "prefix": os.getenv("OBJECT_STORAGE_PREFIX", "disvorai-archives").strip("/"),
+        "force_path_style": _enabled("OBJECT_STORAGE_FORCE_PATH_STYLE"),
+        "server_side_encryption": os.getenv("OBJECT_STORAGE_SSE", "").strip() or None,
+        "retention_count": retention_count,
+    }

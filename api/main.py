@@ -7,6 +7,7 @@ from api import config
 from api.adapters.exceptions import DistributedLockError
 from api.auth.router import router as auth_router
 from api.auth.sso import router as sso_router
+from api.archive.router import router as archive_router
 from api.billing.router import router as billing_router
 from api.branding.router import router as branding_router
 from api.integrations.router import router as integrations_router
@@ -22,6 +23,7 @@ from api.workspace.router import router as workspace_router
 app = FastAPI(title="DisvorAI API", version="1.0.0")
 app.include_router(auth_router)
 app.include_router(sso_router)
+app.include_router(archive_router)
 app.include_router(billing_router)
 app.include_router(branding_router)
 app.include_router(integrations_router)

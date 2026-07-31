@@ -565,3 +565,34 @@ def task_send_outreach(tenant_id: str, project_slug: str, draft_id: str, job_id=
                 raise
             outreach.mark_sent(project_slug, draft_id)
             return {"status": "done", "draft_id": draft_id, **result}
+
+
+@celery_app.task(name="disvorai.archive_project")
+def task_archive_project(tenant_id: str, project_slug: str, job_id=None):
+    """将本地活动项目写成经校验的对象存储快照。"""
+    from api.adapters import archive
+
+    with _job_status(tenant_id, project_slug, "archive", job_id):
+        result = archive.create_archive(tenant_id, project_slug)
+        return {"status": "done", "project_slug": project_slug, "archive": result}
+
+
+@celery_app.task(name="disvorai.restore_project")
+def task_restore_project(
+    tenant_id: str,
+    project_slug: str,
+    archive_id: str,
+    overwrite: bool = False,
+    job_id=None,
+):
+    """校验对象快照并恢复到本地活动项目。"""
+    from api.adapters import archive
+
+    with _job_status(tenant_id, project_slug, "archive_restore", job_id):
+        result = archive.restore_archive(
+            tenant_id,
+            project_slug,
+            archive_id,
+            overwrite=overwrite,
+        )
+        return {"status": "done", "project_slug": project_slug, "restore": result}

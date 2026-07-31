@@ -45,3 +45,15 @@ def test_annual_discount_config_rejects_invalid_ranges(monkeypatch):
     assert config.billing_annual_discount_percent() == Decimal("16.67")
     monkeypatch.setenv("BILLING_ANNUAL_DISCOUNT_PERCENT", "NaN")
     assert config.billing_annual_discount_percent() == Decimal("16.67")
+
+
+def test_object_storage_config_is_runtime_and_bounds_retention(monkeypatch):
+    monkeypatch.setenv("OBJECT_STORAGE_BUCKET", "snapshots")
+    monkeypatch.setenv("OBJECT_STORAGE_ENDPOINT_URL", "https://objects.example.test")
+    monkeypatch.setenv("OBJECT_STORAGE_FORCE_PATH_STYLE", "yes")
+    monkeypatch.setenv("OBJECT_STORAGE_RETENTION_COUNT", "0")
+    value = config.object_storage_settings()
+    assert value["bucket"] == "snapshots"
+    assert value["endpoint_url"] == "https://objects.example.test"
+    assert value["force_path_style"] is True
+    assert value["retention_count"] == 12

@@ -180,6 +180,13 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "BILLING_ANNUAL_DISCOUNT_PERCENT" not in response.text
     assert "年付优惠" in response.text
     assert ".billing-plan-grid{grid-template-columns:1fr}" in response.text
+    assert "base + '/' + encodeURIComponent(body.archive_id) + '/restore'" in response.text
+    assert "function archivePanel()" in response.text
+    assert "function restoreArchiveModal(archiveId)" in response.text
+    assert "confirmation_text:text" in response.text
+    assert "RESTORE '+archiveId" in response.text
+    assert "活动数据源 · 本地文件系统" in response.text
+    assert ".archive-row{grid-template-columns:1fr auto" in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text
     assert "后台任务队列执行" in response.text

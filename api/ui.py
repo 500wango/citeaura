@@ -51,6 +51,7 @@ SETTINGS_RESPONSIVE_STYLE = r"""
 .billing-plan-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .billing-interval-switch{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
 .billing-interval-switch button{min-width:72px;border:0;border-radius:0}
+.archive-row{display:grid;grid-template-columns:minmax(118px,.7fr) minmax(160px,1.5fr) minmax(86px,.6fr) auto;gap:10px;align-items:center;padding:9px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12px}
 @media (max-width:700px){
   .settings-core-grid{grid-template-columns:1fr!important}
   .sso-form-grid{grid-template-columns:1fr}
@@ -64,6 +65,9 @@ SETTINGS_RESPONSIVE_STYLE = r"""
   .integration-grid{grid-template-columns:1fr}
   .billing-section-title{padding-left:20px;scroll-margin-top:12px}
   .billing-plan-grid{grid-template-columns:1fr}
+  .archive-section-title{padding-left:20px;scroll-margin-top:12px}
+  .archive-row{grid-template-columns:1fr auto;gap:3px 8px}
+  .archive-row-detail{grid-column:1/-1}
   .playbook-page{padding:24px 18px 56px}
   .playbook-page-head{align-items:flex-start!important;flex-direction:column}
   .playbook-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
@@ -599,6 +603,19 @@ FETCH_ADAPTER = r"""
         body:JSON.stringify({plan:body.plan,billing_interval:body.billing_interval})
       });
     }
+    if (url === '/api/archive') {
+      const id = projectIds.get(SLUG);
+      if (!id) return response({error:'project_not_found'}, 404);
+      const base = '/api/v1/projects/' + id + '/archives';
+      if (!init.body) return nativeFetch(base, init);
+      const body = JSON.parse(init.body);
+      if (body.action === 'create') return nativeFetch(base, {method:'POST',headers:init.headers});
+      if (body.action === 'restore') return nativeFetch(base + '/' + encodeURIComponent(body.archive_id) + '/restore', {
+        method:'POST',headers:init.headers,
+        body:JSON.stringify({overwrite:body.overwrite,confirmed:body.confirmed,confirmation_text:body.confirmation_text})
+      });
+      return response({error:'archive_action_invalid'}, 400);
+    }
     return response({error:'legacy_ui_endpoint_not_supported'}, 404);
   };
   async function acceptPendingInvitation() {
@@ -810,6 +827,10 @@ Object.assign(UI_D.en, {
   ,'套餐与账单':'Plans and billing','月付':'Monthly','年付':'Annual','年付优惠':'Annual discount','每年':'per year','每月':'per month',
   '当前套餐':'Current plan','选择套餐':'Choose plan','续订套餐':'Renew plan','定制报价':'Custom pricing','年付节省':'Annual savings',
   '订阅已更新':'Subscription updated','套餐信息加载失败':'Failed to load plan information','到期时间':'Expires','无限采样':'Unlimited sampling'
+  ,'对象存储归档':'Object storage archives','创建快照':'Create snapshot','归档清单':'Archive history','暂无归档':'No archives yet','可恢复':'Available','已过期':'Expired',
+  '恢复快照':'Restore snapshot','允许覆盖冲突文件':'Overwrite conflicting files','输入恢复确认短语':'Type the restore confirmation phrase','确认并恢复':'Confirm and restore',
+  '活动数据源':'Active source','本地文件系统':'Local filesystem','保留份数':'Retention count','归档任务已创建':'Archive job created','恢复任务已创建':'Restore job created',
+  '对象存储未配置':'Object storage is not configured','归档信息加载失败':'Failed to load archive information','文件':'files'
 });
 Object.assign(UI_D.ja, {
   '团队成员':'チームメンバー','工作区':'ワークスペース','邀请成员':'メンバーを招待','待接受邀请':'保留中の招待',
@@ -848,6 +869,10 @@ Object.assign(UI_D.ja, {
   ,'套餐与账单':'プランと請求','月付':'月払い','年付':'年払い','年付优惠':'年払い割引','每年':'年間','每月':'月間',
   '当前套餐':'現在のプラン','选择套餐':'プランを選択','续订套餐':'プランを更新','定制报价':'個別見積もり','年付节省':'年間割引',
   '订阅已更新':'サブスクリプションを更新しました','套餐信息加载失败':'プラン情報を読み込めませんでした','到期时间':'有効期限','无限采样':'無制限サンプリング'
+  ,'对象存储归档':'オブジェクトストレージアーカイブ','创建快照':'スナップショットを作成','归档清单':'アーカイブ履歴','暂无归档':'アーカイブはありません','可恢复':'復元可能','已过期':'期限切れ',
+  '恢复快照':'スナップショットを復元','允许覆盖冲突文件':'競合ファイルを上書き','输入恢复确认短语':'復元確認フレーズを入力','确认并恢复':'確認して復元',
+  '活动数据源':'アクティブソース','本地文件系统':'ローカルファイルシステム','保留份数':'保持数','归档任务已创建':'アーカイブジョブを作成しました','恢复任务已创建':'復元ジョブを作成しました',
+  '对象存储未配置':'オブジェクトストレージが設定されていません','归档信息加载失败':'アーカイブ情報を読み込めませんでした','文件':'ファイル'
 });
 
 let TEAM_STATE = null;
@@ -858,6 +883,7 @@ let INTEGRATION_STATE = null;
 let OUTREACH_STATE = null;
 let BILLING_STATE = null;
 let BILLING_INTERVAL = 'monthly';
+let ARCHIVE_STATE = null;
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
 
 function billingPanel() {
@@ -891,6 +917,43 @@ async function subscribeBilling(plan){
   const result=await post('/api/billing',{plan:plan,billing_interval:BILLING_INTERVAL});
   if(result.error||result.detail){toast('订阅失败：'+(result.error||result.detail),'err');return}
   BILLING_STATE=null;toast('订阅已更新');render();
+}
+
+function archiveSize(value){const size=Number(value||0);if(size<1024)return size+' B';if(size<1048576)return (size/1024).toFixed(1)+' KB';if(size<1073741824)return (size/1048576).toFixed(1)+' MB';return (size/1073741824).toFixed(1)+' GB';}
+
+function archivePanel(){
+  const state=ARCHIVE_STATE||{};
+  if(state.error||state.detail)return `<h4 class="archive-section-title" style="font-size:16px;margin:28px 0 10px">对象存储归档</h4><div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">归档信息加载失败</div>`;
+  const storage=state.storage||{},archives=state.archives||[];
+  return `<h4 class="archive-section-title" style="font-size:16px;margin:28px 0 10px">对象存储归档</h4>
+    <div class="card elev" style="padding:18px;gap:13px"><div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:190px"><div style="font-size:15px;font-weight:500">${storage.configured?esc(storage.bucket):'对象存储未配置'}</div>
+      <div style="font-size:11.5px;color:var(--t600);margin-top:3px">活动数据源 · 本地文件系统${storage.configured?' · 保留份数 '+esc(storage.retention_count):''}</div></div>
+      ${state.can_manage&&storage.configured?'<button class="btn btn-primary" style="font-size:12px" onclick="createProjectArchive()">创建快照</button>':''}</div>
+      <div style="padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><div class="row"><div style="flex:1;font-size:12px;color:var(--t500)">归档清单</div><span class="tag tag-outline">${archives.length}</span></div>
+        ${archives.length?archives.map(function(item){const available=item.status==='available';return `<div class="archive-row"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(item.id)}</span><span class="archive-row-detail" style="color:var(--t600);overflow-wrap:anywhere">${esc(String(item.created_at||'').replace('T',' ').slice(0,19))} · ${archiveSize(item.size_bytes)} · ${esc(item.file_count)} 文件</span><span class="tag ${available?'pill-good':'tag-outline'}">${available?'可恢复':'已过期'}</span>${available&&state.can_manage?`<button class="btn btn-ghost" style="font-size:12px" onclick="restoreArchiveModal('${esc(item.id)}')">恢复快照</button>`:'<span></span>'}</div>`;}).join(''):'<div style="padding:12px 0 4px;font-size:12px;color:var(--t600)">暂无归档</div>'}</div>
+    </div>`;
+}
+
+async function createProjectArchive(){
+  if(!confirm('确认创建当前项目的对象存储快照？'))return;
+  const result=await post('/api/archive',{action:'create'});
+  if(!result.job_id){toast('归档失败：'+(result.error||result.detail||'archive_failed'),'err');return}
+  ARCHIVE_STATE=null;RUNNING=result.job_id;LASTJOB=result.job_id;LOGOFF=0;renderSide();pollJob();toast('归档任务已创建');
+}
+
+function restoreArchiveModal(archiveId){
+  const phrase='RESTORE '+archiveId;
+  modal(`<h4 style="font-size:17px">恢复快照</h4><div style="font-size:12px;color:var(--t600);margin-top:9px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere">${esc(archiveId)}</div>
+    <label class="row" style="gap:7px;margin-top:14px;font-size:12.5px"><input id="archive-overwrite" type="checkbox">允许覆盖冲突文件</label>
+    <label style="display:block;font-size:12px;color:var(--t500);margin-top:12px">输入恢复确认短语 <code>${esc(phrase)}</code><input id="archive-confirm-text" class="input" autocomplete="off" style="margin-top:5px"></label>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="queueArchiveRestore('${esc(archiveId)}')">确认并恢复</button></div>`);
+}
+
+async function queueArchiveRestore(archiveId){
+  const text=(($('#archive-confirm-text')||{}).value||'');if(text!=='RESTORE '+archiveId){toast('请输入完整恢复确认短语','err');return}
+  const result=await post('/api/archive',{action:'restore',archive_id:archiveId,overwrite:!!($('#archive-overwrite')||{}).checked,confirmed:true,confirmation_text:text});
+  if(!result.job_id){toast('恢复失败：'+(result.error||result.detail||'archive_restore_failed'),'err');return}
+  ARCHIVE_STATE=null;closeModal();RUNNING=result.job_id;LASTJOB=result.job_id;LOGOFF=0;renderSide();pollJob();toast('恢复任务已创建');
 }
 
 function ssoPanel() {
@@ -1263,10 +1326,11 @@ vSettings = async function () {
   if (!INTEGRATION_STATE) INTEGRATION_STATE = await api('/api/integrations');
   if (!OUTREACH_STATE) OUTREACH_STATE = await api('/api/outreach');
   if (!BILLING_STATE) BILLING_STATE = await api('/api/billing');
+  if (!ARCHIVE_STATE) ARCHIVE_STATE = await api('/api/archive');
   const funding = await api('/api/sampling-funding');
   const html = await engineSettingsView();
   const index = html.lastIndexOf('</div>');
-  const panels = billingPanel() + samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel() + integrationPanel() + outreachPanel() + ssoPanel();
+  const panels = billingPanel() + archivePanel() + samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel() + integrationPanel() + outreachPanel() + ssoPanel();
   return index < 0 ? html + panels : html.slice(0,index) + panels + html.slice(index);
 };
 VIEWS.settings = vSettings;
