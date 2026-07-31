@@ -21,6 +21,19 @@ scripts/acceptance.py --base-url https://your-domain.example --production
 
 `production_preflight.py` 不打印密钥值，会拒绝占位符、测试 Stripe Key、HTTP 公网地址、无效 AES Key 和即将过期或域名不匹配的证书。
 
+## 完整业务闭环验收
+
+为专用验收租户配置至少一个引擎 Key，然后运行真实建项、采样、验收和交付流程。密码和 Token 不通过命令行参数传递，也不会出现在结果中。
+
+```bash
+export ACCEPTANCE_EMAIL=acceptance@example.com
+export ACCEPTANCE_PASSWORD='replace-with-acceptance-password'
+export ACCEPTANCE_PROJECT_URL=https://acceptance-brand.example
+python3 scripts/workflow_acceptance.py --base-url https://your-domain.example --json
+```
+
+重复验证同一项目时增加 `--reuse-existing`。脚本会检查分引擎采样模式、raw answer、工单、verify 历史，以及交付 zip 的 `index.html`、01–06 文档和 `assets/`。
+
 ## 付款验收
 
 用 Stripe 测试环境应在独立 staging 配置中完成。生产配置只接受 `sk_live_` 和 `whsec_`。订阅请求只创建 Checkout 会话，租户套餐必须在签名 Webhook 到达后才变为 Pro 或 Agency；重复 Webhook 应返回 `duplicate: true` 且不重复创建订阅。
