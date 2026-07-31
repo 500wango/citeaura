@@ -66,10 +66,12 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
     """把 Job 标为 running/done/failed；DB 不可用时不阻断直接 worker 调用。"""
     db = SessionLocal()
     job = None
+    project = None
     try:
         try:
             job = _find_job(db, tenant_id, project_slug, action, job_id)
             if job is not None:
+                project = db.get(Project, job.project_id)
                 job.status = "running"
                 job.started_at = datetime.now(timezone.utc)
                 job.error = None
@@ -77,6 +79,7 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
         except SQLAlchemyError:
             db.rollback()
             job = None
+            project = None
 
         try:
             yield
@@ -85,6 +88,8 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                 job.status = "failed"
                 job.finished_at = datetime.now(timezone.utc)
                 job.error = f"{type(exc).__name__}: {exc}"
+                if project is not None:
+                    project.status = "failed"
                 try:
                     db.commit()
                 except SQLAlchemyError:
@@ -95,6 +100,8 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                 job.status = "done"
                 job.finished_at = datetime.now(timezone.utc)
                 job.error = None
+                if project is not None:
+                    project.status = "ready"
                 try:
                     db.commit()
                 except SQLAlchemyError:

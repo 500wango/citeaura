@@ -2,6 +2,7 @@ import sys
 import types
 from contextlib import contextmanager
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -82,6 +83,48 @@ def test_find_job_rejects_cross_tenant_or_wrong_action(tmp_path):
         assert tasks._find_job(db, "tenant-a", "first-project", "sample", first_job.id).id == first_job.id
         assert tasks._find_job(db, "tenant-a", "first-project", "sample", second_job.id) is None
         assert tasks._find_job(db, "tenant-a", "first-project", "verify", first_job.id) is None
+
+
+def test_job_status_updates_project_on_success_and_failure(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'status.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with session_factory() as db:
+        tenant = Tenant(name="tenant-a", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="example",
+            url="https://example.com",
+            market="both",
+            status="bootstrapping",
+        )
+        db.add(project)
+        db.flush()
+        bootstrap_job = Job(project_id=project.id, action="bootstrap", status="queued")
+        db.add(bootstrap_job)
+        db.commit()
+        bootstrap_job_id = bootstrap_job.id
+        project_id = project.id
+
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    with tasks._job_status("tenant-a", "example", "bootstrap", bootstrap_job_id):
+        pass
+    with session_factory() as db:
+        assert db.get(Job, bootstrap_job_id).status == "done"
+        assert db.get(Project, project_id).status == "ready"
+        verify_job = Job(project_id=project_id, action="verify", status="queued")
+        db.add(verify_job)
+        db.commit()
+        verify_job_id = verify_job.id
+
+    with pytest.raises(RuntimeError, match="verification failed"):
+        with tasks._job_status("tenant-a", "example", "verify", verify_job_id):
+            raise RuntimeError("verification failed")
+    with session_factory() as db:
+        assert db.get(Job, verify_job_id).status == "failed"
+        assert db.get(Project, project_id).status == "failed"
 
 
 @contextmanager
