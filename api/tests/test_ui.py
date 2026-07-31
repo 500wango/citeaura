@@ -167,6 +167,8 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "history.replaceState({r:R,engSel:ST.engSel,gapTab:ST.gapTab},'','#project-settings')" in response.text
     assert "onclick=\"go('engine-settings')\">去配置 Key" in response.text
     assert "closeModal();go('publishing')\">渠道配置" in response.text
+    assert "管理项目清单、品牌信息、官网域名和竞品范围。':'Manage projects" in response.text
+    assert "管理项目清单、品牌信息、官网域名和竞品范围。':'プロジェクト、ブランド情報" in response.text
     assert "团队成员按 owner/editor/viewer 分级" in response.text
     assert "成员邀请与角色管理暂未开放" not in response.text
     assert "/api/v1/settings/delivery-branding" in response.text

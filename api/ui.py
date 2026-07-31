@@ -942,6 +942,47 @@ const ADMIN_MODULES = [
 ];
 const ADMIN_ROUTE_ALIASES = {settings:'project-settings'};
 
+Object.assign(UI_D.en, {
+  '项目设置':'Project settings','管理项目清单、品牌信息、官网域名和竞品范围。':'Manage projects, brand details, website domains, and competitor scope.',
+  '项目':'Project','网站审计均分':'Website audit average','接入新项目':'Add project','编辑当前项目':'Edit current project',
+  '运行与调度':'Runs and schedules','手动运行完整管线、执行单项任务，或设置固定复跑周期。':'Run the full pipeline, execute individual jobs, or set a recurring schedule.',
+  '任务由后台队列执行，关闭页面后仍会继续。同一项目同时只运行一个任务。':'Jobs continue in the background queue after this page closes. Each project runs one job at a time.',
+  '全自动引导':'Guided automation','跑完整一期':'Run full cycle','关闭':'Off','任务运行中':'Job running',
+  '数据归档':'Data archive','创建项目文件快照，并在需要时恢复到本地文件系统。':'Create project file snapshots and restore them to the local filesystem when needed.',
+  '引擎与采样':'Engines and sampling','配置 AI 引擎凭证、确认采样方式，并管理可选的平台代付。':'Configure AI engine credentials, review sampling modes, and manage optional platform-funded calls.',
+  'AI 引擎':'AI engines','API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。':'API keys are encrypted with AES-256-GCM and injected only while jobs run. BYOK always takes priority.',
+  '已连接':'Connected','人工':'Manual','未连接':'Not connected',
+  '数据集成':'Data integrations','连接外部搜索数据源，为诊断和成效分析补充可核验数据。':'Connect external search sources to add verifiable data to diagnosis and outcome analysis.',
+  '管理 SMTP 连接和联络草稿。每封邮件都需要人工检查并确认发送。':'Manage SMTP connections and outreach drafts. Every email requires human review and confirmation.',
+  '渠道发布':'Channel publishing','配置发布渠道，查看发布记录。所有对外发布都由用户手动发起。':'Configure publishing channels and review history. Every external publication is started manually.',
+  '发布凭证加密保存。发布只能由用户手动触发，公众号和 WordPress 仅创建草稿。':'Publishing credentials are encrypted. Publishing is manual, and WeChat and WordPress only create drafts.',
+  '暂无发布渠道':'No publishing channels','最近发布':'Recent publications','成功':'Succeeded',
+  '为客户报告和打印版交付物配置机构名称、Logo 和主题色。':'Configure the organization name, logo, and accent color for client reports and printed deliverables.',
+  '团队与权限':'Team and access','管理工作区成员、邀请和 owner、editor、viewer 角色。':'Manage workspace members, invitations, and owner, editor, and viewer roles.',
+  '查看当前套餐和用量，并由工作区所有者管理订阅。':'Review the current plan and usage. Workspace owners manage subscriptions.',
+  '企业安全':'Enterprise security','配置 OIDC 单点登录，查看安全控制状态和最近审计事件。':'Configure OIDC single sign-on and review security controls and recent audit events.'
+});
+Object.assign(UI_D.ja, {
+  '项目设置':'プロジェクト設定','管理项目清单、品牌信息、官网域名和竞品范围。':'プロジェクト、ブランド情報、公式サイト、競合範囲を管理します。',
+  '项目':'プロジェクト','网站审计均分':'サイト監査平均','接入新项目':'プロジェクトを追加','编辑当前项目':'現在のプロジェクトを編集',
+  '运行与调度':'実行とスケジュール','手动运行完整管线、执行单项任务，或设置固定复跑周期。':'パイプライン全体または個別ジョブを実行し、定期実行を設定します。',
+  '任务由后台队列执行，关闭页面后仍会继续。同一项目同时只运行一个任务。':'ジョブはバックグラウンドキューで継続します。プロジェクトごとに同時実行は 1 件です。',
+  '全自动引导':'自動ガイド','跑完整一期':'フルサイクルを実行','关闭':'オフ','任务运行中':'ジョブ実行中',
+  '数据归档':'データアーカイブ','创建项目文件快照，并在需要时恢复到本地文件系统。':'プロジェクトのスナップショットを作成し、必要に応じてローカルファイルへ復元します。',
+  '引擎与采样':'エンジンとサンプリング','配置 AI 引擎凭证、确认采样方式，并管理可选的平台代付。':'AI エンジンの認証情報、サンプリング方式、任意のプラットフォーム負担を管理します。',
+  'AI 引擎':'AI エンジン','API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。':'API キーは AES-256-GCM で暗号化され、ジョブ実行中のみ注入されます。BYOK が常に優先されます。',
+  '已连接':'接続済み','人工':'手動','未连接':'未接続',
+  '数据集成':'データ連携','连接外部搜索数据源，为诊断和成效分析补充可核验数据。':'外部検索データを接続し、診断と成果分析に検証可能なデータを追加します。',
+  '管理 SMTP 连接和联络草稿。每封邮件都需要人工检查并确认发送。':'SMTP 接続と連絡下書きを管理します。すべてのメールで人による確認が必要です。',
+  '渠道发布':'チャネル公開','配置发布渠道，查看发布记录。所有对外发布都由用户手动发起。':'公開チャネルと履歴を管理します。外部公開はすべて手動で開始します。',
+  '发布凭证加密保存。发布只能由用户手动触发，公众号和 WordPress 仅创建草稿。':'公開認証情報は暗号化されます。公開は手動で、WeChat と WordPress は下書きのみ作成します。',
+  '暂无发布渠道':'公開チャネルはありません','最近发布':'最近の公開','成功':'成功',
+  '为客户报告和打印版交付物配置机构名称、Logo 和主题色。':'顧客レポートと印刷用成果物の組織名、ロゴ、テーマ色を設定します。',
+  '团队与权限':'チームと権限','管理工作区成员、邀请和 owner、editor、viewer 角色。':'ワークスペースのメンバー、招待、owner、editor、viewer ロールを管理します。',
+  '查看当前套餐和用量，并由工作区所有者管理订阅。':'現在のプランと使用量を確認し、オーナーがサブスクリプションを管理します。',
+  '企业安全':'エンタープライズセキュリティ','配置 OIDC 单点登录，查看安全控制状态和最近审计事件。':'OIDC シングルサインオンを設定し、セキュリティ統制と最近の監査イベントを確認します。'
+});
+
 function adminText(value) { return value && (value[ULANG] || value.zh) || ''; }
 function adminCanonicalRoute(route) { return ADMIN_ROUTE_ALIASES[route] || route; }
 function adminModuleForRoute(route) {
@@ -955,6 +996,7 @@ function openAdminModule(moduleId){
   const module=ADMIN_MODULES.find(function(item){return item.id===moduleId;}) || ADMIN_MODULES[0];
   const current=adminModuleForRoute(R);
   if(current.id===module.id&&window.innerWidth<1200){const side=$('#side');if(side)side.classList.toggle('open');return;}
+  if(current.id===module.id&&adminCanonicalRoute(R)===module.defaultRoute)return;
   go(module.defaultRoute);
   if(window.innerWidth<1200)setTimeout(function(){const side=$('#side');if(side)side.classList.add('open');},0);
 }
