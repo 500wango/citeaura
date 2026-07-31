@@ -1,5 +1,6 @@
 """集中读取 DisvorAI 环境变量配置。"""
 
+import math
 import os
 from pathlib import Path
 
@@ -18,6 +19,22 @@ def database_url():
 
 def redis_url():
     return os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+
+def _seconds(name, default, minimum):
+    try:
+        value = float(os.getenv(name, str(default)))
+    except ValueError:
+        return float(default)
+    return value if math.isfinite(value) and value >= minimum else float(default)
+
+
+def project_lock_ttl_seconds():
+    return _seconds("PROJECT_LOCK_TTL_SECONDS", 60, 5)
+
+
+def project_lock_wait_seconds():
+    return _seconds("PROJECT_LOCK_WAIT_SECONDS", 10, 0)
 
 
 def celery_result_backend():

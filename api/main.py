@@ -3,6 +3,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from api.adapters.exceptions import DistributedLockError
 from api.auth.router import router as auth_router
 from api.billing.router import router as billing_router
 from api.branding.router import router as branding_router
@@ -24,6 +25,16 @@ app.include_router(settings_router)
 app.include_router(team_router)
 app.include_router(workspace_router)
 app.include_router(ui_router)
+
+
+@app.exception_handler(DistributedLockError)
+async def distributed_lock_exception_handler(request: Request, exc: DistributedLockError):
+    """分布式锁不可用时返回可重试错误。"""
+    return JSONResponse(
+        status_code=503,
+        content={"error": str(exc)},
+        headers={"Retry-After": "1"},
+    )
 
 
 @app.exception_handler(HTTPException)

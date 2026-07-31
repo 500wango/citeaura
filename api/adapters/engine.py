@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from api import config
+from api.adapters import locking
 from api.adapters.exceptions import GeoEngineError
 
 
@@ -79,6 +80,19 @@ def patch_paths(tenant_slug: str, project_slug: str):
     return previous
 
 
+def patch_project_lock(tenant_slug: str):
+    """把引擎文件锁临时替换为带租户隔离的 Redis 锁。"""
+    tenant_slug = _valid_slug(tenant_slug, "tenant")
+    previous = geolib.project_lock
+
+    def distributed_lock(project_slug):
+        project_slug = _valid_slug(project_slug, "project")
+        return locking.project_lock(tenant_slug, project_slug)
+
+    geolib.project_lock = distributed_lock
+    return previous
+
+
 def _environment_name(name: str) -> str:
     """把引擎代码转换为引擎约定的 API Key 环境变量名。"""
     name = str(name)
@@ -140,6 +154,7 @@ def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = N
     with _CONTEXT_LOCK:
         previous_die = patch_die()
         previous_root, previous_work = patch_paths(tenant_directory, project_slug)
+        previous_project_lock = patch_project_lock(tenant_directory)
         try:
             with inject_keys(keys):
                 yield
@@ -147,3 +162,4 @@ def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = N
             geolib.die = previous_die
             geolib.ROOT = previous_root
             geolib.WORK = previous_work
+            geolib.project_lock = previous_project_lock

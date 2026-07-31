@@ -12,16 +12,19 @@ def test_tenant_context_patches_paths_and_die_then_restores():
     original_root = geolib.ROOT
     original_work = geolib.WORK
     original_die = geolib.die
+    original_project_lock = geolib.project_lock
 
     with with_tenant_context("test-tenant", "example"):
         assert "test-tenant" in str(geolib.WORK)
         assert geolib.ROOT.name == "disvorai"
         with pytest.raises(GeoEngineError, match="test error"):
             geolib.die("test error")
+        assert geolib.project_lock is not original_project_lock
 
     assert geolib.ROOT == original_root
     assert geolib.WORK == original_work
     assert geolib.die is original_die
+    assert geolib.project_lock is original_project_lock
 
 
 def test_key_injection_supports_engine_codes_and_restores_environment(monkeypatch):

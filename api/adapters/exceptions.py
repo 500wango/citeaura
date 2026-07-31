@@ -8,3 +8,6 @@ class GeoEngineError(RuntimeError):
         self.message = str(message)
         super().__init__(self.message)
 
+
+class DistributedLockError(RuntimeError):
+    """Redis 项目锁不可用、超时或租约丢失。"""
