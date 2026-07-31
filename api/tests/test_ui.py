@@ -177,6 +177,10 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "/api/v1/billing/subscribe" in response.text
     assert "function billingPanel()" in response.text
     assert "function setBillingInterval(value)" in response.text
+    assert "Stripe 尚未配置，当前不能发起真实付款" in response.text
+    assert "window.location.assign(result.checkout_url)" in response.text
+    assert "const billingStatusLabel" in response.text
+    assert "BILLING_STATE=null;toast('订阅已更新')" not in response.text
     assert "BILLING_ANNUAL_DISCOUNT_PERCENT" not in response.text
     assert "年付优惠" in response.text
     assert ".billing-plan-grid{grid-template-columns:1fr}" in response.text

@@ -147,6 +147,10 @@ class Subscription(Base):
     __tablename__ = "subscriptions"
     __table_args__ = (
         CheckConstraint("billing_interval IN ('monthly', 'annual')", name="ck_subscriptions_billing_interval"),
+        CheckConstraint(
+            "status IN ('active', 'trialing', 'past_due', 'canceled', 'unpaid', 'incomplete')",
+            name="ck_subscriptions_status",
+        ),
     )
 
     id = Column(Integer, primary_key=True)
@@ -155,10 +159,30 @@ class Subscription(Base):
     billing_interval = Column(String(16), nullable=False, default="monthly", server_default="monthly")
     amount_cny_fen = Column(Integer, nullable=True)
     amount_usd_cents = Column(Integer, nullable=True)
+    status = Column(String(32), nullable=False, default="active", server_default="active")
+    provider = Column(String(32), nullable=True)
+    provider_customer_id = Column(String(255), nullable=True, index=True)
+    provider_subscription_id = Column(String(255), nullable=True, unique=True)
+    provider_checkout_session_id = Column(String(255), nullable=True, unique=True)
     started_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     tenant = relationship("Tenant", back_populates="subscriptions")
+
+
+class BillingEvent(Base):
+    __tablename__ = "billing_events"
+    __table_args__ = (
+        UniqueConstraint("provider", "event_id", name="uq_billing_events_provider_event"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    provider = Column(String(32), nullable=False)
+    event_id = Column(String(255), nullable=False)
+    event_type = Column(String(128), nullable=False)
+    payload_sha256 = Column(String(64), nullable=False)
+    processed_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class UsageCounter(Base):

@@ -4,7 +4,17 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 
 from api.db import Base
-from api.models import Membership, PlatformUsage, Project, Subscription, TeamInvitation, Tenant, UsageCounter, User
+from api.models import (
+    BillingEvent,
+    Membership,
+    PlatformUsage,
+    Project,
+    Subscription,
+    TeamInvitation,
+    Tenant,
+    UsageCounter,
+    User,
+)
 
 
 def test_models_create_and_preserve_tenant_relationships():
@@ -34,6 +44,9 @@ def test_models_create_and_preserve_tenant_relationships():
         billing_interval="annual",
         amount_cny_fen=199000,
         amount_usd_cents=29000,
+        status="active",
+        provider="stripe",
+        provider_subscription_id="sub_annual",
         expires_at=datetime(2027, 7, 31, tzinfo=timezone.utc),
     ))
     session.add(tenant)
@@ -45,6 +58,7 @@ def test_models_create_and_preserve_tenant_relationships():
     assert session.query(UsageCounter).one().platform_cost_cny_fen == 6
     assert session.query(TeamInvitation).one().role == "editor"
     assert session.query(Subscription).one().billing_interval == "annual"
+    assert session.query(Subscription).one().provider_subscription_id == "sub_annual"
 
 
 def test_initial_schema_contains_all_tables():
@@ -59,6 +73,7 @@ def test_initial_schema_contains_all_tables():
         "projects",
         "api_keys",
         "audit_events",
+        "billing_events",
         "jobs",
         "integration_credentials",
         "sso_configurations",

@@ -826,6 +826,8 @@ Object.assign(UI_D.en, {
   '待编辑':'Draft','已排队':'Queued','发送中':'Sending','已发送':'Sent','发送失败':'Failed'
   ,'套餐与账单':'Plans and billing','月付':'Monthly','年付':'Annual','年付优惠':'Annual discount','每年':'per year','每月':'per month',
   '当前套餐':'Current plan','选择套餐':'Choose plan','续订套餐':'Renew plan','定制报价':'Custom pricing','年付节省':'Annual savings',
+  '前往付款':'Continue to payment','Stripe 尚未配置，当前不能发起真实付款。':'Stripe is not configured, so live payments are unavailable.',
+  '支付会话无效':'Invalid checkout session','已生效':'Active','试用中':'Trialing','付款逾期':'Past due','已取消':'Canceled','未付款':'Unpaid','待付款':'Incomplete',
   '订阅已更新':'Subscription updated','套餐信息加载失败':'Failed to load plan information','到期时间':'Expires','无限采样':'Unlimited sampling'
   ,'对象存储归档':'Object storage archives','创建快照':'Create snapshot','归档清单':'Archive history','暂无归档':'No archives yet','可恢复':'Available','已过期':'Expired',
   '恢复快照':'Restore snapshot','允许覆盖冲突文件':'Overwrite conflicting files','输入恢复确认短语':'Type the restore confirmation phrase','确认并恢复':'Confirm and restore',
@@ -868,6 +870,8 @@ Object.assign(UI_D.ja, {
   '待编辑':'下書き','已排队':'キュー済み','发送中':'送信中','已发送':'送信済み','发送失败':'送信失敗'
   ,'套餐与账单':'プランと請求','月付':'月払い','年付':'年払い','年付优惠':'年払い割引','每年':'年間','每月':'月間',
   '当前套餐':'現在のプラン','选择套餐':'プランを選択','续订套餐':'プランを更新','定制报价':'個別見積もり','年付节省':'年間割引',
+  '前往付款':'支払いへ進む','Stripe 尚未配置，当前不能发起真实付款。':'Stripe が設定されていないため、実際の支払いは利用できません。',
+  '支付会话无效':'無効な決済セッション','已生效':'有効','试用中':'トライアル中','付款逾期':'支払い遅延','已取消':'キャンセル済み','未付款':'未払い','待付款':'支払い待ち',
   '订阅已更新':'サブスクリプションを更新しました','套餐信息加载失败':'プラン情報を読み込めませんでした','到期时间':'有効期限','无限采样':'無制限サンプリング'
   ,'对象存储归档':'オブジェクトストレージアーカイブ','创建快照':'スナップショットを作成','归档清单':'アーカイブ履歴','暂无归档':'アーカイブはありません','可恢复':'復元可能','已过期':'期限切れ',
   '恢复快照':'スナップショットを復元','允许覆盖冲突文件':'競合ファイルを上書き','输入恢复确认短语':'復元確認フレーズを入力','确认并恢复':'確認して復元',
@@ -884,25 +888,27 @@ let OUTREACH_STATE = null;
 let BILLING_STATE = null;
 let BILLING_INTERVAL = 'monthly';
 let ARCHIVE_STATE = null;
+const billingStatusLabel = {active:'已生效',trialing:'试用中',past_due:'付款逾期',canceled:'已取消',unpaid:'未付款',incomplete:'待付款'};
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
 
 function billingPanel() {
   const state=BILLING_STATE||{},plans=state.plans||[],usage=state.usage||{};
   if(state.error||state.detail||usage.error||usage.detail)return `<h4 class="billing-section-title" style="font-size:16px;margin:28px 0 10px">套餐与账单</h4>
     <div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">套餐信息加载失败</div>`;
-  const subscription=usage.subscription||{},owner=TEAM_STATE&&TEAM_STATE.current_role==='owner';
+  const subscription=usage.subscription||{},payment=state.payment||{},owner=TEAM_STATE&&TEAM_STATE.current_role==='owner';
   const expires=subscription.expires_at?String(subscription.expires_at).replace('T',' ').slice(0,10):'';
   return `<h4 class="billing-section-title" style="font-size:16px;margin:28px 0 10px">套餐与账单</h4>
     <div class="card elev" style="padding:18px;gap:14px">
       <div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:170px"><div style="font-size:15px;font-weight:500">${esc(String(usage.plan||'trial').toUpperCase())}</div>
-        ${expires?`<div style="font-size:11.5px;color:var(--t600);margin-top:3px">到期时间 ${esc(expires)}</div>`:''}</div>
+        ${expires?`<div style="font-size:11.5px;color:var(--t600);margin-top:3px">到期时间 ${esc(expires)} · ${esc(billingStatusLabel[subscription.status]||subscription.status||'已生效')}</div>`:''}</div>
         <div class="billing-interval-switch"><button class="btn ${BILLING_INTERVAL==='monthly'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('monthly')">月付</button><button class="btn ${BILLING_INTERVAL==='annual'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('annual')">年付</button></div></div>
+      ${payment.configured?'':`<div style="padding:9px 11px;border:1px solid var(--line);font-size:12px;color:var(--t500)">Stripe 尚未配置，当前不能发起真实付款。</div>`}
       <div class="billing-plan-grid">${plans.map(function(plan){const price=(plan.prices||{})[BILLING_INTERVAL]||{},current=usage.plan===plan.code,currentInterval=current&&subscription.billing_interval===BILLING_INTERVAL,custom=price.cny==null;return `<div style="display:flex;flex-direction:column;min-width:0;min-height:188px;padding:14px;border:1px solid ${current?'var(--a700)':'var(--line)'};border-radius:var(--r-md);background:var(--bg)">
           <div class="row"><strong style="font-size:14px">${esc(plan.name)}</strong>${current?'<span class="tag tag-accent">当前套餐</span>':''}</div>
           <div style="font-size:22px;margin-top:13px">${custom?'定制报价':'¥'+Number(price.cny).toLocaleString()}${custom?'':`<span style="font-size:11px;color:var(--t600)"> / ${BILLING_INTERVAL==='annual'?'每年':'每月'}</span>`}</div>
           ${BILLING_INTERVAL==='annual'&&!custom?`<div style="font-size:11.5px;color:var(--good);margin-top:4px">年付优惠 ${Number(plan.annual_discount_percent||0).toFixed(2)}% · 年付节省 ¥${Number(plan.annual_savings_cny||0).toLocaleString()}</div>`:'<div style="height:21px"></div>'}
           <div style="font-size:11.5px;color:var(--t600);margin-top:9px">${plan.projects==null?'Enterprise SLA':esc(String(plan.projects))+' projects'} · 无限采样</div>
-          ${!custom&&owner?`<button class="btn ${currentInterval?'btn-secondary':'btn-primary'}" ${currentInterval?'disabled':''} style="margin-top:auto;width:100%" onclick="subscribeBilling('${esc(plan.code)}')">${currentInterval?'当前套餐':current?'续订套餐':'选择套餐'}</button>`:''}
+          ${!custom&&owner?`<button class="btn ${currentInterval?'btn-secondary':'btn-primary'}" ${currentInterval||!payment.configured?'disabled':''} style="margin-top:auto;width:100%" onclick="subscribeBilling('${esc(plan.code)}')">${currentInterval?'当前套餐':'前往付款'}</button>`:''}
         </div>`;}).join('')}</div>
     </div>`;
 }
@@ -916,7 +922,8 @@ async function subscribeBilling(plan){
   if(!confirm(`确认订阅 ${selected.name}，${BILLING_INTERVAL==='annual'?'年付':'月付'} ¥${Number(price.cny).toLocaleString()}？`))return;
   const result=await post('/api/billing',{plan:plan,billing_interval:BILLING_INTERVAL});
   if(result.error||result.detail){toast('订阅失败：'+(result.error||result.detail),'err');return}
-  BILLING_STATE=null;toast('订阅已更新');render();
+  if(!result.checkout_url){toast('支付会话无效','err');return}
+  window.location.assign(result.checkout_url);
 }
 
 function archiveSize(value){const size=Number(value||0);if(size<1024)return size+' B';if(size<1048576)return (size/1024).toFixed(1)+' KB';if(size<1073741824)return (size/1048576).toFixed(1)+' MB';return (size/1073741824).toFixed(1)+' GB';}

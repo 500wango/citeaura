@@ -87,6 +87,19 @@ def billing_annual_discount_percent():
     return value if value.is_finite() and Decimal("0") <= value < Decimal("100") else Decimal("16.67")
 
 
+def stripe_secret_key():
+    return os.getenv("STRIPE_SECRET_KEY", "").strip()
+
+
+def stripe_webhook_secret():
+    return os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
+
+
+def stripe_currency():
+    value = os.getenv("STRIPE_CURRENCY", "cny").strip().lower()
+    return value if value in ("cny", "usd") else "cny"
+
+
 def _enabled(name, default="false"):
     return os.getenv(name, default).lower() in ("1", "true", "yes")
 
