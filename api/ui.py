@@ -17,8 +17,40 @@ router = APIRouter(tags=["ui"])
 UI_PATH = Path(__file__).resolve().parents[1] / "engine" / "scripts" / "ui.html"
 
 SETTINGS_RESPONSIVE_STYLE = r"""
+.playbook-page{padding:32px 44px 72px;max-width:1280px}
+.playbook-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 12px}
+.playbook-view-switch{flex:none}
+.playbook-view-button{border:0;background:transparent;color:var(--t500);font:500 12.5px/1 var(--font);padding:7px 12px;cursor:pointer}
+.playbook-view-button+.playbook-view-button{border-left:1px solid var(--divider)}
+.playbook-view-button:hover{background:rgba(233,233,237,.07);color:var(--text)}
+.playbook-view-button:active{transform:translateY(1px)}
+.playbook-view-button.on{background:var(--a900);color:var(--a300)}
+.playbook-matrix-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;padding-bottom:4px}
+.playbook-matrix{display:grid;grid-template-columns:104px repeat(3,minmax(218px,1fr));min-width:790px;border-top:1px solid var(--divider);border-left:1px solid var(--divider);background:var(--side)}
+.playbook-matrix>div{min-width:0;border-right:1px solid var(--divider);border-bottom:1px solid var(--divider)}
+.playbook-axis{display:flex;flex-direction:column;justify-content:center;min-height:58px;padding:9px 11px;background:var(--deep)}
+.playbook-axis strong{font-size:12px;font-weight:500;color:var(--text)}
+.playbook-axis span{font-size:10.5px;color:var(--t600);margin-top:1px}
+.playbook-cell{min-height:132px;padding:8px;background:var(--bg)}
+.playbook-task{display:block;width:100%;padding:9px 10px;text-align:left;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);cursor:pointer;font:inherit}
+.playbook-task+.playbook-task{margin-top:7px}
+.playbook-task:hover{border-color:var(--a700);background:var(--a900)}
+.playbook-task:active{transform:translateY(1px)}
+.playbook-task.is-complete{opacity:.52}
+.playbook-task-top{display:flex;align-items:center;gap:6px;color:var(--t600);font-size:10.5px}
+.playbook-task-top span:first-child{flex:1;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.playbook-task-title{display:block;margin-top:3px;font-size:12.5px;line-height:1.4;overflow-wrap:anywhere}
+.playbook-task-meta{display:block;margin-top:5px;font-size:10.5px;color:var(--t500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.playbook-empty{display:grid;place-items:center;min-height:116px;padding:18px;color:var(--t600);font-size:12px;text-align:center}
+.playbook-unclassified{margin-top:12px;padding:11px 12px;border:1px solid var(--divider);border-radius:var(--r-md)}
+.playbook-unclassified-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:7px;margin-top:8px}
+.playbook-unclassified-list .playbook-task{margin-top:0}
 @media (max-width:700px){
   .settings-core-grid{grid-template-columns:1fr!important}
+  .playbook-page{padding:24px 18px 56px}
+  .playbook-page-head{align-items:flex-start!important;flex-direction:column}
+  .playbook-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .playbook-toolbar{align-items:flex-start;flex-direction:column}
 }
 """
 
@@ -905,6 +937,86 @@ taskModal = function (id) {
     <div style="font-size:13px;line-height:1.6">${esc(acceptance.desc || '')}</div>
     <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-primary" onclick="closeModal()">关闭</button></div>`);
 };
+
+Object.assign(UI_D.en, {
+  '矩阵':'Matrix','列表':'List','行动计划视图':'Action plan view','影响优先级':'Impact priority','工作量':'Effort',
+  '影响优先级 × 工作量':'Impact priority × effort','全部任务':'All tasks',
+  '高影响':'High impact','中影响':'Medium impact','低影响':'Lower impact','低工作量':'Low effort','中工作量':'Medium effort','高工作量':'High effort',
+  '暂无行动任务':'No action items yet','未分类任务':'Unclassified tasks','待开始':'To do','进行中':'In progress','受阻':'Blocked','已完成':'Done','不处理':'Won\'t fix'
+});
+Object.assign(UI_D.ja, {
+  '矩阵':'マトリクス','列表':'リスト','行动计划视图':'アクションプラン表示','影响优先级':'インパクト優先度','工作量':'工数',
+  '影响优先级 × 工作量':'インパクト優先度 × 工数','全部任务':'すべてのタスク',
+  '高影响':'高インパクト','中影响':'中インパクト','低影响':'低インパクト','低工作量':'低工数','中工作量':'中工数','高工作量':'高工数',
+  '暂无行动任务':'アクション項目はまだありません','未分类任务':'未分類タスク','待开始':'未着手','进行中':'進行中','受阻':'ブロック中','已完成':'完了','不处理':'対応しない'
+});
+
+const enginePlanView = vPlan;
+const playbookPriorityOrder = {P0:0,P1:1,P2:2};
+const playbookEffortOrder = {S:0,M:1,L:2};
+const playbookStatusLabel = {todo:'待开始',doing:'进行中',blocked:'受阻',done:'已完成',wontfix:'不处理'};
+
+function sortedPlaybookTasks(tasks) {
+  return (Array.isArray(tasks) ? tasks : []).map(function (task,index) { return {task:task,index:index}; })
+    .filter(function (item) { return item.task && typeof item.task === 'object'; })
+    .sort(function (left,right) {
+      const a=left.task,b=right.task;
+      return (['done','wontfix'].includes(a.status)?1:0)-(['done','wontfix'].includes(b.status)?1:0)
+        || (playbookPriorityOrder[a.priority]??99)-(playbookPriorityOrder[b.priority]??99)
+        || (playbookEffortOrder[a.effort]??99)-(playbookEffortOrder[b.effort]??99)
+        || left.index-right.index;
+    }).map(function (item) { return item.task; });
+}
+
+function playbookTaskButton(task) {
+  const complete=['done','wontfix'].includes(task.status);
+  return `<button class="playbook-task ${complete?'is-complete':''}" onclick="taskModal(${esc(JSON.stringify(task.id))})" title="${esc(task.title || task.id)}">
+    <span class="playbook-task-top"><span>${esc(task.id || '')}</span><span>${esc(playbookStatusLabel[task.status] || task.status || '')}</span></span>
+    <span class="playbook-task-title">${esc(task.title || '')}</span>
+    <span class="playbook-task-meta">${esc(task.owner || '未分配')} · ${esc(task.package || '')}</span></button>`;
+}
+
+function playbookMatrix(tasks) {
+  const sorted=sortedPlaybookTasks(tasks), priorities=[['P0','高影响'],['P1','中影响'],['P2','低影响']], efforts=[['S','低工作量'],['M','中工作量'],['L','高工作量']];
+  const known=sorted.filter(function (task) { return playbookPriorityOrder[task.priority]!==undefined && playbookEffortOrder[task.effort]!==undefined; });
+  const unknown=sorted.filter(function (task) { return !known.includes(task); });
+  if (!sorted.length) return '<div class="playbook-empty">暂无行动任务</div>';
+  let cells=`<div class="playbook-axis"><strong>影响优先级</strong><span>工作量</span></div>`;
+  efforts.forEach(function (effort) { cells+=`<div class="playbook-axis"><strong>${effort[0]}</strong><span>${effort[1]}</span></div>`; });
+  priorities.forEach(function (priority) {
+    cells+=`<div class="playbook-axis"><strong>${priority[0]}</strong><span>${priority[1]}</span></div>`;
+    efforts.forEach(function (effort) {
+      const items=known.filter(function (task) { return task.priority===priority[0] && task.effort===effort[0]; });
+      cells+=`<div class="playbook-cell">${items.map(playbookTaskButton).join('') || '<div class="playbook-empty">0</div>'}</div>`;
+    });
+  });
+  return `<div class="playbook-matrix-scroll" tabindex="0"><div class="playbook-matrix">${cells}</div></div>
+    ${unknown.length?`<div class="playbook-unclassified"><div style="font-size:12px;color:var(--t500)">未分类任务</div>
+      <div class="playbook-unclassified-list">${unknown.map(playbookTaskButton).join('')}</div></div>`:''}`;
+}
+
+function setPlaybookView(view) {
+  ST.planView=view==='list'?'list':'matrix';
+  render();
+}
+
+vPlan = function () {
+  ST.planView=ST.planView==='list'?'list':'matrix';
+  let html=enginePlanView()
+    .replace('<div style="padding:32px 44px 72px;max-width:1280px">','<div class="playbook-page">')
+    .replace('<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px">','<div class="playbook-page-head" style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px">')
+    .replace('<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0 18px">','<div class="playbook-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0 18px">');
+  const tableStart=html.indexOf('<div class="tbl">'), pageEnd=html.lastIndexOf('\n  </div>');
+  if (tableStart<0 || pageEnd<tableStart) return html;
+  const list=html.slice(tableStart,pageEnd);
+  const labels={zh:'行动计划视图',en:'Action plan view',ja:'アクションプラン表示'};
+  const toolbar=`<div class="playbook-toolbar"><div style="font-size:12px;color:var(--t500)">${ST.planView==='matrix'?'影响优先级 × 工作量':'全部任务'}</div>
+    <div class="seg playbook-view-switch" role="group" aria-label="${labels[ULANG] || labels.zh}">
+      <button class="playbook-view-button ${ST.planView==='matrix'?'on':''}" aria-pressed="${ST.planView==='matrix'}" onclick="setPlaybookView('matrix')">矩阵</button>
+      <button class="playbook-view-button ${ST.planView==='list'?'on':''}" aria-pressed="${ST.planView==='list'}" onclick="setPlaybookView('list')">列表</button></div></div>`;
+  return html.slice(0,tableStart)+toolbar+(ST.planView==='matrix'?playbookMatrix(D.tasks):list)+html.slice(pageEnd);
+};
+VIEWS.plan = vPlan;
 </script>
 """
 

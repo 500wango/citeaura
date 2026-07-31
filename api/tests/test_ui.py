@@ -126,6 +126,15 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "费用信息加载失败" in response.text
     assert "仅所有者可更改" in response.text
     assert "缺少 BYOK 的引擎将按页面所示单价逐次收费" in response.text
+    assert "const enginePlanView = vPlan" in response.text
+    assert "function playbookMatrix(tasks)" in response.text
+    assert "function sortedPlaybookTasks(tasks)" in response.text
+    assert "影响优先级 × 工作量" in response.text
+    assert "未分类任务" in response.text
+    assert "VIEWS.plan = vPlan" in response.text
+    assert "grid-template-columns:104px repeat(3,minmax(218px,1fr))" in response.text
+    assert "playbook-matrix-scroll" in response.text
+    assert "アクションプラン表示" in response.text
     assert 'class="settings-core-grid"' in response.text
     assert ".settings-core-grid{grid-template-columns:1fr!important}" in response.text
     assert "geo.py serve --slug" not in response.text
