@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from api.adapters.engine import tenant_slug
 from api.db import Base, get_db
 from api.main import app
 from api.models import Membership, Tenant, User
@@ -86,3 +87,33 @@ def test_me_requires_valid_access_token(client):
 
     assert response.status_code == 401
     assert response.json() == {"error": "invalid_token"}
+
+
+def test_long_tenant_names_get_distinct_directory_slugs(client):
+    shared_prefix = "Acme International Workspace " + "x" * 80
+    first = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "first-long@example.com",
+            "password": "correct-horse-battery",
+            "tenant_name": shared_prefix + "-first",
+        },
+    )
+    second = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "second-long@example.com",
+            "password": "correct-horse-battery",
+            "tenant_name": shared_prefix + "-second",
+        },
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    first_name = first.json()["tenant"]["name"]
+    second_name = second.json()["tenant"]["name"]
+    assert first_name != second_name
+    assert tenant_slug(first_name) == first_name
+    assert tenant_slug(second_name) == second_name
+    assert len(first_name) <= 48
+    assert len(second_name) <= 48

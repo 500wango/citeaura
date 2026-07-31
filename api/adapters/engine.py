@@ -43,6 +43,11 @@ def _valid_slug(value: str, label: str) -> str:
     return value
 
 
+def tenant_slug(value: str) -> str:
+    """把租户名称转换为引擎可接受的目录标识。"""
+    return _valid_slug(geolib.slugify(str(value or "")), "tenant")
+
+
 def patch_die():
     """将引擎的 sys.exit 错误改为 GeoEngineError，并返回原函数。"""
     previous = geolib.die
@@ -117,12 +122,11 @@ def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = N
     raw_tenant = str(tenant_id or "")
     if "/" in raw_tenant or "\\" in raw_tenant or ".." in raw_tenant:
         raise ValueError(f"invalid tenant slug: {raw_tenant!r}")
-    tenant_slug = geolib.slugify(raw_tenant)
-    tenant_slug = _valid_slug(tenant_slug, "tenant")
+    tenant_directory = tenant_slug(raw_tenant)
     project_slug = _valid_slug(project_slug, "project")
     with _CONTEXT_LOCK:
         previous_die = patch_die()
-        previous_root, previous_work = patch_paths(tenant_slug, project_slug)
+        previous_root, previous_work = patch_paths(tenant_directory, project_slug)
         try:
             with inject_keys(keys):
                 yield

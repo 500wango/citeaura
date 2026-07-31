@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from api.adapters.engine import tenant_slug
 from api.auth.deps import get_current_user
 from api.auth.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -57,12 +58,11 @@ def _error(status_code: int, message: str):
 
 def _tenant_name(db: Session, requested: str | None, email: str) -> str:
     """生成唯一的默认租户名称，避免文件系统目录冲突。"""
-    base = (requested or email.split("@", 1)[0]).strip() or "workspace"
-    base = re.sub(r"[^a-zA-Z0-9一-鿿_-]+", "-", base).strip("-_")[:110] or "workspace"
+    base = tenant_slug((requested or email.split("@", 1)[0]).strip() or "workspace")
     candidate = base
-    if db.query(Tenant.id).filter(Tenant.name == candidate).first() is None:
-        return candidate
-    return f"{base[:100]}-{uuid.uuid4().hex[:8]}"
+    while db.query(Tenant.id).filter(Tenant.name == candidate).first() is not None:
+        candidate = f"{base[:39]}-{uuid.uuid4().hex[:8]}"
+    return candidate
 
 
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
