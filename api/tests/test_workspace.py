@@ -99,8 +99,9 @@ def _seed_workspace(tmp_path):
     return root
 
 
-def test_workspace_read_write_flow_and_project_summary(workspace_client):
+def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeypatch):
     client, session_factory, tmp_path = workspace_client
+    monkeypatch.setattr(workspace.geolib, "today", lambda: "2026-07-31")
     tenant_id, headers = _register(client, "owner@example.com", "tenant-a")
     project_id = _project(session_factory, tenant_id)
     root = _seed_workspace(tmp_path)
