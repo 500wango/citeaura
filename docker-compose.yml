@@ -51,5 +51,12 @@ services:
       sh -c "pip install --no-cache-dir -r requirements.txt &&
       celery -A api.worker.celery_app worker --loglevel=INFO"
 
+  beat:
+    <<: *app
+    command: >-
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      celery -A api.worker.celery_app beat --loglevel=INFO
+      --schedule=/tmp/disvorai-celerybeat-schedule"
+
 volumes:
   postgres_data:

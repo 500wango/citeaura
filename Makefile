@@ -1,4 +1,4 @@
-.PHONY: dev test migrate worker
+.PHONY: dev test migrate worker beat
 
 dev:
 	uvicorn api.main:app --reload
@@ -12,3 +12,6 @@ migrate:
 
 worker:
 	celery -A api.worker.celery_app worker --loglevel=INFO
+
+beat:
+	celery -A api.worker.celery_app beat --loglevel=INFO --schedule=/tmp/disvorai-celerybeat-schedule

@@ -161,8 +161,34 @@ FETCH_ADAPTER = r"""
     if (configMatch) {
       const id = projectIds.get(decodeURIComponent(configMatch[1]));
       if (!id) return response({error:'project_not_found'}, 404);
-      return nativeFetch('/api/v1/projects/' + id + '/config', init.body
-        ? {method:'PATCH',headers:init.headers,body:init.body} : init);
+      if (init.body) {
+        const updates = JSON.parse(init.body);
+        if (Object.keys(updates).length === 1 && Object.prototype.hasOwnProperty.call(updates, 'monitor')) {
+          const interval = Number((updates.monitor || {}).every_days || 0);
+          const r = await nativeFetch('/api/v1/projects/' + id + '/schedule', {
+            method:'POST', headers:init.headers, body:JSON.stringify({interval_days:interval})
+          });
+          const data = await r.json().catch(function () { return {}; });
+          return response({ok:r.ok,schedule:data.schedule,error:data.error || data.detail}, r.status);
+        }
+        delete updates.monitor;
+        return nativeFetch('/api/v1/projects/' + id + '/config', {
+          method:'PATCH', headers:init.headers, body:JSON.stringify(updates)
+        });
+      }
+      const configResponse = await nativeFetch('/api/v1/projects/' + id + '/config', init);
+      const config = await configResponse.json().catch(function () { return {}; });
+      if (!configResponse.ok) return response(config, configResponse.status);
+      const scheduleResponse = await nativeFetch('/api/v1/projects/' + id + '/schedule', init);
+      if (scheduleResponse.ok) {
+        const scheduleData = await scheduleResponse.json();
+        const schedule = scheduleData.schedule || {};
+        config.monitor = schedule.enabled ? {
+          every_days:schedule.interval_days,
+          next_run:(schedule.next_run_at || '').slice(0, 10)
+        } : {};
+      }
+      return response(config, configResponse.status);
     }
     const factsMatch = url.match(/^\/api\/facts\/([^?]+)/);
     if (factsMatch) {
@@ -503,15 +529,6 @@ def serve_ui():
         "${mktLabel(k.market)} · ${k.ok===false?'缺 API Key':'仅人工采样'}",
         "${mktLabel(k.market)} · ${k.ok===false?(k.search?'API·联网 · 缺 Key':'API·参数化 · 缺 Key'):'人工·网页端'}",
     )
-    html = html.replace("采样为手动触发或由 schedule 驱动", "采样由用户手动触发")
-    html = html.replace(
-        "'采样由用户手动触发':'Sampling is manual or schedule-driven'",
-        "'采样由用户手动触发':'Sampling is started manually by the user'",
-    )
-    html = html.replace(
-        "'采样由用户手动触发':'サンプリングは手動または schedule 駆動'",
-        "'采样由用户手动触发':'サンプリングはユーザーが手動で開始'",
-    )
     html = html.replace(
         '''    {who:'给客户',name:'交付包',desc:'诊断报告、优化方案、工单表（CSV）、验收表、资产目录与说明。',
      act:(D.deliveries||[]).length?`<a class="btn btn-primary" style="font-size:12px" target="_blank" href="/files/${SLUG}/delivery/${D.deliveries[0]}/index.html">打开</a>`
@@ -562,16 +579,7 @@ def serve_ui():
         "${WB.cur&&WB.cur.kind==='content'?`<button class=\"btn btn-primary\" style=\"font-size:12px\" onclick=\"pubModal()\">发布到渠道…</button>`:''}",
         "",
     )
-    html = html.replace(
-        '''        <div class="row" style="gap:6px;align-items:center;padding-top:4px;box-shadow:inset 0 1px 0 var(--line)">
-          <span style="font-size:12px;color:var(--t500)">周期复跑</span>
-          ${[0,7,14,30].map(dd=>`<button class="btn ${monCur===dd?'btn-secondary':'btn-ghost'}" style="font-size:11.5px;padding:3px 9px" onclick="setMonitor(${dd})">${dd?('每 '+dd+' 天'):'关'}</button>`).join('')}
-          ${monCur?`<span class="muted" style="font-size:11.5px">下次 ${esc(mon.next_run||'')} · 到期后看板运行时自动跑完整一期</span>`:''}
-        </div>
-''',
-        "",
-        1,
-    )
+    html = html.replace("到期后看板运行时自动跑完整一期", "由后台调度自动跑完整一期")
     html = html.replace(
         '''    <div class="card elev" style="padding:18px;gap:10px;margin-top:14px">
       <div><div style="font-size:15px;font-weight:500">发布渠道</div>

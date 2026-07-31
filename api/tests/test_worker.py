@@ -1,6 +1,7 @@
 import sys
 import types
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import create_engine
@@ -22,7 +23,9 @@ def test_celery_registers_all_pipeline_tasks():
         "disvorai.verify",
         "disvorai.deliver",
         "disvorai.pipeline",
+        "disvorai.dispatch_schedules",
     } <= registered
+    assert celery_app.conf.beat_schedule["dispatch-due-project-schedules"]["task"] == "disvorai.dispatch_schedules"
 
 
 def test_bootstrap_task_uses_tenant_context(monkeypatch):
@@ -186,6 +189,87 @@ def test_job_status_updates_project_on_success_and_failure(tmp_path, monkeypatch
     assert "engine output" in bootstrap_log
     assert "bootstrap done" in bootstrap_log
     assert "verify failed: RuntimeError: verification failed" in verify_log
+
+
+def test_schedule_dispatcher_enqueues_due_projects_and_respects_guards(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'dispatch.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    now = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    with session_factory() as db:
+        pro = Tenant(name="pro-tenant", plan="pro")
+        trial = Tenant(name="trial-tenant", plan="trial")
+        db.add_all([pro, trial])
+        db.flush()
+        due = Project(
+            tenant_id=pro.id,
+            slug="due",
+            url="https://due.example",
+            status="ready",
+            schedule_interval_days=7,
+            schedule_next_run_at=now - timedelta(days=1),
+        )
+        future = Project(
+            tenant_id=pro.id,
+            slug="future",
+            url="https://future.example",
+            status="ready",
+            schedule_interval_days=14,
+            schedule_next_run_at=now + timedelta(days=1),
+        )
+        busy = Project(
+            tenant_id=pro.id,
+            slug="busy",
+            url="https://busy.example",
+            status="processing",
+            schedule_interval_days=30,
+            schedule_next_run_at=now - timedelta(hours=1),
+        )
+        limited = Project(
+            tenant_id=trial.id,
+            slug="limited",
+            url="https://limited.example",
+            status="ready",
+            schedule_interval_days=7,
+            schedule_next_run_at=now - timedelta(hours=1),
+        )
+        db.add_all([due, future, busy, limited])
+        db.flush()
+        db.add(Job(project_id=busy.id, action="verify", status="running"))
+        db.add_all([
+            Job(project_id=limited.id, action="sample", status="done"),
+            Job(project_id=limited.id, action="cycle", status="done"),
+        ])
+        db.commit()
+        due_id = due.id
+        busy_next = busy.schedule_next_run_at
+        limited_next = limited.schedule_next_run_at
+
+    calls = []
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(
+        tasks,
+        "job_log_path",
+        lambda tenant_id, project_slug, job_id: tmp_path / "logs" / f"{job_id}.log",
+    )
+    monkeypatch.setattr(
+        tasks.task_cycle,
+        "delay",
+        lambda *args, **kwargs: calls.append((args, kwargs)) or types.SimpleNamespace(id="cycle-task"),
+    )
+
+    result = tasks.task_dispatch_schedules.run(now.isoformat())
+
+    assert result == {"scanned": 3, "enqueued": 1, "busy": 1, "quota_blocked": 1, "failed": 0}
+    assert calls == [(('pro-tenant', 'due'), {'job_id': 4})]
+    with session_factory() as db:
+        due = db.get(Project, due_id)
+        assert due.status == "processing"
+        assert due.schedule_last_enqueued_at is not None
+        assert due.schedule_next_run_at > now.replace(tzinfo=None)
+        assert db.query(Job).filter(Job.project_id == due_id, Job.action == "cycle").one().status == "queued"
+        assert db.query(Project).filter(Project.slug == "busy").one().schedule_next_run_at == busy_next
+        assert db.query(Project).filter(Project.slug == "limited").one().schedule_next_run_at == limited_next
 
 
 @contextmanager

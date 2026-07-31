@@ -1,14 +1,16 @@
 """引擎异步任务。"""
 
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
 from api.adapters.delivery import ensure_delivery_contract
 from api.adapters.engine import job_log_path, load_tenant_keys, with_tenant_context
 from api.adapters.workspace import preserve_manual_tickets
+from api.billing.limits import check_sample_run
 from api.db import SessionLocal
 from api.models import Job, Project, Tenant
 from api.worker.celery_app import celery_app
@@ -171,6 +173,20 @@ def _engine_keys(tenant_id):
         db.close()
 
 
+def _as_utc(value):
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _next_scheduled_run(scheduled_for, interval_days, now):
+    """保持原有节奏，并跳过服务停机期间错过的周期。"""
+    next_run = _as_utc(scheduled_for) + timedelta(days=interval_days)
+    while next_run <= now:
+        next_run += timedelta(days=interval_days)
+    return next_run
+
+
 @contextmanager
 def _capture_task_output(log_path):
     """把引擎 print 输出写入当前 Job 日志。"""
@@ -296,6 +312,75 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             geo.cmd_cycle(args)
             return {"status": "done", "project_slug": project_slug}
+
+
+@celery_app.task(name="disvorai.dispatch_schedules")
+def task_dispatch_schedules(now_iso=None):
+    """扫描到期项目并投递周期复跑任务。"""
+    now = datetime.fromisoformat(now_iso) if now_iso else datetime.now(timezone.utc)
+    now = _as_utc(now)
+    result = {"scanned": 0, "enqueued": 0, "busy": 0, "quota_blocked": 0, "failed": 0}
+    db = SessionLocal()
+    try:
+        projects = (
+            db.query(Project)
+            .join(Tenant, Tenant.id == Project.tenant_id)
+            .filter(
+                Project.schedule_interval_days.in_((7, 14, 30)),
+                Project.schedule_next_run_at.isnot(None),
+                Project.schedule_next_run_at <= now,
+            )
+            .order_by(Project.schedule_next_run_at, Project.id)
+            .with_for_update(skip_locked=True, of=Project)
+            .all()
+        )
+        result["scanned"] = len(projects)
+        for project in projects:
+            tenant = db.get(Tenant, project.tenant_id)
+            active = db.query(Job.id).filter(
+                Job.project_id == project.id,
+                Job.status.in_(("queued", "running")),
+            ).first()
+            if active is not None:
+                result["busy"] += 1
+                continue
+            try:
+                check_sample_run(db, tenant, project)
+            except HTTPException:
+                result["quota_blocked"] += 1
+                continue
+
+            scheduled_for = project.schedule_next_run_at
+            previous_status = project.status
+            previous_last_enqueued = project.schedule_last_enqueued_at
+            job = Job(project_id=project.id, action="cycle", status="queued")
+            db.add(job)
+            project.status = "processing"
+            project.schedule_last_enqueued_at = now
+            project.schedule_next_run_at = _next_scheduled_run(
+                scheduled_for,
+                project.schedule_interval_days,
+                now,
+            )
+            db.flush()
+            job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+            db.commit()
+            try:
+                task_cycle.delay(tenant.name, project.slug, job_id=job.id)
+            except Exception as exc:  # noqa: BLE001
+                job.status = "failed"
+                job.error = f"{type(exc).__name__}: {exc}"
+                job.finished_at = now
+                project.status = previous_status
+                project.schedule_next_run_at = scheduled_for
+                project.schedule_last_enqueued_at = previous_last_enqueued
+                db.commit()
+                result["failed"] += 1
+                continue
+            result["enqueued"] += 1
+        return result
+    finally:
+        db.close()
 
 
 @celery_app.task(name="disvorai.verify")

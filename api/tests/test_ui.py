@@ -69,7 +69,7 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "写入项目根目录 .env" not in response.text
     assert "已写入 .env" not in response.text
     assert "单机自托管版，无账号体系" not in response.text
-    assert 'onclick="setMonitor(' not in response.text
+    assert 'onclick="setMonitor(' in response.text
     assert 'onclick="stopJob()"' not in response.text
     assert 'onclick="pubModal()"' not in response.text
     assert "/api/v1/projects/' + id + '/samples/import" in response.text
@@ -80,8 +80,13 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "async function downloadDelivery(date)" in response.text
     assert "下载 ZIP" in response.text
     assert "URL.createObjectURL(await result.blob())" in response.text
-    assert "采样由用户手动触发" in response.text
-    assert "采样为手动触发或由 schedule 驱动" not in response.text
+    assert "采样为手动触发或由 schedule 驱动" in response.text
+    assert "/api/v1/projects/' + id + '/schedule" in response.text
+    assert "Object.keys(updates).length === 1" in response.text
+    assert "delete updates.monitor" in response.text
+    assert "周期复跑" in response.text
+    assert "async function setMonitor(days)" in response.text
+    assert "由后台调度自动跑完整一期" in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text
     assert "后台任务队列执行" in response.text

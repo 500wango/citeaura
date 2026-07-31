@@ -69,6 +69,14 @@ services:
     volumes:
       - disvorai_work:/app/work
 
+  beat:
+    <<: *app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    command: ["celery", "-A", "api.worker.celery_app", "beat", "--loglevel=INFO", "--schedule=/tmp/disvorai-celerybeat-schedule"]
+
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped
@@ -92,4 +100,3 @@ volumes:
 networks:
   disvorai:
     driver: bridge
-

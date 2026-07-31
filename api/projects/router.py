@@ -3,7 +3,7 @@
 import io
 import re
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
@@ -83,6 +83,17 @@ class PipelineActionRequest(BaseModel):
     params: dict = Field(default_factory=dict)
 
 
+class ScheduleRequest(BaseModel):
+    interval_days: int = 0
+
+    @field_validator("interval_days")
+    @classmethod
+    def validate_interval_days(cls, value: int):
+        if value not in (0, 7, 14, 30):
+            raise ValueError("interval_days must be 0, 7, 14, or 30")
+        return value
+
+
 def _error(status_code: int, message: str):
     """抛出统一 API 错误。"""
     raise HTTPException(status_code=status_code, detail={"error": message})
@@ -147,6 +158,15 @@ def _active_job(db: Session, project_id: int):
         Job.project_id == project_id,
         Job.status.in_(("queued", "running")),
     ).order_by(Job.id.desc()).first()
+
+
+def _schedule_payload(project: Project):
+    return {
+        "enabled": project.schedule_interval_days in (7, 14, 30),
+        "interval_days": project.schedule_interval_days or 0,
+        "next_run_at": project.schedule_next_run_at,
+        "last_enqueued_at": project.schedule_last_enqueued_at,
+    }
 
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
@@ -334,6 +354,36 @@ def project_status(project_id: int, current_user: User = Depends(get_current_use
         "summary": summary,
         "latest_job": _job_payload(latest_job, include_log=False) if latest_job else None,
     }
+
+
+@router.get("/{project_id}/schedule")
+def project_schedule(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """返回项目周期复跑设置。"""
+    project = _project_for_user(db, current_user, project_id)
+    return {"schedule": _schedule_payload(project)}
+
+
+@router.post("/{project_id}/schedule")
+def update_project_schedule(
+    project_id: int,
+    payload: ScheduleRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """启用 7/14/30 天周期复跑，传 0 时关闭。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    if payload.interval_days == 0:
+        project.schedule_interval_days = None
+        project.schedule_next_run_at = None
+    else:
+        check_sample_run(db, tenant, project)
+        if project.schedule_interval_days != payload.interval_days or project.schedule_next_run_at is None:
+            project.schedule_next_run_at = datetime.now(timezone.utc) + timedelta(days=payload.interval_days)
+        project.schedule_interval_days = payload.interval_days
+    db.commit()
+    db.refresh(project)
+    return {"schedule": _schedule_payload(project)}
 
 
 @router.get("/{project_id}/jobs")

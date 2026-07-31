@@ -44,7 +44,6 @@ fi
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d postgres redis
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm api alembic upgrade head
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build api worker nginx
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build api worker beat nginx
 
 printf 'DisvorAI deployed. HTTPS endpoint: https://%s\n' "$DOMAIN"
-

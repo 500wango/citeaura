@@ -1,6 +1,7 @@
 """SaaS 数据模型。"""
 
 from sqlalchemy import (
+    CheckConstraint,
     Column,
     Date,
     DateTime,
@@ -56,7 +57,13 @@ class Membership(Base):
 
 class Project(Base):
     __tablename__ = "projects"
-    __table_args__ = (UniqueConstraint("tenant_id", "slug", name="uq_projects_tenant_slug"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "slug", name="uq_projects_tenant_slug"),
+        CheckConstraint(
+            "schedule_interval_days IS NULL OR schedule_interval_days IN (7, 14, 30)",
+            name="ck_projects_schedule_interval_days",
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -64,6 +71,9 @@ class Project(Base):
     url = Column(String(2048), nullable=False)
     market = Column(String(16), nullable=False, default="both", server_default="both")
     status = Column(String(32), nullable=False, default="pending", server_default="pending")
+    schedule_interval_days = Column(Integer, nullable=True)
+    schedule_next_run_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    schedule_last_enqueued_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     tenant = relationship("Tenant", back_populates="projects")

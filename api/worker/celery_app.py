@@ -19,4 +19,10 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="UTC",
     enable_utc=True,
+    beat_schedule={
+        "dispatch-due-project-schedules": {
+            "task": "disvorai.dispatch_schedules",
+            "schedule": 60.0,
+        },
+    },
 )
