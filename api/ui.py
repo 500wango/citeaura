@@ -23,6 +23,7 @@ FETCH_ADAPTER = r"""
   const nativeFetch = window.fetch.bind(window);
   const projectIds = new Map();
   let loginShown = false;
+  let configuredKeyCount = 0;
   const keyCatalog = [
     {code:'glm', label:'智谱GLM', market:'cn', env:'ZHIPUAI_API_KEY', search:false},
     {code:'doubao', label:'豆包(方舟API)', market:'cn', env:'ARK_API_KEY', search:true},
@@ -46,6 +47,15 @@ FETCH_ADAPTER = r"""
     return new Response(JSON.stringify(data), {
       status: status || 200,
       headers: {'Content-Type': 'application/json'}
+    });
+  }
+
+  function legacyJob(job) {
+    if (!job) return null;
+    const labels = {bootstrap:'Bootstrap',sample:'Sample',verify:'Verify',deliver:'Deliver',cycle:'Cycle'};
+    return Object.assign({}, job, {
+      status:job.status === 'queued' ? 'running' : job.status,
+      label:labels[job.action] || job.action || 'Job'
     });
   }
 
@@ -111,14 +121,16 @@ FETCH_ADAPTER = r"""
       const r = await nativeFetch('/api/v1/projects', init);
       if (r.status === 401) { localStorage.removeItem('disvorai_access_token'); showLogin(); }
       const data = await r.json();
-      return response(data.projects || [], r.status);
+      return response((data.projects || []).map(function (p) {
+        return Object.assign({}, p, {name:p.slug,site:p.url});
+      }), r.status);
     }
     if (url === '/api/actions') return response({autopilot:{label:'Bootstrap'},serve:{label:'Sample'},sample:{label:'Sample'},verify:{label:'Verify'},deliver:{label:'Deliver'}});
     if (url === '/api/init' && init.body) {
       const body = JSON.parse(init.body);
       const r = await nativeFetch('/api/v1/projects', {
         method:'POST', headers:Object.assign({}, init.headers, {'Content-Type':'application/json'}),
-        body:JSON.stringify({url:body.url, market:body.market || 'both'})
+        body:JSON.stringify({url:body.url, market:body.market || 'both', skip_llm:configuredKeyCount === 0})
       });
       const data = await r.json();
       if (r.ok && data.slug) projectIds.set(data.slug, data.project_id);
@@ -129,10 +141,7 @@ FETCH_ADAPTER = r"""
       if (!id) return response({error:'project_not_found'}, 404);
       const deliveries = await nativeFetch('/api/v1/projects/' + id + '/deliveries', init);
       const deliveryData = await deliveries.json();
-      const report = await nativeFetch('/api/v1/projects/' + id + '/report', init);
-      const reportData = report.ok ? await report.json() : {};
-      const date = reportData.date || '';
-      return response({deliveries:deliveryData.deliveries || [], reports:date ? [date] : [], samples:date ? [date + '.jsonl'] : [], deliverables:[], content:[]}, deliveries.status);
+      return response({deliveries:deliveryData.deliveries || [], reports:[], samples:[], deliverables:[], content:[]}, deliveries.status);
     }
     if (url.startsWith('/api/jobs?')) {
       const slug = new URL(url, location.origin).searchParams.get('slug');
@@ -141,20 +150,21 @@ FETCH_ADAPTER = r"""
       const r = await nativeFetch('/api/v1/projects/' + id + '/jobs', init);
       const data = await r.json();
       const jobs = data.jobs || [], active = jobs.find(function (j) { return j.status === 'queued' || j.status === 'running'; });
-      return response({jobs:jobs,running:active ? active.id : null}, r.status);
+      return response({jobs:jobs.map(legacyJob),running:active ? active.id : null}, r.status);
     }
     const jobMatch = url.match(/^\/api\/job\/([^?]+)/);
     if (jobMatch) {
       const jobId = jobMatch[1];
       for (const id of projectIds.values()) {
         const r = await nativeFetch('/api/v1/projects/' + id + '/jobs/' + jobId, init);
-        if (r.status !== 404) { const data = await r.json(); return response({job:data.job,log:data.job.log || '',offset:0}, r.status); }
+        if (r.status !== 404) { const data = await r.json(); return response({job:legacyJob(data.job),log:data.job.log || '',offset:0}, r.status); }
       }
       return response({error:'job_not_found'}, 404);
     }
     if (url === '/api/keys' && !init.body) {
       const r = await nativeFetch('/api/v1/settings/keys', init), data = await r.json();
       const configured = new Map((data.keys || []).map(function (k) { return [k.engine_code, k]; }));
+      configuredKeyCount = configured.size;
       return response(keyCatalog.map(function (k) {
         const current = configured.get(k.code);
         return Object.assign({}, k, {ok:k.manual ? null : !!current, key_tail:current ? current.masked.slice(-4) : ''});
@@ -180,7 +190,7 @@ FETCH_ADAPTER = r"""
       if (action === 'autopilot') {
         const r = await nativeFetch('/api/v1/projects/' + id + '/jobs', {headers:init.headers}), data = await r.json();
         const job = (data.jobs || []).find(function (j) { return j.action === 'bootstrap'; });
-        return job ? response({ok:true,job:{id:job.id,status:job.status,label:'Bootstrap'}}) : response({ok:false,error:'bootstrap_job_not_found'}, 404);
+        return job ? response({ok:true,job:legacyJob(job)}) : response({ok:false,error:'bootstrap_job_not_found'}, 404);
       }
       if (action === 'serve') action = 'sample';
       let path = null, payload = {method:'POST',headers:init.headers};

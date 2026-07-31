@@ -1,10 +1,11 @@
 """注册、登录和当前用户 API。"""
 
+import os
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -12,6 +13,7 @@ from sqlalchemy.orm import Session
 from api.auth.deps import get_current_user
 from api.auth.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    ACCESS_TOKEN_COOKIE,
     create_access_token,
     create_refresh_token,
     hash_password,
@@ -98,7 +100,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/auth/login")
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
     """验证密码并返回 access/refresh JWT。"""
     user = db.query(User).filter(User.email == payload.email).first()
     if user is None or not verify_password(payload.password, user.password_hash):
@@ -113,8 +115,18 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     if membership is None:
         _error(status.HTTP_403_FORBIDDEN, "no_tenant_membership")
 
+    access_token = create_access_token(user.id, membership.tenant_id)
+    cookie_secure = os.getenv("SESSION_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
+    response.set_cookie(
+        ACCESS_TOKEN_COOKIE,
+        access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=cookie_secure,
+        samesite="strict",
+    )
     return {
-        "access_token": create_access_token(user.id, membership.tenant_id),
+        "access_token": access_token,
         "refresh_token": create_refresh_token(user.id, membership.tenant_id),
         "token_type": "bearer",
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,

@@ -47,6 +47,10 @@ def test_register_login_and_me(client):
     assert tokens["token_type"] == "bearer"
     assert tokens["access_token"]
     assert tokens["refresh_token"]
+    cookie = logged_in.headers["set-cookie"]
+    assert "disvorai_access_token=" in cookie
+    assert "HttpOnly" in cookie
+    assert "SameSite=strict" in cookie
 
     current = client.get(
         "/api/v1/me",
@@ -55,6 +59,10 @@ def test_register_login_and_me(client):
     assert current.status_code == 200
     assert current.json()["user"]["email"] == "owner@example.com"
     assert current.json()["role"] == "owner"
+
+    cookie_current = client.get("/api/v1/me")
+    assert cookie_current.status_code == 200
+    assert cookie_current.json()["user"]["email"] == "owner@example.com"
 
 
 def test_auth_rejects_duplicate_and_invalid_credentials(client):

@@ -1,16 +1,16 @@
 """认证依赖。"""
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from api.db import get_db
 from api.models import Membership, User
-from api.auth.security import decode_token
+from api.auth.security import ACCESS_TOKEN_COOKIE, decode_token
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
 def _unauthorized(error: str):
@@ -22,8 +22,15 @@ def _unauthorized(error: str):
     )
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_current_user(
+    request: Request,
+    token: str | None = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
     """验证 access token 并返回当前用户。"""
+    token = token or request.cookies.get(ACCESS_TOKEN_COOKIE)
+    if not token:
+        _unauthorized("invalid_token")
     try:
         payload = decode_token(token, expected_type="access")
         user_id = int(payload["sub"])

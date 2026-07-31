@@ -10,6 +10,7 @@ import jwt
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 30
+ACCESS_TOKEN_COOKIE = "disvorai_access_token"
 
 
 def _jwt_secret():
@@ -62,4 +63,3 @@ def decode_token(token: str, expected_type: str = "access") -> dict:
     if payload.get("type") != expected_type:
         raise jwt.InvalidTokenError("unexpected token type")
     return payload
-
