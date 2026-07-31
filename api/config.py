@@ -57,6 +57,14 @@ def public_base_url():
     return os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
 
 
+def google_oauth_client_id():
+    return os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
+
+
+def google_oauth_client_secret():
+    return os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "").strip()
+
+
 def work_root(default: Path):
     return Path(os.getenv("WORK_ROOT", str(default))).resolve()
 

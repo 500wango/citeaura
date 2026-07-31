@@ -47,12 +47,15 @@ SETTINGS_RESPONSIVE_STYLE = r"""
 .playbook-unclassified-list .playbook-task{margin-top:0}
 .sso-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .sso-audit-row{display:grid;grid-template-columns:minmax(128px,.7fr) minmax(180px,1fr) minmax(160px,1.4fr) auto;gap:10px;align-items:center;padding:8px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12px}
+.integration-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 @media (max-width:700px){
   .settings-core-grid{grid-template-columns:1fr!important}
   .sso-form-grid{grid-template-columns:1fr}
   .sso-audit-row{grid-template-columns:1fr auto;gap:3px 8px}
   .sso-audit-target{grid-column:1/-1}
   .sso-section-title{padding-left:20px;scroll-margin-top:12px}
+  .integration-section-title{padding-left:20px;scroll-margin-top:12px}
+  .integration-grid{grid-template-columns:1fr}
   .playbook-page{padding:24px 18px 56px}
   .playbook-page-head{align-items:flex-start!important;flex-direction:column}
   .playbook-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
@@ -527,6 +530,31 @@ FETCH_ADAPTER = r"""
         method:init.body ? 'PUT' : 'GET', headers:init.headers, body:init.body
       });
     }
+    if (url === '/api/integrations') {
+      const id = projectIds.get(SLUG);
+      if (!init.body) {
+        const target = id ? '/api/v1/projects/' + id + '/integrations' : '/api/v1/integrations';
+        return nativeFetch(target, init);
+      }
+      const body = JSON.parse(init.body);
+      if (body.action === 'save_semrush') {
+        return nativeFetch('/api/v1/integrations/semrush', {
+          method:'PUT', headers:init.headers,
+          body:JSON.stringify({api_key:body.api_key,database:body.database})
+        });
+      }
+      if (body.action === 'disconnect') {
+        return nativeFetch('/api/v1/integrations/' + encodeURIComponent(body.provider), {
+          method:'DELETE', headers:init.headers
+        });
+      }
+      if (body.action === 'sync' && id) {
+        return nativeFetch('/api/v1/projects/' + id + '/integrations/' + encodeURIComponent(body.provider) + '/sync', {
+          method:'POST', headers:init.headers
+        });
+      }
+      return response({error:'integration_action_invalid'}, 400);
+    }
     return response({error:'legacy_ui_endpoint_not_supported'}, 404);
   };
   async function acceptPendingInvitation() {
@@ -722,6 +750,12 @@ Object.assign(UI_D.en, {
   'Enterprise 套餐可用':'Available on Enterprise plan','最近审计事件':'Recent audit events','暂无审计事件':'No audit events yet',
   '保留已保存密钥':'Keep the saved secret','每行或逗号分隔':'One per line or comma-separated','企业登录设置已保存':'Enterprise sign-in settings saved',
   '企业登录设置加载失败':'Failed to load enterprise sign-in settings','仅所有者可查看审计事件':'Only owners can view audit events'
+  ,'搜索数据源':'Search data sources','自然搜索与站点表现':'Organic search and site performance','连接状态':'Connection status','已连接':'Connected','未连接':'Not connected',
+  '区域数据库':'Regional database','保存 Semrush':'Save Semrush','断开连接':'Disconnect','同步数据':'Sync data','连接 Search Console':'Connect Search Console',
+  '最近同步':'Last synced','关键词':'Keywords','前 10 关键词':'Top 10 keywords','搜索量':'Search volume','流量成本':'Traffic cost',
+  '点击':'Clicks','展示':'Impressions','点击率':'CTR','平均排名':'Average position','尚未同步':'Not synced yet',
+  'Search Console OAuth 未配置':'Search Console OAuth is not configured','仅所有者可管理连接':'Only owners can manage connections',
+  '数据源连接已更新':'Data source connection updated','同步任务已创建':'Sync job created','外部搜索数据加载失败':'Failed to load external search data'
 });
 Object.assign(UI_D.ja, {
   '团队成员':'チームメンバー','工作区':'ワークスペース','邀请成员':'メンバーを招待','待接受邀请':'保留中の招待',
@@ -744,12 +778,19 @@ Object.assign(UI_D.ja, {
   'Enterprise 套餐可用':'Enterprise プランで利用可能','最近审计事件':'最近の監査イベント','暂无审计事件':'監査イベントはまだありません',
   '保留已保存密钥':'保存済みシークレットを維持','每行或逗号分隔':'改行またはカンマで区切る','企业登录设置已保存':'エンタープライズログイン設定を保存しました',
   '企业登录设置加载失败':'エンタープライズログイン設定を読み込めませんでした','仅所有者可查看审计事件':'監査イベントはオーナーのみ閲覧できます'
+  ,'搜索数据源':'検索データソース','自然搜索与站点表现':'オーガニック検索とサイト実績','连接状态':'接続状態','已连接':'接続済み','未连接':'未接続',
+  '区域数据库':'地域データベース','保存 Semrush':'Semrush を保存','断开连接':'接続解除','同步数据':'データを同期','连接 Search Console':'Search Console に接続',
+  '最近同步':'最終同期','关键词':'キーワード','前 10 关键词':'上位 10 キーワード','搜索量':'検索ボリューム','流量成本':'トラフィックコスト',
+  '点击':'クリック','展示':'表示回数','点击率':'CTR','平均排名':'平均掲載順位','尚未同步':'未同期',
+  'Search Console OAuth 未配置':'Search Console OAuth が設定されていません','仅所有者可管理连接':'接続管理はオーナーのみ可能です',
+  '数据源连接已更新':'データソース接続を更新しました','同步任务已创建':'同期ジョブを作成しました','外部搜索数据加载失败':'外部検索データを読み込めませんでした'
 });
 
 let TEAM_STATE = null;
 let BRANDING_STATE = null;
 let SSO_STATE = null;
 let AUDIT_STATE = null;
+let INTEGRATION_STATE = null;
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
 
 function ssoPanel() {
@@ -806,6 +847,66 @@ async function saveSsoConfiguration() {
 
 async function copySsoLoginUrl() {
   const input=$('#sso-login-url');if(!input)return;await navigator.clipboard.writeText(input.value);toast('已复制登录地址');
+}
+
+function integrationMetric(label, value) {
+  return `<div><div style="font-size:10.5px;color:var(--t600)">${label}</div><div style="font-size:16px;margin-top:2px;overflow-wrap:anywhere">${esc(value==null?'—':String(value))}</div></div>`;
+}
+
+function integrationPanel() {
+  const state=INTEGRATION_STATE||{},providers=state.providers||{},latest=state.latest||{};
+  if (state.error || state.detail) return `<h4 class="integration-section-title" style="font-size:16px;margin:28px 0 10px">搜索数据源</h4>
+    <div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">外部搜索数据加载失败</div>`;
+  const semrush=providers.semrush||{},semrushData=latest.semrush||{},semrushMetrics=semrushData.metrics||{};
+  const search=providers.search_console||{},searchData=latest.search_console||{},searchMetrics=searchData.metrics||{};
+  const editable=!!state.can_edit,canSync=TEAM_STATE&&TEAM_STATE.current_role!=='viewer'&&!!state.project_id;
+  const database=semrush.database||'us',databases=['us','uk','de','fr','jp','au','ca'];
+  if(!databases.includes(database))databases.unshift(database);
+  return `<h4 class="integration-section-title" style="font-size:16px;margin:28px 0 4px">搜索数据源</h4><p class="muted" style="font-size:12px;margin:0 0 10px">自然搜索与站点表现</p>
+    <div class="integration-grid">
+      <div class="card elev" style="padding:18px;gap:13px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">Semrush</div><span class="tag ${semrush.configured?'pill-good':'tag-outline'}">${semrush.configured?'已连接':'未连接'}</span></div>
+        <div class="row" style="align-items:flex-end;gap:10px;flex-wrap:wrap"><label style="display:block;flex:1;min-width:180px;font-size:12px;color:var(--t500)">API Key
+          <input id="semrush-api-key" class="input" type="password" maxlength="4096" placeholder="${esc(semrush.masked||'')}" ${editable?'':'disabled'} autocomplete="new-password" style="margin-top:5px"></label>
+          <label style="display:block;width:120px;font-size:12px;color:var(--t500)">区域数据库<select id="semrush-database" class="input" ${editable?'':'disabled'} style="margin-top:5px">${databases.map(function(item){return `<option value="${item}" ${item===database?'selected':''}>${item.toUpperCase()}</option>`;}).join('')}</select></label></div>
+        <div class="row" style="gap:7px;flex-wrap:wrap">${editable?'<button class="btn btn-secondary" style="font-size:12px" onclick="saveSemrushIntegration()">保存 Semrush</button>':''}
+          ${editable&&semrush.configured?'<button class="btn btn-ghost" style="font-size:12px" onclick="disconnectIntegration(\'semrush\')">断开连接</button>':''}
+          ${canSync&&semrush.configured?'<button class="btn btn-primary" style="font-size:12px;margin-left:auto" onclick="syncIntegration(\'semrush\')">同步数据</button>':''}</div>
+        ${!editable?'<div style="font-size:11.5px;color:var(--t600)">仅所有者可管理连接</div>':''}
+        <div style="padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><div style="font-size:11px;color:var(--t600);margin-bottom:8px">${semrushData.synced_at?'最近同步 '+esc(semrushData.synced_at.replace('T',' ').slice(0,19)):'尚未同步'}</div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">${integrationMetric('关键词',semrushMetrics.keywords_returned)}${integrationMetric('前 10 关键词',semrushMetrics.top_10_keywords)}${integrationMetric('搜索量',semrushMetrics.search_volume)}${integrationMetric('流量成本',semrushMetrics.traffic_cost)}</div></div>
+      </div>
+      <div class="card elev" style="padding:18px;gap:13px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">Google Search Console</div><span class="tag ${search.configured?'pill-good':'tag-outline'}">${search.configured?'已连接':'未连接'}</span></div>
+        <div style="font-size:12px;color:var(--t500);overflow-wrap:anywhere">${esc(state.search_console_property||'')}</div>
+        <div class="row" style="gap:7px;flex-wrap:wrap">${editable&&search.oauth_available?`<a class="btn btn-secondary" style="font-size:12px" href="${esc(state.search_console_authorize_url||'#')}">连接 Search Console</a>`:''}
+          ${editable&&search.configured?'<button class="btn btn-ghost" style="font-size:12px" onclick="disconnectIntegration(\'search_console\')">断开连接</button>':''}
+          ${canSync&&search.configured?'<button class="btn btn-primary" style="font-size:12px;margin-left:auto" onclick="syncIntegration(\'search_console\')">同步数据</button>':''}</div>
+        ${editable&&!search.oauth_available?'<div style="font-size:11.5px;color:var(--t600)">Search Console OAuth 未配置</div>':''}
+        ${!editable?'<div style="font-size:11.5px;color:var(--t600)">仅所有者可管理连接</div>':''}
+        <div style="padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><div style="font-size:11px;color:var(--t600);margin-bottom:8px">${searchData.synced_at?'最近同步 '+esc(searchData.synced_at.replace('T',' ').slice(0,19)):'尚未同步'}</div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">${integrationMetric('点击',searchMetrics.clicks)}${integrationMetric('展示',searchMetrics.impressions)}${integrationMetric('点击率',searchMetrics.ctr==null?null:(Number(searchMetrics.ctr)*100).toFixed(2)+'%')}${integrationMetric('平均排名',searchMetrics.average_position)}</div></div>
+      </div>
+    </div>`;
+}
+
+async function saveSemrushIntegration() {
+  const key=(($('#semrush-api-key')||{}).value||'').trim();
+  if(!key){toast('请输入 Semrush API Key','err');return}
+  const result=await post('/api/integrations',{action:'save_semrush',api_key:key,database:(($('#semrush-database')||{}).value||'us')});
+  if(result.error||result.detail){toast('保存失败：'+(result.error||result.detail),'err');return}
+  INTEGRATION_STATE=null;toast('数据源连接已更新');render();
+}
+
+async function disconnectIntegration(provider) {
+  if(!confirm('确认断开此数据源？历史同步快照将保留。'))return;
+  const result=await post('/api/integrations',{action:'disconnect',provider:provider});
+  if(result.error||result.detail){toast('断开失败：'+(result.error||result.detail),'err');return}
+  INTEGRATION_STATE=null;toast('数据源连接已更新');render();
+}
+
+async function syncIntegration(provider) {
+  const result=await post('/api/integrations',{action:'sync',provider:provider});
+  if(!result.job_id){toast('同步失败：'+(result.error||result.detail||'integration_sync_failed'),'err');return}
+  INTEGRATION_STATE=null;RUNNING=result.job_id;LASTJOB=result.job_id;LOGOFF=0;renderSide();pollJob();toast('同步任务已创建');
 }
 
 function samplingFundingPanel(state) {
@@ -1011,10 +1112,11 @@ vSettings = async function () {
   if (!BRANDING_STATE) BRANDING_STATE = await api('/api/delivery-branding');
   if (!SSO_STATE) SSO_STATE = await api('/api/v1/sso/config');
   if (SSO_STATE.can_edit && !AUDIT_STATE) AUDIT_STATE = await api('/api/v1/sso/audit-events');
+  if (!INTEGRATION_STATE) INTEGRATION_STATE = await api('/api/integrations');
   const funding = await api('/api/sampling-funding');
   const html = await engineSettingsView();
   const index = html.lastIndexOf('</div>');
-  const panels = samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel() + ssoPanel();
+  const panels = samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel() + integrationPanel() + ssoPanel();
   return index < 0 ? html + panels : html.slice(0,index) + panels + html.slice(index);
 };
 VIEWS.settings = vSettings;

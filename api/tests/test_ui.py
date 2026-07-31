@@ -155,6 +155,14 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "技術的統制は準備済みですが、DisvorAI は SOC 2 認証を取得していません。" in response.text
     assert ".sso-form-grid{grid-template-columns:1fr}" in response.text
     assert ".sso-section-title{padding-left:20px" in response.text
+    assert "/api/v1/integrations/semrush" in response.text
+    assert "'/integrations/' + encodeURIComponent(body.provider) + '/sync'" in response.text
+    assert "function integrationPanel()" in response.text
+    assert "function syncIntegration(provider)" in response.text
+    assert "Google Search Console" in response.text
+    assert "自然搜索与站点表现" in response.text
+    assert ".integration-grid{grid-template-columns:1fr}" in response.text
+    assert ".integration-section-title{padding-left:20px" in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text
     assert "后台任务队列执行" in response.text

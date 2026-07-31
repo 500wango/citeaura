@@ -38,6 +38,9 @@ class Tenant(Base):
         "SsoConfiguration", back_populates="tenant", cascade="all, delete-orphan", uselist=False,
     )
     audit_events = relationship("AuditEvent", back_populates="tenant", cascade="all, delete-orphan")
+    integration_credentials = relationship(
+        "IntegrationCredential", back_populates="tenant", cascade="all, delete-orphan",
+    )
 
 
 class User(Base):
@@ -224,3 +227,20 @@ class AuditEvent(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
 
     tenant = relationship("Tenant", back_populates="audit_events")
+
+
+class IntegrationCredential(Base):
+    __tablename__ = "integration_credentials"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "provider", name="uq_integration_credentials_tenant_provider"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider = Column(String(64), nullable=False)
+    encrypted_value = Column(Text, nullable=False)
+    config_json = Column(Text, nullable=False, default="{}", server_default="{}")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    tenant = relationship("Tenant", back_populates="integration_credentials")

@@ -13,7 +13,8 @@ from api.adapters.workspace import preserve_manual_tickets
 from api.billing.limits import check_sample_run
 from api.billing.platform_pool import meter_platform_calls, record_usage, resolve_funding
 from api.db import SessionLocal
-from api.models import Job, Project, Tenant
+from api.models import IntegrationCredential, Job, Project, Tenant
+from api.settings.crypto import decrypt_key
 from api.worker.celery_app import celery_app
 
 
@@ -455,3 +456,65 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
             if action in ("deliver", "autopilot", "serve"):
                 ensure_delivery_contract(project_slug)
             return result
+
+
+@celery_app.task(name="disvorai.sync_integration")
+def task_sync_integration(tenant_id: str, project_slug: str, provider: str, job_id=None):
+    """同步外部搜索数据，并把快照写入项目文件系统。"""
+    from api.adapters import integrations
+
+    if provider not in integrations.PROVIDERS:
+        raise ValueError("unsupported integration provider")
+    action = f"integration_{provider}"
+    db = SessionLocal()
+    try:
+        tenant = _tenant_record(db, tenant_id)
+        if tenant is None:
+            raise ValueError("tenant_not_found")
+        project = db.query(Project).filter(
+            Project.tenant_id == tenant.id,
+            Project.slug == project_slug,
+        ).first()
+        if project is None:
+            raise ValueError("project_not_found")
+        project_url = project.url
+        tenant_name = tenant.name
+        tenant_db_id = tenant.id
+        project_db_id = project.id
+    finally:
+        db.close()
+
+    with _job_status(tenant_name, project_slug, action, job_id):
+        credential_db = SessionLocal()
+        try:
+            credential = credential_db.query(IntegrationCredential).filter(
+                IntegrationCredential.tenant_id == tenant_db_id,
+                IntegrationCredential.provider == provider,
+            ).first()
+            if credential is None:
+                raise ValueError("integration_not_configured")
+            secret = decrypt_key(credential.encrypted_value)
+            credential_settings = integrations.credential_config(credential)
+            selected_property = (credential_settings.get("properties") or {}).get(str(project_db_id))
+        finally:
+            credential_db.close()
+        with with_tenant_context(tenant_name, project_slug):
+            if provider == "semrush":
+                snapshot = integrations.sync_semrush(
+                    project_url,
+                    secret,
+                    database=credential_settings.get("database", "us"),
+                )
+            else:
+                snapshot = integrations.sync_search_console(
+                    project_url,
+                    secret,
+                    property_url=selected_property,
+                )
+            integrations.save_snapshot(project_slug, provider, snapshot)
+            return {
+                "status": "done",
+                "provider": provider,
+                "project_slug": project_slug,
+                "metrics": snapshot.get("metrics", {}),
+            }

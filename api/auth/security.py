@@ -36,7 +36,13 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-def create_token(user_id: int, tenant_id: int, token_type: str, expires_delta: timedelta) -> str:
+def create_token(
+    user_id: int,
+    tenant_id: int,
+    token_type: str,
+    expires_delta: timedelta,
+    extra_claims: dict | None = None,
+) -> str:
     """签发带用户、租户和类型声明的 JWT。"""
     now = datetime.now(timezone.utc)
     payload = {
@@ -46,6 +52,7 @@ def create_token(user_id: int, tenant_id: int, token_type: str, expires_delta: t
         "iat": now,
         "exp": now + expires_delta,
     }
+    payload.update(extra_claims or {})
     return jwt.encode(payload, _jwt_secret(), algorithm=JWT_ALGORITHM)
 
 
@@ -62,6 +69,17 @@ def create_refresh_token(user_id: int, tenant_id: int) -> str:
 def create_sso_state(tenant_id: int) -> str:
     """签发十分钟有效的 OIDC state。"""
     return create_token(0, tenant_id, "sso_state", timedelta(minutes=10))
+
+
+def create_google_oauth_state(user_id: int, tenant_id: int, project_id: int) -> str:
+    """签发十分钟有效的 Search Console OAuth state。"""
+    return create_token(
+        user_id,
+        tenant_id,
+        "google_oauth_state",
+        timedelta(minutes=10),
+        {"project_id": int(project_id)},
+    )
 
 
 def decode_token(token: str, expected_type: str = "access") -> dict:

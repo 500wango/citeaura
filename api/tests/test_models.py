@@ -52,6 +52,7 @@ def test_initial_schema_contains_all_tables():
         "api_keys",
         "audit_events",
         "jobs",
+        "integration_credentials",
         "sso_configurations",
         "subscriptions",
         "team_invitations",
