@@ -167,17 +167,34 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     geolib.write_json(
         project_dir / "tasks.json",
         {
-            "summary": {"total": 1, "by_status": {"todo": 1}},
-            "tasks": [{
-                "id": "T-001", "title": "Fix it", "priority": "P0", "package": "页面技术",
-                "market": "both", "status": "todo", "evidence": [],
-                "acceptance": {"type": "manual", "desc": "done"},
-            }],
+            "generated_at": "2026-07-31T12:00:00+08:00",
+            "summary": {"total": 3, "by_status": {"todo": 3}},
+            "tasks": [
+                {
+                    "id": "T-003", "title": "Later", "priority": "P1", "effort": "S",
+                    "package": "内容矩阵", "market": "both", "status": "todo", "evidence": [],
+                    "acceptance": {"type": "manual", "desc": "done"},
+                },
+                {
+                    "id": "T-002", "title": "First tie", "priority": "P0", "effort": "M",
+                    "package": "页面技术", "market": "both", "status": "todo", "evidence": [],
+                    "acceptance": {"type": "manual", "desc": "done"},
+                },
+                {
+                    "id": "T-001", "title": "Second tie", "priority": "P0", "effort": "M",
+                    "package": "页面技术", "market": "both", "status": "todo", "evidence": [],
+                    "acceptance": {"type": "manual", "desc": "done"},
+                },
+            ],
         },
     )
     tickets = client.get(f"/api/v1/projects/{body['project_id']}/tickets", headers=headers)
     assert tickets.status_code == 200
-    assert tickets.json()["tickets"][0]["id"] == "T-001"
+    assert tickets.json()["tickets"][0]["id"] == "T-003"
+    playbook = client.get(f"/api/v1/projects/{body['project_id']}/playbook", headers=headers)
+    assert playbook.status_code == 200
+    assert [item["id"] for item in playbook.json()["playbook"]] == ["T-002", "T-001", "T-003"]
+    assert playbook.json()["generated_at"] == "2026-07-31T12:00:00+08:00"
     updated = client.patch(
         f"/api/v1/projects/{body['project_id']}/tickets/T-001",
         headers=headers,

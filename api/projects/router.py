@@ -24,6 +24,8 @@ from api.worker.tasks import PIPELINE_ACTIONS, task_bootstrap, task_deliver, tas
 
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
+PLAYBOOK_PRIORITY = {"P0": 0, "P1": 1, "P2": 2}
+PLAYBOOK_EFFORT = {"S": 0, "M": 1, "L": 2}
 
 
 class ProjectCreate(BaseModel):
@@ -471,6 +473,33 @@ def project_tickets(project_id: int, current_user: User = Depends(get_current_us
 
         data = engine_tasks.load(project.slug)
     return {"tickets": data.get("tasks", []), "summary": data.get("summary", {})}
+
+
+@router.get("/{project_id}/playbook")
+def project_playbook(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """按影响、工作量和原始顺序稳定返回 Playbook。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.name, project.slug):
+        import tasks as engine_tasks
+
+        data = engine_tasks.load(project.slug)
+    indexed = [
+        (index, ticket)
+        for index, ticket in enumerate(data.get("tasks", []))
+        if isinstance(ticket, dict)
+    ]
+    indexed.sort(key=lambda pair: (
+        pair[1].get("status") in ("done", "wontfix"),
+        PLAYBOOK_PRIORITY.get(pair[1].get("priority"), 99),
+        PLAYBOOK_EFFORT.get(pair[1].get("effort"), 99),
+        pair[0],
+    ))
+    return {
+        "playbook": [ticket for _, ticket in indexed],
+        "summary": data.get("summary", {}),
+        "generated_at": data.get("generated_at"),
+    }
 
 
 @router.post("/{project_id}/tickets", status_code=status.HTTP_201_CREATED)

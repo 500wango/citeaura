@@ -58,6 +58,16 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "offsiteTicketModal" in response.text
     assert "'/tickets'" in response.text
     assert "influenced_questions" in response.text
+    assert "AES-256-GCM 加密保存" in response.text
+    assert "Key 已加密保存" in response.text
+    assert "<summary style=\"font-size:12.5px;color:var(--t500);cursor:pointer\">高级设置</summary>" in response.text
+    assert '<span class="tag tag-dim">未测</span>' in response.text
+    assert "写入项目根目录 .env" not in response.text
+    assert "已写入 .env" not in response.text
+    assert "单机自托管版，无账号体系" not in response.text
+    assert 'onclick="setMonitor(' not in response.text
+    assert 'onclick="stopJob()"' not in response.text
+    assert 'onclick="pubModal()"' not in response.text
 
 
 def test_project_files_use_cookie_auth_and_remain_tenant_isolated(ui_client):

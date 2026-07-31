@@ -375,6 +375,71 @@ def serve_ui():
         'Disvor<span style="color:var(--accent)">AI</span>',
     )
     html = html.replace(
+        '点「配置」填 Key 和模型，写入项目根目录 .env，立即生效。无 API 的引擎走人工采样表。',
+        'API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。无公开 API 的引擎走人工采样表。',
+    )
+    html = html.replace("确定从 .env 删除 ${esc(k.env)}？", "确定删除 ${esc(k.label)} 的 API Key？")
+    html = html.replace("toast(r.ok?'已写入 .env'", "toast(r.ok?'Key 已加密保存'")
+    html = html.replace(
+        '团队与权限：单机自托管版，无账号体系；服务只绑定 127.0.0.1。多人使用需自行加反向代理与认证。',
+        '当前工作区按租户隔离；成员邀请与角色管理暂未开放。',
+    )
+    html = html.replace(
+        '<td style="font-size:13px;color:var(--t600)">0</td>\n        <td><span class="tag tag-dim">未采样</span></td>',
+        '<td style="font-size:13px;color:var(--t600)">—</td>\n        <td><span class="tag tag-dim">未测</span></td>',
+    )
+    html = html.replace(
+        "${WB.cur&&WB.cur.kind==='content'?`<button class=\"btn btn-primary\" style=\"font-size:12px\" onclick=\"pubModal()\">发布到渠道…</button>`:''}",
+        "",
+    )
+    html = html.replace(
+        '''        <div class="row" style="gap:6px;align-items:center;padding-top:4px;box-shadow:inset 0 1px 0 var(--line)">
+          <span style="font-size:12px;color:var(--t500)">周期复跑</span>
+          ${[0,7,14,30].map(dd=>`<button class="btn ${monCur===dd?'btn-secondary':'btn-ghost'}" style="font-size:11.5px;padding:3px 9px" onclick="setMonitor(${dd})">${dd?('每 '+dd+' 天'):'关'}</button>`).join('')}
+          ${monCur?`<span class="muted" style="font-size:11.5px">下次 ${esc(mon.next_run||'')} · 到期后看板运行时自动跑完整一期</span>`:''}
+        </div>
+''',
+        "",
+        1,
+    )
+    html = html.replace(
+        '''    <div class="card elev" style="padding:18px;gap:10px;margin-top:14px">
+      <div><div style="font-size:15px;font-weight:500">发布渠道</div>
+        <div style="font-size:11.5px;color:var(--t600)">把成稿从「内容工作台」发到你自己的渠道。凭证写 .env；<b>发布永远由你手动点击，没有自动发布</b>；公众号 / WordPress 只建草稿，在各自后台确认后才对外。</div></div>
+      ${((PUB&&PUB.publishers)||[]).map((x,i)=>`<div class="row" style="padding:6px 0;box-shadow:inset 0 -1px 0 var(--line)">
+        <span class="dot" style="background:${x.missing.length?'#595d6c':'var(--a400)'}"></span>
+        <span style="flex:1;font-size:13px">${esc(x.name)}<span class="muted" style="font-size:11px;margin-left:6px">${esc(x.note)}</span></span>
+        <span style="font-size:11.5px;color:var(--t600)">${x.missing.length?('缺 '+x.missing.map(esc).join('、')):'已就绪'}</span>
+        <button class="btn btn-ghost" style="font-size:12px;padding:2px 8px" onclick="editPub(${i})">配置</button></div>`).join('')}
+      ${(PUB&&(PUB.records||[]).length)?`<div style="font-size:12px;color:var(--t500);margin-top:4px">最近发布：
+        ${PUB.records.slice(-3).reverse().map(r=>`<div style="padding:2px 0;color:var(--t400)">${r.ok?'✓':'✗'} ${esc((r.at||'').slice(0,16).replace('T',' '))} ${esc(r.platform_name)} · ${esc(r.title)} ${r.url?`<a href="${esc(r.url)}" target="_blank" style="color:var(--a300)">链接</a>`:esc(r.note||r.error||'')}</div>`).join('')}</div>`:''}
+    </div>
+''',
+        "",
+        1,
+    )
+    html = html.replace(
+        '''      <div class="field"><label>官网域名 *</label><input id="ob-url" class="input" placeholder="https://example.com" value="${esc(ST.obUrl||'')}"></div>
+      <div class="field"><label>品牌名称（留空自动从网页识别）</label><input id="ob-name" class="input" value="${esc(ST.obName||'')}"></div>
+      <div class="field"><label>目标市场</label><div class="seg">
+        ${[['cn','国内引擎'],['global','海外引擎'],['both','两者都要']].map(([m,l])=>`<label class="seg-opt"><input type="radio" name="obm" value="${m}" ${(ST.obMkt||'both')===m?'checked':''}>${l}</label>`).join('')}</div></div>
+      <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" id="ob-nosample" style="width:auto" ${ST.obNoSample?'checked':''}> 首期跳过采样（省时间，可稍后补）</label>
+''',
+        '''      <div class="field"><label>官网域名 *</label><input id="ob-url" class="input" placeholder="https://example.com" value="${esc(ST.obUrl||'')}"></div>
+      <details style="padding-top:2px"><summary style="font-size:12.5px;color:var(--t500);cursor:pointer">高级设置</summary>
+        <div class="field"><label>品牌名称（留空自动从网页识别）</label><input id="ob-name" class="input" value="${esc(ST.obName||'')}"></div>
+        <div class="field"><label>目标市场</label><div class="seg">
+          ${[['cn','国内引擎'],['global','海外引擎'],['both','两者都要']].map(([m,l])=>`<label class="seg-opt"><input type="radio" name="obm" value="${m}" ${(ST.obMkt||'both')===m?'checked':''}>${l}</label>`).join('')}</div></div>
+        <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" id="ob-nosample" style="width:auto" ${ST.obNoSample?'checked':''}> 首期跳过采样（省时间，可稍后补）</label>
+      </details>
+''',
+        1,
+    )
+    html = html.replace(
+        "${RUNNING?`<button class=\"btn btn-secondary\" style=\"font-size:12px\" onclick=\"stopJob()\">停止任务</button>`:''}",
+        "",
+    )
+    html = html.replace(
         '<button class="btn btn-primary" onclick="runAction(\'verify\')">自动验收</button>',
         '<button class="btn btn-secondary" onclick="offsiteTicketModal()">创建 Offsite 工单</button>'
         '<button class="btn btn-primary" onclick="runAction(\'verify\')">自动验收</button>',
