@@ -174,6 +174,12 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert ".outreach-smtp-grid,.outreach-identity-grid{grid-template-columns:1fr!important}" in response.text
     assert ".settings-section-subtitle{padding-left:20px}" in response.text
     assert "white-space:pre-wrap;overflow-wrap:anywhere" in response.text
+    assert "/api/v1/billing/subscribe" in response.text
+    assert "function billingPanel()" in response.text
+    assert "function setBillingInterval(value)" in response.text
+    assert "BILLING_ANNUAL_DISCOUNT_PERCENT" not in response.text
+    assert "年付优惠" in response.text
+    assert ".billing-plan-grid{grid-template-columns:1fr}" in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text
     assert "后台任务队列执行" in response.text

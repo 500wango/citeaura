@@ -145,10 +145,16 @@ class Job(Base):
 
 class Subscription(Base):
     __tablename__ = "subscriptions"
+    __table_args__ = (
+        CheckConstraint("billing_interval IN ('monthly', 'annual')", name="ck_subscriptions_billing_interval"),
+    )
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     plan = Column(String(32), nullable=False)
+    billing_interval = Column(String(16), nullable=False, default="monthly", server_default="monthly")
+    amount_cny_fen = Column(Integer, nullable=True)
+    amount_usd_cents = Column(Integer, nullable=True)
     started_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=True)
 

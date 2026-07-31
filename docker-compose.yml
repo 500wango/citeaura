@@ -8,6 +8,7 @@ x-app: &app
     REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     JWT_SECRET: ${JWT_SECRET:-}
     AES_KEY: ${AES_KEY:-}
+    BILLING_ANNUAL_DISCOUNT_PERCENT: ${BILLING_ANNUAL_DISCOUNT_PERCENT:-16.67}
   depends_on:
     postgres:
       condition: service_healthy

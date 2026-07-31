@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import Job, Project, Tenant
+from api.models import Job, Project, Subscription, Tenant
 from api.projects import router as project_router
 
 
@@ -120,6 +120,53 @@ def test_subscribe_upgrades_plan_and_opens_limits(billing_client):
     assert usage.json()["plan"] == "pro"
     assert usage.json()["projects_limit"] is None
     assert usage.json()["sample_runs_limit_per_project"] is None
+
+
+def test_annual_plan_catalog_and_subscription_snapshot(billing_client, monkeypatch):
+    client, session_factory = billing_client
+    headers = _register(client, "annual-owner@example.com")
+    monkeypatch.setenv("BILLING_ANNUAL_DISCOUNT_PERCENT", "16.67")
+
+    plans = client.get("/api/v1/billing/plans").json()["plans"]
+    pro = next(plan for plan in plans if plan["code"] == "pro")
+    assert pro["prices"]["monthly"] == {"cny": 199, "usd": 29, "months": 1}
+    assert pro["prices"]["annual"] == {"cny": 1990, "usd": 290, "months": 12}
+    assert pro["annual_savings_cny"] == 398
+    assert pro["annual_discount_percent"] == 16.67
+
+    subscribed = client.post(
+        "/api/v1/billing/subscribe",
+        headers=headers,
+        json={"plan": "pro", "billing_interval": "annual"},
+    )
+    assert subscribed.status_code == 200
+    result = subscribed.json()
+    assert result["billing_interval"] == "annual"
+    assert result["amount_cny_fen"] == 199000
+    assert result["amount_usd_cents"] == 29000
+    started = datetime.fromisoformat(result["started_at"])
+    expires = datetime.fromisoformat(result["expires_at"])
+    assert (expires.year, expires.month, expires.day) == (started.year + 1, started.month, started.day)
+
+    with session_factory() as db:
+        snapshot = db.query(Subscription).one()
+        assert snapshot.billing_interval == "annual"
+        assert snapshot.amount_cny_fen == 199000
+
+    usage = client.get("/api/v1/billing/usage", headers=headers).json()
+    assert usage["subscription"]["billing_interval"] == "annual"
+    assert usage["subscription"]["amount_cny_fen"] == 199000
+
+
+def test_subscribe_rejects_invalid_billing_interval(billing_client):
+    client, _ = billing_client
+    headers = _register(client, "invalid-interval@example.com")
+    response = client.post(
+        "/api/v1/billing/subscribe",
+        headers=headers,
+        json={"plan": "pro", "billing_interval": "weekly"},
+    )
+    assert response.status_code == 422
 
 
 def test_expired_trial_cannot_create_projects(billing_client):

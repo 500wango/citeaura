@@ -2,6 +2,7 @@
 
 import math
 import os
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -75,3 +76,12 @@ def platform_pool_key(provider_key_env):
 
 def platform_pool_prices():
     return os.getenv("PLATFORM_POOL_PRICES_CNY_FEN", "{}").strip()
+
+
+def billing_annual_discount_percent():
+    """返回年付折扣百分比，非法配置回退到付 10 个月。"""
+    try:
+        value = Decimal(os.getenv("BILLING_ANNUAL_DISCOUNT_PERCENT", "16.67"))
+    except InvalidOperation:
+        return Decimal("16.67")
+    return value if value.is_finite() and Decimal("0") <= value < Decimal("100") else Decimal("16.67")

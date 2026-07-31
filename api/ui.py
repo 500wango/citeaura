@@ -48,6 +48,9 @@ SETTINGS_RESPONSIVE_STYLE = r"""
 .sso-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .sso-audit-row{display:grid;grid-template-columns:minmax(128px,.7fr) minmax(180px,1fr) minmax(160px,1.4fr) auto;gap:10px;align-items:center;padding:8px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12px}
 .integration-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.billing-plan-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.billing-interval-switch{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.billing-interval-switch button{min-width:72px;border:0;border-radius:0}
 @media (max-width:700px){
   .settings-core-grid{grid-template-columns:1fr!important}
   .sso-form-grid{grid-template-columns:1fr}
@@ -59,6 +62,8 @@ SETTINGS_RESPONSIVE_STYLE = r"""
   .settings-section-subtitle{padding-left:20px}
   .outreach-smtp-grid,.outreach-identity-grid{grid-template-columns:1fr!important}
   .integration-grid{grid-template-columns:1fr}
+  .billing-section-title{padding-left:20px;scroll-margin-top:12px}
+  .billing-plan-grid{grid-template-columns:1fr}
   .playbook-page{padding:24px 18px 56px}
   .playbook-page-head{align-items:flex-start!important;flex-direction:column}
   .playbook-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
@@ -578,6 +583,22 @@ FETCH_ADAPTER = r"""
       });
       return response({error:'outreach_action_invalid'}, 400);
     }
+    if (url === '/api/billing') {
+      if (!init.body) {
+        const results = await Promise.all([
+          nativeFetch('/api/v1/billing/plans', init),
+          nativeFetch('/api/v1/billing/usage', init)
+        ]);
+        const catalog = await results[0].json().catch(function () { return {}; });
+        const usage = await results[1].json().catch(function () { return {}; });
+        return response(Object.assign({}, catalog, {usage:usage}), results[1].status);
+      }
+      const body = JSON.parse(init.body);
+      return nativeFetch('/api/v1/billing/subscribe', {
+        method:'POST',headers:init.headers,
+        body:JSON.stringify({plan:body.plan,billing_interval:body.billing_interval})
+      });
+    }
     return response({error:'legacy_ui_endpoint_not_supported'}, 404);
   };
   async function acceptPendingInvitation() {
@@ -786,6 +807,9 @@ Object.assign(UI_D.en, {
   '确认并入队':'Confirm and queue','草稿已保存':'Draft saved','发送任务已创建':'Send job created','SMTP 凭证使用 AES-256-GCM 加密保存。':'SMTP credentials are encrypted with AES-256-GCM.',
   '发送前必须检查最终内容并输入与草稿匹配的确认短语。':'Before sending, review the final content and type the confirmation phrase for this draft.',
   '待编辑':'Draft','已排队':'Queued','发送中':'Sending','已发送':'Sent','发送失败':'Failed'
+  ,'套餐与账单':'Plans and billing','月付':'Monthly','年付':'Annual','年付优惠':'Annual discount','每年':'per year','每月':'per month',
+  '当前套餐':'Current plan','选择套餐':'Choose plan','续订套餐':'Renew plan','定制报价':'Custom pricing','年付节省':'Annual savings',
+  '订阅已更新':'Subscription updated','套餐信息加载失败':'Failed to load plan information','到期时间':'Expires','无限采样':'Unlimited sampling'
 });
 Object.assign(UI_D.ja, {
   '团队成员':'チームメンバー','工作区':'ワークスペース','邀请成员':'メンバーを招待','待接受邀请':'保留中の招待',
@@ -821,6 +845,9 @@ Object.assign(UI_D.ja, {
   '确认并入队':'確認してキューへ','草稿已保存':'下書きを保存しました','发送任务已创建':'送信ジョブを作成しました','SMTP 凭证使用 AES-256-GCM 加密保存。':'SMTP 認証情報は AES-256-GCM で暗号化保存されます。',
   '发送前必须检查最终内容并输入与草稿匹配的确认短语。':'送信前に最終内容を確認し、この下書き用の確認フレーズを入力してください。',
   '待编辑':'下書き','已排队':'キュー済み','发送中':'送信中','已发送':'送信済み','发送失败':'送信失敗'
+  ,'套餐与账单':'プランと請求','月付':'月払い','年付':'年払い','年付优惠':'年払い割引','每年':'年間','每月':'月間',
+  '当前套餐':'現在のプラン','选择套餐':'プランを選択','续订套餐':'プランを更新','定制报价':'個別見積もり','年付节省':'年間割引',
+  '订阅已更新':'サブスクリプションを更新しました','套餐信息加载失败':'プラン情報を読み込めませんでした','到期时间':'有効期限','无限采样':'無制限サンプリング'
 });
 
 let TEAM_STATE = null;
@@ -829,7 +856,42 @@ let SSO_STATE = null;
 let AUDIT_STATE = null;
 let INTEGRATION_STATE = null;
 let OUTREACH_STATE = null;
+let BILLING_STATE = null;
+let BILLING_INTERVAL = 'monthly';
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
+
+function billingPanel() {
+  const state=BILLING_STATE||{},plans=state.plans||[],usage=state.usage||{};
+  if(state.error||state.detail||usage.error||usage.detail)return `<h4 class="billing-section-title" style="font-size:16px;margin:28px 0 10px">套餐与账单</h4>
+    <div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">套餐信息加载失败</div>`;
+  const subscription=usage.subscription||{},owner=TEAM_STATE&&TEAM_STATE.current_role==='owner';
+  const expires=subscription.expires_at?String(subscription.expires_at).replace('T',' ').slice(0,10):'';
+  return `<h4 class="billing-section-title" style="font-size:16px;margin:28px 0 10px">套餐与账单</h4>
+    <div class="card elev" style="padding:18px;gap:14px">
+      <div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:170px"><div style="font-size:15px;font-weight:500">${esc(String(usage.plan||'trial').toUpperCase())}</div>
+        ${expires?`<div style="font-size:11.5px;color:var(--t600);margin-top:3px">到期时间 ${esc(expires)}</div>`:''}</div>
+        <div class="billing-interval-switch"><button class="btn ${BILLING_INTERVAL==='monthly'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('monthly')">月付</button><button class="btn ${BILLING_INTERVAL==='annual'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('annual')">年付</button></div></div>
+      <div class="billing-plan-grid">${plans.map(function(plan){const price=(plan.prices||{})[BILLING_INTERVAL]||{},current=usage.plan===plan.code,currentInterval=current&&subscription.billing_interval===BILLING_INTERVAL,custom=price.cny==null;return `<div style="display:flex;flex-direction:column;min-width:0;min-height:188px;padding:14px;border:1px solid ${current?'var(--a700)':'var(--line)'};border-radius:var(--r-md);background:var(--bg)">
+          <div class="row"><strong style="font-size:14px">${esc(plan.name)}</strong>${current?'<span class="tag tag-accent">当前套餐</span>':''}</div>
+          <div style="font-size:22px;margin-top:13px">${custom?'定制报价':'¥'+Number(price.cny).toLocaleString()}${custom?'':`<span style="font-size:11px;color:var(--t600)"> / ${BILLING_INTERVAL==='annual'?'每年':'每月'}</span>`}</div>
+          ${BILLING_INTERVAL==='annual'&&!custom?`<div style="font-size:11.5px;color:var(--good);margin-top:4px">年付优惠 ${Number(plan.annual_discount_percent||0).toFixed(2)}% · 年付节省 ¥${Number(plan.annual_savings_cny||0).toLocaleString()}</div>`:'<div style="height:21px"></div>'}
+          <div style="font-size:11.5px;color:var(--t600);margin-top:9px">${plan.projects==null?'Enterprise SLA':esc(String(plan.projects))+' projects'} · 无限采样</div>
+          ${!custom&&owner?`<button class="btn ${currentInterval?'btn-secondary':'btn-primary'}" ${currentInterval?'disabled':''} style="margin-top:auto;width:100%" onclick="subscribeBilling('${esc(plan.code)}')">${currentInterval?'当前套餐':current?'续订套餐':'选择套餐'}</button>`:''}
+        </div>`;}).join('')}</div>
+    </div>`;
+}
+
+function setBillingInterval(value){BILLING_INTERVAL=value==='annual'?'annual':'monthly';render();}
+
+async function subscribeBilling(plan){
+  const selected=(BILLING_STATE.plans||[]).find(function(item){return item.code===plan;});
+  const price=selected&&selected.prices&&selected.prices[BILLING_INTERVAL];
+  if(!price||price.cny==null)return;
+  if(!confirm(`确认订阅 ${selected.name}，${BILLING_INTERVAL==='annual'?'年付':'月付'} ¥${Number(price.cny).toLocaleString()}？`))return;
+  const result=await post('/api/billing',{plan:plan,billing_interval:BILLING_INTERVAL});
+  if(result.error||result.detail){toast('订阅失败：'+(result.error||result.detail),'err');return}
+  BILLING_STATE=null;toast('订阅已更新');render();
+}
 
 function ssoPanel() {
   const state=SSO_STATE||{};
@@ -1200,10 +1262,11 @@ vSettings = async function () {
   if (SSO_STATE.can_edit && !AUDIT_STATE) AUDIT_STATE = await api('/api/v1/sso/audit-events');
   if (!INTEGRATION_STATE) INTEGRATION_STATE = await api('/api/integrations');
   if (!OUTREACH_STATE) OUTREACH_STATE = await api('/api/outreach');
+  if (!BILLING_STATE) BILLING_STATE = await api('/api/billing');
   const funding = await api('/api/sampling-funding');
   const html = await engineSettingsView();
   const index = html.lastIndexOf('</div>');
-  const panels = samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel() + integrationPanel() + outreachPanel() + ssoPanel();
+  const panels = billingPanel() + samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel() + integrationPanel() + outreachPanel() + ssoPanel();
   return index < 0 ? html + panels : html.slice(0,index) + panels + html.slice(index);
 };
 VIEWS.settings = vSettings;
