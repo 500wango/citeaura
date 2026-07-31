@@ -54,6 +54,15 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "if (!r.ok) {\n        const registration" not in response.text
     assert "id = 'disvorai-logout'" in response.text
     assert "window.disvoraiLogout = logout" in response.text
+    assert 'class="global-rail"' in response.text
+    assert 'class="module-panel"' in response.text
+    assert "const ADMIN_MODULES = [" in response.text
+    assert "{route:'engines',label:{zh:'AI 可见性'" in response.text
+    assert "{route:'project-settings',label:{zh:'项目设置'" in response.text
+    assert "/site-assets/icons/layout-dashboard.svg" in response.text
+    assert 'id="nav-scrim"' in response.text
+    assert '@media (min-width:900px) and (max-width:1199px)' in response.text
+    assert '@media (max-width:899px)' in response.text
     assert "const rawFetch = window.fetch.bind(window)" in response.text
     assert "/api/v1/projects" in response.text
     assert "/api/v1/settings/keys" in response.text

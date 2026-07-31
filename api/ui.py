@@ -76,6 +76,94 @@ SETTINGS_RESPONSIVE_STYLE = r"""
 """
 
 
+ADMIN_SHELL_STYLE = r"""
+body{overflow-x:hidden}
+#side{width:284px;display:flex;flex-direction:row;gap:0;padding:0;background:var(--side);overflow:visible;height:100dvh}
+.global-rail{position:relative;z-index:2;width:60px;flex:none;display:flex;flex-direction:column;align-items:center;padding:12px 6px 10px;background:#131522;box-shadow:inset -1px 0 0 rgba(233,233,237,.10)}
+.rail-brand{display:grid;place-items:center;width:38px;height:38px;border:0;border-radius:8px;background:transparent;cursor:pointer}
+.rail-brand:hover{background:rgba(233,233,237,.07)}
+.rail-brand img{display:block;width:30px;height:30px}
+.rail-modules{display:flex;flex-direction:column;align-items:stretch;gap:4px;width:100%;margin-top:18px}
+.rail-action{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:48px;min-height:46px;padding:5px 2px;border:0;border-radius:7px;background:transparent;color:var(--t600);font:500 10px/1.2 var(--font);letter-spacing:0;cursor:pointer}
+.rail-action:hover{background:rgba(233,233,237,.06);color:var(--t400)}
+.rail-action:active{transform:translateY(1px)}
+.rail-action[aria-current="page"]{background:var(--a900);color:var(--a300);box-shadow:inset 2px 0 0 var(--accent)}
+.rail-action .admin-icon{width:19px;height:19px}
+.rail-footer{display:flex;flex-direction:column;align-items:center;gap:5px;margin-top:auto}
+.rail-logout{min-height:38px}
+.rail-action[data-tooltip]::after{position:absolute;left:54px;top:50%;z-index:80;max-width:180px;transform:translate(4px,-50%);padding:6px 8px;border:1px solid var(--divider);border-radius:5px;background:var(--surface);box-shadow:var(--sh-md);color:var(--text);font:12px/1.2 var(--font);white-space:nowrap;content:attr(data-tooltip);opacity:0;pointer-events:none;transition:opacity .12s,transform .12s}
+.rail-action[data-tooltip]:hover::after,.rail-action[data-tooltip]:focus-visible::after{opacity:1;transform:translate(0,-50%)}
+.module-panel{position:relative;z-index:1;width:224px;min-width:0;display:flex;flex-direction:column;padding:18px 12px 14px;background:var(--side);box-shadow:inset -1px 0 0 rgba(233,233,237,.10)}
+.module-heading{display:flex;align-items:center;gap:8px;padding:0 7px 12px}
+.module-heading strong{flex:1;min-width:0;font-size:16px;font-weight:600;letter-spacing:0}
+.module-close{display:none;width:30px;height:30px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--t500);cursor:pointer}
+.module-close:hover{background:rgba(233,233,237,.06);color:var(--text)}
+.project-switcher{display:flex;align-items:center;gap:9px;width:100%;min-height:58px;margin:0 0 16px;padding:9px 10px;border:1px solid var(--divider);border-radius:7px;background:var(--deep);color:var(--text);text-align:left;cursor:pointer}
+.project-switcher:hover{border-color:var(--t700);background:var(--surface)}
+.project-switcher-copy{flex:1;min-width:0}
+.project-switcher-label{display:block;margin-bottom:2px;color:var(--t600);font-size:10px;line-height:1.2;letter-spacing:0}
+.project-switcher-name{display:block;overflow:hidden;color:var(--text);font-size:13px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap}
+.project-switcher .admin-icon{width:15px;height:15px;color:var(--t500)}
+.module-nav{display:flex;flex:1;min-height:0;flex-direction:column;gap:16px;overflow-y:auto;overscroll-behavior:contain;padding-right:1px}
+.module-nav-group{display:flex;flex-direction:column;gap:2px}
+.module-nav-label{padding:0 8px 5px;color:var(--t600);font-size:10px;font-weight:500;line-height:1.3;letter-spacing:0}
+.module-link{display:flex;align-items:center;gap:8px;width:100%;min-height:34px;padding:7px 9px;border:0;border-radius:6px;background:transparent;color:var(--t400);font:500 13px/1.3 var(--font);letter-spacing:0;text-align:left;cursor:pointer}
+.module-link:hover{background:rgba(233,233,237,.05);color:var(--text)}
+.module-link:active{transform:translateY(1px)}
+.module-link[aria-current="page"]{background:var(--a900);color:var(--text);box-shadow:inset 2px 0 0 var(--accent)}
+.module-link-label{flex:1;min-width:0;overflow-wrap:anywhere}
+.module-link .bdg{flex:none;color:var(--t600);font-size:10.5px}
+.module-meta{margin-top:14px;padding:11px 8px 0;box-shadow:inset 0 1px 0 var(--line);color:var(--t600);font-size:10.5px;line-height:1.5}
+.module-run{display:flex;align-items:center;gap:6px;margin-top:5px;padding:3px 0;border:0;background:transparent;color:var(--a300);font:500 11.5px/1.3 var(--font);cursor:pointer;text-align:left}
+.module-run:hover{color:var(--text)}
+.module-languages{display:flex;align-items:center;gap:3px;margin-top:10px}
+.module-language{min-width:30px;padding:4px 6px;border:0;border-radius:5px;background:transparent;color:var(--t600);font:500 10.5px/1.2 var(--font);cursor:pointer}
+.module-language:hover{background:rgba(233,233,237,.06);color:var(--t400)}
+.module-language[aria-current="true"]{background:var(--a900);color:var(--a300)}
+.admin-icon{display:inline-block;flex:none;width:18px;height:18px;background:currentColor;mask:var(--admin-icon) center/contain no-repeat;-webkit-mask:var(--admin-icon) center/contain no-repeat}
+.icon-layout-dashboard{--admin-icon:url('/site-assets/icons/layout-dashboard.svg')}
+.icon-radar{--admin-icon:url('/site-assets/icons/radar.svg')}
+.icon-scan-search{--admin-icon:url('/site-assets/icons/scan-search.svg')}
+.icon-list-checks{--admin-icon:url('/site-assets/icons/list-checks.svg')}
+.icon-package-check{--admin-icon:url('/site-assets/icons/package-check.svg')}
+.icon-settings-2{--admin-icon:url('/site-assets/icons/settings-2.svg')}
+.icon-chevron-down{--admin-icon:url('/site-assets/icons/chevron-down.svg')}
+.icon-log-out{--admin-icon:url('/site-assets/icons/log-out.svg')}
+.icon-x{--admin-icon:url('/site-assets/icons/x.svg')}
+.icon-menu{--admin-icon:url('/site-assets/icons/menu.svg')}
+#burger{width:36px;height:36px;padding:0;border-color:var(--divider);background:var(--side);box-shadow:var(--sh-sm)}
+#burger .admin-icon{width:18px;height:18px}
+#nav-scrim{display:none;position:fixed;inset:0;z-index:45;border:0;background:rgba(9,10,17,.58);cursor:pointer}
+@media (max-width:1199px){
+  .module-close{display:grid;place-items:center}
+  #side{z-index:50}
+  #side.open+#nav-scrim{display:block}
+}
+@media (min-width:900px) and (max-width:1199px){
+  #side{width:60px;position:sticky;left:0;top:0}
+  .module-panel{position:fixed;left:60px;top:0;height:100dvh;transform:translateX(calc(-100% - 2px));box-shadow:var(--sh-md);transition:transform .2s cubic-bezier(.16,1,.3,1)}
+  #side.open .module-panel{transform:translateX(0)}
+  #burger{display:none}
+}
+@media (max-width:899px){
+  #burger{display:grid;place-items:center;top:10px;left:10px}
+  #side{position:fixed;left:calc(-100vw - 20px);top:0;width:min(320px,calc(100vw - 36px));transition:left .2s cubic-bezier(.16,1,.3,1);box-shadow:var(--sh-md)}
+  #side.open{left:0}
+  .global-rail{width:60px}
+  .module-panel{width:auto;flex:1}
+  #main{margin-left:0;padding-top:52px}
+  .rail-action[data-tooltip]::after{display:none}
+}
+@media (max-width:420px){
+  #side{width:calc(100vw - 24px)}
+  .module-panel{padding-inline:10px}
+}
+@media (prefers-reduced-motion:reduce){
+  .module-panel,#side,.rail-action[data-tooltip]::after{transition:none}
+}
+"""
+
+
 FETCH_ADAPTER = r"""
 <script>
 (function () {
@@ -780,28 +868,113 @@ FETCH_ADAPTER = r"""
 
 UI_EXTENSION = r"""
 <script>
-function installAccountActions() {
-  const side = document.querySelector('#side'), nav = side && side.querySelector('nav');
-  if (!nav || document.querySelector('#disvorai-logout')) return;
-  const accountGroup = nav.lastElementChild;
-  if (!accountGroup) return;
-  const labels = {zh:'退出登录',en:'Sign out',ja:'ログアウト'};
-  const button = document.createElement('button');
-  button.id = 'disvorai-logout';
-  button.className = 'navit';
-  button.type = 'button';
-  button.setAttribute('aria-label', labels[ULANG] || labels.zh);
-  button.innerHTML = '<span class="mark"></span><span>' + (labels[ULANG] || labels.zh) + '</span>';
-  button.addEventListener('click', function () { button.disabled = true; window.disvoraiLogout(); });
-  accountGroup.appendChild(button);
+const ADMIN_MODULES = [
+  {id:'overview',icon:'layout-dashboard',label:{zh:'概览',en:'Overview',ja:'概要'},defaultRoute:'overview',groups:[
+    {items:[{route:'overview',label:{zh:'项目概览',en:'Project overview',ja:'プロジェクト概要'}}]}
+  ]},
+  {id:'monitoring',icon:'radar',label:{zh:'监测',en:'Monitoring',ja:'モニタリング'},defaultRoute:'engines',groups:[
+    {items:[
+      {route:'engines',label:{zh:'AI 可见性',en:'AI visibility',ja:'AI 可視性'}},
+      {route:'competitors',label:{zh:'竞品分析',en:'Competitor analysis',ja:'競合分析'}},
+      {route:'questions',label:{zh:'监测问题',en:'Tracked questions',ja:'モニタリング質問'}}
+    ]}
+  ]},
+  {id:'diagnosis',icon:'scan-search',label:{zh:'诊断',en:'Diagnosis',ja:'診断'},defaultRoute:'siteaudit',groups:[
+    {items:[
+      {route:'siteaudit',label:{zh:'网站审计',en:'Website audit',ja:'サイト監査'}},
+      {route:'gaps',label:{zh:'内容差距',en:'Content gaps',ja:'コンテンツギャップ'}},
+      {route:'channels',label:{zh:'渠道机会',en:'Channel opportunities',ja:'チャネル機会'}},
+      {route:'facts',label:{zh:'品牌知识库',en:'Brand knowledge',ja:'ブランドナレッジ'}}
+    ]}
+  ]},
+  {id:'execution',icon:'list-checks',label:{zh:'执行',en:'Execution',ja:'実行'},defaultRoute:'plan',groups:[
+    {items:[
+      {route:'plan',label:{zh:'优化任务',en:'Optimization tasks',ja:'最適化タスク'}},
+      {route:'workbench',label:{zh:'内容生产',en:'Content production',ja:'コンテンツ制作'}},
+      {route:'assets',label:{zh:'可部署资产',en:'Deployable assets',ja:'配置可能なアセット'}},
+      {route:'outreach',label:{zh:'外链联络',en:'Link outreach',ja:'外部リンク連絡'}}
+    ]}
+  ]},
+  {id:'delivery',icon:'package-check',label:{zh:'交付',en:'Delivery',ja:'納品'},defaultRoute:'verify',groups:[
+    {items:[
+      {route:'verify',label:{zh:'成效验证',en:'Outcome verification',ja:'成果検証'}},
+      {route:'report',label:{zh:'报告交付',en:'Reports',ja:'レポート納品'}},
+      {route:'publishing',label:{zh:'渠道发布',en:'Channel publishing',ja:'チャネル公開'}},
+      {route:'branding',label:{zh:'白标交付',en:'White-label delivery',ja:'ホワイトラベル納品'}}
+    ]}
+  ]},
+  {id:'management',icon:'settings-2',label:{zh:'管理',en:'Admin',ja:'管理'},defaultRoute:'project-settings',groups:[
+    {label:{zh:'项目',en:'Project',ja:'プロジェクト'},items:[
+      {route:'project-settings',label:{zh:'项目设置',en:'Project settings',ja:'プロジェクト設定'}},
+      {route:'automation',label:{zh:'运行与调度',en:'Runs and schedules',ja:'実行とスケジュール'}},
+      {route:'archive',label:{zh:'数据归档',en:'Data archive',ja:'データアーカイブ'}}
+    ]},
+    {label:{zh:'连接',en:'Connections',ja:'接続'},items:[
+      {route:'engine-settings',label:{zh:'引擎与采样',en:'Engines and sampling',ja:'エンジンとサンプリング'}},
+      {route:'integrations',label:{zh:'数据集成',en:'Data integrations',ja:'データ連携'}}
+    ]},
+    {label:{zh:'组织',en:'Organization',ja:'組織'},items:[
+      {route:'team',label:{zh:'团队与权限',en:'Team and access',ja:'チームと権限'}},
+      {route:'billing',label:{zh:'套餐与账单',en:'Plans and billing',ja:'プランと請求'}},
+      {route:'security',label:{zh:'企业安全',en:'Enterprise security',ja:'エンタープライズセキュリティ'}}
+    ]}
+  ]}
+];
+const ADMIN_ROUTE_ALIASES = {settings:'project-settings'};
+
+function adminText(value) { return value && (value[ULANG] || value.zh) || ''; }
+function adminCanonicalRoute(route) { return ADMIN_ROUTE_ALIASES[route] || route; }
+function adminModuleForRoute(route) {
+  const canonical=adminCanonicalRoute(route);
+  return ADMIN_MODULES.find(function(module){
+    return module.groups.some(function(group){return group.items.some(function(item){return item.route===canonical;});});
+  }) || ADMIN_MODULES[0];
+}
+function closeAdminNav(){const side=$('#side');if(side)side.classList.remove('open');}
+function openAdminModule(moduleId){
+  const module=ADMIN_MODULES.find(function(item){return item.id===moduleId;}) || ADMIN_MODULES[0];
+  const current=adminModuleForRoute(R);
+  if(current.id===module.id&&window.innerWidth<1200){const side=$('#side');if(side)side.classList.toggle('open');return;}
+  go(module.defaultRoute);
+  if(window.innerWidth<1200)setTimeout(function(){const side=$('#side');if(side)side.classList.add('open');},0);
 }
 
-const engineRenderSideWithAccount = renderSide;
+function installAccountActions() {
+  const button = document.querySelector('[data-admin-logout]');
+  if (!button || button.dataset.bound === 'true') return;
+  const labels = {zh:'退出登录',en:'Sign out',ja:'ログアウト'};
+  button.id = 'disvorai-logout';
+  button.setAttribute('aria-label', labels[ULANG] || labels.zh);
+  button.dataset.bound = 'true';
+  button.addEventListener('click', function () { button.disabled = true; window.disvoraiLogout(); });
+}
+
 renderSide = function () {
-  engineRenderSideWithAccount();
+  const activeRoute=adminCanonicalRoute(R),module=adminModuleForRoute(activeRoute),brand=(D&&D.brand)||{};
+  const updated=(D&&D.analytics&&D.analytics.latest_date)||'—';
+  const languageLabel={zh:'语言',en:'Language',ja:'言語'}[ULANG]||'语言';
+  const runLabel={zh:'跑完整一期',en:'Run full cycle',ja:'フルサイクルを実行'}[ULANG]||'跑完整一期';
+  const runningLabel={zh:'任务运行中',en:'Job running',ja:'ジョブ実行中'}[ULANG]||'任务运行中';
+  const updatedLabel={zh:'数据更新',en:'Data updated',ja:'データ更新'}[ULANG]||'数据更新';
+  $('#side').innerHTML=`<div class="global-rail">
+    <button class="rail-brand" type="button" onclick="go('overview')" aria-label="DisvorAI"><img src="/site-assets/favicon.png" width="30" height="30" alt=""></button>
+    <div class="rail-modules" role="navigation" aria-label="${esc(adminText({zh:'主模块',en:'Main modules',ja:'メインモジュール'}))}">
+      ${ADMIN_MODULES.map(function(item){const selected=item.id===module.id,label=adminText(item.label);return `<button class="rail-action" type="button" data-tooltip="${esc(label)}" aria-label="${esc(label)}" ${selected?'aria-current="page"':''} onclick="openAdminModule('${item.id}')"><span class="admin-icon icon-${item.icon}" aria-hidden="true"></span><span>${esc(label)}</span></button>`;}).join('')}
+    </div>
+    <div class="rail-footer"><button class="rail-action rail-logout" type="button" data-admin-logout data-tooltip="${esc(({zh:'退出登录',en:'Sign out',ja:'ログアウト'})[ULANG]||'退出登录')}"><span class="admin-icon icon-log-out" aria-hidden="true"></span></button></div>
+  </div>
+  <div class="module-panel">
+    <div class="module-heading"><strong>${esc(adminText(module.label))}</strong><button class="module-close" type="button" onclick="closeAdminNav()" aria-label="${esc(({zh:'关闭导航',en:'Close navigation',ja:'ナビゲーションを閉じる'})[ULANG]||'关闭导航')}"><span class="admin-icon icon-x" aria-hidden="true"></span></button></div>
+    <button class="project-switcher" type="button" onclick="switchModal()"><span class="project-switcher-copy"><span class="project-switcher-label">${esc(adminText({zh:'当前项目',en:'Current project',ja:'現在のプロジェクト'}))}</span><span class="project-switcher-name" title="${esc(brand.name||'—')}">${esc(brand.name||'—')}</span></span><span class="admin-icon icon-chevron-down" aria-hidden="true"></span></button>
+    <nav class="module-nav" aria-label="${esc(adminText(module.label))}">
+      ${module.groups.map(function(group){return `<div class="module-nav-group">${group.label?`<div class="module-nav-label">${esc(adminText(group.label))}</div>`:''}${group.items.map(function(item){const selected=item.route===activeRoute;return `<button class="module-link" type="button" ${selected?'aria-current="page"':''} onclick="go('${item.route}')"><span class="module-link-label">${esc(adminText(item.label))}</span><span class="bdg">${esc(badge(item.route))}</span></button>`;}).join('')}</div>`;}).join('')}
+    </nav>
+    <div class="module-meta"><div>${esc(updatedLabel)} ${esc(updated)}</div>${RUNNING?`<div style="margin-top:5px"><span class="spin"></span>${esc(runningLabel)}</div>`:`<button class="module-run" type="button" onclick="runAction('serve')">${esc(runLabel)}</button>`}
+      <div class="module-languages" role="group" aria-label="${esc(languageLabel)}">${[['zh','中'],['en','EN'],['ja','日']].map(function(item){return `<button class="module-language" type="button" ${ULANG===item[0]?'aria-current="true"':''} onclick="setLang('${item[0]}')">${item[1]}</button>`;}).join('')}</div>
+    </div>
+  </div>`;
   installAccountActions();
 };
-setTimeout(installAccountActions, 0);
 
 async function downloadDelivery(date) {
   const result = await fetch('/api/delivery-zip/' + encodeURIComponent(SLUG) + '/' + encodeURIComponent(date));
@@ -1660,7 +1833,20 @@ def serve_ui():
         'Geo<span style="color:var(--accent)">Look</span>',
         'Disvor<span style="color:var(--accent)">AI</span>',
     )
-    html = html.replace("</style>", SETTINGS_RESPONSIVE_STYLE + "</style>", 1)
+    html = html.replace("</style>", SETTINGS_RESPONSIVE_STYLE + ADMIN_SHELL_STYLE + "</style>", 1)
+    html = html.replace(
+        '<button id="burger" class="btn btn-secondary" onclick="document.getElementById(\'side\').classList.toggle(\'open\')">☰</button>',
+        '<button id="burger" class="btn btn-secondary" type="button" aria-label="打开导航" '
+        'onclick="document.getElementById(\'side\').classList.toggle(\'open\')">'
+        '<span class="admin-icon icon-menu" aria-hidden="true"></span></button>',
+        1,
+    )
+    html = html.replace(
+        '<aside id="side"></aside>',
+        '<aside id="side"></aside><button id="nav-scrim" type="button" aria-label="关闭导航" '
+        'onclick="document.getElementById(\'side\').classList.remove(\'open\')"></button>',
+        1,
+    )
     html = html.replace(
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:26px">',
         '<div class="settings-core-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:26px">',
