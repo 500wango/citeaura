@@ -116,6 +116,18 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "function saveDeliveryBranding()" in response.text
     assert "打印 / PDF 页眉" in response.text
     assert "Agency 套餐可用" in response.text
+    assert "/api/v1/projects/' + id + '/sampling-funding" in response.text
+    assert "function samplingFundingPanel(state)" in response.text
+    assert "async function setPlatformPool(enabled)" in response.text
+    assert "BYOK 始终优先" in response.text
+    assert "API·联网" in response.text
+    assert "API·参数化" in response.text
+    assert "本月费用" in response.text
+    assert "费用信息加载失败" in response.text
+    assert "仅所有者可更改" in response.text
+    assert "缺少 BYOK 的引擎将按页面所示单价逐次收费" in response.text
+    assert 'class="settings-core-grid"' in response.text
+    assert ".settings-core-grid{grid-template-columns:1fr!important}" in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text
     assert "后台任务队列执行" in response.text

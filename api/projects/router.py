@@ -13,11 +13,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from api.adapters.engine import ENGINE_KEY_ENV, geolib, job_log_path, with_tenant_context
+from api.adapters.engine import ENGINE_KEY_ENV, geolib, job_log_path, load_tenant_keys, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import framing, workspace
-from api.auth.deps import get_current_user, require_editor
+from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
+from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.db import get_db
 from api.models import ApiKey, Job, Project, Tenant, User
 from api.worker.tasks import PIPELINE_ACTIONS, task_bootstrap, task_deliver, task_pipeline, task_sample, task_verify
@@ -94,6 +95,10 @@ class ScheduleRequest(BaseModel):
         return value
 
 
+class SamplingFundingRequest(BaseModel):
+    platform_pool_enabled: bool
+
+
 def _error(status_code: int, message: str):
     """抛出统一 API 错误。"""
     raise HTTPException(status_code=status_code, detail={"error": message})
@@ -166,6 +171,32 @@ def _schedule_payload(project: Project):
         "interval_days": project.schedule_interval_days or 0,
         "next_run_at": project.schedule_next_run_at,
         "last_enqueued_at": project.schedule_last_enqueued_at,
+    }
+
+
+def _sampling_funding_payload(db, tenant, project, user):
+    byok = sorted(load_tenant_keys(db, tenant.id))
+    catalog = public_catalog()
+    pool_codes = {item["engine_code"] for item in catalog}
+    effective = []
+    for code in sorted(set(ENGINE_KEY_ENV) | pool_codes):
+        if code in byok:
+            source = "byok"
+        elif project.platform_pool_enabled and tenant.plan in PAID_PLANS and code in pool_codes:
+            source = "platform_pool"
+        else:
+            source = "unavailable"
+        effective.append({"engine_code": code, "source": source})
+    return {
+        "project_id": project.id,
+        "platform_pool_enabled": bool(project.platform_pool_enabled),
+        "eligible": tenant.plan in PAID_PLANS,
+        "can_edit": getattr(user, "tenant_role", None) == "owner",
+        "plan": tenant.plan,
+        "byok_engines": byok,
+        "pool_engines": catalog,
+        "effective_engines": effective,
+        "usage": usage_summary(db, tenant),
     }
 
 
@@ -364,6 +395,38 @@ def project_schedule(project_id: int, current_user: User = Depends(get_current_u
     """返回项目周期复跑设置。"""
     project = _project_for_user(db, current_user, project_id)
     return {"schedule": _schedule_payload(project)}
+
+
+@router.get("/{project_id}/sampling-funding")
+def sampling_funding(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """返回项目采样的 BYOK/平台代付来源及本月计费。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    return _sampling_funding_payload(db, tenant, project, current_user)
+
+
+@router.put("/{project_id}/sampling-funding")
+def update_sampling_funding(
+    project_id: int,
+    payload: SamplingFundingRequest,
+    current_user: User = Depends(require_owner),
+    db: Session = Depends(get_db),
+):
+    """owner 显式启停按量计费的平台 Key 后备。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    if payload.platform_pool_enabled:
+        if tenant.plan not in PAID_PLANS:
+            _error(status.HTTP_403_FORBIDDEN, "platform_pool_paid_plan_required")
+        if not public_catalog():
+            _error(status.HTTP_409_CONFLICT, "platform_pool_unavailable")
+    project.platform_pool_enabled = payload.platform_pool_enabled
+    db.commit()
+    return _sampling_funding_payload(db, tenant, project, current_user)
 
 
 @router.post("/{project_id}/schedule")

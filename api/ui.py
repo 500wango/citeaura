@@ -16,6 +16,12 @@ from api.models import Project, Tenant, User
 router = APIRouter(tags=["ui"])
 UI_PATH = Path(__file__).resolve().parents[1] / "engine" / "scripts" / "ui.html"
 
+SETTINGS_RESPONSIVE_STYLE = r"""
+@media (max-width:700px){
+  .settings-core-grid{grid-template-columns:1fr!important}
+}
+"""
+
 
 FETCH_ADAPTER = r"""
 <script>
@@ -476,6 +482,13 @@ FETCH_ADAPTER = r"""
         method:init.body ? 'PUT' : 'GET', headers:init.headers, body:init.body
       });
     }
+    if (url === '/api/sampling-funding') {
+      const id = projectIds.get(SLUG);
+      if (!id) return response({error:'project_not_found'}, 404);
+      return nativeFetch('/api/v1/projects/' + id + '/sampling-funding', {
+        method:init.body ? 'PUT' : 'GET', headers:init.headers, body:init.body
+      });
+    }
     return response({error:'legacy_ui_endpoint_not_supported'}, 404);
   };
   async function acceptPendingInvitation() {
@@ -626,7 +639,11 @@ Object.assign(UI_D.en, {
   '团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'Team members use owner, editor, and viewer roles. Invitation links expire after 7 days.',
   '白标交付':'White-label delivery','打印 / PDF 页眉':'Print / PDF header','机构名称':'Organization name',
   '主题色':'Accent color','页脚文字':'Footer text','启用白标':'Enable white label','选择 Logo':'Choose logo',
-  '移除 Logo':'Remove logo','保存白标设置':'Save branding','Agency 套餐可用':'Available on Agency plan'
+  '移除 Logo':'Remove logo','保存白标设置':'Save branding','Agency 套餐可用':'Available on Agency plan',
+  '采样费用':'Sampling costs','平台代付':'Platform-funded sampling','本月调用':'Calls this month','本月费用':'Cost this month',
+  'BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台 Key 并按次计费。':'BYOK always takes priority. Platform keys are used and billed per call only when the matching API key is missing.',
+  '当前套餐不可用':'Not available on the current plan','平台暂未配置可用引擎':'No platform-funded engines are currently available',
+  '仅所有者可更改':'Only owners can change this setting','费用信息加载失败':'Failed to load cost information'
 });
 Object.assign(UI_D.ja, {
   '团队成员':'チームメンバー','工作区':'ワークスペース','邀请成员':'メンバーを招待','待接受邀请':'保留中の招待',
@@ -635,12 +652,64 @@ Object.assign(UI_D.ja, {
   '团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'メンバーは owner、editor、viewer のロールで管理され、招待リンクは 7 日間有効です。',
   '白标交付':'ホワイトラベル納品','打印 / PDF 页眉':'印刷 / PDF ヘッダー','机构名称':'組織名',
   '主题色':'アクセントカラー','页脚文字':'フッターテキスト','启用白标':'ホワイトラベルを有効化','选择 Logo':'ロゴを選択',
-  '移除 Logo':'ロゴを削除','保存白标设置':'ブランド設定を保存','Agency 套餐可用':'Agency プランで利用可能'
+  '移除 Logo':'ロゴを削除','保存白标设置':'ブランド設定を保存','Agency 套餐可用':'Agency プランで利用可能',
+  '采样费用':'サンプリング費用','平台代付':'プラットフォーム負担','本月调用':'今月の呼び出し','本月费用':'今月の費用',
+  'BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台 Key 并按次计费。':'BYOK が常に優先されます。対応する API キーがない場合のみ、プラットフォームキーを使用して従量課金します。',
+  '当前套餐不可用':'現在のプランでは利用できません','平台暂未配置可用引擎':'利用可能なプラットフォームエンジンはまだありません',
+  '仅所有者可更改':'オーナーのみ変更できます','费用信息加载失败':'費用情報を読み込めませんでした'
 });
 
 let TEAM_STATE = null;
 let BRANDING_STATE = null;
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
+
+function samplingFundingPanel(state) {
+  state = state || {};
+  if (state.error) return `<h4 style="font-size:16px;margin:28px 0 10px">采样费用</h4>
+    <div class="card elev" style="padding:18px"><div class="row"><span style="flex:1;font-size:13px;color:var(--t500)">费用信息加载失败</span>
+      <button class="btn btn-secondary" style="font-size:12px" onclick="render()">刷新</button></div></div>`;
+  const pool = state.pool_engines || [], usage = state.usage || {};
+  const effective = Object.fromEntries((state.effective_engines || []).map(function (item) { return [item.engine_code,item.source]; }));
+  const canEnable = !!state.eligible && pool.length > 0;
+  const sourceLabel = {byok:'BYOK',platform_pool:'平台代付',unavailable:'不可用'};
+  return `<h4 style="font-size:16px;margin:28px 0 10px">采样费用</h4>
+    <div class="card elev" style="padding:18px;gap:12px">
+      <div class="row" style="align-items:flex-start"><div style="flex:1;min-width:220px">
+        <div style="font-size:15px;font-weight:500">平台代付</div>
+        <div style="font-size:11.5px;color:var(--t600);margin-top:3px;line-height:1.55">BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台 Key 并按次计费。</div></div>
+        <label class="row" style="gap:7px;font-size:12.5px;white-space:nowrap"><input id="platform-pool-enabled" type="checkbox"
+          ${state.platform_pool_enabled?'checked':''} ${state.can_edit&&canEnable?'':'disabled'} onchange="setPlatformPool(this.checked)">启用</label></div>
+      ${!state.eligible?`<div style="font-size:12px;color:var(--t500)">当前套餐不可用 (${esc(String(state.plan || 'trial').toUpperCase())})</div>`:''}
+      ${state.eligible&&!state.can_edit?'<div style="font-size:12px;color:var(--t500)">仅所有者可更改</div>':''}
+      ${state.eligible&&!pool.length?'<div style="font-size:12px;color:var(--t500)">平台暂未配置可用引擎</div>':''}
+      ${pool.length?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">
+        ${pool.map(function (item) { const source = effective[item.engine_code] || 'unavailable'; return `<div style="padding:10px 11px;border:1px solid var(--line);border-radius:var(--r-md);min-width:0">
+          <div class="row" style="gap:6px"><span style="flex:1;font-size:13px;overflow-wrap:anywhere">${esc(item.engine_name || item.engine_code)}</span>
+            <span class="tag ${source==='platform_pool'?'tag-accent':'tag-outline'}">${esc(sourceLabel[source] || source)}</span></div>
+          <div style="font-size:11.5px;color:var(--t600);margin-top:5px">${esc(item.sampling_mode)} · ¥${(Number(item.unit_price_cny_fen || 0)/100).toFixed(2)} / 次</div></div>`; }).join('')}</div>`:''}
+      <div class="row" style="gap:24px;padding-top:10px;box-shadow:inset 0 1px 0 var(--line)">
+        <div><div style="font-size:10.5px;color:var(--t600)">本月调用</div><div style="font-size:17px;margin-top:2px">${Number(usage.calls || 0).toLocaleString()}</div></div>
+        <div><div style="font-size:10.5px;color:var(--t600)">本月费用</div><div style="font-size:17px;margin-top:2px">¥${esc(usage.cost_cny || '0.00')}</div></div>
+        <div style="font-size:11.5px;color:var(--t600);margin-left:auto">${esc(usage.month || '')}</div></div>
+    </div>`;
+}
+
+async function setPlatformPool(enabled) {
+  const input = $('#platform-pool-enabled');
+  if (enabled && !confirm('启用平台代付后，缺少 BYOK 的引擎将按页面所示单价逐次收费。确认启用？')) {
+    if (input) input.checked=false;
+    return;
+  }
+  if (input) input.disabled=true;
+  const result = await post('/api/sampling-funding',{platform_pool_enabled:enabled});
+  if (result.error || result.detail) {
+    if (input) { input.checked=!enabled; input.disabled=false; }
+    toast('更新失败：'+(result.error || result.detail || 'sampling_funding_update_failed'),'err');
+    return;
+  }
+  toast(enabled?'平台代付已启用':'平台代付已关闭');
+  render();
+}
 
 function deliveryBrandingPanel() {
   const state = BRANDING_STATE || {}, value = state.branding || {};
@@ -795,9 +864,10 @@ const engineSettingsView = VIEWS.settings;
 vSettings = async function () {
   if (!TEAM_STATE) TEAM_STATE = await api('/api/team');
   if (!BRANDING_STATE) BRANDING_STATE = await api('/api/delivery-branding');
+  const funding = await api('/api/sampling-funding');
   const html = await engineSettingsView();
   const index = html.lastIndexOf('</div>');
-  const panels = deliveryBrandingPanel() + teamPanel();
+  const panels = samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel();
   return index < 0 ? html + panels : html.slice(0,index) + panels + html.slice(index);
 };
 VIEWS.settings = vSettings;
@@ -848,6 +918,12 @@ def serve_ui():
     html = html.replace(
         'Geo<span style="color:var(--accent)">Look</span>',
         'Disvor<span style="color:var(--accent)">AI</span>',
+    )
+    html = html.replace("</style>", SETTINGS_RESPONSIVE_STYLE + "</style>", 1)
+    html = html.replace(
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:26px">',
+        '<div class="settings-core-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:26px">',
+        1,
     )
     html = html.replace(
         '点「配置」填 Key 和模型，写入项目根目录 .env，立即生效。无 API 的引擎走人工采样表。',

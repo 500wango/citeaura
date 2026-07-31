@@ -38,3 +38,11 @@ def session_cookie_secure():
 
 def work_root(default: Path):
     return Path(os.getenv("WORK_ROOT", str(default))).resolve()
+
+
+def platform_pool_key(provider_key_env):
+    return os.getenv(f"PLATFORM_POOL_{provider_key_env}", "").strip()
+
+
+def platform_pool_prices():
+    return os.getenv("PLATFORM_POOL_PRICES_CNY_FEN", "{}").strip()

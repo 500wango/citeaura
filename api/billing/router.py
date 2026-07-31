@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from api.auth.deps import get_current_user, require_owner
 from api.billing.limits import usage
+from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.db import get_db
 from api.models import Subscription, Tenant, User
 
@@ -39,13 +40,29 @@ def billing_usage(current_user: User = Depends(get_current_user), db: Session = 
     tenant = db.get(Tenant, current_user.tenant_id)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
-    return usage(db, tenant)
+    result = usage(db, tenant)
+    result["platform_pool"] = usage_summary(db, tenant)
+    return result
 
 
 @router.get("/plans")
 def billing_plans():
     """返回可用套餐及其展示价格。"""
     return {"plans": [{"code": code, **details} for code, details in PLANS.items()]}
+
+
+@router.get("/platform-pool")
+def platform_pool(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """返回平台代付可用引擎和每次逻辑调用单价，不返回服务端密钥。"""
+    tenant = db.get(Tenant, current_user.tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
+    return {
+        "eligible": tenant.plan in PAID_PLANS,
+        "plan": tenant.plan,
+        "engines": public_catalog(),
+        "usage": usage_summary(db, tenant),
+    }
 
 
 @router.post("/subscribe")

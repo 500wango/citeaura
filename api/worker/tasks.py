@@ -11,6 +11,7 @@ from api.adapters.delivery import ensure_delivery_contract
 from api.adapters.engine import job_log_path, load_tenant_keys, with_tenant_context
 from api.adapters.workspace import preserve_manual_tickets
 from api.billing.limits import check_sample_run
+from api.billing.platform_pool import meter_platform_calls, record_usage, resolve_funding
 from api.db import SessionLocal
 from api.models import Job, Project, Tenant
 from api.worker.celery_app import celery_app
@@ -37,6 +38,10 @@ PIPELINE_ACTIONS = {
         "args": ["--max-pages", "--limit", "--no-sample", "--draft", "--draft-limit"],
     },
 }
+
+PLATFORM_FUNDED_ACTIONS = frozenset((
+    "bootstrap", "sample", "cycle", "expand", "generate", "autopilot", "serve",
+))
 
 _ACTION_METHODS = {
     "crawl": "cmd_crawl",
@@ -173,6 +178,33 @@ def _engine_keys(tenant_id):
         db.close()
 
 
+def _engine_funding(tenant_id, project_slug, allow_pool=True):
+    """读取项目有效密钥及其中由平台池承担的引擎。"""
+    db = SessionLocal()
+    try:
+        return resolve_funding(db, tenant_id, project_slug, allow_pool=allow_pool)
+    except SQLAlchemyError:
+        db.rollback()
+        return {
+            "keys": {}, "pool_codes": frozenset(), "rates": {},
+            "tenant_id": None, "project_id": None,
+        }
+    finally:
+        db.close()
+
+
+@contextmanager
+def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_pool=True):
+    """注入 BYOK/平台池密钥，并在退出时持久化平台代付逻辑调用。"""
+    funding = _engine_funding(tenant_id, project_slug, allow_pool=allow_pool)
+    with with_tenant_context(str(tenant_id), project_slug, keys=funding["keys"]):
+        with meter_platform_calls(funding["pool_codes"]) as counts:
+            try:
+                yield
+            finally:
+                record_usage(funding, counts, action, job_id=job_id)
+
+
 def _as_utc(value):
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
@@ -279,7 +311,7 @@ def task_bootstrap(
 
     args = SimpleNamespace(slug=project_slug, skip_llm=skip_llm, no_sample=no_sample, limit=None)
     with _job_status(tenant_id, project_slug, job_action, job_id):
-        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
+        with _funded_engine_context(tenant_id, project_slug, job_action, job_id=job_id):
             with preserve_manual_tickets(project_slug):
                 geo.cmd_autopilot(args)
             ensure_delivery_contract(project_slug)
@@ -298,7 +330,7 @@ def task_sample(
     import sample
 
     with _job_status(tenant_id, project_slug, "sample", job_id):
-        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
+        with _funded_engine_context(tenant_id, project_slug, "sample", job_id=job_id):
             return sample.run(project_slug, platforms=platforms, limit=limit)
 
 
@@ -309,7 +341,7 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
 
     args = SimpleNamespace(slug=project_slug, max_pages=None, limit=None)
     with _job_status(tenant_id, project_slug, "cycle", job_id):
-        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
+        with _funded_engine_context(tenant_id, project_slug, "cycle", job_id=job_id):
             geo.cmd_cycle(args)
             return {"status": "done", "project_slug": project_slug}
 
@@ -408,7 +440,13 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
 def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, job_id=None):
     """执行经过白名单校验的完整引擎动作。"""
     with _job_status(tenant_id, project_slug, action, job_id):
-        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
+        with _funded_engine_context(
+            tenant_id,
+            project_slug,
+            action,
+            job_id=job_id,
+            allow_pool=action in PLATFORM_FUNDED_ACTIONS,
+        ):
             if action in ("plan", "autopilot", "serve"):
                 with preserve_manual_tickets(project_slug):
                     result = _run_pipeline_action(action, project_slug, params)

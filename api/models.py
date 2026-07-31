@@ -1,6 +1,7 @@
 """SaaS 数据模型。"""
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     Date,
@@ -32,6 +33,7 @@ class Tenant(Base):
     subscriptions = relationship("Subscription", back_populates="tenant", cascade="all, delete-orphan")
     usage_counters = relationship("UsageCounter", back_populates="tenant", cascade="all, delete-orphan")
     invitations = relationship("TeamInvitation", back_populates="tenant", cascade="all, delete-orphan")
+    platform_usage = relationship("PlatformUsage", back_populates="tenant", cascade="all, delete-orphan")
 
 
 class User(Base):
@@ -97,10 +99,12 @@ class Project(Base):
     schedule_interval_days = Column(Integer, nullable=True)
     schedule_next_run_at = Column(DateTime(timezone=True), nullable=True, index=True)
     schedule_last_enqueued_at = Column(DateTime(timezone=True), nullable=True)
+    platform_pool_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     tenant = relationship("Tenant", back_populates="projects")
     jobs = relationship("Job", back_populates="project", cascade="all, delete-orphan")
+    platform_usage = relationship("PlatformUsage", back_populates="project", cascade="all, delete-orphan")
 
 
 class ApiKey(Base):
@@ -129,6 +133,7 @@ class Job(Base):
     log_path = Column(String(2048), nullable=True)
 
     project = relationship("Project", back_populates="jobs")
+    platform_usage = relationship("PlatformUsage", back_populates="job")
 
 
 class Subscription(Base):
@@ -150,5 +155,32 @@ class UsageCounter(Base):
     month = Column(Date, primary_key=True)
     sample_runs = Column(Integer, nullable=False, default=0, server_default="0")
     projects_active = Column(Integer, nullable=False, default=0, server_default="0")
+    platform_calls = Column(Integer, nullable=False, default=0, server_default="0")
+    platform_cost_cny_fen = Column(Integer, nullable=False, default=0, server_default="0")
 
     tenant = relationship("Tenant", back_populates="usage_counters")
+
+
+class PlatformUsage(Base):
+    __tablename__ = "platform_usage"
+    __table_args__ = (
+        CheckConstraint("calls > 0", name="ck_platform_usage_calls_positive"),
+        CheckConstraint("unit_price_cny_fen >= 0", name="ck_platform_usage_unit_price_nonnegative"),
+        CheckConstraint("amount_cny_fen >= 0", name="ck_platform_usage_amount_nonnegative"),
+        UniqueConstraint("job_id", "engine_code", name="uq_platform_usage_job_engine"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True)
+    action = Column(String(64), nullable=False)
+    engine_code = Column(String(64), nullable=False)
+    calls = Column(Integer, nullable=False)
+    unit_price_cny_fen = Column(Integer, nullable=False)
+    amount_cny_fen = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+
+    tenant = relationship("Tenant", back_populates="platform_usage")
+    project = relationship("Project", back_populates="platform_usage")
+    job = relationship("Job", back_populates="platform_usage")

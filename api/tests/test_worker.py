@@ -26,13 +26,17 @@ def test_celery_registers_all_pipeline_tasks():
         "disvorai.dispatch_schedules",
     } <= registered
     assert celery_app.conf.beat_schedule["dispatch-due-project-schedules"]["task"] == "disvorai.dispatch_schedules"
+    assert {"bootstrap", "sample", "cycle", "expand", "generate", "autopilot", "serve"} == set(
+        tasks.PLATFORM_FUNDED_ACTIONS
+    )
+    assert {"verify", "deliver", "plan"}.isdisjoint(tasks.PLATFORM_FUNDED_ACTIONS)
 
 
 def test_bootstrap_task_uses_tenant_context(monkeypatch):
     calls = []
 
     @contextmanager
-    def fake_context(tenant_id, project_slug, keys=None):
+    def fake_context(tenant_id, project_slug, action, job_id=None, allow_pool=True):
         calls.append((tenant_id, project_slug))
         yield
 
@@ -45,7 +49,7 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
         yield
 
     monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_autopilot=fake_autopilot))
-    monkeypatch.setattr(tasks, "with_tenant_context", fake_context)
+    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
     monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
@@ -65,8 +69,8 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
     calls = []
 
     @contextmanager
-    def fake_context(tenant_id, project_slug, keys=None):
-        calls.append(("context", tenant_id, project_slug, keys))
+    def fake_context(tenant_id, project_slug, action, job_id=None, allow_pool=True):
+        calls.append(("context", tenant_id, project_slug, action, allow_pool))
         yield
 
     def fake_serve(args):
@@ -78,10 +82,9 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
         yield
 
     monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_serve=fake_serve))
-    monkeypatch.setattr(tasks, "with_tenant_context", fake_context)
+    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
     monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
-    monkeypatch.setattr(tasks, "_engine_keys", lambda tenant_id: {"deepseek": "secret"})
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
     result = tasks.task_pipeline.run(
@@ -93,7 +96,7 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
 
     assert result == {"status": "done", "action": "serve", "project_slug": "example"}
     assert calls == [
-        ("context", "tenant-a", "example", {"deepseek": "secret"}),
+        ("context", "tenant-a", "example", "serve", True),
         ("preserve", "example"),
         ("serve", "example", 8, 3, False, True),
         ("delivery", "example"),
