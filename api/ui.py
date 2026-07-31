@@ -120,6 +120,26 @@ body{overflow-x:hidden}
 .module-language{min-width:30px;padding:4px 6px;border:0;border-radius:5px;background:transparent;color:var(--t600);font:500 10.5px/1.2 var(--font);cursor:pointer}
 .module-language:hover{background:rgba(233,233,237,.06);color:var(--t400)}
 .module-language[aria-current="true"]{background:var(--a900);color:var(--a300)}
+.admin-page{width:100%;max-width:1220px;padding:32px 44px 72px}
+.admin-page-header{max-width:760px;margin-bottom:24px}
+.admin-page-header h3{margin:0 0 7px;font-size:25px;font-weight:600;letter-spacing:0}
+.admin-page-header p{margin:0;color:var(--t500);font-size:13px;line-height:1.55;text-wrap:pretty}
+.admin-page-body>h4:first-child,.admin-page-body>.billing-section-title:first-child,.admin-page-body>.archive-section-title:first-child,.admin-page-body>.sso-section-title:first-child,.admin-page-body>.integration-section-title:first-child,.admin-page-body>.outreach-section-title:first-child{margin-top:0!important}
+.admin-project-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.admin-config-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.admin-engine-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,auto) auto;gap:10px;align-items:center;padding:9px 0;box-shadow:inset 0 -1px 0 var(--line)}
+.admin-engine-row:last-child{box-shadow:none}
+.admin-engine-name{min-width:0;overflow-wrap:anywhere;font-size:13px}
+.admin-engine-mode{color:var(--t600);font-size:11.5px;text-align:right;white-space:nowrap}
+.admin-run-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.admin-publisher-row{display:grid;grid-template-columns:minmax(170px,1fr) minmax(120px,auto) auto;gap:10px;align-items:center;padding:9px 0;box-shadow:inset 0 -1px 0 var(--line)}
+.admin-publisher-row:last-child{box-shadow:none}
+@media (max-width:700px){
+  .admin-page{padding:24px 18px 56px}
+  .admin-config-grid{grid-template-columns:1fr}
+  .admin-engine-row,.admin-publisher-row{grid-template-columns:1fr auto;gap:4px 8px}
+  .admin-engine-mode,.admin-publisher-state{grid-column:1/-1;text-align:left}
+}
 .admin-icon{display:inline-block;flex:none;width:18px;height:18px;background:currentColor;mask:var(--admin-icon) center/contain no-repeat;-webkit-mask:var(--admin-icon) center/contain no-repeat}
 .icon-layout-dashboard{--admin-icon:url('/site-assets/icons/layout-dashboard.svg')}
 .icon-radar{--admin-icon:url('/site-assets/icons/radar.svg')}
@@ -1220,6 +1240,7 @@ let OUTREACH_STATE = null;
 let BILLING_STATE = null;
 let BILLING_INTERVAL = 'monthly';
 let ARCHIVE_STATE = null;
+let FUNDING_STATE = null;
 const billingStatusLabel = {active:'已生效',trialing:'试用中',past_due:'付款逾期',canceled:'已取消',unpaid:'未付款',incomplete:'待付款'};
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
 
@@ -1504,6 +1525,7 @@ async function setPlatformPool(enabled) {
     return;
   }
   toast(enabled?'平台代付已启用':'平台代付已关闭');
+  FUNDING_STATE=null;
   render();
 }
 
@@ -1656,23 +1678,134 @@ async function switchTeamWorkspace(tenantId) {
   location.reload();
 }
 
-const engineSettingsView = VIEWS.settings;
-vSettings = async function () {
-  if (!TEAM_STATE) TEAM_STATE = await api('/api/team');
-  if (!BRANDING_STATE) BRANDING_STATE = await api('/api/delivery-branding');
-  if (!SSO_STATE) SSO_STATE = await api('/api/v1/sso/config');
-  if (SSO_STATE.can_edit && !AUDIT_STATE) AUDIT_STATE = await api('/api/v1/sso/audit-events');
-  if (!INTEGRATION_STATE) INTEGRATION_STATE = await api('/api/integrations');
-  if (!OUTREACH_STATE) OUTREACH_STATE = await api('/api/outreach');
-  if (!BILLING_STATE) BILLING_STATE = await api('/api/billing');
-  if (!ARCHIVE_STATE) ARCHIVE_STATE = await api('/api/archive');
-  const funding = await api('/api/sampling-funding');
-  const html = await engineSettingsView();
-  const index = html.lastIndexOf('</div>');
-  const panels = billingPanel() + archivePanel() + samplingFundingPanel(funding) + deliveryBrandingPanel() + teamPanel() + integrationPanel() + outreachPanel() + ssoPanel();
-  return index < 0 ? html + panels : html.slice(0,index) + panels + html.slice(index);
+function adminPage(title, description, body) {
+  return `<div class="admin-page"><header class="admin-page-header"><h3>${esc(title)}</h3><p>${esc(description)}</p></header><div class="admin-page-body">${body}</div></div>`;
+}
+
+async function ensureTeamState() {
+  if (!TEAM_STATE) TEAM_STATE=await api('/api/team');
+  return TEAM_STATE;
+}
+
+function projectSettingsPanel() {
+  const projects=Array.isArray(PROJECTS)?PROJECTS:[];
+  return `<div class="tbl"><table class="table"><thead><tr><th>项目</th><th style="width:210px">域名</th><th style="width:110px">网站审计均分</th><th style="width:90px">任务</th><th style="width:80px"></th></tr></thead><tbody>
+    ${projects.map(function(project){return `<tr><td><span style="font-size:13.5px">${esc(project.name)}</span>${project.slug===SLUG?' <span class="tag tag-accent">当前</span>':''}</td><td style="font-size:12.5px;color:var(--t500)">${esc((project.site||'').replace('https://',''))}</td><td style="font-size:13px">${project.avg_score==null?'—':project.avg_score}</td><td style="font-size:12.5px;color:var(--t400)">${project.tasks_total||'—'}</td><td><button class="btn btn-ghost" style="font-size:12px" onclick="switchProject(${esc(JSON.stringify(project.slug))})">${project.slug===SLUG?'刷新':'进入'}</button></td></tr>`;}).join('')}
+    </tbody></table></div><div class="admin-project-actions"><button class="btn btn-primary" onclick="go('onboard',{obStep:1})">接入新项目</button><button class="btn btn-secondary" onclick="editConfig()">编辑当前项目</button></div>`;
+}
+
+async function vProjectSettings() {
+  if(!PROJECTS)PROJECTS=await api('/api/projects');
+  if(!Array.isArray(PROJECTS))PROJECTS=[];
+  return adminPage('项目设置','管理项目清单、品牌信息、官网域名和竞品范围。',projectSettingsPanel());
+}
+
+function automationPanel() {
+  const config=SET_CFG&&!SET_CFG.error?SET_CFG:{},monitor=config.monitor||{},current=monitor.every_days||0;
+  const actions=['crawl','audit','bootstrap','sample','sample-sheet','plan','blueprint','generate','lint','report','deliverables','verify','deliver'];
+  setTimeout(function(){if(LASTJOB&&!RUNNING)showLog(LASTJOB);if(RUNNING)pollJob();},0);
+  return `<div class="card elev" style="padding:18px;gap:13px"><div><div style="font-size:15px;font-weight:500">运行任务</div><div style="font-size:11.5px;color:var(--t600);margin-top:3px">任务由后台队列执行，关闭页面后仍会继续。同一项目同时只运行一个任务。</div></div>
+    <div class="admin-run-actions"><button class="btn btn-primary" ${RUNNING?'disabled':''} onclick="runAction('autopilot')">全自动引导</button><button class="btn btn-primary" ${RUNNING?'disabled':''} onclick="runAction('serve')">跑完整一期</button></div>
+    <div class="admin-run-actions">${actions.map(function(action){return `<button class="btn btn-secondary" style="font-size:11.5px;padding:5px 9px" ${RUNNING?'disabled':''} onclick="runAction('${action}')">${esc((ACTIONS[action]||{}).label||action)}</button>`;}).join('')}</div>
+    <div class="row" style="gap:7px;align-items:center;padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><span style="font-size:12px;color:var(--t500);margin-right:3px">周期复跑</span>${[0,7,14,30].map(function(days){return `<button class="btn ${current===days?'btn-secondary':'btn-ghost'}" style="font-size:11.5px;padding:4px 9px" onclick="setMonitor(${days})">${days?'每 '+days+' 天':'关闭'}</button>`;}).join('')}${current?`<span class="muted" style="font-size:11.5px">下次 ${esc(monitor.next_run||'')}</span>`:''}</div>
+    <div class="row"><div id="jobstat" style="font-size:12.5px;flex:1">${RUNNING?'<span class="spin"></span>任务运行中':''}</div></div><pre class="log" id="joblog" style="max-height:300px"></pre></div>`;
+}
+
+async function vAutomation() {
+  if(!SET_CFG)SET_CFG=await api('/api/config/'+SLUG);
+  return adminPage('运行与调度','手动运行完整管线、执行单项任务，或设置固定复跑周期。',automationPanel());
+}
+
+function engineKeysPanel() {
+  const keys=Array.isArray(KEYS)?KEYS:[],owner=TEAM_STATE&&TEAM_STATE.current_role==='owner';
+  return `<h4 style="font-size:16px;margin:0 0 10px">AI 引擎</h4><div class="card elev" style="padding:18px;gap:0"><div style="font-size:11.5px;color:var(--t600);margin-bottom:8px">API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。</div>${keys.map(function(key,index){const mode=key.manual?'人工·产品端':(key.search?'API·联网检索':'API·参数化知识');return `<div class="admin-engine-row"><div class="admin-engine-name"><span class="tag ${key.ok===true?'pill-good':'tag-outline'}" style="margin-right:7px">${key.ok===true?'已连接':key.manual?'人工':'未连接'}</span>${esc(key.label)}</div><div class="admin-engine-mode">${esc(mode)}${key.ok===true&&key.key_tail?' ····'+esc(key.key_tail):''}</div>${key.env&&owner?`<button class="btn btn-ghost" style="font-size:12px" onclick="editKey(${index})">${key.ok===true?'修改':'配置'}</button>`:'<span></span>'}</div>`;}).join('')}</div>`;
+}
+
+async function vEngineSettings() {
+  await ensureTeamState();
+  if(!KEYS)KEYS=await api('/api/keys');
+  if(!Array.isArray(KEYS))KEYS=[];
+  if(!FUNDING_STATE)FUNDING_STATE=await api('/api/sampling-funding');
+  return adminPage('引擎与采样','配置 AI 引擎凭证、确认采样方式，并管理可选的平台代付。',engineKeysPanel()+samplingFundingPanel(FUNDING_STATE));
+}
+
+async function vArchive() {
+  if(!ARCHIVE_STATE)ARCHIVE_STATE=await api('/api/archive');
+  return adminPage('数据归档','创建项目文件快照，并在需要时恢复到本地文件系统。',archivePanel());
+}
+
+async function vIntegrations() {
+  await ensureTeamState();
+  if(!INTEGRATION_STATE)INTEGRATION_STATE=await api('/api/integrations');
+  return adminPage('数据集成','连接外部搜索数据源，为诊断和成效分析补充可核验数据。',integrationPanel());
+}
+
+async function vOutreach() {
+  await ensureTeamState();
+  if(!OUTREACH_STATE)OUTREACH_STATE=await api('/api/outreach');
+  return adminPage('外链联络','管理 SMTP 连接和联络草稿。每封邮件都需要人工检查并确认发送。',outreachPanel());
+}
+
+function publishingPanel() {
+  const state=PUB||{},publishers=state.publishers||[],records=state.records||[],owner=TEAM_STATE&&TEAM_STATE.current_role==='owner';
+  return `<div class="card elev" style="padding:18px;gap:0"><div style="font-size:11.5px;color:var(--t600);margin-bottom:8px">发布凭证加密保存。发布只能由用户手动触发，公众号和 WordPress 仅创建草稿。</div>${publishers.map(function(publisher,index){const ready=!publisher.missing.length;return `<div class="admin-publisher-row"><div style="min-width:0"><div style="font-size:13px">${esc(publisher.name)}</div><div style="font-size:11px;color:var(--t600);margin-top:2px;overflow-wrap:anywhere">${esc(publisher.note)}</div></div><div class="admin-publisher-state" style="font-size:11.5px;color:var(--t600)">${ready?'已就绪':'缺 '+publisher.missing.map(esc).join('、')}</div>${owner?`<button class="btn btn-ghost" style="font-size:12px" onclick="editPub(${index})">配置</button>`:'<span></span>'}</div>`;}).join('')||'<div style="padding:10px 0;font-size:12px;color:var(--t600)">暂无发布渠道</div>'}</div>${records.length?`<h4 style="font-size:16px;margin:24px 0 10px">最近发布</h4><div class="card elev" style="padding:14px 18px">${records.slice(-10).reverse().map(function(record){return `<div style="padding:6px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12.5px;color:var(--t400)">${record.ok?'成功':'失败'} · ${esc((record.at||'').slice(0,16).replace('T',' '))} · ${esc(record.platform_name)} · ${esc(record.title)} ${record.url?`<a href="${esc(record.url)}" target="_blank" rel="noopener">打开链接</a>`:esc(record.note||record.error||'')}</div>`;}).join('')}</div>`:''}`;
+}
+
+async function vPublishing() {
+  await ensureTeamState();
+  if(!PUB)PUB=await api('/api/publish/'+SLUG);
+  return adminPage('渠道发布','配置发布渠道，查看发布记录。所有对外发布都由用户手动发起。',publishingPanel());
+}
+
+async function vBranding() {
+  if(!BRANDING_STATE)BRANDING_STATE=await api('/api/delivery-branding');
+  return adminPage('白标交付','为客户报告和打印版交付物配置机构名称、Logo 和主题色。',deliveryBrandingPanel());
+}
+
+async function vTeam() {
+  await ensureTeamState();
+  return adminPage('团队与权限','管理工作区成员、邀请和 owner、editor、viewer 角色。',teamPanel());
+}
+
+async function vBilling() {
+  await ensureTeamState();
+  if(!BILLING_STATE)BILLING_STATE=await api('/api/billing');
+  return adminPage('套餐与账单','查看当前套餐和用量，并由工作区所有者管理订阅。',billingPanel());
+}
+
+async function vSecurity() {
+  if(!SSO_STATE)SSO_STATE=await api('/api/v1/sso/config');
+  if(SSO_STATE.can_edit&&!AUDIT_STATE)AUDIT_STATE=await api('/api/v1/sso/audit-events');
+  return adminPage('企业安全','配置 OIDC 单点登录，查看安全控制状态和最近审计事件。',ssoPanel());
+}
+
+async function vLegacySettings() {
+  R='project-settings';
+  history.replaceState({r:R,engSel:ST.engSel,gapTab:ST.gapTab},'','#project-settings');
+  return vProjectSettings();
+}
+
+VIEWS['project-settings']=vProjectSettings;
+VIEWS.automation=vAutomation;
+VIEWS.archive=vArchive;
+VIEWS['engine-settings']=vEngineSettings;
+VIEWS.integrations=vIntegrations;
+VIEWS.outreach=vOutreach;
+VIEWS.publishing=vPublishing;
+VIEWS.branding=vBranding;
+VIEWS.team=vTeam;
+VIEWS.billing=vBilling;
+VIEWS.security=vSecurity;
+VIEWS.settings=vLegacySettings;
+
+const engineSwitchProjectWithAdminState = switchProject;
+switchProject = async function (slug) {
+  ARCHIVE_STATE=null;
+  FUNDING_STATE=null;
+  INTEGRATION_STATE=null;
+  OUTREACH_STATE=null;
+  await engineSwitchProjectWithAdminState(slug);
 };
-VIEWS.settings = vSettings;
 
 const engineEditKey = editKey;
 editKey = function (index) {
@@ -2020,6 +2153,18 @@ def serve_ui():
         '<button class="btn btn-secondary" onclick="offsiteTicketModal()">创建 Offsite 工单</button>'
         '<button class="btn btn-primary" onclick="runAction(\'verify\')">自动验收</button>',
         1,
+    )
+    html = html.replace("`go('settings')`:`go('report')`", "`go('engine-settings')`:`go('report')`")
+    html = html.replace("closeModal();go('settings')\">渠道配置", "closeModal();go('publishing')\">渠道配置")
+    html = html.replace("onclick=\"go('settings')\">去配置 Key", "onclick=\"go('engine-settings')\">去配置 Key")
+    html = html.replace("onclick=\"go('settings')\">返回设置", "onclick=\"go('project-settings')\">返回设置")
+    html = html.replace("onclick=\"go('settings')\">去设置手动跑", "onclick=\"go('automation')\">去设置手动跑")
+    html = html.replace("{go('settings');return}", "{go('engine-settings');return}")
+    html = html.replace("onclick=\"go('settings')\">去设置", "onclick=\"go('project-settings')\">去设置")
+    html = html.replace("?'overview':'settings'", "?'overview':'project-settings'")
+    html = html.replace(
+        "if((R==='settings'||R==='onboard')&&RUNNING)pollJob();",
+        "if((R==='settings'||R==='automation'||R==='onboard')&&RUNNING)pollJob();",
     )
     html = html.replace("<body>", "<body>" + FETCH_ADAPTER, 1)
     html = html.replace("</body>", UI_EXTENSION + "</body>", 1)

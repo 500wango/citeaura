@@ -151,7 +151,22 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "invitation_token:invitationToken" in response.text
     assert "function teamPanel()" in response.text
     assert "function teamInviteModal()" in response.text
-    assert "VIEWS.settings = vSettings" in response.text
+    assert "VIEWS.settings=vLegacySettings" in response.text
+    assert "VIEWS['project-settings']=vProjectSettings" in response.text
+    assert "VIEWS.automation=vAutomation" in response.text
+    assert "VIEWS.archive=vArchive" in response.text
+    assert "VIEWS['engine-settings']=vEngineSettings" in response.text
+    assert "VIEWS.integrations=vIntegrations" in response.text
+    assert "VIEWS.outreach=vOutreach" in response.text
+    assert "VIEWS.publishing=vPublishing" in response.text
+    assert "VIEWS.branding=vBranding" in response.text
+    assert "VIEWS.team=vTeam" in response.text
+    assert "VIEWS.billing=vBilling" in response.text
+    assert "VIEWS.security=vSecurity" in response.text
+    assert "const panels = billingPanel()" not in response.text
+    assert "history.replaceState({r:R,engSel:ST.engSel,gapTab:ST.gapTab},'','#project-settings')" in response.text
+    assert "onclick=\"go('engine-settings')\">去配置 Key" in response.text
+    assert "closeModal();go('publishing')\">渠道配置" in response.text
     assert "团队成员按 owner/editor/viewer 分级" in response.text
     assert "成员邀请与角色管理暂未开放" not in response.text
     assert "/api/v1/settings/delivery-branding" in response.text
@@ -244,6 +259,18 @@ def test_ui_compatibility_route_remains_available():
 
     assert response.status_code == 200
     assert "DisvorAI" in response.text
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["layout-dashboard", "radar", "scan-search", "list-checks", "package-check", "settings-2", "menu", "x"],
+)
+def test_admin_navigation_icons_are_served_locally(name):
+    response = TestClient(app).get(f"/site-assets/icons/{name}.svg")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/svg+xml")
+    assert "lucide-static" in response.text
 
 
 def test_project_files_use_cookie_auth_and_remain_tenant_isolated(ui_client):
