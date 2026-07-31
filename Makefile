@@ -1,4 +1,4 @@
-.PHONY: dev test migrate worker beat
+.PHONY: dev test migrate worker beat preflight
 
 dev:
 	uvicorn api.main:app --reload
@@ -15,3 +15,6 @@ worker:
 
 beat:
 	celery -A api.worker.celery_app beat --loglevel=INFO --schedule=/tmp/disvorai-celerybeat-schedule
+
+preflight:
+	python3 scripts/production_preflight.py --env-file $${ENV_FILE:-.env.production}

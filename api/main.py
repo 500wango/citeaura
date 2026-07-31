@@ -1,6 +1,6 @@
 """FastAPI 应用入口。"""
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -13,6 +13,7 @@ from api.billing.router import router as billing_router
 from api.branding.router import router as branding_router
 from api.integrations.router import router as integrations_router
 from api.landing import WEB_ROOT, router as landing_router
+from api.db import get_db
 from api.outreach.router import router as outreach_router
 from api.publishing.router import router as publishing_router
 from api.projects.router import router as projects_router
@@ -20,6 +21,7 @@ from api.settings.router import router as settings_router
 from api.team.router import router as team_router
 from api.ui import router as ui_router
 from api.workspace.router import router as workspace_router
+from api.readiness import readiness_checks
 
 
 app = FastAPI(title="DisvorAI API", version="1.0.0")
@@ -80,3 +82,10 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 def health_check():
     """返回服务健康状态。"""
     return {"status": "ok"}
+
+
+@app.get("/api/v1/health/ready")
+def readiness_check(db=Depends(get_db)):
+    """仅在生产关键依赖全部就绪时返回 200。"""
+    result = readiness_checks(db)
+    return JSONResponse(status_code=200 if result["status"] == "ready" else 503, content=result)
