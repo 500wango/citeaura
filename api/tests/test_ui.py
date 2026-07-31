@@ -56,6 +56,9 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "window.disvoraiLogout = logout" in response.text
     assert 'class="global-rail"' in response.text
     assert 'class="module-panel"' in response.text
+    assert '#side{width:296px' in response.text
+    assert '.global-rail{position:relative;z-index:2;width:72px' in response.text
+    assert '.module-panel{position:fixed;left:72px' in response.text
     assert "const ADMIN_MODULES = [" in response.text
     assert "{route:'engines',label:{zh:'AI 可见性'" in response.text
     assert "{route:'project-settings',label:{zh:'项目设置'" in response.text
