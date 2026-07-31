@@ -1,10 +1,11 @@
 """密码哈希和 JWT 安全工具。"""
 
-import os
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
+
+from api import config
 
 
 JWT_ALGORITHM = "HS256"
@@ -16,7 +17,7 @@ REFRESH_TOKEN_COOKIE = "disvorai_refresh_token"
 
 def _jwt_secret():
     """读取 JWT 密钥；生产环境必须显式配置。"""
-    secret = os.getenv("JWT_SECRET")
+    secret = config.jwt_secret()
     if not secret:
         raise RuntimeError("JWT_SECRET is not configured")
     return secret

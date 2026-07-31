@@ -1,6 +1,5 @@
 """注册、登录和当前用户 API。"""
 
-import os
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -11,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from api import config
 from api.adapters.engine import tenant_slug
 from api.auth.deps import get_current_user
 from api.auth.security import (
@@ -77,7 +77,7 @@ def _token_response(response: Response, user_id: int, tenant_id: int):
     """签发令牌并设置同站 HttpOnly 会话 Cookie。"""
     access_token = create_access_token(user_id, tenant_id)
     refresh_token = create_refresh_token(user_id, tenant_id)
-    cookie_secure = os.getenv("SESSION_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
+    cookie_secure = config.session_cookie_secure()
     response.set_cookie(
         ACCESS_TOKEN_COOKIE,
         access_token,

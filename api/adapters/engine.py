@@ -6,12 +6,13 @@ import threading
 from contextlib import contextmanager
 from pathlib import Path
 
+from api import config
 from api.adapters.exceptions import GeoEngineError
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ENGINE_SCRIPTS = PROJECT_ROOT / "engine" / "scripts"
-WORK_ROOT = Path(os.getenv("WORK_ROOT", str(PROJECT_ROOT / "work"))).resolve()
+WORK_ROOT = config.work_root(PROJECT_ROOT / "work")
 
 if str(ENGINE_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(ENGINE_SCRIPTS))

@@ -5,13 +5,15 @@ import os
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from api import config
+
 
 NONCE_SIZE = 12
 
 
 def _master_key() -> bytes:
     """读取 base64 编码的 32-byte AES 密钥。"""
-    encoded = os.getenv("AES_KEY", "")
+    encoded = config.aes_key()
     if not encoded:
         raise RuntimeError("AES_KEY is not configured")
     try:
@@ -47,4 +49,3 @@ def decrypt_key(encoded: str) -> str:
 def mask_key(value: str) -> str:
     """仅保留末四位用于界面识别。"""
     return "****" if len(value) <= 4 else "****" + value[-4:]
-

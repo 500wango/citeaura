@@ -1,18 +1,15 @@
 """Alembic 迁移运行环境。"""
 
-import os
-
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from api import config as app_config
 from api import models  # noqa: F401 - 导入模型以注册全部表
 from api.db import Base
 
 
 config = context.config
-database_url = os.getenv("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+config.set_main_option("sqlalchemy.url", app_config.database_url().replace("%", "%%"))
 
 target_metadata = Base.metadata
 
@@ -48,4 +45,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

@@ -1,16 +1,15 @@
 """Celery 应用配置。"""
 
-import os
-
 from celery import Celery
 
+from api import config
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = config.redis_url()
 
 celery_app = Celery(
     "disvorai",
     broker=REDIS_URL,
-    backend=os.getenv("CELERY_RESULT_BACKEND", REDIS_URL),
+    backend=config.celery_result_backend(),
     include=["api.worker.tasks"],
 )
 celery_app.conf.update(
@@ -21,4 +20,3 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
 )
-

@@ -1,18 +1,12 @@
 """数据库连接和会话。"""
 
-import os
-
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+from api import config
 
-load_dotenv()
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg2://disvorai:disvorai@localhost:5432/disvorai",
-)
+DATABASE_URL = config.database_url()
 
 engine_options = {"pool_pre_ping": True}
 if DATABASE_URL.startswith("sqlite"):
@@ -30,4 +24,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
