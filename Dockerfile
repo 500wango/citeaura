@@ -17,6 +17,7 @@ COPY --from=builder /wheels /wheels
 RUN pip install --no-index --find-links=/wheels /wheels/*
 COPY api ./api
 COPY engine ./engine
+COPY web ./web
 COPY alembic.ini requirements.txt ./
 RUN mkdir -p /app/work
 
@@ -26,4 +27,3 @@ CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 FROM runtime AS worker
 CMD ["celery", "-A", "api.worker.celery_app", "worker", "--loglevel=INFO"]
-

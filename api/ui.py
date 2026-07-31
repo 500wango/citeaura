@@ -1452,7 +1452,7 @@ VIEWS.plan = vPlan;
 """
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/app", response_class=HTMLResponse)
 @router.get("/ui", response_class=HTMLResponse)
 def serve_ui():
     """返回经过品牌和 SaaS API 适配的 engine 单页 UI。"""

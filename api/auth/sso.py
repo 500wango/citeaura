@@ -237,7 +237,7 @@ def sso_callback(
         details={"subject": identity["subject"]},
     )
     db.commit()
-    redirect = RedirectResponse(url="/#overview", status_code=status.HTTP_303_SEE_OTHER)
+    redirect = RedirectResponse(url="/app#overview", status_code=status.HTTP_303_SEE_OTHER)
     token_response(redirect, user.id, tenant.id)
     redirect.delete_cookie(SSO_CONTEXT_COOKIE)
     return redirect

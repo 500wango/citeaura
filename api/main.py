@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from api import config
 from api.adapters.exceptions import DistributedLockError
@@ -11,6 +12,7 @@ from api.archive.router import router as archive_router
 from api.billing.router import router as billing_router
 from api.branding.router import router as branding_router
 from api.integrations.router import router as integrations_router
+from api.landing import WEB_ROOT, router as landing_router
 from api.outreach.router import router as outreach_router
 from api.publishing.router import router as publishing_router
 from api.projects.router import router as projects_router
@@ -21,6 +23,7 @@ from api.workspace.router import router as workspace_router
 
 
 app = FastAPI(title="DisvorAI API", version="1.0.0")
+app.mount("/site-assets", StaticFiles(directory=WEB_ROOT / "assets"), name="site-assets")
 app.include_router(auth_router)
 app.include_router(sso_router)
 app.include_router(archive_router)
@@ -33,6 +36,7 @@ app.include_router(projects_router)
 app.include_router(settings_router)
 app.include_router(team_router)
 app.include_router(workspace_router)
+app.include_router(landing_router)
 app.include_router(ui_router)
 
 

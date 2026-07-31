@@ -179,7 +179,7 @@ def create_invitation(
     return {
         "invitation": _invitation_payload(invitation),
         "token": token,
-        "invite_url": f"/?invite={quote(token)}",
+        "invite_url": f"/app?invite={quote(token)}",
     }
 
 

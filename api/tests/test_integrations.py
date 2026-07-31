@@ -153,7 +153,7 @@ def test_search_console_oauth_binds_verified_project_property(integration_client
         follow_redirects=False,
     )
     assert callback.status_code == 303
-    assert callback.headers["location"] == "/?integration=search_console#settings"
+    assert callback.headers["location"] == "/app?integration=search_console#settings"
     with session_factory() as db:
         row = db.query(IntegrationCredential).one()
         assert row.provider == "search_console"

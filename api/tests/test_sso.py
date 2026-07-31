@@ -146,7 +146,7 @@ def test_sso_callback_provisions_member_and_rejects_unapproved_domain(sso_client
         follow_redirects=False,
     )
     assert completed.status_code == 303
-    assert completed.headers["location"] == "/#overview"
+    assert completed.headers["location"] == "/app#overview"
     assert "disvorai_access_token=" in completed.headers["set-cookie"]
     with session_factory() as db:
         user = db.query(User).filter(User.email == "new.member@example.com").one()

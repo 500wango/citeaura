@@ -32,7 +32,7 @@ def ui_client(tmp_path, monkeypatch):
 
 
 def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
-    response = TestClient(app).get("/")
+    response = TestClient(app).get("/app")
 
     assert response.status_code == 200
     assert "DisvorAI" in response.text
@@ -197,6 +197,13 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "single-machine self-hosted, no account system" not in response.text
     assert "単機セルフホスト版" not in response.text
     assert "Download ZIP" in response.text
+
+
+def test_ui_compatibility_route_remains_available():
+    response = TestClient(app).get("/ui")
+
+    assert response.status_code == 200
+    assert "DisvorAI" in response.text
 
 
 def test_project_files_use_cookie_auth_and_remain_tenant_isolated(ui_client):
