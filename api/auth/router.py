@@ -5,12 +5,13 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from api import config
+from api.auth import password_reset
 from api.adapters.engine import tenant_slug
 from api.auth.deps import get_current_user
 from api.auth.security import (
@@ -25,7 +26,7 @@ from api.auth.security import (
     verify_password,
 )
 from api.db import get_db
-from api.models import Membership, Tenant, User
+from api.models import Membership, PasswordResetToken, Tenant, User
 from api.team.invitations import invitation_for_token, is_expired
 
 
@@ -60,6 +61,20 @@ class LoginRequest(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str = Field(min_length=1, max_length=4096)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str):
+        return value.strip().lower()
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=512)
+    password: str = Field(min_length=8, max_length=128)
 
 
 class SwitchTenantRequest(BaseModel):
@@ -204,6 +219,68 @@ def refresh(
     if user is None or membership is None:
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
     return token_response(response, user_id, tenant_id)
+
+
+@router.post("/auth/logout")
+def logout(response: Response):
+    """清除浏览器中的 access 和 refresh 会话 Cookie。"""
+    response.delete_cookie(ACCESS_TOKEN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
+    response.delete_cookie(REFRESH_TOKEN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
+    response.headers["Cache-Control"] = "no-store"
+    return {"ok": True}
+
+
+@router.post("/auth/password/forgot", status_code=status.HTTP_202_ACCEPTED)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """对所有邮箱返回相同结果，仅为现有用户发送一次性链接。"""
+    user = db.query(User).filter(User.email == payload.email).first()
+    if user is not None:
+        now = datetime.now(timezone.utc)
+        db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None),
+        ).update({"used_at": now}, synchronize_session=False)
+        token = password_reset.create_token()
+        db.add(PasswordResetToken(
+            user_id=user.id,
+            token_hash=password_reset.token_hash(token),
+            expires_at=now + timedelta(minutes=config.password_reset_ttl_minutes()),
+        ))
+        db.commit()
+        background_tasks.add_task(password_reset.send_password_reset_email_safe, user.email, token)
+    return {"accepted": True}
+
+
+@router.post("/auth/password/reset")
+def reset_password(payload: ResetPasswordRequest, response: Response, db: Session = Depends(get_db)):
+    """使用未过期的一次性 Token 更新密码并清除现有浏览器会话。"""
+    now = datetime.now(timezone.utc)
+    row = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token_hash == password_reset.token_hash(payload.token),
+        PasswordResetToken.used_at.is_(None),
+    ).with_for_update().first()
+    expires_at = row.expires_at if row is not None else None
+    if expires_at is not None and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if row is None or expires_at is None or expires_at < now:
+        _error(status.HTTP_400_BAD_REQUEST, "password_reset_token_invalid")
+    user = db.get(User, row.user_id)
+    if user is None:
+        _error(status.HTTP_400_BAD_REQUEST, "password_reset_token_invalid")
+    user.password_hash = hash_password(payload.password)
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.used_at.is_(None),
+    ).update({"used_at": now}, synchronize_session=False)
+    db.commit()
+    response.delete_cookie(ACCESS_TOKEN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
+    response.delete_cookie(REFRESH_TOKEN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
+    response.headers["Cache-Control"] = "no-store"
+    return {"ok": True}
 
 
 @router.post("/auth/switch-tenant")

@@ -20,6 +20,13 @@ def _valid_environment():
         "RATE_LIMIT_AUTH_REQUESTS": "20",
         "RATE_LIMIT_WINDOW_SECONDS": "60",
         "RATE_LIMIT_TRUST_PROXY_HEADERS": "true",
+        "PASSWORD_RESET_TTL_MINUTES": "30",
+        "AUTH_SMTP_HOST": "smtp.example.test",
+        "AUTH_SMTP_PORT": "587",
+        "AUTH_SMTP_SECURITY": "starttls",
+        "AUTH_SMTP_USERNAME": "accounts",
+        "AUTH_SMTP_PASSWORD": "smtp-secret",
+        "AUTH_SMTP_FROM_EMAIL": "accounts@disvor.example",
         "STRIPE_SECRET_KEY": "sk_live_valid",
         "STRIPE_WEBHOOK_SECRET": "whsec_valid",
         "STRIPE_CURRENCY": "cny",
@@ -46,6 +53,7 @@ def test_preflight_rejects_placeholders_insecure_url_and_test_payments():
         "AES_KEY": "invalid",
         "SESSION_COOKIE_SECURE": "false",
         "RATE_LIMIT_ENABLED": "false",
+        "AUTH_SMTP_HOST": "",
         "STRIPE_SECRET_KEY": "sk_test_not_live",
     })
 
@@ -57,6 +65,7 @@ def test_preflight_rejects_placeholders_insecure_url_and_test_payments():
     assert "AES_KEY must be URL-safe base64 encoding of exactly 32 bytes" in errors
     assert "SESSION_COOKIE_SECURE must be true" in errors
     assert "RATE_LIMIT_ENABLED must be true" in errors
+    assert "AUTH_SMTP_HOST is required" in errors
     assert "STRIPE_SECRET_KEY must be a live-mode key" in errors
 
 

@@ -29,6 +29,7 @@ def test_readiness_requires_all_production_dependencies(monkeypatch):
     monkeypatch.setattr(readiness.config, "jwt_secret", lambda: "j" * 32)
     monkeypatch.setattr(readiness.config, "session_cookie_secure", lambda: True)
     monkeypatch.setattr(readiness.config, "public_base_url", lambda: "https://app.example.test")
+    monkeypatch.setattr(readiness.config, "auth_smtp_configured", lambda: True)
 
     result = readiness.readiness_checks(Database())
 
@@ -43,6 +44,7 @@ def test_readiness_reports_failed_dependency_without_secret_details(monkeypatch)
     monkeypatch.setattr(readiness.config, "jwt_secret", lambda: "j" * 32)
     monkeypatch.setattr(readiness.config, "session_cookie_secure", lambda: True)
     monkeypatch.setattr(readiness.config, "public_base_url", lambda: "https://app.example.test")
+    monkeypatch.setattr(readiness.config, "auth_smtp_configured", lambda: True)
 
     result = readiness.readiness_checks(Database())
 

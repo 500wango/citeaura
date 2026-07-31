@@ -52,6 +52,8 @@ def validate_environment(values):
         "PUBLIC_BASE_URL", "REDIS_URL", "JWT_SECRET", "AES_KEY", "SESSION_COOKIE_SECURE",
         "RATE_LIMIT_ENABLED", "RATE_LIMIT_REQUESTS", "RATE_LIMIT_AUTH_REQUESTS",
         "RATE_LIMIT_WINDOW_SECONDS", "RATE_LIMIT_TRUST_PROXY_HEADERS",
+        "PASSWORD_RESET_TTL_MINUTES", "AUTH_SMTP_HOST", "AUTH_SMTP_PORT",
+        "AUTH_SMTP_SECURITY", "AUTH_SMTP_FROM_EMAIL",
         "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_CURRENCY",
     )
     for key in required:
@@ -93,6 +95,27 @@ def validate_environment(values):
             number = 0
         if not 1 <= number <= maximum:
             errors.append(f"{key} must be an integer between 1 and {maximum}")
+    try:
+        reset_ttl = int(values.get("PASSWORD_RESET_TTL_MINUTES", ""))
+    except ValueError:
+        reset_ttl = 0
+    if not 5 <= reset_ttl <= 1440:
+        errors.append("PASSWORD_RESET_TTL_MINUTES must be an integer between 5 and 1440")
+    if values.get("AUTH_SMTP_SECURITY", "").lower() not in ("starttls", "ssl"):
+        errors.append("AUTH_SMTP_SECURITY must be starttls or ssl")
+    try:
+        smtp_port = int(values.get("AUTH_SMTP_PORT", ""))
+    except ValueError:
+        smtp_port = 0
+    if not 1 <= smtp_port <= 65535:
+        errors.append("AUTH_SMTP_PORT must be an integer between 1 and 65535")
+    smtp_username = values.get("AUTH_SMTP_USERNAME", "")
+    smtp_password = values.get("AUTH_SMTP_PASSWORD", "")
+    if bool(smtp_username) != bool(smtp_password):
+        errors.append("AUTH_SMTP_USERNAME and AUTH_SMTP_PASSWORD must be configured together")
+    from_email = values.get("AUTH_SMTP_FROM_EMAIL", "")
+    if from_email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", from_email):
+        errors.append("AUTH_SMTP_FROM_EMAIL must be a valid email address")
     stripe_key = values.get("STRIPE_SECRET_KEY", "")
     if stripe_key and not stripe_key.startswith("sk_live_"):
         errors.append("STRIPE_SECRET_KEY must be a live-mode key")

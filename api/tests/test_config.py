@@ -21,6 +21,13 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://app.example.test/")
     monkeypatch.setenv("WORK_ROOT", str(tmp_path / "tenant-work"))
     monkeypatch.setenv("BILLING_ANNUAL_DISCOUNT_PERCENT", "20")
+    monkeypatch.setenv("PASSWORD_RESET_TTL_MINUTES", "45")
+    monkeypatch.setenv("AUTH_SMTP_HOST", "smtp.example.test")
+    monkeypatch.setenv("AUTH_SMTP_PORT", "465")
+    monkeypatch.setenv("AUTH_SMTP_SECURITY", "ssl")
+    monkeypatch.setenv("AUTH_SMTP_USERNAME", "mailer")
+    monkeypatch.setenv("AUTH_SMTP_PASSWORD", "secret")
+    monkeypatch.setenv("AUTH_SMTP_FROM_EMAIL", "accounts@example.test")
 
     assert config.database_url() == "sqlite:///test.sqlite"
     assert config.redis_url() == "redis://example.test:6379/4"
@@ -38,6 +45,9 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     assert config.public_base_url() == "https://app.example.test"
     assert config.work_root(Path("unused")) == (tmp_path / "tenant-work").resolve()
     assert config.billing_annual_discount_percent() == Decimal("20")
+    assert config.password_reset_ttl_minutes() == 45
+    assert config.auth_smtp_configured() is True
+    assert config.auth_smtp_settings()["security_mode"] == "ssl"
 
 
 def test_project_lock_config_rejects_invalid_ranges(monkeypatch):

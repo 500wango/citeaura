@@ -128,6 +128,31 @@ def stripe_currency():
     return value if value in ("cny", "usd") else "cny"
 
 
+def password_reset_ttl_minutes():
+    return _integer("PASSWORD_RESET_TTL_MINUTES", 30, minimum=5, maximum=1440)
+
+
+def auth_smtp_settings():
+    security = os.getenv("AUTH_SMTP_SECURITY", "starttls").strip().lower()
+    if security not in ("starttls", "ssl"):
+        security = "starttls"
+    return {
+        "host": os.getenv("AUTH_SMTP_HOST", "").strip(),
+        "port": _integer("AUTH_SMTP_PORT", 587, maximum=65535),
+        "security_mode": security,
+        "username": os.getenv("AUTH_SMTP_USERNAME", "").strip(),
+        "password": os.getenv("AUTH_SMTP_PASSWORD", ""),
+        "from_email": os.getenv("AUTH_SMTP_FROM_EMAIL", "").strip().lower(),
+        "from_name": os.getenv("AUTH_SMTP_FROM_NAME", "DisvorAI").strip() or "DisvorAI",
+    }
+
+
+def auth_smtp_configured():
+    settings = auth_smtp_settings()
+    credentials_valid = not settings["username"] or bool(settings["password"])
+    return bool(settings["host"] and settings["from_email"] and credentials_valid)
+
+
 def _enabled(name, default="false"):
     return os.getenv(name, default).lower() in ("1", "true", "yes")
 

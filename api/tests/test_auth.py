@@ -1,12 +1,15 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from api.auth import password_reset
 from api.adapters.engine import tenant_slug
 from api.db import Base, get_db
 from api.main import app
-from api.models import Membership, Tenant, User
+from api.models import Membership, PasswordResetToken, Tenant, User
 
 
 @pytest.fixture()
@@ -25,6 +28,7 @@ def client(tmp_path, monkeypatch):
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
+        test_client.session_factory = session_factory
         yield test_client
     app.dependency_overrides.clear()
 
@@ -123,6 +127,86 @@ def test_refresh_rejects_missing_invalid_and_access_tokens(client):
     )
     assert access.status_code == 401
     assert access.json() == {"error": "invalid_refresh_token"}
+
+
+def test_logout_clears_both_session_cookies(client):
+    payload = {"email": "logout@example.com", "password": "correct-horse-battery"}
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    assert client.post("/api/v1/auth/login", json=payload).status_code == 200
+
+    logged_out = client.post("/api/v1/auth/logout")
+
+    assert logged_out.status_code == 200
+    assert logged_out.json() == {"ok": True}
+    cookies = logged_out.headers.get_list("set-cookie")
+    assert any("disvorai_access_token=" in item and "Max-Age=0" in item for item in cookies)
+    assert any("disvorai_refresh_token=" in item and "Max-Age=0" in item for item in cookies)
+    assert client.post("/api/v1/auth/refresh").status_code == 401
+
+
+def test_password_reset_is_non_enumerating_single_use_and_hashed(client, monkeypatch):
+    payload = {"email": "reset@example.com", "password": "old-password-123"}
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    sent = []
+    monkeypatch.setattr(
+        password_reset,
+        "send_password_reset_email_safe",
+        lambda email, token: sent.append((email, token)),
+    )
+
+    known = client.post("/api/v1/auth/password/forgot", json={"email": payload["email"]})
+    unknown = client.post("/api/v1/auth/password/forgot", json={"email": "missing@example.com"})
+
+    assert known.status_code == unknown.status_code == 202
+    assert known.json() == unknown.json() == {"accepted": True}
+    assert len(sent) == 1
+    email, token = sent[0]
+    assert email == payload["email"]
+    with client.session_factory() as db:
+        row = db.query(PasswordResetToken).one()
+        assert row.token_hash == password_reset.token_hash(token)
+        assert token not in row.token_hash
+
+    reset = client.post(
+        "/api/v1/auth/password/reset",
+        json={"token": token, "password": "new-password-456"},
+    )
+    assert reset.status_code == 200
+    assert reset.json() == {"ok": True}
+    assert client.post("/api/v1/auth/login", json=payload).status_code == 401
+    assert client.post(
+        "/api/v1/auth/login",
+        json={"email": payload["email"], "password": "new-password-456"},
+    ).status_code == 200
+    reused = client.post(
+        "/api/v1/auth/password/reset",
+        json={"token": token, "password": "third-password-789"},
+    )
+    assert reused.status_code == 400
+    assert reused.json() == {"error": "password_reset_token_invalid"}
+
+
+def test_expired_password_reset_token_is_rejected(client, monkeypatch):
+    payload = {"email": "expired-reset@example.com", "password": "old-password-123"}
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    sent = []
+    monkeypatch.setattr(
+        password_reset,
+        "send_password_reset_email_safe",
+        lambda email, token: sent.append(token),
+    )
+    client.post("/api/v1/auth/password/forgot", json={"email": payload["email"]})
+    with client.session_factory() as db:
+        row = db.query(PasswordResetToken).one()
+        row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        db.commit()
+
+    response = client.post(
+        "/api/v1/auth/password/reset",
+        json={"token": sent[0], "password": "new-password-456"},
+    )
+    assert response.status_code == 400
+    assert response.json() == {"error": "password_reset_token_invalid"}
 
 
 def test_long_tenant_names_get_distinct_directory_slugs(client):

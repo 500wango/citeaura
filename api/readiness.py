@@ -8,7 +8,7 @@ from api.billing import stripe as stripe_adapter
 from api.settings.crypto import _master_key
 
 
-EXPECTED_DB_REVISION = "0008_stripe_billing"
+EXPECTED_DB_REVISION = "0009_auth_password_reset"
 
 
 def readiness_checks(db):
@@ -35,4 +35,5 @@ def readiness_checks(db):
     checks["jwt"] = len(config.jwt_secret() or "") >= 32
     checks["https"] = config.session_cookie_secure() and config.public_base_url().startswith("https://")
     checks["stripe"] = stripe_adapter.configured()
+    checks["password_reset_email"] = config.auth_smtp_configured()
     return {"status": "ready" if all(checks.values()) else "not_ready", "checks": checks}

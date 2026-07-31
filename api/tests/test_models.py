@@ -7,6 +7,7 @@ from api.db import Base
 from api.models import (
     BillingEvent,
     Membership,
+    PasswordResetToken,
     PlatformUsage,
     Project,
     Subscription,
@@ -59,6 +60,14 @@ def test_models_create_and_preserve_tenant_relationships():
     assert session.query(TeamInvitation).one().role == "editor"
     assert session.query(Subscription).one().billing_interval == "annual"
     assert session.query(Subscription).one().provider_subscription_id == "sub_annual"
+    reset = PasswordResetToken(
+        user_id=user.id,
+        token_hash="b" * 64,
+        expires_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+    )
+    session.add(reset)
+    session.commit()
+    assert session.query(PasswordResetToken).one().user.email == "owner@example.com"
 
 
 def test_initial_schema_contains_all_tables():
@@ -69,6 +78,7 @@ def test_initial_schema_contains_all_tables():
         "tenants",
         "users",
         "memberships",
+        "password_reset_tokens",
         "platform_usage",
         "projects",
         "api_keys",
