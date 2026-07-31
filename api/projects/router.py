@@ -304,6 +304,38 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
     return detail
 
 
+@router.get("/{project_id}/status")
+def project_status(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """返回文件系统项目进度和最近任务状态。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.name, project.slug):
+        import dashboard
+
+        summary = next(
+            (item for item in dashboard.list_projects() if item.get("slug") == project.slug),
+            {
+                "slug": project.slug,
+                "name": project.slug,
+                "site": project.url,
+                "market": project.market,
+                "avg_score": None,
+                "pages": None,
+                "tasks_total": 0,
+                "tasks_done": 0,
+                "p0_open": 0,
+            },
+        )
+    latest_job = db.query(Job).filter(Job.project_id == project.id).order_by(Job.id.desc()).first()
+    return {
+        "project_id": project.id,
+        "slug": project.slug,
+        "status": project.status,
+        "summary": summary,
+        "latest_job": _job_payload(latest_job, include_log=False) if latest_job else None,
+    }
+
+
 @router.get("/{project_id}/jobs")
 def project_jobs(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """返回当前项目任务历史。"""

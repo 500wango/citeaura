@@ -95,6 +95,12 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert detail.status_code == 200
     assert detail.json()["brand"]["name"] == "Example"
     assert detail.json()["questions"][0]["id"] == "q001"
+    current_status = client.get(f"/api/v1/projects/{body['project_id']}/status", headers=headers)
+    assert current_status.status_code == 200
+    assert current_status.json()["status"] == "bootstrapping"
+    assert current_status.json()["summary"]["name"] == "Example"
+    assert current_status.json()["latest_job"]["id"] == body["job_id"]
+    assert current_status.json()["latest_job"]["log"] == ""
 
     with session_factory() as db:
         db.get(Job, body["job_id"]).status = "done"
@@ -297,6 +303,8 @@ def test_project_isolation_and_duplicate_rejection(project_client, monkeypatch):
     assert duplicate.status_code == 409
     hidden = client.get(f"/api/v1/projects/{created.json()['project_id']}", headers=other_headers)
     assert hidden.status_code == 404
+    hidden_status = client.get(f"/api/v1/projects/{created.json()['project_id']}/status", headers=other_headers)
+    assert hidden_status.status_code == 404
     assert client.get("/api/v1/projects", headers=other_headers).json()["projects"] == []
 
 
