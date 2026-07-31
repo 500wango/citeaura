@@ -18,8 +18,8 @@ from api.adapters.exceptions import GeoEngineError
 from api.auth.deps import get_current_user
 from api.billing.limits import check_project_creation, check_sample_run
 from api.db import get_db
-from api.models import Job, Project, Tenant, User
-from api.worker.tasks import task_bootstrap, task_deliver, task_sample, task_verify
+from api.models import ApiKey, Job, Project, Tenant, User
+from api.worker.tasks import PIPELINE_ACTIONS, task_bootstrap, task_deliver, task_pipeline, task_sample, task_verify
 
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
@@ -29,6 +29,7 @@ class ProjectCreate(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
     market: str = Field(default="both")
     skip_llm: bool = False
+    no_sample: bool = False
 
     @field_validator("url")
     @classmethod
@@ -66,6 +67,10 @@ class TicketUpdate(BaseModel):
         if value not in ("todo", "doing", "done", "blocked", "wontfix"):
             raise ValueError("invalid ticket status")
         return value
+
+
+class PipelineActionRequest(BaseModel):
+    params: dict = Field(default_factory=dict)
 
 
 def _error(status_code: int, message: str):
@@ -127,13 +132,11 @@ def _latest_file(directory: Path, pattern: str):
     return files[-1] if files else None
 
 
-def _active_job(db: Session, project_id: int, action: str):
-    return (
-        db.query(Job)
-        .filter(Job.project_id == project_id, Job.action == action, Job.status.in_(("queued", "running")))
-        .order_by(Job.id.desc())
-        .first()
-    )
+def _active_job(db: Session, project_id: int):
+    return db.query(Job).filter(
+        Job.project_id == project_id,
+        Job.status.in_(("queued", "running")),
+    ).order_by(Job.id.desc()).first()
 
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
@@ -158,7 +161,11 @@ def create_project(
     )
     db.add(project)
     db.flush()
-    job = Job(project_id=project.id, action="bootstrap", status="queued")
+    has_engine_keys = db.query(ApiKey.id).filter(ApiKey.tenant_id == tenant.id).first() is not None
+    skip_llm = payload.skip_llm or not has_engine_keys
+    no_sample = payload.no_sample or not has_engine_keys
+    job_action = "bootstrap" if no_sample else "autopilot"
+    job = Job(project_id=project.id, action=job_action, status="queued")
     db.add(job)
     db.commit()
     db.refresh(project)
@@ -199,7 +206,9 @@ def create_project(
         task_bootstrap.delay(
             tenant.name,
             slug,
-            skip_llm=payload.skip_llm,
+            skip_llm=skip_llm,
+            no_sample=no_sample,
+            job_action=job_action,
             job_id=job.id,
         )
     except Exception as exc:  # noqa: BLE001
@@ -236,6 +245,12 @@ def list_projects(current_user: User = Depends(get_current_user), db: Session = 
             for p in projects
         ]
     }
+
+
+@router.get("/actions")
+def pipeline_actions(current_user: User = Depends(get_current_user)):
+    """返回 SaaS worker 支持的引擎动作白名单。"""
+    return {"actions": PIPELINE_ACTIONS}
 
 
 @router.get("/{project_id}")
@@ -298,8 +313,8 @@ def sample_project(
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     check_sample_run(db, tenant, project)
-    if _active_job(db, project.id, "sample") is not None:
-        _error(status.HTTP_409_CONFLICT, "project_sample_already_running")
+    if _active_job(db, project.id) is not None:
+        _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     payload = payload or SampleRequest()
     job = Job(project_id=project.id, action="sample", status="queued")
     db.add(job)
@@ -324,6 +339,49 @@ def sample_project(
         db.commit()
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
     return {"job_id": job.id, "project_id": project.id, "status": project.status}
+
+
+@router.post("/{project_id}/actions/{action}", status_code=status.HTTP_202_ACCEPTED)
+def run_pipeline_action(
+    project_id: int,
+    action: str,
+    payload: PipelineActionRequest | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """投递一个白名单内的引擎管线动作。"""
+    if action not in PIPELINE_ACTIONS:
+        _error(status.HTTP_400_BAD_REQUEST, "unsupported_pipeline_action")
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    if _active_job(db, project.id) is not None:
+        _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    params = (payload or PipelineActionRequest()).params
+    if action in ("sample", "cycle", "autopilot", "serve") and not params.get("--no-sample", False):
+        check_sample_run(db, tenant, project)
+
+    job = Job(project_id=project.id, action=action, status="queued")
+    db.add(job)
+    project.status = {
+        "sample": "sampling",
+        "verify": "verifying",
+        "deliver": "delivering",
+        "bootstrap": "bootstrapping",
+    }.get(action, "processing")
+    db.commit()
+    db.refresh(job)
+    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    db.commit()
+    try:
+        task_pipeline.delay(tenant.name, project.slug, action, params=params, job_id=job.id)
+    except Exception as exc:  # noqa: BLE001
+        job.status = "failed"
+        job.error = f"{type(exc).__name__}: {exc}"
+        job.finished_at = datetime.now(timezone.utc)
+        project.status = "failed"
+        db.commit()
+        _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
+    return {"job_id": job.id, "project_id": project.id, "action": action, "status": project.status}
 
 
 @router.get("/{project_id}/report")
@@ -418,8 +476,8 @@ def update_ticket(
 def verify_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """投递工单自动验收任务。"""
     project = _project_for_user(db, current_user, project_id)
-    if _active_job(db, project.id, "verify") is not None:
-        _error(status.HTTP_409_CONFLICT, "project_verify_already_running")
+    if _active_job(db, project.id) is not None:
+        _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     job = Job(project_id=project.id, action="verify", status="queued")
     db.add(job)
     project.status = "verifying"
@@ -458,8 +516,8 @@ def verify_history(project_id: int, current_user: User = Depends(get_current_use
 def deliver_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """投递客户交付包生成任务。"""
     project = _project_for_user(db, current_user, project_id)
-    if _active_job(db, project.id, "deliver") is not None:
-        _error(status.HTTP_409_CONFLICT, "project_delivery_already_running")
+    if _active_job(db, project.id) is not None:
+        _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     job = Job(project_id=project.id, action="deliver", status="queued")
     db.add(job)
     project.status = "delivering"

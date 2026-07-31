@@ -91,6 +91,10 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert detail.json()["brand"]["name"] == "Example"
     assert detail.json()["questions"][0]["id"] == "q001"
 
+    with session_factory() as db:
+        db.get(Job, body["job_id"]).status = "done"
+        db.commit()
+
     from api.adapters.engine import geolib
 
     project_dir = tmp_path / "work" / "owner" / "example-com"
@@ -151,6 +155,9 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     )
     assert sampled.status_code == 202
     assert sampled.json()["job_id"] == 2
+    with session_factory() as db:
+        db.get(Job, sampled.json()["job_id"]).status = "done"
+        db.commit()
 
     geolib.write_json(
         project_dir / "tasks.json",
@@ -186,6 +193,9 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     verified = client.post(f"/api/v1/projects/{body['project_id']}/verify", headers=headers)
     assert verified.status_code == 202
     assert verified.json()["job_id"] == 3
+    with session_factory() as db:
+        db.get(Job, verified.json()["job_id"]).status = "done"
+        db.commit()
 
     (project_dir / "delivery" / "2026-07-31").mkdir(parents=True, exist_ok=True)
     (project_dir / "delivery" / "2026-07-31" / "index.html").write_text("<h1>Delivery</h1>", "utf-8")
@@ -238,6 +248,48 @@ def test_project_isolation_and_duplicate_rejection(project_client, monkeypatch):
     hidden = client.get(f"/api/v1/projects/{created.json()['project_id']}", headers=other_headers)
     assert hidden.status_code == 404
     assert client.get("/api/v1/projects", headers=other_headers).json()["projects"] == []
+
+
+def test_pipeline_actions_are_whitelisted_and_project_serialized(project_client, monkeypatch):
+    client, session_factory = project_client
+    headers = _register(client, "owner@example.com")
+    monkeypatch.setattr(project_router, "with_tenant_context", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_init=lambda args: None))
+    monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: None)
+
+    created = client.post("/api/v1/projects", headers=headers, json={"url": "example.com"}).json()
+    blocked = client.post(
+        f"/api/v1/projects/{created['project_id']}/actions/audit",
+        headers=headers,
+        json={"params": {}},
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["error"] == "project_job_already_running"
+
+    with session_factory() as db:
+        db.get(Job, created["job_id"]).status = "done"
+        db.commit()
+    queued = []
+    monkeypatch.setattr(project_router.task_pipeline, "delay", lambda *args, **kwargs: queued.append((args, kwargs)))
+    started = client.post(
+        f"/api/v1/projects/{created['project_id']}/actions/audit",
+        headers=headers,
+        json={"params": {"ignored": "value"}},
+    )
+    assert started.status_code == 202
+    assert started.json()["action"] == "audit"
+    assert queued[0][0][:3] == ("owner", "example-com", "audit")
+    assert queued[0][1]["params"] == {"ignored": "value"}
+
+    actions = client.get("/api/v1/projects/actions", headers=headers)
+    assert actions.status_code == 200
+    assert {"autopilot", "serve", "audit", "generate", "deliverables"} <= set(actions.json()["actions"])
+    unsupported = client.post(
+        f"/api/v1/projects/{created['project_id']}/actions/publish",
+        headers=headers,
+        json={"params": {}},
+    )
+    assert unsupported.status_code == 400
 
 
 @contextmanager

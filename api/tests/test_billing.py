@@ -82,6 +82,10 @@ def test_trial_sample_limit_is_per_project(billing_client, monkeypatch):
     project_id = created.json()["project_id"]
     monkeypatch.setattr(project_router.task_sample, "delay", lambda *a, **kw: types.SimpleNamespace(id="sample"))
 
+    with session_factory() as db:
+        db.query(Job).filter(Job.project_id == project_id, Job.action == "bootstrap").one().status = "done"
+        db.commit()
+
     for _ in range(2):
         response = client.post(f"/api/v1/projects/{project_id}/sample", headers=headers)
         assert response.status_code == 202
@@ -92,6 +96,13 @@ def test_trial_sample_limit_is_per_project(billing_client, monkeypatch):
     blocked = client.post(f"/api/v1/projects/{project_id}/sample", headers=headers)
     assert blocked.status_code == 403
     assert blocked.json()["error"] == "trial_limit_exceeded"
+    blocked_cycle = client.post(
+        f"/api/v1/projects/{project_id}/actions/serve",
+        headers=headers,
+        json={"params": {}},
+    )
+    assert blocked_cycle.status_code == 403
+    assert blocked_cycle.json()["error"] == "trial_limit_exceeded"
 
 
 def test_subscribe_upgrades_plan_and_opens_limits(billing_client):

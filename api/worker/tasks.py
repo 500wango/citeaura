@@ -12,6 +12,114 @@ from api.models import Job, Project, Tenant
 from api.worker.celery_app import celery_app
 
 
+PIPELINE_ACTIONS = {
+    "crawl": {"label": "抓取站点", "args": ["--max-pages"]},
+    "audit": {"label": "页面体检", "args": []},
+    "sample": {"label": "AI 答案采样", "args": ["--limit", "--repeat", "--platforms"]},
+    "bootstrap": {"label": "自动推导底座", "args": ["--skip-llm"]},
+    "deliverables": {"label": "出三份交付物", "args": []},
+    "plan": {"label": "生成工单", "args": []},
+    "expand": {"label": "拓词扩题", "args": ["--no-llm"]},
+    "blueprint": {"label": "生成建设蓝图", "args": []},
+    "generate": {"label": "生成资产", "args": ["--asset", "--draft", "--draft-limit"]},
+    "lint": {"label": "初稿风险检查", "args": []},
+    "report": {"label": "生成报告", "args": []},
+    "verify": {"label": "自动验收", "args": ["--no-recrawl"]},
+    "deliver": {"label": "打包交付", "args": []},
+    "sample-sheet": {"label": "导出人工采样表", "args": []},
+    "autopilot": {"label": "全自动引导", "args": ["--no-sample", "--limit", "--skip-llm"]},
+    "serve": {
+        "label": "跑完整周期",
+        "args": ["--max-pages", "--limit", "--no-sample", "--draft", "--draft-limit"],
+    },
+}
+
+_ACTION_METHODS = {
+    "crawl": "cmd_crawl",
+    "audit": "cmd_audit",
+    "sample": "cmd_sample",
+    "bootstrap": "cmd_bootstrap",
+    "deliverables": "cmd_deliverables",
+    "plan": "cmd_plan",
+    "expand": "cmd_expand",
+    "blueprint": "cmd_blueprint",
+    "generate": "cmd_generate",
+    "lint": "cmd_lint",
+    "report": "cmd_report",
+    "verify": "cmd_verify",
+    "deliver": "cmd_deliver",
+    "sample-sheet": "cmd_sheet",
+    "autopilot": "cmd_autopilot",
+    "serve": "cmd_serve",
+}
+
+_ACTION_DEFAULTS = {
+    "crawl": {"max_pages": None},
+    "audit": {},
+    "sample": {"limit": None, "repeat": 1, "platforms": None},
+    "bootstrap": {"skip_llm": False},
+    "deliverables": {},
+    "plan": {},
+    "expand": {"no_llm": False},
+    "blueprint": {},
+    "generate": {"asset": None, "draft": False, "draft_limit": None},
+    "lint": {},
+    "report": {},
+    "verify": {"no_recrawl": False},
+    "deliver": {},
+    "sample-sheet": {},
+    "autopilot": {"no_sample": False, "limit": None, "skip_llm": False},
+    "serve": {"max_pages": None, "limit": None, "no_sample": False, "draft": False, "draft_limit": None},
+}
+
+_INTEGER_LIMITS = {
+    "--max-pages": (1, 1000),
+    "--limit": (1, 1000),
+    "--repeat": (1, 10),
+    "--draft-limit": (1, 100),
+}
+_FLAG_ARGS = {"--no-recrawl", "--draft", "--no-sample", "--skip-llm", "--no-llm"}
+_CSV_ARGS = {"--platforms", "--asset"}
+
+
+def _action_namespace(action, params=None):
+    """按引擎动作白名单清洗参数，并转换为 geo.cmd_* 所需对象。"""
+    if action not in PIPELINE_ACTIONS:
+        raise ValueError(f"unsupported pipeline action: {action}")
+    values = dict(_ACTION_DEFAULTS[action])
+    allowed = set(PIPELINE_ACTIONS[action]["args"])
+    for raw_name, value in (params or {}).items():
+        flag = str(raw_name)
+        if not flag.startswith("--"):
+            flag = "--" + flag.replace("_", "-")
+        if flag not in allowed:
+            continue
+        name = flag[2:].replace("-", "_")
+        if flag in _FLAG_ARGS:
+            values[name] = value is True
+        elif value in (None, "", []):
+            continue
+        elif flag in _INTEGER_LIMITS:
+            number = int(value)
+            minimum, maximum = _INTEGER_LIMITS[flag]
+            if not minimum <= number <= maximum:
+                raise ValueError(f"{flag} must be between {minimum} and {maximum}")
+            values[name] = number
+        elif flag in _CSV_ARGS:
+            values[name] = ",".join(str(item) for item in value) if isinstance(value, list) else str(value)
+    return SimpleNamespace(**values)
+
+
+def _run_pipeline_action(action, project_slug, params=None):
+    import geo
+
+    method = getattr(geo, _ACTION_METHODS[action])
+    args = _action_namespace(action, params)
+    args.slug = project_slug
+    method(args)
+    return {"status": "done", "action": action, "project_slug": project_slug}
+
+
 def _tenant_record(db, tenant_id):
     """按数据库 id 或租户名称查找租户。"""
     try:
@@ -140,15 +248,22 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
 
 
 @celery_app.task(name="disvorai.bootstrap")
-def task_bootstrap(tenant_id: str, project_slug: str, skip_llm: bool = False, job_id=None):
-    """执行官网底座自动推导。"""
-    import bootstrap
-    import crawl
+def task_bootstrap(
+    tenant_id: str,
+    project_slug: str,
+    skip_llm: bool = False,
+    no_sample: bool = False,
+    job_action: str = "bootstrap",
+    job_id=None,
+):
+    """执行新项目的完整自动引导。"""
+    import geo
 
-    with _job_status(tenant_id, project_slug, "bootstrap", job_id):
+    args = SimpleNamespace(slug=project_slug, skip_llm=skip_llm, no_sample=no_sample, limit=None)
+    with _job_status(tenant_id, project_slug, job_action, job_id):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
-            crawl.run(project_slug)
-            return bootstrap.run(project_slug, skip_llm=skip_llm)
+            geo.cmd_autopilot(args)
+            return {"status": "done", "action": job_action, "project_slug": project_slug}
 
 
 @celery_app.task(name="disvorai.sample")
@@ -197,3 +312,11 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
     with _job_status(tenant_id, project_slug, "deliver", job_id):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             return str(deliver.run(project_slug))
+
+
+@celery_app.task(name="disvorai.pipeline")
+def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, job_id=None):
+    """执行经过白名单校验的完整引擎动作。"""
+    with _job_status(tenant_id, project_slug, action, job_id):
+        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
+            return _run_pipeline_action(action, project_slug, params)

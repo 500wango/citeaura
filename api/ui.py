@@ -125,12 +125,18 @@ FETCH_ADAPTER = r"""
         return Object.assign({}, p, {name:p.slug,site:p.url});
       }), r.status);
     }
-    if (url === '/api/actions') return response({autopilot:{label:'Bootstrap'},serve:{label:'Sample'},sample:{label:'Sample'},verify:{label:'Verify'},deliver:{label:'Deliver'}});
+    if (url === '/api/actions') {
+      const r = await nativeFetch('/api/v1/projects/actions', init), data = await r.json();
+      return response(data.actions || {}, r.status);
+    }
     if (url === '/api/init' && init.body) {
       const body = JSON.parse(init.body);
       const r = await nativeFetch('/api/v1/projects', {
         method:'POST', headers:Object.assign({}, init.headers, {'Content-Type':'application/json'}),
-        body:JSON.stringify({url:body.url, market:body.market || 'both', skip_llm:configuredKeyCount === 0})
+        body:JSON.stringify({
+          url:body.url, market:body.market || 'both', skip_llm:configuredKeyCount === 0,
+          no_sample:configuredKeyCount === 0 || !!document.querySelector('#ob-nosample')?.checked
+        })
       });
       const data = await r.json();
       if (r.ok && data.slug) projectIds.set(data.slug, data.project_id);
@@ -193,16 +199,13 @@ FETCH_ADAPTER = r"""
       if (!id) return response({error:'project_not_found'}, 404);
       if (action === 'autopilot') {
         const r = await nativeFetch('/api/v1/projects/' + id + '/jobs', {headers:init.headers}), data = await r.json();
-        const job = (data.jobs || []).find(function (j) { return j.action === 'bootstrap'; });
-        return job ? response({ok:true,job:legacyJob(job)}) : response({ok:false,error:'bootstrap_job_not_found'}, 404);
+        const job = (data.jobs || []).find(function (j) {
+          return (j.action === 'bootstrap' || j.action === 'autopilot') && (j.status === 'queued' || j.status === 'running');
+        });
+        if (job) return response({ok:true,job:legacyJob(job)});
       }
-      if (action === 'serve') action = 'sample';
-      let path = null, payload = {method:'POST',headers:init.headers};
-      if (action === 'sample') { path='/sample'; payload.body=JSON.stringify(params); payload.headers['Content-Type']='application/json'; }
-      if (action === 'verify') path='/verify';
-      if (action === 'deliver') path='/deliver';
-      if (!path) return response({error:'action_not_supported'}, 400);
-      const r = await nativeFetch('/api/v1/projects/' + id + path, payload), data = await r.json();
+      const payload = {method:'POST',headers:Object.assign({},init.headers,{'Content-Type':'application/json'}),body:JSON.stringify({params:params})};
+      const r = await nativeFetch('/api/v1/projects/' + id + '/actions/' + encodeURIComponent(action), payload), data = await r.json();
       return response({ok:r.ok,job:r.ok ? {id:data.job_id,status:'queued',label:action} : null,error:data.error}, r.status);
     }
     if (url === '/api/task' && init.body) {

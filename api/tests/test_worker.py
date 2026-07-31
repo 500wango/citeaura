@@ -21,35 +21,63 @@ def test_celery_registers_all_pipeline_tasks():
         "disvorai.cycle",
         "disvorai.verify",
         "disvorai.deliver",
+        "disvorai.pipeline",
     } <= registered
 
 
 def test_bootstrap_task_uses_tenant_context(monkeypatch):
     calls = []
-    pipeline = []
 
     @contextmanager
     def fake_context(tenant_id, project_slug, keys=None):
         calls.append((tenant_id, project_slug))
         yield
 
-    fake_crawl = types.SimpleNamespace(run=lambda slug: pipeline.append(("crawl", slug)))
+    def fake_autopilot(args):
+        calls.append(("autopilot", args.slug, args.skip_llm, args.no_sample, args.limit))
 
-    def fake_bootstrap_run(slug, skip_llm=False):
-        pipeline.append(("bootstrap", slug, skip_llm))
-        return {"slug": slug, "skip_llm": skip_llm}
-
-    fake_bootstrap = types.SimpleNamespace(run=fake_bootstrap_run)
-    monkeypatch.setitem(sys.modules, "crawl", fake_crawl)
-    monkeypatch.setitem(sys.modules, "bootstrap", fake_bootstrap)
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_autopilot=fake_autopilot))
     monkeypatch.setattr(tasks, "with_tenant_context", fake_context)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
-    result = tasks.task_bootstrap.run("tenant-a", "example", skip_llm=True)
+    result = tasks.task_bootstrap.run("tenant-a", "example", skip_llm=True, no_sample=True)
 
-    assert result == {"slug": "example", "skip_llm": True}
-    assert calls == [("tenant-a", "example")]
-    assert pipeline == [("crawl", "example"), ("bootstrap", "example", True)]
+    assert result == {"status": "done", "action": "bootstrap", "project_slug": "example"}
+    assert calls == [("tenant-a", "example"), ("autopilot", "example", True, True, None)]
+
+
+def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
+    calls = []
+
+    @contextmanager
+    def fake_context(tenant_id, project_slug, keys=None):
+        calls.append(("context", tenant_id, project_slug, keys))
+        yield
+
+    def fake_serve(args):
+        calls.append(("serve", args.slug, args.max_pages, args.limit, args.no_sample, args.draft))
+
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_serve=fake_serve))
+    monkeypatch.setattr(tasks, "with_tenant_context", fake_context)
+    monkeypatch.setattr(tasks, "_engine_keys", lambda tenant_id: {"deepseek": "secret"})
+    monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
+
+    result = tasks.task_pipeline.run(
+        "tenant-a",
+        "example",
+        "serve",
+        params={"--max-pages": 8, "limit": 3, "--draft": True, "ignored": "value"},
+    )
+
+    assert result == {"status": "done", "action": "serve", "project_slug": "example"}
+    assert calls == [
+        ("context", "tenant-a", "example", {"deepseek": "secret"}),
+        ("serve", "example", 8, 3, False, True),
+    ]
+    with pytest.raises(ValueError, match="unsupported pipeline action"):
+        tasks._action_namespace("publish", {})
+    with pytest.raises(ValueError, match="must be between 1 and 1000"):
+        tasks._action_namespace("sample", {"limit": 0})
 
 
 def test_find_job_rejects_cross_tenant_or_wrong_action(tmp_path):

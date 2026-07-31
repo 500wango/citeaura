@@ -44,7 +44,11 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "disvorai_access_token" in response.text
     assert "job.status === 'queued' ? 'running'" in response.text
     assert "skip_llm:configuredKeyCount === 0" in response.text
+    assert "document.querySelector('#ob-nosample')?.checked" in response.text
     assert "data.job.log_offset || requested" in response.text
+    assert "/api/v1/projects/actions" in response.text
+    assert "'/actions/' + encodeURIComponent(action)" in response.text
+    assert "if (action === 'serve') action = 'sample'" not in response.text
 
 
 def test_project_files_use_cookie_auth_and_remain_tenant_isolated(ui_client):

@@ -11,6 +11,7 @@ from api.models import Job, Project, Tenant
 
 TRIAL_PROJECT_LIMIT = 3
 TRIAL_SAMPLE_LIMIT_PER_PROJECT = 2
+SAMPLE_JOB_ACTIONS = ("sample", "cycle", "autopilot", "serve")
 
 
 def _trial_active(tenant: Tenant) -> bool:
@@ -49,7 +50,7 @@ def check_sample_run(db: Session, tenant: Tenant, project: Project):
         return
     count = (
         db.query(func.count(Job.id))
-        .filter(Job.project_id == project.id, Job.action == "sample")
+        .filter(Job.project_id == project.id, Job.action.in_(SAMPLE_JOB_ACTIONS))
         .scalar()
         or 0
     )
@@ -66,7 +67,7 @@ def usage(db: Session, tenant: Tenant) -> dict:
     if project_ids:
         sample_count = (
             db.query(func.count(Job.id))
-            .filter(Job.project_id.in_(project_ids), Job.action == "sample")
+            .filter(Job.project_id.in_(project_ids), Job.action.in_(SAMPLE_JOB_ACTIONS))
             .scalar()
             or 0
         )
@@ -74,7 +75,7 @@ def usage(db: Session, tenant: Tenant) -> dict:
     for project_id in project_ids:
         per_project[str(project_id)] = (
             db.query(func.count(Job.id))
-            .filter(Job.project_id == project_id, Job.action == "sample")
+            .filter(Job.project_id == project_id, Job.action.in_(SAMPLE_JOB_ACTIONS))
             .scalar()
             or 0
         )
