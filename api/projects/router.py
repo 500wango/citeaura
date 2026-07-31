@@ -174,6 +174,39 @@ def _schedule_payload(project: Project):
     }
 
 
+def _competitor_discovery_payload(config):
+    """返回自动发现竞品的候选与采样确认状态。"""
+    items = []
+    for competitor in config.get("competitors", []) or []:
+        name = competitor.get("name") if isinstance(competitor, dict) else None
+        if not isinstance(name, str) or not name.strip():
+            continue
+        aliases = competitor.get("aliases", [])
+        aliases = aliases if isinstance(aliases, list) else []
+        confirmed = competitor.get("confirmed")
+        if confirmed is True:
+            discovery_status = "sample_confirmed"
+        elif confirmed is False:
+            discovery_status = "candidate"
+        else:
+            discovery_status = "configured"
+        items.append({
+            "name": name.strip(),
+            "aliases": [alias for alias in aliases if isinstance(alias, str) and alias],
+            "market": competitor.get("market", "both"),
+            "discovery_status": discovery_status,
+        })
+    return {
+        "items": items,
+        "summary": {
+            "total": len(items),
+            "sample_confirmed": sum(item["discovery_status"] == "sample_confirmed" for item in items),
+            "candidate": sum(item["discovery_status"] == "candidate" for item in items),
+            "configured": sum(item["discovery_status"] == "configured" for item in items),
+        },
+    }
+
+
 def _sampling_funding_payload(db, tenant, project, user):
     byok = sorted(load_tenant_keys(db, tenant.id))
     catalog = public_catalog()
@@ -345,8 +378,14 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
             detail = dashboard.project(project.slug)
             cfg = geolib.load_config(project.slug)
             detail["questions"] = cfg.get("questions", [])
+            detail["competitor_discovery"] = _competitor_discovery_payload(cfg)
     except GeoEngineError:
-        detail = {"slug": project.slug, "brand": {}, "questions": []}
+        detail = {
+            "slug": project.slug,
+            "brand": {},
+            "questions": [],
+            "competitor_discovery": _competitor_discovery_payload({}),
+        }
     detail["project"] = {
         "id": project.id,
         "slug": project.slug,

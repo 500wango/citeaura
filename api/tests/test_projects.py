@@ -66,6 +66,11 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
                 "brand": {"name": "Example", "site": args.url},
                 "market": args.market,
                 "questions": [{"id": "q001", "text": "What is Example?", "market": "global"}],
+                "competitors": [
+                    {"name": "Confirmed Rival", "aliases": ["CR"], "market": "global", "confirmed": True},
+                    {"name": "Candidate Rival", "aliases": [], "market": "global", "confirmed": False},
+                    {"name": "Configured Rival", "aliases": [], "market": "both"},
+                ],
             }),
             "utf-8",
         )
@@ -95,6 +100,12 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert detail.status_code == 200
     assert detail.json()["brand"]["name"] == "Example"
     assert detail.json()["questions"][0]["id"] == "q001"
+    discovery = detail.json()["competitor_discovery"]
+    assert discovery["summary"] == {"total": 3, "sample_confirmed": 1, "candidate": 1, "configured": 1}
+    assert [item["discovery_status"] for item in discovery["items"]] == [
+        "sample_confirmed", "candidate", "configured",
+    ]
+    assert discovery["items"][0]["aliases"] == ["CR"]
     current_status = client.get(f"/api/v1/projects/{body['project_id']}/status", headers=headers)
     assert current_status.status_code == 200
     assert current_status.json()["status"] == "bootstrapping"

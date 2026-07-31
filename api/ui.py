@@ -656,11 +656,42 @@ function showFramingEvidence(index) {
     <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn btn-primary" onclick="closeModal()">关闭</button></div>`);
 }
 
+function competitorDiscoveryPanel() {
+  const state=D.competitor_discovery||{},items=state.items||[],summary=state.summary||{};
+  const copies={
+    zh:{title:'自动发现竞品',desc:'候选由项目初始化自动推导；只有在真实采样回答中出现后，才标记为采样已确认。',
+      empty:'尚未发现竞品候选。重新运行项目初始化，或在设置中手动配置竞品。',candidate:'待采样确认',confirmed:'采样已确认',configured:'手动配置',aliases:'别名',
+      count:function(){return `${summary.total||0} 个竞品，${summary.sample_confirmed||0} 个经采样确认`;},markets:{cn:'国内',global:'海外',both:'通用'}},
+    en:{title:'Discovered competitors',desc:'Candidates are inferred during project setup. They are confirmed only after appearing in real sampled answers.',
+      empty:'No competitor candidates yet. Run project setup again or configure competitors in Settings.',candidate:'Awaiting sample confirmation',confirmed:'Sample confirmed',configured:'Manually configured',aliases:'Aliases',
+      count:function(){return `${summary.total||0} competitors, ${summary.sample_confirmed||0} sample confirmed`;},markets:{cn:'CN',global:'Global',both:'Both'}},
+    ja:{title:'自動検出した競合',desc:'候補はプロジェクト初期化時に推定され、実際のサンプル回答に出現した場合のみ確認済みになります。',
+      empty:'競合候補はまだありません。プロジェクト初期化を再実行するか、設定で競合を追加してください。',candidate:'サンプル確認待ち',confirmed:'サンプル確認済み',configured:'手動設定',aliases:'別名',
+      count:function(){return `${summary.total||0} 件中 ${summary.sample_confirmed||0} 件をサンプル確認済み`;},markets:{cn:'中国',global:'海外',both:'共通'}}
+  };
+  const text=copies[ULANG]||copies.zh;
+  const status={candidate:[text.candidate,'tag-accent'],sample_confirmed:[text.confirmed,'pill-good'],configured:[text.configured,'tag-outline']};
+  return `<section style="margin-top:24px;padding-top:22px;box-shadow:inset 0 1px 0 var(--line)">
+    <div class="row" style="align-items:flex-start"><div style="flex:1;min-width:220px"><h4 style="font-size:16px;margin:0 0 5px">${text.title}</h4>
+      <p class="muted" style="font-size:12px;margin:0;max-width:720px">${text.desc}</p></div>
+      <span style="font-size:11.5px;color:var(--t500)">${text.count()}</span></div>
+    ${items.length?`<div style="margin-top:13px;border-top:1px solid var(--divider)">${items.map(function(item){const current=status[item.discovery_status]||status.configured;return `<div class="row" style="padding:9px 0;box-shadow:inset 0 -1px 0 var(--line);gap:8px">
+        <span style="flex:1;min-width:180px;font-size:13px;overflow-wrap:anywhere">${esc(item.name)}${(item.aliases||[]).length?`<span style="display:block;font-size:10.5px;color:var(--t600);margin-top:1px">${text.aliases}: ${item.aliases.map(esc).join(' / ')}</span>`:''}</span>
+        <span class="tag tag-dim">${esc(text.markets[item.market]||item.market||text.markets.both)}</span><span class="tag ${current[1]}">${current[0]}</span></div>`;}).join('')}</div>`
+      :`<div style="margin-top:13px;padding:14px;border:1px solid var(--line);border-radius:var(--r-md);font-size:12.5px;color:var(--t500)">${text.empty}</div>`}
+  </section>`;
+}
+
 const engineCompetitorsView = vCompetitors;
 vCompetitors = function () {
-  const html = engineCompetitorsView();
+  let html = engineCompetitorsView();
+  const sampleNs=((D.analytics||{}).competitors||{}).sample_ns||{};
+  if (!(Number(sampleNs.cn||0)+Number(sampleNs.global||0))) {
+    const pendingTitle={zh:'竞品候选等待采样',en:'Competitor candidates await sampling',ja:'競合候補はサンプリング待ち'}[ULANG];
+    html=html.replace(/<h3 style="margin-bottom:6px">[^<]*<\/h3>/,`<h3 style="margin-bottom:6px">${pendingTitle}</h3>`);
+  }
   const anchor = '<div class="tabs" style="margin-top:18px">';
-  return html.replace(anchor, framingPanel() + anchor);
+  return html.replace(anchor, competitorDiscoveryPanel() + framingPanel() + anchor);
 };
 VIEWS.competitors = vCompetitors;
 

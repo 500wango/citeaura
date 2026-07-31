@@ -97,6 +97,14 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "function showFramingEvidence(index)" in response.text
     assert "const engineCompetitorsView = vCompetitors" in response.text
     assert "VIEWS.competitors = vCompetitors" in response.text
+    assert "function competitorDiscoveryPanel()" in response.text
+    assert "D.competitor_discovery" in response.text
+    assert "自动发现竞品" in response.text
+    assert "待采样确认" in response.text
+    assert "采样已确认" in response.text
+    assert "Discovered competitors" in response.text
+    assert "自動検出した競合" in response.text
+    assert "竞品候选等待采样" in response.text
     assert "AI 如何描述你" in response.text
     assert "基于品牌被实际提及的回答短语，词频按样本去重。" in response.text
     assert "品牌印象加载失败，请刷新后重试。" in response.text
