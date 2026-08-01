@@ -22,6 +22,7 @@ from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.db import get_db
 from api.models import ApiKey, Job, Project, Tenant, User
 from api.worker.tasks import PIPELINE_ACTIONS, task_bootstrap, task_deliver, task_pipeline, task_sample, task_verify
+from api.adapters.localization import localize_tickets
 
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
@@ -387,6 +388,7 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
         "status": project.status,
         "created_at": project.created_at,
     }
+    detail["tasks"] = localize_tickets(detail.get("tasks", []))
     return detail
 
 
@@ -671,7 +673,7 @@ def project_tickets(project_id: int, current_user: User = Depends(get_current_us
         import tasks as engine_tasks
 
         data = engine_tasks.load(project.slug)
-    return {"tickets": data.get("tasks", []), "summary": data.get("summary", {})}
+    return {"tickets": localize_tickets(data.get("tasks", [])), "summary": data.get("summary", {})}
 
 
 @router.get("/{project_id}/playbook")
@@ -695,7 +697,7 @@ def project_playbook(project_id: int, current_user: User = Depends(get_current_u
         pair[0],
     ))
     return {
-        "playbook": [ticket for _, ticket in indexed],
+        "playbook": localize_tickets([ticket for _, ticket in indexed]),
         "summary": data.get("summary", {}),
         "generated_at": data.get("generated_at"),
     }

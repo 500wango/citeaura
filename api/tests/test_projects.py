@@ -253,6 +253,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert tickets.status_code == 200
     assert tickets.json()["tickets"][0]["id"] == "T-003"
     playbook = client.get(f"/api/v1/projects/{body['project_id']}/playbook", headers=headers)
+    assert any(item["package_en"] == "Content matrix" for item in playbook.json()["playbook"])
     assert playbook.status_code == 200
     assert [item["id"] for item in playbook.json()["playbook"]] == ["T-002", "T-001", "T-003"]
     assert playbook.json()["generated_at"] == "2026-07-31T12:00:00+08:00"

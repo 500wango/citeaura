@@ -2082,11 +2082,11 @@ function sortedPlaybookTasks(tasks) {
 
 function playbookTaskButton(task) {
   const complete=['done','wontfix'].includes(task.status);
-  const title = (UI_D[ULANG] || {})[task.title] || task.title || task.id;
+  const title = task['title_'+ULANG] || (UI_D[ULANG] || {})[task.title] || task.title || task.id;
   return `<button class="playbook-task ${complete?'is-complete':''}" onclick="taskModal(${esc(JSON.stringify(task.id))})" title="${esc(title)}">
     <span class="playbook-task-top"><span>${esc(task.id || '')}</span><span>${esc(playbookLocalized(playbookStatusLabel[task.status] || task.status))}</span></span>
     <span class="playbook-task-title">${esc(title)}</span>
-    <span class="playbook-task-meta">${esc(playbookLocalized(task.owner || '未分配'))} · ${esc(playbookLocalized(task.package || ''))}</span></button>`;
+    <span class="playbook-task-meta">${esc(task['owner_'+ULANG] || playbookLocalized(task.owner || '未分配'))} · ${esc(task['package_'+ULANG] || playbookLocalized(task.package || ''))}</span></button>`;
 }
 
 function playbookMatrix(tasks) {
