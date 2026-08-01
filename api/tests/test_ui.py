@@ -100,6 +100,8 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "function uiText(value)" in response.text
     assert "const engineOnboard = vOnboard" in response.text
     assert "Two sampling rounds are required" in response.text
+    assert "No competitor data yet. Configure competitors in Settings, then run a full cycle." in response.text
+    assert "API · Model knowledge · API key required" in response.text
     assert "/api/v1/projects" in response.text
     assert "/api/v1/settings/keys" in response.text
     assert "disvorai_access_token" in response.text

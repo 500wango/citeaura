@@ -2035,6 +2035,10 @@ Object.assign(UI_D.en, {
   '高影响':'High impact','中影响':'Medium impact','低影响':'Lower impact','低工作量':'Low effort','中工作量':'Medium effort','高工作量':'High effort',
   '暂无行动任务':'No action items yet','未分类任务':'Unclassified tasks','待开始':'To do','进行中':'In progress','受阻':'Blocked','已完成':'Done','不处理':'Won\'t fix',
   '需两期采样':'Two sampling rounds are required','已就绪':'Ready','缺 ':'Missing ',
+  '暂无竞品数据——先到「设置」配置竞品并跑完整一期。':'No competitor data yet. Configure competitors in Settings, then run a full cycle.',
+  '词数接近 0 的是前端渲染空壳页——AI 抓取器看到的是空白，这是前端渲染站点常见的致命问题。修复清单见「行动计划」。':'Near-zero word counts indicate client-rendered empty-shell pages. AI crawlers see a blank page. See the Action plan for the remediation list.',
+  '没有内容缺口':'No content gaps',
+  '纪律：一句话定位必须在官网首屏、关于页、JSON-LD description、llms.txt 四处逐字一致。生成文件的去处见资产目录里的 DEPLOY.md。':'Editorial rule: use the identical one-sentence positioning on the homepage, About page, JSON-LD description, and llms.txt. See DEPLOY.md in Deployment assets for generated-file locations.',
   '统一一句话定义，四处逐字一致':'Standardize the one-sentence definition across four surfaces',
   '建品牌事实卡并标注证据等级':'Build a brand facts library with evidence grades',
   '修复前端渲染空壳页（SSR / 预渲染）':'Fix client-rendered empty-shell pages (SSR / prerender)',
@@ -2054,6 +2058,11 @@ Object.assign(UI_D.ja, {
   '影响优先级 × 工作量':'インパクト優先度 × 工数','全部任务':'すべてのタスク',
   '高影响':'高インパクト','中影响':'中インパクト','低影响':'低インパクト','低工作量':'低工数','中工作量':'中工数','高工作量':'高工数',
   '暂无行动任务':'アクション項目はまだありません','未分类任务':'未分類タスク','待开始':'未着手','进行中':'進行中','受阻':'ブロック中','已完成':'完了','不处理':'対応しない'
+  ,'需两期采样':'サンプリングは 2 回必要です','已就绪':'準備完了','缺 ':'不足：',
+  '暂无竞品数据——先到「设置」配置竞品并跑完整一期。':'競合データはまだありません。設定で競合を追加してからフルサイクルを実行してください。',
+  '词数接近 0 的是前端渲染空壳页——AI 抓取器看到的是空白，这是前端渲染站点常见的致命问题。修复清单见「行动计划」。':'語数がほぼ 0 のページはクライアント描画の空シェルです。AI クローラには空白に見えます。修正リストはアクションプランを参照してください。',
+  '没有内容缺口':'コンテンツギャップはありません',
+  '纪律：一句话定位必须在官网首屏、关于页、JSON-LD description、llms.txt 四处逐字一致。生成文件的去处见资产目录里的 DEPLOY.md。':'編集ルール：一文のポジショニングをホーム、About、JSON-LD description、llms.txt の 4 箇所で完全に一致させます。生成ファイルの配置先はデプロイアセットの DEPLOY.md を参照してください。'
 });
 UI_SUB.en.push(['实体消歧','Entity disambiguation'],['知识库','Knowledge base'],['页面技术','Page technology'],['内容矩阵','Content matrix'],['外部证据','External evidence'],['监测闭环','Measurement loop'],['内容','Content'],['开发','Engineering'],['市场','Marketing'],['GEO顾问','GEO strategist'],['未分配','Unassigned']);
 UI_SUB.ja.push(['实体消歧','エンティティ曖昧性解消'],['知识库','ナレッジベース'],['页面技术','ページ技術'],['内容矩阵','コンテンツマトリクス'],['外部证据','外部エビデンス'],['监测闭环','測定ループ'],['内容','コンテンツ'],['开发','開発'],['市场','マーケティング'],['GEO顾问','GEO ストラテジスト'],['未分配','未割り当て']);
@@ -2287,7 +2296,7 @@ def serve_ui():
     )
     html = html.replace(
         "${mktLabel(k.market)} · ${k.ok===false?'缺 API Key':'仅人工采样'}",
-        "${k.ok===false?(k.search?'API · 联网检索 · 缺 Key':'API · 模型内知识 · 缺 Key'):'人工 · 产品端核验'}",
+        "${k.ok===false?(k.search?(ULANG==='en'?'API · Web-grounded retrieval · API key required':ULANG==='ja'?'API · Web グラウンデッド検索 · API キーが必要':'API · 联网检索 · 缺 Key'):(ULANG==='en'?'API · Model knowledge · API key required':ULANG==='ja'?'API · モデル知識 · API キーが必要':'API · 模型内知识 · 缺 Key')):(ULANG==='en'?'Manual · Product-surface check':ULANG==='ja'?'手動 · プロダクト画面確認':'人工 · 产品端核验')}",
     )
     html = html.replace(
         "${mktLabel(k.market)}${k.search?' · 联网':''}",
