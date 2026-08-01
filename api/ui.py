@@ -896,7 +896,7 @@ UI_EXTENSION = r"""
 <script>
 const ADMIN_MODULES = [
   {id:'overview',icon:'layout-dashboard',label:{zh:'概览',en:'Overview',ja:'概要'},defaultRoute:'overview',groups:[
-    {items:[{route:'overview',label:{zh:'项目概览',en:'Project overview',ja:'プロジェクト概要'}}]}
+    {items:[{route:'overview',label:{zh:'品牌概览',en:'Brand overview',ja:'ブランド概要'}}]}
   ]},
   {id:'monitoring',icon:'radar',label:{zh:'监测',en:'Monitoring',ja:'モニタリング'},defaultRoute:'engines',groups:[
     {items:[
@@ -930,8 +930,8 @@ const ADMIN_MODULES = [
     ]}
   ]},
   {id:'management',icon:'settings-2',label:{zh:'管理',en:'Admin',ja:'管理'},defaultRoute:'project-settings',groups:[
-    {label:{zh:'项目',en:'Project',ja:'プロジェクト'},items:[
-      {route:'project-settings',label:{zh:'项目设置',en:'Project settings',ja:'プロジェクト設定'}},
+    {label:{zh:'品牌',en:'Brand',ja:'ブランド'},items:[
+      {route:'project-settings',label:{zh:'品牌管理',en:'Brand management',ja:'ブランド管理'}},
       {route:'automation',label:{zh:'运行与调度',en:'Runs and schedules',ja:'実行とスケジュール'}},
       {route:'archive',label:{zh:'数据归档',en:'Data archive',ja:'データアーカイブ'}}
     ]},
@@ -949,8 +949,8 @@ const ADMIN_MODULES = [
 const ADMIN_ROUTE_ALIASES = {settings:'project-settings'};
 
 Object.assign(UI_D.en, {
-  '项目设置':'Project settings','管理项目清单、品牌信息、官网域名和竞品范围。':'Manage projects, brand details, website domains, and competitor scope.',
-  '项目':'Project','网站审计均分':'Website audit average','添加品牌':'Add brand','编辑当前项目':'Edit current project',
+  '品牌管理':'Brand management','管理品牌清单、官网域名和竞品范围。':'Manage brands, official domains, and competitor scope.',
+  '品牌':'Brand','网站审计均分':'Website audit average','添加品牌':'Add brand','编辑当前品牌':'Edit current brand',
   '运行与调度':'Runs and schedules','手动运行完整管线、执行单项任务，或设置固定复跑周期。':'Run the full pipeline, execute individual jobs, or set a recurring schedule.',
   '任务由后台队列执行，关闭页面后仍会继续。同一项目同时只运行一个任务。':'Jobs continue in the background queue after this page closes. Each project runs one job at a time.',
   '全自动引导':'Guided automation','跑完整一期':'Run full cycle','关闭':'Off','任务运行中':'Job running',
@@ -969,8 +969,8 @@ Object.assign(UI_D.en, {
   '企业安全':'Enterprise security','配置 OIDC 单点登录，查看安全控制状态和最近审计事件。':'Configure OIDC single sign-on and review security controls and recent audit events.'
 });
 Object.assign(UI_D.ja, {
-  '项目设置':'プロジェクト設定','管理项目清单、品牌信息、官网域名和竞品范围。':'プロジェクト、ブランド情報、公式サイト、競合範囲を管理します。',
-  '项目':'プロジェクト','网站审计均分':'サイト監査平均','添加品牌':'ブランドを追加','编辑当前项目':'現在のプロジェクトを編集',
+  '品牌管理':'ブランド管理','管理品牌清单、官网域名和竞品范围。':'ブランド、公式サイト、競合範囲を管理します。',
+  '品牌':'ブランド','网站审计均分':'サイト監査平均','添加品牌':'ブランドを追加','编辑当前品牌':'現在のブランドを編集',
   '运行与调度':'実行とスケジュール','手动运行完整管线、执行单项任务，或设置固定复跑周期。':'パイプライン全体または個別ジョブを実行し、定期実行を設定します。',
   '任务由后台队列执行，关闭页面后仍会继续。同一项目同时只运行一个任务。':'ジョブはバックグラウンドキューで継続します。プロジェクトごとに同時実行は 1 件です。',
   '全自动引导':'自動ガイド','跑完整一期':'フルサイクルを実行','关闭':'オフ','任务运行中':'ジョブ実行中',
@@ -1741,15 +1741,15 @@ async function ensureTeamState() {
 
 function projectSettingsPanel() {
   const projects=Array.isArray(PROJECTS)?PROJECTS:[];
-  return `<div class="tbl"><table class="table"><thead><tr><th>项目</th><th style="width:210px">域名</th><th style="width:110px">网站审计均分</th><th style="width:90px">任务</th><th style="width:80px"></th></tr></thead><tbody>
+  return `<div class="tbl"><table class="table"><thead><tr><th>品牌</th><th style="width:210px">域名</th><th style="width:110px">网站审计均分</th><th style="width:90px">任务</th><th style="width:80px"></th></tr></thead><tbody>
     ${projects.map(function(project){return `<tr><td><span style="font-size:13.5px">${esc(project.name)}</span>${project.slug===SLUG?' <span class="tag tag-accent">当前</span>':''}</td><td style="font-size:12.5px;color:var(--t500)">${esc((project.site||'').replace('https://',''))}</td><td style="font-size:13px">${project.avg_score==null?'—':project.avg_score}</td><td style="font-size:12.5px;color:var(--t400)">${project.tasks_total||'—'}</td><td><button class="btn btn-ghost" style="font-size:12px" onclick="switchProject(${esc(JSON.stringify(project.slug))})">${project.slug===SLUG?'刷新':'进入'}</button></td></tr>`;}).join('')}
-    </tbody></table></div><div class="admin-project-actions"><button class="btn btn-primary" onclick="startBrandOnboarding()">添加品牌</button><button class="btn btn-secondary" onclick="editConfig()">编辑当前项目</button></div>`;
+    </tbody></table></div><div class="admin-project-actions"><button class="btn btn-primary" onclick="startBrandOnboarding()">添加品牌</button><button class="btn btn-secondary" onclick="editConfig()">编辑当前品牌</button></div>`;
 }
 
 async function vProjectSettings() {
   if(!PROJECTS)PROJECTS=await api('/api/projects');
   if(!Array.isArray(PROJECTS))PROJECTS=[];
-  return adminPage('项目设置','管理项目清单、品牌信息、官网域名和竞品范围。',projectSettingsPanel());
+  return adminPage('品牌管理','管理品牌清单、官网域名和竞品范围。',projectSettingsPanel());
 }
 
 function automationPanel() {

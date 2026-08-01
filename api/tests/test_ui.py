@@ -70,7 +70,8 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "/site-assets/icons/plus.svg" in response.text
     assert "const ADMIN_MODULES = [" in response.text
     assert "{route:'engines',label:{zh:'AI 可见性'" in response.text
-    assert "{route:'project-settings',label:{zh:'项目设置'" in response.text
+    assert "{route:'overview',label:{zh:'品牌概览'" in response.text
+    assert "{route:'project-settings',label:{zh:'品牌管理'" in response.text
     assert "/site-assets/icons/layout-dashboard.svg" in response.text
     assert 'id="nav-scrim"' in response.text
     assert '@media (min-width:900px) and (max-width:1199px)' in response.text
@@ -179,8 +180,8 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "history.replaceState({r:R,engSel:ST.engSel,gapTab:ST.gapTab},'','#project-settings')" in response.text
     assert "onclick=\"go('engine-settings')\">去配置 Key" in response.text
     assert "closeModal();go('publishing')\">渠道配置" in response.text
-    assert "管理项目清单、品牌信息、官网域名和竞品范围。':'Manage projects" in response.text
-    assert "管理项目清单、品牌信息、官网域名和竞品范围。':'プロジェクト、ブランド情報" in response.text
+    assert "管理品牌清单、官网域名和竞品范围。':'Manage brands" in response.text
+    assert "管理品牌清单、官网域名和竞品范围。':'ブランド、公式サイト" in response.text
     assert "团队成员按 owner/editor/viewer 分级" in response.text
     assert "成员邀请与角色管理暂未开放" not in response.text
     assert "/api/v1/settings/delivery-branding" in response.text
