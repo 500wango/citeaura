@@ -902,42 +902,42 @@ const ADMIN_MODULES = [
     {items:[
       {route:'engines',label:{zh:'AI 可见性',en:'AI visibility',ja:'AI 可視性'}},
       {route:'competitors',label:{zh:'竞品分析',en:'Competitor analysis',ja:'競合分析'}},
-      {route:'questions',label:{zh:'监测问题',en:'Tracked questions',ja:'モニタリング質問'}}
+      {route:'questions',label:{zh:'追踪问题',en:'Tracked prompts',ja:'追跡プロンプト'}}
     ]}
   ]},
   {id:'diagnosis',icon:'scan-search',label:{zh:'诊断',en:'Diagnosis',ja:'診断'},defaultRoute:'siteaudit',groups:[
     {items:[
       {route:'siteaudit',label:{zh:'网站审计',en:'Website audit',ja:'サイト監査'}},
       {route:'gaps',label:{zh:'内容差距',en:'Content gaps',ja:'コンテンツギャップ'}},
-      {route:'channels',label:{zh:'渠道机会',en:'Channel opportunities',ja:'チャネル機会'}},
-      {route:'facts',label:{zh:'品牌知识库',en:'Brand knowledge',ja:'ブランドナレッジ'}}
+      {route:'channels',label:{zh:'引用来源',en:'Citation sources',ja:'引用ソース'}},
+      {route:'facts',label:{zh:'品牌事实',en:'Brand facts',ja:'ブランドファクト'}}
     ]}
   ]},
   {id:'execution',icon:'list-checks',label:{zh:'执行',en:'Execution',ja:'実行'},defaultRoute:'plan',groups:[
     {items:[
-      {route:'plan',label:{zh:'优化任务',en:'Optimization tasks',ja:'最適化タスク'}},
-      {route:'workbench',label:{zh:'内容生产',en:'Content production',ja:'コンテンツ制作'}},
-      {route:'assets',label:{zh:'可部署资产',en:'Deployable assets',ja:'配置可能なアセット'}},
-      {route:'outreach',label:{zh:'外链联络',en:'Link outreach',ja:'外部リンク連絡'}}
+      {route:'plan',label:{zh:'行动计划',en:'Action plan',ja:'アクションプラン'}},
+      {route:'workbench',label:{zh:'内容工作台',en:'Content studio',ja:'コンテンツスタジオ'}},
+      {route:'assets',label:{zh:'部署资产',en:'Deployment assets',ja:'デプロイアセット'}},
+      {route:'outreach',label:{zh:'外部联络',en:'Outreach',ja:'アウトリーチ'}}
     ]}
   ]},
   {id:'delivery',icon:'package-check',label:{zh:'交付',en:'Delivery',ja:'納品'},defaultRoute:'verify',groups:[
     {items:[
-      {route:'verify',label:{zh:'成效验证',en:'Outcome verification',ja:'成果検証'}},
-      {route:'report',label:{zh:'报告交付',en:'Reports',ja:'レポート納品'}},
-      {route:'publishing',label:{zh:'渠道发布',en:'Channel publishing',ja:'チャネル公開'}},
-      {route:'branding',label:{zh:'白标交付',en:'White-label delivery',ja:'ホワイトラベル納品'}}
+      {route:'verify',label:{zh:'验证',en:'Verification',ja:'検証'}},
+      {route:'report',label:{zh:'报告与交付',en:'Reports and deliverables',ja:'レポートと成果物'}},
+      {route:'publishing',label:{zh:'发布目的地',en:'Publishing destinations',ja:'公開先'}},
+      {route:'branding',label:{zh:'白标报告',en:'White-label reports',ja:'ホワイトラベルレポート'}}
     ]}
   ]},
   {id:'management',icon:'settings-2',label:{zh:'管理',en:'Admin',ja:'管理'},defaultRoute:'project-settings',groups:[
     {label:{zh:'品牌',en:'Brand',ja:'ブランド'},items:[
       {route:'project-settings',label:{zh:'品牌管理',en:'Brand management',ja:'ブランド管理'}},
       {route:'automation',label:{zh:'运行与调度',en:'Runs and schedules',ja:'実行とスケジュール'}},
-      {route:'archive',label:{zh:'数据归档',en:'Data archive',ja:'データアーカイブ'}}
+      {route:'archive',label:{zh:'项目归档',en:'Project archive',ja:'プロジェクトアーカイブ'}}
     ]},
     {label:{zh:'连接',en:'Connections',ja:'接続'},items:[
-      {route:'engine-settings',label:{zh:'引擎与采样',en:'Engines and sampling',ja:'エンジンとサンプリング'}},
-      {route:'integrations',label:{zh:'数据集成',en:'Data integrations',ja:'データ連携'}}
+      {route:'engine-settings',label:{zh:'模型与测量',en:'Models and measurement',ja:'モデルと測定'}},
+      {route:'integrations',label:{zh:'数据源',en:'Data sources',ja:'データソース'}}
     ]},
     {label:{zh:'组织',en:'Organization',ja:'組織'},items:[
       {route:'team',label:{zh:'团队与权限',en:'Team and access',ja:'チームと権限'}},
@@ -954,16 +954,16 @@ Object.assign(UI_D.en, {
   '运行与调度':'Runs and schedules','手动运行完整管线、执行单项任务，或设置固定复跑周期。':'Run the full pipeline, execute individual jobs, or set a recurring schedule.',
   '任务由后台队列执行，关闭页面后仍会继续。同一项目同时只运行一个任务。':'Jobs continue in the background queue after this page closes. Each project runs one job at a time.',
   '全自动引导':'Guided automation','跑完整一期':'Run full cycle','关闭':'Off','任务运行中':'Job running',
-  '数据归档':'Data archive','创建项目文件快照，并在需要时恢复到本地文件系统。':'Create project file snapshots and restore them to the local filesystem when needed.',
-  '引擎与采样':'Engines and sampling','配置 AI 引擎凭证、确认采样方式，并管理可选的平台代付。':'Configure AI engine credentials, review sampling modes, and manage optional platform-funded calls.',
-  'AI 引擎':'AI engines','API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。':'API keys are encrypted with AES-256-GCM and injected only while jobs run. BYOK always takes priority.',
+  '项目归档':'Project archive','创建项目文件快照，并在需要时恢复到本地文件系统。':'Create project snapshots and restore them to the local filesystem when needed.',
+  '模型与测量':'Models and measurement','配置 AI 模型凭证、查看测量方式，并管理可选的托管用量。':'Configure AI model credentials, review measurement methods, and use managed usage when needed.',
+  'AI 模型':'AI models','API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。':'API keys are encrypted with AES-256-GCM and injected only while jobs run. BYOK always takes priority.',
   '已连接':'Connected','人工':'Manual','未连接':'Not connected',
-  '数据集成':'Data integrations','连接外部搜索数据源，为诊断和成效分析补充可核验数据。':'Connect external search sources to add verifiable data to diagnosis and outcome analysis.',
+  '数据源':'Data sources','连接外部搜索数据源，为诊断和成效分析补充可核验数据。':'Connect external data sources to add verifiable evidence to diagnosis and outcome analysis.',
   '管理 SMTP 连接和联络草稿。每封邮件都需要人工检查并确认发送。':'Manage SMTP connections and outreach drafts. Every email requires human review and confirmation.',
-  '渠道发布':'Channel publishing','配置发布渠道，查看发布记录。所有对外发布都由用户手动发起。':'Configure publishing channels and review history. Every external publication is started manually.',
-  '发布凭证加密保存。发布只能由用户手动触发，公众号和 WordPress 仅创建草稿。':'Publishing credentials are encrypted. Publishing is manual, and WeChat and WordPress only create drafts.',
-  '暂无发布渠道':'No publishing channels','最近发布':'Recent publications','成功':'Succeeded',
-  '为客户报告和打印版交付物配置机构名称、Logo 和主题色。':'Configure the organization name, logo, and accent color for client reports and printed deliverables.',
+  '发布目的地':'Publishing destinations','配置发布目的地并查看发布记录。所有对外发布都由用户手动发起。':'Configure publishing destinations and review history. Every external publication is started manually.',
+  '发布凭证加密保存。发布只能由用户手动触发，WeChat Official Account 和 WordPress 仅创建草稿。':'Publishing credentials are encrypted. Publishing is manual, and WeChat Official Account and WordPress only create drafts.',
+  '暂无发布目的地':'No publishing destinations','最近发布':'Recent publications','成功':'Succeeded',
+  '为客户报告和打印版交付物配置机构名称、Logo 和主题色。':'Configure organization details, logo, and accent color for client reports and print-ready deliverables.',
   '团队与权限':'Team and access','管理工作区成员、邀请和 owner、editor、viewer 角色。':'Manage workspace members, invitations, and owner, editor, and viewer roles.',
   '查看当前套餐和用量，并由工作区所有者管理订阅。':'Review the current plan and usage. Workspace owners manage subscriptions.',
   '企业安全':'Enterprise security','配置 OIDC 单点登录，查看安全控制状态和最近审计事件。':'Configure OIDC single sign-on and review security controls and recent audit events.'
@@ -975,14 +975,14 @@ Object.assign(UI_D.ja, {
   '任务由后台队列执行，关闭页面后仍会继续。同一项目同时只运行一个任务。':'ジョブはバックグラウンドキューで継続します。プロジェクトごとに同時実行は 1 件です。',
   '全自动引导':'自動ガイド','跑完整一期':'フルサイクルを実行','关闭':'オフ','任务运行中':'ジョブ実行中',
   '数据归档':'データアーカイブ','创建项目文件快照，并在需要时恢复到本地文件系统。':'プロジェクトのスナップショットを作成し、必要に応じてローカルファイルへ復元します。',
-  '引擎与采样':'エンジンとサンプリング','配置 AI 引擎凭证、确认采样方式，并管理可选的平台代付。':'AI エンジンの認証情報、サンプリング方式、任意のプラットフォーム負担を管理します。',
-  'AI 引擎':'AI エンジン','API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。':'API キーは AES-256-GCM で暗号化され、ジョブ実行中のみ注入されます。BYOK が常に優先されます。',
+  '模型与测量':'モデルと測定','配置 AI 模型凭证、查看测量方式，并管理可选的托管用量。':'AI モデルの認証情報、測定方式、任意のプラットフォーム利用を管理します。',
+  'AI 模型':'AI モデル','API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。':'API キーは AES-256-GCM で暗号化され、ジョブ実行中のみ注入されます。BYOK が常に優先されます。',
   '已连接':'接続済み','人工':'手動','未连接':'未接続',
-  '数据集成':'データ連携','连接外部搜索数据源，为诊断和成效分析补充可核验数据。':'外部検索データを接続し、診断と成果分析に検証可能なデータを追加します。',
+  '数据源':'データソース','连接外部搜索数据源，为诊断和成效分析补充可核验数据。':'外部データソースを接続し、診断と成果分析に検証可能な証拠を追加します。',
   '管理 SMTP 连接和联络草稿。每封邮件都需要人工检查并确认发送。':'SMTP 接続と連絡下書きを管理します。すべてのメールで人による確認が必要です。',
-  '渠道发布':'チャネル公開','配置发布渠道，查看发布记录。所有对外发布都由用户手动发起。':'公開チャネルと履歴を管理します。外部公開はすべて手動で開始します。',
-  '发布凭证加密保存。发布只能由用户手动触发，公众号和 WordPress 仅创建草稿。':'公開認証情報は暗号化されます。公開は手動で、WeChat と WordPress は下書きのみ作成します。',
-  '暂无发布渠道':'公開チャネルはありません','最近发布':'最近の公開','成功':'成功',
+  '发布目的地':'公開先','配置发布目的地并查看发布记录。所有对外发布都由用户手动发起。':'公開先と履歴を管理します。外部公開はすべて手動で開始します。',
+  '发布凭证加密保存。发布只能由用户手动触发，WeChat Official Account 和 WordPress 仅创建草稿。':'公開認証情報は暗号化されます。公開は手動で、WeChat Official Account と WordPress は下書きのみ作成します。',
+  '暂无发布目的地':'公開先はありません','最近发布':'最近の公開','成功':'成功',
   '为客户报告和打印版交付物配置机构名称、Logo 和主题色。':'顧客レポートと印刷用成果物の組織名、ロゴ、テーマ色を設定します。',
   '团队与权限':'チームと権限','管理工作区成员、邀请和 owner、editor、viewer 角色。':'ワークスペースのメンバー、招待、owner、editor、viewer ロールを管理します。',
   '查看当前套餐和用量，并由工作区所有者管理订阅。':'現在のプランと使用量を確認し、オーナーがサブスクリプションを管理します。',
@@ -1076,8 +1076,8 @@ async function downloadDelivery(date) {
 
 function offsiteTicketModal() {
   const questions = (D.questions || []).filter(function (question) { return !question.brand_probe; });
-  modal(`<h4 style="font-size:17px">创建 Offsite 工单</h4>
-    <p class="muted" style="font-size:12.5px;margin:5px 0 14px">记录需要外部页面负责人完成的具体更新；此类工单由人工验收。</p>
+  modal(`<h4 style="font-size:17px">创建外部协作任务</h4>
+    <p class="muted" style="font-size:12.5px;margin:5px 0 14px">记录由外部页面负责人完成的具体更新；此类任务需要人工验证。</p>
     <label style="display:block;font-size:12px;color:var(--t500);margin-bottom:12px">外部页面 URL
       <input id="offsite-url" class="input" type="url" placeholder="https://example.com/page" style="margin-top:5px" required></label>
     <label style="display:block;font-size:12px;color:var(--t500);margin-bottom:12px">希望对方完成什么
@@ -1090,7 +1090,7 @@ function offsiteTicketModal() {
     </div>
     <div class="row" style="justify-content:flex-end;margin-top:14px">
       <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-      <button class="btn btn-primary" onclick="createOffsiteTicket()">创建工单</button></div>`);
+      <button class="btn btn-primary" onclick="createOffsiteTicket()">创建任务</button></div>`);
 }
 
 async function createOffsiteTicket() {
@@ -1106,7 +1106,7 @@ async function createOffsiteTicket() {
   });
   if (result.error) { toast('创建失败：' + result.error, 'err'); return; }
   closeModal();
-  toast('Offsite 工单已创建');
+  toast('外部协作任务已创建');
   await load(SLUG, true);
 }
 
@@ -1207,12 +1207,12 @@ Object.assign(UI_D.en, {
   '复制邀请链接':'Copy invitation link','撤销':'Revoke','移除':'Remove','你':'You',
   '所有者':'Owner','编辑者':'Editor','只读成员':'Viewer','邀请链接已创建':'Invitation link created',
   '团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'Team members use owner, editor, and viewer roles. Invitation links expire after 7 days.',
-  '白标交付':'White-label delivery','打印 / PDF 页眉':'Print / PDF header','机构名称':'Organization name',
+  '白标报告':'White-label reports','打印 / PDF 页眉':'Print / PDF header','机构名称':'Organization name',
   '主题色':'Accent color','页脚文字':'Footer text','启用白标':'Enable white label','选择 Logo':'Choose logo',
   '移除 Logo':'Remove logo','保存白标设置':'Save branding','Agency 套餐可用':'Available on Agency plan',
-  '采样费用':'Sampling costs','平台代付':'Platform-funded sampling','本月调用':'Calls this month','本月费用':'Cost this month',
-  'BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台 Key 并按次计费。':'BYOK always takes priority. Platform keys are used and billed per call only when the matching API key is missing.',
-  '当前套餐不可用':'Not available on the current plan','平台暂未配置可用引擎':'No platform-funded engines are currently available',
+  '测量用量':'Measurement usage','托管用量':'Managed usage','本月调用':'Calls this month','本月费用':'Cost this month',
+  'BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台凭证并按次计费。':'BYOK always takes priority. Managed usage is billed per call only when the matching API key is unavailable.',
+  '当前套餐不可用':'Not available on the current plan','平台暂未配置可用模型':'No models are available for managed usage',
   '仅所有者可更改':'Only owners can change this setting','费用信息加载失败':'Failed to load cost information',
   '企业登录与审计':'Enterprise sign-in and audit','OIDC 单点登录':'OIDC single sign-on','身份提供商名称':'Identity provider name',
   '签发者地址':'Issuer URL','客户端 ID':'Client ID','客户端密钥':'Client secret','允许的邮箱域名':'Allowed email domains',
@@ -1229,7 +1229,7 @@ Object.assign(UI_D.en, {
   '点击':'Clicks','展示':'Impressions','点击率':'CTR','平均排名':'Average position','尚未同步':'Not synced yet',
   'Search Console OAuth 未配置':'Search Console OAuth is not configured','仅所有者可管理连接':'Only owners can manage connections',
   '数据源连接已更新':'Data source connection updated','同步任务已创建':'Sync job created','外部搜索数据加载失败':'Failed to load external search data'
-  ,'外链联络':'Outreach','人工确认发送':'Human-confirmed sending','邮件服务器':'Mail server','发件邮箱':'From email','发件名称':'From name',
+  ,'外部联络':'Outreach','人工确认发送':'Human-confirmed sending','邮件服务器':'Mail server','发件邮箱':'From email','发件名称':'From name',
   '保存 SMTP':'Save SMTP','联络草稿':'Outreach drafts','暂无联络草稿':'No outreach drafts','准备联络邮件':'Prepare outreach email','收件邮箱':'Recipient email',
   '生成草稿':'Create draft','编辑草稿':'Edit draft','邮件主题':'Subject','邮件正文':'Message','保存草稿':'Save draft','检查并发送':'Review and send',
   '最终发送确认':'Final send confirmation','我已核对收件人、主题和正文':'I reviewed the recipient, subject, and message','输入确认短语':'Type confirmation phrase',
@@ -1251,12 +1251,12 @@ Object.assign(UI_D.ja, {
   '复制邀请链接':'招待リンクをコピー','撤销':'取り消す','移除':'削除','你':'自分',
   '所有者':'オーナー','编辑者':'編集者','只读成员':'閲覧者','邀请链接已创建':'招待リンクを作成しました',
   '团队成员按 owner/editor/viewer 分级，邀请链接 7 天内有效。':'メンバーは owner、editor、viewer のロールで管理され、招待リンクは 7 日間有効です。',
-  '白标交付':'ホワイトラベル納品','打印 / PDF 页眉':'印刷 / PDF ヘッダー','机构名称':'組織名',
+  '白标报告':'ホワイトラベルレポート','打印 / PDF 页眉':'印刷 / PDF ヘッダー','机构名称':'組織名',
   '主题色':'アクセントカラー','页脚文字':'フッターテキスト','启用白标':'ホワイトラベルを有効化','选择 Logo':'ロゴを選択',
   '移除 Logo':'ロゴを削除','保存白标设置':'ブランド設定を保存','Agency 套餐可用':'Agency プランで利用可能',
-  '采样费用':'サンプリング費用','平台代付':'プラットフォーム負担','本月调用':'今月の呼び出し','本月费用':'今月の費用',
-  'BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台 Key 并按次计费。':'BYOK が常に優先されます。対応する API キーがない場合のみ、プラットフォームキーを使用して従量課金します。',
-  '当前套餐不可用':'現在のプランでは利用できません','平台暂未配置可用引擎':'利用可能なプラットフォームエンジンはまだありません',
+  '测量用量':'測定使用量','托管用量':'マネージド使用量','本月调用':'今月の呼び出し','本月费用':'今月の費用',
+  'BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台凭证并按次计费。':'BYOK が常に優先されます。対応する API キーがない場合のみ、マネージド使用量として従量課金します。',
+  '当前套餐不可用':'現在のプランでは利用できません','平台暂未配置可用模型':'マネージド使用量で利用可能なモデルはありません',
   '仅所有者可更改':'オーナーのみ変更できます','费用信息加载失败':'費用情報を読み込めませんでした',
   '企业登录与审计':'エンタープライズログインと監査','OIDC 单点登录':'OIDC シングルサインオン','身份提供商名称':'ID プロバイダー名',
   '签发者地址':'Issuer URL','客户端 ID':'クライアント ID','客户端密钥':'クライアントシークレット','允许的邮箱域名':'許可するメールドメイン',
@@ -1273,7 +1273,7 @@ Object.assign(UI_D.ja, {
   '点击':'クリック','展示':'表示回数','点击率':'CTR','平均排名':'平均掲載順位','尚未同步':'未同期',
   'Search Console OAuth 未配置':'Search Console OAuth が設定されていません','仅所有者可管理连接':'接続管理はオーナーのみ可能です',
   '数据源连接已更新':'データソース接続を更新しました','同步任务已创建':'同期ジョブを作成しました','外部搜索数据加载失败':'外部検索データを読み込めませんでした'
-  ,'外链联络':'アウトリーチ','人工确认发送':'人による確認後に送信','邮件服务器':'メールサーバー','发件邮箱':'送信元メール','发件名称':'送信者名',
+  ,'外部联络':'アウトリーチ','人工确认发送':'人による確認後に送信','邮件服务器':'メールサーバー','发件邮箱':'送信元メール','发件名称':'送信者名',
   '保存 SMTP':'SMTP を保存','联络草稿':'アウトリーチ下書き','暂无联络草稿':'アウトリーチ下書きはありません','准备联络邮件':'アウトリーチメールを準備','收件邮箱':'宛先メール',
   '生成草稿':'下書きを作成','编辑草稿':'下書きを編集','邮件主题':'件名','邮件正文':'本文','保存草稿':'下書きを保存','检查并发送':'確認して送信',
   '最终发送确认':'最終送信確認','我已核对收件人、主题和正文':'宛先、件名、本文を確認しました','输入确认短语':'確認フレーズを入力',
@@ -1289,6 +1289,41 @@ Object.assign(UI_D.ja, {
   '恢复快照':'スナップショットを復元','允许覆盖冲突文件':'競合ファイルを上書き','输入恢复确认短语':'復元確認フレーズを入力','确认并恢复':'確認して復元',
   '活动数据源':'アクティブソース','本地文件系统':'ローカルファイルシステム','保留份数':'保持数','归档任务已创建':'アーカイブジョブを作成しました','恢复任务已创建':'復元ジョブを作成しました',
   '对象存储未配置':'オブジェクトストレージが設定されていません','归档信息加载失败':'アーカイブ情報を読み込めませんでした','文件':'ファイル'
+});
+
+Object.assign(UI_D.en, {
+  '创建外部协作任务':'Create external collaboration task',
+  '记录由外部页面负责人完成的具体更新；此类任务需要人工验证。':'Track a requested change owned by an external page manager. These tasks require manual verification.',
+  '外部页面 URL':'External page URL','希望对方完成什么':'Requested update','影响问题':'Affected prompts',
+  '例如：补充品牌定义、官网链接和可核验的数据来源':'For example: add a brand definition, official website link, and verifiable sources.',
+  '问题库为空，请先完成项目分析。':'No prompts are available yet. Complete project analysis first.',
+  '创建任务':'Create task','外部协作任务已创建':'External collaboration task created',
+  'AI 模型':'AI models','模型与测量':'Models and measurement',
+  'API · 模型内知识':'API · Model knowledge','API · 联网检索':'API · Web-grounded retrieval','人工 · 产品端核验':'Manual · Product-surface check',
+  '项目归档':'Project archive','数据源':'Data sources','外部联络':'Outreach','外部联络加载失败':'Failed to load outreach settings',
+  '测量用量':'Measurement usage','托管用量':'Managed usage','不可用':'Unavailable','启用':'Enable',
+  '启用托管用量后，缺少 BYOK 的模型将按页面所示单价逐次收费。确认启用？':'Enable managed usage? Models without BYOK will be billed per call at the displayed price.',
+  '托管用量已启用':'Managed usage enabled','托管用量已关闭':'Managed usage disabled',
+  '白标报告':'White-label reports','暂无发布目的地':'No publishing destinations',
+  '发布凭证加密保存。发布只能由用户手动触发，WeChat Official Account 和 WordPress 仅创建草稿。':'Publishing credentials are encrypted. Publishing is manual, and WeChat Official Account and WordPress create drafts only.',
+  '发布目的地':'Publishing destinations','配置发布目的地并查看发布记录。所有对外发布都由用户手动发起。':'Configure publishing destinations and review history. Every external publication is started manually.'
+});
+Object.assign(UI_D.ja, {
+  '创建外部协作任务':'外部連携タスクを作成',
+  '记录由外部页面负责人完成的具体更新；此类任务需要人工验证。':'外部ページ管理者が担当する更新を記録します。このタスクは手動検証が必要です。',
+  '外部页面 URL':'外部ページ URL','希望对方完成什么':'依頼する更新','影响问题':'影響するプロンプト',
+  '例如：补充品牌定义、官网链接和可核验的数据来源':'例：ブランド定義、公式サイトへのリンク、検証可能な情報源を追加。',
+  '问题库为空，请先完成项目分析。':'プロンプトはまだありません。先にプロジェクト分析を完了してください。',
+  '创建任务':'タスクを作成','外部协作任务已创建':'外部連携タスクを作成しました',
+  'AI 模型':'AI モデル','模型与测量':'モデルと測定',
+  'API · 模型内知识':'API · モデル知識','API · 联网检索':'API · Web グラウンデッド検索','人工 · 产品端核验':'手動 · プロダクト画面確認',
+  '项目归档':'プロジェクトアーカイブ','数据源':'データソース','外部联络':'アウトリーチ','外部联络加载失败':'アウトリーチ設定を読み込めませんでした',
+  '测量用量':'測定使用量','托管用量':'マネージド使用量','不可用':'利用不可','启用':'有効化',
+  '启用托管用量后，缺少 BYOK 的模型将按页面所示单价逐次收费。确认启用？':'マネージド使用量を有効にしますか。BYOK がないモデルは表示価格で 1 回ごとに課金されます。',
+  '托管用量已启用':'マネージド使用量を有効にしました','托管用量已关闭':'マネージド使用量を無効にしました',
+  '白标报告':'ホワイトラベルレポート','暂无发布目的地':'公開先はありません',
+  '发布凭证加密保存。发布只能由用户手动触发，WeChat Official Account 和 WordPress 仅创建草稿。':'公開認証情報は暗号化されます。公開は手動で、WeChat Official Account と WordPress は下書きのみ作成します。',
+  '发布目的地':'公開先','配置发布目的地并查看发布记录。所有对外发布都由用户手动发起。':'公開先と履歴を管理します。外部公開はすべて手動で開始します。'
 });
 
 let TEAM_STATE = null;
@@ -1496,10 +1531,10 @@ const outreachStatusLabel={draft:'待编辑',queued:'已排队',sending:'发送�
 
 function outreachPanel() {
   const state=OUTREACH_STATE||{},smtp=state.smtp||{},drafts=state.drafts||[],owner=!!state.can_edit;
-  if(state.error||state.detail)return `<h4 class="outreach-section-title" style="font-size:16px;margin:28px 0 10px">外链联络</h4>
-    <div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">外链联络加载失败</div>`;
+  if(state.error||state.detail)return `<h4 class="outreach-section-title" style="font-size:16px;margin:28px 0 10px">外部联络</h4>
+    <div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">外部联络加载失败</div>`;
   const port=Number(smtp.port||587),mode=smtp.security_mode||'starttls';
-  return `<h4 class="outreach-section-title" style="font-size:16px;margin:28px 0 4px">外链联络</h4><p class="muted settings-section-subtitle" style="font-size:12px;margin:0 0 10px">人工确认发送</p>
+  return `<h4 class="outreach-section-title" style="font-size:16px;margin:28px 0 4px">外部联络</h4><p class="muted settings-section-subtitle" style="font-size:12px;margin:0 0 10px">人工确认发送</p>
     <div class="card elev" style="padding:18px;gap:12px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">SMTP</div><span class="tag ${smtp.configured?'pill-good':'tag-outline'}">${smtp.configured?'已连接':'未连接'}</span></div>
       <div style="font-size:11.5px;color:var(--t600)">SMTP 凭证使用 AES-256-GCM 加密保存。</div>
       <div class="outreach-smtp-grid" style="display:grid;grid-template-columns:minmax(180px,1fr) 90px 120px;gap:10px">
@@ -1540,40 +1575,48 @@ function outreachSendReview(draft){const phrase='SEND '+draft.id;modal(`<h4 styl
 
 async function queueOutreachSend(draftId,revision){const confirmed=!!($('#outreach-confirm-check')||{}).checked,text=(($('#outreach-confirm-text')||{}).value||'');if(!confirmed||text!=='SEND '+draftId){toast('请勾选确认并输入完整确认短语','err');return}const result=await post('/api/outreach',{action:'send',draft_id:draftId,revision:revision,confirmed:true,confirmation_text:text});if(!result.job_id){toast('发送失败：'+(result.error||result.detail||'outreach_send_failed'),'err');return}OUTREACH_STATE=null;closeModal();RUNNING=result.job_id;LASTJOB=result.job_id;LOGOFF=0;renderSide();pollJob();toast('发送任务已创建');}
 
+function formatCny(value) {
+  return 'CNY ' + Number(value || 0).toFixed(2);
+}
+
+function perCallLabel() {
+  return {zh:'每次',en:'per call',ja:'1 回あたり'}[ULANG] || 'per call';
+}
+
 function samplingFundingPanel(state) {
   state = state || {};
-  if (state.error) return `<h4 style="font-size:16px;margin:28px 0 10px">采样费用</h4>
+  if (state.error) return `<h4 style="font-size:16px;margin:28px 0 10px">测量用量</h4>
     <div class="card elev" style="padding:18px"><div class="row"><span style="flex:1;font-size:13px;color:var(--t500)">费用信息加载失败</span>
       <button class="btn btn-secondary" style="font-size:12px" onclick="render()">刷新</button></div></div>`;
   const pool = state.pool_engines || [], usage = state.usage || {};
   const effective = Object.fromEntries((state.effective_engines || []).map(function (item) { return [item.engine_code,item.source]; }));
   const canEnable = !!state.eligible && pool.length > 0;
-  const sourceLabel = {byok:'BYOK',platform_pool:'平台代付',unavailable:'不可用'};
-  return `<h4 style="font-size:16px;margin:28px 0 10px">采样费用</h4>
+  const sourceLabel = {byok:'BYOK',platform_pool:'托管用量',unavailable:'不可用'};
+  return `<h4 style="font-size:16px;margin:28px 0 10px">测量用量</h4>
     <div class="card elev" style="padding:18px;gap:12px">
       <div class="row" style="align-items:flex-start"><div style="flex:1;min-width:220px">
-        <div style="font-size:15px;font-weight:500">平台代付</div>
-        <div style="font-size:11.5px;color:var(--t600);margin-top:3px;line-height:1.55">BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台 Key 并按次计费。</div></div>
+        <div style="font-size:15px;font-weight:500">托管用量</div>
+        <div style="font-size:11.5px;color:var(--t600);margin-top:3px;line-height:1.55">BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台凭证并按次计费。</div></div>
         <label class="row" style="gap:7px;font-size:12.5px;white-space:nowrap"><input id="platform-pool-enabled" type="checkbox"
           ${state.platform_pool_enabled?'checked':''} ${state.can_edit&&canEnable?'':'disabled'} onchange="setPlatformPool(this.checked)">启用</label></div>
       ${!state.eligible?`<div style="font-size:12px;color:var(--t500)">当前套餐不可用 (${esc(String(state.plan || 'trial').toUpperCase())})</div>`:''}
       ${state.eligible&&!state.can_edit?'<div style="font-size:12px;color:var(--t500)">仅所有者可更改</div>':''}
-      ${state.eligible&&!pool.length?'<div style="font-size:12px;color:var(--t500)">平台暂未配置可用引擎</div>':''}
+      ${state.eligible&&!pool.length?'<div style="font-size:12px;color:var(--t500)">平台暂未配置可用模型</div>':''}
       ${pool.length?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">
         ${pool.map(function (item) { const source = effective[item.engine_code] || 'unavailable'; return `<div style="padding:10px 11px;border:1px solid var(--line);border-radius:var(--r-md);min-width:0">
           <div class="row" style="gap:6px"><span style="flex:1;font-size:13px;overflow-wrap:anywhere">${esc(item.engine_name || item.engine_code)}</span>
             <span class="tag ${source==='platform_pool'?'tag-accent':'tag-outline'}">${esc(sourceLabel[source] || source)}</span></div>
-          <div style="font-size:11.5px;color:var(--t600);margin-top:5px">${esc(item.sampling_mode)} · ¥${(Number(item.unit_price_cny_fen || 0)/100).toFixed(2)} / 次</div></div>`; }).join('')}</div>`:''}
+          <div style="font-size:11.5px;color:var(--t600);margin-top:5px">${esc(item.sampling_mode)} · ${formatCny(Number(item.unit_price_cny_fen || 0)/100)} ${perCallLabel()}</div></div>`; }).join('')}</div>`:''}
       <div class="row" style="gap:24px;padding-top:10px;box-shadow:inset 0 1px 0 var(--line)">
         <div><div style="font-size:10.5px;color:var(--t600)">本月调用</div><div style="font-size:17px;margin-top:2px">${Number(usage.calls || 0).toLocaleString()}</div></div>
-        <div><div style="font-size:10.5px;color:var(--t600)">本月费用</div><div style="font-size:17px;margin-top:2px">¥${esc(usage.cost_cny || '0.00')}</div></div>
+        <div><div style="font-size:10.5px;color:var(--t600)">本月费用</div><div style="font-size:17px;margin-top:2px">${formatCny(usage.cost_cny)}</div></div>
         <div style="font-size:11.5px;color:var(--t600);margin-left:auto">${esc(usage.month || '')}</div></div>
     </div>`;
 }
 
 async function setPlatformPool(enabled) {
   const input = $('#platform-pool-enabled');
-  if (enabled && !confirm('启用平台代付后，缺少 BYOK 的引擎将按页面所示单价逐次收费。确认启用？')) {
+  if (enabled && !confirm('启用托管用量后，缺少 BYOK 的模型将按页面所示单价逐次收费。确认启用？')) {
     if (input) input.checked=false;
     return;
   }
@@ -1584,20 +1627,20 @@ async function setPlatformPool(enabled) {
     toast('更新失败：'+(result.error || result.detail || 'sampling_funding_update_failed'),'err');
     return;
   }
-  toast(enabled?'平台代付已启用':'平台代付已关闭');
+  toast(enabled?'托管用量已启用':'托管用量已关闭');
   FUNDING_STATE=null;
   render();
 }
 
 function deliveryBrandingPanel() {
   const state = BRANDING_STATE || {}, value = state.branding || {};
-  if (!state.available) return `<h4 style="font-size:16px;margin:28px 0 10px">白标交付</h4>
+  if (!state.available) return `<h4 style="font-size:16px;margin:28px 0 10px">白标报告</h4>
     <div class="card elev" style="padding:18px"><div class="row"><div style="flex:1">
       <div style="font-size:14px;font-weight:500">打印 / PDF 页眉</div>
       <div style="font-size:12px;color:var(--t600);margin-top:3px">Agency 套餐可用</div></div>
       <span class="tag tag-outline">${esc(String(state.plan || 'trial').toUpperCase())}</span></div></div>`;
   const editable = !!state.can_edit, logo = value.logo_data_url || '';
-  return `<h4 style="font-size:16px;margin:28px 0 10px">白标交付</h4>
+  return `<h4 style="font-size:16px;margin:28px 0 10px">白标报告</h4>
     <div class="card elev" style="padding:18px;gap:14px">
       <div class="row"><div style="flex:1"><div style="font-size:14px;font-weight:500">打印 / PDF 页眉</div></div>
         <label class="row" style="gap:7px;font-size:12.5px"><input id="delivery-branding-enabled" type="checkbox" ${value.enabled?'checked':''} ${editable?'':'disabled'}>启用白标</label></div>
@@ -1778,7 +1821,7 @@ async function vAutomation() {
 
 function engineKeysPanel() {
   const keys=Array.isArray(KEYS)?KEYS:[],owner=TEAM_STATE&&TEAM_STATE.current_role==='owner';
-  return `<h4 style="font-size:16px;margin:0 0 10px">AI 引擎</h4><div class="card elev" style="padding:18px;gap:0"><div style="font-size:11.5px;color:var(--t600);margin-bottom:8px">API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。</div>${keys.map(function(key,index){const mode=key.manual?'人工·产品端':(key.search?'API·联网检索':'API·参数化知识');return `<div class="admin-engine-row"><div class="admin-engine-name"><span class="tag ${key.ok===true?'pill-good':'tag-outline'}" style="margin-right:7px">${key.ok===true?'已连接':key.manual?'人工':'未连接'}</span>${esc(key.label)}</div><div class="admin-engine-mode">${esc(mode)}${key.ok===true&&key.key_tail?' ····'+esc(key.key_tail):''}</div>${key.env&&owner?`<button class="btn btn-ghost" style="font-size:12px" onclick="editKey(${index})">${key.ok===true?'修改':'配置'}</button>`:'<span></span>'}</div>`;}).join('')}</div>`;
+  return `<h4 style="font-size:16px;margin:0 0 10px">AI 模型</h4><div class="card elev" style="padding:18px;gap:0"><div style="font-size:11.5px;color:var(--t600);margin-bottom:8px">API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。</div>${keys.map(function(key,index){const mode=key.manual?'人工 · 产品端核验':(key.search?'API · 联网检索':'API · 模型内知识');return `<div class="admin-engine-row"><div class="admin-engine-name"><span class="tag ${key.ok===true?'pill-good':'tag-outline'}" style="margin-right:7px">${key.ok===true?'已连接':key.manual?'人工':'未连接'}</span>${esc(key.label)}</div><div class="admin-engine-mode">${esc(mode)}${key.ok===true&&key.key_tail?' ····'+esc(key.key_tail):''}</div>${key.env&&owner?`<button class="btn btn-ghost" style="font-size:12px" onclick="editKey(${index})">${key.ok===true?'修改':'配置'}</button>`:'<span></span>'}</div>`;}).join('')}</div>`;
 }
 
 async function vEngineSettings() {
@@ -1786,40 +1829,40 @@ async function vEngineSettings() {
   if(!KEYS)KEYS=await api('/api/keys');
   if(!Array.isArray(KEYS))KEYS=[];
   if(!FUNDING_STATE)FUNDING_STATE=await api('/api/sampling-funding');
-  return adminPage('引擎与采样','配置 AI 引擎凭证、确认采样方式，并管理可选的平台代付。',engineKeysPanel()+samplingFundingPanel(FUNDING_STATE));
+  return adminPage('模型与测量','配置 AI 模型凭证、查看测量方式，并管理可选的托管用量。',engineKeysPanel()+samplingFundingPanel(FUNDING_STATE));
 }
 
 async function vArchive() {
   if(!ARCHIVE_STATE)ARCHIVE_STATE=await api('/api/archive');
-  return adminPage('数据归档','创建项目文件快照，并在需要时恢复到本地文件系统。',archivePanel());
+  return adminPage('项目归档','创建项目文件快照，并在需要时恢复到本地文件系统。',archivePanel());
 }
 
 async function vIntegrations() {
   await ensureTeamState();
   if(!INTEGRATION_STATE)INTEGRATION_STATE=await api('/api/integrations');
-  return adminPage('数据集成','连接外部搜索数据源，为诊断和成效分析补充可核验数据。',integrationPanel());
+  return adminPage('数据源','连接外部搜索数据源，为诊断和成效分析补充可核验数据。',integrationPanel());
 }
 
 async function vOutreach() {
   await ensureTeamState();
   if(!OUTREACH_STATE)OUTREACH_STATE=await api('/api/outreach');
-  return adminPage('外链联络','管理 SMTP 连接和联络草稿。每封邮件都需要人工检查并确认发送。',outreachPanel());
+  return adminPage('外部联络','管理 SMTP 连接和联络草稿。每封邮件都需要人工检查并确认发送。',outreachPanel());
 }
 
 function publishingPanel() {
   const state=PUB||{},publishers=state.publishers||[],records=state.records||[],owner=TEAM_STATE&&TEAM_STATE.current_role==='owner';
-  return `<div class="card elev" style="padding:18px;gap:0"><div style="font-size:11.5px;color:var(--t600);margin-bottom:8px">发布凭证加密保存。发布只能由用户手动触发，公众号和 WordPress 仅创建草稿。</div>${publishers.map(function(publisher,index){const ready=!publisher.missing.length;return `<div class="admin-publisher-row"><div style="min-width:0"><div style="font-size:13px">${esc(publisher.name)}</div><div style="font-size:11px;color:var(--t600);margin-top:2px;overflow-wrap:anywhere">${esc(publisher.note)}</div></div><div class="admin-publisher-state" style="font-size:11.5px;color:var(--t600)">${ready?'已就绪':'缺 '+publisher.missing.map(esc).join('、')}</div>${owner?`<button class="btn btn-ghost" style="font-size:12px" onclick="editPub(${index})">配置</button>`:'<span></span>'}</div>`;}).join('')||'<div style="padding:10px 0;font-size:12px;color:var(--t600)">暂无发布渠道</div>'}</div>${records.length?`<h4 style="font-size:16px;margin:24px 0 10px">最近发布</h4><div class="card elev" style="padding:14px 18px">${records.slice(-10).reverse().map(function(record){return `<div style="padding:6px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12.5px;color:var(--t400)">${record.ok?'成功':'失败'} · ${esc((record.at||'').slice(0,16).replace('T',' '))} · ${esc(record.platform_name)} · ${esc(record.title)} ${record.url?`<a href="${esc(record.url)}" target="_blank" rel="noopener">打开链接</a>`:esc(record.note||record.error||'')}</div>`;}).join('')}</div>`:''}`;
+  return `<div class="card elev" style="padding:18px;gap:0"><div style="font-size:11.5px;color:var(--t600);margin-bottom:8px">发布凭证加密保存。发布只能由用户手动触发，WeChat Official Account 和 WordPress 仅创建草稿。</div>${publishers.map(function(publisher,index){const ready=!publisher.missing.length;return `<div class="admin-publisher-row"><div style="min-width:0"><div style="font-size:13px">${esc(publisher.name)}</div><div style="font-size:11px;color:var(--t600);margin-top:2px;overflow-wrap:anywhere">${esc(publisher.note)}</div></div><div class="admin-publisher-state" style="font-size:11.5px;color:var(--t600)">${ready?'已就绪':'缺 '+publisher.missing.map(esc).join('、')}</div>${owner?`<button class="btn btn-ghost" style="font-size:12px" onclick="editPub(${index})">配置</button>`:'<span></span>'}</div>`;}).join('')||'<div style="padding:10px 0;font-size:12px;color:var(--t600)">暂无发布目的地</div>'}</div>${records.length?`<h4 style="font-size:16px;margin:24px 0 10px">最近发布</h4><div class="card elev" style="padding:14px 18px">${records.slice(-10).reverse().map(function(record){return `<div style="padding:6px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12.5px;color:var(--t400)">${record.ok?'成功':'失败'} · ${esc((record.at||'').slice(0,16).replace('T',' '))} · ${esc(record.platform_name)} · ${esc(record.title)} ${record.url?`<a href="${esc(record.url)}" target="_blank" rel="noopener">打开链接</a>`:esc(record.note||record.error||'')}</div>`;}).join('')}</div>`:''}`;
 }
 
 async function vPublishing() {
   await ensureTeamState();
   if(!PUB)PUB=await api('/api/publish/'+SLUG);
-  return adminPage('渠道发布','配置发布渠道，查看发布记录。所有对外发布都由用户手动发起。',publishingPanel());
+  return adminPage('发布目的地','配置发布目的地并查看发布记录。所有对外发布都由用户手动发起。',publishingPanel());
 }
 
 async function vBranding() {
   if(!BRANDING_STATE)BRANDING_STATE=await api('/api/delivery-branding');
-  return adminPage('白标交付','为客户报告和打印版交付物配置机构名称、Logo 和主题色。',deliveryBrandingPanel());
+  return adminPage('白标报告','为客户报告和打印版交付物配置机构名称、Logo 和主题色。',deliveryBrandingPanel());
 }
 
 async function vTeam() {
@@ -2110,15 +2153,15 @@ def serve_ui():
     )
     html = html.replace(
         "${mktLabel(x.market)} · ${x.searched?'联网':'参数化知识'}",
-        "${esc(x.sampling_mode || (x.searched?'API·联网检索':'API·参数化知识'))}",
+        "${esc(x.sampling_mode || (x.searched?'API · 联网检索':'API · 模型内知识'))}",
     )
     html = html.replace(
         "${mktLabel(k.market)} · ${k.ok===false?'缺 API Key':'仅人工采样'}",
-        "${k.ok===false?(k.search?'API·联网检索 · 缺 Key':'API·参数化知识 · 缺 Key'):'人工·产品端'}",
+        "${k.ok===false?(k.search?'API · 联网检索 · 缺 Key':'API · 模型内知识 · 缺 Key'):'人工 · 产品端核验'}",
     )
     html = html.replace(
         "${mktLabel(k.market)}${k.search?' · 联网':''}",
-        "${k.manual?'人工·产品端':(k.search?'API·联网检索':'API·参数化知识')}",
+        "${k.manual?'人工 · 产品端核验':(k.search?'API · 联网检索':'API · 模型内知识')}",
     )
     html = html.replace(
         '''    {who:'给客户',name:'交付包',desc:'诊断报告、优化方案、工单表（CSV）、验收表、资产目录与说明。',
@@ -2221,7 +2264,7 @@ def serve_ui():
     )
     html = html.replace(
         '<button class="btn btn-primary" onclick="runAction(\'verify\')">自动验收</button>',
-        '<button class="btn btn-secondary" onclick="offsiteTicketModal()">创建 Offsite 工单</button>'
+        '<button class="btn btn-secondary" onclick="offsiteTicketModal()">创建外部协作任务</button>'
         '<button class="btn btn-primary" onclick="runAction(\'verify\')">自动验收</button>',
         1,
     )
@@ -2268,6 +2311,15 @@ def serve_ui():
     html = html.replace(
         "pull real search terms from Baidu suggest (CN) and Google autocomplete (Global)",
         "pull real search suggestions from Baidu and Google",
+    )
+    html = html.replace("WeChat drafts", "WeChat Official Account drafts")
+    html = html.replace(
+        "preview and send from the WeChat console",
+        "preview and publish from the WeChat Official Account admin console",
+    )
+    html = html.replace(
+        "WeChat / WordPress get drafts only, released after you confirm in their consoles.",
+        "WeChat Official Account and WordPress create drafts only. Publish them from the respective platform consoles.",
     )
     html = html.replace("中国市場", "中国語の質問").replace("グローバル市場", "英語の質問")
     html = html.replace("中国エンジン", "中国語の質問").replace("英文エンジン", "英語の質問")

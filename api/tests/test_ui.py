@@ -70,6 +70,9 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "/site-assets/icons/plus.svg" in response.text
     assert "const ADMIN_MODULES = [" in response.text
     assert "{route:'engines',label:{zh:'AI 可见性'" in response.text
+    assert "{route:'channels',label:{zh:'引用来源',en:'Citation sources'" in response.text
+    assert "{route:'engine-settings',label:{zh:'模型与测量',en:'Models and measurement'" in response.text
+    assert "{route:'publishing',label:{zh:'发布目的地',en:'Publishing destinations'" in response.text
     assert "{route:'overview',label:{zh:'品牌概览'" in response.text
     assert "{route:'project-settings',label:{zh:'品牌管理'" in response.text
     assert "/site-assets/icons/layout-dashboard.svg" in response.text
@@ -114,7 +117,8 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "'/assets'" in response.text
     assert "'/workbench?qid='" in response.text
     assert "'/questions'" in response.text
-    assert "创建 Offsite 工单" in response.text
+    assert "创建外部协作任务" in response.text
+    assert "创建 Offsite 工单" not in response.text
     assert "offsiteTicketModal" in response.text
     assert "'/tickets'" in response.text
     assert "influenced_questions" in response.text
@@ -135,7 +139,7 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "publishing_not_available_in_mvp" not in response.text
     assert "凭证使用 AES-256-GCM 加密保存" in response.text
     assert "/api/v1/projects/' + id + '/samples/import" in response.text
-    assert "人工·产品端" in response.text
+    assert "人工 · 产品端核验" in response.text
     assert "x.sampling_mode" in response.text
     assert "/api/delivery-zip/" in response.text
     assert "'/deliveries/' + deliveryZipMatch[2]" in response.text
@@ -207,12 +211,18 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "function samplingFundingPanel(state)" in response.text
     assert "async function setPlatformPool(enabled)" in response.text
     assert "BYOK 始终优先" in response.text
-    assert "API·联网检索" in response.text
-    assert "API·参数化知识" in response.text
+    assert "API · 联网检索" in response.text
+    assert "API · 模型内知识" in response.text
+    assert "Models and measurement" in response.text
+    assert "Measurement usage" in response.text
+    assert "Managed usage" in response.text
+    assert "CNY " in response.text
+    assert "WeChat Official Account drafts" in response.text
+    assert "WeChat Official Account and WordPress create drafts only" in response.text
     assert "本月费用" in response.text
     assert "费用信息加载失败" in response.text
     assert "仅所有者可更改" in response.text
-    assert "缺少 BYOK 的引擎将按页面所示单价逐次收费" in response.text
+    assert "缺少 BYOK 的模型将按页面所示单价逐次收费" in response.text
     assert "const enginePlanView = vPlan" in response.text
     assert "function playbookMatrix(tasks)" in response.text
     assert "function sortedPlaybookTasks(tasks)" in response.text
