@@ -97,6 +97,9 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "['实体消歧','Entity disambiguation']" in response.text
     assert "function playbookLocalized(value)" in response.text
     assert "playbookLocalized(task.package || '')" in response.text
+    assert "function uiText(value)" in response.text
+    assert "const engineOnboard = vOnboard" in response.text
+    assert "Two sampling rounds are required" in response.text
     assert "/api/v1/projects" in response.text
     assert "/api/v1/settings/keys" in response.text
     assert "disvorai_access_token" in response.text
@@ -295,7 +298,7 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "function restoreArchiveModal(archiveId)" in response.text
     assert "confirmation_text:text" in response.text
     assert "RESTORE '+archiveId" in response.text
-    assert "活动数据源 · 本地文件系统" in response.text
+    assert "${uiText('活动数据源')} · ${uiText('本地文件系统')}" in response.text
     assert ".archive-row{grid-template-columns:1fr auto" in response.text
     assert "geo.py serve --slug" not in response.text
     assert "本产品不内置定时器" not in response.text

@@ -1422,6 +1422,7 @@ let ARCHIVE_STATE = null;
 let FUNDING_STATE = null;
 const billingStatusLabel = {active:'已生效',trialing:'试用中',past_due:'付款逾期',canceled:'已取消',unpaid:'未付款',incomplete:'待付款'};
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
+function uiText(value) { return (UI_D[ULANG] || {})[value] || value; }
 
 function billingPanel() {
   const state=BILLING_STATE||{},plans=state.plans||[],usage=state.usage||{};
@@ -1437,9 +1438,9 @@ function billingPanel() {
       ${payment.configured?'':`<div style="padding:9px 11px;border:1px solid var(--line);font-size:12px;color:var(--t500)">Stripe 尚未配置，当前不能发起真实付款。</div>`}
       <div class="billing-plan-grid">${plans.map(function(plan){const price=(plan.prices||{})[BILLING_INTERVAL]||{},current=usage.plan===plan.code,currentInterval=current&&subscription.billing_interval===BILLING_INTERVAL,custom=price.cny==null;return `<div style="display:flex;flex-direction:column;min-width:0;min-height:188px;padding:14px;border:1px solid ${current?'var(--a700)':'var(--line)'};border-radius:var(--r-md);background:var(--bg)">
           <div class="row"><strong style="font-size:14px">${esc(plan.name)}</strong>${current?'<span class="tag tag-accent">当前套餐</span>':''}</div>
-          <div style="font-size:22px;margin-top:13px">${custom?'定制报价':'¥'+Number(price.cny).toLocaleString()}${custom?'':`<span style="font-size:11px;color:var(--t600)"> / ${BILLING_INTERVAL==='annual'?'每年':'每月'}</span>`}</div>
+          <div style="font-size:22px;margin-top:13px">${custom?uiText('定制报价'):'¥'+Number(price.cny).toLocaleString()}${custom?'':`<span style="font-size:11px;color:var(--t600)"> / ${uiText(BILLING_INTERVAL==='annual'?'每年':'每月')}</span>`}</div>
           ${BILLING_INTERVAL==='annual'&&!custom?`<div style="font-size:11.5px;color:var(--good);margin-top:4px">年付优惠 ${Number(plan.annual_discount_percent||0).toFixed(2)}% · 年付节省 ¥${Number(plan.annual_savings_cny||0).toLocaleString()}</div>`:'<div style="height:21px"></div>'}
-          <div style="font-size:11.5px;color:var(--t600);margin-top:9px">${plan.projects==null?'Enterprise SLA':esc(String(plan.projects))+' projects'} · 无限采样</div>
+          <div style="font-size:11.5px;color:var(--t600);margin-top:9px">${plan.projects==null?'Enterprise SLA':esc(String(plan.projects))+' projects'} · ${uiText('无限采样')}</div>
           ${!custom&&owner?`<button class="btn ${currentInterval?'btn-secondary':'btn-primary'}" ${currentInterval||!payment.configured?'disabled':''} style="margin-top:auto;width:100%" onclick="subscribeBilling('${esc(plan.code)}')">${currentInterval?'当前套餐':'前往付款'}</button>`:''}
         </div>`;}).join('')}</div>
     </div>`;
@@ -1466,7 +1467,7 @@ function archivePanel(){
   const storage=state.storage||{},archives=state.archives||[];
   return `<h4 class="archive-section-title" style="font-size:16px;margin:28px 0 10px">对象存储归档</h4>
     <div class="card elev" style="padding:18px;gap:13px"><div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:190px"><div style="font-size:15px;font-weight:500">${storage.configured?esc(storage.bucket):'对象存储未配置'}</div>
-      <div style="font-size:11.5px;color:var(--t600);margin-top:3px">活动数据源 · 本地文件系统${storage.configured?' · 保留份数 '+esc(storage.retention_count):''}</div></div>
+      <div style="font-size:11.5px;color:var(--t600);margin-top:3px">${uiText('活动数据源')} · ${uiText('本地文件系统')}${storage.configured?' · '+uiText('保留份数')+' '+esc(storage.retention_count):''}</div></div>
       ${state.can_manage&&storage.configured?'<button class="btn btn-primary" style="font-size:12px" onclick="createProjectArchive()">创建快照</button>':''}</div>
       <div style="padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><div class="row"><div style="flex:1;font-size:12px;color:var(--t500)">归档清单</div><span class="tag tag-outline">${archives.length}</span></div>
         ${archives.length?archives.map(function(item){const available=item.status==='available';return `<div class="archive-row"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(item.id)}</span><span class="archive-row-detail" style="color:var(--t600);overflow-wrap:anywhere">${esc(String(item.created_at||'').replace('T',' ').slice(0,19))} · ${archiveSize(item.size_bytes)} · ${esc(item.file_count)} 文件</span><span class="tag ${available?'pill-good':'tag-outline'}">${available?'可恢复':'已过期'}</span>${available&&state.can_manage?`<button class="btn btn-ghost" style="font-size:12px" onclick="restoreArchiveModal('${esc(item.id)}')">恢复快照</button>`:'<span></span>'}</div>`;}).join(''):'<div style="padding:12px 0 4px;font-size:12px;color:var(--t600)">暂无归档</div>'}</div>
@@ -1935,7 +1936,7 @@ async function vOutreach() {
 
 function publishingPanel() {
   const state=PUB||{},publishers=state.publishers||[],records=state.records||[],owner=TEAM_STATE&&TEAM_STATE.current_role==='owner';
-  return `<div class="card elev" style="padding:18px;gap:0"><div style="font-size:11.5px;color:var(--t600);margin-bottom:8px">发布凭证加密保存。发布只能由用户手动触发，WeChat Official Account 和 WordPress 仅创建草稿。</div>${publishers.map(function(publisher,index){const ready=!publisher.missing.length;return `<div class="admin-publisher-row"><div style="min-width:0"><div style="font-size:13px">${esc(publisher.name)}</div><div style="font-size:11px;color:var(--t600);margin-top:2px;overflow-wrap:anywhere">${esc(publisher.note)}</div></div><div class="admin-publisher-state" style="font-size:11.5px;color:var(--t600)">${ready?'已就绪':'缺 '+publisher.missing.map(esc).join('、')}</div>${owner?`<button class="btn btn-ghost" style="font-size:12px" onclick="editPub(${index})">配置</button>`:'<span></span>'}</div>`;}).join('')||'<div style="padding:10px 0;font-size:12px;color:var(--t600)">暂无发布目的地</div>'}</div>${records.length?`<h4 style="font-size:16px;margin:24px 0 10px">最近发布</h4><div class="card elev" style="padding:14px 18px">${records.slice(-10).reverse().map(function(record){return `<div style="padding:6px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12.5px;color:var(--t400)">${record.ok?'成功':'失败'} · ${esc((record.at||'').slice(0,16).replace('T',' '))} · ${esc(record.platform_name)} · ${esc(record.title)} ${record.url?`<a href="${esc(record.url)}" target="_blank" rel="noopener">打开链接</a>`:esc(record.note||record.error||'')}</div>`;}).join('')}</div>`:''}`;
+  return `<div class="card elev" style="padding:18px;gap:0"><div style="font-size:11.5px;color:var(--t600);margin-bottom:8px">发布凭证加密保存。发布只能由用户手动触发，WeChat Official Account 和 WordPress 仅创建草稿。</div>${publishers.map(function(publisher,index){const ready=!publisher.missing.length;return `<div class="admin-publisher-row"><div style="min-width:0"><div style="font-size:13px">${esc(publisher.name)}</div><div style="font-size:11px;color:var(--t600);margin-top:2px;overflow-wrap:anywhere">${esc(publisher.note)}</div></div><div class="admin-publisher-state" style="font-size:11.5px;color:var(--t600)">${ready?uiText('已就绪'):uiText('缺 ') + publisher.missing.map(esc).join(', ')}</div>${owner?`<button class="btn btn-ghost" style="font-size:12px" onclick="editPub(${index})">配置</button>`:'<span></span>'}</div>`;}).join('')||'<div style="padding:10px 0;font-size:12px;color:var(--t600)">暂无发布目的地</div>'}</div>${records.length?`<h4 style="font-size:16px;margin:24px 0 10px">最近发布</h4><div class="card elev" style="padding:14px 18px">${records.slice(-10).reverse().map(function(record){return `<div style="padding:6px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12.5px;color:var(--t400)">${record.ok?'成功':'失败'} · ${esc((record.at||'').slice(0,16).replace('T',' '))} · ${esc(record.platform_name)} · ${esc(record.title)} ${record.url?`<a href="${esc(record.url)}" target="_blank" rel="noopener">打开链接</a>`:esc(record.note||record.error||'')}</div>`;}).join('')}</div>`:''}`;
 }
 
 async function vPublishing() {
@@ -2033,6 +2034,7 @@ Object.assign(UI_D.en, {
   '影响优先级 × 工作量':'Impact priority × effort','全部任务':'All tasks',
   '高影响':'High impact','中影响':'Medium impact','低影响':'Lower impact','低工作量':'Low effort','中工作量':'Medium effort','高工作量':'High effort',
   '暂无行动任务':'No action items yet','未分类任务':'Unclassified tasks','待开始':'To do','进行中':'In progress','受阻':'Blocked','已完成':'Done','不处理':'Won\'t fix',
+  '需两期采样':'Two sampling rounds are required','已就绪':'Ready','缺 ':'Missing ',
   '统一一句话定义，四处逐字一致':'Standardize the one-sentence definition across four surfaces',
   '建品牌事实卡并标注证据等级':'Build a brand facts library with evidence grades',
   '修复前端渲染空壳页（SSR / 预渲染）':'Fix client-rendered empty-shell pages (SSR / prerender)',
@@ -2057,6 +2059,27 @@ UI_SUB.en.push(['实体消歧','Entity disambiguation'],['知识库','Knowledge 
 UI_SUB.ja.push(['实体消歧','エンティティ曖昧性解消'],['知识库','ナレッジベース'],['页面技术','ページ技術'],['内容矩阵','コンテンツマトリクス'],['外部证据','外部エビデンス'],['监测闭环','測定ループ'],['内容','コンテンツ'],['开发','開発'],['市场','マーケティング'],['GEO顾问','GEO ストラテジスト'],['未分配','未割り当て']);
 UI_RX.en.push([/^站点均分从 ([\d.]+) 提到 70$/,'Raise the site average from $1 to 70'],[/^补齐(中文|英文)侧内容，中英对等$/,'Balance $1-language content coverage'],[/^(国内|海外)无提示提及率 (.+) → (.+)$/,'$1 unprompted mention rate $2 → $3'],[/^(国内|海外)让官网进得了 AI 的检索结果$/,'Help the official site enter $1 AI retrieval results']);
 UI_RX.ja.push([/^站点均分从 ([\d.]+) 提到 70$/,'サイト平均を $1 から 70 へ改善'],[/^补齐(中文|英文)侧内容，中英对等$/,'$1側コンテンツを補い、中国語と英語のカバレッジを均等化'],[/^(国内|海外)无提示提及率 (.+) → (.+)$/,'$1の無指名言及率 $2 → $3'],[/^(国内|海外)让官网进得了 AI 的检索结果$/,'公式サイトを $1 AI の検索結果に載せる']);
+
+const engineOnboard = vOnboard;
+vOnboard = async function () {
+  const html = await engineOnboard();
+  const copy = {
+    en:{
+      '接入引导 · 第':'ONBOARDING · STEP','你是谁，做什么':'Who you are, what you do','正在生成首份诊断':'Generating your first diagnosis','完成':'Complete',
+      '只要域名。竞品与问题库将从官网内容自动推导，之后随时可改。':'Enter a domain. Competitors and prompts are inferred from your website and remain editable.',
+      '首次全流程视采样规模约 10–30 分钟。':'The first full cycle takes about 10-30 minutes, depending on sample volume.','底座就绪。':'Foundation ready.'
+    },
+    ja:{
+      '接入引导 · 第':'オンボーディング · ステップ','你是谁，做什么':'あなたと事業内容','正在生成首份诊断':'最初の診断を生成中','完成':'完了',
+      '只要域名。竞品与问题库将从官网内容自动推导，之后随时可改。':'ドメインを入力してください。競合とプロンプトはサイトから推定され、後から編集できます。',
+      '首次全流程视采样规模约 10–30 分钟。':'初回のフルサイクルはサンプル量により約 10-30 分です。','底座就绪。':'準備が完了しました。'
+    }
+  }[ULANG] || {};
+  const localized = Object.keys(copy).reduce(function (output, source) { return output.split(source).join(copy[source]); }, html);
+  return ULANG === 'en' ? localized.replace(/ONBOARDING · STEP (\d+) \/ 3 步/, 'ONBOARDING · STEP $1 / 3')
+    : ULANG === 'ja' ? localized.replace(/オンボーディング · ステップ (\d+) \/ 3 步/, 'オンボーディング · ステップ $1 / 3') : localized;
+};
+VIEWS.onboard = vOnboard;
 
 const enginePlanView = vPlan;
 const playbookPriorityOrder = {P0:0,P1:1,P2:2};
