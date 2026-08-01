@@ -2032,7 +2032,20 @@ Object.assign(UI_D.en, {
   '矩阵':'Matrix','列表':'List','行动计划视图':'Action plan view','影响优先级':'Impact priority','工作量':'Effort',
   '影响优先级 × 工作量':'Impact priority × effort','全部任务':'All tasks',
   '高影响':'High impact','中影响':'Medium impact','低影响':'Lower impact','低工作量':'Low effort','中工作量':'Medium effort','高工作量':'High effort',
-  '暂无行动任务':'No action items yet','未分类任务':'Unclassified tasks','待开始':'To do','进行中':'In progress','受阻':'Blocked','已完成':'Done','不处理':'Won\'t fix'
+  '暂无行动任务':'No action items yet','未分类任务':'Unclassified tasks','待开始':'To do','进行中':'In progress','受阻':'Blocked','已完成':'Done','不处理':'Won\'t fix',
+  '统一一句话定义，四处逐字一致':'Standardize the one-sentence definition across four surfaces',
+  '建品牌事实卡并标注证据等级':'Build a brand facts library with evidence grades',
+  '修复前端渲染空壳页（SSR / 预渲染）':'Fix client-rendered empty-shell pages (SSR / prerender)',
+  '全站补 JSON-LD 结构化数据':'Add JSON-LD structured data site-wide',
+  '全站补「数字事实」抽取块':'Add numeric-facts extraction blocks site-wide',
+  '全站补「FAQ」抽取块':'Add FAQ extraction blocks site-wide',
+  '全站补「定义」抽取块':'Add definition extraction blocks site-wide',
+  '全站补「对比」抽取块':'Add comparison extraction blocks site-wide',
+  '全站补「操作步骤」抽取块':'Add step-by-step extraction blocks site-wide',
+  '核心页正文扩到 1000+ 词':'Expand core-page body copy to 1,000+ words',
+  '百科词条（实体消歧地基）':'Create an encyclopedia entry for entity disambiguation',
+  '上线 /llms.txt 官方事实索引':'Publish the official facts index at /llms.txt',
+  '建英文原生内容区':'Build English-native content pages'
 });
 Object.assign(UI_D.ja, {
   '矩阵':'マトリクス','列表':'リスト','行动计划视图':'アクションプラン表示','影响优先级':'インパクト優先度','工作量':'工数',
@@ -2040,6 +2053,10 @@ Object.assign(UI_D.ja, {
   '高影响':'高インパクト','中影响':'中インパクト','低影响':'低インパクト','低工作量':'低工数','中工作量':'中工数','高工作量':'高工数',
   '暂无行动任务':'アクション項目はまだありません','未分类任务':'未分類タスク','待开始':'未着手','进行中':'進行中','受阻':'ブロック中','已完成':'完了','不处理':'対応しない'
 });
+UI_SUB.en.push(['实体消歧','Entity disambiguation'],['知识库','Knowledge base'],['页面技术','Page technology'],['内容矩阵','Content matrix'],['外部证据','External evidence'],['监测闭环','Measurement loop'],['内容','Content'],['开发','Engineering'],['市场','Marketing'],['GEO顾问','GEO strategist'],['未分配','Unassigned']);
+UI_SUB.ja.push(['实体消歧','エンティティ曖昧性解消'],['知识库','ナレッジベース'],['页面技术','ページ技術'],['内容矩阵','コンテンツマトリクス'],['外部证据','外部エビデンス'],['监测闭环','測定ループ'],['内容','コンテンツ'],['开发','開発'],['市场','マーケティング'],['GEO顾问','GEO ストラテジスト'],['未分配','未割り当て']);
+UI_RX.en.push([/^站点均分从 ([\d.]+) 提到 70$/,'Raise the site average from $1 to 70'],[/^补齐(中文|英文)侧内容，中英对等$/,'Balance $1-language content coverage'],[/^(国内|海外)无提示提及率 (.+) → (.+)$/,'$1 unprompted mention rate $2 → $3'],[/^(国内|海外)让官网进得了 AI 的检索结果$/,'Help the official site enter $1 AI retrieval results']);
+UI_RX.ja.push([/^站点均分从 ([\d.]+) 提到 70$/,'サイト平均を $1 から 70 へ改善'],[/^补齐(中文|英文)侧内容，中英对等$/,'$1側コンテンツを補い、中国語と英語のカバレッジを均等化'],[/^(国内|海外)无提示提及率 (.+) → (.+)$/,'$1の無指名言及率 $2 → $3'],[/^(国内|海外)让官网进得了 AI 的检索结果$/,'公式サイトを $1 AI の検索結果に載せる']);
 
 const enginePlanView = vPlan;
 const playbookPriorityOrder = {P0:0,P1:1,P2:2};
