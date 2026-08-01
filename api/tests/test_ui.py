@@ -95,6 +95,14 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "${mktLabel(k.market)}" not in response.text
     assert "中文题只问国内引擎" not in response.text
     assert "英文题只问海外引擎" not in response.text
+    assert "国内" not in response.text
+    assert "海外" not in response.text
+    assert "中文市场" not in response.text
+    assert "英文市场" not in response.text
+    assert "中文引擎" not in response.text
+    assert "英文引擎" not in response.text
+    assert "CN ($1) and Global ($2)" not in response.text
+    assert "中国（$1 件）と" not in response.text
     assert "语言路由：中文题匹配中文回答能力" in response.text
     assert "const mktLabel=m=>m==='cn'?'中文':m==='global'?'英文':'通用';" in response.text
     assert "['中文','Chinese'],['英文','English']" in response.text
@@ -157,6 +165,11 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "AI 如何描述你" in response.text
     assert "基于品牌被实际提及的回答短语，词频按样本去重。" in response.text
     assert "品牌印象加载失败，请刷新后重试。" in response.text
+    assert "同一批无提示采样共 ${Number(NS.cn||0)+Number(NS.global||0)} 条有效样本" in response.text
+    assert "来源：百度与 Google 搜索建议" in response.text
+    assert "这是前端渲染站点常见的致命问题" in response.text
+    assert "分母为该语言组" in response.text
+    assert "全部有效样本口径" in response.text
     assert "原文证据" in response.text
     assert "/api/v1/team/members" in response.text
     assert "/api/v1/team/invitations" in response.text

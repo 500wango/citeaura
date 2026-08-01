@@ -988,6 +988,14 @@ Object.assign(UI_D.ja, {
   '查看当前套餐和用量，并由工作区所有者管理订阅。':'現在のプランと使用量を確認し、オーナーがサブスクリプションを管理します。',
   '企业安全':'エンタープライズセキュリティ','配置 OIDC 单点登录，查看安全控制状态和最近审计事件。':'OIDC シングルサインオンを設定し、セキュリティ統制と最近の監査イベントを確認します。'
 });
+UI_RX.en.push([
+  /^同一批无提示采样共 (\d+) 条有效样本，对手出现率按问题语言对应的有效样本计算。领先并非不可复制：补齐对手常被引用的内容类型，你也能进入同类回答。竞品的引用份额与内容承接无法从外部可靠测量，因此不展示。$/,
+  'Across $1 valid unprompted samples, rival presence is calculated against valid samples for each question language. A lead is replicable: publish the content types rivals are cited for to enter similar answers. Rival citation share and content readiness cannot be measured reliably from outside, so they are omitted.'
+]);
+UI_RX.ja.push([
+  /^同一批无提示采样共 (\d+) 条有效样本，对手出现率按问题语言对应的有效样本计算。领先并非不可复制：补齐对手常被引用的内容类型，你也能进入同类回答。竞品的引用份额与内容承接无法从外部可靠测量，因此不展示。$/,
+  '無指名の有効サンプル $1 件を対象に、質問言語ごとの有効サンプルで競合出現率を算出します。競合のリードは再現可能です。競合が引用されるコンテンツ形式を補えば、同種の回答に入る可能性が高まります。競合の引用シェアとコンテンツ受け皿は外部から正確に測定できないため表示しません。'
+]);
 
 function adminText(value) { return value && (value[ULANG] || value.zh) || ''; }
 function adminCanonicalRoute(route) { return ADMIN_ROUTE_ALIASES[route] || route; }
@@ -1981,6 +1989,11 @@ VIEWS.plan = vPlan;
 def serve_ui():
     """返回经过品牌和 SaaS API 适配的 engine 单页 UI。"""
     html = UI_PATH.read_text("utf-8")
+    html = "".join(
+        line
+        for line in html.splitlines(keepends=True)
+        if "[/^同一批无提示采样下的对手出现率" not in line
+    )
     html = html.replace(
         "const mktLabel=m=>m==='cn'?'国内':m==='global'?'海外':'通用';",
         "const mktLabel=m=>m==='cn'?'中文':m==='global'?'英文':'通用';",
@@ -2011,6 +2024,10 @@ def serve_ui():
     html = html.replace(
         "市场路由：中文题只问国内引擎，英文题只问海外引擎，通用题两边都问；两套市场的指标分开算，分母各用各的。",
         "语言路由：中文题匹配中文回答能力，英文题匹配英文回答能力，通用题参与全部采样；不同语言问题组独立计算分母。",
+    )
+    html = html.replace(
+        "`同一批无提示采样下的对手出现率，国内（${NS.cn||0} 条）与海外（${NS.global||0} 条）分开算、分母各用各的。对手领先是可复制的——补上它们被引用的那类内容，你就能进同一批回答。竞品的引用份额与内容承接无法从外部测量，故不列。`",
+        "`同一批无提示采样共 ${Number(NS.cn||0)+Number(NS.global||0)} 条有效样本，对手出现率按问题语言对应的有效样本计算。领先并非不可复制：补齐对手常被引用的内容类型，你也能进入同类回答。竞品的引用份额与内容承接无法从外部可靠测量，因此不展示。`",
     )
     html = html.replace("严格高于同市场所有引擎", "严格高于同语言问题组所有引擎")
     html = html.replace("GeoLook", "DisvorAI").replace("geolook", "disvorai")
@@ -2222,6 +2239,48 @@ def serve_ui():
     )
     html = html.replace("<body>", "<body>" + FETCH_ADAPTER, 1)
     html = html.replace("</body>", UI_EXTENSION + "</body>", 1)
+    html = html.replace("国内", "中文").replace("海外", "英文")
+    html = html.replace("中文市场", "中文问题").replace("英文市场", "英文问题")
+    html = html.replace("中文引擎", "中文问题").replace("英文引擎", "英文问题")
+    html = html.replace("分母为本市场", "分母为该语言组")
+    html = html.replace("全市场口径", "全部有效样本口径")
+    html = html.replace("目标市场", "问题语言")
+    html = html.replace("来源：百度下拉（中文）+ Google 补全（英文）", "来源：百度与 Google 搜索建议")
+    html = html.replace(
+        "拉百度下拉（中文）与 Google 补全（英文）的真实搜索词",
+        "从百度与 Google 获取真实搜索建议",
+    )
+    html = html.replace("这是中文官网最常见的致命伤", "这是前端渲染站点常见的致命问题")
+    html = html.replace("'中文':'CN'", "'中文':'Chinese'").replace("'英文':'Global'", "'英文':'English'")
+    html = html.replace("'中文':'中国'", "'中文':'中国語'").replace("'英文':'英文'", "'英文':'英語'")
+    html = html.replace("CN market", "Chinese questions").replace("Global market", "English questions")
+    html = html.replace("CN engines", "Chinese questions").replace("Global engines", "English questions")
+    html = html.replace("CN · manual only", "Chinese · manual only")
+    html = html.replace("Global · manual only", "English · manual only")
+    html = html.replace("CN · you", "Chinese · you").replace("Global · you", "English · you")
+    html = html.replace("in this market", "for this language group")
+    html = html.replace("market-wide", "across all valid samples")
+    html = html.replace("the most common fatal flaw on CN sites", "a common critical issue on client-rendered sites")
+    html = html.replace(
+        "Sources: Baidu suggest (CN) + Google autocomplete (Global).",
+        "Sources: Baidu and Google search suggestions.",
+    )
+    html = html.replace(
+        "pull real search terms from Baidu suggest (CN) and Google autocomplete (Global)",
+        "pull real search suggestions from Baidu and Google",
+    )
+    html = html.replace("中国市場", "中国語の質問").replace("グローバル市場", "英語の質問")
+    html = html.replace("中国エンジン", "中国語の質問").replace("英文エンジン", "英語の質問")
+    html = html.replace("本市場", "この言語グループ").replace("全市場", "全有効サンプル")
+    html = html.replace("中国 · 手動のみ", "中国語 · 手動のみ").replace("英文 · 手動のみ", "英語 · 手動のみ")
+    html = html.replace(
+        "百度サジェスト（中国）+ Google オートコンプリート（英文）",
+        "百度と Google の検索サジェスト",
+    )
+    html = html.replace(
+        "百度サジェスト（中国）と Google オートコンプリート（英文）から実検索語を取得",
+        "百度と Google から実際の検索サジェストを取得",
+    )
     return HTMLResponse(html)
 
 
