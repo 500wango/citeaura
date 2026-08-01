@@ -962,6 +962,41 @@ const ADMIN_MODULES = [
 const ADMIN_ROUTE_ALIASES = {settings:'project-settings'};
 
 Object.assign(UI_D.en, {
+  '认证模式':'Authentication mode','登录':'Sign in','注册':'Create account','新密码':'New password','确认新密码':'Confirm new password',
+  '邮箱':'Email','邀请将加入已有工作区':'Your invitation will join an existing workspace','工作区名称':'Workspace name','密码':'Password','确认密码':'Confirm password',
+  '返回登录':'Back to sign in','忘记密码？':'Forgot password?','更新密码':'Update password','发送重置链接':'Send reset link','创建账号':'Create account','处理中…':'Processing…',
+  '设置新密码':'Set a new password','找回密码':'Reset password','创建工作区':'Create a workspace','登录 DisvorAI':'Sign in to DisvorAI',
+  '设置完成后，之前的登录会话将失效。':'Your existing sessions will expire after the password is updated.',
+  '输入账号邮箱，我们会发送重置链接。':'Enter your account email and we will send a reset link.',
+  '你正在接受工作区邀请。已有账号请选择登录，新账号请选择注册。':'You are accepting a workspace invitation. Sign in if you already have an account, or create one if you do not.',
+  '登录后查看项目报告，或创建一个新的工作区。':'Sign in to view project reports or create a new workspace.',
+  '你的工作区数据按租户隔离保存':'Your workspace data is isolated by tenant.',
+  '请输入新密码。':'Enter a new password.','请输入有效的邮箱地址。':'Enter a valid email address.','密码至少需要 8 个字符。':'Password must be at least 8 characters.',
+  '两次输入的密码不一致。':'The passwords do not match.','请填写工作区名称。':'Enter a workspace name.',
+  '如果邮箱已注册，重置链接会发送到你的邮箱。':'If the email is registered, a reset link will be sent to it.',
+  '密码已更新，请使用新密码登录。':'Password updated. Sign in with your new password.',
+  '网络暂时不可用，请稍后再试。':'The network is temporarily unavailable. Try again later.',
+  '邮箱或密码不正确。':'Incorrect email or password.','该邮箱已注册，请切换到登录。':'This email is already registered. Sign in instead.',
+  '邀请链接无效或已失效。':'This invitation link is invalid or has expired.','该邀请已被接受。':'This invitation has already been accepted.',
+  '邀请链接已过期。':'This invitation link has expired.','注册邮箱必须与邀请邮箱一致。':'The registration email must match the invitation email.',
+  '重置链接无效或已过期，请重新申请。':'This reset link is invalid or expired. Request a new one.',
+  '该账号暂未加入工作区。':'This account is not a member of a workspace.','操作过于频繁，请稍后再试。':'Too many requests. Try again later.',
+  '请检查输入。':'Check your input.','登录失败，请检查邮箱和密码。':'Sign-in failed. Check your email and password.',
+  '注册失败，请检查填写的信息。':'Registration failed. Check the information you entered.','操作失败，请稍后再试。':'The operation failed. Try again.'
+});
+Object.assign(UI_D.ja, {
+  '认证模式':'認証モード','登录':'ログイン','注册':'アカウント作成','新密码':'新しいパスワード','确认新密码':'新しいパスワードを確認',
+  '邮箱':'メールアドレス','邀请将加入已有工作区':'招待先のワークスペースに参加します','工作区名称':'ワークスペース名','密码':'パスワード','确认密码':'パスワードを確認',
+  '返回登录':'ログインへ戻る','忘记密码？':'パスワードを忘れた場合','更新密码':'パスワードを更新','发送重置链接':'リセットリンクを送信','创建账号':'アカウントを作成','处理中…':'処理中…',
+  '设置新密码':'新しいパスワードを設定','找回密码':'パスワードをリセット','创建工作区':'ワークスペースを作成','登录 DisvorAI':'DisvorAI にログイン',
+  '设置完成后，之前的登录会话将失效。':'パスワード更新後、既存のセッションは無効になります。','输入账号邮箱，我们会发送重置链接。':'アカウントのメールアドレスを入力すると、リセットリンクを送信します。',
+  '你正在接受工作区邀请。已有账号请选择登录，新账号请选择注册。':'ワークスペースへの招待を承認しています。アカウントがあればログイン、なければ作成してください。','登录后查看项目报告，或创建一个新的工作区。':'ログインしてプロジェクトレポートを確認するか、新しいワークスペースを作成してください。',
+  '你的工作区数据按租户隔离保存':'ワークスペースのデータはテナント単位で分離されます。','请输入新密码。':'新しいパスワードを入力してください。','请输入有效的邮箱地址。':'有効なメールアドレスを入力してください。','密码至少需要 8 个字符。':'パスワードは 8 文字以上必要です。',
+  '两次输入的密码不一致。':'パスワードが一致しません。','请填写工作区名称。':'ワークスペース名を入力してください。','如果邮箱已注册，重置链接会发送到你的邮箱。':'登録済みの場合、リセットリンクをメールで送信します。','密码已更新，请使用新密码登录。':'パスワードを更新しました。新しいパスワードでログインしてください。','网络暂时不可用，请稍后再试。':'ネットワークを利用できません。後でもう一度お試しください。',
+  '邮箱或密码不正确。':'メールアドレスまたはパスワードが正しくありません。','该邮箱已注册，请切换到登录。':'このメールアドレスは登録済みです。ログインしてください。','邀请链接无效或已失效。':'招待リンクが無効または期限切れです。','该邀请已被接受。':'この招待は承認済みです。','邀请链接已过期。':'この招待リンクは期限切れです。','注册邮箱必须与邀请邮箱一致。':'登録メールアドレスは招待先と一致する必要があります。','重置链接无效或已过期，请重新申请。':'リセットリンクが無効または期限切れです。再申請してください。','该账号暂未加入工作区。':'このアカウントはワークスペースに参加していません。','操作过于频繁，请稍后再试。':'リクエストが多すぎます。後でもう一度お試しください。','请检查输入。':'入力内容を確認してください。','登录失败，请检查邮箱和密码。':'ログインに失敗しました。メールアドレスとパスワードを確認してください。','注册失败，请检查填写的信息。':'登録に失敗しました。入力内容を確認してください。','操作失败，请稍后再试。':'操作に失敗しました。後でもう一度お試しください。'
+});
+
+Object.assign(UI_D.en, {
   '品牌管理':'Brand management','管理品牌清单、官网域名和竞品范围。':'Manage brands, official domains, and competitor scope.',
   '品牌':'Brand','网站审计均分':'Website audit average','添加品牌':'Add brand','编辑当前品牌':'Edit current brand',
   '运行与调度':'Runs and schedules','手动运行完整管线、执行单项任务，或设置固定复跑周期。':'Run the full pipeline, execute individual jobs, or set a recurring schedule.',
