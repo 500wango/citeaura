@@ -2162,6 +2162,7 @@ vPlan = function () {
   return html.slice(0,tableStart)+toolbar+(ST.planView==='matrix'?playbookMatrix(D.tasks):list)+html.slice(pageEnd);
 };
 VIEWS.plan = vPlan;
+if (ULANG !== 'zh' && typeof uiTranslate === 'function') setTimeout(function () { uiTranslate(document.body); }, 0);
 </script>
 """
 
