@@ -91,6 +91,8 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "'认证模式':'Authentication mode'" in response.text
     assert "'登录后查看项目报告，或创建一个新的工作区。':'Sign in to view project reports or create a new workspace.'" in response.text
     assert "'邮箱或密码不正确。':'Incorrect email or password.'" in response.text
+    assert "['下载失败：','Download failed: ']" in response.text
+    assert "['仅所有者可配置 API Key','Only owners can configure API keys']" in response.text
     assert "/api/v1/projects" in response.text
     assert "/api/v1/settings/keys" in response.text
     assert "disvorai_access_token" in response.text
