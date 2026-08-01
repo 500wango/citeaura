@@ -95,6 +95,8 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "['仅所有者可配置 API Key','Only owners can configure API keys']" in response.text
     assert "'统一一句话定义，四处逐字一致':'Standardize the one-sentence definition across four surfaces'" in response.text
     assert "['实体消歧','Entity disambiguation']" in response.text
+    assert "function playbookLocalized(value)" in response.text
+    assert "playbookLocalized(task.package || '')" in response.text
     assert "/api/v1/projects" in response.text
     assert "/api/v1/settings/keys" in response.text
     assert "disvorai_access_token" in response.text

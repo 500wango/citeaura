@@ -2062,6 +2062,11 @@ const enginePlanView = vPlan;
 const playbookPriorityOrder = {P0:0,P1:1,P2:2};
 const playbookEffortOrder = {S:0,M:1,L:2};
 const playbookStatusLabel = {todo:'待开始',doing:'进行中',blocked:'受阻',done:'已完成',wontfix:'不处理'};
+const playbookLocale = {
+  en:{'内容矩阵':'Content matrix','实体消歧':'Entity disambiguation','知识库':'Knowledge base','页面技术':'Page technology','外部证据':'External evidence','监测闭环':'Measurement loop','内容':'Content','开发':'Engineering','市场':'Marketing','GEO顾问':'GEO strategist','未分配':'Unassigned','待开始':'To do','进行中':'In progress','受阻':'Blocked','已完成':'Done','不处理':"Won't fix"},
+  ja:{'内容矩阵':'コンテンツマトリクス','实体消歧':'エンティティ曖昧性解消','知识库':'ナレッジベース','页面技术':'ページ技術','外部证据':'外部エビデンス','监测闭环':'測定ループ','内容':'コンテンツ','开发':'開発','市场':'マーケティング','GEO顾问':'GEO ストラテジスト','未分配':'未割り当て','待开始':'未着手','进行中':'進行中','受阻':'ブロック中','已完成':'完了','不处理':'対応しない'}
+};
+function playbookLocalized(value) { return (playbookLocale[ULANG] || {})[value] || value || ''; }
 
 function sortedPlaybookTasks(tasks) {
   return (Array.isArray(tasks) ? tasks : []).map(function (task,index) { return {task:task,index:index}; })
@@ -2077,10 +2082,11 @@ function sortedPlaybookTasks(tasks) {
 
 function playbookTaskButton(task) {
   const complete=['done','wontfix'].includes(task.status);
-  return `<button class="playbook-task ${complete?'is-complete':''}" onclick="taskModal(${esc(JSON.stringify(task.id))})" title="${esc(task.title || task.id)}">
-    <span class="playbook-task-top"><span>${esc(task.id || '')}</span><span>${esc(playbookStatusLabel[task.status] || task.status || '')}</span></span>
-    <span class="playbook-task-title">${esc(task.title || '')}</span>
-    <span class="playbook-task-meta">${esc(task.owner || '未分配')} · ${esc(task.package || '')}</span></button>`;
+  const title = (UI_D[ULANG] || {})[task.title] || task.title || task.id;
+  return `<button class="playbook-task ${complete?'is-complete':''}" onclick="taskModal(${esc(JSON.stringify(task.id))})" title="${esc(title)}">
+    <span class="playbook-task-top"><span>${esc(task.id || '')}</span><span>${esc(playbookLocalized(playbookStatusLabel[task.status] || task.status))}</span></span>
+    <span class="playbook-task-title">${esc(title)}</span>
+    <span class="playbook-task-meta">${esc(playbookLocalized(task.owner || '未分配'))} · ${esc(playbookLocalized(task.package || ''))}</span></button>`;
 }
 
 function playbookMatrix(tasks) {
