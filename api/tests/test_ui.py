@@ -103,6 +103,8 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "No competitor data yet. Configure competitors in Settings, then run a full cycle." in response.text
     assert "API · Model knowledge · API key required" in response.text
     assert "setTimeout(function () { uiTranslate(document.body); }, 0)" in response.text
+    assert "const engineFactsView = vFacts" in response.text
+    assert "Not compared — log this in Gap Diagnosis · Fact deviations" in response.text
     assert "/api/v1/projects" in response.text
     assert "/api/v1/settings/keys" in response.text
     assert "disvorai_access_token" in response.text

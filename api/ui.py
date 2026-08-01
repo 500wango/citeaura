@@ -1466,7 +1466,7 @@ function archivePanel(){
   if(state.error||state.detail)return `<h4 class="archive-section-title" style="font-size:16px;margin:28px 0 10px">对象存储归档</h4><div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">归档信息加载失败</div>`;
   const storage=state.storage||{},archives=state.archives||[];
   return `<h4 class="archive-section-title" style="font-size:16px;margin:28px 0 10px">对象存储归档</h4>
-    <div class="card elev" style="padding:18px;gap:13px"><div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:190px"><div style="font-size:15px;font-weight:500">${storage.configured?esc(storage.bucket):'对象存储未配置'}</div>
+    <div class="card elev" style="padding:18px;gap:13px"><div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:190px"><div style="font-size:15px;font-weight:500">${storage.configured?esc(storage.bucket):uiText('对象存储未配置')}</div>
       <div style="font-size:11.5px;color:var(--t600);margin-top:3px">${uiText('活动数据源')} · ${uiText('本地文件系统')}${storage.configured?' · '+uiText('保留份数')+' '+esc(storage.retention_count):''}</div></div>
       ${state.can_manage&&storage.configured?'<button class="btn btn-primary" style="font-size:12px" onclick="createProjectArchive()">创建快照</button>':''}</div>
       <div style="padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><div class="row"><div style="flex:1;font-size:12px;color:var(--t500)">归档清单</div><span class="tag tag-outline">${archives.length}</span></div>
@@ -2035,6 +2035,7 @@ Object.assign(UI_D.en, {
   '高影响':'High impact','中影响':'Medium impact','低影响':'Lower impact','低工作量':'Low effort','中工作量':'Medium effort','高工作量':'High effort',
   '暂无行动任务':'No action items yet','未分类任务':'Unclassified tasks','待开始':'To do','进行中':'In progress','受阻':'Blocked','已完成':'Done','不处理':'Won\'t fix',
   '需两期采样':'Two sampling rounds are required','已就绪':'Ready','缺 ':'Missing ',
+  '缺失':'Missing','需处理':'Needs attention','正常':'OK','（未填写）':'Not provided','（缺失）':'Missing',
   '暂无竞品数据——先到「设置」配置竞品并跑完整一期。':'No competitor data yet. Configure competitors in Settings, then run a full cycle.',
   '词数接近 0 的是前端渲染空壳页——AI 抓取器看到的是空白，这是前端渲染站点常见的致命问题。修复清单见「行动计划」。':'Near-zero word counts indicate client-rendered empty-shell pages. AI crawlers see a blank page. See the Action plan for the remediation list.',
   '没有内容缺口':'No content gaps',
@@ -2068,6 +2069,15 @@ UI_SUB.en.push(['实体消歧','Entity disambiguation'],['知识库','Knowledge 
 UI_SUB.ja.push(['实体消歧','エンティティ曖昧性解消'],['知识库','ナレッジベース'],['页面技术','ページ技術'],['内容矩阵','コンテンツマトリクス'],['外部证据','外部エビデンス'],['监测闭环','測定ループ'],['内容','コンテンツ'],['开发','開発'],['市场','マーケティング'],['GEO顾问','GEO ストラテジスト'],['未分配','未割り当て']);
 UI_RX.en.push([/^站点均分从 ([\d.]+) 提到 70$/,'Raise the site average from $1 to 70'],[/^补齐(中文|英文)侧内容，中英对等$/,'Balance $1-language content coverage'],[/^(国内|海外)无提示提及率 (.+) → (.+)$/,'$1 unprompted mention rate $2 → $3'],[/^(国内|海外)让官网进得了 AI 的检索结果$/,'Help the official site enter $1 AI retrieval results']);
 UI_RX.ja.push([/^站点均分从 ([\d.]+) 提到 70$/,'サイト平均を $1 から 70 へ改善'],[/^补齐(中文|英文)侧内容，中英对等$/,'$1側コンテンツを補い、中国語と英語のカバレッジを均等化'],[/^(国内|海外)无提示提及率 (.+) → (.+)$/,'$1の無指名言及率 $2 → $3'],[/^(国内|海外)让官网进得了 AI 的检索结果$/,'公式サイトを $1 AI の検索結果に載せる']);
+
+const engineFactsView = vFacts;
+vFacts = function () {
+  const output = engineFactsView();
+  if (ULANG === 'en') return output.replaceAll('（未填写）', 'Not provided').replaceAll('（缺失）', 'Missing').replaceAll('未比对——在「差距诊断 · 事实偏差」里记录', 'Not compared — log this in Gap Diagnosis · Fact deviations');
+  if (ULANG === 'ja') return output.replaceAll('（未填写）', '未入力').replaceAll('（缺失）', '欠落').replaceAll('未比对——在「差距诊断 · 事实偏差」里记录', '未比較 — ギャップ診断 · ファクト逸脱に記録');
+  return output;
+};
+VIEWS.facts = vFacts;
 
 const engineOnboard = vOnboard;
 vOnboard = async function () {
