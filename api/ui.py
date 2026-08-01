@@ -201,22 +201,35 @@ FETCH_ADAPTER = r"""
   const invitationToken = new URLSearchParams(location.search).get('invite') || '';
   const resetToken = new URLSearchParams(location.search).get('reset_token') || '';
   const keyCatalog = [
-    {code:'glm', label:'智谱GLM', market:'cn', env:'ZHIPUAI_API_KEY', search:false},
-    {code:'doubao', label:'豆包(方舟API)', market:'cn', env:'ARK_API_KEY', search:true},
-    {code:'deepseek', label:'DeepSeek', market:'cn', env:'DEEPSEEK_API_KEY', search:false},
-    {code:'kimi', label:'Kimi', market:'cn', env:'MOONSHOT_API_KEY', search:false},
-    {code:'minimax', label:'MiniMax', market:'cn', env:'MINIMAX_API_KEY', search:false},
-    {code:'gemini', label:'Gemini', market:'global', env:'GEMINI_API_KEY', search:false},
-    {code:'openai', label:'OpenAI(ChatGPT)', market:'global', env:'OPENAI_API_KEY', search:false},
-    {code:'claude', label:'Claude', market:'global', env:'ANTHROPIC_API_KEY', search:false},
-    {code:'grok', label:'Grok', market:'global', env:'XAI_API_KEY', search:false},
-    {code:'perplexity', label:'Perplexity', market:'global', env:'PERPLEXITY_API_KEY', search:true},
-    {code:'nano_ai', label:'纳米AI搜索（360）', market:'cn', env:null, search:true, manual:true},
-    {code:'baidu', label:'百度 AI 搜索', market:'cn', env:null, search:true, manual:true},
-    {code:'doubao_app', label:'豆包 App / 网页版', market:'cn', env:null, search:true, manual:true},
-    {code:'chatgpt', label:'ChatGPT 网页版（开 Search）', market:'global', env:null, search:true, manual:true},
-    {code:'claude_web', label:'Claude 网页版（开 Web Search）', market:'global', env:null, search:true, manual:true}
+    {code:'glm', labels:{zh:'智谱 GLM',en:'Zhipu AI GLM',ja:'Zhipu AI GLM'}, market:'cn', env:'ZHIPUAI_API_KEY', search:false},
+    {code:'doubao', labels:{zh:'豆包（方舟 API）',en:'Doubao Ark API',ja:'Doubao（Ark API）'}, market:'cn', env:'ARK_API_KEY', search:true},
+    {code:'deepseek', labels:{zh:'DeepSeek',en:'DeepSeek',ja:'DeepSeek'}, market:'cn', env:'DEEPSEEK_API_KEY', search:false},
+    {code:'kimi', labels:{zh:'Kimi',en:'Kimi',ja:'Kimi'}, market:'cn', env:'MOONSHOT_API_KEY', search:false},
+    {code:'minimax', labels:{zh:'MiniMax',en:'MiniMax',ja:'MiniMax'}, market:'cn', env:'MINIMAX_API_KEY', search:false},
+    {code:'gemini', labels:{zh:'Gemini',en:'Gemini',ja:'Gemini'}, market:'global', env:'GEMINI_API_KEY', search:false},
+    {code:'openai', labels:{zh:'OpenAI（ChatGPT）',en:'OpenAI (ChatGPT)',ja:'OpenAI（ChatGPT）'}, market:'global', env:'OPENAI_API_KEY', search:false},
+    {code:'claude', labels:{zh:'Claude',en:'Claude',ja:'Claude'}, market:'global', env:'ANTHROPIC_API_KEY', search:false},
+    {code:'grok', labels:{zh:'Grok',en:'Grok',ja:'Grok'}, market:'global', env:'XAI_API_KEY', search:false},
+    {code:'perplexity', labels:{zh:'Perplexity',en:'Perplexity',ja:'Perplexity'}, market:'global', env:'PERPLEXITY_API_KEY', search:true},
+    {code:'nano_ai', labels:{zh:'纳米 AI 搜索（360）',en:'Nano AI Search (360)',ja:'Nano AI 検索（360）'}, market:'cn', env:null, search:true, manual:true},
+    {code:'baidu', labels:{zh:'百度 AI 搜索',en:'Baidu AI Search',ja:'百度 AI 検索'}, market:'cn', env:null, search:true, manual:true},
+    {code:'doubao_app', labels:{zh:'豆包 App / 网页版',en:'Doubao app / web',ja:'Doubao アプリ / ウェブ'}, market:'cn', env:null, search:true, manual:true},
+    {code:'chatgpt', labels:{zh:'ChatGPT 网页版（开启 Search）',en:'ChatGPT web (Search enabled)',ja:'ChatGPT ウェブ（Search 有効）'}, market:'global', env:null, search:true, manual:true},
+    {code:'claude_web', labels:{zh:'Claude 网页版（开启 Web Search）',en:'Claude web (Web Search enabled)',ja:'Claude ウェブ（Web Search 有効）'}, market:'global', env:null, search:true, manual:true}
   ];
+  function selectedLocale() {
+    const requested = new URLSearchParams(location.search).get('lang');
+    const saved = localStorage.getItem('ulang');
+    const browser = (navigator.language || '').toLowerCase();
+    const locale = requested || saved || (browser.indexOf('zh') === 0 ? 'zh' : browser.indexOf('ja') === 0 ? 'ja' : 'en');
+    return ['zh','en','ja'].includes(locale) ? locale : 'en';
+  }
+  function localizedModelLabel(model, fallback) {
+    const entry = typeof model === 'string' ? keyCatalog.find(function (item) { return item.code === model; }) : model;
+    if (!entry) return fallback || '';
+    return (entry.labels || {})[selectedLocale()] || (entry.labels || {}).en || fallback || entry.code;
+  }
+  window.disvoraiModelLabel = localizedModelLabel;
   const envToCode = Object.fromEntries(keyCatalog.filter(function (k) { return k.env; }).map(function (k) { return [k.env, k.code]; }));
   const publisherEnvToCode = {
     GITHUB_TOKEN:'github',
@@ -704,7 +717,7 @@ FETCH_ADAPTER = r"""
       configuredKeyCount = configured.size;
       return response(keyCatalog.map(function (k) {
         const current = configured.get(k.code);
-        return Object.assign({}, k, {ok:k.manual ? null : !!current, key_tail:current ? current.masked.slice(-4) : ''});
+        return Object.assign({}, k, {label:localizedModelLabel(k), ok:k.manual ? null : !!current, key_tail:current ? current.masked.slice(-4) : ''});
       }), r.status);
     }
     if (url === '/api/keys' && init.body) {
@@ -957,6 +970,14 @@ Object.assign(UI_D.en, {
   '项目归档':'Project archive','创建项目文件快照，并在需要时恢复到本地文件系统。':'Create project snapshots and restore them to the local filesystem when needed.',
   '模型与测量':'Models and measurement','配置 AI 模型凭证、查看测量方式，并管理可选的托管用量。':'Configure AI model credentials, review measurement methods, and use managed usage when needed.',
   'AI 模型':'AI models','API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。':'API keys are encrypted with AES-256-GCM and injected only while jobs run. BYOK always takes priority.',
+  '智谱GLM':'Zhipu AI GLM','智谱 GLM':'Zhipu AI GLM',
+  '豆包(方舟API)':'Doubao Ark API','豆包（方舟 API）':'Doubao Ark API',
+  'OpenAI(ChatGPT)':'OpenAI (ChatGPT)','OpenAI（ChatGPT）':'OpenAI (ChatGPT)',
+  '纳米AI搜索（360）':'Nano AI Search (360)','纳米 AI 搜索（360）':'Nano AI Search (360)',
+  '百度 AI 搜索':'Baidu AI Search',
+  '豆包 App / 网页版（与方舟 API 结果不同，需分开采）':'Doubao app / web (measured separately from Ark API)',
+  'ChatGPT 网页版（开 Search）':'ChatGPT web (Search enabled)',
+  'Claude 网页版（开 Web Search）':'Claude web (Web Search enabled)',
   '已连接':'Connected','人工':'Manual','未连接':'Not connected',
   '数据源':'Data sources','连接外部搜索数据源，为诊断和成效分析补充可核验数据。':'Connect external data sources to add verifiable evidence to diagnosis and outcome analysis.',
   '管理 SMTP 连接和联络草稿。每封邮件都需要人工检查并确认发送。':'Manage SMTP connections and outreach drafts. Every email requires human review and confirmation.',
@@ -977,6 +998,14 @@ Object.assign(UI_D.ja, {
   '数据归档':'データアーカイブ','创建项目文件快照，并在需要时恢复到本地文件系统。':'プロジェクトのスナップショットを作成し、必要に応じてローカルファイルへ復元します。',
   '模型与测量':'モデルと測定','配置 AI 模型凭证、查看测量方式，并管理可选的托管用量。':'AI モデルの認証情報、測定方式、任意のプラットフォーム利用を管理します。',
   'AI 模型':'AI モデル','API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。':'API キーは AES-256-GCM で暗号化され、ジョブ実行中のみ注入されます。BYOK が常に優先されます。',
+  '智谱GLM':'Zhipu AI GLM','智谱 GLM':'Zhipu AI GLM',
+  '豆包(方舟API)':'Doubao（Ark API）','豆包（方舟 API）':'Doubao（Ark API）',
+  'OpenAI(ChatGPT)':'OpenAI（ChatGPT）','OpenAI（ChatGPT）':'OpenAI（ChatGPT）',
+  '纳米AI搜索（360）':'Nano AI 検索（360）','纳米 AI 搜索（360）':'Nano AI 検索（360）',
+  '百度 AI 搜索':'百度 AI 検索',
+  '豆包 App / 网页版（与方舟 API 结果不同，需分开采）':'Doubao アプリ / ウェブ（Ark API とは別に測定）',
+  'ChatGPT 网页版（开 Search）':'ChatGPT ウェブ（Search 有効）',
+  'Claude 网页版（开 Web Search）':'Claude ウェブ（Web Search 有効）',
   '已连接':'接続済み','人工':'手動','未连接':'未接続',
   '数据源':'データソース','连接外部搜索数据源，为诊断和成效分析补充可核验数据。':'外部データソースを接続し、診断と成果分析に検証可能な証拠を追加します。',
   '管理 SMTP 连接和联络草稿。每封邮件都需要人工检查并确认发送。':'SMTP 接続と連絡下書きを管理します。すべてのメールで人による確認が必要です。',
@@ -1604,7 +1633,7 @@ function samplingFundingPanel(state) {
       ${state.eligible&&!pool.length?'<div style="font-size:12px;color:var(--t500)">平台暂未配置可用模型</div>':''}
       ${pool.length?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">
         ${pool.map(function (item) { const source = effective[item.engine_code] || 'unavailable'; return `<div style="padding:10px 11px;border:1px solid var(--line);border-radius:var(--r-md);min-width:0">
-          <div class="row" style="gap:6px"><span style="flex:1;font-size:13px;overflow-wrap:anywhere">${esc(item.engine_name || item.engine_code)}</span>
+          <div class="row" style="gap:6px"><span style="flex:1;font-size:13px;overflow-wrap:anywhere">${esc(window.disvoraiModelLabel(item.engine_code, item.engine_name || item.engine_code))}</span>
             <span class="tag ${source==='platform_pool'?'tag-accent':'tag-outline'}">${esc(sourceLabel[source] || source)}</span></div>
           <div style="font-size:11.5px;color:var(--t600);margin-top:5px">${esc(item.sampling_mode)} · ${formatCny(Number(item.unit_price_cny_fen || 0)/100)} ${perCallLabel()}</div></div>`; }).join('')}</div>`:''}
       <div class="row" style="gap:24px;padding-top:10px;box-shadow:inset 0 1px 0 var(--line)">

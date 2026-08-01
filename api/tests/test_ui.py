@@ -80,6 +80,14 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert '@media (min-width:900px) and (max-width:1199px)' in response.text
     assert '@media (max-width:899px)' in response.text
     assert "const rawFetch = window.fetch.bind(window)" in response.text
+    assert "labels:{zh:'智谱 GLM',en:'Zhipu AI GLM'" in response.text
+    assert "labels:{zh:'百度 AI 搜索',en:'Baidu AI Search'" in response.text
+    assert "function localizedModelLabel(model, fallback)" in response.text
+    assert "label:localizedModelLabel(k)" in response.text
+    assert "window.disvoraiModelLabel(item.engine_code, item.engine_name || item.engine_code)" in response.text
+    assert "'智谱GLM':'Zhipu AI GLM'" in response.text
+    assert "'豆包(方舟API)':'Doubao Ark API'" in response.text
+    assert "'豆包 App / 网页版（与方舟 API 结果不同，需分开采）':'Doubao app / web (measured separately from Ark API)'" in response.text
     assert "/api/v1/projects" in response.text
     assert "/api/v1/settings/keys" in response.text
     assert "disvorai_access_token" in response.text
