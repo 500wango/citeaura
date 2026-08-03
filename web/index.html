@@ -1,70 +1,75 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="DisvorAI 从一个域名生成 AI 可见性报告、行动工单、验收结果与客户交付包。">
+  <meta name="description" data-i18n="landing.meta_description" content="DisvorAI turns a domain into AI visibility reports, action tickets, verification results, and client delivery packs.">
   <meta name="theme-color" content="#f5f5f3">
-  <title>DisvorAI | 从域名到可验收的 AI 可见性行动</title>
+  <title data-i18n="landing.title">DisvorAI | From domain to verifiable AI visibility action</title>
   <link rel="icon" href="/site-assets/favicon.png" type="image/png">
   <link rel="preload" href="/site-assets/product-audit.webp" as="image" type="image/webp" fetchpriority="high">
   <link rel="stylesheet" href="/site-assets/styles.css">
   <script src="/site-assets/landing.js" defer></script>
 </head>
 <body>
-  <a class="skip-link" href="#main">跳到主要内容</a>
+  <a class="skip-link" href="#main" data-i18n="nav.skip">Skip to main content</a>
 
   <header class="site-header">
-    <nav class="nav-shell" aria-label="主导航">
-      <a class="brand" href="/" aria-label="DisvorAI 首页">Disvor<span>AI</span></a>
+    <nav class="nav-shell" data-i18n-aria="nav.main" aria-label="Main navigation">
+      <a class="brand" href="/" data-i18n-aria="nav.home" aria-label="DisvorAI home">Disvor<span>AI</span></a>
       <div class="nav-links">
-        <a href="#workflow">工作流</a>
-        <a href="#product">产品实景</a>
-        <a href="#pricing">价格</a>
-        <a href="#faq">常见问题</a>
+        <a href="#workflow" data-i18n="nav.workflow">Workflow</a>
+        <a href="#product" data-i18n="nav.product">Product</a>
+        <a href="#pricing" data-i18n="nav.pricing">Pricing</a>
+        <a href="#faq" data-i18n="nav.faq">FAQ</a>
       </div>
       <div class="nav-actions">
-        <button class="theme-toggle" type="button" aria-label="切换颜色主题" aria-pressed="false">
+        <div class="lang-switch" role="group" data-i18n-aria="lang.label" aria-label="Language">
+          <button type="button" class="lang-btn" data-lang="zh" aria-pressed="false">中</button>
+          <button type="button" class="lang-btn" data-lang="en" aria-pressed="true">EN</button>
+          <button type="button" class="lang-btn" data-lang="ja" aria-pressed="false">日</button>
+        </div>
+        <button class="theme-toggle" type="button" data-i18n-aria="theme.to_dark" aria-label="Switch to dark theme" aria-pressed="false">
           <span class="theme-mark" aria-hidden="true"></span>
-          <span class="theme-label">深色</span>
+          <span class="theme-label" data-i18n="theme.dark">Dark</span>
         </button>
-        <a class="button button-primary nav-cta" href="/app">免费试用</a>
+        <a class="button button-primary nav-cta" href="/app" data-i18n="nav.cta">Start free trial</a>
       </div>
     </nav>
   </header>
 
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
-      <img class="hero-image" src="/site-assets/product-audit.webp" width="1440" height="960" alt="DisvorAI 站点体检界面，展示页面评分和内容缺口" fetchpriority="high">
+      <img class="hero-image" src="/site-assets/product-audit.webp" width="1440" height="960" data-i18n-alt="landing.hero_image_alt" alt="DisvorAI website audit UI showing page scores and content gaps" fetchpriority="high">
       <div class="hero-overlay" aria-hidden="true"></div>
       <div class="hero-content page-shell">
-        <p class="eyebrow">AI 可见性执行平台</p>
+        <p class="eyebrow" data-i18n="landing.eyebrow">AI visibility execution platform</p>
         <h1 id="hero-title">DisvorAI</h1>
-        <p class="hero-copy">从一个域名，生成可验证的 AI 可见性报告、<span>工单与交付包。</span></p>
+        <p class="hero-copy" data-i18n="landing.hero_copy">From one domain, generate verifiable AI visibility reports, tickets, and delivery packs.</p>
         <div class="hero-actions">
-          <a class="button button-light" href="/app">免费试用</a>
-          <a class="button button-ghost-light" href="#workflow">查看工作流</a>
+          <a class="button button-light" href="/app" data-i18n="nav.cta">Start free trial</a>
+          <a class="button button-ghost-light" href="#workflow" data-i18n="landing.hero_cta_secondary">View workflow</a>
         </div>
       </div>
-      <div class="hero-modes page-shell" aria-label="支持的采样模式">
-        <span>结果标注采样方式</span>
-        <strong>API·参数化知识</strong>
-        <strong>API·联网检索</strong>
-        <strong>人工·产品端</strong>
+      <div class="hero-modes page-shell" data-i18n-aria="landing.modes_label" aria-label="Supported sampling modes">
+        <span data-i18n="landing.modes_note">Results label the sampling method</span>
+        <strong data-i18n="landing.mode_parametric">API · Model knowledge</strong>
+        <strong data-i18n="landing.mode_search">API · Web-grounded retrieval</strong>
+        <strong data-i18n="landing.mode_manual">Manual · Product surface</strong>
       </div>
     </section>
 
     <section class="truth-band" aria-labelledby="truth-title">
       <div class="page-shell truth-layout reveal">
-        <p class="section-index">01 / 数据边界</p>
+        <p class="section-index" data-i18n="landing.truth_index">01 / Data boundary</p>
         <div>
-          <h2 id="truth-title">先说明测到了什么，再谈增长。</h2>
-          <p>参数化知识来自模型权重，不启用实时搜索或外部检索。联网检索与人工产品端结果单独标注。</p>
+          <h2 id="truth-title" data-i18n="landing.truth_title">State what was measured before talking growth.</h2>
+          <p data-i18n="landing.truth_body">Model knowledge comes from weights only—no live search or external retrieval. Web-grounded and manual product-surface results are labeled separately.</p>
         </div>
         <dl class="mode-list">
-          <div><dt>覆盖引擎</dt><dd>GLM、DeepSeek、OpenAI、Gemini、Claude 等统一接入</dd></div>
-          <div><dt>采样方式</dt><dd>API 与人工产品端结果使用同一份报告</dd></div>
-          <div><dt>原则</dt><dd>未测显示未测，不以 0% 代替</dd></div>
+          <div><dt data-i18n="landing.truth_engines">Engines covered</dt><dd data-i18n="landing.truth_engines_dd">Unified access to GLM, DeepSeek, OpenAI, Gemini, Claude, and more</dd></div>
+          <div><dt data-i18n="landing.truth_sampling">Sampling methods</dt><dd data-i18n="landing.truth_sampling_dd">API and manual product-surface results share one report</dd></div>
+          <div><dt data-i18n="landing.truth_principle">Principle</dt><dd data-i18n="landing.truth_principle_dd">Unmeasured stays unmeasured—never replace with 0%</dd></div>
         </dl>
       </div>
     </section>
@@ -72,35 +77,35 @@
     <section class="workflow section" id="workflow" aria-labelledby="workflow-title">
       <div class="page-shell">
         <div class="section-heading reveal">
-          <p class="section-index">02 / 工作流</p>
-          <h2 id="workflow-title">从域名到可验收结果</h2>
-          <p>把诊断、执行和复盘放进同一条有证据的工作流。</p>
+          <p class="section-index" data-i18n="landing.workflow_index">02 / Workflow</p>
+          <h2 id="workflow-title" data-i18n="landing.workflow_title">From domain to verifiable outcomes</h2>
+          <p data-i18n="landing.workflow_body">Diagnosis, execution, and review share one evidence-backed workflow.</p>
         </div>
         <ol class="workflow-list">
           <li class="reveal">
             <span class="workflow-number">01</span>
-            <h3>输入域名</h3>
-            <p>抓取官网正文，推导品牌事实、竞品和问题集。无法确认的内容保留“待确认”。</p>
+            <h3 data-i18n="landing.workflow_1_title">Enter a domain</h3>
+            <p data-i18n="landing.workflow_1_body">Crawl the site, infer brand facts, competitors, and prompts. Unconfirmed items stay marked pending.</p>
           </li>
           <li class="reveal">
             <span class="workflow-number">02</span>
-            <h3>诊断</h3>
-            <p>检查页面可抓取性、结构、可抽取块与权威信号，并按已配置引擎采样。</p>
+            <h3 data-i18n="landing.workflow_2_title">Diagnose</h3>
+            <p data-i18n="landing.workflow_2_body">Check crawlability, structure, extraction blocks, and authority signals, then sample configured engines.</p>
           </li>
           <li class="reveal">
             <span class="workflow-number">03</span>
-            <h3>执行</h3>
-            <p>按影响优先级和工作量组织行动计划，转成带负责人和验收标准的工单。</p>
+            <h3 data-i18n="landing.workflow_3_title">Execute</h3>
+            <p data-i18n="landing.workflow_3_body">Organize an action plan by impact and effort into tickets with owners and acceptance criteria.</p>
           </li>
           <li class="reveal">
             <span class="workflow-number">04</span>
-            <h3>验证</h3>
-            <p>重抓站点并对比采样结果。达标自动完成，回归问题自动重开。</p>
+            <h3 data-i18n="landing.workflow_4_title">Verify</h3>
+            <p data-i18n="landing.workflow_4_body">Re-crawl and compare samples. Passes close automatically; regressions reopen.</p>
           </li>
           <li class="reveal">
             <span class="workflow-number">05</span>
-            <h3>交付</h3>
-            <p>输出诊断报告、执行方案、工单表、验收表、资产目录和客户交付包。</p>
+            <h3 data-i18n="landing.workflow_5_title">Deliver</h3>
+            <p data-i18n="landing.workflow_5_body">Ship diagnosis, plan, tickets, verification, assets, and a client delivery pack.</p>
           </li>
         </ol>
       </div>
@@ -109,28 +114,28 @@
     <section class="product section" id="product" aria-labelledby="product-title">
       <div class="page-shell">
         <div class="section-heading product-heading reveal">
-          <p class="section-index">03 / 产品实景</p>
-          <h2 id="product-title">证据和下一步，在同一屏。</h2>
-          <p>每个分数落到页面缺口，每个缺口落到行动和验收。</p>
+          <p class="section-index" data-i18n="landing.product_index">03 / Product</p>
+          <h2 id="product-title" data-i18n="landing.product_title">Evidence and next steps on one screen.</h2>
+          <p data-i18n="landing.product_body">Every score maps to a page gap; every gap maps to action and verification.</p>
         </div>
         <div class="product-gallery">
           <figure class="product-shot product-shot-main reveal">
             <div class="shot-frame">
-              <img src="/site-assets/product-audit.webp" width="1440" height="960" alt="站点体检页面，展示抽取缺口、评分分布和关联工单">
+              <img src="/site-assets/product-audit.webp" width="1440" height="960" data-i18n-alt="landing.shot_audit_alt" alt="Website audit page showing extraction gaps, score distribution, and related tickets">
             </div>
-            <figcaption><span>站点体检</span><strong>缺口直接关联到页面和工单</strong></figcaption>
+            <figcaption><span data-i18n="landing.shot_audit">Website audit</span><strong data-i18n="landing.shot_audit_cap">Gaps link to pages and tickets</strong></figcaption>
           </figure>
           <figure class="product-shot reveal">
             <div class="shot-frame">
-              <img src="/site-assets/product-plan.webp" width="1440" height="960" alt="行动计划页面，任务按影响优先级和工作量排列">
+              <img src="/site-assets/product-plan.webp" width="1440" height="960" data-i18n-alt="landing.shot_plan_alt" alt="Action plan page with tasks ordered by impact and effort">
             </div>
-            <figcaption><span>行动计划</span><strong>Impact × Effort 矩阵</strong></figcaption>
+            <figcaption><span data-i18n="landing.shot_plan">Action plan</span><strong data-i18n="landing.shot_plan_cap">Impact × Effort matrix</strong></figcaption>
           </figure>
           <figure class="product-shot product-shot-offset reveal">
             <div class="shot-frame">
-              <img src="/site-assets/product-report.webp" width="1440" height="960" alt="报告与交付页面，提供结论、执行方案和交付包">
+              <img src="/site-assets/product-report.webp" width="1440" height="960" data-i18n-alt="landing.shot_report_alt" alt="Reports and delivery page with conclusions, plans, and packs">
             </div>
-            <figcaption><span>报告与交付</span><strong>面向老板、团队与客户的三种输出</strong></figcaption>
+            <figcaption><span data-i18n="landing.shot_report">Reports and delivery</span><strong data-i18n="landing.shot_report_cap">Outputs for leaders, teams, and clients</strong></figcaption>
           </figure>
         </div>
       </div>
@@ -139,26 +144,26 @@
     <section class="operations section" aria-labelledby="operations-title">
       <div class="page-shell operations-layout">
         <div class="section-heading reveal">
-          <p class="section-index">04 / 数据与权限</p>
-          <h2 id="operations-title">你的数据边界，清楚可查。</h2>
-          <p>为代理商、顾问和品牌团队设计的租户级工作空间。</p>
+          <p class="section-index" data-i18n="landing.ops_index">04 / Data and access</p>
+          <h2 id="operations-title" data-i18n="landing.ops_title">Clear, inspectable data boundaries.</h2>
+          <p data-i18n="landing.ops_body">Tenant workspaces built for agencies, consultants, and brand teams.</p>
         </div>
         <dl class="operations-list">
           <div class="reveal">
-            <dt>BYOK 优先</dt>
-            <dd>API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。</dd>
+            <dt data-i18n="landing.ops_byok">BYOK first</dt>
+            <dd data-i18n="landing.ops_byok_dd">API keys are encrypted with AES-256-GCM and injected only while jobs run.</dd>
           </div>
           <div class="reveal">
-            <dt>租户隔离</dt>
-            <dd>项目产物按租户分目录存放，成员使用 owner、editor、viewer 权限。</dd>
+            <dt data-i18n="landing.ops_tenant">Tenant isolation</dt>
+            <dd data-i18n="landing.ops_tenant_dd">Project artifacts are stored per tenant; members use owner, editor, and viewer roles.</dd>
           </div>
           <div class="reveal">
-            <dt>文件为 SSOT</dt>
-            <dd>审计、工单、指标与交付包保留为可检查文件，数据库只保存索引和元数据。</dd>
+            <dt data-i18n="landing.ops_ssot">Files as SSOT</dt>
+            <dd data-i18n="landing.ops_ssot_dd">Audits, tickets, metrics, and packs stay inspectable files; the database stores indexes and metadata only.</dd>
           </div>
           <div class="reveal">
-            <dt>企业控制</dt>
-            <dd>支持 OIDC SSO 和审计事件。技术控制已就绪，但未获得 SOC 2 认证。</dd>
+            <dt data-i18n="landing.ops_enterprise">Enterprise controls</dt>
+            <dd data-i18n="landing.ops_enterprise_dd">OIDC SSO and audit events. Technical controls are ready; DisvorAI is not SOC 2 certified.</dd>
           </div>
         </dl>
       </div>
@@ -168,91 +173,91 @@
       <div class="page-shell">
         <div class="pricing-head reveal">
           <div class="section-heading">
-            <p class="section-index">05 / 价格</p>
-            <h2 id="pricing-title">从真实项目开始</h2>
-            <p>默认使用你自己的模型 Key，订阅费不隐藏采样成本。</p>
+            <p class="section-index" data-i18n="landing.pricing_index">05 / Pricing</p>
+            <h2 id="pricing-title" data-i18n="landing.pricing_title">Start with a real project</h2>
+            <p data-i18n="landing.pricing_body">Use your own model keys by default. Subscriptions do not hide sampling cost.</p>
           </div>
-          <div class="billing-toggle" role="group" aria-label="计费周期">
-            <button type="button" class="is-active" data-billing="monthly" aria-pressed="true">月付</button>
-            <button type="button" data-billing="annual" aria-pressed="false">年付省约 17%</button>
+          <div class="billing-toggle" role="group" data-i18n-aria="landing.billing_label" aria-label="Billing interval">
+            <button type="button" class="is-active" data-billing="monthly" aria-pressed="true" data-i18n="landing.billing_monthly">Monthly</button>
+            <button type="button" data-billing="annual" aria-pressed="false" data-i18n="landing.billing_annual">Annual · save ~17%</button>
           </div>
         </div>
         <div class="pricing-grid">
           <article class="price-card reveal">
             <p class="plan-name">Trial</p>
-            <p class="price"><strong>¥0</strong><span>/ 14 天</span></p>
-            <p class="plan-summary">验证完整闭环</p>
+            <p class="price"><strong>¥0</strong><span data-i18n="landing.per_14_days">/ 14 days</span></p>
+            <p class="plan-summary" data-i18n="landing.plan_trial_summary">Validate the full loop</p>
             <ul>
-              <li>3 个项目</li>
-              <li>每项目 2 次采样</li>
-              <li>完整报告与交付包</li>
+              <li data-i18n="landing.plan_trial_1">3 projects</li>
+              <li data-i18n="landing.plan_trial_2">2 samples per project</li>
+              <li data-i18n="landing.plan_trial_3">Full reports and delivery packs</li>
             </ul>
-            <a class="button button-secondary" href="/app">免费试用</a>
+            <a class="button button-secondary" href="/app" data-i18n="nav.cta">Start free trial</a>
           </article>
           <article class="price-card price-card-featured reveal">
             <p class="plan-name">Pro</p>
-            <p class="price"><strong data-monthly="¥199" data-annual="¥1,990">¥199</strong><span data-monthly="/ 月" data-annual="/ 年">/ 月</span></p>
-            <p class="plan-summary" data-monthly="按月订阅，随时管理" data-annual="年付相当于每月约 ¥166">按月订阅，随时管理</p>
+            <p class="price"><strong data-monthly="¥199" data-annual="¥1,990">¥199</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
+            <p class="plan-summary" data-monthly="Monthly subscription, manage anytime" data-annual="About ¥166 / month billed annually" data-i18n-monthly="landing.plan_pro_summary" data-i18n-annual="landing.plan_pro_summary_annual">Monthly subscription, manage anytime</p>
             <ul>
-              <li>10 个活跃项目</li>
-              <li>BYOK 不限采样次数</li>
-              <li>行动工单与自动验收</li>
+              <li data-i18n="landing.plan_pro_1">10 active projects</li>
+              <li data-i18n="landing.plan_pro_2">Unlimited BYOK sampling</li>
+              <li data-i18n="landing.plan_pro_3">Action tickets and auto-verification</li>
             </ul>
-            <a class="button button-primary" href="/app">免费试用</a>
+            <a class="button button-primary" href="/app" data-i18n="nav.cta">Start free trial</a>
           </article>
           <article class="price-card reveal">
             <p class="plan-name">Agency</p>
-            <p class="price"><strong data-monthly="¥599" data-annual="¥5,990">¥599</strong><span data-monthly="/ 月" data-annual="/ 年">/ 月</span></p>
-            <p class="plan-summary" data-monthly="多客户并行交付" data-annual="年付相当于每月约 ¥499">多客户并行交付</p>
+            <p class="price"><strong data-monthly="¥599" data-annual="¥5,990">¥599</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
+            <p class="plan-summary" data-monthly="Parallel multi-client delivery" data-annual="About ¥499 / month billed annually" data-i18n-monthly="landing.plan_agency_summary" data-i18n-annual="landing.plan_agency_summary_annual">Parallel multi-client delivery</p>
             <ul>
-              <li>30 个活跃项目</li>
-              <li>白标交付页眉</li>
-              <li>团队角色与优先队列</li>
+              <li data-i18n="landing.plan_agency_1">30 active projects</li>
+              <li data-i18n="landing.plan_agency_2">White-label delivery headers</li>
+              <li data-i18n="landing.plan_agency_3">Team roles and priority queue</li>
             </ul>
-            <a class="button button-secondary" href="/app">免费试用</a>
+            <a class="button button-secondary" href="/app" data-i18n="nav.cta">Start free trial</a>
           </article>
           <article class="price-card reveal">
             <p class="plan-name">Enterprise</p>
-            <p class="price"><strong>定制</strong></p>
-            <p class="plan-summary">面向组织级部署</p>
+            <p class="price"><strong data-i18n="landing.plan_ent_price">Custom</strong></p>
+            <p class="plan-summary" data-i18n="landing.plan_ent_summary">Organization-scale deployment</p>
             <ul>
-              <li>私有化部署与 SLA</li>
-              <li>OIDC SSO</li>
-              <li>审计与数据保留策略</li>
+              <li data-i18n="landing.plan_ent_1">Private deploy and SLA</li>
+              <li data-i18n="landing.plan_ent_2">OIDC SSO</li>
+              <li data-i18n="landing.plan_ent_3">Audit and retention policy</li>
             </ul>
-            <a class="button button-secondary" href="/app?plan=enterprise">申请方案</a>
+            <a class="button button-secondary" href="/app?plan=enterprise" data-i18n="landing.plan_ent_cta">Request a plan</a>
           </article>
         </div>
-        <p class="pricing-note">不保证被提及或排名。AI 回答存在随机性，趋势判断需要多轮采样。</p>
+        <p class="pricing-note" data-i18n="landing.pricing_note">No guarantee of mention or ranking. AI answers are noisy; trends need multiple sampling rounds.</p>
       </div>
     </section>
 
     <section class="faq section" id="faq" aria-labelledby="faq-title">
       <div class="page-shell faq-layout">
         <div class="section-heading reveal">
-          <p class="section-index">06 / 常见问题</p>
-          <h2 id="faq-title">开始之前</h2>
+          <p class="section-index" data-i18n="landing.faq_index">06 / FAQ</p>
+          <h2 id="faq-title" data-i18n="landing.faq_title">Before you start</h2>
         </div>
         <div class="faq-list">
           <details class="reveal">
-            <summary>API 采样能代表用户在网页端看到的答案吗？</summary>
-            <p>多数 API 测量的是模型参数化知识，并不等于产品端实时搜索。DisvorAI 会在每个引擎旁标明 API·参数化知识、API·联网检索或人工·产品端。</p>
+            <summary data-i18n="landing.faq_1_q">Do API samples match what users see in the product UI?</summary>
+            <p data-i18n="landing.faq_1_a">Most APIs measure model knowledge, not live product search. DisvorAI labels each engine as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface.</p>
           </details>
           <details class="reveal">
-            <summary>必须提供自己的模型 API Key 吗？</summary>
-            <p>BYOK 是默认方式。你只需要配置计划使用的引擎，未配置的引擎会跳过并显示“未测”。</p>
+            <summary data-i18n="landing.faq_2_q">Must I bring my own model API keys?</summary>
+            <p data-i18n="landing.faq_2_a">BYOK is the default. Configure only the engines you plan to use; others are skipped and shown as unmeasured.</p>
           </details>
           <details class="reveal">
-            <summary>结果能保证品牌被 AI 提及吗？</summary>
-            <p>不能。产品提供可追溯诊断、执行建议和前后对比，不承诺排名或提及。回答有噪声，需要用多轮趋势判断变化。</p>
+            <summary data-i18n="landing.faq_3_q">Can results guarantee the brand is mentioned by AI?</summary>
+            <p data-i18n="landing.faq_3_a">No. The product provides traceable diagnosis, execution guidance, and before/after comparison—not ranking or mention promises. Answers are noisy; use multi-round trends.</p>
           </details>
           <details class="reveal">
-            <summary>14 天试用包含什么？</summary>
-            <p>试用支持 3 个项目，每个项目最多运行 2 次采样，并可使用报告、工单、验收和交付包。</p>
+            <summary data-i18n="landing.faq_4_q">What is included in the 14-day trial?</summary>
+            <p data-i18n="landing.faq_4_a">The trial supports 3 projects, up to 2 sampling runs each, plus reports, tickets, verification, and delivery packs.</p>
           </details>
           <details class="reveal">
-            <summary>适合代理商交付客户吗？</summary>
-            <p>适合。Agency 提供 30 个活跃项目、团队角色和白标交付页眉，交付包可下载归档。</p>
+            <summary data-i18n="landing.faq_5_q">Is it suitable for agency client delivery?</summary>
+            <p data-i18n="landing.faq_5_a">Yes. Agency includes 30 active projects, team roles, white-label headers, and downloadable packs.</p>
           </details>
         </div>
       </div>
@@ -261,10 +266,10 @@
     <section class="final-cta">
       <div class="page-shell final-cta-layout reveal">
         <div>
-          <p class="section-index">从一个域名开始</p>
-          <h2>把 AI 可见性变成可执行、可验收的工作。</h2>
+          <p class="section-index" data-i18n="landing.final_index">Start with one domain</p>
+          <h2 data-i18n="landing.final_title">Turn AI visibility into executable, verifiable work.</h2>
         </div>
-        <a class="button button-light" href="/app">免费试用</a>
+        <a class="button button-light" href="/app" data-i18n="nav.cta">Start free trial</a>
       </div>
     </section>
   </main>
@@ -272,11 +277,11 @@
   <footer class="site-footer">
     <div class="page-shell footer-layout">
       <a class="brand" href="/">Disvor<span>AI</span></a>
-      <p>AI 可见性诊断、执行与交付。</p>
+      <p data-i18n="landing.footer_tagline">AI visibility diagnosis, execution, and delivery.</p>
       <div>
-        <a href="/app">产品工作台</a>
-        <a href="#pricing">价格</a>
-        <a href="#faq">常见问题</a>
+        <a href="/app" data-i18n="nav.workbench">Product workbench</a>
+        <a href="#pricing" data-i18n="nav.pricing">Pricing</a>
+        <a href="#faq" data-i18n="nav.faq">FAQ</a>
       </div>
       <p>© 2026 DisvorAI</p>
     </div>

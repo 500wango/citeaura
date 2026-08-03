@@ -105,6 +105,10 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "setTimeout(function () { uiTranslate(document.body); }, 0)" in response.text
     assert "const engineFactsView = vFacts" in response.text
     assert "Not compared — log this in Gap Diagnosis · Fact deviations" in response.text
+    assert "function localizeFactsChrome(text)" in response.text
+    assert "“What AI currently says” comes from real answers in Engines → Sample replay" in response.text
+    assert "Want full metrics (mention, group, market)? " in response.text
+    assert "factModal = function (index)" in response.text
     assert "/api/v1/projects" in response.text
     assert "/api/v1/settings/keys" in response.text
     assert "disvorai_access_token" in response.text
@@ -315,6 +319,45 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "single-machine self-hosted, no account system" not in response.text
     assert "単機セルフホスト版" not in response.text
     assert "Download ZIP" in response.text
+    assert "function uiMsg(message)" in response.text
+    assert "toast.__disvoraiLocalized = true" in response.text
+    assert "window.__disvoraiConfirmLocalized = true" in response.text
+    assert "Subscribe to ${selected.name}" in response.text
+    assert "'确认创建当前项目的对象存储快照？':'Create an object-storage snapshot of the current project?'" in response.text
+    assert "'确认移除这名成员？':'Remove this member?'" in response.text
+    assert "${uiText('到期时间')} ${esc(expires)}" in response.text
+    assert "${esc(item.file_count)} ${uiText('文件')}" in response.text
+    assert "Data ${framing.date}, ${framing.mentioned_samples||0} mention samples." in response.text
+    assert "${uiText(ST.planView==='matrix'?'影响优先级 × 工作量':'全部任务')}" in response.text
+    assert "window.__I18N_CATALOGS=" in response.text
+    assert "I18N_DEFAULT = 'en'" in response.text
+    assert "window.t = t" in response.text
+    assert "value[ULANG] || value.en || value.zh" in response.text
+    assert "copies[ULANG]||copies.en||copies.zh" in response.text
+    assert "/*__DISVORAI_I18N_RUNTIME__*/" not in response.text
+
+
+def test_english_ui_dictionary_covers_confirm_and_status_chrome():
+    """英文界面不得回退显示中文确认框与状态标签。"""
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    text = response.text
+    required = [
+        "'确认创建当前项目的对象存储快照？':'Create an object-storage snapshot of the current project?'",
+        "'确认断开此数据源？历史同步快照将保留。':'Disconnect this data source? Historical sync snapshots will be kept.'",
+        "'确认移除这名成员？':'Remove this member?'",
+        "'确认撤销这条邀请？':'Revoke this invitation?'",
+        "'SMTP 已保存':'SMTP saved'",
+        "'白标设置已保存':'White-label settings saved'",
+        "'已复制':'Copied'",
+        "'角色已更新':'Role updated'",
+        "'创建邀请':'Create invitation'",
+        "'目标页面':'Target page'",
+        "en:'Offsite · Manual'",
+        "en:`${item.count} samples,",
+    ]
+    for item in required:
+        assert item in text, item
 
 
 def test_ui_compatibility_route_remains_available():

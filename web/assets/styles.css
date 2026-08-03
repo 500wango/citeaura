@@ -200,6 +200,37 @@ strong {
   gap: 10px;
 }
 
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.lang-btn {
+  min-width: 30px;
+  min-height: 28px;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 2px);
+  background: transparent;
+  color: var(--ink-soft);
+  font: 500 11px/1 var(--font, inherit);
+  cursor: pointer;
+}
+
+.lang-btn:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.lang-btn[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 .theme-toggle {
   display: inline-flex;
   align-items: center;

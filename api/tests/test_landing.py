@@ -11,15 +11,16 @@ def test_landing_page_is_public_and_links_to_application():
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    assert "<h1 id=\"hero-title\">DisvorAI</h1>" in response.text
+    assert '<h1 id="hero-title">DisvorAI</h1>' in response.text
     assert 'href="/app"' in response.text
-    assert "API·参数化知识" in response.text
-    assert "API·联网检索" in response.text
-    assert "人工·产品端" in response.text
-    assert "14 天" in response.text
+    assert 'data-i18n="landing.mode_parametric"' in response.text
+    assert 'data-i18n="landing.mode_search"' in response.text
+    assert 'data-i18n="landing.mode_manual"' in response.text
+    assert 'class="lang-switch"' in response.text
+    assert 'data-lang="en"' in response.text
     assert "¥199" in response.text
-    assert "不保证被提及或排名" in response.text
-    assert "未获得 SOC 2 认证" in response.text
+    assert 'data-i18n="landing.pricing_note"' in response.text
+    assert 'data-i18n="landing.ops_enterprise_dd"' in response.text
 
 
 def test_landing_assets_are_served():
@@ -36,6 +37,19 @@ def test_landing_assets_are_served():
         assert response.headers["content-type"].startswith(content_type)
 
 
+def test_i18n_catalogs_are_public():
+    for locale, sample in (
+        ("en", "Start free trial"),
+        ("zh", "免费试用"),
+        ("ja", "無料トライアル"),
+    ):
+        response = client.get(f"/i18n/{locale}.json")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["nav.cta"] == sample
+        assert "landing.title" in data
+
+
 def test_landing_has_no_forbidden_brand_or_false_claims():
     response = client.get("/")
     lowered = response.text.lower()
@@ -44,3 +58,11 @@ def test_landing_has_no_forbidden_brand_or_false_claims():
     assert "保证上首页" not in response.text
     assert "保证提及" not in response.text
     assert "已通过 SOC 2" not in response.text
+
+
+def test_landing_js_uses_shared_locale_preference():
+    response = client.get("/site-assets/landing.js")
+    assert response.status_code == 200
+    assert 'localStorage.getItem("ulang")' in response.text
+    assert 'localStorage.setItem("ulang"' in response.text
+    assert 'fetch("/i18n/" + locale + ".json")' in response.text

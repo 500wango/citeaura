@@ -10,11 +10,14 @@ from sqlalchemy.orm import Session
 from api.adapters import engine as engine_adapter
 from api.auth.deps import get_current_user
 from api.db import get_db
+from api.i18n import catalogs_as_json
 from api.models import Project, Tenant, User
 
 
 router = APIRouter(tags=["ui"])
 UI_PATH = Path(__file__).resolve().parents[1] / "engine" / "scripts" / "ui.html"
+I18N_RUNTIME_PATH = Path(__file__).resolve().parent / "i18n" / "runtime.js"
+I18N_RUNTIME_MARKER = "/*__DISVORAI_I18N_RUNTIME__*/"
 
 SETTINGS_RESPONSIVE_STYLE = r"""
 .playbook-page{padding:32px 44px 72px;max-width:1280px}
@@ -1081,7 +1084,7 @@ UI_RX.ja.push([
   '無指名の有効サンプル $1 件を対象に、質問言語ごとの有効サンプルで競合出現率を算出します。競合のリードは再現可能です。競合が引用されるコンテンツ形式を補えば、同種の回答に入る可能性が高まります。競合の引用シェアとコンテンツ受け皿は外部から正確に測定できないため表示しません。'
 ]);
 
-function adminText(value) { return value && (value[ULANG] || value.zh) || ''; }
+function adminText(value) { return value && (value[ULANG] || value.en || value.zh) || ''; }
 function adminCanonicalRoute(route) { return ADMIN_ROUTE_ALIASES[route] || route; }
 function adminModuleForRoute(route) {
   const canonical=adminCanonicalRoute(route);
@@ -1108,7 +1111,7 @@ function installAccountActions() {
   if (!button || button.dataset.bound === 'true') return;
   const labels = {zh:'退出登录',en:'Sign out',ja:'ログアウト'};
   button.id = 'disvorai-logout';
-  button.setAttribute('aria-label', labels[ULANG] || labels.zh);
+  button.setAttribute('aria-label', labels[ULANG] || labels.en || labels.zh);
   button.dataset.bound = 'true';
   button.addEventListener('click', function () { button.disabled = true; window.disvoraiLogout(); });
 }
@@ -1116,19 +1119,19 @@ function installAccountActions() {
 renderSide = function () {
   const activeRoute=adminCanonicalRoute(R),module=adminModuleForRoute(activeRoute),brand=(D&&D.brand)||{};
   const updated=(D&&D.analytics&&D.analytics.latest_date)||'—';
-  const languageLabel={zh:'语言',en:'Language',ja:'言語'}[ULANG]||'语言';
-  const runLabel={zh:'跑完整一期',en:'Run full cycle',ja:'フルサイクルを実行'}[ULANG]||'跑完整一期';
-  const runningLabel={zh:'任务运行中',en:'Job running',ja:'ジョブ実行中'}[ULANG]||'任务运行中';
-  const updatedLabel={zh:'数据更新',en:'Data updated',ja:'データ更新'}[ULANG]||'数据更新';
+  const languageLabel={zh:'语言',en:'Language',ja:'言語'}[ULANG]||'Language';
+  const runLabel={zh:'跑完整一期',en:'Run full cycle',ja:'フルサイクルを実行'}[ULANG]||'Run full cycle';
+  const runningLabel={zh:'任务运行中',en:'Job running',ja:'ジョブ実行中'}[ULANG]||'Job running';
+  const updatedLabel={zh:'数据更新',en:'Data updated',ja:'データ更新'}[ULANG]||'Data updated';
   $('#side').innerHTML=`<div class="global-rail">
     <button class="rail-brand" type="button" onclick="go('overview')" aria-label="DisvorAI"><img src="/site-assets/favicon.png" width="30" height="30" alt=""></button>
     <div class="rail-modules" role="navigation" aria-label="${esc(adminText({zh:'主模块',en:'Main modules',ja:'メインモジュール'}))}">
       ${ADMIN_MODULES.map(function(item){const selected=item.id===module.id,label=adminText(item.label);return `<button class="rail-action" type="button" data-tooltip="${esc(label)}" aria-label="${esc(label)}" ${selected?'aria-current="page"':''} onclick="openAdminModule('${item.id}')"><span class="admin-icon icon-${item.icon}" aria-hidden="true"></span><span>${esc(label)}</span></button>`;}).join('')}
     </div>
-    <div class="rail-footer"><button class="rail-action rail-logout" type="button" data-admin-logout data-tooltip="${esc(({zh:'退出登录',en:'Sign out',ja:'ログアウト'})[ULANG]||'退出登录')}"><span class="admin-icon icon-log-out" aria-hidden="true"></span></button></div>
+    <div class="rail-footer"><button class="rail-action rail-logout" type="button" data-admin-logout data-tooltip="${esc(({zh:'退出登录',en:'Sign out',ja:'ログアウト'})[ULANG]||'Sign out')}"><span class="admin-icon icon-log-out" aria-hidden="true"></span></button></div>
   </div>
   <div class="module-panel">
-    <div class="module-heading"><strong>${esc(adminText(module.label))}</strong><button class="module-close" type="button" onclick="closeAdminNav()" aria-label="${esc(({zh:'关闭导航',en:'Close navigation',ja:'ナビゲーションを閉じる'})[ULANG]||'关闭导航')}"><span class="admin-icon icon-x" aria-hidden="true"></span></button></div>
+    <div class="module-heading"><strong>${esc(adminText(module.label))}</strong><button class="module-close" type="button" onclick="closeAdminNav()" aria-label="${esc(({zh:'关闭导航',en:'Close navigation',ja:'ナビゲーションを閉じる'})[ULANG]||'Close navigation')}"><span class="admin-icon icon-x" aria-hidden="true"></span></button></div>
     <div class="project-switcher-row"><button class="project-switcher" type="button" onclick="switchModal()"><span class="project-switcher-copy"><span class="project-switcher-label">${esc(adminText({zh:'当前品牌',en:'Current brand',ja:'現在のブランド'}))}</span><span class="project-switcher-name" title="${esc(brand.name||'—')}">${esc(brand.name||'—')}</span></span><span class="admin-icon icon-chevron-down" aria-hidden="true"></span></button><button class="project-add" type="button" onclick="startBrandOnboarding()"><span class="admin-icon icon-plus" aria-hidden="true"></span><span>${esc(adminText({zh:'添加品牌',en:'Add brand',ja:'ブランドを追加'}))}</span></button></div>
     <nav class="module-nav" aria-label="${esc(adminText(module.label))}">
       ${module.groups.map(function(group){return `<div class="module-nav-group">${group.label?`<div class="module-nav-label">${esc(adminText(group.label))}</div>`:''}${group.items.map(function(item){const selected=item.route===activeRoute;return `<button class="module-link" type="button" ${selected?'aria-current="page"':''} onclick="go('${item.route}')"><span class="module-link-label">${esc(adminText(item.label))}</span><span class="bdg">${esc(badge(item.route))}</span></button>`;}).join('')}</div>`;}).join('')}
@@ -1215,36 +1218,46 @@ Object.assign(UI_D.ja, {
 
 function framingPanel() {
   const framing = D.framing || {}, terms = framing.terms || [];
-  const empty = {
+  const emptyKey = {
     no_samples:'暂无采样，完成一期采样后这里会显示品牌印象。',
     brand_not_mentioned:'本期回答没有主动提及品牌，暂无可提取的描述。',
     no_descriptors:'本期提到了品牌，但没有匹配到明确的描述关系。',
     error:'品牌印象加载失败，请刷新后重试。'
   }[framing.status] || '暂无采样，完成一期采样后这里会显示品牌印象。';
   const maximum = Math.max(1, ...terms.map(function (item) { return item.count || 0; }));
+  const meta = framing.date ? ({
+    zh:` 数据 ${framing.date}，${framing.mentioned_samples||0} 条提及样本。`,
+    en:` Data ${framing.date}, ${framing.mentioned_samples||0} mention samples.`,
+    ja:` データ ${framing.date}、言及サンプル ${framing.mentioned_samples||0} 件。`
+  }[ULANG] || ` 数据 ${framing.date}，${framing.mentioned_samples||0} 条提及样本。`) : '';
   return `<section style="margin-top:24px;padding-top:22px;box-shadow:inset 0 1px 0 var(--line)">
-    <h4 style="font-size:16px;margin:0 0 5px">AI 如何描述你</h4>
-    <p class="muted" style="font-size:12px;margin:0 0 14px">基于品牌被实际提及的回答短语，词频按样本去重。${framing.date?` 数据 ${esc(framing.date)}，${framing.mentioned_samples||0} 条提及样本。`:''}</p>
+    <h4 style="font-size:16px;margin:0 0 5px">${uiText('AI 如何描述你')}</h4>
+    <p class="muted" style="font-size:12px;margin:0 0 14px">${uiText('基于品牌被实际提及的回答短语，词频按样本去重。')}${esc(meta)}</p>
     ${terms.length?`<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:88px">
       ${terms.map(function (item, index) {
         const size = 13 + Math.round(8 * (item.count || 0) / maximum);
         return `<button class="btn btn-ghost" style="max-width:100%;padding:6px 9px;font-size:${size}px;overflow-wrap:anywhere" onclick="showFramingEvidence(${index})">
           ${esc(item.term)} <span class="muted" style="font-size:10px">${item.count}</span></button>`;
-      }).join('')}</div>`:`<div style="padding:16px;border:1px solid var(--line);border-radius:var(--r-md);font-size:12.5px;color:var(--t500)">${empty}</div>`}
+      }).join('')}</div>`:`<div style="padding:16px;border:1px solid var(--line);border-radius:var(--r-md);font-size:12.5px;color:var(--t500)">${uiText(emptyKey)}</div>`}
   </section>`;
 }
 
 function showFramingEvidence(index) {
   const item = (((D.framing || {}).terms) || [])[index];
   if (!item) return;
+  const sampleLine = {
+    zh:`${item.count} 条样本，${(item.engines || []).map(esc).join(' / ')}`,
+    en:`${item.count} samples, ${(item.engines || []).map(esc).join(' / ')}`,
+    ja:`${item.count} 件のサンプル、${(item.engines || []).map(esc).join(' / ')}`
+  }[ULANG] || `${item.count} 条样本，${(item.engines || []).map(esc).join(' / ')}`;
   modal(`<h4 style="font-size:17px">${esc(item.term)}</h4>
-    <p class="muted" style="font-size:12px;margin:5px 0 12px">${item.count} 条样本，${(item.engines || []).map(esc).join(' / ')}</p>
-    <div style="font-size:12px;color:var(--t500);margin-bottom:5px">原文证据</div>
+    <p class="muted" style="font-size:12px;margin:5px 0 12px">${sampleLine}</p>
+    <div style="font-size:12px;color:var(--t500);margin-bottom:5px">${uiText('原文证据')}</div>
     ${(item.evidence || []).map(function (evidence) { return `<div style="padding:11px 0;box-shadow:inset 0 -1px 0 var(--line)">
       <div class="row" style="gap:6px;margin-bottom:5px"><span class="tag tag-outline">${esc(evidence.platform_name)}</span><span class="tag tag-neutral">${esc(evidence.sampling_mode)}</span></div>
       <div style="font-size:12px;color:var(--t500);margin-bottom:4px">${esc(evidence.question || '')}</div>
       <div style="font-size:13px;line-height:1.65;color:var(--t300)">${esc(evidence.excerpt || '')}</div></div>`; }).join('')}
-    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn btn-primary" onclick="closeModal()">关闭</button></div>`);
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn btn-primary" onclick="closeModal()">${uiText('关闭')}</button></div>`);
 }
 
 function competitorDiscoveryPanel() {
@@ -1260,7 +1273,7 @@ function competitorDiscoveryPanel() {
       empty:'競合候補はまだありません。プロジェクト初期化を再実行するか、設定で競合を追加してください。',candidate:'サンプル確認待ち',confirmed:'サンプル確認済み',configured:'手動設定',aliases:'別名',
       count:function(){return `${summary.total||0} 件中 ${summary.sample_confirmed||0} 件をサンプル確認済み`;}}
   };
-  const text=copies[ULANG]||copies.zh;
+  const text=copies[ULANG]||copies.en||copies.zh;
   const status={candidate:[text.candidate,'tag-accent'],sample_confirmed:[text.confirmed,'pill-good'],configured:[text.configured,'tag-outline']};
   return `<section style="margin-top:24px;padding-top:22px;box-shadow:inset 0 1px 0 var(--line)">
     <div class="row" style="align-items:flex-start"><div style="flex:1;min-width:220px"><h4 style="font-size:16px;margin:0 0 5px">${text.title}</h4>
@@ -1423,25 +1436,60 @@ let FUNDING_STATE = null;
 const billingStatusLabel = {active:'已生效',trialing:'试用中',past_due:'付款逾期',canceled:'已取消',unpaid:'未付款',incomplete:'待付款'};
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
 function uiText(value) { return (UI_D[ULANG] || {})[value] || value; }
+/* 英文/日文下把 UI 文案译成目标语言；仅用于 toast/confirm 等纯界面消息，不用在项目数据上。 */
+function uiMsg(message) {
+  if (ULANG === 'zh' || message == null) return message;
+  const text = String(message);
+  if (!text) return text;
+  const d = UI_D[ULANG] || {};
+  if (d[text] != null) return d[text];
+  const rxList = (typeof UI_RX !== 'undefined' && UI_RX[ULANG]) || [];
+  for (let i = 0; i < rxList.length; i++) {
+    if (rxList[i][0].test(text)) return text.replace(rxList[i][0], rxList[i][1]);
+  }
+  const pairs = (UI_SUB[ULANG] || []).slice();
+  Object.keys(d).sort(function (a, b) { return b.length - a.length; }).forEach(function (key) {
+    if (key && key.length >= 2) pairs.push([key, d[key]]);
+  });
+  let probe = text;
+  for (let i = 0; i < pairs.length; i++) probe = probe.split(pairs[i][0]).join('');
+  if (/[\u3040-\u30ff\u4e00-\u9fff]/.test(probe)) return text;
+  let out = text;
+  for (let i = 0; i < pairs.length; i++) out = out.split(pairs[i][0]).join(pairs[i][1]);
+  return out;
+}
+(function patchUiMessages() {
+  if (typeof toast === 'function' && !toast.__disvoraiLocalized) {
+    const engineToast = toast;
+    toast = function (m, k) { return engineToast(uiMsg(m), k); };
+    toast.__disvoraiLocalized = true;
+  }
+  if (!window.__disvoraiConfirmLocalized) {
+    const engineConfirm = window.confirm.bind(window);
+    window.confirm = function (m) { return engineConfirm(uiMsg(m)); };
+    window.__disvoraiConfirmLocalized = true;
+  }
+})();
 
 function billingPanel() {
   const state=BILLING_STATE||{},plans=state.plans||[],usage=state.usage||{};
-  if(state.error||state.detail||usage.error||usage.detail)return `<h4 class="billing-section-title" style="font-size:16px;margin:28px 0 10px">套餐与账单</h4>
-    <div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">套餐信息加载失败</div>`;
+  if(state.error||state.detail||usage.error||usage.detail)return `<h4 class="billing-section-title" style="font-size:16px;margin:28px 0 10px">${uiText('套餐与账单')}</h4>
+    <div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">${uiText('套餐信息加载失败')}</div>`;
   const subscription=usage.subscription||{},payment=state.payment||{},owner=TEAM_STATE&&TEAM_STATE.current_role==='owner';
   const expires=subscription.expires_at?String(subscription.expires_at).replace('T',' ').slice(0,10):'';
-  return `<h4 class="billing-section-title" style="font-size:16px;margin:28px 0 10px">套餐与账单</h4>
+  const statusText=uiText(billingStatusLabel[subscription.status]||subscription.status||'已生效');
+  return `<h4 class="billing-section-title" style="font-size:16px;margin:28px 0 10px">${uiText('套餐与账单')}</h4>
     <div class="card elev" style="padding:18px;gap:14px">
       <div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:170px"><div style="font-size:15px;font-weight:500">${esc(String(usage.plan||'trial').toUpperCase())}</div>
-        ${expires?`<div style="font-size:11.5px;color:var(--t600);margin-top:3px">到期时间 ${esc(expires)} · ${esc(billingStatusLabel[subscription.status]||subscription.status||'已生效')}</div>`:''}</div>
-        <div class="billing-interval-switch"><button class="btn ${BILLING_INTERVAL==='monthly'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('monthly')">月付</button><button class="btn ${BILLING_INTERVAL==='annual'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('annual')">年付</button></div></div>
-      ${payment.configured?'':`<div style="padding:9px 11px;border:1px solid var(--line);font-size:12px;color:var(--t500)">Stripe 尚未配置，当前不能发起真实付款。</div>`}
+        ${expires?`<div style="font-size:11.5px;color:var(--t600);margin-top:3px">${uiText('到期时间')} ${esc(expires)} · ${esc(statusText)}</div>`:''}</div>
+        <div class="billing-interval-switch"><button class="btn ${BILLING_INTERVAL==='monthly'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('monthly')">${uiText('月付')}</button><button class="btn ${BILLING_INTERVAL==='annual'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('annual')">${uiText('年付')}</button></div></div>
+      ${payment.configured?'':`<div style="padding:9px 11px;border:1px solid var(--line);font-size:12px;color:var(--t500)">${uiText('Stripe 尚未配置，当前不能发起真实付款。')}</div>`}
       <div class="billing-plan-grid">${plans.map(function(plan){const price=(plan.prices||{})[BILLING_INTERVAL]||{},current=usage.plan===plan.code,currentInterval=current&&subscription.billing_interval===BILLING_INTERVAL,custom=price.cny==null;return `<div style="display:flex;flex-direction:column;min-width:0;min-height:188px;padding:14px;border:1px solid ${current?'var(--a700)':'var(--line)'};border-radius:var(--r-md);background:var(--bg)">
-          <div class="row"><strong style="font-size:14px">${esc(plan.name)}</strong>${current?'<span class="tag tag-accent">当前套餐</span>':''}</div>
+          <div class="row"><strong style="font-size:14px">${esc(plan.name)}</strong>${current?`<span class="tag tag-accent">${uiText('当前套餐')}</span>`:''}</div>
           <div style="font-size:22px;margin-top:13px">${custom?uiText('定制报价'):'¥'+Number(price.cny).toLocaleString()}${custom?'':`<span style="font-size:11px;color:var(--t600)"> / ${uiText(BILLING_INTERVAL==='annual'?'每年':'每月')}</span>`}</div>
-          ${BILLING_INTERVAL==='annual'&&!custom?`<div style="font-size:11.5px;color:var(--good);margin-top:4px">年付优惠 ${Number(plan.annual_discount_percent||0).toFixed(2)}% · 年付节省 ¥${Number(plan.annual_savings_cny||0).toLocaleString()}</div>`:'<div style="height:21px"></div>'}
+          ${BILLING_INTERVAL==='annual'&&!custom?`<div style="font-size:11.5px;color:var(--good);margin-top:4px">${uiText('年付优惠')} ${Number(plan.annual_discount_percent||0).toFixed(2)}% · ${uiText('年付节省')} ¥${Number(plan.annual_savings_cny||0).toLocaleString()}</div>`:'<div style="height:21px"></div>'}
           <div style="font-size:11.5px;color:var(--t600);margin-top:9px">${plan.projects==null?'Enterprise SLA':esc(String(plan.projects))+' projects'} · ${uiText('无限采样')}</div>
-          ${!custom&&owner?`<button class="btn ${currentInterval?'btn-secondary':'btn-primary'}" ${currentInterval||!payment.configured?'disabled':''} style="margin-top:auto;width:100%" onclick="subscribeBilling('${esc(plan.code)}')">${currentInterval?'当前套餐':'前往付款'}</button>`:''}
+          ${!custom&&owner?`<button class="btn ${currentInterval?'btn-secondary':'btn-primary'}" ${currentInterval||!payment.configured?'disabled':''} style="margin-top:auto;width:100%" onclick="subscribeBilling('${esc(plan.code)}')">${currentInterval?uiText('当前套餐'):uiText('前往付款')}</button>`:''}
         </div>`;}).join('')}</div>
     </div>`;
 }
@@ -1452,7 +1500,14 @@ async function subscribeBilling(plan){
   const selected=(BILLING_STATE.plans||[]).find(function(item){return item.code===plan;});
   const price=selected&&selected.prices&&selected.prices[BILLING_INTERVAL];
   if(!price||price.cny==null)return;
-  if(!confirm(`确认订阅 ${selected.name}，${BILLING_INTERVAL==='annual'?'年付':'月付'} ¥${Number(price.cny).toLocaleString()}？`))return;
+  const amount=Number(price.cny).toLocaleString();
+  const intervalKey=BILLING_INTERVAL==='annual'?'年付':'月付';
+  const confirmMsg={
+    zh:`确认订阅 ${selected.name}，${intervalKey} ¥${amount}？`,
+    en:`Subscribe to ${selected.name} (${uiText(intervalKey)}) for ¥${amount}?`,
+    ja:`${selected.name} を${uiText(intervalKey)} ¥${amount} で購読しますか？`
+  }[ULANG]||`确认订阅 ${selected.name}，${intervalKey} ¥${amount}？`;
+  if(!confirm(confirmMsg))return;
   const result=await post('/api/billing',{plan:plan,billing_interval:BILLING_INTERVAL});
   if(result.error||result.detail){toast('订阅失败：'+(result.error||result.detail),'err');return}
   if(!result.checkout_url){toast('支付会话无效','err');return}
@@ -1463,14 +1518,14 @@ function archiveSize(value){const size=Number(value||0);if(size<1024)return size
 
 function archivePanel(){
   const state=ARCHIVE_STATE||{};
-  if(state.error||state.detail)return `<h4 class="archive-section-title" style="font-size:16px;margin:28px 0 10px">对象存储归档</h4><div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">归档信息加载失败</div>`;
+  if(state.error||state.detail)return `<h4 class="archive-section-title" style="font-size:16px;margin:28px 0 10px">${uiText('对象存储归档')}</h4><div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">${uiText('归档信息加载失败')}</div>`;
   const storage=state.storage||{},archives=state.archives||[];
-  return `<h4 class="archive-section-title" style="font-size:16px;margin:28px 0 10px">对象存储归档</h4>
+  return `<h4 class="archive-section-title" style="font-size:16px;margin:28px 0 10px">${uiText('对象存储归档')}</h4>
     <div class="card elev" style="padding:18px;gap:13px"><div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:190px"><div style="font-size:15px;font-weight:500">${storage.configured?esc(storage.bucket):uiText('对象存储未配置')}</div>
       <div style="font-size:11.5px;color:var(--t600);margin-top:3px">${uiText('活动数据源')} · ${uiText('本地文件系统')}${storage.configured?' · '+uiText('保留份数')+' '+esc(storage.retention_count):''}</div></div>
-      ${state.can_manage&&storage.configured?'<button class="btn btn-primary" style="font-size:12px" onclick="createProjectArchive()">创建快照</button>':''}</div>
-      <div style="padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><div class="row"><div style="flex:1;font-size:12px;color:var(--t500)">归档清单</div><span class="tag tag-outline">${archives.length}</span></div>
-        ${archives.length?archives.map(function(item){const available=item.status==='available';return `<div class="archive-row"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(item.id)}</span><span class="archive-row-detail" style="color:var(--t600);overflow-wrap:anywhere">${esc(String(item.created_at||'').replace('T',' ').slice(0,19))} · ${archiveSize(item.size_bytes)} · ${esc(item.file_count)} 文件</span><span class="tag ${available?'pill-good':'tag-outline'}">${available?'可恢复':'已过期'}</span>${available&&state.can_manage?`<button class="btn btn-ghost" style="font-size:12px" onclick="restoreArchiveModal('${esc(item.id)}')">恢复快照</button>`:'<span></span>'}</div>`;}).join(''):'<div style="padding:12px 0 4px;font-size:12px;color:var(--t600)">暂无归档</div>'}</div>
+      ${state.can_manage&&storage.configured?`<button class="btn btn-primary" style="font-size:12px" onclick="createProjectArchive()">${uiText('创建快照')}</button>`:''}</div>
+      <div style="padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><div class="row"><div style="flex:1;font-size:12px;color:var(--t500)">${uiText('归档清单')}</div><span class="tag tag-outline">${archives.length}</span></div>
+        ${archives.length?archives.map(function(item){const available=item.status==='available';return `<div class="archive-row"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(item.id)}</span><span class="archive-row-detail" style="color:var(--t600);overflow-wrap:anywhere">${esc(String(item.created_at||'').replace('T',' ').slice(0,19))} · ${archiveSize(item.size_bytes)} · ${esc(item.file_count)} ${uiText('文件')}</span><span class="tag ${available?'pill-good':'tag-outline'}">${uiText(available?'可恢复':'已过期')}</span>${available&&state.can_manage?`<button class="btn btn-ghost" style="font-size:12px" onclick="restoreArchiveModal('${esc(item.id)}')">${uiText('恢复快照')}</button>`:'<span></span>'}</div>`;}).join(''):`<div style="padding:12px 0 4px;font-size:12px;color:var(--t600)">${uiText('暂无归档')}</div>`}</div>
     </div>`;
 }
 
@@ -1520,8 +1575,8 @@ function ssoPanel() {
         <label style="display:block;font-size:12px;color:var(--t500)">客户端 ID<input id="sso-client-id" class="input" maxlength="512" value="${esc(state.client_id||'')}" ${editable?'':'disabled'} style="margin-top:5px"></label>
         <label style="display:block;font-size:12px;color:var(--t500)">客户端密钥<input id="sso-client-secret" class="input" type="password" maxlength="4096" placeholder="${state.client_secret_configured?'保留已保存密钥':''}" ${editable?'':'disabled'} autocomplete="new-password" style="margin-top:5px"></label>
         <label style="display:block;font-size:12px;color:var(--t500)">允许的邮箱域名<textarea id="sso-allowed-domains" class="input" rows="2" maxlength="1600" placeholder="每行或逗号分隔" ${editable?'':'disabled'} style="margin-top:5px">${esc((state.allowed_domains||[]).join('\n'))}</textarea></label>
-        <label style="display:block;font-size:12px;color:var(--t500)">新成员默认角色<select id="sso-default-role" class="input" ${editable?'':'disabled'} style="margin-top:5px">
-          <option value="viewer" ${(state.default_role||'viewer')==='viewer'?'selected':''}>${teamRoleLabel.viewer}</option><option value="editor" ${state.default_role==='editor'?'selected':''}>${teamRoleLabel.editor}</option></select></label>
+        <label style="display:block;font-size:12px;color:var(--t500)">${uiText('新成员默认角色')}<select id="sso-default-role" class="input" ${editable?'':'disabled'} style="margin-top:5px">
+          <option value="viewer" ${(state.default_role||'viewer')==='viewer'?'selected':''}>${uiText(teamRoleLabel.viewer)}</option><option value="editor" ${state.default_role==='editor'?'selected':''}>${uiText(teamRoleLabel.editor)}</option></select></label>
       </div>
       <div class="row" style="gap:10px;flex-wrap:wrap"><label class="row" style="gap:7px;font-size:12.5px"><input id="sso-enabled" type="checkbox" ${state.enabled?'checked':''} ${editable?'':'disabled'}>启用单点登录</label>
         ${!editable?'<span style="font-size:12px;color:var(--t600)">仅所有者可更改</span>':''}
@@ -1567,7 +1622,7 @@ function integrationPanel() {
   if(!databases.includes(database))databases.unshift(database);
   return `<h4 class="integration-section-title" style="font-size:16px;margin:28px 0 4px">搜索数据源</h4><p class="muted settings-section-subtitle" style="font-size:12px;margin:0 0 10px">自然搜索与站点表现</p>
     <div class="integration-grid">
-      <div class="card elev" style="padding:18px;gap:13px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">Semrush</div><span class="tag ${semrush.configured?'pill-good':'tag-outline'}">${semrush.configured?'已连接':'未连接'}</span></div>
+      <div class="card elev" style="padding:18px;gap:13px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">Semrush</div><span class="tag ${semrush.configured?'pill-good':'tag-outline'}">${uiText(semrush.configured?'已连接':'未连接')}</span></div>
         <div class="row" style="align-items:flex-end;gap:10px;flex-wrap:wrap"><label style="display:block;flex:1;min-width:180px;font-size:12px;color:var(--t500)">API Key
           <input id="semrush-api-key" class="input" type="password" maxlength="4096" placeholder="${esc(semrush.masked||'')}" ${editable?'':'disabled'} autocomplete="new-password" style="margin-top:5px"></label>
           <label style="display:block;width:120px;font-size:12px;color:var(--t500)">区域数据库<select id="semrush-database" class="input" ${editable?'':'disabled'} style="margin-top:5px">${databases.map(function(item){return `<option value="${item}" ${item===database?'selected':''}>${item.toUpperCase()}</option>`;}).join('')}</select></label></div>
@@ -1575,18 +1630,18 @@ function integrationPanel() {
           ${editable&&semrush.configured?'<button class="btn btn-ghost" style="font-size:12px" onclick="disconnectIntegration(\'semrush\')">断开连接</button>':''}
           ${canSync&&semrush.configured?'<button class="btn btn-primary" style="font-size:12px;margin-left:auto" onclick="syncIntegration(\'semrush\')">同步数据</button>':''}</div>
         ${!editable?'<div style="font-size:11.5px;color:var(--t600)">仅所有者可管理连接</div>':''}
-        <div style="padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><div style="font-size:11px;color:var(--t600);margin-bottom:8px">${semrushData.synced_at?'最近同步 '+esc(semrushData.synced_at.replace('T',' ').slice(0,19)):'尚未同步'}</div>
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">${integrationMetric('关键词',semrushMetrics.keywords_returned)}${integrationMetric('前 10 关键词',semrushMetrics.top_10_keywords)}${integrationMetric('搜索量',semrushMetrics.search_volume)}${integrationMetric('流量成本',semrushMetrics.traffic_cost)}</div></div>
+        <div style="padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><div style="font-size:11px;color:var(--t600);margin-bottom:8px">${semrushData.synced_at?uiText('最近同步')+' '+esc(semrushData.synced_at.replace('T',' ').slice(0,19)):uiText('尚未同步')}</div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">${integrationMetric(uiText('关键词'),semrushMetrics.keywords_returned)}${integrationMetric(uiText('前 10 关键词'),semrushMetrics.top_10_keywords)}${integrationMetric(uiText('搜索量'),semrushMetrics.search_volume)}${integrationMetric(uiText('流量成本'),semrushMetrics.traffic_cost)}</div></div>
       </div>
-      <div class="card elev" style="padding:18px;gap:13px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">Google Search Console</div><span class="tag ${search.configured?'pill-good':'tag-outline'}">${search.configured?'已连接':'未连接'}</span></div>
+      <div class="card elev" style="padding:18px;gap:13px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">Google Search Console</div><span class="tag ${search.configured?'pill-good':'tag-outline'}">${uiText(search.configured?'已连接':'未连接')}</span></div>
         <div style="font-size:12px;color:var(--t500);overflow-wrap:anywhere">${esc(state.search_console_property||'')}</div>
         <div class="row" style="gap:7px;flex-wrap:wrap">${editable&&search.oauth_available?`<a class="btn btn-secondary" style="font-size:12px" href="${esc(state.search_console_authorize_url||'#')}">连接 Search Console</a>`:''}
           ${editable&&search.configured?'<button class="btn btn-ghost" style="font-size:12px" onclick="disconnectIntegration(\'search_console\')">断开连接</button>':''}
           ${canSync&&search.configured?'<button class="btn btn-primary" style="font-size:12px;margin-left:auto" onclick="syncIntegration(\'search_console\')">同步数据</button>':''}</div>
         ${editable&&!search.oauth_available?'<div style="font-size:11.5px;color:var(--t600)">Search Console OAuth 未配置</div>':''}
         ${!editable?'<div style="font-size:11.5px;color:var(--t600)">仅所有者可管理连接</div>':''}
-        <div style="padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><div style="font-size:11px;color:var(--t600);margin-bottom:8px">${searchData.synced_at?'最近同步 '+esc(searchData.synced_at.replace('T',' ').slice(0,19)):'尚未同步'}</div>
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">${integrationMetric('点击',searchMetrics.clicks)}${integrationMetric('展示',searchMetrics.impressions)}${integrationMetric('点击率',searchMetrics.ctr==null?null:(Number(searchMetrics.ctr)*100).toFixed(2)+'%')}${integrationMetric('平均排名',searchMetrics.average_position)}</div></div>
+        <div style="padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><div style="font-size:11px;color:var(--t600);margin-bottom:8px">${searchData.synced_at?uiText('最近同步')+' '+esc(searchData.synced_at.replace('T',' ').slice(0,19)):uiText('尚未同步')}</div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">${integrationMetric(uiText('点击'),searchMetrics.clicks)}${integrationMetric(uiText('展示'),searchMetrics.impressions)}${integrationMetric(uiText('点击率'),searchMetrics.ctr==null?null:(Number(searchMetrics.ctr)*100).toFixed(2)+'%')}${integrationMetric(uiText('平均排名'),searchMetrics.average_position)}</div></div>
       </div>
     </div>`;
 }
@@ -1620,7 +1675,7 @@ function outreachPanel() {
     <div class="card elev" style="padding:18px;font-size:13px;color:var(--t500)">外部联络加载失败</div>`;
   const port=Number(smtp.port||587),mode=smtp.security_mode||'starttls';
   return `<h4 class="outreach-section-title" style="font-size:16px;margin:28px 0 4px">外部联络</h4><p class="muted settings-section-subtitle" style="font-size:12px;margin:0 0 10px">人工确认发送</p>
-    <div class="card elev" style="padding:18px;gap:12px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">SMTP</div><span class="tag ${smtp.configured?'pill-good':'tag-outline'}">${smtp.configured?'已连接':'未连接'}</span></div>
+    <div class="card elev" style="padding:18px;gap:12px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">SMTP</div><span class="tag ${smtp.configured?'pill-good':'tag-outline'}">${uiText(smtp.configured?'已连接':'未连接')}</span></div>
       <div style="font-size:11.5px;color:var(--t600)">SMTP 凭证使用 AES-256-GCM 加密保存。</div>
       <div class="outreach-smtp-grid" style="display:grid;grid-template-columns:minmax(180px,1fr) 90px 120px;gap:10px">
         <label style="display:block;font-size:12px;color:var(--t500)">邮件服务器<input id="outreach-smtp-host" class="input" value="${esc(smtp.host||'')}" ${owner?'':'disabled'} style="margin-top:5px"></label>
@@ -1637,7 +1692,7 @@ function outreachPanel() {
     </div>
     <div class="card elev" style="padding:18px;gap:8px;margin-top:12px"><div class="row"><div style="flex:1;font-size:15px;font-weight:500">联络草稿</div><span class="tag tag-outline">${drafts.length}</span></div>
       <div style="font-size:11.5px;color:var(--t600)">发送前必须检查最终内容并输入与草稿匹配的确认短语。</div>
-      ${drafts.length?drafts.map(function(draft){return `<div class="row" style="gap:8px;padding:9px 0;box-shadow:inset 0 -1px 0 var(--line)"><div style="flex:1;min-width:160px"><div style="font-size:13px;overflow-wrap:anywhere">${esc(draft.subject)}</div><div style="font-size:11px;color:var(--t600);margin-top:2px;overflow-wrap:anywhere">${esc(draft.recipient_email)} · ${esc(draft.id)}</div></div><span class="tag ${draft.status==='sent'?'pill-good':'tag-outline'}">${esc(outreachStatusLabel[draft.status]||draft.status)}</span>${['draft','failed'].includes(draft.status)&&TEAM_STATE&&TEAM_STATE.current_role!=='viewer'?`<button class="btn btn-ghost" style="font-size:12px" onclick="outreachEditModal('${esc(draft.id)}')">编辑草稿</button>`:''}</div>`;}).join(''):'<div style="padding:10px 0;font-size:12px;color:var(--t600)">暂无联络草稿</div>'}
+      ${drafts.length?drafts.map(function(draft){return `<div class="row" style="gap:8px;padding:9px 0;box-shadow:inset 0 -1px 0 var(--line)"><div style="flex:1;min-width:160px"><div style="font-size:13px;overflow-wrap:anywhere">${esc(draft.subject)}</div><div style="font-size:11px;color:var(--t600);margin-top:2px;overflow-wrap:anywhere">${esc(draft.recipient_email)} · ${esc(draft.id)}</div></div><span class="tag ${draft.status==='sent'?'pill-good':'tag-outline'}">${esc(uiText(outreachStatusLabel[draft.status]||draft.status))}</span>${['draft','failed'].includes(draft.status)&&TEAM_STATE&&TEAM_STATE.current_role!=='viewer'?`<button class="btn btn-ghost" style="font-size:12px" onclick="outreachEditModal('${esc(draft.id)}')">${uiText('编辑草稿')}</button>`:''}</div>`;}).join(''):`<div style="padding:10px 0;font-size:12px;color:var(--t600)">${uiText('暂无联络草稿')}</div>`}
     </div>`;
 }
 
@@ -1670,31 +1725,31 @@ function perCallLabel() {
 
 function samplingFundingPanel(state) {
   state = state || {};
-  if (state.error) return `<h4 style="font-size:16px;margin:28px 0 10px">测量用量</h4>
-    <div class="card elev" style="padding:18px"><div class="row"><span style="flex:1;font-size:13px;color:var(--t500)">费用信息加载失败</span>
-      <button class="btn btn-secondary" style="font-size:12px" onclick="render()">刷新</button></div></div>`;
+  if (state.error) return `<h4 style="font-size:16px;margin:28px 0 10px">${uiText('测量用量')}</h4>
+    <div class="card elev" style="padding:18px"><div class="row"><span style="flex:1;font-size:13px;color:var(--t500)">${uiText('费用信息加载失败')}</span>
+      <button class="btn btn-secondary" style="font-size:12px" onclick="render()">${uiText('刷新')}</button></div></div>`;
   const pool = state.pool_engines || [], usage = state.usage || {};
   const effective = Object.fromEntries((state.effective_engines || []).map(function (item) { return [item.engine_code,item.source]; }));
   const canEnable = !!state.eligible && pool.length > 0;
   const sourceLabel = {byok:'BYOK',platform_pool:'托管用量',unavailable:'不可用'};
-  return `<h4 style="font-size:16px;margin:28px 0 10px">测量用量</h4>
+  return `<h4 style="font-size:16px;margin:28px 0 10px">${uiText('测量用量')}</h4>
     <div class="card elev" style="padding:18px;gap:12px">
       <div class="row" style="align-items:flex-start"><div style="flex:1;min-width:220px">
-        <div style="font-size:15px;font-weight:500">托管用量</div>
-        <div style="font-size:11.5px;color:var(--t600);margin-top:3px;line-height:1.55">BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台凭证并按次计费。</div></div>
+        <div style="font-size:15px;font-weight:500">${uiText('托管用量')}</div>
+        <div style="font-size:11.5px;color:var(--t600);margin-top:3px;line-height:1.55">${uiText('BYOK 始终优先。仅在缺少对应 API Key 时，才使用平台凭证并按次计费。')}</div></div>
         <label class="row" style="gap:7px;font-size:12.5px;white-space:nowrap"><input id="platform-pool-enabled" type="checkbox"
-          ${state.platform_pool_enabled?'checked':''} ${state.can_edit&&canEnable?'':'disabled'} onchange="setPlatformPool(this.checked)">启用</label></div>
-      ${!state.eligible?`<div style="font-size:12px;color:var(--t500)">当前套餐不可用 (${esc(String(state.plan || 'trial').toUpperCase())})</div>`:''}
-      ${state.eligible&&!state.can_edit?'<div style="font-size:12px;color:var(--t500)">仅所有者可更改</div>':''}
-      ${state.eligible&&!pool.length?'<div style="font-size:12px;color:var(--t500)">平台暂未配置可用模型</div>':''}
+          ${state.platform_pool_enabled?'checked':''} ${state.can_edit&&canEnable?'':'disabled'} onchange="setPlatformPool(this.checked)">${uiText('启用')}</label></div>
+      ${!state.eligible?`<div style="font-size:12px;color:var(--t500)">${uiText('当前套餐不可用')} (${esc(String(state.plan || 'trial').toUpperCase())})</div>`:''}
+      ${state.eligible&&!state.can_edit?`<div style="font-size:12px;color:var(--t500)">${uiText('仅所有者可更改')}</div>`:''}
+      ${state.eligible&&!pool.length?`<div style="font-size:12px;color:var(--t500)">${uiText('平台暂未配置可用模型')}</div>`:''}
       ${pool.length?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">
         ${pool.map(function (item) { const source = effective[item.engine_code] || 'unavailable'; return `<div style="padding:10px 11px;border:1px solid var(--line);border-radius:var(--r-md);min-width:0">
           <div class="row" style="gap:6px"><span style="flex:1;font-size:13px;overflow-wrap:anywhere">${esc(window.disvoraiModelLabel(item.engine_code, item.engine_name || item.engine_code))}</span>
-            <span class="tag ${source==='platform_pool'?'tag-accent':'tag-outline'}">${esc(sourceLabel[source] || source)}</span></div>
+            <span class="tag ${source==='platform_pool'?'tag-accent':'tag-outline'}">${esc(uiText(sourceLabel[source] || source))}</span></div>
           <div style="font-size:11.5px;color:var(--t600);margin-top:5px">${esc(item.sampling_mode)} · ${formatCny(Number(item.unit_price_cny_fen || 0)/100)} ${perCallLabel()}</div></div>`; }).join('')}</div>`:''}
       <div class="row" style="gap:24px;padding-top:10px;box-shadow:inset 0 1px 0 var(--line)">
-        <div><div style="font-size:10.5px;color:var(--t600)">本月调用</div><div style="font-size:17px;margin-top:2px">${Number(usage.calls || 0).toLocaleString()}</div></div>
-        <div><div style="font-size:10.5px;color:var(--t600)">本月费用</div><div style="font-size:17px;margin-top:2px">${formatCny(usage.cost_cny)}</div></div>
+        <div><div style="font-size:10.5px;color:var(--t600)">${uiText('本月调用')}</div><div style="font-size:17px;margin-top:2px">${Number(usage.calls || 0).toLocaleString()}</div></div>
+        <div><div style="font-size:10.5px;color:var(--t600)">${uiText('本月费用')}</div><div style="font-size:17px;margin-top:2px">${formatCny(usage.cost_cny)}</div></div>
         <div style="font-size:11.5px;color:var(--t600);margin-left:auto">${esc(usage.month || '')}</div></div>
     </div>`;
 }
@@ -1788,34 +1843,34 @@ function teamPanel() {
   const owner = state.current_role === 'owner';
   const pending = invitations.filter(function (item) { return item.status === 'pending'; });
   return `<div class="card elev" style="padding:18px;gap:10px;margin-top:14px">
-    <div class="row"><div style="flex:1"><div style="font-size:15px;font-weight:500">团队成员</div>
+    <div class="row"><div style="flex:1"><div style="font-size:15px;font-weight:500">${uiText('团队成员')}</div>
       <div style="font-size:11.5px;color:var(--t600)">${esc((state.tenant || {}).name || '')}</div></div>
-      ${owner?'<button class="btn btn-primary" style="font-size:12px" onclick="teamInviteModal()">邀请成员</button>':''}</div>
-    ${(state.workspaces || []).length > 1?`<label class="row" style="font-size:12px;color:var(--t500);gap:8px">工作区
+      ${owner?`<button class="btn btn-primary" style="font-size:12px" onclick="teamInviteModal()">${uiText('邀请成员')}</button>`:''}</div>
+    ${(state.workspaces || []).length > 1?`<label class="row" style="font-size:12px;color:var(--t500);gap:8px">${uiText('工作区')}
       <select class="input" style="width:auto;min-width:180px" onchange="switchTeamWorkspace(this.value)">
-        ${(state.workspaces || []).map(function (workspace) { return `<option value="${workspace.id}" ${workspace.id===(state.tenant || {}).id?'selected':''}>${esc(workspace.name)} · ${esc(teamRoleLabel[workspace.role] || workspace.role)}</option>`; }).join('')}
+        ${(state.workspaces || []).map(function (workspace) { return `<option value="${workspace.id}" ${workspace.id===(state.tenant || {}).id?'selected':''}>${esc(workspace.name)} · ${esc(uiText(teamRoleLabel[workspace.role] || workspace.role))}</option>`; }).join('')}
       </select></label>`:''}
     <div>${members.map(function (member) { return `<div class="row" style="padding:7px 0;box-shadow:inset 0 -1px 0 var(--line);gap:8px">
-      <span style="flex:1;font-size:13px;overflow-wrap:anywhere">${esc(member.email)}${member.is_current_user?' <span class="tag tag-neutral">你</span>':''}</span>
+      <span style="flex:1;font-size:13px;overflow-wrap:anywhere">${esc(member.email)}${member.is_current_user?` <span class="tag tag-neutral">${uiText('你')}</span>`:''}</span>
       ${owner?`<select class="input" style="width:110px;padding:4px 7px;font-size:12px" onchange="updateTeamMember(${member.user_id},this.value)">
-        ${['owner','editor','viewer'].map(function (role) { return `<option value="${role}" ${member.role===role?'selected':''}>${teamRoleLabel[role]}</option>`; }).join('')}</select>
-        ${member.is_current_user?'':`<button class="btn btn-ghost" style="font-size:12px;padding:3px 7px" onclick="removeTeamMember(${member.user_id})">移除</button>`}`
-        :`<span class="tag tag-outline">${esc(teamRoleLabel[member.role] || member.role)}</span>`}</div>`; }).join('')}</div>
-    ${owner&&pending.length?`<div style="font-size:12px;color:var(--t500);margin-top:4px">待接受邀请</div>
+        ${['owner','editor','viewer'].map(function (role) { return `<option value="${role}" ${member.role===role?'selected':''}>${uiText(teamRoleLabel[role])}</option>`; }).join('')}</select>
+        ${member.is_current_user?'':`<button class="btn btn-ghost" style="font-size:12px;padding:3px 7px" onclick="removeTeamMember(${member.user_id})">${uiText('移除')}</button>`}`
+        :`<span class="tag tag-outline">${esc(uiText(teamRoleLabel[member.role] || member.role))}</span>`}</div>`; }).join('')}</div>
+    ${owner&&pending.length?`<div style="font-size:12px;color:var(--t500);margin-top:4px">${uiText('待接受邀请')}</div>
       ${pending.map(function (invitation) { return `<div class="row" style="padding:5px 0;gap:8px;font-size:12.5px">
-        <span style="flex:1;overflow-wrap:anywhere">${esc(invitation.email)}</span><span class="tag tag-outline">${esc(teamRoleLabel[invitation.role] || invitation.role)}</span>
-        <button class="btn btn-ghost" style="font-size:12px;padding:3px 7px" onclick="revokeTeamInvitation(${invitation.id})">撤销</button></div>`; }).join('')}`:''}
+        <span style="flex:1;overflow-wrap:anywhere">${esc(invitation.email)}</span><span class="tag tag-outline">${esc(uiText(teamRoleLabel[invitation.role] || invitation.role))}</span>
+        <button class="btn btn-ghost" style="font-size:12px;padding:3px 7px" onclick="revokeTeamInvitation(${invitation.id})">${uiText('撤销')}</button></div>`; }).join('')}`:''}
   </div>`;
 }
 
 function teamInviteModal() {
-  modal(`<h4 style="font-size:17px">邀请成员</h4>
+  modal(`<h4 style="font-size:17px">${uiText('邀请成员')}</h4>
     <label style="display:block;font-size:12px;color:var(--t500);margin-top:12px">Email
       <input id="team-invite-email" class="input" type="email" autocomplete="email" style="margin-top:5px"></label>
-    <label style="display:block;font-size:12px;color:var(--t500);margin-top:12px">角色
-      <select id="team-invite-role" class="input" style="margin-top:5px"><option value="editor">编辑者</option><option value="viewer">只读成员</option><option value="owner">所有者</option></select></label>
-    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-secondary" onclick="closeModal()">取消</button>
-      <button class="btn btn-primary" onclick="inviteTeamMember()">创建邀请</button></div>`);
+    <label style="display:block;font-size:12px;color:var(--t500);margin-top:12px">${uiText('角色')}
+      <select id="team-invite-role" class="input" style="margin-top:5px"><option value="editor">${uiText('编辑者')}</option><option value="viewer">${uiText('只读成员')}</option><option value="owner">${uiText('所有者')}</option></select></label>
+    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-secondary" onclick="closeModal()">${uiText('取消')}</button>
+      <button class="btn btn-primary" onclick="inviteTeamMember()">${uiText('创建邀请')}</button></div>`);
 }
 
 async function inviteTeamMember() {
@@ -2012,21 +2067,27 @@ taskModal = function (id) {
   if (!ticket || ticket.kind !== 'offsite') { engineTaskModal(id); return; }
   const acceptance = ticket.acceptance || {};
   const questions = ticket.influenced_question_texts || ticket.influenced_questions || [];
+  const ownerLine = {
+    zh:`负责：${ticket.owner} · 工作量 ${ticket.effort}`,
+    en:`Owner: ${ticket.owner} · Effort ${ticket.effort}`,
+    ja:`担当：${ticket.owner} · 工数 ${ticket.effort}`
+  }[ULANG] || `负责：${ticket.owner} · 工作量 ${ticket.effort}`;
+  const offsiteTag = {zh:'Offsite · 人工',en:'Offsite · Manual',ja:'Offsite · 手動'}[ULANG] || 'Offsite · 人工';
   modal(`<h4 style="font-size:17px">${esc(ticket.id)} · ${esc(ticket.title)}</h4>
     <div class="row" style="gap:6px;margin-top:6px"><span class="tag tag-neutral">${esc(ticket.priority)}</span>
-      <span class="tag tag-outline">Offsite · 人工</span>
-      <span style="font-size:11.5px;color:var(--t600)">负责：${esc(ticket.owner)} · 工作量 ${esc(ticket.effort)}</span></div>
-    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">目标页面</div>
+      <span class="tag tag-outline">${esc(offsiteTag)}</span>
+      <span style="font-size:11.5px;color:var(--t600)">${esc(ownerLine)}</span></div>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">${uiText('目标页面')}</div>
     <a href="${esc(ticket.url)}" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:var(--a300);overflow-wrap:anywhere">${esc(ticket.url)}</a>
-    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">为什么做</div>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">${uiText('为什么做')}</div>
     <div style="font-size:13px;line-height:1.6;color:var(--t400)">${esc(ticket.why)}</div>
-    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">具体怎么干</div>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">${uiText('具体怎么干')}</div>
     <div style="font-size:13px;line-height:1.6">${esc(ticket.action)}</div>
-    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">影响问题（${questions.length}）</div>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">${uiText('影响问题')}（${questions.length}）</div>
     <div style="max-height:120px;overflow:auto;font-size:12px;color:var(--t400);line-height:1.7">${questions.map(function (question) { return '<div>' + esc(question) + '</div>'; }).join('')}</div>
-    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">怎么算做完（人工验收）</div>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">${uiText('怎么算做完（人工验收）')}</div>
     <div style="font-size:13px;line-height:1.6">${esc(acceptance.desc || '')}</div>
-    <div class="row" style="justify-content:flex-end;margin-top:14px">${TEAM_STATE&&TEAM_STATE.current_role!=='viewer'?`<button class="btn btn-secondary" onclick="outreachRecipientModal('${esc(ticket.id)}')">准备联络邮件</button>`:''}<button class="btn btn-primary" onclick="closeModal()">关闭</button></div>`);
+    <div class="row" style="justify-content:flex-end;margin-top:14px">${TEAM_STATE&&TEAM_STATE.current_role!=='viewer'?`<button class="btn btn-secondary" onclick="outreachRecipientModal('${esc(ticket.id)}')">${uiText('准备联络邮件')}</button>`:''}<button class="btn btn-primary" onclick="closeModal()">${uiText('关闭')}</button></div>`);
 };
 
 Object.assign(UI_D.en, {
@@ -2052,7 +2113,30 @@ Object.assign(UI_D.en, {
   '核心页正文扩到 1000+ 词':'Expand core-page body copy to 1,000+ words',
   '百科词条（实体消歧地基）':'Create an encyclopedia entry for entity disambiguation',
   '上线 /llms.txt 官方事实索引':'Publish the official facts index at /llms.txt',
-  '建英文原生内容区':'Build English-native content pages'
+  '建英文原生内容区':'Build English-native content pages',
+  '确认创建当前项目的对象存储快照？':'Create an object-storage snapshot of the current project?',
+  '确认断开此数据源？历史同步快照将保留。':'Disconnect this data source? Historical sync snapshots will be kept.',
+  '确认断开 SMTP？':'Disconnect SMTP?','确认移除这名成员？':'Remove this member?','确认撤销这条邀请？':'Revoke this invitation?',
+  'SMTP 已保存':'SMTP saved','白标设置已保存':'White-label settings saved','已复制':'Copied','角色已更新':'Role updated',
+  '创建邀请':'Create invitation','角色':'Role','目标页面':'Target page','订阅失败：':'Subscription failed: ',
+  '刷新':'Refresh','取消':'Cancel',
+  '未比对——在「差距诊断 · 事实偏差」里记录':'Not compared — log this in Gap Diagnosis · Fact deviations',
+  'AI 当前说法：未比对——在「差距诊断 · 事实偏差」里记录':'AI’s current wording: not compared — log it in Gap Diagnosis · Fact deviations',
+  '「AI 当前说法」来自「引擎表现 → 样本回放」的真实回答。人工比对后记一条，「事实一致性」才会进健康分。':'“What AI currently says” comes from real answers in Engines → Sample replay. Log a manual comparison so fact consistency can enter the health score.',
+  '每张卡 = 一条官方口径。用法：':'Each card is one official wording. How to use: ',
+  '点卡片':'click a card',
+  ' → 对照「AI 当前说法」记一条比对（比对过「事实一致性」才可测、健康分才完整），或直接编辑源文件改口径。改完点下方「重新生成」同步到 llms.txt 与结构化数据。':' → log a comparison against “what AI currently says” (fact consistency only becomes measurable — and the health score complete — once compared), or edit the source file. Then click “Regenerate” below to sync llms.txt and structured data.',
+  '点击：记录比对 / 编辑口径':'Click: log comparison / edit wording',
+  '事实卡还没有可解析的内容':'No parseable fact cards yet',
+  '一句话定位':'One-sentence positioning','一致':'Match','偏差':'Mismatch','待确认':'Pending confirmation',
+  '要看完整指标（提及率、类别、市场）？':'Want full metrics (mention, group, market)? ',
+  '打开问题库 →':'Open Questions →',
+  '那边每行的「写内容」也会回到这里。':' “Write” on any row there returns here.',
+  '　那边每行的「写内容」也会回到这里。':' “Write” on any row there returns here.',
+  '选一个问题，就地开写':'Pick a question and write here',
+  '没有匹配的问题':'No matching questions',
+  '品牌事实卡 · 源文件':'Brand facts · source file',
+  'Markdown。每条事实标证据等级 A–E；没来源的标「待确认」，不许编。保存后点「重新生成」同步到资产。':'Markdown. Grade each fact A–E; mark unsourced items as pending confirmation—do not invent. Save, then click Regenerate to sync assets.'
 });
 Object.assign(UI_D.ja, {
   '矩阵':'マトリクス','列表':'リスト','行动计划视图':'アクションプラン表示','影响优先级':'インパクト優先度','工作量':'工数',
@@ -2063,21 +2147,122 @@ Object.assign(UI_D.ja, {
   '暂无竞品数据——先到「设置」配置竞品并跑完整一期。':'競合データはまだありません。設定で競合を追加してからフルサイクルを実行してください。',
   '词数接近 0 的是前端渲染空壳页——AI 抓取器看到的是空白，这是前端渲染站点常见的致命问题。修复清单见「行动计划」。':'語数がほぼ 0 のページはクライアント描画の空シェルです。AI クローラには空白に見えます。修正リストはアクションプランを参照してください。',
   '没有内容缺口':'コンテンツギャップはありません',
-  '纪律：一句话定位必须在官网首屏、关于页、JSON-LD description、llms.txt 四处逐字一致。生成文件的去处见资产目录里的 DEPLOY.md。':'編集ルール：一文のポジショニングをホーム、About、JSON-LD description、llms.txt の 4 箇所で完全に一致させます。生成ファイルの配置先はデプロイアセットの DEPLOY.md を参照してください。'
+  '纪律：一句话定位必须在官网首屏、关于页、JSON-LD description、llms.txt 四处逐字一致。生成文件的去处见资产目录里的 DEPLOY.md。':'編集ルール：一文のポジショニングをホーム、About、JSON-LD description、llms.txt の 4 箇所で完全に一致させます。生成ファイルの配置先はデプロイアセットの DEPLOY.md を参照してください。',
+  '确认创建当前项目的对象存储快照？':'現在のプロジェクトのオブジェクトストレージスナップショットを作成しますか？',
+  '确认断开此数据源？历史同步快照将保留。':'このデータソースを切断しますか。過去の同期スナップショットは保持されます。',
+  '确认断开 SMTP？':'SMTP 接続を解除しますか？','确认移除这名成员？':'このメンバーを削除しますか？','确认撤销这条邀请？':'この招待を取り消しますか？',
+  'SMTP 已保存':'SMTP を保存しました','白标设置已保存':'ホワイトラベル設定を保存しました','已复制':'コピーしました','角色已更新':'ロールを更新しました',
+  '创建邀请':'招待を作成','角色':'ロール','目标页面':'対象ページ','订阅失败：':'購読失敗：',
+  '刷新':'更新','取消':'キャンセル',
+  '未比对——在「差距诊断 · 事实偏差」里记录':'未比較 — ギャップ診断 · ファクト逸脱に記録',
+  'AI 当前说法：未比对——在「差距诊断 · 事实偏差」里记录':'AI の現在の説明：未比較——ギャップ診断 · ファクト逸脱に記録',
+  '「AI 当前说法」来自「引擎表现 → 样本回放」的真实回答。人工比对后记一条，「事实一致性」才会进健康分。':'「AI の現在の説明」はエンジン → サンプルリプレイの実回答です。手動比較を記録するとファクト整合性がヘルススコアに入ります。',
+  '每张卡 = 一条官方口径。用法：':'各カードは公式文言 1 件です。使い方：',
+  '点卡片':'カードをクリック',
+  ' → 对照「AI 当前说法」记一条比对（比对过「事实一致性」才可测、健康分才完整），或直接编辑源文件改口径。改完点下方「重新生成」同步到 llms.txt 与结构化数据。':' →「AI の現在の説明」と比較して記録（比較後にファクト整合性が計測可能になりスコアが完全に）、またはソースを直接編集。下の「再生成」で llms.txt と構造化データへ同期。',
+  '点击：记录比对 / 编辑口径':'クリック：比較を記録 / 文言を編集',
+  '事实卡还没有可解析的内容':'解析できるファクトカードはまだありません',
+  '一句话定位':'一文のポジショニング','一致':'一致','偏差':'逸脱','待确认':'要確認',
+  '要看完整指标（提及率、类别、市场）？':'完全な指標（言及率・カテゴリ・市場）を見る？ ',
+  '打开问题库 →':'質問バンクを開く →',
+  '那边每行的「写内容」也会回到这里。':' そちらの各行の「執筆」もここに戻ります。',
+  '　那边每行的「写内容」也会回到这里。':' そちらの各行の「執筆」もここに戻ります。',
+  '选一个问题，就地开写':'質問を選んでその場で執筆',
+  '没有匹配的问题':'一致する質問はありません',
+  '品牌事实卡 · 源文件':'ブランドファクト · ソース',
+  'Markdown。每条事实标证据等级 A–E；没来源的标「待确认」，不许编。保存后点「重新生成」同步到资产。':'Markdown。各事実に証拠レベル A–E。出典なしは「要確認」。捏造禁止。保存後「再生成」でアセットへ同期。'
 });
-UI_SUB.en.push(['实体消歧','Entity disambiguation'],['知识库','Knowledge base'],['页面技术','Page technology'],['内容矩阵','Content matrix'],['外部证据','External evidence'],['监测闭环','Measurement loop'],['内容','Content'],['开发','Engineering'],['市场','Marketing'],['GEO顾问','GEO strategist'],['未分配','Unassigned']);
-UI_SUB.ja.push(['实体消歧','エンティティ曖昧性解消'],['知识库','ナレッジベース'],['页面技术','ページ技術'],['内容矩阵','コンテンツマトリクス'],['外部证据','外部エビデンス'],['监测闭环','測定ループ'],['内容','コンテンツ'],['开发','開発'],['市场','マーケティング'],['GEO顾问','GEO ストラテジスト'],['未分配','未割り当て']);
-UI_RX.en.push([/^站点均分从 ([\d.]+) 提到 70$/,'Raise the site average from $1 to 70'],[/^补齐(中文|英文)侧内容，中英对等$/,'Balance $1-language content coverage'],[/^(国内|海外)无提示提及率 (.+) → (.+)$/,'$1 unprompted mention rate $2 → $3'],[/^(国内|海外)让官网进得了 AI 的检索结果$/,'Help the official site enter $1 AI retrieval results']);
-UI_RX.ja.push([/^站点均分从 ([\d.]+) 提到 70$/,'サイト平均を $1 から 70 へ改善'],[/^补齐(中文|英文)侧内容，中英对等$/,'$1側コンテンツを補い、中国語と英語のカバレッジを均等化'],[/^(国内|海外)无提示提及率 (.+) → (.+)$/,'$1の無指名言及率 $2 → $3'],[/^(国内|海外)让官网进得了 AI 的检索结果$/,'公式サイトを $1 AI の検索結果に載せる']);
+UI_SUB.en.push(['实体消歧','Entity disambiguation'],['知识库','Knowledge base'],['页面技术','Page technology'],['内容矩阵','Content matrix'],['外部证据','External evidence'],['监测闭环','Measurement loop'],['内容','Content'],['开发','Engineering'],['市场','Marketing'],['GEO顾问','GEO strategist'],['未分配','Unassigned'],['订阅失败：','Subscription failed: '],
+  ['未比对——在「差距诊断 · 事实偏差」里记录','Not compared — log this in Gap Diagnosis · Fact deviations'],
+  ['（未填写）','Not provided'],['（缺失）','Missing'],['未比对','Not compared'],['一致','Match'],['偏差','Mismatch'],
+  ['AI 当前说法：','What AI currently says: '],['AI 当前说法','What AI currently says'],
+  ['要看完整指标（提及率、类别、市场）？','Want full metrics (mention, group, market)? '],
+  ['打开问题库 →','Open Questions →'],['那边每行的「写内容」也会回到这里。',' “Write” on any row there returns here.'],
+  ['　那边每行的「写内容」也会回到这里。',' “Write” on any row there returns here.'],['一句话定位','One-sentence positioning']);
+UI_SUB.ja.push(['实体消歧','エンティティ曖昧性解消'],['知识库','ナレッジベース'],['页面技术','ページ技術'],['内容矩阵','コンテンツマトリクス'],['外部证据','外部エビデンス'],['监测闭环','測定ループ'],['内容','コンテンツ'],['开发','開発'],['市场','マーケティング'],['GEO顾问','GEO ストラテジスト'],['未分配','未割り当て'],['订阅失败：','購読失敗：'],
+  ['未比对——在「差距诊断 · 事实偏差」里记录','未比較 — ギャップ診断 · ファクト逸脱に記録'],
+  ['（未填写）','未入力'],['（缺失）','欠落'],['未比对','未比較'],['一致','一致'],['偏差','逸脱'],
+  ['AI 当前说法：','AI の現在の説明：'],['AI 当前说法','AI の現在の説明'],
+  ['要看完整指标（提及率、类别、市场）？','完全な指標（言及率・カテゴリ・市場）を見る？ '],
+  ['打开问题库 →','質問バンクを開く →'],['那边每行的「写内容」也会回到这里。',' そちらの各行の「執筆」もここに戻ります。'],
+  ['　那边每行的「写内容」也会回到这里。',' そちらの各行の「執筆」もここに戻ります。'],['一句话定位','一文のポジショニング']);
+UI_RX.en.push([/^站点均分从 ([\d.]+) 提到 70$/,'Raise the site average from $1 to 70'],[/^补齐(中文|英文)侧内容，中英对等$/,'Balance $1-language content coverage'],[/^(国内|海外)无提示提及率 (.+) → (.+)$/,'$1 unprompted mention rate $2 → $3'],[/^(国内|海外)让官网进得了 AI 的检索结果$/,'Help the official site enter $1 AI retrieval results'],
+  [/^AI 当前说法：(.+)$/,'What AI currently says: $1']);
+UI_RX.ja.push([/^站点均分从 ([\d.]+) 提到 70$/,'サイト平均を $1 から 70 へ改善'],[/^补齐(中文|英文)侧内容，中英对等$/,'$1側コンテンツを補い、中国語と英語のカバレッジを均等化'],[/^(国内|海外)无提示提及率 (.+) → (.+)$/,'$1の無指名言及率 $2 → $3'],[/^(国内|海外)让官网进得了 AI 的检索结果$/,'公式サイトを $1 AI の検索結果に載せる'],
+  [/^AI 当前说法：(.+)$/,'AI の現在の説明：$1']);
+
+function localizeFactsChrome(text) {
+  if (ULANG === 'zh' || text == null) return text;
+  const pairs = ULANG === 'ja' ? [
+    ['（未填写）','未入力'],['（缺失）','欠落'],
+    ['未比对——在「差距诊断 · 事实偏差」里记录','未比較 — ギャップ診断 · ファクト逸脱に記録'],
+    ['「AI 当前说法」来自「引擎表现 → 样本回放」的真实回答。人工比对后记一条，「事实一致性」才会进健康分。','「AI の現在の説明」はエンジン → サンプルリプレイの実回答です。手動比較を記録するとファクト整合性がヘルススコアに入ります。'],
+    ['每张卡 = 一条官方口径。用法：','各カードは公式文言 1 件です。使い方：'],
+    ['点卡片','カードをクリック'],
+    [' → 对照「AI 当前说法」记一条比对（比对过「事实一致性」才可测、健康分才完整），或直接编辑源文件改口径。改完点下方「重新生成」同步到 llms.txt 与结构化数据。',' →「AI の現在の説明」と比較して記録（比較後にファクト整合性が計測可能になりスコアが完全に）、またはソースを直接編集。下の「再生成」で llms.txt と構造化データへ同期。'],
+    ['点击：记录比对 / 编辑口径','クリック：比較を記録 / 文言を編集'],
+    ['事实卡还没有可解析的内容','解析できるファクトカードはまだありません'],
+    ['一句话定位','一文のポジショニング'],['未比对','未比較'],['一致','一致'],['偏差','逸脱'],
+    ['AI 当前说法：','AI の現在の説明：'],['AI 当前说法','AI の現在の説明'],
+    ['官方口径（你希望 AI 这么说）','公式の文言（AI に言わせたい内容）'],
+    ['记一条比对','比較を記録'],['编辑口径（源文件）','文言を編集（ソース）'],
+    ['品牌事实卡 · 源文件','ブランドファクト · ソース'],
+    ['要看完整指标（提及率、类别、市场）？','完全な指標（言及率・カテゴリ・市場）を見る？ '],
+    ['打开问题库 →','質問バンクを開く →'],
+    ['　那边每行的「写内容」也会回到这里。',' そちらの各行の「執筆」もここに戻ります。'],
+    ['那边每行的「写内容」也会回到这里。',' そちらの各行の「執筆」もここに戻ります。']
+  ] : [
+    ['（未填写）','Not provided'],['（缺失）','Missing'],
+    ['未比对——在「差距诊断 · 事实偏差」里记录','Not compared — log this in Gap Diagnosis · Fact deviations'],
+    ['「AI 当前说法」来自「引擎表现 → 样本回放」的真实回答。人工比对后记一条，「事实一致性」才会进健康分。','“What AI currently says” comes from real answers in Engines → Sample replay. Log a manual comparison so fact consistency can enter the health score.'],
+    ['每张卡 = 一条官方口径。用法：','Each card is one official wording. How to use: '],
+    ['点卡片','click a card'],
+    [' → 对照「AI 当前说法」记一条比对（比对过「事实一致性」才可测、健康分才完整），或直接编辑源文件改口径。改完点下方「重新生成」同步到 llms.txt 与结构化数据。',' → log a comparison against “what AI currently says” (fact consistency only becomes measurable — and the health score complete — once compared), or edit the source file. Then click “Regenerate” below to sync llms.txt and structured data.'],
+    ['点击：记录比对 / 编辑口径','Click: log comparison / edit wording'],
+    ['事实卡还没有可解析的内容','No parseable fact cards yet'],
+    ['一句话定位','One-sentence positioning'],['未比对','Not compared'],['一致','Match'],['偏差','Mismatch'],
+    ['AI 当前说法：','What AI currently says: '],['AI 当前说法','What AI currently says'],
+    ['官方口径（你希望 AI 这么说）','Official wording (what AI should say)'],
+    ['记一条比对','Log a comparison'],['编辑口径（源文件）','Edit wording (source)'],
+    ['品牌事实卡 · 源文件','Brand facts · source file'],
+    ['要看完整指标（提及率、类别、市场）？','Want full metrics (mention, group, market)? '],
+    ['打开问题库 →','Open Questions →'],
+    ['　那边每行的「写内容」也会回到这里。',' “Write” on any row there returns here.'],
+    ['那边每行的「写内容」也会回到这里。',' “Write” on any row there returns here.']
+  ];
+  let out = String(text);
+  pairs.sort(function (a, b) { return b[0].length - a[0].length; });
+  for (let i = 0; i < pairs.length; i++) out = out.split(pairs[i][0]).join(pairs[i][1]);
+  return out;
+}
 
 const engineFactsView = vFacts;
 vFacts = function () {
   const output = engineFactsView();
-  if (ULANG === 'en') return output.replaceAll('（未填写）', 'Not provided').replaceAll('（缺失）', 'Missing').replaceAll('未比对——在「差距诊断 · 事实偏差」里记录', 'Not compared — log this in Gap Diagnosis · Fact deviations');
-  if (ULANG === 'ja') return output.replaceAll('（未填写）', '未入力').replaceAll('（缺失）', '欠落').replaceAll('未比对——在「差距诊断 · 事实偏差」里记录', '未比較 — ギャップ診断 · ファクト逸脱に記録');
-  return output;
+  // 只改展示 HTML，不改 FACT_CARDS 源字段（addFact / 比对匹配依赖中文 field id）
+  if (ULANG === 'zh') return output;
+  return localizeFactsChrome(output);
 };
 VIEWS.facts = vFacts;
+
+const engineFactModal = factModal;
+factModal = function (index) {
+  engineFactModal(index);
+  if (ULANG === 'zh') return;
+  const box = document.querySelector('#modal .box');
+  if (box) box.innerHTML = localizeFactsChrome(box.innerHTML);
+};
+
+const engineWorkbenchView = VIEWS.workbench || (typeof vWorkbench === 'function' ? vWorkbench : null);
+if (typeof vWorkbench === 'function') {
+  const _wb = vWorkbench;
+  vWorkbench = function () {
+    const output = _wb.apply(this, arguments);
+    if (ULANG === 'zh') return output;
+    return localizeFactsChrome(String(output == null ? '' : output));
+  };
+  VIEWS.workbench = vWorkbench;
+}
 
 const engineOnboard = vOnboard;
 vOnboard = async function () {
@@ -2135,18 +2320,18 @@ function playbookMatrix(tasks) {
   const sorted=sortedPlaybookTasks(tasks), priorities=[['P0','高影响'],['P1','中影响'],['P2','低影响']], efforts=[['S','低工作量'],['M','中工作量'],['L','高工作量']];
   const known=sorted.filter(function (task) { return playbookPriorityOrder[task.priority]!==undefined && playbookEffortOrder[task.effort]!==undefined; });
   const unknown=sorted.filter(function (task) { return !known.includes(task); });
-  if (!sorted.length) return '<div class="playbook-empty">暂无行动任务</div>';
-  let cells=`<div class="playbook-axis"><strong>影响优先级</strong><span>工作量</span></div>`;
-  efforts.forEach(function (effort) { cells+=`<div class="playbook-axis"><strong>${effort[0]}</strong><span>${effort[1]}</span></div>`; });
+  if (!sorted.length) return `<div class="playbook-empty">${uiText('暂无行动任务')}</div>`;
+  let cells=`<div class="playbook-axis"><strong>${uiText('影响优先级')}</strong><span>${uiText('工作量')}</span></div>`;
+  efforts.forEach(function (effort) { cells+=`<div class="playbook-axis"><strong>${effort[0]}</strong><span>${uiText(effort[1])}</span></div>`; });
   priorities.forEach(function (priority) {
-    cells+=`<div class="playbook-axis"><strong>${priority[0]}</strong><span>${priority[1]}</span></div>`;
+    cells+=`<div class="playbook-axis"><strong>${priority[0]}</strong><span>${uiText(priority[1])}</span></div>`;
     efforts.forEach(function (effort) {
       const items=known.filter(function (task) { return task.priority===priority[0] && task.effort===effort[0]; });
       cells+=`<div class="playbook-cell">${items.map(playbookTaskButton).join('') || '<div class="playbook-empty">0</div>'}</div>`;
     });
   });
   return `<div class="playbook-matrix-scroll" tabindex="0"><div class="playbook-matrix">${cells}</div></div>
-    ${unknown.length?`<div class="playbook-unclassified"><div style="font-size:12px;color:var(--t500)">未分类任务</div>
+    ${unknown.length?`<div class="playbook-unclassified"><div style="font-size:12px;color:var(--t500)">${uiText('未分类任务')}</div>
       <div class="playbook-unclassified-list">${unknown.map(playbookTaskButton).join('')}</div></div>`:''}`;
 }
 
@@ -2165,16 +2350,23 @@ vPlan = function () {
   if (tableStart<0 || pageEnd<tableStart) return html;
   const list=html.slice(tableStart,pageEnd);
   const labels={zh:'行动计划视图',en:'Action plan view',ja:'アクションプラン表示'};
-  const toolbar=`<div class="playbook-toolbar"><div style="font-size:12px;color:var(--t500)">${ST.planView==='matrix'?'影响优先级 × 工作量':'全部任务'}</div>
-    <div class="seg playbook-view-switch" role="group" aria-label="${labels[ULANG] || labels.zh}">
-      <button class="playbook-view-button ${ST.planView==='matrix'?'on':''}" aria-pressed="${ST.planView==='matrix'}" onclick="setPlaybookView('matrix')">矩阵</button>
-      <button class="playbook-view-button ${ST.planView==='list'?'on':''}" aria-pressed="${ST.planView==='list'}" onclick="setPlaybookView('list')">列表</button></div></div>`;
+  const toolbar=`<div class="playbook-toolbar"><div style="font-size:12px;color:var(--t500)">${uiText(ST.planView==='matrix'?'影响优先级 × 工作量':'全部任务')}</div>
+    <div class="seg playbook-view-switch" role="group" aria-label="${labels[ULANG] || labels.en || labels.zh}">
+      <button class="playbook-view-button ${ST.planView==='matrix'?'on':''}" aria-pressed="${ST.planView==='matrix'}" onclick="setPlaybookView('matrix')">${uiText('矩阵')}</button>
+      <button class="playbook-view-button ${ST.planView==='list'?'on':''}" aria-pressed="${ST.planView==='list'}" onclick="setPlaybookView('list')">${uiText('列表')}</button></div></div>`;
   return html.slice(0,tableStart)+toolbar+(ST.planView==='matrix'?playbookMatrix(D.tasks):list)+html.slice(pageEnd);
 };
 VIEWS.plan = vPlan;
-if (ULANG !== 'zh' && typeof uiTranslate === 'function') setTimeout(function () { uiTranslate(document.body); }, 0);
+/*__DISVORAI_I18N_RUNTIME__*/
 </script>
 """
+
+
+def _i18n_runtime_script():
+    """注入 locale 目录与客户端运行时：en 为回退，中文不再是源文案特权。"""
+    catalogs = catalogs_as_json()
+    runtime = I18N_RUNTIME_PATH.read_text("utf-8")
+    return f"window.__I18N_CATALOGS={catalogs};\n{runtime}\n"
 
 
 @router.get("/app", response_class=HTMLResponse)
@@ -2432,6 +2624,7 @@ def serve_ui():
     )
     html = html.replace("<body>", "<body>" + FETCH_ADAPTER, 1)
     html = html.replace("</body>", UI_EXTENSION + "</body>", 1)
+    html = html.replace(I18N_RUNTIME_MARKER, _i18n_runtime_script())
     html = html.replace("国内", "中文").replace("海外", "英文")
     html = html.replace("中文市场", "中文问题").replace("英文市场", "英文问题")
     html = html.replace("中文引擎", "中文问题").replace("英文引擎", "英文问题")
