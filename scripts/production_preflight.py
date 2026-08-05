@@ -48,7 +48,7 @@ def validate_environment(values):
     errors = []
     warnings = []
     required = (
-        "DOMAIN", "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD", "DATABASE_URL",
+        "DOMAIN", "DATABASE_URL",
         "PUBLIC_BASE_URL", "REDIS_URL", "JWT_SECRET", "AES_KEY", "SESSION_COOKIE_SECURE",
         "RATE_LIMIT_ENABLED", "RATE_LIMIT_REQUESTS", "RATE_LIMIT_AUTH_REQUESTS",
         "RATE_LIMIT_WINDOW_SECONDS", "RATE_LIMIT_TRUST_PROXY_HEADERS",
@@ -67,10 +67,15 @@ def validate_environment(values):
     if public_url and (parsed.scheme != "https" or parsed.hostname != domain or parsed.path not in ("", "/")):
         errors.append("PUBLIC_BASE_URL must be the HTTPS URL for DOMAIN")
     database_url = values.get("DATABASE_URL", "")
-    if database_url and (not database_url.startswith("postgresql+") or _placeholder(database_url)):
-        errors.append("DATABASE_URL must use PostgreSQL and contain production credentials")
-    if _placeholder(values.get("POSTGRES_PASSWORD", "")):
-        errors.append("POSTGRES_PASSWORD still contains a placeholder")
+    if database_url and (not database_url.startswith("postgresql+psycopg2://") or _placeholder(database_url)):
+        errors.append("DATABASE_URL must use postgresql+psycopg2 and contain production credentials")
+    if database_url:
+        parsed_database = urlparse(database_url)
+        if not parsed_database.hostname:
+            errors.append("DATABASE_URL must include a database hostname")
+        query = {key.lower(): value.lower() for key, value in (item.split("=", 1) for item in parsed_database.query.split("&") if "=" in item)}
+        if query.get("sslmode") != "require":
+            errors.append("DATABASE_URL must set sslmode=require for Neon TLS")
     jwt_secret = values.get("JWT_SECRET", "")
     if jwt_secret and (len(jwt_secret) < 32 or _placeholder(jwt_secret)):
         errors.append("JWT_SECRET must be a non-placeholder value of at least 32 characters")

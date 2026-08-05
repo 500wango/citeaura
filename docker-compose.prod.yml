@@ -3,32 +3,12 @@ x-app: &app
     - .env.production
   restart: unless-stopped
   depends_on:
-    postgres:
-      condition: service_healthy
     redis:
       condition: service_healthy
   networks:
     - disvorai
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    env_file:
-      - .env.production
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
-      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    networks:
-      - disvorai
-
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -93,7 +73,6 @@ services:
       - disvorai
 
 volumes:
-  postgres_data:
   redis_data:
   disvorai_work:
 

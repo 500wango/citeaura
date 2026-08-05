@@ -32,12 +32,12 @@ set -a
 set +a
 
 : "${DOMAIN:?DOMAIN is required in .env.production}"
-: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in .env.production}"
+: "${DATABASE_URL:?DATABASE_URL is required in .env.production}"
 : "${JWT_SECRET:?JWT_SECRET is required in .env.production}"
 : "${AES_KEY:?AES_KEY is required in .env.production}"
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config --quiet
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d postgres redis
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d redis
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm api alembic upgrade head
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build api worker beat nginx
 

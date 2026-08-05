@@ -6,10 +6,7 @@ from scripts.production_preflight import read_env, validate_environment
 def _valid_environment():
     return {
         "DOMAIN": "app.disvor.example",
-        "POSTGRES_DB": "disvorai",
-        "POSTGRES_USER": "disvorai",
-        "POSTGRES_PASSWORD": "a-long-production-database-password",
-        "DATABASE_URL": "postgresql+psycopg2://disvorai:secure@postgres:5432/disvorai",
+        "DATABASE_URL": "postgresql+psycopg2://neondb_owner:secure@ep-example-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require",
         "PUBLIC_BASE_URL": "https://app.disvor.example",
         "REDIS_URL": "redis://redis:6379/0",
         "JWT_SECRET": "j" * 48,
@@ -49,6 +46,7 @@ def test_preflight_rejects_placeholders_insecure_url_and_test_payments():
     values.update({
         "DOMAIN": "example.com",
         "PUBLIC_BASE_URL": "http://example.com",
+        "DATABASE_URL": "postgresql+psycopg2://neondb_owner:secure@ep-example-pooler.us-east-2.aws.neon.tech/neondb",
         "JWT_SECRET": "short",
         "AES_KEY": "invalid",
         "SESSION_COOKIE_SECURE": "false",
