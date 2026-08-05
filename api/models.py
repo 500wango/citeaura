@@ -49,6 +49,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     email = Column(String(320), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
+    session_version = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     memberships = relationship("Membership", back_populates="user", cascade="all, delete-orphan")
@@ -111,6 +112,14 @@ class Project(Base):
             "schedule_interval_days IS NULL OR schedule_interval_days IN (7, 14, 30)",
             name="ck_projects_schedule_interval_days",
         ),
+        CheckConstraint(
+            "monthly_budget_cny_fen IS NULL OR monthly_budget_cny_fen >= 0",
+            name="ck_projects_monthly_budget_nonnegative",
+        ),
+        CheckConstraint(
+            "sample_call_limit IS NULL OR sample_call_limit > 0",
+            name="ck_projects_sample_call_limit_positive",
+        ),
     )
 
     id = Column(Integer, primary_key=True)
@@ -123,6 +132,10 @@ class Project(Base):
     schedule_next_run_at = Column(DateTime(timezone=True), nullable=True, index=True)
     schedule_last_enqueued_at = Column(DateTime(timezone=True), nullable=True)
     platform_pool_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+    monthly_budget_cny_fen = Column(Integer, nullable=True)
+    sample_call_limit = Column(Integer, nullable=True)
+    pause_on_budget_exceeded = Column(Boolean, nullable=False, default=True, server_default="true")
+    archived_at = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     tenant = relationship("Tenant", back_populates="projects")
@@ -150,6 +163,12 @@ class Job(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     action = Column(String(64), nullable=False)
     status = Column(String(32), nullable=False, default="queued", server_default="queued")
+    stage = Column(String(64), nullable=False, default="queued", server_default="queued")
+    progress = Column(Integer, nullable=False, default=0, server_default="0")
+    attempt = Column(Integer, nullable=False, default=1, server_default="1")
+    request_json = Column(Text, nullable=True)
+    celery_task_id = Column(String(255), nullable=True)
+    retry_of_job_id = Column(Integer, ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True)
     started_at = Column(DateTime(timezone=True), nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     error = Column(Text, nullable=True)
@@ -157,6 +176,7 @@ class Job(Base):
 
     project = relationship("Project", back_populates="jobs")
     platform_usage = relationship("PlatformUsage", back_populates="job")
+    retry_of = relationship("Job", remote_side=[id], uselist=False)
 
 
 class Subscription(Base):

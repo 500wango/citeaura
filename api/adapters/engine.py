@@ -1,6 +1,8 @@
 """DisvorAI 与开源 GEO 引擎之间的运行时适配。"""
 
 import os
+import ipaddress
+import socket
 import sys
 import threading
 from contextlib import contextmanager
@@ -125,6 +127,43 @@ def inject_keys(keys: dict | None):
                 os.environ[env_name] = old_value
 
 
+def _assert_public_url(url):
+    """拒绝引擎抓取本机、内网和云元数据地址，避免 SaaS SSRF。"""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(str(url))
+    host = parsed.hostname
+    if parsed.scheme not in ("http", "https") or not host:
+        raise GeoEngineError("crawl_url_invalid")
+    try:
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        addresses = {item[4][0] for item in socket.getaddrinfo(host, port)}
+    except (socket.gaierror, ValueError) as exc:
+        raise GeoEngineError("crawl_host_unresolvable") from exc
+    for address in addresses:
+        ip = ipaddress.ip_address(address)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_unspecified or ip.is_multicast:
+            raise GeoEngineError("crawl_private_address_blocked")
+
+
+@contextmanager
+def protect_network_fetches():
+    """在引擎抓取期间阻止私网目标和跨主机重定向。"""
+    original_get = geolib.requests.get
+
+    def guarded_get(url, *args, **kwargs):
+        _assert_public_url(url)
+        # 不跟随重定向，防止公共站点把抓取器转向内网地址。
+        kwargs["allow_redirects"] = False
+        return original_get(url, *args, **kwargs)
+
+    geolib.requests.get = guarded_get
+    try:
+        yield
+    finally:
+        geolib.requests.get = original_get
+
+
 def load_tenant_keys(db, tenant_id):
     """从数据库解密当前租户的 Key，供 worker 注入环境变量。"""
     from api.models import ApiKey, Tenant
@@ -156,7 +195,7 @@ def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = N
         previous_root, previous_work = patch_paths(tenant_directory, project_slug)
         previous_project_lock = patch_project_lock(tenant_directory)
         try:
-            with inject_keys(keys):
+            with inject_keys(keys), protect_network_fetches():
                 yield
         finally:
             geolib.die = previous_die

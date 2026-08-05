@@ -313,6 +313,47 @@ def test_schedule_dispatcher_enqueues_due_projects_and_respects_guards(tmp_path,
         assert db.query(Project).filter(Project.slug == "limited").one().schedule_next_run_at == limited_next
 
 
+def test_schedule_dispatcher_honors_project_sampling_budget(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'scheduled-budget.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    now = datetime.now(timezone.utc)
+    with session_factory() as db:
+        tenant = Tenant(name="budget-tenant", plan="pro")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="budgeted",
+            url="https://budgeted.example",
+            status="ready",
+            schedule_interval_days=7,
+            schedule_next_run_at=now - timedelta(minutes=1),
+            monthly_budget_cny_fen=0,
+        )
+        db.add(project)
+        db.commit()
+
+    calls = []
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(tasks, "check_sample_run", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        tasks.sampling_control,
+        "ensure_allowed",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            tasks.sampling_control.SamplingBudgetExceeded("monthly_budget_exceeded", {"budget": {"paused": True}})
+        ),
+    )
+    monkeypatch.setattr(tasks.task_cycle, "delay", lambda *args, **kwargs: calls.append((args, kwargs)))
+
+    result = tasks.task_dispatch_schedules.run(now.isoformat())
+
+    assert result == {"scanned": 1, "enqueued": 0, "busy": 0, "quota_blocked": 1, "failed": 0}
+    assert calls == []
+    with session_factory() as db:
+        assert db.query(Job).count() == 0
+
+
 @contextmanager
 def _empty_context():
     yield

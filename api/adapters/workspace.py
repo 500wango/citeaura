@@ -251,6 +251,34 @@ def _merge_manual_tickets(project_slug: str, manual_tickets: list[dict]):
     return data
 
 
+def _merge_ticket_workflow(project_slug: str, workflow_tickets: list[dict]):
+    """把用户维护的负责人、期限和时间线合并回重建后的工单。"""
+    if not workflow_tickets:
+        return None
+    import tasks as engine_tasks
+
+    fields = (
+        "status", "closed_at", "owner", "due_date", "notes", "activity", "evidence", "workflow_customized",
+    )
+    by_id = {item.get("id"): item for item in workflow_tickets if item.get("id")}
+    by_title = {item.get("title"): item for item in workflow_tickets if item.get("title")}
+    with geolib.project_lock(project_slug):
+        data = engine_tasks.load(project_slug)
+        current = data.get("tasks") if isinstance(data.get("tasks"), list) else []
+        changed = False
+        for ticket in current:
+            previous = by_id.get(ticket.get("id")) or by_title.get(ticket.get("title"))
+            if previous is None:
+                continue
+            for field in fields:
+                if field in previous and ticket.get(field) != previous.get(field):
+                    ticket[field] = deepcopy(previous.get(field))
+                    changed = True
+        if changed:
+            engine_tasks.save(project_slug, data)
+    return data
+
+
 @contextmanager
 def preserve_manual_tickets(project_slug: str):
     """引擎重建计划时保留 SaaS 创建的 offsite 工单。"""
@@ -259,7 +287,8 @@ def preserve_manual_tickets(project_slug: str):
     data = engine_tasks.load(project_slug)
     tickets = data.get("tasks", []) if isinstance(data, dict) else []
     manual_tickets = [deepcopy(ticket) for ticket in tickets if _is_manual_offsite(ticket)]
-    if not manual_tickets:
+    workflow_tickets = [deepcopy(ticket) for ticket in tickets if ticket.get("workflow_customized")]
+    if not manual_tickets and not workflow_tickets:
         yield
         return
 
@@ -268,7 +297,8 @@ def preserve_manual_tickets(project_slug: str):
     def build_with_manual(slug):
         rebuilt = original_build(slug)
         if slug == project_slug:
-            return _merge_manual_tickets(project_slug, manual_tickets)
+            _merge_manual_tickets(project_slug, manual_tickets)
+            return _merge_ticket_workflow(project_slug, workflow_tickets) or rebuilt
         return rebuilt
 
     engine_tasks.build = build_with_manual
@@ -277,6 +307,7 @@ def preserve_manual_tickets(project_slug: str):
     finally:
         engine_tasks.build = original_build
         _merge_manual_tickets(project_slug, manual_tickets)
+        _merge_ticket_workflow(project_slug, workflow_tickets)
 
 
 def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced_questions: list[str]):
@@ -377,6 +408,7 @@ def import_sample_sheet(project_slug: str, filename: str, text: str):
         raise ValueError("sample sheet must not exceed 5000000 characters")
 
     import sample
+    from api.adapters import measurement
 
     platforms = re.findall(r"(?m)^##\s+platform:\s*(\S+)\s*$", text)
     allowed_platforms = set(sample.PROVIDERS) | set(sample.MANUAL_ONLY)
@@ -402,7 +434,9 @@ def import_sample_sheet(project_slug: str, filename: str, text: str):
         raise FileNotFoundError(filename)
     with geolib.project_lock(project_slug):
         _write_text(target, text)
-        return sample.sample_import(project_slug, str(target))
+        metrics = sample.sample_import(project_slug, str(target))
+        measurement.record_sampling(project_slug, source="manual", requested_platforms=platforms)
+        return metrics
 
 
 def project_files(project_slug: str):

@@ -95,10 +95,13 @@ def _tenant_name(db: Session, requested: str | None, email: str) -> str:
     return candidate
 
 
-def token_response(response: Response, user_id: int, tenant_id: int):
+def token_response(response: Response, user_id: int, tenant_id: int, db: Session):
     """签发令牌并设置同站 HttpOnly 会话 Cookie。"""
-    access_token = create_access_token(user_id, tenant_id)
-    refresh_token = create_refresh_token(user_id, tenant_id)
+    # 令牌绑定到当前会话版本，密码重置后旧令牌立即失效。
+    user = db.get(User, user_id)
+    session_version = user.session_version if user is not None else 0
+    access_token = create_access_token(user_id, tenant_id, session_version)
+    refresh_token = create_refresh_token(user_id, tenant_id, session_version)
     cookie_secure = config.session_cookie_secure()
     response.set_cookie(
         ACCESS_TOKEN_COOKIE,
@@ -194,7 +197,7 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     if membership is None:
         _error(status.HTTP_403_FORBIDDEN, "no_tenant_membership")
 
-    return token_response(response, user.id, membership.tenant_id)
+    return token_response(response, user.id, membership.tenant_id, db)
 
 
 @router.post("/auth/refresh")
@@ -216,9 +219,9 @@ def refresh(
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
     user = db.get(User, user_id)
     membership = db.get(Membership, {"tenant_id": tenant_id, "user_id": user_id})
-    if user is None or membership is None:
+    if user is None or membership is None or int(claims.get("sv", -1)) != int(user.session_version):
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
-    return token_response(response, user_id, tenant_id)
+    return token_response(response, user_id, tenant_id, db)
 
 
 @router.post("/auth/logout")
@@ -272,6 +275,7 @@ def reset_password(payload: ResetPasswordRequest, response: Response, db: Sessio
     if user is None:
         _error(status.HTTP_400_BAD_REQUEST, "password_reset_token_invalid")
     user.password_hash = hash_password(payload.password)
+    user.session_version += 1
     db.query(PasswordResetToken).filter(
         PasswordResetToken.user_id == user.id,
         PasswordResetToken.used_at.is_(None),
@@ -294,7 +298,7 @@ def switch_tenant(
     membership = db.get(Membership, {"tenant_id": payload.tenant_id, "user_id": current_user.id})
     if membership is None:
         _error(status.HTTP_404_NOT_FOUND, "tenant_membership_not_found")
-    return token_response(response, current_user.id, payload.tenant_id)
+    return token_response(response, current_user.id, payload.tenant_id, db)
 
 
 @router.get("/me")

@@ -73,6 +73,29 @@ def create_checkout_session(tenant, user, plan, billing_interval, amount):
     return {"id": result["id"], "url": result["url"]}
 
 
+def cancel_subscription(provider_subscription_id):
+    """取消 Stripe 订阅，套餐状态随后由 Webhook 同步。"""
+    secret = config.stripe_secret_key()
+    if not secret or not provider_subscription_id:
+        raise StripeError("stripe_not_configured")
+    try:
+        response = requests.delete(
+            f"{API_BASE}/subscriptions/{provider_subscription_id}",
+            auth=(secret, ""),
+            timeout=20,
+        )
+    except requests.RequestException as exc:
+        raise StripeError("stripe_unavailable") from exc
+    try:
+        result = response.json()
+    except ValueError as exc:
+        raise StripeError("stripe_invalid_response") from exc
+    if response.status_code >= 400:
+        code = ((result.get("error") or {}).get("code") or "stripe_request_failed")
+        raise StripeError(str(code))
+    return result
+
+
 def verify_event(payload, signature_header, now=None):
     secret = config.stripe_webhook_secret()
     if not secret:

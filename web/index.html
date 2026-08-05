@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#f5f5f3">
   <title data-i18n="landing.title">DisvorAI | From domain to verifiable AI visibility action</title>
   <link rel="icon" href="/site-assets/favicon.png" type="image/png">
-  <link rel="preload" href="/site-assets/product-audit.webp" as="image" type="image/webp" fetchpriority="high">
+  <link rel="preload" href="/site-assets/product-audit-en.webp" as="image" type="image/webp" fetchpriority="high">
   <link rel="stylesheet" href="/site-assets/styles.css">
   <script src="/site-assets/landing.js" defer></script>
 </head>
@@ -24,6 +24,7 @@
         <a href="#faq" data-i18n="nav.faq">FAQ</a>
       </div>
       <div class="nav-actions">
+        <button class="nav-menu-toggle" type="button" data-i18n-aria="nav.open" aria-label="Open navigation" aria-expanded="false">Menu</button>
         <div class="lang-switch" role="group" data-i18n-aria="lang.label" aria-label="Language">
           <button type="button" class="lang-btn" data-lang="zh" aria-pressed="false">中</button>
           <button type="button" class="lang-btn" data-lang="en" aria-pressed="true">EN</button>
@@ -40,7 +41,7 @@
 
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
-      <img class="hero-image" src="/site-assets/product-audit.webp" width="1440" height="960" data-i18n-alt="landing.hero_image_alt" alt="DisvorAI website audit UI showing page scores and content gaps" fetchpriority="high">
+      <img class="hero-image" src="/site-assets/product-audit-en.webp" data-locale-src-en="/site-assets/product-audit-en.webp" data-locale-src-zh="/site-assets/product-audit.webp" data-locale-src-ja="/site-assets/product-audit-en.webp" width="1440" height="960" data-i18n-alt="landing.hero_image_alt" alt="DisvorAI website audit UI showing page scores and content gaps" fetchpriority="high">
       <div class="hero-overlay" aria-hidden="true"></div>
       <div class="hero-content page-shell">
         <p class="eyebrow" data-i18n="landing.eyebrow">AI visibility execution platform</p>
@@ -51,13 +52,14 @@
           <a class="button button-ghost-light" href="#workflow" data-i18n="landing.hero_cta_secondary">View workflow</a>
         </div>
       </div>
-      <div class="hero-modes page-shell" data-i18n-aria="landing.modes_label" aria-label="Supported sampling modes">
-        <span data-i18n="landing.modes_note">Results label the sampling method</span>
-        <strong data-i18n="landing.mode_parametric">API · Model knowledge</strong>
-        <strong data-i18n="landing.mode_search">API · Web-grounded retrieval</strong>
-        <strong data-i18n="landing.mode_manual">Manual · Product surface</strong>
-      </div>
     </section>
+
+    <div class="hero-modes page-shell" data-i18n-aria="landing.modes_label" aria-label="Supported sampling modes">
+      <span data-i18n="landing.modes_note">Results label the sampling method</span>
+      <strong data-i18n="landing.mode_parametric">API · Model knowledge</strong>
+      <strong data-i18n="landing.mode_search">API · Web-grounded retrieval</strong>
+      <strong data-i18n="landing.mode_manual">Manual · Product surface</strong>
+    </div>
 
     <section class="truth-band" aria-labelledby="truth-title">
       <div class="page-shell truth-layout reveal">
@@ -121,21 +123,21 @@
         <div class="product-gallery">
           <figure class="product-shot product-shot-main reveal">
             <div class="shot-frame">
-              <img src="/site-assets/product-audit.webp" width="1440" height="960" data-i18n-alt="landing.shot_audit_alt" alt="Website audit page showing extraction gaps, score distribution, and related tickets">
+              <img src="/site-assets/product-audit-en.webp" data-locale-src-en="/site-assets/product-audit-en.webp" data-locale-src-zh="/site-assets/product-audit.webp" data-locale-src-ja="/site-assets/product-audit-en.webp" width="1440" height="960" data-i18n-alt="landing.shot_audit_alt" alt="Website audit page showing extraction gaps, score distribution, and related tickets">
             </div>
             <figcaption><span data-i18n="landing.shot_audit">Website audit</span><strong data-i18n="landing.shot_audit_cap">Gaps link to pages and tickets</strong></figcaption>
           </figure>
           <figure class="product-shot reveal">
             <div class="shot-frame">
-              <img src="/site-assets/product-plan.webp" width="1440" height="960" data-i18n-alt="landing.shot_plan_alt" alt="Action plan page with tasks ordered by impact and effort">
+              <img src="/site-assets/product-plan-en.webp" data-locale-src-en="/site-assets/product-plan-en.webp" data-locale-src-zh="/site-assets/product-plan.webp" data-locale-src-ja="/site-assets/product-plan-en.webp" width="1440" height="960" data-i18n-alt="landing.shot_plan_alt" alt="Action plan page with tasks ordered by impact and effort">
             </div>
             <figcaption><span data-i18n="landing.shot_plan">Action plan</span><strong data-i18n="landing.shot_plan_cap">Impact × Effort matrix</strong></figcaption>
           </figure>
           <figure class="product-shot product-shot-offset reveal">
             <div class="shot-frame">
-              <img src="/site-assets/product-report.webp" width="1440" height="960" data-i18n-alt="landing.shot_report_alt" alt="Reports and delivery page with conclusions, plans, and packs">
+              <img src="/site-assets/product-assets-en.webp" data-locale-src-en="/site-assets/product-assets-en.webp" data-locale-src-zh="/site-assets/product-report.webp" data-locale-src-ja="/site-assets/product-assets-en.webp" width="1440" height="960" data-i18n-alt="landing.shot_report_alt" alt="Deployment assets page with generated files and placement guidance">
             </div>
-            <figcaption><span data-i18n="landing.shot_report">Reports and delivery</span><strong data-i18n="landing.shot_report_cap">Outputs for leaders, teams, and clients</strong></figcaption>
+            <figcaption><span data-i18n="landing.shot_report">Deployment assets</span><strong data-i18n="landing.shot_report_cap">Ready-to-place files with clear destinations</strong></figcaption>
           </figure>
         </div>
       </div>

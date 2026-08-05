@@ -48,6 +48,33 @@ SETTINGS_RESPONSIVE_STYLE = r"""
 .playbook-unclassified{margin-top:12px;padding:11px 12px;border:1px solid var(--divider);border-radius:var(--r-md)}
 .playbook-unclassified-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:7px;margin-top:8px}
 .playbook-unclassified-list .playbook-task{margin-top:0}
+.quality-band{margin:0 0 16px;padding:16px 18px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--r-md);background:var(--surface)}
+.quality-section,.priority-section{max-width:1280px;padding:24px 44px 0}
+.measurement-section{max-width:1280px;padding:24px 44px 0}
+.quality-band.is-partial{border-left-color:var(--warn)}
+.quality-band.is-missing{border-left-color:var(--bad)}
+.quality-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.quality-score{font-size:24px;font-weight:600;line-height:1;white-space:nowrap}
+.quality-components{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin-top:14px;background:var(--line)}
+.quality-component{min-width:0;padding:9px 10px;background:var(--surface)}
+.quality-issue{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 0;box-shadow:inset 0 -1px 0 var(--line)}
+.measurement-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin-bottom:16px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.measurement-item{min-width:0;padding:13px 14px;background:var(--surface)}
+.measurement-value{display:block;margin-top:3px;font-size:18px;color:var(--text);overflow-wrap:anywhere}
+.ticket-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px}
+.ticket-toolbar .input,.ticket-bulk .input{width:auto;min-width:130px;min-height:34px;padding:6px 9px;font-size:12px}
+.ticket-search{flex:1;min-width:190px!important}
+.ticket-bulk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--deep)}
+.ticket-list-title{display:flex;align-items:flex-start;gap:8px}
+.ticket-list-title input{margin-top:3px}
+.ticket-modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+.ticket-timeline{max-height:180px;overflow:auto;margin-top:5px;padding-left:14px;border-left:1px solid var(--line)}
+.ticket-timeline-item{padding:6px 0;font-size:11.5px;line-height:1.45;color:var(--t500)}
+.budget-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.budget-grid label{display:block;min-width:0;color:var(--t500);font-size:11.5px}
+.budget-grid .input{margin-top:5px}
+.estimate-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin:14px 0;background:var(--line)}
+.estimate-cell{padding:11px 12px;background:var(--surface)}
 .sso-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .sso-audit-row{display:grid;grid-template-columns:minmax(128px,.7fr) minmax(180px,1fr) minmax(160px,1.4fr) auto;gap:10px;align-items:center;padding:8px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12px}
 .integration-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -75,6 +102,11 @@ SETTINGS_RESPONSIVE_STYLE = r"""
   .playbook-page-head{align-items:flex-start!important;flex-direction:column}
   .playbook-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .playbook-toolbar{align-items:flex-start;flex-direction:column}
+  .quality-head{flex-direction:column}
+  .quality-section,.priority-section,.measurement-section{padding:20px 18px 0}
+  .quality-components,.measurement-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .quality-issue{grid-template-columns:1fr}
+  .ticket-modal-grid,.budget-grid,.estimate-grid{grid-template-columns:1fr}
 }
 """
 
@@ -193,6 +225,228 @@ body{overflow-x:hidden}
 """
 
 
+PRODUCT_UI_STYLE = r"""
+:root{
+  --bg:#f3f5f2;--surface:#ffffff;--side:#fbfcfa;--deep:#edf1ed;
+  --text:#18221b;--t300:#334038;--t400:#46544b;--t500:#5f6d64;--t600:#6f7c73;--t700:#909a93;
+  --accent:#216a4b;--a100:#f2faf5;--a300:#c8e6d5;--a400:#78ad91;
+  --a700:#2f7659;--a800:#dceee4;--a900:#eaf4ee;
+  --n800:#e5e9e5;--n900:#f0f2ef;
+  --divider:#d9dfda;--line:#e8ece8;--good:#287250;--warn:#9b5d19;--bad:#b24444;
+  --r-md:7px;--r-lg:10px;
+  --sh-sm:0 1px 2px rgba(26,43,33,.04),0 0 0 1px rgba(42,62,49,.08);
+  --sh-md:0 18px 50px rgba(30,48,37,.13),0 0 0 1px rgba(42,62,49,.10);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+}
+html{background:var(--bg)}
+body{background:var(--bg);color:var(--text);font-size:14px;line-height:1.55;text-rendering:optimizeLegibility}
+h1,h2,h3,h4{color:var(--text);font-weight:650;letter-spacing:0}
+h2{font-size:30px}h3{font-size:26px}h4{font-size:18px}
+a{color:var(--accent);text-decoration-thickness:1px}
+::selection{background:#cae6d7;color:#163d2d}
+:focus-visible{outline:2px solid #31795b;outline-offset:2px}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#c5cdc7;border:2px solid transparent;border-radius:8px;background-clip:padding-box}
+
+.btn{min-height:36px;padding:8px 12px;border-radius:var(--r-md);font-size:13px;font-weight:600;letter-spacing:0;transition:background-color .14s,border-color .14s,color .14s,transform .14s,box-shadow .14s}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-primary{border-color:var(--accent);background:var(--accent);color:#f8fbf9;box-shadow:0 1px 2px rgba(25,79,55,.18)}
+.btn-primary:hover{border-color:#18593e;background:#18593e;color:#fff}
+.btn-secondary{border-color:#cfd7d1;background:#fff;color:var(--text);box-shadow:0 1px 1px rgba(30,48,37,.03)}
+.btn-secondary:hover{border-color:#aebbb2;background:#f7f9f7}
+.btn-ghost{color:var(--accent);background:transparent}
+.btn-ghost:hover{background:#e9f3ed;color:#18593e}
+.btn:disabled{transform:none;box-shadow:none}
+
+.card{gap:8px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface)}
+.elev{box-shadow:0 1px 2px rgba(24,34,27,.025),0 0 0 1px rgba(35,54,42,.025)}
+.kicker{margin-bottom:9px;color:var(--accent);font-size:11px;font-weight:650;letter-spacing:0;text-transform:none}
+.muted{color:var(--t600)}.soft{color:var(--t500)}
+.tag{min-height:24px;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:0}
+.tag-accent{background:#e4f1e9;color:#205f46}
+.tag-neutral{background:#edf0ed;color:#39453d}
+.tag-dim{background:#f0f2f0;color:#69756d}
+.tag-outline{border-color:#c9d4cc;background:#fff;color:#536159}
+.pill-good{background:#e5f3eb;color:#226445}
+.pill-warn{background:#fbf0df;color:#815018}
+.bar{height:5px;background:#e8ece8}
+.bar>span{background:var(--accent)}
+.spin{border-color:#6ba58a;border-right-color:transparent}
+
+.field{margin-top:14px}
+.field>label,.budget-grid label{margin-bottom:6px;color:var(--t400);font-size:12px;font-weight:600}
+.input{min-height:40px;padding:8px 11px;border-color:#cfd7d1;background:#fff;color:var(--text);font-size:13.5px;caret-color:var(--accent);box-shadow:inset 0 1px 1px rgba(31,49,38,.025)}
+.input:hover{border-color:#aebbb2}
+.input:focus-visible{border-color:var(--accent);outline:3px solid rgba(33,106,75,.12);outline-offset:0}
+.input::placeholder{color:#7a857e}
+textarea.input{font-family:var(--font);font-size:13px;line-height:1.6}
+input[type="checkbox"],input[type="radio"]{accent-color:var(--accent)}
+.seg{border-color:#cfd7d1;background:#f7f9f7;border-radius:var(--r-md)}
+.seg-opt{min-height:36px;color:var(--t500)}
+.seg-opt+.seg-opt{border-left-color:#dce2dd}
+.seg-opt:has(input:checked){background:#fff;color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.tabs{border:1px solid var(--divider);border-radius:var(--r-md);background:#edf1ed;box-shadow:none}
+.tab{min-height:34px;padding:8px 14px;border-radius:5px;color:var(--t500);font-size:13px}
+.tab.on{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(24,34,27,.08)}
+.tab .cnt,.tab.on .cnt{background:#e5e9e5;color:var(--t500)}
+
+.table{font-size:13px}
+.table th{padding:9px 10px;color:var(--t600);font-size:10.5px;font-weight:650;letter-spacing:0;text-transform:none}
+.table td{padding:11px 10px}
+.table thead tr{background:linear-gradient(var(--divider),var(--divider)) no-repeat bottom/100% 1px}
+.table tbody tr{background:linear-gradient(var(--line),var(--line)) no-repeat bottom/100% 1px}
+.table tbody tr:hover{background:#f7f9f7}
+pre.log{border:1px solid var(--divider);background:#17231c;color:#cbd8d0;box-shadow:none}
+
+#side{width:288px!important;background:var(--side);box-shadow:inset -1px 0 0 var(--divider)}
+.global-rail{width:72px!important;padding:16px 8px 12px;background:#17231c;box-shadow:none}
+.rail-brand{width:42px;height:42px;border-radius:8px;background:#f5faf7;color:#174d37}
+.rail-brand:hover{background:#fff;transform:translateY(-1px)}
+.rail-brand-mark{font-size:21px;font-weight:750;line-height:1}
+.rail-modules{gap:8px;margin-top:26px}
+.rail-action{width:56px!important;min-height:48px;padding:7px 2px;border-radius:7px;color:#a8b6ad;font-size:9.5px;font-weight:600}
+.rail-action:hover{background:rgba(255,255,255,.07);color:#f5f8f6}
+.rail-action[aria-current="page"]{background:#f1f7f3;color:#174d37;box-shadow:none}
+.rail-action .admin-icon{width:19px;height:19px}
+.rail-action[data-tooltip]::after{left:66px;border-color:#d6ddd7;background:#fff;color:var(--text);box-shadow:var(--sh-md)}
+.module-panel{width:216px!important;padding:20px 13px 14px;background:#fbfcfa;box-shadow:inset -1px 0 0 var(--divider)}
+.module-heading{display:block;padding:0 7px 18px}
+.module-product{display:block;margin-bottom:3px;color:var(--accent);font-size:11px;font-weight:700}
+.module-heading strong{display:block;font-size:18px;font-weight:680}
+.module-close{position:absolute;right:12px;top:15px;color:var(--t500)}
+.module-close:hover{background:#edf1ed;color:var(--text)}
+.project-switcher-row{gap:7px;margin-bottom:18px}
+.project-switcher{min-height:56px;padding:9px 10px;border-color:#d8dfda;border-radius:var(--r-md);background:#fff;color:var(--text);box-shadow:0 1px 1px rgba(32,49,39,.025)}
+.project-switcher:hover{border-color:#aebbb2;background:#fff}
+.project-switcher-label{color:var(--t600);font-size:10px}
+.project-switcher-name{font-size:12.5px;font-weight:650}
+.project-add{min-height:35px;border-color:#c8d9ce;border-radius:var(--r-md);background:#eaf4ee;color:#205f46;font-size:12px}
+.project-add:hover{border-color:#a9c8b6;background:#dfeee5;color:#174d37}
+.module-nav{gap:18px}
+.module-nav-group{gap:3px}
+.module-nav-label{padding:0 9px 6px;color:var(--t600);font-size:10px;font-weight:650}
+.module-link{min-height:36px;padding:8px 10px;border-radius:6px;color:var(--t500);font-size:12.5px;font-weight:560}
+.module-link:hover{background:#eef2ef;color:var(--text)}
+.module-link[aria-current="page"]{background:#e7f1eb;color:#18593e;box-shadow:none;font-weight:680}
+.module-link .bdg{color:var(--t600)}
+.module-meta{padding:13px 8px 0;color:var(--t600);box-shadow:inset 0 1px 0 var(--divider)}
+.module-run{color:var(--accent);font-weight:650}
+.module-language{border-radius:5px;color:var(--t600)}
+.module-language:hover{background:#edf1ed;color:var(--text)}
+.module-language[aria-current="true"]{background:#dfeee5;color:#18593e}
+
+#main{min-height:100dvh;background:var(--bg)}
+#view{min-height:100dvh}
+#view>div[style*="padding:32px"],.admin-page,.playbook-page{width:100%;max-width:1320px!important;padding:40px 48px 96px!important}
+.admin-page-header{max-width:720px;margin-bottom:28px}
+.admin-page-header h3{margin-bottom:7px;font-size:26px;font-weight:680}
+.admin-page-header p{color:var(--t500);font-size:13px}
+.quality-section,.priority-section,.measurement-section{width:100%;max-width:1320px;padding:28px 48px 0}
+.overview-quality{margin:26px 0 0}
+.overview-quality .quality-band{margin:0}
+
+.kpis{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;margin-top:28px;border:1px solid var(--divider);border-radius:var(--r-lg);overflow:hidden;background:#fff}
+.kpis>.card{min-height:128px;padding:18px!important;border:0;border-left:1px solid var(--line);border-radius:0;box-shadow:none!important}
+.kpis>.card:first-child{border-left:0;background:#1d6046;color:#fff}
+.kpis>.card:first-child>div{color:inherit!important}
+.kpis>.card>div:nth-child(2){font-variant-numeric:tabular-nums}
+
+.quality-band{padding:18px 20px;border-color:#d6dfd8;border-left:0;border-radius:var(--r-lg);background:#fff;box-shadow:0 1px 2px rgba(25,44,32,.025)}
+.quality-band::before{display:block;width:34px;height:3px;margin-bottom:14px;border-radius:2px;background:var(--accent);content:""}
+.quality-band.is-partial::before{background:var(--warn)}
+.quality-band.is-missing::before{background:var(--bad)}
+.quality-score{color:var(--text);font-size:28px;font-variant-numeric:tabular-nums}
+.quality-components{gap:0;margin-top:16px;border:1px solid var(--line);border-radius:7px;background:#f7f9f7;overflow:hidden}
+.quality-component{padding:11px 12px;border-left:1px solid var(--line);background:transparent}
+.quality-component:first-child{border-left:0}
+.quality-issue{padding:11px 0}
+.measurement-strip{gap:0;border-color:var(--divider);border-radius:var(--r-lg);background:#fff}
+.measurement-item{padding:15px 16px;border-left:1px solid var(--line);background:#fff}
+.measurement-item:first-child{border-left:0}
+.measurement-value{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums}
+.measurement-strip>div:last-child{background:#f2f6f3!important}
+.priority-section>.card{border-color:var(--divider)}
+
+.ticket-toolbar{gap:9px;margin-bottom:12px}
+.ticket-toolbar .input,.ticket-bulk .input{min-height:38px;background:#fff}
+.ticket-bulk{padding:11px 12px;border-color:var(--divider);background:#eef2ef}
+.ticket-timeline{border-left-color:#cbd4cd}
+.ticket-timeline-item{color:var(--t500)}
+.budget-grid,.admin-config-grid,.integration-grid{gap:14px}
+.estimate-grid{border:1px solid var(--line);border-radius:7px;background:#fff;overflow:hidden}
+.estimate-cell{border-left:1px solid var(--line);background:#fff}
+.estimate-cell:first-child{border-left:0}
+.billing-interval-switch{border-color:#cfd7d1;background:#f5f7f5}
+
+.modal{background:rgba(20,31,24,.42);backdrop-filter:blur(2px)}
+.modal .box{padding:24px 26px;border:1px solid rgba(255,255,255,.5);border-radius:var(--r-lg);background:#fff;box-shadow:var(--sh-md)}
+.toast{right:24px;bottom:24px;border:1px solid var(--divider);border-left:3px solid var(--accent);background:#fff;box-shadow:var(--sh-md)}
+#burger{border-color:#cad3cc;background:#fff;color:var(--text);box-shadow:var(--sh-sm)}
+#nav-scrim{background:rgba(20,31,24,.36);backdrop-filter:blur(2px)}
+
+#disvorai-login{background:#eef2ee!important;color:#18221b!important;font-family:var(--font)!important}
+#disvorai-login::before{position:fixed;inset:0;pointer-events:none;background:linear-gradient(90deg,#17231c 0,#17231c 32%,transparent 32%);content:""}
+#disvorai-login::after{position:fixed;left:56px;top:48px;z-index:0;color:#f3f8f4;content:"DisvorAI";font-size:22px;font-weight:720;letter-spacing:-.02em}
+.disvorai-auth-card{position:relative;width:min(440px,100%)!important;padding:34px 36px!important;border:1px solid #d4dcd6!important;border-radius:10px!important;background:#fff!important;color:#18221b!important;box-shadow:0 28px 80px rgba(25,43,32,.16)!important;transform:translateX(12vw)}
+.disvorai-auth-brand{align-items:flex-start!important;margin-bottom:8px!important}
+.disvorai-auth-brand strong{font-size:23px!important;font-weight:700!important;color:#18221b!important}
+.disvorai-auth-kicker{display:inline-flex;align-items:center;min-height:26px;padding:4px 8px;border-radius:5px;background:#e5f2e9;color:#205f46!important;font-size:10px!important;font-weight:700;letter-spacing:0!important;text-transform:none!important}
+.disvorai-auth-copy{margin-bottom:22px!important;color:#5f6d64!important;font-size:13px!important}
+.disvorai-auth-tabs{gap:4px!important;margin-bottom:22px!important;padding:4px!important;border:1px solid #dce2dd!important;border-radius:7px!important;background:#eef2ef!important}
+.disvorai-auth-tabs button{min-height:34px;border-radius:5px!important;color:#5f6d64!important;font-weight:600!important}
+.disvorai-auth-tabs button[aria-selected="true"]{background:#fff!important;color:#18221b!important;box-shadow:0 1px 2px rgba(28,45,34,.10)!important}
+.disvorai-auth-field{margin-bottom:15px!important;color:#46544b!important;font-size:12px!important;font-weight:600}
+.disvorai-auth-field[style]{border-color:#d6dfd8!important;background:#f3f7f4!important;color:#5f6d64!important}
+.disvorai-auth-field input{min-height:42px;margin-top:6px!important;padding:9px 11px!important;border:1px solid #cbd4cd!important;border-radius:7px!important;background:#fff!important;color:#18221b!important;font-size:14px!important}
+.disvorai-auth-field input:focus{border-color:#216a4b!important;outline:3px solid rgba(33,106,75,.12)!important;outline-offset:0!important}
+.disvorai-auth-link{color:#216a4b!important;font-weight:600!important}
+.disvorai-auth-submit{min-height:42px!important;border-radius:7px!important;background:#216a4b!important;color:#f8fbf9!important;font-weight:700!important;box-shadow:0 1px 2px rgba(25,79,55,.18)}
+.disvorai-auth-submit:hover{background:#18593e!important}
+.disvorai-auth-message[data-kind="error"]{color:#a93e3e!important}
+.disvorai-auth-message[data-kind="success"]{color:#216a4b!important}
+.disvorai-auth-message[data-kind="info"]{color:#5f6d64!important}
+.disvorai-auth-footer{color:#728078!important}
+
+@media (min-width:900px) and (max-width:1199px){
+  #side{width:72px!important}
+  .module-panel{left:72px!important;height:100dvh}
+}
+@media (max-width:899px){
+  #side{width:min(300px,calc(100vw - 28px))!important}
+  .global-rail{width:68px!important}
+  .module-panel{width:auto!important}
+  #main{padding-top:52px}
+  #view>div[style*="padding:32px"],.admin-page,.playbook-page{padding:28px 22px 72px!important}
+  .quality-section,.priority-section,.measurement-section{padding:24px 22px 0}
+}
+@media (max-width:760px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpis>.card{border-top:1px solid var(--line)}
+  .kpis>.card:nth-child(odd){border-left:0}
+  .kpis>.card:first-child,.kpis>.card:nth-child(2){border-top:0}
+  #view div[style*="grid-template-columns:1.35fr 1fr"],#view div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+  .quality-components,.measurement-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .quality-component:nth-child(odd),.measurement-item:nth-child(odd){border-left:0}
+  .quality-component:nth-child(n+3),.measurement-item:nth-child(n+3){border-top:1px solid var(--line)}
+  .disvorai-auth-card{padding:28px 24px!important;transform:none}
+  #disvorai-login::before,#disvorai-login::after{display:none}
+}
+@media (max-width:480px){
+  .kpis{grid-template-columns:1fr}
+  .kpis>.card{min-height:auto;border-top:1px solid var(--line)!important;border-left:0!important}
+  .kpis>.card:first-child{border-top:0!important}
+  .quality-components,.measurement-strip{grid-template-columns:1fr}
+  .quality-component,.measurement-item{border-top:1px solid var(--line);border-left:0}
+  .quality-component:first-child,.measurement-item:first-child{border-top:0}
+  .modal{padding:14px}.modal .box{padding:21px 18px}
+}
+@media (prefers-reduced-motion:reduce){
+  .btn,.rail-brand{transition:none}.btn:hover,.rail-brand:hover{transform:none}
+}
+"""
+
+
 FETCH_ADAPTER = r"""
 <script>
 (function () {
@@ -282,10 +536,12 @@ FETCH_ADAPTER = r"""
 
   function legacyJob(job) {
     if (!job) return null;
+    window.disvoraiLastJobStatus = job.status;
     const labels = {bootstrap:'Bootstrap',sample:'Sample',verify:'Verify',deliver:'Deliver',cycle:'Cycle'};
+    const progress = job.progress != null && (job.status === 'queued' || job.status === 'running') ? ` · ${job.progress}%` : '';
     return Object.assign({}, job, {
       status:job.status === 'queued' ? 'running' : job.status,
-      label:labels[job.action] || job.action || 'Job'
+      label:(labels[job.action] || job.action || 'Job') + progress
     });
   }
 
@@ -701,6 +957,18 @@ FETCH_ADAPTER = r"""
       const jobs = data.jobs || [], active = jobs.find(function (j) { return j.status === 'queued' || j.status === 'running'; });
       return response({jobs:jobs.map(legacyJob),running:active ? active.id : null}, r.status);
     }
+    const retryJobMatch = url.match(/^\/api\/job\/([^/?]+)\/retry$/);
+    if (retryJobMatch) {
+      const jobId = retryJobMatch[1];
+      for (const id of projectIds.values()) {
+        const r = await nativeFetch('/api/v1/projects/' + id + '/jobs/' + jobId + '/retry', {method:'POST',headers:init && init.headers});
+        if (r.status !== 404) {
+          const data = await r.json();
+          return response({ok:r.ok,job:r.ok ? legacyJob(data.job) : null,error:data.error || data.detail}, r.status);
+        }
+      }
+      return response({error:'job_not_found'}, 404);
+    }
     const jobMatch = url.match(/^\/api\/job\/([^?]+)/);
     if (jobMatch) {
       const jobId = jobMatch[1];
@@ -765,14 +1033,29 @@ FETCH_ADAPTER = r"""
       }
       const payload = {method:'POST',headers:Object.assign({},init.headers,{'Content-Type':'application/json'}),body:JSON.stringify({params:params})};
       const r = await nativeFetch('/api/v1/projects/' + id + '/actions/' + encodeURIComponent(action), payload), data = await r.json();
-      return response({ok:r.ok,job:r.ok ? {id:data.job_id,status:'queued',label:action} : null,error:data.error}, r.status);
+      const detail=data.detail&&typeof data.detail==='object'?data.detail:{};
+      return response({ok:r.ok,job:r.ok ? {id:data.job_id,status:'queued',label:action} : null,error:data.error||detail.error||data.detail,estimate:data.estimate||detail.estimate}, r.status);
     }
     if (url === '/api/task' && init.body) {
       const body = JSON.parse(init.body), id = projectIds.get(body.slug);
       if (!id) return response({error:'project_not_found'}, 404);
-      const r = await nativeFetch('/api/v1/projects/' + id + '/tickets/' + encodeURIComponent(body.id), {method:'PATCH',headers:init.headers,body:JSON.stringify({status:body.status,note:body.note || ''})});
+      const changes = {};
+      ['status','owner','due_date','note'].forEach(function (key) { if (Object.prototype.hasOwnProperty.call(body,key)) changes[key]=body[key]; });
+      const r = await nativeFetch('/api/v1/projects/' + id + '/tickets/' + encodeURIComponent(body.id), {method:'PATCH',headers:init.headers,body:JSON.stringify(changes)});
       const data = await r.json();
       return response({ok:r.ok,task:data.ticket,error:data.error || data.detail}, r.status);
+    }
+    if (url === '/api/tasks-bulk' && init.body) {
+      const body = JSON.parse(init.body), id = projectIds.get(body.slug);
+      if (!id) return response({error:'project_not_found'}, 404);
+      delete body.slug;
+      return nativeFetch('/api/v1/projects/' + id + '/tickets', {method:'PATCH',headers:init.headers,body:JSON.stringify(body)});
+    }
+    if (url.startsWith('/api/task-timeline/')) {
+      const parts=url.split('/'), ticketId=decodeURIComponent(parts.pop() || ''), slug=decodeURIComponent(parts.pop() || '');
+      const id=projectIds.get(slug);
+      return id ? nativeFetch('/api/v1/projects/' + id + '/tickets/' + encodeURIComponent(ticketId) + '/timeline', init)
+        : response({error:'project_not_found'}, 404);
     }
     if (url === '/api/task-create' && init.body) {
       const body = JSON.parse(init.body), id = projectIds.get(body.slug);
@@ -806,6 +1089,20 @@ FETCH_ADAPTER = r"""
       if (!id) return response({error:'project_not_found'}, 404);
       return nativeFetch('/api/v1/projects/' + id + '/sampling-funding', {
         method:init.body ? 'PUT' : 'GET', headers:init.headers, body:init.body
+      });
+    }
+    if (url === '/api/sampling-budget') {
+      const id = projectIds.get(SLUG);
+      if (!id) return response({error:'project_not_found'}, 404);
+      return nativeFetch('/api/v1/projects/' + id + '/sampling-budget', {
+        method:init.body ? 'PUT' : 'GET', headers:init.headers, body:init.body
+      });
+    }
+    if (url === '/api/sample-estimate' && init.body) {
+      const id = projectIds.get(SLUG);
+      if (!id) return response({error:'project_not_found'}, 404);
+      return nativeFetch('/api/v1/projects/' + id + '/sample/estimate', {
+        method:'POST', headers:init.headers, body:init.body
       });
     }
     if (url === '/api/integrations') {
@@ -864,6 +1161,9 @@ FETCH_ADAPTER = r"""
         return response(Object.assign({}, catalog, {usage:usage}), results[1].status);
       }
       const body = JSON.parse(init.body);
+      if (body.action === 'cancel') return nativeFetch('/api/v1/billing/cancel', {
+        method:'POST', headers:init.headers
+      });
       return nativeFetch('/api/v1/billing/subscribe', {
         method:'POST',headers:init.headers,
         body:JSON.stringify({plan:body.plan,billing_interval:body.billing_interval})
@@ -1045,6 +1345,7 @@ Object.assign(UI_D.en, {
   '为客户报告和打印版交付物配置机构名称、Logo 和主题色。':'Configure organization details, logo, and accent color for client reports and print-ready deliverables.',
   '团队与权限':'Team and access','管理工作区成员、邀请和 owner、editor、viewer 角色。':'Manage workspace members, invitations, and owner, editor, and viewer roles.',
   '查看当前套餐和用量，并由工作区所有者管理订阅。':'Review the current plan and usage. Workspace owners manage subscriptions.',
+  '取消订阅':'Cancel subscription','确认取消当前订阅？':'Cancel the current subscription?','取消请求已提交':'Cancellation request submitted',
   '企业安全':'Enterprise security','配置 OIDC 单点登录，查看安全控制状态和最近审计事件。':'Configure OIDC single sign-on and review security controls and recent audit events.'
 });
 Object.assign(UI_D.ja, {
@@ -1094,7 +1395,7 @@ function adminModuleForRoute(route) {
 }
 function closeAdminNav(){const side=$('#side');if(side)side.classList.remove('open');}
 function startBrandOnboarding(){
-  ST.obStep=1;ST.obSlug=null;ST.obNoSample=false;ST.obFail=false;ST.obUrl='';ST.obName='';ST.obMkt='both';
+  ST.obStep=1;ST.obSlug=null;ST.obNoSample=false;ST.obFail=false;ST.obUrl='';ST.obName='';ST.obMkt='both';ST.obPreflight=null;ST.obPreflightUrl='';
   go('onboard',{obStep:1});
 }
 function openAdminModule(moduleId){
@@ -1124,14 +1425,14 @@ renderSide = function () {
   const runningLabel={zh:'任务运行中',en:'Job running',ja:'ジョブ実行中'}[ULANG]||'Job running';
   const updatedLabel={zh:'数据更新',en:'Data updated',ja:'データ更新'}[ULANG]||'Data updated';
   $('#side').innerHTML=`<div class="global-rail">
-    <button class="rail-brand" type="button" onclick="go('overview')" aria-label="DisvorAI"><img src="/site-assets/favicon.png" width="30" height="30" alt=""></button>
+    <button class="rail-brand" type="button" onclick="go('overview')" aria-label="DisvorAI"><span class="rail-brand-mark" aria-hidden="true">D</span></button>
     <div class="rail-modules" role="navigation" aria-label="${esc(adminText({zh:'主模块',en:'Main modules',ja:'メインモジュール'}))}">
       ${ADMIN_MODULES.map(function(item){const selected=item.id===module.id,label=adminText(item.label);return `<button class="rail-action" type="button" data-tooltip="${esc(label)}" aria-label="${esc(label)}" ${selected?'aria-current="page"':''} onclick="openAdminModule('${item.id}')"><span class="admin-icon icon-${item.icon}" aria-hidden="true"></span><span>${esc(label)}</span></button>`;}).join('')}
     </div>
     <div class="rail-footer"><button class="rail-action rail-logout" type="button" data-admin-logout data-tooltip="${esc(({zh:'退出登录',en:'Sign out',ja:'ログアウト'})[ULANG]||'Sign out')}"><span class="admin-icon icon-log-out" aria-hidden="true"></span></button></div>
   </div>
   <div class="module-panel">
-    <div class="module-heading"><strong>${esc(adminText(module.label))}</strong><button class="module-close" type="button" onclick="closeAdminNav()" aria-label="${esc(({zh:'关闭导航',en:'Close navigation',ja:'ナビゲーションを閉じる'})[ULANG]||'Close navigation')}"><span class="admin-icon icon-x" aria-hidden="true"></span></button></div>
+    <div class="module-heading"><span class="module-product">DisvorAI</span><strong>${esc(adminText(module.label))}</strong><button class="module-close" type="button" onclick="closeAdminNav()" aria-label="${esc(({zh:'关闭导航',en:'Close navigation',ja:'ナビゲーションを閉じる'})[ULANG]||'Close navigation')}"><span class="admin-icon icon-x" aria-hidden="true"></span></button></div>
     <div class="project-switcher-row"><button class="project-switcher" type="button" onclick="switchModal()"><span class="project-switcher-copy"><span class="project-switcher-label">${esc(adminText({zh:'当前品牌',en:'Current brand',ja:'現在のブランド'}))}</span><span class="project-switcher-name" title="${esc(brand.name||'—')}">${esc(brand.name||'—')}</span></span><span class="admin-icon icon-chevron-down" aria-hidden="true"></span></button><button class="project-add" type="button" onclick="startBrandOnboarding()"><span class="admin-icon icon-plus" aria-hidden="true"></span><span>${esc(adminText({zh:'添加品牌',en:'Add brand',ja:'ブランドを追加'}))}</span></button></div>
     <nav class="module-nav" aria-label="${esc(adminText(module.label))}">
       ${module.groups.map(function(group){return `<div class="module-nav-group">${group.label?`<div class="module-nav-label">${esc(adminText(group.label))}</div>`:''}${group.items.map(function(item){const selected=item.route===activeRoute;return `<button class="module-link" type="button" ${selected?'aria-current="page"':''} onclick="go('${item.route}')"><span class="module-link-label">${esc(adminText(item.label))}</span><span class="bdg">${esc(badge(item.route))}</span></button>`;}).join('')}</div>`;}).join('')}
@@ -1337,7 +1638,7 @@ Object.assign(UI_D.en, {
   '当前套餐':'Current plan','选择套餐':'Choose plan','续订套餐':'Renew plan','定制报价':'Custom pricing','年付节省':'Annual savings',
   '前往付款':'Continue to payment','Stripe 尚未配置，当前不能发起真实付款。':'Stripe is not configured, so live payments are unavailable.',
   '支付会话无效':'Invalid checkout session','已生效':'Active','试用中':'Trialing','付款逾期':'Past due','已取消':'Canceled','未付款':'Unpaid','待付款':'Incomplete',
-  '订阅已更新':'Subscription updated','套餐信息加载失败':'Failed to load plan information','到期时间':'Expires','无限采样':'Unlimited sampling'
+  '订阅已更新':'Subscription updated','套餐信息加载失败':'Failed to load plan information','到期时间':'Expires','无限采样':'Unlimited sampling','每项目采样':'samples per project'
   ,'对象存储归档':'Object storage archives','创建快照':'Create snapshot','归档清单':'Archive history','暂无归档':'No archives yet','可恢复':'Available','已过期':'Expired',
   '恢复快照':'Restore snapshot','允许覆盖冲突文件':'Overwrite conflicting files','输入恢复确认短语':'Type the restore confirmation phrase','确认并恢复':'Confirm and restore',
   '活动数据源':'Active source','本地文件系统':'Local filesystem','保留份数':'Retention count','归档任务已创建':'Archive job created','恢复任务已创建':'Restore job created',
@@ -1381,7 +1682,7 @@ Object.assign(UI_D.ja, {
   '当前套餐':'現在のプラン','选择套餐':'プランを選択','续订套餐':'プランを更新','定制报价':'個別見積もり','年付节省':'年間割引',
   '前往付款':'支払いへ進む','Stripe 尚未配置，当前不能发起真实付款。':'Stripe が設定されていないため、実際の支払いは利用できません。',
   '支付会话无效':'無効な決済セッション','已生效':'有効','试用中':'トライアル中','付款逾期':'支払い遅延','已取消':'キャンセル済み','未付款':'未払い','待付款':'支払い待ち',
-  '订阅已更新':'サブスクリプションを更新しました','套餐信息加载失败':'プラン情報を読み込めませんでした','到期时间':'有効期限','无限采样':'無制限サンプリング'
+  '订阅已更新':'サブスクリプションを更新しました','套餐信息加载失败':'プラン情報を読み込めませんでした','到期时间':'有効期限','无限采样':'無制限サンプリング','每项目采样':'プロジェクトごとのサンプル'
   ,'对象存储归档':'オブジェクトストレージアーカイブ','创建快照':'スナップショットを作成','归档清单':'アーカイブ履歴','暂无归档':'アーカイブはありません','可恢复':'復元可能','已过期':'期限切れ',
   '恢复快照':'スナップショットを復元','允许覆盖冲突文件':'競合ファイルを上書き','输入恢复确认短语':'復元確認フレーズを入力','确认并恢复':'確認して復元',
   '活动数据源':'アクティブソース','本地文件系统':'ローカルファイルシステム','保留份数':'保持数','归档任务已创建':'アーカイブジョブを作成しました','恢复任务已创建':'復元ジョブを作成しました',
@@ -1396,7 +1697,7 @@ Object.assign(UI_D.en, {
   '问题库为空，请先完成项目分析。':'No prompts are available yet. Complete project analysis first.',
   '创建任务':'Create task','外部协作任务已创建':'External collaboration task created',
   'AI 模型':'AI models','模型与测量':'Models and measurement',
-  'API · 模型内知识':'API · Model knowledge','API · 联网检索':'API · Web-grounded retrieval','人工 · 产品端核验':'Manual · Product-surface check',
+  'API·参数化知识':'API·参数化知识','API·联网检索':'API·联网检索','人工·产品端':'人工·产品端',
   '项目归档':'Project archive','数据源':'Data sources','外部联络':'Outreach','外部联络加载失败':'Failed to load outreach settings',
   '测量用量':'Measurement usage','托管用量':'Managed usage','不可用':'Unavailable','启用':'Enable',
   '启用托管用量后，缺少 BYOK 的模型将按页面所示单价逐次收费。确认启用？':'Enable managed usage? Models without BYOK will be billed per call at the displayed price.',
@@ -1413,7 +1714,7 @@ Object.assign(UI_D.ja, {
   '问题库为空，请先完成项目分析。':'プロンプトはまだありません。先にプロジェクト分析を完了してください。',
   '创建任务':'タスクを作成','外部协作任务已创建':'外部連携タスクを作成しました',
   'AI 模型':'AI モデル','模型与测量':'モデルと測定',
-  'API · 模型内知识':'API · モデル知識','API · 联网检索':'API · Web グラウンデッド検索','人工 · 产品端核验':'手動 · プロダクト画面確認',
+  'API·参数化知识':'API·参数化知识','API·联网检索':'API·联网检索','人工·产品端':'人工·产品端',
   '项目归档':'プロジェクトアーカイブ','数据源':'データソース','外部联络':'アウトリーチ','外部联络加载失败':'アウトリーチ設定を読み込めませんでした',
   '测量用量':'測定使用量','托管用量':'マネージド使用量','不可用':'利用不可','启用':'有効化',
   '启用托管用量后，缺少 BYOK 的模型将按页面所示单价逐次收费。确认启用？':'マネージド使用量を有効にしますか。BYOK がないモデルは表示価格で 1 回ごとに課金されます。',
@@ -1421,6 +1722,32 @@ Object.assign(UI_D.ja, {
   '白标报告':'ホワイトラベルレポート','暂无发布目的地':'公開先はありません',
   '发布凭证加密保存。发布只能由用户手动触发，WeChat Official Account 和 WordPress 仅创建草稿。':'公開認証情報は暗号化されます。公開は手動で、WeChat Official Account と WordPress は下書きのみ作成します。',
   '发布目的地':'公開先','配置发布目的地并查看发布记录。所有对外发布都由用户手动发起。':'公開先と履歴を管理します。外部公開はすべて手動で開始します。'
+});
+Object.assign(UI_D.en, {
+  '项目采样预算':'Project sampling budget','预算信息加载失败':'Failed to load budget data','月度平台代付预算（CNY）':'Monthly platform-funded budget (CNY)',
+  '单次调用上限':'Per-run call limit','超额时暂停采样':'Pause sampling when exceeded','本月平台代付':'Platform-funded this month','默认采样调用':'Default sample calls',
+  '其中平台代付':'Platform-funded share','保存预算':'Save budget','报告完整度':'Report completeness','完整':'Complete','可用':'Usable','部分可用':'Partially usable','缺失':'Missing',
+  '当前报告可用于制定行动计划':'This report is usable for action planning','当前报告存在关键缺项，结论应谨慎使用':'Critical inputs are missing. Interpret conclusions cautiously.',
+  '站点审计':'Site audit','AI 测量':'AI measurement','行动工单':'Action tickets','交付包':'Delivery package','关键':'Critical','待完善':'Needs work','去处理':'Resolve',
+  '有效样本':'Valid samples','采样失败率':'Sampling failure rate','问题集版本':'Question-set version','前后期可比性':'Period comparability','可直接比较':'Directly comparable','不可直接比较':'Not directly comparable',
+  '选择当前筛选结果':'Select filtered results','任务':'Task','负责人':'Owner','截止日期':'Due date','优先级':'Priority','状态':'Status','没有符合筛选条件的任务':'No tasks match these filters',
+  '搜索任务':'Search tasks','全部状态':'All statuses','全部负责人':'All owners','全部优先级':'All priorities','清除筛选':'Clear filters','已选择':'Selected','修改状态':'Change status',
+  '批量备注（可选）':'Bulk note (optional)','应用':'Apply','自动验收':'Automatic verification','工单已更新':'Ticket updated','验收标准':'Acceptance criteria','自动':'Automatic','人工':'Manual',
+  '最近自动验收未通过':'Latest automatic verification failed','下一步':'Next step','添加备注':'Add note','记录进展、阻塞或交付说明':'Record progress, blockers, or delivery notes',
+  '修改与验收时间线':'Change and verification timeline','暂无时间线记录':'No timeline entries','取消':'Cancel','保存工单':'Save ticket','确认采样调用':'Confirm sampling calls','启动前估算':'Pre-run estimate',
+  '预计调用':'Estimated calls','预计耗时':'Estimated time','平台代付费用':'Platform-funded cost','平台代付':'Platform-funded','次':'calls','没有可用 API 采样引擎':'No API sampling engine is available',
+  '预计调用超过项目单次上限':'Estimated calls exceed the project per-run limit','预计平台费用超过项目月度预算':'Estimated platform cost exceeds the project monthly budget','配置模型':'Configure models','确认并启动':'Confirm and start'
+});
+Object.assign(UI_D.ja, {
+  '项目采样预算':'プロジェクト採取予算','预算信息加载失败':'予算情報を読み込めませんでした','月度平台代付预算（CNY）':'月間プラットフォーム負担予算（CNY）','单次调用上限':'1 回あたりの上限',
+  '超额时暂停采样':'超過時に採取を停止','本月平台代付':'今月のプラットフォーム負担','默认采样调用':'既定の採取回数','其中平台代付':'うちプラットフォーム負担','保存预算':'予算を保存',
+  '报告完整度':'レポート完全性','完整':'完全','可用':'利用可能','部分可用':'一部利用可能','缺失':'不足','当前报告可用于制定行动计划':'このレポートはアクション計画に利用できます',
+  '当前报告存在关键缺项，结论应谨慎使用':'重要な入力が不足しています。結論は慎重に扱ってください。','站点审计':'サイト監査','AI 测量':'AI 測定','行动工单':'アクションチケット','交付包':'納品パッケージ',
+  '关键':'重要','待完善':'要改善','去处理':'対応','有效样本':'有効サンプル','采样失败率':'採取失敗率','问题集版本':'質問セット版','前后期可比性':'期間比較可能性','可直接比较':'直接比較可能','不可直接比较':'直接比較不可',
+  '任务':'タスク','负责人':'担当者','截止日期':'期限','优先级':'優先度','状态':'状態','搜索任务':'タスクを検索','全部状态':'すべての状態','全部负责人':'すべての担当者','全部优先级':'すべての優先度','清除筛选':'フィルター解除',
+  '已选择':'選択済み','修改状态':'状態を変更','批量备注（可选）':'一括メモ（任意）','应用':'適用','自动验收':'自動検証','验收标准':'受け入れ基準','自动':'自動','人工':'手動','下一步':'次の手順',
+  '添加备注':'メモを追加','修改与验收时间线':'変更・検証タイムライン','暂无时间线记录':'タイムラインはありません','取消':'キャンセル','保存工单':'チケットを保存','确认采样调用':'採取呼び出しを確認','启动前估算':'実行前見積もり',
+  '预计调用':'推定呼び出し','预计耗时':'推定時間','平台代付费用':'プラットフォーム負担費用','平台代付':'プラットフォーム負担','次':'回','配置模型':'モデルを設定','确认并启动':'確認して開始'
 });
 
 let TEAM_STATE = null;
@@ -1433,6 +1760,7 @@ let BILLING_STATE = null;
 let BILLING_INTERVAL = 'monthly';
 let ARCHIVE_STATE = null;
 let FUNDING_STATE = null;
+let BUDGET_STATE = null;
 const billingStatusLabel = {active:'已生效',trialing:'试用中',past_due:'付款逾期',canceled:'已取消',unpaid:'未付款',incomplete:'待付款'};
 const teamRoleLabel = {owner:'所有者',editor:'编辑者',viewer:'只读成员'};
 function uiText(value) { return (UI_D[ULANG] || {})[value] || value; }
@@ -1480,15 +1808,15 @@ function billingPanel() {
   const statusText=uiText(billingStatusLabel[subscription.status]||subscription.status||'已生效');
   return `<h4 class="billing-section-title" style="font-size:16px;margin:28px 0 10px">${uiText('套餐与账单')}</h4>
     <div class="card elev" style="padding:18px;gap:14px">
-      <div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:170px"><div style="font-size:15px;font-weight:500">${esc(String(usage.plan||'trial').toUpperCase())}</div>
+        <div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:170px"><div style="font-size:15px;font-weight:500">${esc(String(usage.plan||'trial').toUpperCase())}</div>
         ${expires?`<div style="font-size:11.5px;color:var(--t600);margin-top:3px">${uiText('到期时间')} ${esc(expires)} · ${esc(statusText)}</div>`:''}</div>
-        <div class="billing-interval-switch"><button class="btn ${BILLING_INTERVAL==='monthly'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('monthly')">${uiText('月付')}</button><button class="btn ${BILLING_INTERVAL==='annual'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('annual')">${uiText('年付')}</button></div></div>
+        <div class="row" style="gap:8px;align-items:center"><div class="billing-interval-switch"><button class="btn ${BILLING_INTERVAL==='monthly'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('monthly')">${uiText('月付')}</button><button class="btn ${BILLING_INTERVAL==='annual'?'btn-primary':'btn-ghost'}" onclick="setBillingInterval('annual')">${uiText('年付')}</button></div>${owner&&['active','trialing','past_due'].includes(subscription.status)?`<button class="btn btn-ghost" onclick="cancelBilling()">${uiText('取消订阅')}</button>`:''}</div></div>
       ${payment.configured?'':`<div style="padding:9px 11px;border:1px solid var(--line);font-size:12px;color:var(--t500)">${uiText('Stripe 尚未配置，当前不能发起真实付款。')}</div>`}
       <div class="billing-plan-grid">${plans.map(function(plan){const price=(plan.prices||{})[BILLING_INTERVAL]||{},current=usage.plan===plan.code,currentInterval=current&&subscription.billing_interval===BILLING_INTERVAL,custom=price.cny==null;return `<div style="display:flex;flex-direction:column;min-width:0;min-height:188px;padding:14px;border:1px solid ${current?'var(--a700)':'var(--line)'};border-radius:var(--r-md);background:var(--bg)">
           <div class="row"><strong style="font-size:14px">${esc(plan.name)}</strong>${current?`<span class="tag tag-accent">${uiText('当前套餐')}</span>`:''}</div>
           <div style="font-size:22px;margin-top:13px">${custom?uiText('定制报价'):'¥'+Number(price.cny).toLocaleString()}${custom?'':`<span style="font-size:11px;color:var(--t600)"> / ${uiText(BILLING_INTERVAL==='annual'?'每年':'每月')}</span>`}</div>
-          ${BILLING_INTERVAL==='annual'&&!custom?`<div style="font-size:11.5px;color:var(--good);margin-top:4px">${uiText('年付优惠')} ${Number(plan.annual_discount_percent||0).toFixed(2)}% · ${uiText('年付节省')} ¥${Number(plan.annual_savings_cny||0).toLocaleString()}</div>`:'<div style="height:21px"></div>'}
-          <div style="font-size:11.5px;color:var(--t600);margin-top:9px">${plan.projects==null?'Enterprise SLA':esc(String(plan.projects))+' projects'} · ${uiText('无限采样')}</div>
+        ${BILLING_INTERVAL==='annual'&&!custom?`<div style="font-size:11.5px;color:var(--good);margin-top:4px">${uiText('年付优惠')} ${Number(plan.annual_discount_percent||0).toFixed(2)}% · ${uiText('年付节省')} ¥${Number(plan.annual_savings_cny||0).toLocaleString()}</div>`:'<div style="height:21px"></div>'}
+          <div style="font-size:11.5px;color:var(--t600);margin-top:9px">${plan.projects==null?'Enterprise SLA':esc(String(plan.projects))+' projects'} · ${plan.sample_runs==null?uiText('无限采样'):esc(String(plan.sample_runs))+' '+uiText('每项目采样')}</div>
           ${!custom&&owner?`<button class="btn ${currentInterval?'btn-secondary':'btn-primary'}" ${currentInterval||!payment.configured?'disabled':''} style="margin-top:auto;width:100%" onclick="subscribeBilling('${esc(plan.code)}')">${currentInterval?uiText('当前套餐'):uiText('前往付款')}</button>`:''}
         </div>`;}).join('')}</div>
     </div>`;
@@ -1512,6 +1840,16 @@ async function subscribeBilling(plan){
   if(result.error||result.detail){toast('订阅失败：'+(result.error||result.detail),'err');return}
   if(!result.checkout_url){toast('支付会话无效','err');return}
   window.location.assign(result.checkout_url);
+}
+
+async function cancelBilling(){
+  if(!confirm(uiText('确认取消当前订阅？')))return;
+  const result=await post('/api/billing',{action:'cancel'});
+  if(result.error||result.detail){toast(uiMsg('取消失败：')+(result.error||result.detail),'err');return}
+  BILLING_STATE=null;
+  toast(uiText('取消请求已提交'));
+  await vBilling();
+  render();
 }
 
 function archiveSize(value){const size=Number(value||0);if(size<1024)return size+' B';if(size<1048576)return (size/1024).toFixed(1)+' KB';if(size<1073741824)return (size/1048576).toFixed(1)+' MB';return (size/1073741824).toFixed(1)+' GB';}
@@ -1719,6 +2057,10 @@ function formatCny(value) {
   return 'CNY ' + Number(value || 0).toFixed(2);
 }
 
+function formatCnyFen(value) {
+  return value == null ? '—' : formatCny(Number(value || 0) / 100);
+}
+
 function perCallLabel() {
   return {zh:'每次',en:'per call',ja:'1 回あたり'}[ULANG] || 'per call';
 }
@@ -1769,7 +2111,43 @@ async function setPlatformPool(enabled) {
   }
   toast(enabled?'托管用量已启用':'托管用量已关闭');
   FUNDING_STATE=null;
+  BUDGET_STATE=null;
   render();
+}
+
+function samplingBudgetPanel(state) {
+  state=state||{};
+  if(state.error||state.detail)return `<h4 style="font-size:16px;margin:28px 0 10px">${uiText('项目采样预算')}</h4><div class="card elev" style="padding:18px;color:var(--t500);font-size:12px">${uiText('预算信息加载失败')}</div>`;
+  const budget=state.budget||{},estimate=state.estimate||{},owner=TEAM_STATE&&TEAM_STATE.current_role==='owner';
+  return `<h4 style="font-size:16px;margin:28px 0 10px">${uiText('项目采样预算')}</h4>
+    <div class="card elev" style="padding:18px;gap:14px">
+      <div class="budget-grid">
+        <label>${uiText('月度平台代付预算（CNY）')}<input id="sampling-monthly-budget" class="input" type="number" min="0" step="0.01" value="${budget.monthly_budget_cny_fen==null?'':Number(budget.monthly_budget_cny_fen)/100}" ${owner?'':'disabled'}></label>
+        <label>${uiText('单次调用上限')}<input id="sampling-call-limit" class="input" type="number" min="1" step="1" value="${budget.sample_call_limit==null?'':budget.sample_call_limit}" ${owner?'':'disabled'}></label>
+        <label style="display:flex;align-items:center;gap:8px;padding-top:23px"><input id="sampling-pause-over" type="checkbox" ${budget.pause_on_budget_exceeded?'checked':''} ${owner?'':'disabled'}>${uiText('超额时暂停采样')}</label>
+      </div>
+      <div class="estimate-grid" style="margin:0">
+        <div class="estimate-cell"><span style="font-size:10.5px;color:var(--t600)">${uiText('本月平台代付')}</span><strong style="display:block;margin-top:3px;font-size:16px">${formatCnyFen(budget.used_platform_pool_cost_cny_fen)}</strong></div>
+        <div class="estimate-cell"><span style="font-size:10.5px;color:var(--t600)">${uiText('默认采样调用')}</span><strong style="display:block;margin-top:3px;font-size:16px">${Number(estimate.calls||0).toLocaleString()}</strong></div>
+        <div class="estimate-cell"><span style="font-size:10.5px;color:var(--t600)">${uiText('其中平台代付')}</span><strong style="display:block;margin-top:3px;font-size:16px">${Number(estimate.platform_pool_calls||0).toLocaleString()} · ${formatCnyFen(estimate.platform_pool_cost_cny_fen)}</strong></div>
+      </div>
+      <div style="font-size:11.5px;color:var(--t600);line-height:1.55">${esc(estimate.byok_cost_note||'')}</div>
+      <div class="row" style="justify-content:flex-end">${owner?`<button class="btn btn-primary" onclick="saveSamplingBudget()">${uiText('保存预算')}</button>`:`<span style="font-size:12px;color:var(--t600)">${uiText('仅所有者可更改')}</span>`}</div>
+    </div>`;
+}
+
+async function saveSamplingBudget() {
+  const budgetInput=$('#sampling-monthly-budget'),limitInput=$('#sampling-call-limit');
+  const budgetText=(budgetInput&&budgetInput.value||'').trim(),limitText=(limitInput&&limitInput.value||'').trim();
+  const payload={
+    monthly_budget_cny_fen:budgetText===''?null:Math.round(Number(budgetText)*100),
+    sample_call_limit:limitText===''?null:Number(limitText),
+    pause_on_budget_exceeded:!!($('#sampling-pause-over')||{}).checked
+  };
+  if((payload.monthly_budget_cny_fen!=null&&(!Number.isFinite(payload.monthly_budget_cny_fen)||payload.monthly_budget_cny_fen<0))||(payload.sample_call_limit!=null&&(!Number.isInteger(payload.sample_call_limit)||payload.sample_call_limit<1))){toast('预算设置无效','err');return;}
+  const result=await post('/api/sampling-budget',payload);
+  if(result.error||result.detail){toast('保存失败：'+(result.error||result.detail),'err');return;}
+  BUDGET_STATE=result;toast('预算已保存');render();
 }
 
 function deliveryBrandingPanel() {
@@ -1951,7 +2329,7 @@ function automationPanel() {
     <div class="admin-run-actions"><button class="btn btn-primary" ${RUNNING?'disabled':''} onclick="runAction('autopilot')">全自动引导</button><button class="btn btn-primary" ${RUNNING?'disabled':''} onclick="runAction('serve')">跑完整一期</button></div>
     <div class="admin-run-actions">${actions.map(function(action){return `<button class="btn btn-secondary" style="font-size:11.5px;padding:5px 9px" ${RUNNING?'disabled':''} onclick="runAction('${action}')">${esc((ACTIONS[action]||{}).label||action)}</button>`;}).join('')}</div>
     <div class="row" style="gap:7px;align-items:center;padding-top:11px;box-shadow:inset 0 1px 0 var(--line)"><span style="font-size:12px;color:var(--t500);margin-right:3px">周期复跑</span>${[0,7,14,30].map(function(days){return `<button class="btn ${current===days?'btn-secondary':'btn-ghost'}" style="font-size:11.5px;padding:4px 9px" onclick="setMonitor(${days})">${days?'每 '+days+' 天':'关闭'}</button>`;}).join('')}${current?`<span class="muted" style="font-size:11.5px">下次 ${esc(monitor.next_run||'')}</span>`:''}</div>
-    <div class="row"><div id="jobstat" style="font-size:12.5px;flex:1">${RUNNING?'<span class="spin"></span>任务运行中':''}</div></div><pre class="log" id="joblog" style="max-height:300px"></pre></div>`;
+    <div class="row"><div id="jobstat" style="font-size:12.5px;flex:1">${RUNNING?'<span class="spin"></span>任务运行中':''}</div>${!RUNNING&&LASTJOB&&window.disvoraiLastJobStatus==='failed'?'<button class="btn btn-secondary" style="font-size:12px" onclick="retryCurrentJob()">重试失败任务</button>':''}</div><pre class="log" id="joblog" style="max-height:300px"></pre></div>`;
 }
 
 async function vAutomation() {
@@ -1961,7 +2339,7 @@ async function vAutomation() {
 
 function engineKeysPanel() {
   const keys=Array.isArray(KEYS)?KEYS:[],owner=TEAM_STATE&&TEAM_STATE.current_role==='owner';
-  return `<h4 style="font-size:16px;margin:0 0 10px">AI 模型</h4><div class="card elev" style="padding:18px;gap:0"><div style="font-size:11.5px;color:var(--t600);margin-bottom:8px">API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。</div>${keys.map(function(key,index){const mode=key.manual?'人工 · 产品端核验':(key.search?'API · 联网检索':'API · 模型内知识');return `<div class="admin-engine-row"><div class="admin-engine-name"><span class="tag ${key.ok===true?'pill-good':'tag-outline'}" style="margin-right:7px">${key.ok===true?'已连接':key.manual?'人工':'未连接'}</span>${esc(key.label)}</div><div class="admin-engine-mode">${esc(mode)}${key.ok===true&&key.key_tail?' ····'+esc(key.key_tail):''}</div>${key.env&&owner?`<button class="btn btn-ghost" style="font-size:12px" onclick="editKey(${index})">${key.ok===true?'修改':'配置'}</button>`:'<span></span>'}</div>`;}).join('')}</div>`;
+  return `<h4 style="font-size:16px;margin:0 0 10px">AI 模型</h4><div class="card elev" style="padding:18px;gap:0"><div style="font-size:11.5px;color:var(--t600);margin-bottom:8px">API Key 使用 AES-256-GCM 加密保存，仅在任务运行期间注入。BYOK 始终优先。</div>${keys.map(function(key,index){const mode=key.manual?'人工·产品端':(key.search?'API·联网检索':'API·参数化知识');return `<div class="admin-engine-row"><div class="admin-engine-name"><span class="tag ${key.ok===true?'pill-good':'tag-outline'}" style="margin-right:7px">${key.ok===true?'已连接':key.manual?'人工':'未连接'}</span>${esc(key.label)}</div><div class="admin-engine-mode">${esc(mode)}${key.ok===true&&key.key_tail?' ····'+esc(key.key_tail):''}</div>${key.env&&owner?`<span class="row" style="gap:5px;justify-content:flex-end"><button class="btn btn-ghost" style="font-size:12px" onclick="editKey(${index})">${key.ok===true?'修改':'配置'}</button>${key.ok===true?`<button class="btn btn-ghost" style="font-size:12px" onclick="testKey(${index})">测试连接</button>`:''}</span>`:'<span></span>'}</div>`;}).join('')}</div>`;
 }
 
 async function vEngineSettings() {
@@ -1969,7 +2347,8 @@ async function vEngineSettings() {
   if(!KEYS)KEYS=await api('/api/keys');
   if(!Array.isArray(KEYS))KEYS=[];
   if(!FUNDING_STATE)FUNDING_STATE=await api('/api/sampling-funding');
-  return adminPage('模型与测量','配置 AI 模型凭证、查看测量方式，并管理可选的托管用量。',engineKeysPanel()+samplingFundingPanel(FUNDING_STATE));
+  if(!BUDGET_STATE)BUDGET_STATE=await api('/api/sampling-budget');
+  return adminPage('模型与测量','配置 AI 模型凭证、查看测量方式，并管理可选的托管用量。',engineKeysPanel()+samplingFundingPanel(FUNDING_STATE)+samplingBudgetPanel(BUDGET_STATE));
 }
 
 async function vArchive() {
@@ -2045,6 +2424,7 @@ const engineSwitchProjectWithAdminState = switchProject;
 switchProject = async function (slug) {
   ARCHIVE_STATE=null;
   FUNDING_STATE=null;
+  BUDGET_STATE=null;
   INTEGRATION_STATE=null;
   OUTREACH_STATE=null;
   await engineSwitchProjectWithAdminState(slug);
@@ -2055,6 +2435,25 @@ editKey = function (index) {
   if (!TEAM_STATE || TEAM_STATE.current_role !== 'owner') { toast('仅所有者可配置 API Key','err'); return; }
   engineEditKey(index);
 };
+async function testKey(index) {
+  if (!TEAM_STATE || TEAM_STATE.current_role !== 'owner') { toast('仅所有者可测试 API Key','err'); return; }
+  const key=(KEYS||[])[index];
+  if(!key||!key.code||key.manual)return;
+  toast('正在测试连接…');
+  const token=localStorage.getItem('disvorai_access_token')||'';
+  const result=await api('/api/v1/settings/keys/'+encodeURIComponent(key.code)+'/test',{
+    method:'POST',headers:{Authorization:'Bearer '+token}
+  });
+  if(result.ok)toast(`连接成功 · ${result.model||key.label} · ${result.latency_ms}ms`);
+  else toast('连接失败：'+(result.error||'provider_request_failed'),'err');
+}
+async function retryCurrentJob() {
+  if(!LASTJOB)return;
+  const result=await api('/api/job/'+LASTJOB+'/retry',{method:'POST'});
+  if(!result.ok||!result.job){toast('重试失败：'+(result.error||'无法重试'),'err');return;}
+  RUNNING=result.job.id;LASTJOB=result.job.id;LOGOFF=0;pollJob();
+  toast('已重新排队');
+}
 const engineEditPublisher = editPub;
 editPub = function (index) {
   if (!TEAM_STATE || TEAM_STATE.current_role !== 'owner') { toast('仅所有者可配置发布渠道','err'); return; }
@@ -2264,6 +2663,39 @@ if (typeof vWorkbench === 'function') {
   VIEWS.workbench = vWorkbench;
 }
 
+function onboardingPreflightPanel() {
+  const state=ST.obPreflight;
+  const rows=state&&state.site&&Array.isArray(state.site.checks)?state.site.checks:[];
+  const estimate=state&&state.estimate&&state.estimate.full;
+  return `<div class="card" style="padding:14px 16px;margin:14px 0;gap:9px"><div class="row" style="justify-content:space-between;align-items:center"><div><div style="font-size:13px;font-weight:600">上线预检</div><div style="font-size:11.5px;color:var(--t600);margin-top:2px">域名、TLS、首页、robots.txt 与采样额度</div></div><button class="btn btn-secondary" type="button" onclick="runOnboardingPreflight()">立即检查</button></div>
+    <div id="ob-preflight" style="font-size:12px;color:var(--t500)">${state?`${rows.map(function(item){return `<div style="padding:6px 0;box-shadow:inset 0 -1px 0 var(--line)"><span style="color:${item.ok?'var(--good)':'var(--bad)'}">${item.ok?'✓':'✗'} ${esc(item.message)}</span>${!item.ok&&item.action?`<div style="margin-top:2px;color:var(--t400)">${uiText('下一步')}：${esc(item.action)}</div>`:''}</div>`;}).join('')}<div style="margin-top:9px">${(state.effective_platforms||[]).length?`可用 API：${state.effective_platforms.map(esc).join('、')} · `:'未配置可用 API Key，首份报告将不包含自动 AI 采样 · '}${estimate?`完整测量约 ${estimate.calls} 次调用 / ${estimate.minutes} 分钟`:''}</div>`:'填写域名后运行检查'}</div></div>`;
+}
+
+async function runOnboardingPreflight() {
+  const input=$('#ob-url'),url=input&&input.value.trim();
+  if(!url){toast('请填写官网地址','err');return null;}
+  const target=$('#ob-preflight');if(target)target.innerHTML='<span class="spin"></span>正在检查…';
+  const token=localStorage.getItem('disvorai_access_token')||'';
+  const result=await api('/api/v1/projects/preflight',{
+    method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({url:url,question_count:30})
+  });
+  if(result.error){if(target)target.textContent='预检失败：'+result.error;toast('预检失败','err');return null;}
+  ST.obPreflight=result;ST.obPreflightUrl=url;
+  if(target){const holder=document.createElement('div');holder.innerHTML=onboardingPreflightPanel();const next=holder.querySelector('#ob-preflight');target.innerHTML=next?next.innerHTML:'';}
+  if(!result.site.ready)toast('站点预检未通过，请先修复域名或访问问题','err');
+  return result;
+}
+
+const engineObCreateWithPreflight = obCreate;
+obCreate = async function () {
+  const input=$('#ob-url'),url=input&&input.value.trim();
+  let result=ST.obPreflightUrl===url?ST.obPreflight:null;
+  if(!result)result=await runOnboardingPreflight();
+  if(!result||!result.site||!result.site.ready)return;
+  return engineObCreateWithPreflight();
+};
+
 const engineOnboard = vOnboard;
 vOnboard = async function () {
   const html = await engineOnboard();
@@ -2280,10 +2712,101 @@ vOnboard = async function () {
     }
   }[ULANG] || {};
   const localized = Object.keys(copy).reduce(function (output, source) { return output.split(source).join(copy[source]); }, html);
-  return ULANG === 'en' ? localized.replace(/ONBOARDING · STEP (\d+) \/ 3 步/, 'ONBOARDING · STEP $1 / 3')
+  const base = ULANG === 'en' ? localized.replace(/ONBOARDING · STEP (\d+) \/ 3 步/, 'ONBOARDING · STEP $1 / 3')
     : ULANG === 'ja' ? localized.replace(/オンボーディング · ステップ (\d+) \/ 3 步/, 'オンボーディング · ステップ $1 / 3') : localized;
+  return ST.obStep===1?base.replace(/<\/div><\/div>$/,onboardingPreflightPanel()+'</div></div>'):base;
 };
 VIEWS.onboard = vOnboard;
+
+const engineOverviewWithPriorities = vOverview;
+vOverview = function () {
+  const base=engineOverviewWithPriorities();
+  const panel=reportQualityPanel();
+  return panel?base.replace('<div class="kpis">',`<section class="overview-quality">${panel}</section><div class="kpis">`):base;
+};
+VIEWS.overview=vOverview;
+
+function reportQualityPanel() {
+  const quality=D&&D.report_quality;
+  if(!quality)return '';
+  const levelLabel={complete:'完整',usable:'可用',partial:'部分可用',missing:'缺失'};
+  const components=quality.components||{},labels={site_audit:'站点审计',measurement:'AI 测量',playbook:'行动工单',delivery:'交付包'};
+  return `<div class="quality-band is-${esc(quality.level||'missing')}"><div class="quality-head"><div><div style="font-size:15px;font-weight:600">${uiText('报告完整度')} · ${uiText(levelLabel[quality.level]||quality.level)}</div><div style="font-size:11.5px;color:var(--t600);margin-top:4px">${quality.effective_report?uiText('当前报告可用于制定行动计划'):uiText('当前报告存在关键缺项，结论应谨慎使用')}</div></div><div class="quality-score">${Number(quality.score||0)}<span style="font-size:12px;color:var(--t600);font-weight:400"> / 100</span></div></div>
+    <div class="quality-components">${Object.keys(labels).map(function(key){const item=components[key]||{};return `<div class="quality-component"><span style="font-size:10.5px;color:var(--t600)">${uiText(labels[key])}</span><strong style="display:block;margin-top:3px;font-size:14px">${Number(item.score||0)} / ${Number(item.max||0)}</strong></div>`;}).join('')}</div>
+    ${(quality.issues||[]).map(function(issue){return `<div class="quality-issue"><div><span class="tag ${issue.severity==='critical'?'tag-accent':'tag-outline'}" style="margin-right:7px">${uiText(issue.severity==='critical'?'关键':'待完善')}</span><span style="font-size:12.5px">${esc(issue.message)}</span><div style="font-size:11.5px;color:var(--t600);margin-top:3px">${esc(issue.action)}</div></div><button class="btn btn-ghost" style="font-size:12px" onclick="go('${esc(issue.route||'automation')}')">${uiText('去处理')}</button></div>`;}).join('')}</div>`;
+}
+
+function reportQualitySection() {
+  const panel=reportQualityPanel();
+  return panel?`<section class="quality-section">${panel}</section>`:'';
+}
+
+function measurementQualityPanel() {
+  const quality=D&&D.report_quality&&D.report_quality.measurement_quality;
+  if(!quality)return '';
+  const current=quality.current||{},trend=quality.trend||{};
+  const effective=Number(current.effective_visibility_samples||current.successful||0);
+  const failure=current.failure_rate==null?'—':(Number(current.failure_rate)*100).toFixed(1)+'%';
+  const version=current.question_set_version?String(current.question_set_version):'—';
+  const delta=trend.delta_pp==null?'':` · ${Number(trend.delta_pp)>0?'+':''}${trend.delta_pp}pp`;
+  return `<div class="measurement-strip">
+    <div class="measurement-item"><span style="font-size:10.5px;color:var(--t600)">${uiText('有效样本')}</span><span class="measurement-value">${effective}</span></div>
+    <div class="measurement-item"><span style="font-size:10.5px;color:var(--t600)">${uiText('采样失败率')}</span><span class="measurement-value">${failure}</span></div>
+    <div class="measurement-item"><span style="font-size:10.5px;color:var(--t600)">${uiText('问题集版本')}</span><span class="measurement-value" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px">${esc(version)}</span></div>
+    <div class="measurement-item"><span style="font-size:10.5px;color:var(--t600)">${uiText('前后期可比性')}</span><span class="measurement-value" style="font-size:14px">${quality.comparable?uiText('可直接比较'):uiText('不可直接比较')}</span></div>
+    <div style="grid-column:1/-1;padding:10px 14px;background:var(--deep);font-size:12px;line-height:1.55"><span class="tag ${trend.status==='noteworthy'?'tag-accent':'tag-outline'}" style="margin-right:7px">${esc(trend.label||'暂无趋势')}${esc(delta)}</span>${esc(trend.detail||quality.comparison_reason||'')}</div>
+  </div>`;
+}
+
+const engineVisibilityWithQuality = vEngines;
+vEngines = function () {
+  const panel=measurementQualityPanel();
+  const output=engineVisibilityWithQuality();
+  return panel?`<section class="measurement-section">${panel}</section>`+output:output;
+};
+VIEWS.engines=vEngines;
+
+const engineVerifyWithQuality = vVerify;
+vVerify = function () {
+  const panel=measurementQualityPanel();
+  const output=engineVerifyWithQuality();
+  return panel?`<section class="measurement-section" style="max-width:1180px">${panel}</section>`+output:output;
+};
+VIEWS.verify=vVerify;
+
+const engineReportWithQuality = vReport;
+vReport = function () { return reportQualitySection()+engineReportWithQuality(); };
+VIEWS.report=vReport;
+
+function ticketActivityText(item) {
+  if(item.type==='verification')return `${uiText('自动验收')} · ${item.verdict||''}${item.evidence?' · '+item.evidence:''}`;
+  const fields=Object.keys(item.changes||{}).map(function(key){const change=item.changes[key]||{};return `${key}: ${change.from==null?'—':change.from} → ${change.to==null?'—':change.to}`;});
+  if(item.note)fields.push(item.note);
+  return fields.join(' · ')||uiText('工单已更新');
+}
+
+taskModal = function (id) {
+  const ticket=(D.tasks||[]).find(function(item){return item.id===id;});if(!ticket)return;
+  const acceptance=ticket.acceptance||{},activity=(ticket.activity||[]).slice().reverse(),failed=activity.find(function(item){return item.type==='verification'&&item.verdict==='未达标';});
+  const title=ticket['title_'+ULANG]||(UI_D[ULANG]||{})[ticket.title]||ticket.title||ticket.id;
+  modal(`<h4 style="font-size:17px">${esc(ticket.id)} · ${esc(title)}</h4>
+    <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><span class="tag ${ticket.priority==='P0'?'tag-accent':'tag-neutral'}">${esc(ticket.priority||'')}</span><span class="tag tag-outline">${esc(ticket['package_'+ULANG]||playbookLocalized(ticket.package||''))}</span><span style="font-size:11.5px;color:var(--t600)">${uiText('工作量')} ${esc(ticket.effort||'—')} · ${esc(ticket.window||'—')}</span></div>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">${uiText('为什么做')}</div><div style="font-size:13px;line-height:1.6;color:var(--t400)">${esc(ticket.why||'—')}</div>
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">${uiText('具体怎么干')}</div><div style="font-size:13px;line-height:1.6">${esc(ticket.action||'—')}</div>
+    ${ticket.url?`<div style="font-size:12px;color:var(--t600);margin:12px 0 3px">${uiText('目标页面')}</div><a href="${esc(ticket.url)}" target="_blank" rel="noopener noreferrer" style="font-size:12.5px;color:var(--a300);overflow-wrap:anywhere">${esc(ticket.url)}</a>`:''}
+    <div style="font-size:12px;color:var(--t600);margin:12px 0 3px">${uiText('验收标准')} · ${acceptance.type==='auto'?uiText('自动'):uiText('人工')}</div><div style="font-size:13px;line-height:1.6">${esc(acceptance.desc||'—')}</div>
+    ${failed?`<div style="margin-top:12px;padding:10px 12px;border-left:3px solid var(--bad);background:var(--deep)"><strong style="font-size:12px;color:var(--bad)">${uiText('最近自动验收未通过')}</strong><div style="font-size:12px;color:var(--t400);margin-top:4px">${esc(failed.evidence||'未记录失败证据')}</div><div style="font-size:12px;margin-top:5px"><span style="color:var(--t600)">${uiText('下一步')}：</span>${esc(failed.next_action||ticket.action||'按验收标准修复后重新运行验收')}</div></div>`:''}
+    <div class="ticket-modal-grid"><label style="font-size:11.5px;color:var(--t500)">${uiText('负责人')}<input id="ticket-owner" class="input" maxlength="128" value="${esc(ticket.owner||'')}" style="margin-top:5px"></label><label style="font-size:11.5px;color:var(--t500)">${uiText('截止日期')}<input id="ticket-due-date" class="input" type="date" value="${esc(ticket.due_date||'')}" style="margin-top:5px"></label><label style="font-size:11.5px;color:var(--t500)">${uiText('状态')}<select id="ticket-status" class="input" style="margin-top:5px">${Object.keys(playbookStatusLabel).map(function(value){return `<option value="${value}" ${ticket.status===value?'selected':''}>${esc(playbookLocalized(playbookStatusLabel[value]))}</option>`;}).join('')}</select></label><label style="font-size:11.5px;color:var(--t500)">${uiText('添加备注')}<input id="ticket-note" class="input" maxlength="2000" placeholder="${uiText('记录进展、阻塞或交付说明')}" style="margin-top:5px"></label></div>
+    <div style="font-size:12px;color:var(--t600);margin:14px 0 3px">${uiText('修改与验收时间线')}</div><div class="ticket-timeline">${activity.map(function(item){return `<div class="ticket-timeline-item"><strong style="color:var(--t400);font-weight:500">${esc((item.at||'').slice(0,16).replace('T',' '))}</strong> · ${esc(item.actor||'system')}<div>${esc(ticketActivityText(item))}</div></div>`;}).join('')||`<div class="ticket-timeline-item">${uiText('暂无时间线记录')}</div>`}</div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px;flex-wrap:wrap">${ticket.kind==='offsite'?`<button class="btn btn-secondary" style="margin-right:auto" onclick="outreachRecipientModal('${esc(ticket.id)}')">${uiText('准备联络邮件')}</button>`:''}<button class="btn btn-ghost" onclick="closeModal()">${uiText('取消')}</button><button class="btn btn-primary" onclick="saveTicketWorkflow('${esc(ticket.id)}')">${uiText('保存工单')}</button></div>`);
+}
+
+async function saveTicketWorkflow(ticketId) {
+  const owner=(($('#ticket-owner')||{}).value||'').trim();if(!owner){toast('负责人不能为空','err');return;}
+  const result=await post('/api/task',{slug:SLUG,id:ticketId,status:($('#ticket-status')||{}).value,owner:owner,due_date:(($('#ticket-due-date')||{}).value||null),note:(($('#ticket-note')||{}).value||'').trim()});
+  if(!result.ok||!result.task){toast('更新失败：'+(result.error||'ticket_update_failed'),'err');return;}
+  D.tasks=(D.tasks||[]).map(function(ticket){return ticket.id===ticketId?result.task:ticket;});closeModal();toast('工单已更新');render();
+}
 
 const enginePlanView = vPlan;
 const playbookPriorityOrder = {P0:0,P1:1,P2:2};
@@ -2307,6 +2830,50 @@ function sortedPlaybookTasks(tasks) {
     }).map(function (item) { return item.task; });
 }
 
+function ticketFilters() {
+  ST.ticketFilters=ST.ticketFilters||{status:'',owner:'',priority:'',q:''};
+  return ST.ticketFilters;
+}
+
+function filteredPlaybookTasks() {
+  const filters=ticketFilters(),needle=String(filters.q||'').trim().toLowerCase();
+  return sortedPlaybookTasks(D.tasks).filter(function(task){
+    return (!filters.status||task.status===filters.status)&&(!filters.owner||task.owner===filters.owner)&&
+      (!filters.priority||task.priority===filters.priority)&&(!needle||[task.id,task.title,task.action].join(' ').toLowerCase().includes(needle));
+  });
+}
+
+function setTicketFilter(key,value) {
+  ticketFilters()[key]=value;
+  ST.ticketSelected=[];
+  render();
+}
+
+function clearTicketFilters() {
+  ST.ticketFilters={status:'',owner:'',priority:'',q:''};
+  ST.ticketSelected=[];
+  render();
+}
+
+function selectedTicketIds() {
+  ST.ticketSelected=Array.isArray(ST.ticketSelected)?ST.ticketSelected:[];
+  return ST.ticketSelected;
+}
+
+function toggleTicketSelection(ticketId,selected) {
+  const ids=selectedTicketIds().filter(function(id){return id!==ticketId;});
+  if(selected)ids.push(ticketId);
+  ST.ticketSelected=ids;
+  render();
+}
+
+function toggleVisibleTickets(selected) {
+  const visible=filteredPlaybookTasks().map(function(task){return task.id;});
+  const current=selectedTicketIds().filter(function(id){return !visible.includes(id);});
+  ST.ticketSelected=selected?current.concat(visible):current;
+  render();
+}
+
 function playbookTaskButton(task) {
   const complete=['done','wontfix'].includes(task.status);
   const title = task['title_'+ULANG] || (UI_D[ULANG] || {})[task.title] || task.title || task.id;
@@ -2314,6 +2881,36 @@ function playbookTaskButton(task) {
     <span class="playbook-task-top"><span>${esc(task.id || '')}</span><span>${esc(playbookLocalized(playbookStatusLabel[task.status] || task.status))}</span></span>
     <span class="playbook-task-title">${esc(title)}</span>
     <span class="playbook-task-meta">${esc(task['owner_'+ULANG] || playbookLocalized(task.owner || '未分配'))} · ${esc(task['package_'+ULANG] || playbookLocalized(task.package || ''))}</span></button>`;
+}
+
+function playbookList(tasks) {
+  const selected=selectedTicketIds(),allSelected=tasks.length&&tasks.every(function(task){return selected.includes(task.id);});
+  return `<div class="tbl"><table class="table"><thead><tr><th style="width:36px"><input type="checkbox" aria-label="${uiText('选择当前筛选结果')}" ${allSelected?'checked':''} onchange="toggleVisibleTickets(this.checked)"></th><th>${uiText('任务')}</th><th style="width:100px">${uiText('负责人')}</th><th style="width:105px">${uiText('截止日期')}</th><th style="width:90px">${uiText('优先级')}</th><th style="width:120px">${uiText('状态')}</th></tr></thead><tbody>
+    ${tasks.map(function(task){const title=task['title_'+ULANG]||(UI_D[ULANG]||{})[task.title]||task.title||task.id,due=task.due_date||'—';return `<tr><td><input type="checkbox" aria-label="${esc(task.id)}" ${selected.includes(task.id)?'checked':''} onchange="toggleTicketSelection(${esc(JSON.stringify(task.id))},this.checked)"></td><td><button type="button" class="btn btn-ghost" style="padding:0;text-align:left;white-space:normal" onclick="taskModal(${esc(JSON.stringify(task.id))})"><span style="display:block;font-size:13px;color:var(--text)">${esc(task.id)} · ${esc(title)}</span><span style="display:block;margin-top:3px;font-size:11px;color:var(--t600)">${esc(task['package_'+ULANG]||playbookLocalized(task.package||''))} · ${esc(task.effort||'')}</span></button></td><td style="font-size:12px;color:var(--t400);overflow-wrap:anywhere">${esc(task['owner_'+ULANG]||playbookLocalized(task.owner||'未分配'))}</td><td style="font-size:12px;color:${task.due_date&&task.due_date<new Date().toISOString().slice(0,10)&&!['done','wontfix'].includes(task.status)?'var(--bad)':'var(--t500)'}">${esc(due)}</td><td><span class="tag ${task.priority==='P0'?'tag-accent':'tag-outline'}">${esc(task.priority||'—')}</span></td><td><span class="tag ${task.status==='done'?'pill-good':'tag-outline'}">${esc(playbookLocalized(playbookStatusLabel[task.status]||task.status))}</span></td></tr>`;}).join('')||`<tr><td colspan="6" class="muted" style="font-size:12px">${uiText('没有符合筛选条件的任务')}</td></tr>`}
+    </tbody></table></div>`;
+}
+
+function playbookFilterToolbar(tasks) {
+  const filters=ticketFilters(),owners=Array.from(new Set((D.tasks||[]).map(function(task){return task.owner;}).filter(Boolean))).sort();
+  const selected=selectedTicketIds();
+  return `<div class="ticket-toolbar"><input class="input ticket-search" value="${esc(filters.q)}" placeholder="${uiText('搜索任务')}" onchange="setTicketFilter('q',this.value)">
+    <select class="input" onchange="setTicketFilter('status',this.value)"><option value="">${uiText('全部状态')}</option>${Object.keys(playbookStatusLabel).map(function(value){return `<option value="${value}" ${filters.status===value?'selected':''}>${esc(playbookLocalized(playbookStatusLabel[value]))}</option>`;}).join('')}</select>
+    <select class="input" onchange="setTicketFilter('owner',this.value)"><option value="">${uiText('全部负责人')}</option>${owners.map(function(value){return `<option value="${esc(value)}" ${filters.owner===value?'selected':''}>${esc(playbookLocalized(value))}</option>`;}).join('')}</select>
+    <select class="input" onchange="setTicketFilter('priority',this.value)"><option value="">${uiText('全部优先级')}</option>${['P0','P1','P2'].map(function(value){return `<option value="${value}" ${filters.priority===value?'selected':''}>${value}</option>`;}).join('')}</select>
+    <button class="btn btn-ghost" onclick="clearTicketFilters()">${uiText('清除筛选')}</button><span style="font-size:11.5px;color:var(--t600);margin-left:auto">${tasks.length} / ${(D.tasks||[]).length}</span></div>
+    ${selected.length?`<div class="ticket-bulk"><strong style="font-size:12px">${uiText('已选择')} ${selected.length}</strong><select id="ticket-bulk-status" class="input"><option value="">${uiText('修改状态')}</option>${Object.keys(playbookStatusLabel).map(function(value){return `<option value="${value}">${esc(playbookLocalized(playbookStatusLabel[value]))}</option>`;}).join('')}</select><input id="ticket-bulk-owner" class="input" maxlength="128" placeholder="${uiText('负责人')}"><input id="ticket-bulk-due" class="input" type="date"><input id="ticket-bulk-note" class="input ticket-search" maxlength="2000" placeholder="${uiText('批量备注（可选）')}"><button class="btn btn-primary" onclick="applyTicketBulkUpdate()">${uiText('应用')}</button></div>`:''}`;
+}
+
+async function applyTicketBulkUpdate() {
+  const ticketIds=selectedTicketIds();if(!ticketIds.length)return;
+  const payload={slug:SLUG,ticket_ids:ticketIds},statusValue=($('#ticket-bulk-status')||{}).value||'',ownerValue=(($('#ticket-bulk-owner')||{}).value||'').trim(),dueValue=(($('#ticket-bulk-due')||{}).value||'').trim(),noteValue=(($('#ticket-bulk-note')||{}).value||'').trim();
+  if(statusValue)payload.status=statusValue;if(ownerValue)payload.owner=ownerValue;if(dueValue)payload.due_date=dueValue;if(noteValue)payload.note=noteValue;
+  if(Object.keys(payload).length===2){toast('请选择至少一项批量修改内容','err');return;}
+  const result=await post('/api/tasks-bulk',payload);
+  if(result.error||result.detail){toast('批量更新失败：'+(result.error||result.detail),'err');return;}
+  const changed=new Map((result.tickets||[]).map(function(ticket){return [ticket.id,ticket];}));
+  D.tasks=(D.tasks||[]).map(function(ticket){return changed.get(ticket.id)||ticket;});
+  ST.ticketSelected=[];toast(`已更新 ${Number(result.updated||0)} 项任务`);render();
 }
 
 function playbookMatrix(tasks) {
@@ -2348,15 +2945,50 @@ vPlan = function () {
     .replace('<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0 18px">','<div class="playbook-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0 18px">');
   const tableStart=html.indexOf('<div class="tbl">'), pageEnd=html.lastIndexOf('\n  </div>');
   if (tableStart<0 || pageEnd<tableStart) return html;
-  const list=html.slice(tableStart,pageEnd);
+  const tasks=filteredPlaybookTasks(),list=playbookList(tasks);
   const labels={zh:'行动计划视图',en:'Action plan view',ja:'アクションプラン表示'};
-  const toolbar=`<div class="playbook-toolbar"><div style="font-size:12px;color:var(--t500)">${uiText(ST.planView==='matrix'?'影响优先级 × 工作量':'全部任务')}</div>
+  const toolbar=playbookFilterToolbar(tasks)+`<div class="playbook-toolbar"><div style="font-size:12px;color:var(--t500)">${uiText(ST.planView==='matrix'?'影响优先级 × 工作量':'全部任务')}</div>
     <div class="seg playbook-view-switch" role="group" aria-label="${labels[ULANG] || labels.en || labels.zh}">
       <button class="playbook-view-button ${ST.planView==='matrix'?'on':''}" aria-pressed="${ST.planView==='matrix'}" onclick="setPlaybookView('matrix')">${uiText('矩阵')}</button>
       <button class="playbook-view-button ${ST.planView==='list'?'on':''}" aria-pressed="${ST.planView==='list'}" onclick="setPlaybookView('list')">${uiText('列表')}</button></div></div>`;
-  return html.slice(0,tableStart)+toolbar+(ST.planView==='matrix'?playbookMatrix(D.tasks):list)+html.slice(pageEnd);
+  return html.slice(0,tableStart)+toolbar+(ST.planView==='matrix'?playbookMatrix(tasks):list)+html.slice(pageEnd);
 };
 VIEWS.plan = vPlan;
+
+let PENDING_SAMPLE_RUN = null;
+const runActionWithoutEstimate = runAction;
+
+function sampleEstimatePayload(params) {
+  params=params||{};
+  const value=function(name,defaultValue){return Object.prototype.hasOwnProperty.call(params,'--'+name)?params['--'+name]:(Object.prototype.hasOwnProperty.call(params,name)?params[name]:defaultValue);};
+  let platforms=value('platforms',null);
+  if(typeof platforms==='string')platforms=platforms.split(',').map(function(item){return item.trim();}).filter(Boolean);
+  return {limit:value('limit',null),platforms:platforms,repeat:Number(value('repeat',1)||1)};
+}
+
+runAction = async function (action,params) {
+  params=params||{};
+  const noSample=!!(params['--no-sample']||params.no_sample);
+  if(!['sample','autopilot','serve'].includes(action)||noSample)return runActionWithoutEstimate(action,params);
+  const result=await post('/api/sample-estimate',sampleEstimatePayload(params));
+  if(result.error||result.detail){toast('估算失败：'+(result.error||result.detail),'err');return null;}
+  const estimate=result.estimate||{},budget=result.budget||{},platforms=result.platforms||[],blocked=!!budget.paused||(action==='sample'&&!Number(estimate.calls||0));
+  const sourceLabel={byok:'BYOK',platform_pool:'平台代付',unavailable:'不可用'};
+  PENDING_SAMPLE_RUN={action:action,params:params};
+  modal(`<h4 style="font-size:17px">${uiText('确认采样调用')}</h4><div style="font-size:12px;color:var(--t500);margin-top:6px">${esc((ACTIONS[action]||{}).label||action)} · ${uiText('启动前估算')}</div>
+    <div class="estimate-grid"><div class="estimate-cell"><span style="font-size:10.5px;color:var(--t600)">${uiText('预计调用')}</span><strong style="display:block;margin-top:3px;font-size:20px">${Number(estimate.calls||0).toLocaleString()}</strong></div><div class="estimate-cell"><span style="font-size:10.5px;color:var(--t600)">${uiText('预计耗时')}</span><strong style="display:block;margin-top:3px;font-size:20px">${Number(estimate.minutes||0)} min</strong></div><div class="estimate-cell"><span style="font-size:10.5px;color:var(--t600)">${uiText('平台代付费用')}</span><strong style="display:block;margin-top:3px;font-size:16px">${formatCnyFen(estimate.platform_pool_cost_cny_fen)}</strong></div></div>
+    <div style="max-height:190px;overflow:auto">${platforms.map(function(item){return `<div class="row" style="padding:7px 0;box-shadow:inset 0 -1px 0 var(--line);font-size:12px"><span style="flex:1">${esc(item.engine_name||item.engine_code)}<small style="display:block;color:var(--t600);margin-top:2px">${esc(item.sampling_mode||'')}</small></span><span class="tag ${item.source==='platform_pool'?'tag-accent':'tag-outline'}">${uiText(sourceLabel[item.source]||item.source)}</span><span style="width:70px;text-align:right">${Number(item.calls||0)} ${uiText('次')}</span></div>`;}).join('')||`<div style="font-size:12px;color:var(--bad);padding:8px 0">${uiText('没有可用 API 采样引擎')}</div>`}</div>
+    <div style="font-size:11.5px;color:var(--t600);line-height:1.55;margin-top:10px">${esc(estimate.byok_cost_note||'')}</div>
+    ${budget.call_limit_exceeded?`<div style="font-size:12px;color:var(--bad);margin-top:8px">${uiText('预计调用超过项目单次上限')}</div>`:''}${budget.budget_exceeded?`<div style="font-size:12px;color:var(--bad);margin-top:8px">${uiText('预计平台费用超过项目月度预算')}</div>`:''}
+    <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn btn-ghost" onclick="PENDING_SAMPLE_RUN=null;closeModal()">${uiText('取消')}</button>${blocked&&action==='sample'&&!Number(estimate.calls||0)?`<button class="btn btn-secondary" onclick="closeModal();go('engine-settings')">${uiText('配置模型')}</button>`:`<button class="btn btn-primary" ${blocked?'disabled':''} onclick="confirmEstimatedRun()">${uiText('确认并启动')}</button>`}</div>`);
+  return null;
+};
+
+async function confirmEstimatedRun() {
+  const pending=PENDING_SAMPLE_RUN;if(!pending)return;
+  PENDING_SAMPLE_RUN=null;closeModal();
+  return runActionWithoutEstimate(pending.action,pending.params);
+}
 /*__DISVORAI_I18N_RUNTIME__*/
 </script>
 """
@@ -2422,7 +3054,15 @@ def serve_ui():
         'Geo<span style="color:var(--accent)">Look</span>',
         'Disvor<span style="color:var(--accent)">AI</span>',
     )
-    html = html.replace("</style>", SETTINGS_RESPONSIVE_STYLE + ADMIN_SHELL_STYLE + "</style>", 1)
+    html = html.replace(
+        "</style>",
+        SETTINGS_RESPONSIVE_STYLE + ADMIN_SHELL_STYLE + PRODUCT_UI_STYLE + "</style>",
+        1,
+    )
+    html = html.replace('stroke="#3f424d"', 'stroke="#d9dfda"')
+    html = html.replace('fill="#9184d9"', 'fill="#216a4b"')
+    html = html.replace('stroke="#9184d9"', 'stroke="#216a4b"')
+    html = html.replace('background:#595d6c', 'background:#9aa69d')
     html = html.replace(
         '<button id="burger" class="btn btn-secondary" onclick="document.getElementById(\'side\').classList.toggle(\'open\')">☰</button>',
         '<button id="burger" class="btn btn-secondary" type="button" aria-label="打开导航" '
@@ -2495,15 +3135,15 @@ def serve_ui():
     )
     html = html.replace(
         "${mktLabel(x.market)} · ${x.searched?'联网':'参数化知识'}",
-        "${esc(x.sampling_mode || (x.searched?'API · 联网检索':'API · 模型内知识'))}",
+        "${esc(x.sampling_mode || (x.searched?'API·联网检索':'API·参数化知识'))}",
     )
     html = html.replace(
         "${mktLabel(k.market)} · ${k.ok===false?'缺 API Key':'仅人工采样'}",
-        "${k.ok===false?(k.search?(ULANG==='en'?'API · Web-grounded retrieval · API key required':ULANG==='ja'?'API · Web グラウンデッド検索 · API キーが必要':'API · 联网检索 · 缺 Key'):(ULANG==='en'?'API · Model knowledge · API key required':ULANG==='ja'?'API · モデル知識 · API キーが必要':'API · 模型内知识 · 缺 Key')):(ULANG==='en'?'Manual · Product-surface check':ULANG==='ja'?'手動 · プロダクト画面確認':'人工 · 产品端核验')}",
+        "${k.ok===false?(k.search?'API·联网检索 · 缺 Key':'API·参数化知识 · 缺 Key'):'人工·产品端'}",
     )
     html = html.replace(
         "${mktLabel(k.market)}${k.search?' · 联网':''}",
-        "${k.manual?'人工 · 产品端核验':(k.search?'API · 联网检索':'API · 模型内知识')}",
+        "${k.manual?'人工·产品端':(k.search?'API·联网检索':'API·参数化知识')}",
     )
     html = html.replace(
         '''    {who:'给客户',name:'交付包',desc:'诊断报告、优化方案、工单表（CSV）、验收表、资产目录与说明。',

@@ -43,7 +43,11 @@ def check_project_creation(db: Session, tenant: Tenant):
     project_limit = plan.get("projects") if plan else None
     if project_limit is None:
         return
-    count = db.query(func.count(Project.id)).filter(Project.tenant_id == tenant.id).scalar() or 0
+    count = db.query(func.count(Project.id)).filter(
+        Project.tenant_id == tenant.id,
+        Project.archived_at.is_(None),
+        Project.status != "archived",
+    ).scalar() or 0
     if count >= project_limit:
         error = "trial_limit_exceeded" if trial else "plan_limit_exceeded"
         _raise_limit(f"{tenant.plan} projects limit is {project_limit}", error=error)
@@ -55,7 +59,7 @@ def check_sample_run(db: Session, tenant: Tenant, project: Project):
         return
     count = (
         db.query(func.count(Job.id))
-        .filter(Job.project_id == project.id, Job.action.in_(SAMPLE_JOB_ACTIONS))
+        .filter(Job.project_id == project.id, Job.action.in_(SAMPLE_JOB_ACTIONS), Job.status != "failed")
         .scalar()
         or 0
     )
@@ -65,14 +69,22 @@ def check_sample_run(db: Session, tenant: Tenant, project: Project):
 
 def usage(db: Session, tenant: Tenant) -> dict:
     """返回当前租户用量和额度。"""
-    project_count = db.query(func.count(Project.id)).filter(Project.tenant_id == tenant.id).scalar() or 0
-    projects = db.query(Project.id).filter(Project.tenant_id == tenant.id).all()
+    project_count = db.query(func.count(Project.id)).filter(
+        Project.tenant_id == tenant.id,
+        Project.archived_at.is_(None),
+        Project.status != "archived",
+    ).scalar() or 0
+    projects = db.query(Project.id).filter(
+        Project.tenant_id == tenant.id,
+        Project.archived_at.is_(None),
+        Project.status != "archived",
+    ).all()
     project_ids = [row[0] for row in projects]
     sample_count = 0
     if project_ids:
         sample_count = (
             db.query(func.count(Job.id))
-            .filter(Job.project_id.in_(project_ids), Job.action.in_(SAMPLE_JOB_ACTIONS))
+            .filter(Job.project_id.in_(project_ids), Job.action.in_(SAMPLE_JOB_ACTIONS), Job.status != "failed")
             .scalar()
             or 0
         )
@@ -80,7 +92,7 @@ def usage(db: Session, tenant: Tenant) -> dict:
     for project_id in project_ids:
         per_project[str(project_id)] = (
             db.query(func.count(Job.id))
-            .filter(Job.project_id == project_id, Job.action.in_(SAMPLE_JOB_ACTIONS))
+            .filter(Job.project_id == project_id, Job.action.in_(SAMPLE_JOB_ACTIONS), Job.status != "failed")
             .scalar()
             or 0
         )

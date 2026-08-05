@@ -6,6 +6,8 @@
   var catalog = {};
   var locale = "en";
   var billingInterval = "monthly";
+  var menuButton = document.querySelector(".nav-menu-toggle");
+  var siteHeader = document.querySelector(".site-header");
   var SUPPORTED = ["en", "zh", "ja"];
   var HTML_LANG = { en: "en", zh: "zh-CN", ja: "ja" };
 
@@ -21,6 +23,15 @@
     var browser = (navigator.language || "").toLowerCase();
     var raw = requested || saved || (browser.indexOf("zh") === 0 ? "zh" : browser.indexOf("ja") === 0 ? "ja" : "en");
     return SUPPORTED.indexOf(raw) >= 0 ? raw : "en";
+  }
+
+  if (menuButton && siteHeader) {
+    menuButton.addEventListener("click", function () {
+      var open = siteHeader.classList.toggle("nav-open");
+      menuButton.setAttribute("aria-expanded", String(open));
+      menuButton.textContent = open ? t("nav.close") : t("nav.menu");
+      menuButton.setAttribute("aria-label", t(open ? "nav.close" : "nav.open"));
+    });
   }
 
   function t(key) {
@@ -63,6 +74,13 @@
     });
   }
 
+  function applyLocaleImages() {
+    document.querySelectorAll("[data-locale-src-en]").forEach(function (image) {
+      var source = image.getAttribute("data-locale-src-" + locale) || image.getAttribute("data-locale-src-en");
+      if (source && image.getAttribute("src") !== source) image.setAttribute("src", source);
+    });
+  }
+
   function applyBillingLabels() {
     document.querySelectorAll("[data-monthly][data-annual]").forEach(function (item) {
       item.textContent = item.getAttribute("data-" + billingInterval) || item.textContent;
@@ -72,6 +90,7 @@
   function setLocale(next) {
     if (SUPPORTED.indexOf(next) < 0) next = "en";
     locale = next;
+    applyLocaleImages();
     try {
       localStorage.setItem("ulang", locale);
     } catch (error) {

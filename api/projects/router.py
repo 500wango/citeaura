@@ -1,27 +1,36 @@
 """项目 CRUD、Bootstrap 和任务查询 API。"""
 
 import io
+import json
 import re
 import zipfile
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy.orm import Session
 
 from api.adapters.engine import ENGINE_KEY_ENV, geolib, job_log_path, load_tenant_keys, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import framing, workspace
+from api.adapters import framing, preflight, report_quality, sampling_control, ticket_workflow, workspace
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.db import get_db
 from api.models import ApiKey, Job, Project, Tenant, User
-from api.worker.tasks import PIPELINE_ACTIONS, task_bootstrap, task_deliver, task_pipeline, task_sample, task_verify
+from api.worker.tasks import (
+    PIPELINE_ACTIONS,
+    task_bootstrap,
+    task_cycle,
+    task_deliver,
+    task_pipeline,
+    task_sample,
+    task_verify,
+)
 from api.adapters.localization import localize_tickets
 
 
@@ -52,18 +61,46 @@ class ProjectCreate(BaseModel):
 class SampleRequest(BaseModel):
     limit: int | None = Field(default=None, ge=1, le=1000)
     platforms: list[str] | None = None
+    repeat: int = Field(default=1, ge=1, le=10)
+
+
+class ProjectPreflight(BaseModel):
+    url: str = Field(min_length=1, max_length=2048)
+    question_count: int = Field(default=30, ge=1, le=1000)
+    platforms: list[str] | None = None
+
+    @field_validator("url")
+    @classmethod
+    def normalize_url(cls, value: str):
+        return preflight.normalize_url(value)
 
 
 class TicketUpdate(BaseModel):
-    status: str
+    status: str | None = None
+    owner: str | None = Field(default=None, min_length=1, max_length=128)
+    due_date: str | None = None
     note: str = Field(default="", max_length=2000)
 
     @field_validator("status")
     @classmethod
     def validate_status(cls, value: str):
+        if value is None:
+            return value
         if value not in ("todo", "doing", "done", "blocked", "wontfix"):
             raise ValueError("invalid ticket status")
         return value
+
+    @field_validator("due_date")
+    @classmethod
+    def validate_due_date(cls, value):
+        if value in (None, ""):
+            return value
+        date.fromisoformat(value)
+        return value
+
+
+class TicketBulkUpdate(TicketUpdate):
+    ticket_ids: list[str] = Field(min_length=1, max_length=100)
 
 
 class OffsiteTicketCreate(BaseModel):
@@ -91,6 +128,18 @@ class SamplingFundingRequest(BaseModel):
     platform_pool_enabled: bool
 
 
+class SamplingBudgetRequest(BaseModel):
+    monthly_budget_cny_fen: int | None = Field(default=None, ge=0, le=100_000_000)
+    sample_call_limit: int | None = Field(default=None, ge=1, le=1_000_000)
+    pause_on_budget_exceeded: bool = True
+
+
+class SampleEstimateRequest(BaseModel):
+    limit: int | None = Field(default=None, ge=1, le=1000)
+    platforms: list[str] | None = None
+    repeat: int = Field(default=1, ge=1, le=10)
+
+
 def _error(status_code: int, message: str):
     """抛出统一 API 错误。"""
     raise HTTPException(status_code=status_code, detail={"error": message})
@@ -107,7 +156,12 @@ def _project_for_user(db: Session, user: User, project_id: int) -> Project:
     tenant = _tenant_for_user(db, user)
     project = (
         db.query(Project)
-        .filter(Project.id == project_id, Project.tenant_id == tenant.id)
+        .filter(
+            Project.id == project_id,
+            Project.tenant_id == tenant.id,
+            Project.archived_at.is_(None),
+            Project.status != "archived",
+        )
         .first()
     )
     if project is None:
@@ -131,11 +185,25 @@ def _job_payload(job: Job, include_log: bool = True, log_offset: int | None = No
                 next_offset = start + len(log)
         except OSError:
             log = ""
+    derived_stage, derived_progress = _progress_from_log(log)
+    progress = max(int(job.progress or 0), derived_progress)
+    stage = derived_stage if progress > int(job.progress or 0) else (job.stage or "queued")
+    if job.status == "done":
+        stage, progress = "complete", 100
+    elif job.status == "failed":
+        stage = "failed"
     return {
         "id": job.id,
         "project_id": job.project_id,
         "action": job.action,
         "status": job.status,
+        "stage": stage,
+        "progress": progress,
+        "attempt": job.attempt or 1,
+        "request": _request_payload(job.request_json),
+        "celery_task_id": job.celery_task_id,
+        "retry_of_job_id": job.retry_of_job_id,
+        "can_retry": job.status == "failed",
         "started_at": job.started_at,
         "finished_at": job.finished_at,
         "error": job.error,
@@ -143,6 +211,52 @@ def _job_payload(job: Job, include_log: bool = True, log_offset: int | None = No
         "log": log,
         "log_offset": next_offset,
     }
+
+
+def _progress_from_log(log: str):
+    """从旧引擎已有的 info 输出推导阶段，不修改 engine。"""
+    if not log:
+        return None, 0
+    stage = None
+    progress = 0
+    for match in re.finditer(r"═══\s*(\d+)\s*/\s*(\d+)\s*([^═\n]*)═══", log):
+        current, total = int(match.group(1)), max(1, int(match.group(2)))
+        progress = max(progress, min(95, round(current / total * 90)))
+        stage = match.group(3).strip() or stage
+    for match in re.finditer(r"\[geo\]\s*(\d+)\s*/\s*(\d+)", log):
+        current, total = int(match.group(1)), max(1, int(match.group(2)))
+        progress = max(progress, min(95, round(current / total * 90)))
+        stage = "sampling" if stage is None else stage
+    return stage, progress
+
+
+def _request_payload(value):
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+        return parsed if isinstance(parsed, dict) else {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def _safe_request_json(action, params=None):
+    """只保存动作白名单内的参数，避免把用户误传的密钥写入数据库。"""
+    params = params or {}
+    if action == "sample":
+        values = {"limit": params.get("limit"), "platforms": params.get("platforms"), "repeat": params.get("repeat", 1)}
+    elif action in PIPELINE_ACTIONS:
+        allowed = set(PIPELINE_ACTIONS[action].get("args", []))
+        values = {}
+        for name, value in params.items():
+            flag = str(name)
+            if not flag.startswith("--"):
+                flag = "--" + flag.replace("_", "-")
+            if flag in allowed:
+                values[flag] = value
+    else:
+        values = params
+    return json.dumps(values, ensure_ascii=False, default=str)[:10000]
 
 
 def _latest_file(directory: Path, pattern: str):
@@ -155,6 +269,40 @@ def _active_job(db: Session, project_id: int):
         Job.project_id == project_id,
         Job.status.in_(("queued", "running")),
     ).order_by(Job.id.desc()).first()
+
+
+def _available_outputs(project_slug):
+    directory = geolib.project_dir(project_slug)
+    return {
+        "audit": (directory / "audit.json").is_file(),
+        "metrics": bool(list((directory / "metrics").glob("*.json"))) if (directory / "metrics").exists() else False,
+        "tasks": (directory / "tasks.json").is_file(),
+        "delivery": bool(list((directory / "delivery").glob("*"))) if (directory / "delivery").exists() else False,
+    }
+
+
+def _top_actions(tickets, limit=3):
+    indexed = [(index, item) for index, item in enumerate(tickets or []) if isinstance(item, dict)]
+    indexed = [pair for pair in indexed if pair[1].get("status") not in ("done", "wontfix")]
+    indexed.sort(key=lambda pair: (
+        PLAYBOOK_PRIORITY.get(pair[1].get("priority"), 99),
+        PLAYBOOK_EFFORT.get(pair[1].get("effort"), 99),
+        pair[0],
+    ))
+    items = []
+    for _, raw in indexed[:limit]:
+        item = dict(raw)
+        evidence = item.get("evidence") or []
+        if not isinstance(evidence, list):
+            evidence = [evidence]
+        first_evidence = evidence[0] if evidence and isinstance(evidence[0], dict) else {}
+        item.setdefault("why", item.get("reason") or first_evidence.get("detail") or "该行动优先级较高，建议本周完成")
+        item.setdefault("action", item.get("title") or item.get("description") or "按工单执行")
+        item.setdefault("owner", item.get("owner") or "GEO顾问")
+        item.setdefault("acceptance", item.get("acceptance") or {"type": "manual", "desc": "完成后重新运行验收"})
+        item["evidence"] = evidence
+        items.append(item)
+    return localize_tickets(items)
 
 
 def _schedule_payload(project: Project):
@@ -222,6 +370,112 @@ def _sampling_funding_payload(db, tenant, project, user):
         "pool_engines": catalog,
         "effective_engines": effective,
         "usage": usage_summary(db, tenant),
+        "budget_settings": {
+            "monthly_budget_cny_fen": project.monthly_budget_cny_fen,
+            "sample_call_limit": project.sample_call_limit,
+            "pause_on_budget_exceeded": bool(project.pause_on_budget_exceeded),
+        },
+    }
+
+
+def _has_api_keys(db, tenant_id):
+    return db.query(ApiKey.id).filter(
+        ApiKey.tenant_id == tenant_id,
+        ApiKey.engine_code.in_(tuple(ENGINE_KEY_ENV)),
+    ).first() is not None
+
+
+def _has_sampling_access(db, tenant, project):
+    return _has_api_keys(db, tenant.id) or bool(
+        project.platform_pool_enabled and tenant.plan in PAID_PLANS and public_catalog()
+    )
+
+
+def _sample_estimate(db, tenant, project, payload, enforce=False):
+    import sample
+
+    platforms = payload.platforms if payload else None
+    if platforms and any(code not in sample.PROVIDERS for code in platforms):
+        _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "sample_platform_must_have_api")
+    function = sampling_control.ensure_allowed if enforce else sampling_control.estimate
+    try:
+        return function(
+            db, tenant, project,
+            platforms=platforms,
+            limit=payload.limit if payload else None,
+            repeat=payload.repeat if payload else 1,
+        )
+    except sampling_control.SamplingBudgetExceeded as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": exc.code, "estimate": exc.estimate},
+        ) from exc
+
+
+def _pipeline_sample_payload(params):
+    def value(name, default=None):
+        return params.get(f"--{name}", params.get(name, default))
+
+    platforms = value("platforms")
+    if isinstance(platforms, str):
+        platforms = [item.strip() for item in platforms.split(",") if item.strip()]
+    try:
+        return SampleEstimateRequest(
+            limit=value("limit"),
+            platforms=platforms,
+            repeat=value("repeat", 1),
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"error": "invalid_sample_parameters", "detail": str(exc)},
+        ) from exc
+
+
+def _pipeline_flag(params, name):
+    return params.get(f"--{name}", params.get(name, False)) is True
+
+
+@router.post("/preflight")
+def project_preflight(
+    payload: ProjectPreflight,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """创建项目之前检查站点、采样能力并估算调用量。"""
+    tenant = _tenant_for_user(db, current_user)
+    import sample
+
+    requested = list(dict.fromkeys(payload.platforms or sorted(sample.PROVIDERS)))
+    invalid = sorted(set(requested) - set(sample.PROVIDERS))
+    if invalid:
+        _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "unsupported_api_platform")
+    byok = set(load_tenant_keys(db, tenant.id))
+    effective = [code for code in requested if code in byok]
+    quick_questions = min(5, payload.question_count)
+    full_questions = payload.question_count
+    quick_calls = quick_questions * len(effective)
+    full_calls = full_questions * len(effective)
+    site = preflight.run(payload.url)
+    return {
+        "site": site,
+        "byok_engines": sorted(byok),
+        "manual_only": [
+            {"engine_code": code, "name": name, "sampling_mode": "人工·产品端", "market": market}
+            for code, (name, market) in sorted(sample.MANUAL_ONLY.items())
+        ],
+        "requested_platforms": requested,
+        "effective_platforms": effective,
+        "can_sample": bool(site["ready"] and effective),
+        "estimate": {
+            "quick": {"questions": quick_questions, "platforms": len(effective), "calls": quick_calls,
+                      "minutes": max(1, round(quick_calls * 0.4)) if quick_calls else 0},
+            "full": {"questions": full_questions, "platforms": len(effective), "calls": full_calls,
+                     "minutes": max(1, round(full_calls * 0.4)) if full_calls else 0},
+            "repeat": 1,
+            "platform_pool_cost_cny_fen": None,
+            "cost_note": "BYOK 费用由各 API 供应商直接收取；当前预检不估算供应商账单。",
+        },
     }
 
 
@@ -235,17 +489,27 @@ def create_project(
     tenant = _tenant_for_user(db, current_user)
     check_project_creation(db, tenant)
     slug = geolib.slugify(payload.url)
-    if db.query(Project.id).filter(Project.tenant_id == tenant.id, Project.slug == slug).first() is not None:
+    existing = db.query(Project).filter(Project.tenant_id == tenant.id, Project.slug == slug).first()
+    if existing is not None and existing.archived_at is None and existing.status != "archived":
         _error(status.HTTP_409_CONFLICT, "project_already_exists")
 
-    project = Project(
-        tenant_id=tenant.id,
-        slug=slug,
-        url=payload.url,
-        market="both",
-        status="initializing",
-    )
-    db.add(project)
+    if existing is not None:
+        project = existing
+        project.url = payload.url
+        project.market = "both"
+        project.status = "initializing"
+        project.archived_at = None
+        project.schedule_interval_days = None
+        project.schedule_next_run_at = None
+    else:
+        project = Project(
+            tenant_id=tenant.id,
+            slug=slug,
+            url=payload.url,
+            market="both",
+            status="initializing",
+        )
+        db.add(project)
     db.flush()
     has_engine_keys = db.query(ApiKey.id).filter(
         ApiKey.tenant_id == tenant.id,
@@ -254,7 +518,13 @@ def create_project(
     skip_llm = payload.skip_llm or not has_engine_keys
     no_sample = payload.no_sample or not has_engine_keys
     job_action = "bootstrap" if no_sample else "autopilot"
-    job = Job(project_id=project.id, action=job_action, status="queued")
+    job = Job(
+        project_id=project.id,
+        action=job_action,
+        status="queued",
+        stage="initializing",
+        request_json=json.dumps({"skip_llm": skip_llm, "no_sample": no_sample, "job_action": job_action}),
+    )
     db.add(job)
     db.commit()
     db.refresh(project)
@@ -276,6 +546,7 @@ def create_project(
     except GeoEngineError as exc:
         project.status = "failed"
         job.status = "failed"
+        job.stage = "failed"
         job.error = str(exc)
         job.finished_at = datetime.now(timezone.utc)
         db.commit()
@@ -283,6 +554,7 @@ def create_project(
     except Exception as exc:  # noqa: BLE001
         project.status = "failed"
         job.status = "failed"
+        job.stage = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
         job.finished_at = datetime.now(timezone.utc)
         db.commit()
@@ -292,7 +564,7 @@ def create_project(
     job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
     db.commit()
     try:
-        task_bootstrap.delay(
+        task_result = task_bootstrap.delay(
             tenant.name,
             slug,
             skip_llm=skip_llm,
@@ -300,9 +572,12 @@ def create_project(
             job_action=job_action,
             job_id=job.id,
         )
+        job.celery_task_id = getattr(task_result, "id", None)
+        db.commit()
     except Exception as exc:  # noqa: BLE001
         project.status = "failed"
         job.status = "failed"
+        job.stage = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
         job.finished_at = datetime.now(timezone.utc)
         db.commit()
@@ -317,7 +592,7 @@ def list_projects(current_user: User = Depends(get_current_user), db: Session = 
     tenant = _tenant_for_user(db, current_user)
     projects = (
         db.query(Project)
-        .filter(Project.tenant_id == tenant.id)
+        .filter(Project.tenant_id == tenant.id, Project.archived_at.is_(None), Project.status != "archived")
         .order_by(Project.created_at.desc(), Project.id.desc())
         .all()
     )
@@ -373,12 +648,14 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
             detail = dashboard.project(project.slug)
             detail["questions"] = cfg.get("questions", [])
             detail["competitor_discovery"] = _competitor_discovery_payload(cfg)
+            detail["report_quality"] = report_quality.assess(project.slug, _has_sampling_access(db, tenant, project))
     except GeoEngineError:
         detail = {
             "slug": project.slug,
             "brand": {},
             "questions": [],
             "competitor_discovery": _competitor_discovery_payload({}),
+            "report_quality": {"score": 0, "level": "missing", "effective_report": False, "issues": []},
         }
     detail["project"] = {
         "id": project.id,
@@ -388,7 +665,8 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
         "status": project.status,
         "created_at": project.created_at,
     }
-    detail["tasks"] = localize_tickets(detail.get("tasks", []))
+    detail["tasks"] = localize_tickets(ticket_workflow.enrich(detail.get("tasks", [])))
+    detail["top_actions"] = _top_actions(detail.get("tasks", []))
     return detail
 
 
@@ -415,12 +693,15 @@ def project_status(project_id: int, current_user: User = Depends(get_current_use
                 "p0_open": 0,
             },
         )
+        quality = report_quality.assess(project.slug, _has_sampling_access(db, tenant, project))
     latest_job = db.query(Job).filter(Job.project_id == project.id).order_by(Job.id.desc()).first()
     return {
         "project_id": project.id,
         "slug": project.slug,
         "status": project.status,
         "summary": summary,
+        "available_outputs": _available_outputs(project.slug),
+        "report_quality": quality,
         "latest_job": _job_payload(latest_job, include_log=False) if latest_job else None,
     }
 
@@ -464,6 +745,48 @@ def update_sampling_funding(
     return _sampling_funding_payload(db, tenant, project, current_user)
 
 
+@router.get("/{project_id}/sampling-budget")
+def sampling_budget(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """返回项目预算、当月平台代付用量和默认采样估算。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    return _sample_estimate(db, tenant, project, SampleEstimateRequest())
+
+
+@router.put("/{project_id}/sampling-budget")
+def update_sampling_budget(
+    project_id: int,
+    payload: SamplingBudgetRequest,
+    current_user: User = Depends(require_owner),
+    db: Session = Depends(get_db),
+):
+    """设置项目月度平台预算、单次调用上限和超额暂停策略。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    project.monthly_budget_cny_fen = payload.monthly_budget_cny_fen
+    project.sample_call_limit = payload.sample_call_limit
+    project.pause_on_budget_exceeded = payload.pause_on_budget_exceeded
+    db.commit()
+    return _sample_estimate(db, tenant, project, SampleEstimateRequest())
+
+
+@router.post("/{project_id}/sample/estimate")
+def estimate_project_sample(
+    project_id: int,
+    payload: SampleEstimateRequest | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """在任务投递前按问题集、平台和轮次估算调用量。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    return _sample_estimate(db, tenant, project, payload or SampleEstimateRequest())
+
+
 @router.post("/{project_id}/schedule")
 def update_project_schedule(
     project_id: int,
@@ -479,6 +802,8 @@ def update_project_schedule(
         project.schedule_next_run_at = None
     else:
         check_sample_run(db, tenant, project)
+        if project.monthly_budget_cny_fen is not None or project.sample_call_limit is not None:
+            _sample_estimate(db, tenant, project, SampleEstimateRequest(), enforce=True)
         if project.schedule_interval_days != payload.interval_days or project.schedule_next_run_at is None:
             project.schedule_next_run_at = datetime.now(timezone.utc) + timedelta(days=payload.interval_days)
         project.schedule_interval_days = payload.interval_days
@@ -511,6 +836,97 @@ def project_job(
     return {"job": _job_payload(job, log_offset=offset)}
 
 
+@router.post("/{project_id}/jobs/{job_id}/retry", status_code=status.HTTP_202_ACCEPTED)
+def retry_project_job(
+    project_id: int,
+    job_id: int,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    """重试失败任务并保留 retry_of_job_id 链。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    source = db.query(Job).filter(Job.id == job_id, Job.project_id == project.id).first()
+    if source is None:
+        _error(status.HTTP_404_NOT_FOUND, "job_not_found")
+    if source.status != "failed":
+        _error(status.HTTP_409_CONFLICT, "job_not_failed")
+    if _active_job(db, project.id) is not None:
+        _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    request = _request_payload(source.request_json)
+    request_no_sample = _pipeline_flag(request, "no-sample") or _pipeline_flag(request, "no_sample")
+    estimate = None
+    if source.action in ("sample", "cycle", "autopilot", "serve"):
+        if source.action not in ("autopilot", "serve") or not request_no_sample:
+            check_sample_run(db, tenant, project)
+            estimate = _sample_estimate(
+                db,
+                tenant,
+                project,
+                _pipeline_sample_payload(request),
+                enforce=True,
+            )
+    job = Job(
+        project_id=project.id,
+        action=source.action,
+        status="queued",
+        stage="queued",
+        attempt=(source.attempt or 1) + 1,
+        request_json=source.request_json,
+        retry_of_job_id=source.id,
+    )
+    db.add(job)
+    project.status = {
+        "sample": "sampling", "verify": "verifying", "deliver": "delivering", "bootstrap": "bootstrapping",
+        "autopilot": "bootstrapping", "cycle": "processing",
+    }.get(source.action, "processing")
+    db.commit()
+    db.refresh(job)
+    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    db.commit()
+    try:
+        if source.action in ("bootstrap", "autopilot"):
+            result = task_bootstrap.delay(
+                tenant.name, project.slug,
+                skip_llm=bool(request.get("skip_llm", request.get("--skip-llm", False))),
+                no_sample=request_no_sample,
+                job_action=source.action,
+                job_id=job.id,
+            )
+        elif source.action == "sample":
+            result = task_sample.delay(
+                tenant.name, project.slug,
+                limit=request.get("limit", request.get("--limit")),
+                platforms=request.get("platforms", request.get("--platforms")),
+                repeat=int(request.get("repeat", request.get("--repeat", 1)) or 1), job_id=job.id,
+            )
+        elif source.action == "cycle":
+            result = task_cycle.delay(tenant.name, project.slug, job_id=job.id)
+        elif source.action == "verify":
+            result = task_verify.delay(tenant.name, project.slug, job_id=job.id)
+        elif source.action == "deliver":
+            result = task_deliver.delay(tenant.name, project.slug, job_id=job.id)
+        else:
+            result = task_pipeline.delay(tenant.name, project.slug, source.action, params=request, job_id=job.id)
+        job.celery_task_id = getattr(result, "id", None)
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        job.status = "failed"
+        job.stage = "failed"
+        job.error = f"{type(exc).__name__}: {exc}"
+        job.finished_at = datetime.now(timezone.utc)
+        project.status = "failed"
+        db.commit()
+        _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
+    return {
+        "job": _job_payload(job, include_log=False),
+        "job_id": job.id,
+        "project_id": project.id,
+        "status": project.status,
+        "estimate": estimate,
+    }
+
+
 @router.post("/{project_id}/sample", status_code=status.HTTP_202_ACCEPTED)
 def sample_project(
     project_id: int,
@@ -525,7 +941,10 @@ def sample_project(
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     payload = payload or SampleRequest()
-    job = Job(project_id=project.id, action="sample", status="queued")
+    estimate = _sample_estimate(db, tenant, project, payload, enforce=True)
+    request_values = {"limit": payload.limit, "platforms": payload.platforms, "repeat": payload.repeat}
+    job = Job(project_id=project.id, action="sample", status="queued", stage="queued",
+              request_json=_safe_request_json("sample", request_values))
     db.add(job)
     project.status = "sampling"
     db.commit()
@@ -533,21 +952,25 @@ def sample_project(
     job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
     db.commit()
     try:
-        task_sample.delay(
+        task_result = task_sample.delay(
             tenant.name,
             project.slug,
             limit=payload.limit,
             platforms=payload.platforms,
+            repeat=payload.repeat,
             job_id=job.id,
         )
+        job.celery_task_id = getattr(task_result, "id", None)
+        db.commit()
     except Exception as exc:  # noqa: BLE001
         job.status = "failed"
+        job.stage = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
         job.finished_at = datetime.now(timezone.utc)
         project.status = "failed"
         db.commit()
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
-    return {"job_id": job.id, "project_id": project.id, "status": project.status}
+    return {"job_id": job.id, "project_id": project.id, "status": project.status, "estimate": estimate}
 
 
 @router.post("/{project_id}/actions/{action}", status_code=status.HTTP_202_ACCEPTED)
@@ -566,10 +989,20 @@ def run_pipeline_action(
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     params = (payload or PipelineActionRequest()).params
-    if action in ("sample", "cycle", "autopilot", "serve") and not params.get("--no-sample", False):
+    no_sample = _pipeline_flag(params, "no-sample") or _pipeline_flag(params, "no_sample")
+    estimate = None
+    if action in ("sample", "autopilot", "serve") and not no_sample:
         check_sample_run(db, tenant, project)
+        estimate = _sample_estimate(
+            db,
+            tenant,
+            project,
+            _pipeline_sample_payload(params),
+            enforce=True,
+        )
 
-    job = Job(project_id=project.id, action=action, status="queued")
+    job = Job(project_id=project.id, action=action, status="queued", stage="queued",
+              request_json=_safe_request_json(action, params))
     db.add(job)
     project.status = {
         "sample": "sampling",
@@ -582,15 +1015,24 @@ def run_pipeline_action(
     job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
     db.commit()
     try:
-        task_pipeline.delay(tenant.name, project.slug, action, params=params, job_id=job.id)
+        task_result = task_pipeline.delay(tenant.name, project.slug, action, params=params, job_id=job.id)
+        job.celery_task_id = getattr(task_result, "id", None)
+        db.commit()
     except Exception as exc:  # noqa: BLE001
         job.status = "failed"
+        job.stage = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
         job.finished_at = datetime.now(timezone.utc)
         project.status = "failed"
         db.commit()
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
-    return {"job_id": job.id, "project_id": project.id, "action": action, "status": project.status}
+    return {
+        "job_id": job.id,
+        "project_id": project.id,
+        "action": action,
+        "status": project.status,
+        "estimate": estimate,
+    }
 
 
 @router.get("/{project_id}/report")
@@ -603,7 +1045,8 @@ def project_report(project_id: int, current_user: User = Depends(get_current_use
         if path is None:
             _error(status.HTTP_404_NOT_FOUND, "report_not_found")
         metrics = geolib.read_json(path, None)
-    return {"report": metrics, "date": metrics.get("date") if metrics else None}
+        quality = report_quality.assess(project.slug, _has_sampling_access(db, tenant, project))
+    return {"report": metrics, "date": metrics.get("date") if metrics else None, "report_quality": quality}
 
 
 @router.get("/{project_id}/engines")
@@ -620,18 +1063,42 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
         import analytics
 
         engines = analytics.engines(project.slug, rows, metrics)
+        measurement_quality = report_quality.assess(
+            project.slug, _has_sampling_access(db, tenant, project),
+        )["measurement_quality"]
     for item in engines:
         platform_rows = [row for row in rows if row.get("platform") == item.get("platform")]
-        manual = any(
-            row.get("sample_mode") == "manual" or row.get("terminal") == "web"
-            for row in platform_rows
-        )
-        item["sample_mode"] = "manual" if manual else "api"
-        item["sampling_mode"] = (
-            "人工·产品端" if manual else ("API·联网检索" if item.get("searched") else "API·参数化知识")
-        )
+        modes = {"manual" if row.get("sample_mode") == "manual" or row.get("terminal") == "web" else "api" for row in platform_rows}
+        if len(modes) > 1:
+            item["sample_mode"] = "mixed"
+            item["sampling_mode"] = "API·参数化知识 / 人工·产品端"
+        else:
+            manual = "manual" in modes
+            item["sample_mode"] = "manual" if manual else "api"
+            item["sampling_mode"] = "人工·产品端" if manual else ("API·联网检索" if item.get("searched") else "API·参数化知识")
         item.pop("market", None)
-    return {"date": metrics.get("date") if metrics else None, "engines": engines}
+    return {
+        "date": metrics.get("date") if metrics else None,
+        "engines": engines,
+        "provenance": metrics.get("provenance") if metrics else None,
+        "question_set_version": metrics.get("question_set_version") if metrics else None,
+        "sample_summary": metrics.get("sample_summary") if metrics else None,
+        "measurement_quality": measurement_quality,
+    }
+
+
+@router.delete("/{project_id}")
+def archive_project_record(project_id: int, current_user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    """停用项目并释放套餐名额，磁盘产物保留以便后续归档处理。"""
+    project = _project_for_user(db, current_user, project_id)
+    if _active_job(db, project.id) is not None:
+        _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    project.status = "archived"
+    project.archived_at = datetime.now(timezone.utc)
+    project.schedule_interval_days = None
+    project.schedule_next_run_at = None
+    db.commit()
+    return {"ok": True, "project_id": project.id, "status": project.status}
 
 
 @router.get("/{project_id}/framing")
@@ -665,7 +1132,15 @@ def project_samples(
 
 
 @router.get("/{project_id}/tickets")
-def project_tickets(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def project_tickets(
+    project_id: int,
+    ticket_status: str | None = Query(default=None, alias="status"),
+    owner: str | None = Query(default=None, max_length=128),
+    priority: str | None = Query(default=None, pattern="^P[0-2]$"),
+    q: str | None = Query(default=None, max_length=200),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """读取 engine 生成的工单列表。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
@@ -673,11 +1148,22 @@ def project_tickets(project_id: int, current_user: User = Depends(get_current_us
         import tasks as engine_tasks
 
         data = engine_tasks.load(project.slug)
-    return {"tickets": localize_tickets(data.get("tasks", [])), "summary": data.get("summary", {})}
+    tickets = ticket_workflow.filter_tickets(
+        data.get("tasks", []), status=ticket_status, owner=owner, priority=priority, query=q,
+    )
+    return {"tickets": localize_tickets(tickets), "summary": data.get("summary", {}), "filtered_count": len(tickets)}
 
 
 @router.get("/{project_id}/playbook")
-def project_playbook(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def project_playbook(
+    project_id: int,
+    ticket_status: str | None = Query(default=None, alias="status"),
+    owner: str | None = Query(default=None, max_length=128),
+    priority: str | None = Query(default=None, pattern="^P[0-2]$"),
+    q: str | None = Query(default=None, max_length=200),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """按影响、工作量和原始顺序稳定返回 Playbook。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
@@ -685,9 +1171,12 @@ def project_playbook(project_id: int, current_user: User = Depends(get_current_u
         import tasks as engine_tasks
 
         data = engine_tasks.load(project.slug)
+    filtered = ticket_workflow.filter_tickets(
+        data.get("tasks", []), status=ticket_status, owner=owner, priority=priority, query=q,
+    )
     indexed = [
         (index, ticket)
-        for index, ticket in enumerate(data.get("tasks", []))
+        for index, ticket in enumerate(filtered)
         if isinstance(ticket, dict)
     ]
     indexed.sort(key=lambda pair: (
@@ -698,7 +1187,9 @@ def project_playbook(project_id: int, current_user: User = Depends(get_current_u
     ))
     return {
         "playbook": localize_tickets([ticket for _, ticket in indexed]),
+        "top_actions": _top_actions([ticket for _, ticket in indexed]),
         "summary": data.get("summary", {}),
+        "filtered_count": len(indexed),
         "generated_at": data.get("generated_at"),
     }
 
@@ -731,6 +1222,54 @@ def create_ticket(
     return {"ticket": ticket}
 
 
+@router.patch("/{project_id}/tickets")
+def bulk_update_tickets(
+    project_id: int,
+    payload: TicketBulkUpdate,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    """在一次项目锁内批量修改工单工作流字段。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    if _active_job(db, project.id) is not None:
+        _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    changes = payload.model_dump(exclude_unset=True)
+    changes.pop("ticket_ids", None)
+    if not changes or not any(key == "due_date" or value not in (None, "") for key, value in changes.items()):
+        _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "ticket_update_empty")
+    try:
+        with with_tenant_context(tenant.name, project.slug):
+            tickets = ticket_workflow.bulk_update(
+                project.slug, payload.ticket_ids, changes, current_user.email,
+            )
+    except KeyError:
+        _error(status.HTTP_404_NOT_FOUND, "ticket_not_found")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "ticket_update_failed", "detail": str(exc)}) from exc
+    return {"tickets": localize_tickets(ticket_workflow.enrich(tickets)), "updated": len(tickets)}
+
+
+@router.get("/{project_id}/tickets/{ticket_id}/timeline")
+def ticket_timeline(
+    project_id: int,
+    ticket_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """返回工单手动修改和自动验收时间线。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.name, project.slug):
+        import tasks as engine_tasks
+
+        ticket = next((item for item in engine_tasks.load(project.slug).get("tasks", []) if item.get("id") == ticket_id), None)
+    if ticket is None:
+        _error(status.HTTP_404_NOT_FOUND, "ticket_not_found")
+    enriched = ticket_workflow.enrich([ticket])[0]
+    return {"ticket_id": ticket_id, "activity": enriched["activity"], "notes": enriched["notes"]}
+
+
 @router.patch("/{project_id}/tickets/{ticket_id}")
 def update_ticket(
     project_id: int,
@@ -739,21 +1278,22 @@ def update_ticket(
     current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
-    """调用 engine tasks.set_status 更新工单状态。"""
+    """更新工单状态、负责人、截止日期或备注。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes or not any(key == "due_date" or value not in (None, "") for key, value in changes.items()):
+        _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "ticket_update_empty")
     try:
         with with_tenant_context(tenant.name, project.slug):
-            import tasks as engine_tasks
-
-            ticket = engine_tasks.set_status(project.slug, ticket_id, payload.status, payload.note)
+            ticket = ticket_workflow.update(project.slug, ticket_id, changes, current_user.email)
     except KeyError:
         _error(status.HTTP_404_NOT_FOUND, "ticket_not_found")
-    except GeoEngineError:
-        _error(status.HTTP_400_BAD_REQUEST, "ticket_update_failed")
-    return {"ticket": ticket}
+    except (GeoEngineError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "ticket_update_failed", "detail": str(exc)}) from exc
+    return {"ticket": localize_tickets(ticket_workflow.enrich([ticket]))[0]}
 
 
 @router.post("/{project_id}/verify", status_code=status.HTTP_202_ACCEPTED)
@@ -762,7 +1302,7 @@ def verify_project(project_id: int, current_user: User = Depends(require_editor)
     project = _project_for_user(db, current_user, project_id)
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
-    job = Job(project_id=project.id, action="verify", status="queued")
+    job = Job(project_id=project.id, action="verify", status="queued", stage="queued", request_json="{}")
     db.add(job)
     project.status = "verifying"
     db.commit()
@@ -771,9 +1311,12 @@ def verify_project(project_id: int, current_user: User = Depends(require_editor)
     job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
     db.commit()
     try:
-        task_verify.delay(tenant.name, project.slug, job_id=job.id)
+        task_result = task_verify.delay(tenant.name, project.slug, job_id=job.id)
+        job.celery_task_id = getattr(task_result, "id", None)
+        db.commit()
     except Exception as exc:  # noqa: BLE001
         job.status = "failed"
+        job.stage = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
         job.finished_at = datetime.now(timezone.utc)
         project.status = "failed"
@@ -802,7 +1345,7 @@ def deliver_project(project_id: int, current_user: User = Depends(require_editor
     project = _project_for_user(db, current_user, project_id)
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
-    job = Job(project_id=project.id, action="deliver", status="queued")
+    job = Job(project_id=project.id, action="deliver", status="queued", stage="queued", request_json="{}")
     db.add(job)
     project.status = "delivering"
     db.commit()
@@ -811,9 +1354,12 @@ def deliver_project(project_id: int, current_user: User = Depends(require_editor
     job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
     db.commit()
     try:
-        task_deliver.delay(tenant.name, project.slug, job_id=job.id)
+        task_result = task_deliver.delay(tenant.name, project.slug, job_id=job.id)
+        job.celery_task_id = getattr(task_result, "id", None)
+        db.commit()
     except Exception as exc:  # noqa: BLE001
         job.status = "failed"
+        job.stage = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
         job.finished_at = datetime.now(timezone.utc)
         project.status = "failed"

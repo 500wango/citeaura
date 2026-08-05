@@ -1,14 +1,17 @@
 """BYOK API Key 管理路由。"""
 
+import re
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from api.adapters.engine import ENGINE_KEY_ENV
+from api.adapters.engine import ENGINE_KEY_ENV, with_tenant_context
 from api.auth.deps import get_current_user, require_owner
 from api.db import get_db
 from api.models import ApiKey, Tenant, User
-from api.settings.crypto import encrypt_key, mask_key
+from api.settings.crypto import decrypt_key, encrypt_key, mask_key
 
 
 router = APIRouter(prefix="/api/v1/settings/keys", tags=["settings"])
@@ -83,10 +86,57 @@ def list_keys(current_user: User = Depends(get_current_user), db: Session = Depe
     items = []
     for row in rows:
         # 只在请求内解密用于掩码，响应和日志都不携带明文。
-        from api.settings.crypto import decrypt_key
-
         items.append({"engine_code": row.engine_code, "masked": mask_key(decrypt_key(row.encrypted_value))})
     return {"keys": items}
+
+
+@router.post("/{engine_code}/test")
+def test_key(engine_code: str, current_user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    """用一条最小请求验证 Key，响应不包含密钥或供应商原文。"""
+    engine_code = engine_code.strip().lower()
+    if engine_code not in SUPPORTED_ENGINE_CODES:
+        _error(status.HTTP_404_NOT_FOUND, "key_not_found")
+    tenant = _tenant_for_user(db, current_user)
+    row = db.query(ApiKey).filter(ApiKey.tenant_id == tenant.id, ApiKey.engine_code == engine_code).first()
+    if row is None:
+        _error(status.HTTP_404_NOT_FOUND, "key_not_found")
+    secret = decrypt_key(row.encrypted_value)
+    started = time.monotonic()
+    try:
+        import sample
+
+        with with_tenant_context(tenant.name, "keytest", keys={engine_code: secret}):
+            result = sample.ask(engine_code, "Reply with exactly OK.", timeout=20)
+        ok = bool(result.get("ok"))
+        error = None if ok else _safe_provider_error(result.get("error"))
+        return {
+            "ok": ok,
+            "engine": engine_code,
+            "model": sample.model_for(engine_code),
+            "sampling_mode": "API·联网检索" if sample.PROVIDERS[engine_code].get("search") else "API·参数化知识",
+            "latency_ms": int((time.monotonic() - started) * 1000),
+            "error": error,
+        }
+    except Exception as exc:  # noqa: BLE001 - provider failures are returned as a sanitized diagnostic
+        return {
+            "ok": False,
+            "engine": engine_code,
+            "model": None,
+            "sampling_mode": "API·参数化知识",
+            "latency_ms": int((time.monotonic() - started) * 1000),
+            "error": _safe_provider_error(exc),
+        }
+
+
+def _safe_provider_error(error):
+    """压缩供应商错误，避免返回响应正文、Key 或请求细节。"""
+    text = str(error or "provider_request_failed")
+    match = re.search(r"HTTP\s+(\d{3})", text, re.IGNORECASE)
+    if match:
+        return f"provider_http_{match.group(1)}"
+    if "timeout" in text.lower() or "timedout" in text.lower():
+        return "provider_timeout"
+    return "provider_request_failed"
 
 
 @router.delete("/{engine_code}")

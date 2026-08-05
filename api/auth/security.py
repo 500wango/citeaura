@@ -56,14 +56,14 @@ def create_token(
     return jwt.encode(payload, _jwt_secret(), algorithm=JWT_ALGORITHM)
 
 
-def create_access_token(user_id: int, tenant_id: int) -> str:
+def create_access_token(user_id: int, tenant_id: int, session_version: int = 0) -> str:
     """签发 access token。"""
-    return create_token(user_id, tenant_id, "access", timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    return create_token(user_id, tenant_id, "access", timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES), {"sv": int(session_version)})
 
 
-def create_refresh_token(user_id: int, tenant_id: int) -> str:
+def create_refresh_token(user_id: int, tenant_id: int, session_version: int = 0) -> str:
     """签发 refresh token。"""
-    return create_token(user_id, tenant_id, "refresh", timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+    return create_token(user_id, tenant_id, "refresh", timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS), {"sv": int(session_version)})
 
 
 def create_sso_state(tenant_id: int) -> str:

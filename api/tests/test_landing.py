@@ -31,6 +31,9 @@ def test_landing_assets_are_served():
         ("/site-assets/product-audit.webp", "image/webp"),
         ("/site-assets/product-plan.webp", "image/webp"),
         ("/site-assets/product-report.webp", "image/webp"),
+        ("/site-assets/product-audit-en.webp", "image/webp"),
+        ("/site-assets/product-plan-en.webp", "image/webp"),
+        ("/site-assets/product-assets-en.webp", "image/webp"),
     ):
         response = client.get(path)
         assert response.status_code == 200
@@ -66,3 +69,4 @@ def test_landing_js_uses_shared_locale_preference():
     assert 'localStorage.getItem("ulang")' in response.text
     assert 'localStorage.setItem("ulang"' in response.text
     assert 'fetch("/i18n/" + locale + ".json")' in response.text
+    assert 'data-locale-src-' in response.text

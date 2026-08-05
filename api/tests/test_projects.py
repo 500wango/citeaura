@@ -13,7 +13,7 @@ from api.db import Base, get_db
 from api.main import app
 from api.models import Job, Project, Tenant
 from api.projects import router as project_router
-from api.adapters import engine as engine_adapter
+from api.adapters import engine as engine_adapter, sampling_control
 
 
 @pytest.fixture()
@@ -378,6 +378,107 @@ def test_pipeline_actions_are_whitelisted_and_project_serialized(project_client,
         json={"params": {}},
     )
     assert unsupported.status_code == 400
+
+
+def test_sampling_budget_blocks_direct_pipeline_retry_and_schedule(project_client, monkeypatch):
+    client, session_factory = project_client
+    headers = _register(client, "budget-owner@example.com")
+
+    def fake_init(args):
+        from api.adapters.engine import geolib
+
+        geolib.write_json(geolib.project_dir(args.slug) / "geo.json", {
+            "brand": {"name": "Budget", "site": args.url},
+            "market": "both",
+            "platforms": ["deepseek"],
+            "questions": [
+                {"id": "q001", "text": "预算测试一", "market": "cn"},
+                {"id": "q002", "text": "预算测试二", "market": "cn"},
+            ],
+        })
+
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_init=fake_init))
+    monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: types.SimpleNamespace(id="boot"))
+    monkeypatch.setattr(project_router.task_sample, "delay", lambda *a, **kw: types.SimpleNamespace(id="sample"))
+    monkeypatch.setattr(project_router.task_pipeline, "delay", lambda *a, **kw: types.SimpleNamespace(id="pipeline"))
+    monkeypatch.setattr(sampling_control, "resolve_funding", lambda *args, **kwargs: {
+        "keys": {"deepseek": "secret"},
+        "pool_codes": frozenset(),
+        "rates": {},
+    })
+
+    created = client.post("/api/v1/projects", headers=headers, json={"url": "budget.example"}).json()
+    project_id = created["project_id"]
+    with session_factory() as db:
+        db.get(Job, created["job_id"]).status = "done"
+        db.commit()
+
+    budget = client.put(
+        f"/api/v1/projects/{project_id}/sampling-budget",
+        headers=headers,
+        json={"monthly_budget_cny_fen": None, "sample_call_limit": 1, "pause_on_budget_exceeded": True},
+    )
+    assert budget.status_code == 200
+    assert budget.json()["estimate"]["calls"] == 2
+    assert budget.json()["estimate"]["byok_cost_cny_fen"] is None
+
+    estimate = client.post(
+        f"/api/v1/projects/{project_id}/sample/estimate",
+        headers=headers,
+        json={"repeat": 2},
+    )
+    assert estimate.status_code == 200
+    assert estimate.json()["budget"]["paused"] is True
+    assert estimate.json()["estimate"]["calls"] == 4
+
+    blocked = client.post(
+        f"/api/v1/projects/{project_id}/sample",
+        headers=headers,
+        json={"repeat": 2},
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["error"] == "sample_call_limit_exceeded"
+    assert blocked.json()["estimate"]["estimate"]["calls"] == 4
+
+    pipeline_blocked = client.post(
+        f"/api/v1/projects/{project_id}/actions/sample",
+        headers=headers,
+        json={"params": {"--repeat": 2}},
+    )
+    assert pipeline_blocked.status_code == 409
+    assert pipeline_blocked.json()["error"] == "sample_call_limit_exceeded"
+    string_flag_blocked = client.post(
+        f"/api/v1/projects/{project_id}/actions/serve",
+        headers=headers,
+        json={"params": {"--no-sample": "false", "--limit": 2}},
+    )
+    assert string_flag_blocked.status_code == 409
+    assert string_flag_blocked.json()["error"] == "sample_call_limit_exceeded"
+
+    scheduled = client.post(
+        f"/api/v1/projects/{project_id}/schedule",
+        headers=headers,
+        json={"interval_days": 7},
+    )
+    assert scheduled.status_code == 409
+    assert scheduled.json()["error"] == "sample_call_limit_exceeded"
+
+    with session_factory() as db:
+        source = Job(
+            project_id=project_id,
+            action="sample",
+            status="failed",
+            request_json=json.dumps({"repeat": 2}),
+        )
+        db.add(source)
+        db.commit()
+        source_id = source.id
+    retry = client.post(
+        f"/api/v1/projects/{project_id}/jobs/{source_id}/retry",
+        headers=headers,
+    )
+    assert retry.status_code == 409
+    assert retry.json()["error"] == "sample_call_limit_exceeded"
 
 
 @contextmanager

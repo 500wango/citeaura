@@ -325,6 +325,15 @@ def subscribe(
     tenant = db.get(Tenant, current_user.tenant_id)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
+    active = db.query(Subscription).filter(
+        Subscription.tenant_id == tenant.id,
+        Subscription.status.in_(("active", "trialing", "past_due")),
+    ).first()
+    if active is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "subscription_already_active", "detail": "cancel the current subscription before starting another one"},
+        )
     if payload.plan == "enterprise":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -351,6 +360,23 @@ def subscribe(
         "checkout_url": session["url"],
         "checkout_session_id": session["id"],
     }
+
+
+@router.post("/cancel")
+def cancel_subscription(current_user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    """取消当前订阅，等待 Stripe Webhook 将租户降回试用状态。"""
+    tenant = db.get(Tenant, current_user.tenant_id)
+    subscription = db.query(Subscription).filter(
+        Subscription.tenant_id == tenant.id,
+        Subscription.status.in_(("active", "trialing", "past_due")),
+    ).order_by(Subscription.started_at.desc(), Subscription.id.desc()).first()
+    if subscription is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"error": "subscription_not_found"})
+    try:
+        stripe_adapter.cancel_subscription(subscription.provider_subscription_id)
+    except stripe_adapter.StripeError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail={"error": str(exc)}) from exc
+    return {"ok": True, "status": "cancel_requested", "subscription_id": subscription.id}
 
 
 @router.post("/webhook")

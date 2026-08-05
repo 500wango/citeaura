@@ -101,7 +101,7 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "const engineOnboard = vOnboard" in response.text
     assert "Two sampling rounds are required" in response.text
     assert "No competitor data yet. Configure competitors in Settings, then run a full cycle." in response.text
-    assert "API · Model knowledge · API key required" in response.text
+    assert "API·参数化知识 · 缺 Key" in response.text
     assert "setTimeout(function () { uiTranslate(document.body); }, 0)" in response.text
     assert "const engineFactsView = vFacts" in response.text
     assert "Not compared — log this in Gap Diagnosis · Fact deviations" in response.text
@@ -168,7 +168,7 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "publishing_not_available_in_mvp" not in response.text
     assert "凭证使用 AES-256-GCM 加密保存" in response.text
     assert "/api/v1/projects/' + id + '/samples/import" in response.text
-    assert "人工 · 产品端核验" in response.text
+    assert "人工·产品端" in response.text
     assert "x.sampling_mode" in response.text
     assert "/api/delivery-zip/" in response.text
     assert "'/deliveries/' + deliveryZipMatch[2]" in response.text
@@ -238,10 +238,16 @@ def test_ui_is_served_with_disvorai_brand_and_saas_adapter():
     assert "Agency 套餐可用" in response.text
     assert "/api/v1/projects/' + id + '/sampling-funding" in response.text
     assert "function samplingFundingPanel(state)" in response.text
+    assert "function samplingBudgetPanel(state)" in response.text
+    assert "function reportQualityPanel()" in response.text
+    assert "function measurementQualityPanel()" in response.text
+    assert "function applyTicketBulkUpdate()" in response.text
+    assert "function saveTicketWorkflow(ticketId)" in response.text
+    assert "const runActionWithoutEstimate = runAction" in response.text
     assert "async function setPlatformPool(enabled)" in response.text
     assert "BYOK 始终优先" in response.text
-    assert "API · 联网检索" in response.text
-    assert "API · 模型内知识" in response.text
+    assert "API·联网检索" in response.text
+    assert "API·参数化知识" in response.text
     assert "Models and measurement" in response.text
     assert "Measurement usage" in response.text
     assert "Managed usage" in response.text

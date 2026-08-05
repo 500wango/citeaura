@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
+from api.adapters import measurement, sampling_control, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract
 from api.adapters.engine import job_log_path, load_tenant_keys, with_tenant_context
 from api.adapters.workspace import ensure_all_engine_scope, preserve_manual_tickets
@@ -244,7 +245,7 @@ def _append_job_event(log_path, message):
 
 @contextmanager
 def _job_status(tenant_id, project_slug, action, job_id=None):
-    """把 Job 标为 running/done/failed；DB 不可用时不阻断直接 worker 调用。"""
+    """把 Job 标为 running/done/failed，并提供粗粒度进度回调。"""
     db = SessionLocal()
     job = None
     project = None
@@ -259,6 +260,8 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                     log_path = job_log_path(tenant.name, project.slug, job.id)
                     job.log_path = str(log_path)
                 job.status = "running"
+                job.stage = "preparing"
+                job.progress = max(int(job.progress or 0), 5)
                 job.started_at = datetime.now(timezone.utc)
                 job.error = None
                 db.commit()
@@ -269,12 +272,24 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
 
         try:
             _append_job_event(log_path, f"{action} started")
+            def update(stage, progress):
+                if job is None:
+                    return
+                try:
+                    job.stage = str(stage)[:64]
+                    job.progress = max(int(job.progress or 0), max(0, min(99, int(progress))))
+                    db.commit()
+                except SQLAlchemyError:
+                    db.rollback()
+                _append_job_event(log_path, f"progress {job.stage} {job.progress}")
+
             with _capture_task_output(log_path):
-                yield
+                yield update
         except Exception as exc:
             _append_job_event(log_path, f"{action} failed: {type(exc).__name__}: {exc}")
             if job is not None:
                 job.status = "failed"
+                job.stage = "failed"
                 job.finished_at = datetime.now(timezone.utc)
                 job.error = f"{type(exc).__name__}: {exc}"
                 if project is not None:
@@ -288,6 +303,8 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
             _append_job_event(log_path, f"{action} done")
             if job is not None:
                 job.status = "done"
+                job.stage = "complete"
+                job.progress = 100
                 job.finished_at = datetime.now(timezone.utc)
                 job.error = None
                 if project is not None:
@@ -313,11 +330,26 @@ def task_bootstrap(
     import geo
 
     args = SimpleNamespace(slug=project_slug, skip_llm=skip_llm, no_sample=no_sample, limit=None)
-    with _job_status(tenant_id, project_slug, job_action, job_id):
+    with _job_status(tenant_id, project_slug, job_action, job_id) as update:
+        update = update or (lambda *args: None)
+        update("bootstrap", 15)
         with _funded_engine_context(tenant_id, project_slug, job_action, job_id=job_id):
             with preserve_manual_tickets(project_slug):
                 geo.cmd_autopilot(args)
+            update("finalizing", 90)
             ensure_delivery_contract(project_slug)
+            if not no_sample:
+                funding = _engine_funding(tenant_id, project_slug)
+                measurement.record_sampling(
+                    project_slug,
+                    source="api",
+                    requested_platforms=None,
+                    limit=None,
+                    repeat=1,
+                    job_id=job_id,
+                    byok_codes=funding.get("keys", {}).keys(),
+                    pool_codes=funding.get("pool_codes", ()),
+                )
             return {"status": "done", "action": job_action, "project_slug": project_slug}
 
 
@@ -327,14 +359,30 @@ def task_sample(
     project_slug: str,
     limit: int | None = None,
     platforms: list[str] | None = None,
+    repeat: int = 1,
     job_id=None,
 ):
     """执行 API 采样和指标聚合。"""
     import sample
 
-    with _job_status(tenant_id, project_slug, "sample", job_id):
+    with _job_status(tenant_id, project_slug, "sample", job_id) as update:
+        update = update or (lambda *args: None)
+        update("sampling", 15)
         with _funded_engine_context(tenant_id, project_slug, "sample", job_id=job_id):
-            return sample.run(project_slug, platforms=platforms, limit=limit)
+            result = sample.run(project_slug, platforms=platforms, repeat=repeat, limit=limit)
+            funding = _engine_funding(tenant_id, project_slug)
+            measurement.record_sampling(
+                project_slug,
+                source="api",
+                requested_platforms=platforms,
+                limit=limit,
+                repeat=repeat,
+                job_id=job_id,
+                byok_codes=funding.get("keys", {}).keys(),
+                pool_codes=funding.get("pool_codes", ()),
+            )
+            update("finalizing", 90)
+            return result
 
 
 @celery_app.task(name="disvorai.cycle")
@@ -343,9 +391,20 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
     import geo
 
     args = SimpleNamespace(slug=project_slug, max_pages=None, limit=None)
-    with _job_status(tenant_id, project_slug, "cycle", job_id):
+    with _job_status(tenant_id, project_slug, "cycle", job_id) as update:
+        update = update or (lambda *args: None)
+        update("crawl", 15)
         with _funded_engine_context(tenant_id, project_slug, "cycle", job_id=job_id):
             geo.cmd_cycle(args)
+            funding = _engine_funding(tenant_id, project_slug)
+            measurement.record_sampling(
+                project_slug,
+                source="api",
+                job_id=job_id,
+                byok_codes=funding.get("keys", {}).keys(),
+                pool_codes=funding.get("pool_codes", ()),
+            )
+            update("finalizing", 90)
             return {"status": "done", "project_slug": project_slug}
 
 
@@ -381,14 +440,16 @@ def task_dispatch_schedules(now_iso=None):
                 continue
             try:
                 check_sample_run(db, tenant, project)
-            except HTTPException:
+                if project.monthly_budget_cny_fen is not None or project.sample_call_limit is not None:
+                    sampling_control.ensure_allowed(db, tenant, project)
+            except (HTTPException, sampling_control.SamplingBudgetExceeded):
                 result["quota_blocked"] += 1
                 continue
 
             scheduled_for = project.schedule_next_run_at
             previous_status = project.status
             previous_last_enqueued = project.schedule_last_enqueued_at
-            job = Job(project_id=project.id, action="cycle", status="queued")
+            job = Job(project_id=project.id, action="cycle", status="queued", stage="queued", request_json="{}")
             db.add(job)
             project.status = "processing"
             project.schedule_last_enqueued_at = now
@@ -401,7 +462,9 @@ def task_dispatch_schedules(now_iso=None):
             job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
             db.commit()
             try:
-                task_cycle.delay(tenant.name, project.slug, job_id=job.id)
+                task_result = task_cycle.delay(tenant.name, project.slug, job_id=job.id)
+                job.celery_task_id = getattr(task_result, "id", None)
+                db.commit()
             except Exception as exc:  # noqa: BLE001
                 job.status = "failed"
                 job.error = f"{type(exc).__name__}: {exc}"
@@ -425,7 +488,8 @@ def task_verify(tenant_id: str, project_slug: str, job_id=None):
 
     with _job_status(tenant_id, project_slug, "verify", job_id):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
-            return verify.run(project_slug)
+            report = verify.run(project_slug)
+            return ticket_workflow.record_verification(project_slug, report)
 
 
 @celery_app.task(name="disvorai.deliver")
@@ -442,7 +506,9 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
 @celery_app.task(name="disvorai.pipeline")
 def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, job_id=None):
     """执行经过白名单校验的完整引擎动作。"""
-    with _job_status(tenant_id, project_slug, action, job_id):
+    with _job_status(tenant_id, project_slug, action, job_id) as update:
+        update = update or (lambda *args: None)
+        update(action, 15)
         with _funded_engine_context(
             tenant_id,
             project_slug,
@@ -455,6 +521,19 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                     result = _run_pipeline_action(action, project_slug, params)
             else:
                 result = _run_pipeline_action(action, project_slug, params)
+            if action in ("sample", "autopilot", "serve") and not (params or {}).get("--no-sample", False):
+                funding = _engine_funding(tenant_id, project_slug)
+                measurement.record_sampling(
+                    project_slug,
+                    source="api",
+                    requested_platforms=(params or {}).get("--platforms"),
+                    limit=(params or {}).get("--limit"),
+                    repeat=(params or {}).get("--repeat", 1),
+                    job_id=job_id,
+                    byok_codes=funding.get("keys", {}).keys(),
+                    pool_codes=funding.get("pool_codes", ()),
+                )
+            update("finalizing", 90)
             if action in ("deliver", "autopilot", "serve"):
                 ensure_delivery_contract(project_slug)
             return result

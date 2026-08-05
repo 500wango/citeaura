@@ -259,7 +259,15 @@ def import_project_samples(
     check_sample_run(db, tenant, project)
     _ensure_idle(db, project)
     started_at = datetime.now(timezone.utc)
-    job = Job(project_id=project.id, action="sample-import", status="running", started_at=started_at)
+    job = Job(
+        project_id=project.id,
+        action="sample-import",
+        status="running",
+        stage="importing",
+        progress=25,
+        request_json='{"source":"manual"}',
+        started_at=started_at,
+    )
     db.add(job)
     db.commit()
     db.refresh(job)
@@ -277,6 +285,8 @@ def import_project_samples(
         db.commit()
         raise
     job.status = "done"
+    job.stage = "complete"
+    job.progress = 100
     job.finished_at = datetime.now(timezone.utc)
     db.commit()
     return {

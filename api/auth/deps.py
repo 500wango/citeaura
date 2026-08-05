@@ -42,7 +42,7 @@ def get_current_user(
 
     user = db.get(User, user_id)
     membership = db.get(Membership, {"tenant_id": tenant_id, "user_id": user_id})
-    if user is None or membership is None:
+    if user is None or membership is None or int(payload.get("sv", -1)) != int(user.session_version):
         _unauthorized("invalid_token")
 
     # 后续租户路由统一从 current_user.tenant_id 读取当前 token 的租户。
