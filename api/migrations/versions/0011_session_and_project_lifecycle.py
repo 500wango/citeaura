@@ -11,6 +11,13 @@ depends_on = None
 
 
 def upgrade():
+    op.alter_column(
+        "alembic_version",
+        "version_num",
+        existing_type=sa.String(length=32),
+        type_=sa.String(length=128),
+        existing_nullable=False,
+    )
     op.add_column("users", sa.Column("session_version", sa.Integer(), server_default="0", nullable=False))
     op.add_column("projects", sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True))
     op.create_index("ix_projects_archived_at", "projects", ["archived_at"])

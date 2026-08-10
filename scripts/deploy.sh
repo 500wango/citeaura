@@ -40,8 +40,9 @@ APP_PORT="${APP_PORT:-18000}"
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config --quiet
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d redis
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build api worker beat
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm api alembic upgrade head
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build api worker beat
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d api worker beat
 
 for attempt in $(seq 1 30); do
     if curl --fail --silent --show-error \
