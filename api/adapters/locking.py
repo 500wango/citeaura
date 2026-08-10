@@ -11,7 +11,7 @@ from api import config
 from api.adapters.exceptions import DistributedLockError
 
 
-LOCK_PREFIX = "disvorai:project-lock"
+LOCK_PREFIX = "citeaura:project-lock"
 
 
 @lru_cache(maxsize=8)

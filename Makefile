@@ -14,7 +14,7 @@ worker:
 	celery -A api.worker.celery_app worker --loglevel=INFO
 
 beat:
-	celery -A api.worker.celery_app beat --loglevel=INFO --schedule=/tmp/disvorai-celerybeat-schedule
+	celery -A api.worker.celery_app beat --loglevel=INFO --schedule=/tmp/citeaura-celerybeat-schedule
 
 preflight:
 	python3 scripts/production_preflight.py --env-file $${ENV_FILE:-.env.production}

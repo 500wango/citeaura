@@ -1,4 +1,3 @@
-import json
 
 import pytest
 from sqlalchemy import create_engine
@@ -186,7 +185,7 @@ def test_sampling_estimate_splits_byok_and_platform_cost_and_enforces_limits(tmp
             "platform_pool_calls": 2,
             "platform_pool_cost_cny_fen": 6,
             "byok_cost_cny_fen": None,
-            "byok_cost_note": "BYOK 费用由 API 供应商直接收取，DisvorAI 无法读取供应商账单。",
+            "byok_cost_note": "BYOK 费用由 API 供应商直接收取，CiteAura 无法读取供应商账单。",
             "minutes": 2,
         }
         assert estimate["budget"]["call_limit_exceeded"] is True

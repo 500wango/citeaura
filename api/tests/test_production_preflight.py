@@ -5,9 +5,9 @@ from scripts.production_preflight import read_env, validate_environment
 
 def _valid_environment():
     return {
-        "DOMAIN": "app.disvor.example",
+        "DOMAIN": "app.citeaura.example",
         "DATABASE_URL": "postgresql+psycopg2://neondb_owner:secure@ep-example-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require",
-        "PUBLIC_BASE_URL": "https://app.disvor.example",
+        "PUBLIC_BASE_URL": "https://app.citeaura.example",
         "REDIS_URL": "redis://redis:6379/0",
         "JWT_SECRET": "j" * 48,
         "AES_KEY": base64.urlsafe_b64encode(b"a" * 32).decode(),
@@ -23,7 +23,7 @@ def _valid_environment():
         "AUTH_SMTP_SECURITY": "starttls",
         "AUTH_SMTP_USERNAME": "accounts",
         "AUTH_SMTP_PASSWORD": "smtp-secret",
-        "AUTH_SMTP_FROM_EMAIL": "accounts@disvor.example",
+        "AUTH_SMTP_FROM_EMAIL": "accounts@citeaura.example",
         "STRIPE_SECRET_KEY": "sk_live_valid",
         "STRIPE_WEBHOOK_SECRET": "whsec_valid",
         "STRIPE_CURRENCY": "cny",

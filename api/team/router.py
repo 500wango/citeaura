@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
@@ -260,6 +260,7 @@ def invitation_preview(token: str, db: Session = Depends(get_db)):
 
 @router.post("/invitations/accept")
 def accept_invitation(
+    request: Request,
     payload: AcceptRequest,
     response: Response,
     current_user: User = Depends(get_current_user),
@@ -277,7 +278,6 @@ def accept_invitation(
     if invitation.accepted_at is not None:
         if membership is None:
             _error(status.HTTP_404_NOT_FOUND, "invitation_not_found")
-            return token_response(response, current_user.id, invitation.tenant_id, db)
     if membership is None:
         membership = Membership(
             tenant_id=invitation.tenant_id,
@@ -288,4 +288,7 @@ def accept_invitation(
     if invitation.accepted_at is None:
         invitation.accepted_at = datetime.now(timezone.utc)
     db.commit()
-    return token_response(response, current_user.id, invitation.tenant_id, db)
+    return token_response(
+        response, current_user.id, invitation.tenant_id, db,
+        expose_tokens=request.headers.get("X-CiteAura-Session") != "cookie",
+    )

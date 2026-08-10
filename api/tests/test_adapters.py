@@ -2,8 +2,10 @@ import os
 import threading
 
 import pytest
+import requests
 
 from api.adapters import engine as engine_adapter
+from api.adapters import network
 from api.adapters.engine import geolib, job_log_path, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 
@@ -16,7 +18,7 @@ def test_tenant_context_patches_paths_and_die_then_restores():
 
     with with_tenant_context("test-tenant", "example"):
         assert "test-tenant" in str(geolib.WORK)
-        assert geolib.ROOT.name == "disvorai"
+        assert geolib.ROOT.name in ("disvorai", "citeaura")
         with pytest.raises(GeoEngineError, match="test error"):
             geolib.die("test error")
         assert geolib.project_lock is not original_project_lock
@@ -98,3 +100,43 @@ def test_tenant_context_serializes_process_global_state(tmp_path, monkeypatch):
     assert [label for label, _ in observed] == ["first-start", "first-end", "second"]
     assert all("tenant-a" in str(path) for _, path in observed[:2])
     assert "tenant-b" in str(observed[2][1])
+
+
+def test_tenant_context_guards_all_http_methods_and_disables_redirects(monkeypatch):
+    calls = []
+
+    def resolve_public(host, port, type=None):
+        return [(2, 1, 6, "", ("93.184.216.34", port))]
+
+    def fake_request(session, method, url, **kwargs):
+        calls.append((method, url, kwargs))
+        return object()
+
+    monkeypatch.setattr(network.socket, "getaddrinfo", resolve_public)
+    monkeypatch.setattr(requests.sessions.Session, "request", fake_request)
+    with with_tenant_context("tenant", "project"):
+        requests.post("https://example.com/hook", allow_redirects=True)
+
+    assert calls == [("post", "https://example.com/hook", {"data": None, "json": None, "allow_redirects": False})]
+
+
+def test_tenant_context_blocks_private_and_mixed_dns_results(monkeypatch):
+    def resolve_mixed(host, port, type=None):
+        return [
+            (2, 1, 6, "", ("93.184.216.34", port)),
+            (2, 1, 6, "", ("169.254.169.254", port)),
+        ]
+
+    monkeypatch.setattr(network.socket, "getaddrinfo", resolve_mixed)
+    with with_tenant_context("tenant", "project"):
+        with pytest.raises(GeoEngineError, match="network_private_address_blocked"):
+            requests.put("https://example.com/resource")
+
+    monkeypatch.setattr(
+        network.socket,
+        "getaddrinfo",
+        lambda host, port, type=None: [(2, 1, 6, "", ("224.0.0.1", port))],
+    )
+    with with_tenant_context("tenant", "project"):
+        with pytest.raises(GeoEngineError, match="network_private_address_blocked"):
+            requests.get("https://example.com/resource")

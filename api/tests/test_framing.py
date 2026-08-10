@@ -26,35 +26,35 @@ def test_framing_uses_latest_samples_and_keeps_source_evidence(tmp_path, monkeyp
                 "slug": "example",
                 "market": "both",
                 "brand": {
-                    "name": "DisvorAI",
-                    "aliases": ["Disvor AI"],
+                    "name": "CiteAura",
+                    "aliases": ["Cite Aura"],
                     "site": "https://example.com",
                 },
             },
         )
         geolib.write_jsonl(
             project_dir / "samples" / "2026-07-30.jsonl",
-            [_row("DisvorAI is an old product.", "openai", "OpenAI")],
+            [_row("CiteAura is an old product.", "openai", "OpenAI")],
         )
         geolib.write_jsonl(
             project_dir / "samples" / "2026-07-31.jsonl",
             [
                 _row(
-                    "DisvorAI is described as a reliable GEO analysis tool for marketing teams.",
+                    "CiteAura is described as a reliable GEO analysis tool for marketing teams.",
                     "deepseek",
                     "DeepSeek",
                     sample_mode="api",
                     search_enabled=False,
                 ),
                 _row(
-                    "Analysts say Disvor AI is described as a reliable GEO analysis tool for marketing teams.",
+                    "Analysts say Cite Aura is described as a reliable GEO analysis tool for marketing teams.",
                     "perplexity",
                     "Perplexity",
                     sample_mode="api",
                     search_enabled=True,
                 ),
                 _row(
-                    "DisvorAI 是一款专业的 AI 可见性分析平台，适合品牌团队。",
+                    "CiteAura 是一款专业的 AI 可见性分析平台，适合品牌团队。",
                     "chatgpt",
                     "ChatGPT 网页版",
                     market="cn",
@@ -96,7 +96,7 @@ def test_framing_returns_explicit_empty_states(tmp_path, monkeypatch):
             {
                 "slug": "empty",
                 "market": "global",
-                "brand": {"name": "DisvorAI", "site": "https://example.com"},
+                "brand": {"name": "CiteAura", "site": "https://example.com"},
             },
         )
         assert framing.build("empty")["status"] == "no_samples"
@@ -109,6 +109,6 @@ def test_framing_returns_explicit_empty_states(tmp_path, monkeypatch):
 
         geolib.write_jsonl(
             project_dir / "samples" / "2026-08-01.jsonl",
-            [_row("DisvorAI appears in this answer without a descriptor.", "openai", "OpenAI")],
+            [_row("CiteAura appears in this answer without a descriptor.", "openai", "OpenAI")],
         )
         assert framing.build("empty")["status"] == "no_descriptors"

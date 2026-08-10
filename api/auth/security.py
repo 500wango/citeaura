@@ -11,8 +11,8 @@ from api import config
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 30
-ACCESS_TOKEN_COOKIE = "disvorai_access_token"
-REFRESH_TOKEN_COOKIE = "disvorai_refresh_token"
+ACCESS_TOKEN_COOKIE = "citeaura_access_token"
+REFRESH_TOKEN_COOKIE = "citeaura_refresh_token"
 
 
 def _jwt_secret():

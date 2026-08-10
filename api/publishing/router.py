@@ -104,6 +104,7 @@ def update_publisher(
         unknown = sorted(set(payload.credentials) - set(allowed.values()))
         if unknown:
             raise ValueError("unsupported publisher credentials: " + ", ".join(unknown))
+        publishing.validate_credentials(platform, payload.credentials)
         credential_changes = {
             publishing.credential_code(platform, env_name): None if value is None else encrypt_key(value.strip())
             for env_name, value in payload.credentials.items()

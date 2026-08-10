@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import Job, Project, Tenant
+from api.models import Job
 from api.projects import router as project_router
 from api.adapters import engine as engine_adapter, sampling_control
 
@@ -303,7 +303,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
 
     job = client.get(f"/api/v1/projects/{body['project_id']}/jobs/{body['job_id']}", headers=headers)
     assert job.status_code == 200
-    assert job.json()["job"]["log_path"] == str(project_dir / ".jobs" / "1.log")
+    assert "log_path" not in job.json()["job"]
 
     log_path = project_dir / ".jobs" / "1.log"
     log_path.parent.mkdir(parents=True)

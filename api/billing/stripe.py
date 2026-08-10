@@ -45,7 +45,7 @@ def create_checkout_session(tenant, user, plan, billing_interval, amount):
         "line_items[0][price_data][currency]": currency,
         "line_items[0][price_data][unit_amount]": str(amount),
         "line_items[0][price_data][recurring][interval]": interval,
-        "line_items[0][price_data][product_data][name]": f"DisvorAI {plan['name']}",
+        "line_items[0][price_data][product_data][name]": f"CiteAura {plan['name']}",
         "allow_promotion_codes": "true",
     }
     for key, value in metadata.items():

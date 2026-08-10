@@ -7,6 +7,8 @@ from contextlib import contextmanager
 from datetime import date, datetime, timezone
 
 from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from api import config
 from api.adapters.engine import ENGINE_KEY_ENV, load_tenant_keys
@@ -14,7 +16,7 @@ from api.db import SessionLocal
 from api.models import Job, PlatformUsage, Project, Tenant, UsageCounter
 
 
-PAID_PLANS = frozenset(("pro", "agency", "enterprise"))
+PAID_PLANS = frozenset(("starter", "pro", "agency", "enterprise"))
 
 
 def _prices():
@@ -145,46 +147,91 @@ def record_usage(funding, counts, action, job_id=None):
                 candidate = int(job_id)
             except (TypeError, ValueError):
                 candidate = None
-            if candidate and db.get(Job, candidate) is not None:
+            if candidate and db.query(Job.id).filter(
+                Job.id == candidate,
+                Job.project_id == funding["project_id"],
+            ).first() is not None:
                 valid_job_id = candidate
-        counter = db.get(UsageCounter, {
-            "tenant_id": funding["tenant_id"],
-            "month": _month_start(),
-        })
-        if counter is None:
-            counter = UsageCounter(
-                tenant_id=funding["tenant_id"],
-                month=_month_start(),
-                platform_calls=0,
-                platform_cost_cny_fen=0,
-            )
-            db.add(counter)
+        month = _month_start()
+        accepted = []
+        total_calls = 0
+        total_cost = 0
         for code, count in sorted(counts.items()):
             count = int(count)
             if count <= 0 or code not in funding.get("pool_codes", ()):
                 continue
-            if valid_job_id is not None and db.query(PlatformUsage.id).filter(
-                PlatformUsage.job_id == valid_job_id,
-                PlatformUsage.engine_code == code,
-            ).first() is not None:
-                continue
             unit_price = int(funding["rates"][code])
             amount = count * unit_price
-            row = PlatformUsage(
-                tenant_id=funding["tenant_id"],
-                project_id=funding["project_id"],
-                job_id=valid_job_id,
-                action=str(action),
-                engine_code=code,
-                calls=count,
-                unit_price_cny_fen=unit_price,
-                amount_cny_fen=amount,
-            )
-            db.add(row)
-            counter.platform_calls = (counter.platform_calls or 0) + count
-            counter.platform_cost_cny_fen = (counter.platform_cost_cny_fen or 0) + amount
-            rows.append(row)
+            values = {
+                "tenant_id": funding["tenant_id"],
+                "project_id": funding["project_id"],
+                "job_id": valid_job_id,
+                "action": str(action),
+                "engine_code": code,
+                "calls": count,
+                "unit_price_cny_fen": unit_price,
+                "amount_cny_fen": amount,
+            }
+            dialect = db.bind.dialect.name
+            if dialect == "postgresql":
+                statement = postgres_insert(PlatformUsage).values(**values).on_conflict_do_nothing(
+                    constraint="uq_platform_usage_job_engine",
+                )
+            elif dialect == "sqlite":
+                statement = sqlite_insert(PlatformUsage).values(**values).on_conflict_do_nothing(
+                    index_elements=["job_id", "engine_code"],
+                )
+            else:
+                row = PlatformUsage(**values)
+                db.add(row)
+                db.flush()
+                statement = None
+            inserted = True if statement is None else (db.execute(statement).rowcount or 0) > 0
+            if inserted:
+                accepted.append(values)
+                total_calls += count
+                total_cost += amount
+
+        if accepted:
+            counter_values = {
+                "tenant_id": funding["tenant_id"],
+                "month": month,
+                "sample_runs": 0,
+                "projects_active": 0,
+                "platform_calls": total_calls,
+                "platform_cost_cny_fen": total_cost,
+            }
+            dialect = db.bind.dialect.name
+            if dialect == "postgresql":
+                statement = postgres_insert(UsageCounter).values(**counter_values).on_conflict_do_update(
+                    index_elements=["tenant_id", "month"],
+                    set_={
+                        "platform_calls": UsageCounter.platform_calls + total_calls,
+                        "platform_cost_cny_fen": UsageCounter.platform_cost_cny_fen + total_cost,
+                    },
+                )
+                db.execute(statement)
+            elif dialect == "sqlite":
+                statement = sqlite_insert(UsageCounter).values(**counter_values).on_conflict_do_update(
+                    index_elements=["tenant_id", "month"],
+                    set_={
+                        "platform_calls": UsageCounter.platform_calls + total_calls,
+                        "platform_cost_cny_fen": UsageCounter.platform_cost_cny_fen + total_cost,
+                    },
+                )
+                db.execute(statement)
+            else:
+                counter = db.query(UsageCounter).filter(
+                    UsageCounter.tenant_id == funding["tenant_id"], UsageCounter.month == month,
+                ).with_for_update().first()
+                if counter is None:
+                    counter = UsageCounter(**counter_values)
+                    db.add(counter)
+                else:
+                    counter.platform_calls += total_calls
+                    counter.platform_cost_cny_fen += total_cost
         db.commit()
+        rows = [PlatformUsage(**values) for values in accepted]
         return rows
     finally:
         db.close()

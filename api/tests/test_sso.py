@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from api.auth import oidc
 from api.auth.security import create_sso_state
 from api.auth.sso import SSO_CONTEXT_COOKIE
+from api.adapters import network
 from api.db import Base, get_db
 from api.main import app
 from api.models import AuditEvent, Membership, SsoConfiguration, Tenant, User
@@ -56,7 +57,7 @@ def _config_payload(**updates):
     payload = {
         "provider_name": "Example Identity",
         "issuer_url": "https://identity.example.test",
-        "client_id": "disvorai-client",
+        "client_id": "citeaura-client",
         "client_secret": "top-secret-client-value",
         "allowed_domains": ["example.com"],
         "default_role": "viewer",
@@ -122,7 +123,7 @@ def test_sso_callback_provisions_member_and_rejects_unapproved_domain(sso_client
             tenant_id=tenant_id,
             provider_name="Example Identity",
             issuer_url="https://identity.example.test",
-            client_id="disvorai-client",
+            client_id="citeaura-client",
             encrypted_client_secret=encrypt_key("secret"),
             allowed_domains='["example.com"]',
             default_role="viewer",
@@ -147,7 +148,7 @@ def test_sso_callback_provisions_member_and_rejects_unapproved_domain(sso_client
     )
     assert completed.status_code == 303
     assert completed.headers["location"] == "/app#overview"
-    assert "disvorai_access_token=" in completed.headers["set-cookie"]
+    assert "citeaura_access_token=" in completed.headers["set-cookie"]
     with session_factory() as db:
         user = db.query(User).filter(User.email == "new.member@example.com").one()
         assert db.get(Membership, {"tenant_id": tenant_id, "user_id": user.id}).role == "viewer"
@@ -191,8 +192,49 @@ def test_sso_config_and_audit_are_tenant_isolated(sso_client):
     assert client.get("/api/v1/sso/config", headers=second_headers).json()["configured"] is False
 
 
-def test_oidc_issuer_requires_https_except_loopback():
+def test_oidc_issuer_requires_https_and_gates_loopback(monkeypatch):
     assert oidc.normalize_issuer_url("https://identity.example.test/") == "https://identity.example.test"
+    with pytest.raises(ValueError, match="issuer_url_must_use_https"):
+        oidc.normalize_issuer_url("http://127.0.0.1:9000/")
+    monkeypatch.setenv("OIDC_ALLOW_INSECURE_LOCALHOST", "true")
     assert oidc.normalize_issuer_url("http://127.0.0.1:9000/") == "http://127.0.0.1:9000"
     with pytest.raises(ValueError, match="issuer_url_must_use_https"):
         oidc.normalize_issuer_url("http://identity.example.test")
+
+
+class _OidcResponse:
+    def __init__(self, payload, status_code=200):
+        self.payload = payload
+        self.status_code = status_code
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.payload
+
+
+def test_oidc_discovery_blocks_private_endpoints_and_redirects(monkeypatch):
+    issuer = "https://identity.example.test"
+
+    def resolve(host, port, type=None):
+        address = "127.0.0.1" if host == "internal.example.test" else "93.184.216.34"
+        return [(2, 1, 6, "", (address, port))]
+
+    monkeypatch.setattr(network.socket, "getaddrinfo", resolve)
+    monkeypatch.setattr(
+        oidc.requests,
+        "get",
+        lambda *args, **kwargs: _OidcResponse({
+            "issuer": issuer,
+            "authorization_endpoint": f"{issuer}/authorize",
+            "token_endpoint": "https://internal.example.test/token",
+            "jwks_uri": f"{issuer}/jwks",
+        }),
+    )
+    with pytest.raises(oidc.OidcError, match="oidc_endpoint_blocked"):
+        oidc.discover(issuer)
+
+    monkeypatch.setattr(oidc.requests, "get", lambda *args, **kwargs: _OidcResponse({}, 302))
+    with pytest.raises(oidc.OidcError, match="oidc_redirect_blocked"):
+        oidc.discover(issuer)

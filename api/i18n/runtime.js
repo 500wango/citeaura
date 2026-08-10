@@ -1,4 +1,4 @@
-/* DisvorAI i18n runtime — locale-equal catalogs, English fallback (not Chinese).
+/* CiteAura i18n runtime — locale-equal catalogs, English fallback (not Chinese).
    Injected after engine UI_D / uiTranslate. Chinese strings in engine HTML are
    opaque message ids for lookup, not the display source of truth. */
 (function () {
@@ -94,15 +94,15 @@
     return out;
   };
 
-  if (typeof toast === 'function' && !toast.__disvoraiLocalized) {
+  if (typeof toast === 'function' && !toast.__citeauraLocalized) {
     const engineToast = toast;
     toast = function (m, k) { return engineToast(uiMsg(m), k); };
-    toast.__disvoraiLocalized = true;
+    toast.__citeauraLocalized = true;
   }
-  if (!window.__disvoraiConfirmLocalized) {
+  if (!window.__citeauraConfirmLocalized) {
     const engineConfirm = window.confirm.bind(window);
     window.confirm = function (m) { return engineConfirm(uiMsg(m)); };
-    window.__disvoraiConfirmLocalized = true;
+    window.__citeauraConfirmLocalized = true;
   }
 
   window.adminText = function (value) {

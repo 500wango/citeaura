@@ -5,6 +5,7 @@ import time
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import IntegrityError
 
 from api import config
 from api.adapters.exceptions import DistributedLockError
@@ -27,8 +28,9 @@ from api.readiness import readiness_checks
 from api.rate_limit import RateLimitUnavailable, check_request
 
 
-app = FastAPI(title="DisvorAI API", version="1.0.0")
+app = FastAPI(title="CiteAura API", version="1.0.0")
 app.mount("/site-assets", StaticFiles(directory=WEB_ROOT / "assets"), name="site-assets")
+app.mount("/app", StaticFiles(directory=WEB_ROOT / "app", html=True), name="app")
 app.include_router(auth_router)
 app.include_router(sso_router)
 app.include_router(archive_router)
@@ -83,10 +85,16 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-    )
+    if request.url.path.startswith("/files/"):
+        response.headers["Content-Security-Policy"] = (
+            "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data: blob: https:; "
+            "font-src data:; connect-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+        )
+    else:
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        )
     if config.session_cookie_secure():
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
@@ -100,6 +108,15 @@ async def distributed_lock_exception_handler(request: Request, exc: DistributedL
         content={"error": str(exc)},
         headers={"Retry-After": "1"},
     )
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    """把活动任务唯一约束竞争转换成稳定的 409。"""
+    detail = str(getattr(exc, "orig", exc))
+    if "uq_jobs_project_active" in detail or "UNIQUE constraint failed: jobs.project_id" in detail:
+        return JSONResponse(status_code=409, content={"error": "project_job_already_running"})
+    return JSONResponse(status_code=500, content={"error": "database_integrity_error"})
 
 
 @app.exception_handler(HTTPException)

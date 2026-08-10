@@ -1,4 +1,4 @@
-# DisvorAI 开发任务清单
+# CiteAura 开发任务清单
 
 每条任务有明确的输入、输出和验收标准。按顺序执行，后一条依赖前一条。
 
@@ -192,15 +192,33 @@ with with_tenant_context("test-tenant", "example"):
 
 ---
 
-## Phase 4: 前端（可选，MVP 后）
+## Phase 4: 前端（统一 SPA 与落地页重构）
 
-### Task 4.1: 嵌入现有 UI
+### Task 4.1: 落地页与设计系统重构
 
-- 在 FastAPI 中 serve `engine/scripts/ui.html`
-- 反代 `/api` 路由到 FastAPI 后端
-- 修改 ui.html 中的 API 路径以匹配新 API 结构
+- 落地页 `web/index.html`：Space Grotesk + OKLCH Teal 主色 + 4/16/36 节奏
+- 自托管字体与图标：`web/assets/fonts/`、`web/assets/icons/`（零外部 CDN 依赖）
+- 三种采样方式明确标注（API·参数化知识 / API·联网检索 / 人工·产品端）
+- 多语言切换与中英日三语目录同步（`api/i18n/messages/`）
 
-**验收**：浏览器打开看到 DisvorAI 看板，数据来自 SaaS API
+### Task 4.2: 统一 SPA 架构与 6 轨道导航
+
+- 创建 `web/app/` 原生 ES Modules SPA 架构（挂载 `/app`，零构建步骤）
+- 6 轨道全局导航（概览 / 监测 / 诊断 / 执行 / 交付 / 管理）
+- 24 个业务视图与 5 个认证视图（登录、注册、找回密码、重置密码、接受邀请）
+- 组件库原语（Toast, Modal, Badge, KPI, Table, Tabs, Empty, Skeleton）
+
+### Task 4.3: 强类型 API 客户端与多语言引擎
+
+- `web/app/api.js` 统一封装 ~90 个 API 端点，支持凭证鉴权与 401 自动刷新
+- `web/app/i18n.js` 多语言解析引擎，支持点路径 key 解析与 en 兜底
+
+### Task 4.4: 闭环验证与清退旧注入
+
+- 清退 `api/ui.py` 中 3300+ 行旧 monkey-patch，瘦身为标准 SPA 静态伺服与 `/files` 交付下载
+- 更新 `api/tests/test_ui.py`，全量回归测试保持 100% 通过（136 pytest + 109 engine tests）
+
+**验收**：浏览器打开 `/app` 呈现现代化精密仪器级 GEO 控制台，所有测试全绿通过
 
 ---
 

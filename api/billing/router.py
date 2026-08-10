@@ -236,6 +236,8 @@ def _update_invoice_status(db, value, paid):
     row = _subscription_row(db, provider_subscription_id)
     if row is None:
         return False
+    if paid and row.status in ("canceled", "unpaid"):
+        return False
     row.status = "active" if paid else "past_due"
     db.flush()
     _sync_tenant_plan(db, row.tenant_id)

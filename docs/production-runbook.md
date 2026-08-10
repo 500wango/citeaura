@@ -1,4 +1,4 @@
-# DisvorAI 生产上线手册
+# CiteAura 生产上线手册
 
 移动端 App 不在上线范围内。
 

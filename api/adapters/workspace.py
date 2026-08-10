@@ -76,6 +76,8 @@ def ensure_all_engine_scope(project_slug: str) -> dict:
 def update_config(project_slug: str, updates: dict) -> dict:
     if not isinstance(updates, dict):
         raise ValueError("config body must be an object")
+    if "publishing" in updates:
+        raise ValueError("publishing config must use the publishing API")
     with geolib.project_lock(project_slug):
         current = geolib.load_config(project_slug)
         if updates.get("slug", project_slug) != project_slug:

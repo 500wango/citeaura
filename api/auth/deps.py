@@ -30,9 +30,16 @@ def get_current_user(
     db: Session = Depends(get_db),
 ):
     """验证 access token 并返回当前用户。"""
-    token = token or request.cookies.get(ACCESS_TOKEN_COOKIE)
+    bearer_token = token
+    token = bearer_token or request.cookies.get(ACCESS_TOKEN_COOKIE)
     if not token:
         _unauthorized("invalid_token")
+    if (
+        bearer_token is None
+        and request.method in ("POST", "PUT", "PATCH", "DELETE")
+        and request.headers.get("X-CiteAura-Session") != "cookie"
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "csrf_validation_failed"})
     try:
         payload = decode_token(token, expected_type="access")
         user_id = int(payload["sub"])

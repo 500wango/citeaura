@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CiteAura — AI Visibility & GEO Measurement</title>
+  <meta name="description" content="CiteAura Generative Engine Optimization Workbench">
+  <meta name="theme-color" content="#f7f9fa" data-theme-color>
+  <script>
+    (function () {
+      var param = new URLSearchParams(location.search).get('theme');
+      var saved = null;
+      try { saved = localStorage.getItem('utheme'); } catch (e) {}
+      var choice = param || saved;
+      var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    })();
+  </script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/site-assets/fonts/jetbrains-mono-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/app.css">
+  <link rel="icon" type="image/svg+xml" href="/site-assets/brand/mark.svg">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+</head>
+<body>
+  <div id="app">
+    <div style="display: grid; place-items: center; height: 100vh; font-family: var(--font-sans); color: var(--muted);">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+        <span class="spin" style="width: 24px; height: 24px; border-width: 3px;"></span>
+        <span style="font-family: var(--font-mono); font-size: 13px;">Loading CiteAura...</span>
+      </div>
+    </div>
+  </div>
+  <div id="toast-root" class="toast-stack"></div>
+  <div id="modal-root"></div>
+
+  <noscript>
+    <div style="padding: 24px; text-align: center; font-family: sans-serif;">
+      <h2>JavaScript Required</h2>
+      <p>CiteAura application requires JavaScript to run. Please enable JavaScript in your browser settings.</p>
+    </div>
+  </noscript>
+
+  <script type="module" src="/app/app.js"></script>
+</body>
+</html>

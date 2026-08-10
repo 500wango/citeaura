@@ -1,12 +1,13 @@
 """引擎异步任务。"""
 
 import json
+import logging
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from fastapi import HTTPException
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from api.adapters import measurement, sampling_control, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract
@@ -18,6 +19,9 @@ from api.db import SessionLocal
 from api.models import IntegrationCredential, Job, Project, Tenant
 from api.settings.crypto import decrypt_key
 from api.worker.celery_app import celery_app
+
+
+logger = logging.getLogger(__name__)
 
 
 PIPELINE_ACTIONS = {
@@ -203,10 +207,19 @@ def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_p
     with with_tenant_context(str(tenant_id), project_slug, keys=funding["keys"]):
         ensure_all_engine_scope(project_slug)
         with meter_platform_calls(funding["pool_codes"]) as counts:
+            pending_error = None
             try:
                 yield
+            except BaseException as exc:
+                pending_error = exc
+                raise
             finally:
-                record_usage(funding, counts, action, job_id=job_id)
+                try:
+                    record_usage(funding, counts, action, job_id=job_id)
+                except Exception:
+                    logger.exception("platform usage accounting failed", extra={"action": action, "job_id": job_id})
+                    if pending_error is None:
+                        raise
 
 
 def _as_utc(value):
@@ -240,7 +253,7 @@ def _append_job_event(log_path, message):
         return
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(f"[disvorai] {message}\n")
+        handle.write(f"[citeaura] {message}\n")
 
 
 @contextmanager
@@ -267,8 +280,7 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                 db.commit()
         except SQLAlchemyError:
             db.rollback()
-            job = None
-            project = None
+            raise
 
         try:
             _append_job_event(log_path, f"{action} started")
@@ -281,6 +293,7 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                     db.commit()
                 except SQLAlchemyError:
                     db.rollback()
+                    raise
                 _append_job_event(log_path, f"progress {job.stage} {job.progress}")
 
             with _capture_task_output(log_path):
@@ -296,8 +309,9 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                     project.status = "failed"
                 try:
                     db.commit()
-                except SQLAlchemyError:
+                except SQLAlchemyError as status_error:
                     db.rollback()
+                    raise exc from status_error
             raise
         else:
             _append_job_event(log_path, f"{action} done")
@@ -313,11 +327,12 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                     db.commit()
                 except SQLAlchemyError:
                     db.rollback()
+                    raise
     finally:
         db.close()
 
 
-@celery_app.task(name="disvorai.bootstrap")
+@celery_app.task(name="citeaura.bootstrap")
 def task_bootstrap(
     tenant_id: str,
     project_slug: str,
@@ -353,7 +368,7 @@ def task_bootstrap(
             return {"status": "done", "action": job_action, "project_slug": project_slug}
 
 
-@celery_app.task(name="disvorai.sample")
+@celery_app.task(name="citeaura.sample")
 def task_sample(
     tenant_id: str,
     project_slug: str,
@@ -385,7 +400,7 @@ def task_sample(
             return result
 
 
-@celery_app.task(name="disvorai.cycle")
+@celery_app.task(name="citeaura.cycle")
 def task_cycle(tenant_id: str, project_slug: str, job_id=None):
     """执行抓取、体检、采样和报告周期。"""
     import geo
@@ -408,7 +423,7 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
             return {"status": "done", "project_slug": project_slug}
 
 
-@celery_app.task(name="disvorai.dispatch_schedules")
+@celery_app.task(name="citeaura.dispatch_schedules")
 def task_dispatch_schedules(now_iso=None):
     """扫描到期项目并投递周期复跑任务。"""
     now = datetime.fromisoformat(now_iso) if now_iso else datetime.now(timezone.utc)
@@ -416,20 +431,37 @@ def task_dispatch_schedules(now_iso=None):
     result = {"scanned": 0, "enqueued": 0, "busy": 0, "quota_blocked": 0, "failed": 0}
     db = SessionLocal()
     try:
-        projects = (
-            db.query(Project)
-            .join(Tenant, Tenant.id == Project.tenant_id)
-            .filter(
-                Project.schedule_interval_days.in_((7, 14, 30)),
-                Project.schedule_next_run_at.isnot(None),
-                Project.schedule_next_run_at <= now,
+        candidate_ids = [
+            row[0]
+            for row in (
+                db.query(Project.id)
+                .join(Tenant, Tenant.id == Project.tenant_id)
+                .filter(
+                    Project.schedule_interval_days.in_((7, 14, 30)),
+                    Project.schedule_next_run_at.isnot(None),
+                    Project.schedule_next_run_at <= now,
+                )
+                .order_by(Project.schedule_next_run_at, Project.id)
+                .all()
             )
-            .order_by(Project.schedule_next_run_at, Project.id)
-            .with_for_update(skip_locked=True, of=Project)
-            .all()
-        )
-        result["scanned"] = len(projects)
-        for project in projects:
+        ]
+        result["scanned"] = len(candidate_ids)
+        db.rollback()
+        for project_id in candidate_ids:
+            project = (
+                db.query(Project)
+                .filter(
+                    Project.id == project_id,
+                    Project.schedule_interval_days.in_((7, 14, 30)),
+                    Project.schedule_next_run_at.isnot(None),
+                    Project.schedule_next_run_at <= now,
+                )
+                .with_for_update(skip_locked=True, of=Project)
+                .first()
+            )
+            if project is None:
+                db.rollback()
+                continue
             tenant = db.get(Tenant, project.tenant_id)
             active = db.query(Job.id).filter(
                 Job.project_id == project.id,
@@ -437,6 +469,7 @@ def task_dispatch_schedules(now_iso=None):
             ).first()
             if active is not None:
                 result["busy"] += 1
+                db.rollback()
                 continue
             try:
                 check_sample_run(db, tenant, project)
@@ -444,6 +477,7 @@ def task_dispatch_schedules(now_iso=None):
                     sampling_control.ensure_allowed(db, tenant, project)
             except (HTTPException, sampling_control.SamplingBudgetExceeded):
                 result["quota_blocked"] += 1
+                db.rollback()
                 continue
 
             scheduled_for = project.schedule_next_run_at
@@ -458,7 +492,12 @@ def task_dispatch_schedules(now_iso=None):
                 project.schedule_interval_days,
                 now,
             )
-            db.flush()
+            try:
+                db.flush()
+            except IntegrityError:
+                db.rollback()
+                result["busy"] += 1
+                continue
             job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
             db.commit()
             try:
@@ -481,7 +520,7 @@ def task_dispatch_schedules(now_iso=None):
         db.close()
 
 
-@celery_app.task(name="disvorai.verify")
+@celery_app.task(name="citeaura.verify")
 def task_verify(tenant_id: str, project_slug: str, job_id=None):
     """执行工单自动验收。"""
     import verify
@@ -492,7 +531,7 @@ def task_verify(tenant_id: str, project_slug: str, job_id=None):
             return ticket_workflow.record_verification(project_slug, report)
 
 
-@celery_app.task(name="disvorai.deliver")
+@celery_app.task(name="citeaura.deliver")
 def task_deliver(tenant_id: str, project_slug: str, job_id=None):
     """生成客户交付包。"""
     import deliver
@@ -503,7 +542,7 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
             return str(ensure_delivery_contract(project_slug, delivery_directory))
 
 
-@celery_app.task(name="disvorai.pipeline")
+@celery_app.task(name="citeaura.pipeline")
 def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, job_id=None):
     """执行经过白名单校验的完整引擎动作。"""
     with _job_status(tenant_id, project_slug, action, job_id) as update:
@@ -539,7 +578,7 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
             return result
 
 
-@celery_app.task(name="disvorai.sync_integration")
+@celery_app.task(name="citeaura.sync_integration")
 def task_sync_integration(tenant_id: str, project_slug: str, provider: str, job_id=None):
     """同步外部搜索数据，并把快照写入项目文件系统。"""
     from api.adapters import integrations
@@ -601,7 +640,7 @@ def task_sync_integration(tenant_id: str, project_slug: str, provider: str, job_
             }
 
 
-@celery_app.task(name="disvorai.send_outreach")
+@celery_app.task(name="citeaura.send_outreach")
 def task_send_outreach(tenant_id: str, project_slug: str, draft_id: str, job_id=None):
     """领取已人工确认的草稿并通过租户 SMTP 发送。"""
     from api.adapters import outreach
@@ -647,7 +686,7 @@ def task_send_outreach(tenant_id: str, project_slug: str, draft_id: str, job_id=
             return {"status": "done", "draft_id": draft_id, **result}
 
 
-@celery_app.task(name="disvorai.archive_project")
+@celery_app.task(name="citeaura.archive_project")
 def task_archive_project(tenant_id: str, project_slug: str, job_id=None):
     """将本地活动项目写成经校验的对象存储快照。"""
     from api.adapters import archive
@@ -657,7 +696,7 @@ def task_archive_project(tenant_id: str, project_slug: str, job_id=None):
         return {"status": "done", "project_slug": project_slug, "archive": result}
 
 
-@celery_app.task(name="disvorai.restore_project")
+@celery_app.task(name="citeaura.restore_project")
 def task_restore_project(
     tenant_id: str,
     project_slug: str,

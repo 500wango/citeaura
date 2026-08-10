@@ -29,7 +29,7 @@ def send_password_reset_email(email, token):
     draft = {
         "id": f"password-reset-{token_hash(token)[:12]}",
         "recipient_email": email,
-        "subject": "重置你的 DisvorAI 密码",
+        "subject": "重置你的 CiteAura 密码",
         "body": (
             "我们收到了你的密码重置请求。\n\n"
             f"请在 {config.password_reset_ttl_minutes()} 分钟内打开以下链接：\n{reset_url}\n\n"

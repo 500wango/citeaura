@@ -55,4 +55,4 @@ for attempt in $(seq 1 30); do
     sleep 2
 done
 
-printf 'DisvorAI deployed. HTTPS endpoint: https://%s\n' "$DOMAIN"
+printf 'CiteAura deployed. HTTPS endpoint: https://%s\n' "$DOMAIN"

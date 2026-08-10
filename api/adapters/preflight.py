@@ -1,10 +1,10 @@
 """上线前站点可达性和安全预检。"""
 
-import ipaddress
-import socket
 from urllib.parse import urlparse
 
 import requests
+
+from api.adapters.network import NetworkTargetError, assert_public_host
 
 
 class PreflightError(ValueError):
@@ -20,6 +20,8 @@ def normalize_url(value: str) -> str:
         raise PreflightError("url must be a valid http(s) URL")
     if parsed.username or parsed.password:
         raise PreflightError("url credentials are not allowed")
+    if parsed.query or parsed.fragment:
+        raise PreflightError("url query and fragment are not allowed")
     try:
         if parsed.port and not 1 <= parsed.port <= 65535:
             raise PreflightError("url port is invalid")
@@ -30,16 +32,11 @@ def normalize_url(value: str) -> str:
 
 def _resolve_public(hostname: str, port: int):
     try:
-        addresses = sorted({item[4][0] for item in socket.getaddrinfo(hostname, port)})
-    except (socket.gaierror, ValueError, OSError) as exc:
-        raise PreflightError("dns_unresolvable") from exc
-    if not addresses:
-        raise PreflightError("dns_unresolvable")
-    for address in addresses:
-        ip = ipaddress.ip_address(address)
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_unspecified or ip.is_multicast:
-            raise PreflightError("private_address_blocked")
-    return addresses
+        assert_public_host(hostname, port)
+    except NetworkTargetError as exc:
+        message = "private_address_blocked" if str(exc) == "network_private_address_blocked" else "dns_unresolvable"
+        raise PreflightError(message) from exc
+    return True
 
 
 def _check(name, ok, message, action=None, **extra):

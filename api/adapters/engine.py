@@ -1,8 +1,6 @@
-"""DisvorAI 与开源 GEO 引擎之间的运行时适配。"""
+"""CiteAura 与开源 GEO 引擎之间的运行时适配。"""
 
 import os
-import ipaddress
-import socket
 import sys
 import threading
 from contextlib import contextmanager
@@ -11,6 +9,7 @@ from pathlib import Path
 from api import config
 from api.adapters import locking
 from api.adapters.exceptions import GeoEngineError
+from api.adapters.network import NetworkTargetError, validate_outbound_url
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -127,41 +126,24 @@ def inject_keys(keys: dict | None):
                 os.environ[env_name] = old_value
 
 
-def _assert_public_url(url):
-    """拒绝引擎抓取本机、内网和云元数据地址，避免 SaaS SSRF。"""
-    from urllib.parse import urlparse
-
-    parsed = urlparse(str(url))
-    host = parsed.hostname
-    if parsed.scheme not in ("http", "https") or not host:
-        raise GeoEngineError("crawl_url_invalid")
-    try:
-        port = parsed.port or (443 if parsed.scheme == "https" else 80)
-        addresses = {item[4][0] for item in socket.getaddrinfo(host, port)}
-    except (socket.gaierror, ValueError) as exc:
-        raise GeoEngineError("crawl_host_unresolvable") from exc
-    for address in addresses:
-        ip = ipaddress.ip_address(address)
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_unspecified or ip.is_multicast:
-            raise GeoEngineError("crawl_private_address_blocked")
-
-
 @contextmanager
 def protect_network_fetches():
-    """在引擎抓取期间阻止私网目标和跨主机重定向。"""
-    original_get = geolib.requests.get
+    """在引擎网络调用期间阻止私网目标和跨主机重定向。"""
+    original_request = geolib.requests.sessions.Session.request
 
-    def guarded_get(url, *args, **kwargs):
-        _assert_public_url(url)
-        # 不跟随重定向，防止公共站点把抓取器转向内网地址。
+    def guarded_request(session, method, url, *args, **kwargs):
+        try:
+            validate_outbound_url(url, require_https=False)
+        except NetworkTargetError as exc:
+            raise GeoEngineError(str(exc)) from exc
         kwargs["allow_redirects"] = False
-        return original_get(url, *args, **kwargs)
+        return original_request(session, method, url, *args, **kwargs)
 
-    geolib.requests.get = guarded_get
+    geolib.requests.sessions.Session.request = guarded_request
     try:
         yield
     finally:
-        geolib.requests.get = original_get
+        geolib.requests.sessions.Session.request = original_request
 
 
 def load_tenant_keys(db, tenant_id):

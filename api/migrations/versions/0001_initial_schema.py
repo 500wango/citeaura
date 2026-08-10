@@ -1,4 +1,4 @@
-"""创建 DisvorAI 初始数据模型。"""
+"""创建 CiteAura 初始数据模型。"""
 
 from alembic import op
 import sqlalchemy as sa

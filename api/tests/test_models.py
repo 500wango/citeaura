@@ -1,14 +1,15 @@
 from datetime import date, datetime, timezone
 
+import pytest
 from sqlalchemy import create_engine, inspect
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from api.db import Base
 from api.models import (
-    BillingEvent,
     Membership,
+    Job,
     PasswordResetToken,
-    PlatformUsage,
     Project,
     Subscription,
     TeamInvitation,
@@ -93,3 +94,29 @@ def test_initial_schema_contains_all_tables():
     }
     project_columns = {item["name"] for item in inspect(engine).get_columns("projects")}
     assert {"monthly_budget_cny_fen", "sample_call_limit", "pause_on_budget_exceeded"} <= project_columns
+
+
+def test_project_allows_only_one_active_job():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    tenant = Tenant(name="active-job", plan="trial")
+    project = Project(tenant=tenant, slug="example", url="https://example.com", market="both")
+    session.add_all([tenant, project])
+    session.flush()
+    first = Job(project_id=project.id, action="sample", status="queued")
+    session.add(first)
+    session.commit()
+
+    session.add(Job(project_id=project.id, action="verify", status="running"))
+    with pytest.raises(IntegrityError):
+        session.commit()
+    session.rollback()
+
+    first.status = "done"
+    session.add_all([
+        Job(project_id=project.id, action="verify", status="running"),
+        Job(project_id=project.id, action="sample", status="failed"),
+    ])
+    session.commit()
+    assert session.query(Job).count() == 3

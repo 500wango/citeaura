@@ -1,4 +1,4 @@
-"""DisvorAI 国际化：locale 平等，en 为默认回退。"""
+"""CiteAura 国际化：locale 平等，en 为默认回退。"""
 
 from api.i18n.catalog import catalogs_as_json, clear_catalog_cache, load_all_catalogs, resolve
 from api.i18n.locales import (

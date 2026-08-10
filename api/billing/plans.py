@@ -1,4 +1,4 @@
-"""DisvorAI 套餐能力定义。"""
+"""CiteAura 套餐能力定义。"""
 
 
 PLANS = {
@@ -9,17 +9,24 @@ PLANS = {
         "projects": 3,
         "sample_runs": 2,
     },
+    "starter": {
+        "name": "Starter",
+        "monthly_cny": 599,
+        "monthly_usd": 79,
+        "projects": 3,
+        "sample_runs": None,
+    },
     "pro": {
         "name": "Pro",
-        "monthly_cny": 199,
-        "monthly_usd": 29,
+        "monthly_cny": 1499,
+        "monthly_usd": 199,
         "projects": 10,
         "sample_runs": None,
     },
     "agency": {
         "name": "Agency",
-        "monthly_cny": 599,
-        "monthly_usd": 79,
+        "monthly_cny": 3699,
+        "monthly_usd": 499,
         "projects": 30,
         "sample_runs": None,
     },
@@ -33,4 +40,4 @@ PLANS = {
 }
 
 
-SUBSCRIBABLE_PLANS = frozenset(("pro", "agency", "enterprise"))
+SUBSCRIBABLE_PLANS = frozenset(("starter", "pro", "agency", "enterprise"))

@@ -1,4 +1,4 @@
-# DisvorAI — Codex 开发指令
+# CiteAura — Codex 开发指令
 
 ## 项目一句话
 
@@ -7,7 +7,7 @@
 ## 目录结构
 
 ```
-disvorai/
+citeaura/
 ├── engine/                  # 开源引擎（已去品牌化，只读参考，不修改）
 │   ├── scripts/             # 核心 Python 模块（20 个 .py）
 │   ├── tests/               # 109 个测试（必须保持全绿）
@@ -20,7 +20,16 @@ disvorai/
 │   ├── billing/             # 计费（试用限额 + Stripe）
 │   ├── worker/              # Celery 任务定义
 │   └── adapters/            # 引擎适配层（die→raise, tenant隔离, key注入）
-├── web/                     # 前端（后期，MVP 先嵌入 engine/scripts/ui.html）
+├── web/                     # 前端（统一设计系统 SPA 与落地页）
+│   ├── index.html           # 官网落地页
+│   ├── app/                 # 统一 SPA 应用（ES Modules，挂载 /app）
+│   │   ├── index.html       # SPA 入口
+│   │   ├── app.js           # 核心路由器与状态中心
+│   │   ├── api.js           # 强类型 API 客户端（~90 个端点，401 自动刷新）
+│   │   ├── i18n.js          # 多语言引擎
+│   │   ├── components/      # 通用 UI 组件原语
+│   │   └── views/           # 24 个业务视图与 5 个认证视图
+│   └── assets/              # 共享样式（tokens, base, components, app）、自托管字体与图标
 ├── docker-compose.yml       # Postgres + Redis + API + Worker
 ├── requirements.txt         # Python 依赖
 ├── .env.example             # 环境变量模板
@@ -35,7 +44,7 @@ disvorai/
 2. **不重写引擎逻辑**。SaaS 层通过 `import` 调用 `engine/scripts/` 模块。
 3. **文件系统是管线 SSOT**。Postgres 只存 auth/billing/project-index/job-meta。管线产物（audit.json, tasks.json, metrics/, delivery/）在磁盘 `work/<tenant>/<slug>/`。
 4. **BYOK 优先**。用户自带 API Key，加密存储，运行时注入 `os.environ`。
-5. **不出现 "geolook" / "GeoLook"**。产品名统一 **DisvorAI**。
+5. **产品名统一 CiteAura**。统一官网为 `citeaura.com`。
 6. **引擎测试必须保持全绿**：`cd engine && python3 -m unittest discover -s tests`。
 7. **采样模式必须标注**。UI/API 返回时标明 "API·参数化知识" 或 "API·联网检索" 或 "人工·产品端"。
 
@@ -58,7 +67,7 @@ disvorai/
 - **数据库**：PostgreSQL 15
 - **认证**：JWT（access + refresh token）
 - **加密**：AES-256-GCM（API Key 加密）
-- **前端**：MVP 阶段嵌入 `engine/scripts/ui.html`；后期 Next.js
+- **前端**：统一 SPA 架构（Vanilla JS ES Modules + 原生 CSS，自托管字体与图标，无构建步骤）
 - **部署**：Docker Compose（单节点）
 
 ## 编码规范
@@ -121,8 +130,6 @@ make test
 ## 不做的事
 
 - 不做移动端
-- 不做 SSO
 - 不做自动发布（只生成资产和交付包）
 - 不做微信/WordPress 发布集成（P1）
-- 不做前端重写（MVP 嵌入现有 ui.html）
 - 不写代码注释解释"这是从哪里来的"或"为什么正确"——只写约束

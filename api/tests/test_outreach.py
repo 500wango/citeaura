@@ -138,6 +138,25 @@ def test_smtp_credentials_are_encrypted_hidden_and_tenant_isolated(outreach_clie
     ).status_code == 404
 
 
+def test_smtp_send_blocks_private_destination(monkeypatch):
+    monkeypatch.setattr(outreach.smtplib, "SMTP", lambda *args, **kwargs: pytest.fail("SMTP connection attempted"))
+    draft = {
+        "id": "outreach-test",
+        "recipient_email": "recipient@example.com",
+        "subject": "Subject",
+        "body": "Body",
+    }
+    settings = {
+        "host": "127.0.0.1",
+        "port": 587,
+        "security_mode": "starttls",
+        "from_email": "sender@example.com",
+        "from_name": "Sender",
+    }
+    with pytest.raises(outreach.OutreachError, match="outreach_smtp_host_blocked"):
+        outreach.send_smtp(draft, settings, {})
+
+
 def test_outreach_requires_current_revision_and_explicit_human_confirmation(
     outreach_client,
     monkeypatch,

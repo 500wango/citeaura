@@ -1,0 +1,186 @@
+/**
+ * 团队成员与权限协作视图 (Team & Permissions)
+ */
+
+import { team } from '../api.js';
+import { t } from '../i18n.js';
+import { toast } from '../components/toast.js';
+import { openModal } from '../components/modal.js';
+
+export default {
+  render: async (ctx) => {
+    let members = [];
+    let invitations = [];
+
+    try {
+      [members, invitations] = await Promise.all([
+        team.getMembers().catch(() => []),
+        team.getInvitations().catch(() => []),
+      ]);
+    } catch (e) {}
+
+    return `
+      <div class="app-view-container">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1 class="view-title">${t('team.title', {}, 'Team Members & Permissions')}</h1>
+            <p class="view-desc">
+              ${t('team.desc', {}, 'Manage organization workspace collaborators. Roles support Owner (full administration), Editor (project execution), and Viewer (read-only).')}
+            </p>
+          </div>
+          <div class="view-actions">
+            <button type="button" id="btn-invite-member" class="btn btn-primary btn-sm">
+              + ${t('team.invite_btn', {}, 'Invite Team Member')}
+            </button>
+          </div>
+        </div>
+
+        <!-- 活跃成员列表 -->
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('team.members_list', {}, 'Active Members')}</h3>
+          </div>
+
+          <div class="tbl" style="overflow-x:auto;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>${t('team.col_member', {}, 'Member Email')}</th>
+                  <th>${t('team.col_role', {}, 'Role')}</th>
+                  <th>${t('common.joined', {}, 'Joined Date')}</th>
+                  <th style="text-align:right;">${t('common.action', {}, 'Action')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${members
+                  .map(
+                    (m) => `
+                  <tr>
+                    <td><strong>${m.email}</strong></td>
+                    <td>
+                      <span class="tag ${m.role === 'owner' ? 'tag-accent' : 'tag-neutral'}">
+                        ${m.role || 'editor'}
+                      </span>
+                    </td>
+                    <td class="num">${m.created_at ? new Date(m.created_at).toLocaleDateString() : '—'}</td>
+                    <td style="text-align:right;">
+                      ${
+                        m.role !== 'owner'
+                          ? `<button type="button" class="btn btn-ghost btn-sm btn-remove-member" data-id="${m.user_id || m.id}" style="color:var(--bad);">
+                              ${t('common.remove', {}, 'Remove')}
+                            </button>`
+                          : '<span style="font-size:11px;color:var(--muted);">Workspace Owner</span>'
+                      }
+                    </td>
+                  </tr>
+                `
+                  )
+                  .join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 待接受邀请 -->
+        ${
+          invitations && invitations.length
+            ? `
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
+              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('team.pending_invitations', {}, 'Pending Invitations')}</h3>
+            </div>
+            <div class="tbl" style="overflow-x:auto;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Invitation Link</th>
+                    <th style="text-align:right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${invitations
+                    .map(
+                      (inv) => `
+                    <tr>
+                      <td><strong>${inv.email}</strong></td>
+                      <td><span class="tag tag-dim">${inv.role}</span></td>
+                      <td>
+                        <button type="button" class="btn btn-ghost btn-sm btn-copy-invite" data-token="${inv.token}">
+                          Copy Link
+                        </button>
+                      </td>
+                      <td style="text-align:right;">
+                        <button type="button" class="btn btn-ghost btn-sm btn-revoke-inv" data-id="${inv.id}" style="color:var(--bad);">
+                          Revoke
+                        </button>
+                      </td>
+                    </tr>
+                  `
+                    )
+                    .join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `
+            : ''
+        }
+      </div>
+    `;
+  },
+
+  mounted: (ctx) => {
+    document.getElementById('btn-invite-member')?.addEventListener('click', () => {
+      openModal({
+        title: t('team.invite_modal_title', {}, 'Invite Team Member'),
+        content: `
+          <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
+            <div class="field" style="margin:0;">
+              <label>Work Email *</label>
+              <input type="email" id="invite-email-input" class="input" placeholder="colleague@company.com" required>
+            </div>
+            <div class="field" style="margin:0;">
+              <label>Role</label>
+              <select id="invite-role-select" class="input">
+                <option value="editor" selected>Editor (Can execute projects & tickets)</option>
+                <option value="viewer">Viewer (Read-only access)</option>
+                <option value="owner">Owner (Full administrative rights)</option>
+              </select>
+            </div>
+          </div>
+        `,
+        confirmText: t('team.send_invite', {}, 'Send Invitation'),
+        onConfirm: async () => {
+          const email = document.getElementById('invite-email-input')?.value.trim();
+          const role = document.getElementById('invite-role-select')?.value;
+          if (!email) return false;
+
+          try {
+            await team.createInvitation({ email, role });
+            toast.success(t('team.invite_created', {}, 'Invitation created!'));
+            ctx.navigate('#/team');
+            return true;
+          } catch (err) {
+            toast.error(t(err.error, {}, err.detail || 'Failed to create invitation'));
+            return false;
+          }
+        },
+      });
+    });
+
+    document.querySelectorAll('.btn-revoke-inv').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        try {
+          await team.revokeInvitation(id);
+          toast.success('Invitation revoked');
+          ctx.navigate('#/team');
+        } catch (err) {
+          toast.error('Failed to revoke invitation');
+        }
+      });
+    });
+  },
+};

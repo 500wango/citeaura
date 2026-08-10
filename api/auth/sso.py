@@ -23,7 +23,7 @@ from api.settings.crypto import decrypt_key, encrypt_key
 
 
 router = APIRouter(prefix="/api/v1/sso", tags=["sso"])
-SSO_CONTEXT_COOKIE = "disvorai_sso_context"
+SSO_CONTEXT_COOKIE = "citeaura_sso_context"
 
 
 class SsoConfigRequest(BaseModel):
@@ -238,7 +238,7 @@ def sso_callback(
     )
     db.commit()
     redirect = RedirectResponse(url="/app#overview", status_code=status.HTTP_303_SEE_OTHER)
-    token_response(redirect, user.id, tenant.id, db)
+    token_response(redirect, user.id, tenant.id, db, expose_tokens=False)
     redirect.delete_cookie(SSO_CONTEXT_COOKIE)
     return redirect
 

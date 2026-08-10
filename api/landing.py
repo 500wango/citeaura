@@ -14,7 +14,7 @@ WEB_ROOT = Path(__file__).resolve().parent.parent / "web"
 
 @router.get("/")
 def serve_landing_page():
-    """返回 DisvorAI 公开 Landing Page。"""
+    """返回 CiteAura 公开 Landing Page。"""
     return FileResponse(WEB_ROOT / "index.html", media_type="text/html; charset=utf-8")
 
 
@@ -27,6 +27,5 @@ def serve_i18n_catalog(locale: str):
     path = MESSAGES_DIR / f"{code}.json"
     if not path.is_file():
         raise HTTPException(status_code=404, detail={"error": "locale_not_found"})
-    # 确保缓存与磁盘一致
     catalogs = load_all_catalogs()
     return JSONResponse(catalogs.get(code) or {}, media_type="application/json; charset=utf-8")

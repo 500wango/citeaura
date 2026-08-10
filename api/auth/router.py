@@ -95,7 +95,7 @@ def _tenant_name(db: Session, requested: str | None, email: str) -> str:
     return candidate
 
 
-def token_response(response: Response, user_id: int, tenant_id: int, db: Session):
+def token_response(response: Response, user_id: int, tenant_id: int, db: Session, expose_tokens=True):
     """签发令牌并设置同站 HttpOnly 会话 Cookie。"""
     # 令牌绑定到当前会话版本，密码重置后旧令牌立即失效。
     user = db.get(User, user_id)
@@ -120,6 +120,8 @@ def token_response(response: Response, user_id: int, tenant_id: int, db: Session
         samesite="strict",
     )
     response.headers["Cache-Control"] = "no-store"
+    if not expose_tokens:
+        return {"authenticated": True, "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60}
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -184,7 +186,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/auth/login")
-def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
+def login(request: Request, payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
     """验证密码并返回 access/refresh JWT。"""
     user = db.query(User).filter(User.email == payload.email).first()
     if user is None or not verify_password(payload.password, user.password_hash):
@@ -197,7 +199,13 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     if membership is None:
         _error(status.HTTP_403_FORBIDDEN, "no_tenant_membership")
 
-    return token_response(response, user.id, membership.tenant_id, db)
+    return token_response(
+        response,
+        user.id,
+        membership.tenant_id,
+        db,
+        expose_tokens=request.headers.get("X-CiteAura-Session") != "cookie",
+    )
 
 
 @router.post("/auth/refresh")
@@ -221,7 +229,13 @@ def refresh(
     membership = db.get(Membership, {"tenant_id": tenant_id, "user_id": user_id})
     if user is None or membership is None or int(claims.get("sv", -1)) != int(user.session_version):
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
-    return token_response(response, user_id, tenant_id, db)
+    return token_response(
+        response,
+        user_id,
+        tenant_id,
+        db,
+        expose_tokens=request.headers.get("X-CiteAura-Session") != "cookie",
+    )
 
 
 @router.post("/auth/logout")
@@ -289,6 +303,7 @@ def reset_password(payload: ResetPasswordRequest, response: Response, db: Sessio
 
 @router.post("/auth/switch-tenant")
 def switch_tenant(
+    request: Request,
     payload: SwitchTenantRequest,
     response: Response,
     current_user: User = Depends(get_current_user),
@@ -298,7 +313,13 @@ def switch_tenant(
     membership = db.get(Membership, {"tenant_id": payload.tenant_id, "user_id": current_user.id})
     if membership is None:
         _error(status.HTTP_404_NOT_FOUND, "tenant_membership_not_found")
-    return token_response(response, current_user.id, payload.tenant_id, db)
+    return token_response(
+        response,
+        current_user.id,
+        payload.tenant_id,
+        db,
+        expose_tokens=request.headers.get("X-CiteAura-Session") != "cookie",
+    )
 
 
 @router.get("/me")

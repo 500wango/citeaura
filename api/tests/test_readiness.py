@@ -37,6 +37,10 @@ def test_readiness_requires_all_production_dependencies(monkeypatch):
     assert all(result["checks"].values())
 
 
+def test_readiness_requires_active_job_migration():
+    assert readiness.EXPECTED_DB_REVISION == "0014_active_job_uniqueness"
+
+
 def test_readiness_reports_failed_dependency_without_secret_details(monkeypatch):
     monkeypatch.setattr(readiness, "redis_client", lambda: (_ for _ in ()).throw(OSError("secret-host")))
     monkeypatch.setattr(readiness, "_master_key", lambda: b"a" * 32)

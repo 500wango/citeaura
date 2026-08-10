@@ -123,6 +123,12 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
     with session_factory() as db:
         assert db.get(Project, project_id).market == "both"
     assert json.loads((root / "geo.json").read_text("utf-8"))["market"] == "both"
+    forbidden = client.patch(
+        f"/api/v1/projects/{project_id}/config",
+        headers=headers,
+        json={"publishing": {"webhook": {"url": "https://127.0.0.1"}}},
+    )
+    assert forbidden.status_code == 400
 
     added = client.post(
         f"/api/v1/projects/{project_id}/questions",

@@ -1,77 +1,102 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" data-i18n="landing.meta_description" content="DisvorAI turns a domain into AI visibility reports, action tickets, verification results, and client delivery packs.">
-  <meta name="theme-color" content="#f5f5f3">
-  <title data-i18n="landing.title">DisvorAI | From domain to verifiable AI visibility action</title>
-  <link rel="icon" href="/site-assets/favicon.png" type="image/png">
-  <link rel="preload" href="/site-assets/product-audit-en.webp" as="image" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="/site-assets/styles.css">
-  <script src="/site-assets/landing.js" defer></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="landing.title">CiteAura | Make Your Brand the Default Answer in AI Search — Next-Gen GEO Platform</title>
+  <meta name="description" content="CiteAura is the next-gen Generative Engine Optimization (GEO) platform. Enter a domain to audit AI visibility gaps, generate 13 actionable engineering tickets, verify improvements, and export client delivery packs." data-i18n-content="landing.meta_description">
+  <meta name="theme-color" content="#f7f9fa" data-theme-color>
+  <script>
+    (function () {
+      var param = new URLSearchParams(location.search).get('theme');
+      var saved = null;
+      try { saved = localStorage.getItem('utheme'); } catch (e) {}
+      var choice = param || saved;
+      var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    })();
+  </script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <script defer src="/site-assets/landing.js"></script>
+  <noscript><style>.reveal{opacity:1;transform:none}</style></noscript>
 </head>
 <body>
   <a class="skip-link" href="#main" data-i18n="nav.skip">Skip to main content</a>
-
   <header class="site-header">
-    <nav class="nav-shell" data-i18n-aria="nav.main" aria-label="Main navigation">
-      <a class="brand" href="/" data-i18n-aria="nav.home" aria-label="DisvorAI home">Disvor<span>AI</span></a>
-      <div class="nav-links">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home" data-i18n-aria="nav.home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" data-i18n-aria="nav.open" aria-label="Open navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-label" data-i18n="nav.menu">Menu</span>
+      </button>
+      <nav id="primary-nav" class="nav-links" aria-label="Main navigation" data-i18n-aria="nav.main">
         <a href="#workflow" data-i18n="nav.workflow">Workflow</a>
         <a href="#product" data-i18n="nav.product">Product</a>
         <a href="#pricing" data-i18n="nav.pricing">Pricing</a>
         <a href="#faq" data-i18n="nav.faq">FAQ</a>
-      </div>
+      </nav>
       <div class="nav-actions">
-        <button class="nav-menu-toggle" type="button" data-i18n-aria="nav.open" aria-label="Open navigation" aria-expanded="false">Menu</button>
-        <div class="lang-switch" role="group" data-i18n-aria="lang.label" aria-label="Language">
-          <button type="button" class="lang-btn" data-lang="zh" aria-pressed="false">中</button>
-          <button type="button" class="lang-btn" data-lang="en" aria-pressed="true">EN</button>
-          <button type="button" class="lang-btn" data-lang="ja" aria-pressed="false">日</button>
+        <div class="lang-switch" role="group" aria-label="Language" data-i18n-aria="lang.label">
+          <button type="button" data-lang="en" class="lang-btn is-active" aria-pressed="true">EN</button>
+          <button type="button" data-lang="zh" class="lang-btn" aria-pressed="false">中文</button>
+          <button type="button" data-lang="ja" class="lang-btn" aria-pressed="false">日本語</button>
         </div>
-        <button class="theme-toggle" type="button" data-i18n-aria="theme.to_dark" aria-label="Switch to dark theme" aria-pressed="false">
-          <span class="theme-mark" aria-hidden="true"></span>
-          <span class="theme-label" data-i18n="theme.dark">Dark</span>
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" data-i18n-aria="theme.to_dark">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <a class="button button-primary nav-cta" href="/app" data-i18n="nav.cta">Start free trial</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app" data-i18n="nav.cta">Start free trial</a>
       </div>
-    </nav>
+    </div>
   </header>
 
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
-      <img class="hero-image" src="/site-assets/product-audit-en.webp" data-locale-src-en="/site-assets/product-audit-en.webp" data-locale-src-zh="/site-assets/product-audit.webp" data-locale-src-ja="/site-assets/product-audit-en.webp" width="1440" height="960" data-i18n-alt="landing.hero_image_alt" alt="DisvorAI website audit UI showing page scores and content gaps" fetchpriority="high">
-      <div class="hero-overlay" aria-hidden="true"></div>
-      <div class="hero-content page-shell">
-        <p class="eyebrow" data-i18n="landing.eyebrow">AI visibility execution platform</p>
-        <h1 id="hero-title">DisvorAI</h1>
-        <p class="hero-copy" data-i18n="landing.hero_copy">From one domain, generate verifiable AI visibility reports, tickets, and delivery packs.</p>
-        <div class="hero-actions">
-          <a class="button button-light" href="/app" data-i18n="nav.cta">Start free trial</a>
-          <a class="button button-ghost-light" href="#workflow" data-i18n="landing.hero_cta_secondary">View workflow</a>
+      <div class="page-shell hero-layout">
+        <div class="hero-copy-block">
+          <p class="eyebrow"><span class="brand-mark brand-mark-sm" aria-hidden="true"></span><span data-i18n="landing.eyebrow">Next-Gen Generative Engine Optimization (GEO)</span></p>
+          <h1 id="hero-title" data-i18n="landing.hero_title">Make your brand the default answer in AI search.</h1>
+          <p class="hero-copy" data-i18n="landing.hero_copy">Enter a domain to audit AI recommendation gaps, generate 13 engineering-grade tickets, automate verification loops, and export client-ready delivery packs.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary btn-lg" href="/app" data-i18n="nav.cta">Start free trial</a>
+            <a class="btn btn-ghost btn-lg" href="#workflow" data-i18n="landing.hero_cta_secondary">Explore 5-step workflow</a>
+          </div>
         </div>
+        <figure class="hero-shot">
+          <div class="shot-frame">
+            <span class="shot-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <img src="/site-assets/product-audit-en.webp" data-locale-src-en="/site-assets/product-audit-en.webp" data-locale-src-zh="/site-assets/product-audit.webp" data-locale-src-ja="/site-assets/product-audit-ja.webp" width="1440" height="960" data-i18n-alt="landing.hero_image_alt" alt="CiteAura website audit UI showing page scores and content gaps" fetchpriority="high">
+          </div>
+          <figcaption class="hero-modes" data-i18n-aria="landing.modes_label" aria-label="Supported sampling modes">
+            <span class="modes-note" data-i18n="landing.modes_note">Scientific rigor · Sampling method labeled</span>
+            <span class="mode-chip" data-i18n="landing.mode_parametric">API · Model knowledge</span>
+            <span class="mode-chip" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
+            <span class="mode-chip" data-i18n="landing.mode_manual">Manual · Product surface</span>
+          </figcaption>
+        </figure>
       </div>
     </section>
 
-    <div class="hero-modes page-shell" data-i18n-aria="landing.modes_label" aria-label="Supported sampling modes">
-      <span data-i18n="landing.modes_note">Results label the sampling method</span>
-      <strong data-i18n="landing.mode_parametric">API · Model knowledge</strong>
-      <strong data-i18n="landing.mode_search">API · Web-grounded retrieval</strong>
-      <strong data-i18n="landing.mode_manual">Manual · Product surface</strong>
-    </div>
-
     <section class="truth-band" aria-labelledby="truth-title">
       <div class="page-shell truth-layout reveal">
-        <p class="section-index" data-i18n="landing.truth_index">01 / Data boundary</p>
-        <div>
-          <h2 id="truth-title" data-i18n="landing.truth_title">State what was measured before talking growth.</h2>
-          <p data-i18n="landing.truth_body">Model knowledge comes from weights only—no live search or external retrieval. Web-grounded and manual product-surface results are labeled separately.</p>
+        <div class="truth-intro">
+          <p class="section-index" data-i18n="landing.truth_index">01 / Measurement rigor</p>
+          <h2 id="truth-title" data-i18n="landing.truth_title">Zero guesswork. Measure real AI visibility with rigorous data boundaries.</h2>
+          <p data-i18n="landing.truth_body">AI outputs vary by knowledge source. CiteAura strictly distinguishes between parametric model memory, web-grounded retrieval, and product-surface interaction. Unmeasured engines are reported honestly—guiding real marketing investments with multi-round trends.</p>
         </div>
         <dl class="mode-list">
-          <div><dt data-i18n="landing.truth_engines">Engines covered</dt><dd data-i18n="landing.truth_engines_dd">Unified access to GLM, DeepSeek, OpenAI, Gemini, Claude, and more</dd></div>
-          <div><dt data-i18n="landing.truth_sampling">Sampling methods</dt><dd data-i18n="landing.truth_sampling_dd">API and manual product-surface results share one report</dd></div>
-          <div><dt data-i18n="landing.truth_principle">Principle</dt><dd data-i18n="landing.truth_principle_dd">Unmeasured stays unmeasured—never replace with 0%</dd></div>
+          <div><dt data-i18n="landing.truth_engines">Full AI matrix coverage</dt><dd data-i18n="landing.truth_engines_dd">Unified measurement across DeepSeek, ChatGPT, Claude, Gemini, GLM, and more</dd></div>
+          <div><dt data-i18n="landing.truth_sampling">Multi-source sampling</dt><dd data-i18n="landing.truth_sampling_dd">Combine automated API sampling with manual product-surface checks in a single dashboard</dd></div>
+          <div><dt data-i18n="landing.truth_principle">Honest transparency</dt><dd data-i18n="landing.truth_principle_dd">Never mask unmeasured engines as 0%; every data point is traceable to exact source prompts</dd></div>
         </dl>
       </div>
     </section>
@@ -80,34 +105,34 @@
       <div class="page-shell">
         <div class="section-heading reveal">
           <p class="section-index" data-i18n="landing.workflow_index">02 / Workflow</p>
-          <h2 id="workflow-title" data-i18n="landing.workflow_title">From domain to verifiable outcomes</h2>
-          <p data-i18n="landing.workflow_body">Diagnosis, execution, and review share one evidence-backed workflow.</p>
+          <h2 id="workflow-title" data-i18n="landing.workflow_title">From domain to verifiable delivery in 5 closed-loop steps</h2>
+          <p data-i18n="landing.workflow_body">Unify AI diagnosis, strategy, engineering tickets, before/after verification, and client delivery into one standard pipeline.</p>
         </div>
         <ol class="workflow-list">
           <li class="reveal">
             <span class="workflow-number">01</span>
-            <h3 data-i18n="landing.workflow_1_title">Enter a domain</h3>
-            <p data-i18n="landing.workflow_1_body">Crawl the site, infer brand facts, competitors, and prompts. Unconfirmed items stay marked pending.</p>
+            <h3 data-i18n="landing.workflow_1_title">1. Scan & extract facts</h3>
+            <p data-i18n="landing.workflow_1_body">Crawl core site content, automatically map brand facts, competitor matrices, and target question sets.</p>
           </li>
           <li class="reveal">
             <span class="workflow-number">02</span>
-            <h3 data-i18n="landing.workflow_2_title">Diagnose</h3>
-            <p data-i18n="landing.workflow_2_body">Check crawlability, structure, extraction blocks, and authority signals, then sample configured engines.</p>
+            <h3 data-i18n="landing.workflow_2_title">2. Deep multi-model audit</h3>
+            <p data-i18n="landing.workflow_2_body">Inspect crawlability, structural semantics, extraction blocks, and authority signals across model matrices.</p>
           </li>
           <li class="reveal">
             <span class="workflow-number">03</span>
-            <h3 data-i18n="landing.workflow_3_title">Execute</h3>
-            <p data-i18n="landing.workflow_3_body">Organize an action plan by impact and effort into tickets with owners and acceptance criteria.</p>
+            <h3 data-i18n="landing.workflow_3_title">3. Actionable engineering tickets</h3>
+            <p data-i18n="landing.workflow_3_body">Convert diagnosis into 13 standardized engineering tickets prioritized by Impact × Effort with clear acceptance criteria.</p>
           </li>
           <li class="reveal">
             <span class="workflow-number">04</span>
-            <h3 data-i18n="landing.workflow_4_title">Verify</h3>
-            <p data-i18n="landing.workflow_4_body">Re-crawl and compare samples. Passes close automatically; regressions reopen.</p>
+            <h3 data-i18n="landing.workflow_4_title">4. Re-crawl & auto-verification</h3>
+            <p data-i18n="landing.workflow_4_body">Re-crawl deployed pages and compare AI sampling. Improvements close tickets automatically; regressions trigger alerts.</p>
           </li>
           <li class="reveal">
             <span class="workflow-number">05</span>
-            <h3 data-i18n="landing.workflow_5_title">Deliver</h3>
-            <p data-i18n="landing.workflow_5_body">Ship diagnosis, plan, tickets, verification, assets, and a client delivery pack.</p>
+            <h3 data-i18n="landing.workflow_5_title">5. Export white-label delivery pack</h3>
+            <p data-i18n="landing.workflow_5_body">Generate executive audit decks, action matrices, ticket logs, before/after comparisons, and ready-to-deploy assets.</p>
           </li>
         </ol>
       </div>
@@ -115,29 +140,32 @@
 
     <section class="product section" id="product" aria-labelledby="product-title">
       <div class="page-shell">
-        <div class="section-heading product-heading reveal">
-          <p class="section-index" data-i18n="landing.product_index">03 / Product</p>
-          <h2 id="product-title" data-i18n="landing.product_title">Evidence and next steps on one screen.</h2>
-          <p data-i18n="landing.product_body">Every score maps to a page gap; every gap maps to action and verification.</p>
+        <div class="section-heading reveal">
+          <p class="section-index" data-i18n="landing.product_index">03 / Live product</p>
+          <h2 id="product-title" data-i18n="landing.product_title">Actionable evidence and next steps on one unified screen.</h2>
+          <p data-i18n="landing.product_body">Every visibility score links directly to page-level gaps; every gap maps to engineering tickets and verification.</p>
         </div>
         <div class="product-gallery">
           <figure class="product-shot product-shot-main reveal">
             <div class="shot-frame">
-              <img src="/site-assets/product-audit-en.webp" data-locale-src-en="/site-assets/product-audit-en.webp" data-locale-src-zh="/site-assets/product-audit.webp" data-locale-src-ja="/site-assets/product-audit-en.webp" width="1440" height="960" data-i18n-alt="landing.shot_audit_alt" alt="Website audit page showing extraction gaps, score distribution, and related tickets">
+              <span class="shot-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <img src="/site-assets/product-audit-en.webp" data-locale-src-en="/site-assets/product-audit-en.webp" data-locale-src-zh="/site-assets/product-audit.webp" data-locale-src-ja="/site-assets/product-audit-ja.webp" width="1440" height="960" data-i18n-alt="landing.shot_audit_alt" alt="Website audit page showing extraction gaps, score distribution, and related tickets" loading="lazy">
             </div>
-            <figcaption><span data-i18n="landing.shot_audit">Website audit</span><strong data-i18n="landing.shot_audit_cap">Gaps link to pages and tickets</strong></figcaption>
+            <figcaption><span class="shot-label" data-i18n="landing.shot_audit">Site-wide GEO audit</span><strong data-i18n="landing.shot_audit_cap">Pinpoint extraction gaps and technical blockers preventing AI recommendations</strong></figcaption>
           </figure>
           <figure class="product-shot reveal">
             <div class="shot-frame">
-              <img src="/site-assets/product-plan-en.webp" data-locale-src-en="/site-assets/product-plan-en.webp" data-locale-src-zh="/site-assets/product-plan.webp" data-locale-src-ja="/site-assets/product-plan-en.webp" width="1440" height="960" data-i18n-alt="landing.shot_plan_alt" alt="Action plan page with tasks ordered by impact and effort">
+              <span class="shot-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <img src="/site-assets/product-plan-en.webp" data-locale-src-en="/site-assets/product-plan-en.webp" data-locale-src-zh="/site-assets/product-plan.webp" data-locale-src-ja="/site-assets/product-plan-ja.webp" width="1440" height="960" data-i18n-alt="landing.shot_plan_alt" alt="Action plan page with tasks ordered by impact and effort" loading="lazy">
             </div>
-            <figcaption><span data-i18n="landing.shot_plan">Action plan</span><strong data-i18n="landing.shot_plan_cap">Impact × Effort matrix</strong></figcaption>
+            <figcaption><span class="shot-label" data-i18n="landing.shot_plan">Action plan matrix</span><strong data-i18n="landing.shot_plan_cap">Prioritize tasks by Impact × Effort for maximum optimization ROI</strong></figcaption>
           </figure>
-          <figure class="product-shot product-shot-offset reveal">
+          <figure class="product-shot reveal">
             <div class="shot-frame">
-              <img src="/site-assets/product-assets-en.webp" data-locale-src-en="/site-assets/product-assets-en.webp" data-locale-src-zh="/site-assets/product-report.webp" data-locale-src-ja="/site-assets/product-assets-en.webp" width="1440" height="960" data-i18n-alt="landing.shot_report_alt" alt="Deployment assets page with generated files and placement guidance">
+              <span class="shot-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <img src="/site-assets/product-assets-en.webp" data-locale-src-en="/site-assets/product-assets-en.webp" data-locale-src-zh="/site-assets/product-report.webp" data-locale-src-ja="/site-assets/product-report-ja.webp" width="1440" height="960" data-i18n-alt="landing.shot_report_alt" alt="Deployment assets page with generated files and placement guidance" loading="lazy">
             </div>
-            <figcaption><span data-i18n="landing.shot_report">Deployment assets</span><strong data-i18n="landing.shot_report_cap">Ready-to-place files with clear destinations</strong></figcaption>
+            <figcaption><span class="shot-label" data-i18n="landing.shot_report">Ready-to-deploy assets</span><strong data-i18n="landing.shot_report_cap">Pre-generated JSON-LD, /llms.txt, and content blocks with clear placement guidance</strong></figcaption>
           </figure>
         </div>
       </div>
@@ -146,26 +174,26 @@
     <section class="operations section" aria-labelledby="operations-title">
       <div class="page-shell operations-layout">
         <div class="section-heading reveal">
-          <p class="section-index" data-i18n="landing.ops_index">04 / Data and access</p>
-          <h2 id="operations-title" data-i18n="landing.ops_title">Clear, inspectable data boundaries.</h2>
-          <p data-i18n="landing.ops_body">Tenant workspaces built for agencies, consultants, and brand teams.</p>
+          <p class="section-index" data-i18n="landing.ops_index">04 / Enterprise security</p>
+          <h2 id="operations-title" data-i18n="landing.ops_title">Enterprise data isolation & zero data retention commitment.</h2>
+          <p data-i18n="landing.ops_body">Secure tenant workspaces built for brand teams, growth consultants, and digital marketing agencies.</p>
         </div>
         <dl class="operations-list">
           <div class="reveal">
-            <dt data-i18n="landing.ops_byok">BYOK first</dt>
-            <dd data-i18n="landing.ops_byok_dd">API keys are encrypted with AES-256-GCM and injected only while jobs run.</dd>
+            <dt data-i18n="landing.ops_byok">BYOK priority (Bring Your Own Key)</dt>
+            <dd data-i18n="landing.ops_byok_dd">Pay model providers directly with no markup; API keys encrypted with AES-256-GCM and injected only during runtime.</dd>
           </div>
           <div class="reveal">
-            <dt data-i18n="landing.ops_tenant">Tenant isolation</dt>
-            <dd data-i18n="landing.ops_tenant_dd">Project artifacts are stored per tenant; members use owner, editor, and viewer roles.</dd>
+            <dt data-i18n="landing.ops_tenant">Multi-tenant isolation</dt>
+            <dd data-i18n="landing.ops_tenant_dd">Project artifacts stored per tenant; team collaboration with owner, editor, and viewer permission controls.</dd>
           </div>
           <div class="reveal">
             <dt data-i18n="landing.ops_ssot">Files as SSOT</dt>
-            <dd data-i18n="landing.ops_ssot_dd">Audits, tickets, metrics, and packs stay inspectable files; the database stores indexes and metadata only.</dd>
+            <dd data-i18n="landing.ops_ssot_dd">Audits, tickets, metrics, and packs stored as inspectable open files—preventing vendor lock-in.</dd>
           </div>
           <div class="reveal">
             <dt data-i18n="landing.ops_enterprise">Enterprise controls</dt>
-            <dd data-i18n="landing.ops_enterprise_dd">OIDC SSO and audit events. Technical controls are ready; DisvorAI is not SOC 2 certified.</dd>
+            <dd data-i18n="landing.ops_enterprise_dd">OIDC SSO and audit event logs. Technical security controls in place (CiteAura is not SOC 2 certified).</dd>
           </div>
         </dl>
       </div>
@@ -176,61 +204,62 @@
         <div class="pricing-head reveal">
           <div class="section-heading">
             <p class="section-index" data-i18n="landing.pricing_index">05 / Pricing</p>
-            <h2 id="pricing-title" data-i18n="landing.pricing_title">Start with a real project</h2>
-            <p data-i18n="landing.pricing_body">Use your own model keys by default. Subscriptions do not hide sampling cost.</p>
+            <h2 id="pricing-title" data-i18n="landing.pricing_title">Choose the AI visibility engine that fits your growth</h2>
+            <p data-i18n="landing.pricing_body">Transparent pricing with no hidden token markups. Every plan includes full audit loops, tickets, and deliverables.</p>
           </div>
-          <div class="billing-toggle" role="group" data-i18n-aria="landing.billing_label" aria-label="Billing interval">
-            <button type="button" class="is-active" data-billing="monthly" aria-pressed="true" data-i18n="landing.billing_monthly">Monthly</button>
-            <button type="button" data-billing="annual" aria-pressed="false" data-i18n="landing.billing_annual">Annual · save ~17%</button>
+          <div class="seg billing-toggle" role="group" data-i18n-aria="landing.billing_label" aria-label="Billing interval">
+            <button type="button" class="seg-opt is-active" data-billing="monthly" aria-pressed="true" data-i18n="landing.billing_monthly">Monthly</button>
+            <button type="button" class="seg-opt" data-billing="annual" aria-pressed="false" data-i18n="landing.billing_annual">Annual · save ~20%</button>
           </div>
         </div>
         <div class="pricing-grid">
           <article class="price-card reveal">
-            <p class="plan-name">Trial</p>
-            <p class="price"><strong>¥0</strong><span data-i18n="landing.per_14_days">/ 14 days</span></p>
-            <p class="plan-summary" data-i18n="landing.plan_trial_summary">Validate the full loop</p>
+            <p class="plan-name">Starter</p>
+            <p class="price"><strong data-monthly="$79" data-annual="$759">$79</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
+            <p class="plan-summary" data-monthly="Ideal for indie makers & single brands" data-annual="About $63 / month billed annually" data-i18n-monthly="landing.plan_starter_summary" data-i18n-annual="landing.plan_starter_summary_annual">Ideal for indie makers & single brands</p>
             <ul>
-              <li data-i18n="landing.plan_trial_1">3 projects</li>
-              <li data-i18n="landing.plan_trial_2">2 samples per project</li>
-              <li data-i18n="landing.plan_trial_3">Full reports and delivery packs</li>
+              <li data-i18n="landing.plan_starter_1">3 active projects</li>
+              <li data-i18n="landing.plan_starter_2">13 standard action tickets & verification</li>
+              <li data-i18n="landing.plan_starter_3">Full reports & customer delivery packs</li>
             </ul>
-            <a class="button button-secondary" href="/app" data-i18n="nav.cta">Start free trial</a>
+            <a class="btn btn-secondary btn-block" href="/app" data-i18n="landing.plan_starter_cta">Start 14-day trial</a>
           </article>
           <article class="price-card price-card-featured reveal">
+            <p class="plan-badge" data-i18n="landing.plan_pro_badge">Most popular</p>
             <p class="plan-name">Pro</p>
-            <p class="price"><strong data-monthly="¥199" data-annual="¥1,990">¥199</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
-            <p class="plan-summary" data-monthly="Monthly subscription, manage anytime" data-annual="About ¥166 / month billed annually" data-i18n-monthly="landing.plan_pro_summary" data-i18n-annual="landing.plan_pro_summary_annual">Monthly subscription, manage anytime</p>
+            <p class="price"><strong data-monthly="$199" data-annual="$1,910">$199</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
+            <p class="plan-summary" data-monthly="Continuous multi-model tracking for growth brands" data-annual="About $159 / month billed annually" data-i18n-monthly="landing.plan_pro_summary" data-i18n-annual="landing.plan_pro_summary_annual">Continuous multi-model tracking for growth brands</p>
             <ul>
               <li data-i18n="landing.plan_pro_1">10 active projects</li>
               <li data-i18n="landing.plan_pro_2">Unlimited BYOK sampling</li>
-              <li data-i18n="landing.plan_pro_3">Action tickets and auto-verification</li>
+              <li data-i18n="landing.plan_pro_3">Matrix scheduled tracking & regression alerts</li>
             </ul>
-            <a class="button button-primary" href="/app" data-i18n="nav.cta">Start free trial</a>
+            <a class="btn btn-primary btn-block" href="/app?plan=pro" data-i18n="landing.plan_pro_cta">Subscribe Pro</a>
           </article>
           <article class="price-card reveal">
             <p class="plan-name">Agency</p>
-            <p class="price"><strong data-monthly="¥599" data-annual="¥5,990">¥599</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
-            <p class="plan-summary" data-monthly="Parallel multi-client delivery" data-annual="About ¥499 / month billed annually" data-i18n-monthly="landing.plan_agency_summary" data-i18n-annual="landing.plan_agency_summary_annual">Parallel multi-client delivery</p>
+            <p class="price"><strong data-monthly="$499" data-annual="$4,790">$499</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
+            <p class="plan-summary" data-monthly="Parallel client delivery for digital agencies" data-annual="About $399 / month billed annually" data-i18n-monthly="landing.plan_agency_summary" data-i18n-annual="landing.plan_agency_summary_annual">Parallel client delivery for digital agencies</p>
             <ul>
               <li data-i18n="landing.plan_agency_1">30 active projects</li>
-              <li data-i18n="landing.plan_agency_2">White-label delivery headers</li>
-              <li data-i18n="landing.plan_agency_3">Team roles and priority queue</li>
+              <li data-i18n="landing.plan_agency_2">White-label client delivery headers (No CiteAura branding)</li>
+              <li data-i18n="landing.plan_agency_3">Team multi-role permissions & priority execution queue</li>
             </ul>
-            <a class="button button-secondary" href="/app" data-i18n="nav.cta">Start free trial</a>
+            <a class="btn btn-secondary btn-block" href="/app?plan=agency" data-i18n="landing.plan_agency_cta">Subscribe Agency</a>
           </article>
           <article class="price-card reveal">
             <p class="plan-name">Enterprise</p>
             <p class="price"><strong data-i18n="landing.plan_ent_price">Custom</strong></p>
-            <p class="plan-summary" data-i18n="landing.plan_ent_summary">Organization-scale deployment</p>
+            <p class="plan-summary" data-i18n="landing.plan_ent_summary">Organization-scale private deployment</p>
             <ul>
-              <li data-i18n="landing.plan_ent_1">Private deploy and SLA</li>
-              <li data-i18n="landing.plan_ent_2">OIDC SSO</li>
-              <li data-i18n="landing.plan_ent_3">Audit and retention policy</li>
+              <li data-i18n="landing.plan_ent_1">Dedicated private deploy & custom SLA</li>
+              <li data-i18n="landing.plan_ent_2">Enterprise OIDC SSO & audit events</li>
+              <li data-i18n="landing.plan_ent_3">Custom data retention & dedicated support team</li>
             </ul>
-            <a class="button button-secondary" href="/app?plan=enterprise" data-i18n="landing.plan_ent_cta">Request a plan</a>
+            <a class="btn btn-secondary btn-block" href="/app?plan=enterprise" data-i18n="landing.plan_ent_cta">Request a plan</a>
           </article>
         </div>
-        <p class="pricing-note" data-i18n="landing.pricing_note">No guarantee of mention or ranking. AI answers are noisy; trends need multiple sampling rounds.</p>
+        <p class="pricing-note"><span data-i18n="landing.pricing_note">No guarantee of mention or ranking. AI answers are noisy; trends need multiple sampling rounds.</span> <span data-i18n="landing.pricing_currency">Prices in USD.</span></p>
       </div>
     </section>
 
@@ -238,28 +267,28 @@
       <div class="page-shell faq-layout">
         <div class="section-heading reveal">
           <p class="section-index" data-i18n="landing.faq_index">06 / FAQ</p>
-          <h2 id="faq-title" data-i18n="landing.faq_title">Before you start</h2>
+          <h2 id="faq-title" data-i18n="landing.faq_title">Frequently asked questions</h2>
         </div>
         <div class="faq-list">
           <details class="reveal">
             <summary data-i18n="landing.faq_1_q">Do API samples match what users see in the product UI?</summary>
-            <p data-i18n="landing.faq_1_a">Most APIs measure model knowledge, not live product search. DisvorAI labels each engine as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface.</p>
+            <p data-i18n="landing.faq_1_a">Most APIs measure parametric model knowledge, not live product search. CiteAura clearly labels each engine as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface for complete scientific integrity.</p>
           </details>
           <details class="reveal">
-            <summary data-i18n="landing.faq_2_q">Must I bring my own model API keys?</summary>
-            <p data-i18n="landing.faq_2_a">BYOK is the default. Configure only the engines you plan to use; others are skipped and shown as unmeasured.</p>
+            <summary data-i18n="landing.faq_2_q">Must I bring my own model API keys (BYOK)?</summary>
+            <p data-i18n="landing.faq_2_a">BYOK is the most secure and cost-effective method. You only configure the engines you intend to use; others are honestly shown as unmeasured. Model APIs are extremely affordable (single audits typically cost ~$0.08–$0.15) with zero middleman markup.</p>
           </details>
           <details class="reveal">
-            <summary data-i18n="landing.faq_3_q">Can results guarantee the brand is mentioned by AI?</summary>
-            <p data-i18n="landing.faq_3_a">No. The product provides traceable diagnosis, execution guidance, and before/after comparison—not ranking or mention promises. Answers are noisy; use multi-round trends.</p>
+            <summary data-i18n="landing.faq_3_q">Can CiteAura guarantee my brand will be ranked or mentioned by AI?</summary>
+            <p data-i18n="landing.faq_3_a">No. Any vendor promising guaranteed AI recommendations is untruthful. CiteAura provides rigorous diagnosis, 13 standardized engineering tickets, and before/after verification to maximize your recommendation probability with deterministic optimization.</p>
           </details>
           <details class="reveal">
-            <summary data-i18n="landing.faq_4_q">What is included in the 14-day trial?</summary>
-            <p data-i18n="landing.faq_4_a">The trial supports 3 projects, up to 2 sampling runs each, plus reports, tickets, verification, and delivery packs.</p>
+            <summary data-i18n="landing.faq_4_q">What is included in the 14-day free trial?</summary>
+            <p data-i18n="landing.faq_4_a">The 14-day free trial includes all Starter plan features: 3 projects, full audit reports, action tickets, verification, and customer delivery packages—no credit card required.</p>
           </details>
           <details class="reveal">
-            <summary data-i18n="landing.faq_5_q">Is it suitable for agency client delivery?</summary>
-            <p data-i18n="landing.faq_5_a">Yes. Agency includes 30 active projects, team roles, white-label headers, and downloadable packs.</p>
+            <summary data-i18n="landing.faq_5_q">Is CiteAura suitable for digital marketing agencies delivering to clients?</summary>
+            <p data-i18n="landing.faq_5_a">Absolutely. The Agency plan is tailored for agencies with 30 active projects, team role permissions, white-label client headers, and downloadable client-ready delivery packs.</p>
           </details>
         </div>
       </div>
@@ -268,24 +297,27 @@
     <section class="final-cta">
       <div class="page-shell final-cta-layout reveal">
         <div>
-          <p class="section-index" data-i18n="landing.final_index">Start with one domain</p>
-          <h2 data-i18n="landing.final_title">Turn AI visibility into executable, verifiable work.</h2>
+          <p class="section-index" data-i18n="landing.final_index">Get started today</p>
+          <h2 data-i18n="landing.final_title">Win every brand recommendation in the generative AI era.</h2>
         </div>
-        <a class="button button-light" href="/app" data-i18n="nav.cta">Start free trial</a>
+        <a class="btn btn-lg final-cta-btn" href="/app" data-i18n="nav.cta">Start free trial</a>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="page-shell footer-layout">
-      <a class="brand" href="/">Disvor<span>AI</span></a>
-      <p data-i18n="landing.footer_tagline">AI visibility diagnosis, execution, and delivery.</p>
-      <div>
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+      <p class="footer-tagline" data-i18n="landing.footer_tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
+      <nav class="footer-links" aria-label="Footer">
         <a href="/app" data-i18n="nav.workbench">Product workbench</a>
         <a href="#pricing" data-i18n="nav.pricing">Pricing</a>
         <a href="#faq" data-i18n="nav.faq">FAQ</a>
-      </div>
-      <p>© 2026 DisvorAI</p>
+      </nav>
+      <p class="footer-copy">© 2026 CiteAura</p>
     </div>
   </footer>
 </body>

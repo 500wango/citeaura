@@ -17,9 +17,9 @@ from api.adapters import engine as engine_adapter
 
 
 STATE_VERSION = 1
-STATE_RELATIVE_PATH = Path(".disvorai") / "archives.json"
-SNAPSHOT_MANIFEST_NAME = ".disvorai-snapshot.json"
-EXCLUDED_ROOTS = frozenset((".disvorai", ".jobs"))
+STATE_RELATIVE_PATH = Path(".citeaura") / "archives.json"
+SNAPSHOT_MANIFEST_NAME = ".citeaura-snapshot.json"
+EXCLUDED_ROOTS = frozenset((".citeaura", ".jobs"))
 MAX_FILES = 100000
 PREFIX_PATTERN = re.compile(r"[A-Za-z0-9._/-]+")
 

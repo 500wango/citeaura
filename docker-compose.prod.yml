@@ -6,7 +6,7 @@ x-app: &app
     redis:
       condition: service_healthy
   networks:
-    - disvorai
+    - citeaura
 
 services:
   redis:
@@ -21,7 +21,7 @@ services:
       timeout: 5s
       retries: 20
     networks:
-      - disvorai
+      - citeaura
 
   api:
     <<: *app
@@ -31,7 +31,7 @@ services:
       target: api
     command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
     volumes:
-      - disvorai_work:/app/work
+      - citeaura_work:/app/work
     expose:
       - "8000"
     healthcheck:
@@ -47,7 +47,7 @@ services:
       dockerfile: Dockerfile
       target: worker
     volumes:
-      - disvorai_work:/app/work
+      - citeaura_work:/app/work
 
   beat:
     <<: *app
@@ -55,7 +55,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: worker
-    command: ["celery", "-A", "api.worker.celery_app", "beat", "--loglevel=INFO", "--schedule=/tmp/disvorai-celerybeat-schedule"]
+      command: ["celery", "-A", "api.worker.celery_app", "beat", "--loglevel=INFO", "--schedule=/tmp/citeaura-celerybeat-schedule"]
 
   nginx:
     image: nginx:1.27-alpine
@@ -70,12 +70,12 @@ services:
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./deploy/certs:/etc/nginx/certs:ro
     networks:
-      - disvorai
+      - citeaura
 
 volumes:
   redis_data:
-  disvorai_work:
+  citeaura_work:
 
 networks:
-  disvorai:
+  citeaura:
     driver: bridge

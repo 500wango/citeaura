@@ -9,7 +9,7 @@ from api.auth import password_reset
 from api.adapters.engine import tenant_slug
 from api.db import Base, get_db
 from api.main import app
-from api.models import Membership, PasswordResetToken, Tenant, User
+from api.models import PasswordResetToken
 
 
 @pytest.fixture()
@@ -53,13 +53,13 @@ def test_register_login_and_me(client):
     assert tokens["access_token"]
     assert tokens["refresh_token"]
     cookie = logged_in.headers["set-cookie"]
-    assert "disvorai_access_token=" in cookie
-    assert "disvorai_refresh_token=" in cookie
+    assert "citeaura_access_token=" in cookie
+    assert "citeaura_refresh_token=" in cookie
     assert "HttpOnly" in cookie
     assert "SameSite=strict" in cookie
     assert logged_in.headers["cache-control"] == "no-store"
 
-    client.cookies.delete("disvorai_access_token")
+    client.cookies.delete("citeaura_access_token")
     cookie_refreshed = client.post("/api/v1/auth/refresh")
     assert cookie_refreshed.status_code == 200
     assert cookie_refreshed.json()["access_token"]
@@ -129,6 +129,38 @@ def test_refresh_rejects_missing_invalid_and_access_tokens(client):
     assert access.json() == {"error": "invalid_refresh_token"}
 
 
+def test_browser_session_responses_do_not_expose_jwt_tokens(client):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": "browser@example.com", "password": "correct-horse-battery", "tenant_name": "browser"},
+    )
+    assert registered.status_code == 201
+    login = client.post(
+        "/api/v1/auth/login",
+        headers={"X-CiteAura-Session": "cookie"},
+        json={"email": "browser@example.com", "password": "correct-horse-battery"},
+    )
+    assert login.status_code == 200
+    assert login.json()["authenticated"] is True
+    assert "access_token" not in login.json()
+    refreshed = client.post("/api/v1/auth/refresh", headers={"X-CiteAura-Session": "cookie"})
+    assert refreshed.status_code == 200
+    assert refreshed.json()["authenticated"] is True
+    assert "refresh_token" not in refreshed.json()
+
+    tenant_id = registered.json()["tenant"]["id"]
+    blocked = client.post("/api/v1/auth/switch-tenant", json={"tenant_id": tenant_id})
+    assert blocked.status_code == 403
+    assert blocked.json() == {"error": "csrf_validation_failed"}
+    switched = client.post(
+        "/api/v1/auth/switch-tenant",
+        headers={"X-CiteAura-Session": "cookie"},
+        json={"tenant_id": tenant_id},
+    )
+    assert switched.status_code == 200
+    assert switched.json()["authenticated"] is True
+
+
 def test_logout_clears_both_session_cookies(client):
     payload = {"email": "logout@example.com", "password": "correct-horse-battery"}
     assert client.post("/api/v1/auth/register", json=payload).status_code == 201
@@ -139,8 +171,8 @@ def test_logout_clears_both_session_cookies(client):
     assert logged_out.status_code == 200
     assert logged_out.json() == {"ok": True}
     cookies = logged_out.headers.get_list("set-cookie")
-    assert any("disvorai_access_token=" in item and "Max-Age=0" in item for item in cookies)
-    assert any("disvorai_refresh_token=" in item and "Max-Age=0" in item for item in cookies)
+    assert any("citeaura_access_token=" in item and "Max-Age=0" in item for item in cookies)
+    assert any("citeaura_refresh_token=" in item and "Max-Age=0" in item for item in cookies)
     assert client.post("/api/v1/auth/refresh").status_code == 401
 
 

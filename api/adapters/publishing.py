@@ -1,11 +1,13 @@
 """发布渠道的租户配置与引擎调用适配。"""
 
 import re
+import os
 from urllib.parse import urlparse
 
 import requests
 
 from api.adapters.engine import geolib
+from api.adapters.network import NetworkTargetError, validate_outbound_url
 
 
 CREDENTIAL_PREFIX = "publisher:"
@@ -57,6 +59,10 @@ def _clean_url(value, field):
         raise ValueError(f"{field} must not contain credentials")
     if parsed.query or parsed.fragment:
         raise ValueError(f"{field} must not contain a query or fragment")
+    try:
+        validate_outbound_url(value, require_https=True, resolve=False)
+    except NetworkTargetError as exc:
+        raise ValueError(f"{field} must point to a public HTTPS host") from exc
     return value.rstrip("/")
 
 
@@ -64,6 +70,10 @@ def _public_url(value):
     value = str(value or "").strip()
     parsed = urlparse(value)
     if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+        return ""
+    try:
+        validate_outbound_url(value, require_https=True, resolve=False)
+    except NetworkTargetError:
         return ""
     return value
 
@@ -105,6 +115,22 @@ def validate_config(platform, values):
     elif platform == "wordpress" and cleaned.get("site_url"):
         cleaned["site_url"] = _clean_url(cleaned["site_url"], "site_url")
     return cleaned
+
+
+def validate_credentials(platform, values):
+    """校验渠道凭证，避免把服务端请求地址当作普通密钥保存。"""
+    _publisher(platform)
+    if not isinstance(values, dict):
+        raise ValueError("publisher credentials must be an object")
+    for env_name, value in values.items():
+        if value is None:
+            continue
+        if platform == "webhook" and env_name == "PUBLISH_WEBHOOK_URL":
+            try:
+                validate_outbound_url(value, require_https=True, resolve=False)
+            except NetworkTargetError as exc:
+                raise ValueError("webhook URL must point to a public HTTPS host") from exc
+    return values
 
 
 def save_config(project_slug, platform, values):
@@ -157,6 +183,16 @@ def overview(project_slug, configured_codes):
 def publish(project_slug, platform, path, title=""):
     """调用引擎发布实现；调用方负责注入本租户凭证。"""
     _publisher(platform)
+    try:
+        if platform == "wordpress":
+            validate_outbound_url(
+                (geolib.load_config(project_slug).get("publishing") or {}).get(platform, {}).get("site_url"),
+                require_https=True,
+            )
+        elif platform == "webhook":
+            validate_outbound_url(os.environ.get("PUBLISH_WEBHOOK_URL"), require_https=True)
+    except NetworkTargetError as exc:
+        raise ValueError("publishing_target_blocked") from exc
     try:
         result = _engine_publish().publish(project_slug, platform, path, title)
     except requests.RequestException:

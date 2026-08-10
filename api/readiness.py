@@ -8,7 +8,7 @@ from api.billing import stripe as stripe_adapter
 from api.settings.crypto import _master_key
 
 
-EXPECTED_DB_REVISION = "0013_project_sampling_budgets"
+EXPECTED_DB_REVISION = "0014_active_job_uniqueness"
 
 
 def readiness_checks(db):

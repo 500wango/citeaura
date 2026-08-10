@@ -1,4 +1,4 @@
-"""集中读取 DisvorAI 环境变量配置。"""
+"""集中读取 CiteAura 环境变量配置。"""
 
 import math
 import os
@@ -14,7 +14,7 @@ load_dotenv()
 def database_url():
     return os.getenv(
         "DATABASE_URL",
-        "postgresql+psycopg2://disvorai:disvorai@localhost:5432/disvorai",
+        "postgresql+psycopg2://citeaura:citeaura@localhost:5432/citeaura",
     )
 
 
@@ -82,6 +82,11 @@ def session_cookie_secure():
     return os.getenv("SESSION_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
 
 
+def oidc_allow_insecure_localhost():
+    """仅在本地开发显式允许 OIDC 回环地址。"""
+    return _enabled("OIDC_ALLOW_INSECURE_LOCALHOST")
+
+
 def public_base_url():
     return os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
 
@@ -124,8 +129,8 @@ def stripe_webhook_secret():
 
 
 def stripe_currency():
-    value = os.getenv("STRIPE_CURRENCY", "cny").strip().lower()
-    return value if value in ("cny", "usd") else "cny"
+    value = os.getenv("STRIPE_CURRENCY", "usd").strip().lower()
+    return value if value in ("cny", "usd") else "usd"
 
 
 def password_reset_ttl_minutes():
@@ -143,7 +148,7 @@ def auth_smtp_settings():
         "username": os.getenv("AUTH_SMTP_USERNAME", "").strip(),
         "password": os.getenv("AUTH_SMTP_PASSWORD", ""),
         "from_email": os.getenv("AUTH_SMTP_FROM_EMAIL", "").strip().lower(),
-        "from_name": os.getenv("AUTH_SMTP_FROM_NAME", "DisvorAI").strip() or "DisvorAI",
+        "from_name": os.getenv("AUTH_SMTP_FROM_NAME", "CiteAura").strip() or "CiteAura",
     }
 
 
@@ -171,7 +176,7 @@ def object_storage_settings():
         "region": os.getenv("OBJECT_STORAGE_REGION", "us-east-1").strip() or "us-east-1",
         "access_key_id": os.getenv("OBJECT_STORAGE_ACCESS_KEY_ID", "").strip() or None,
         "secret_access_key": os.getenv("OBJECT_STORAGE_SECRET_ACCESS_KEY", "").strip() or None,
-        "prefix": os.getenv("OBJECT_STORAGE_PREFIX", "disvorai-archives").strip("/"),
+        "prefix": os.getenv("OBJECT_STORAGE_PREFIX", "citeaura-archives").strip("/"),
         "force_path_style": _enabled("OBJECT_STORAGE_FORCE_PATH_STYLE"),
         "server_side_encryption": os.getenv("OBJECT_STORAGE_SSE", "").strip() or None,
         "retention_count": retention_count,

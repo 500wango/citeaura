@@ -1,11 +1,11 @@
-# DisvorAI 产品需求文档 PRD
+# CiteAura 产品需求文档 PRD
 
 > **版本**：v2.0  
-> **日期**：2026-07-31  
-> **变更**：基于开源代码审查修订；修正能力映射、精简 P0、明确 SSOT 决策、补成本模型  
-> **状态**：可交付 AI 编程助手实现  
+> **定位**：面向出海企业与代理商的 Generative Engine Optimization (GEO) SaaS 交付平台
+> **底层引擎**：开源 GEO 引擎（去品牌化，纯净单机版）
+> **产品形态**：多租户 Web SaaS（FastAPI + Postgres + Redis + Celery + Docker）
 > **产品目录**：`~/project/disvorai`  
-> **开源基线**：`engine/`（克隆自 https://github.com/aigclink/geolook, MIT，已去品牌化）  
+> **开发指令**：`AGENTS.md`
 > **官网参考竞品**：https://www.higeo.ai/  
 > **对比文档**：`higeo-vs-disvorai-comparison.md`  
 > **约束**：**所有开发工作基于开源版二次开发**，禁止从零重写核心 GEO 管线；在其之上加多租户 SaaS、商业包装与 HiGEO 级体验。
@@ -448,9 +448,10 @@ POST   /billing/subscribe
 | 方案 | 价格 | 包含 |
 |------|------|------|
 | Trial | 14 天免费 | 3 项目，每项目 2 次采样，BYOK |
-| Pro | ¥199/月 或 $29/月 | 10 项目，无限采样（BYOK），完整交付 |
-| Agency | ¥599/月 或 $79/月 | 30 项目，白标，优先队列 |
-| Enterprise | 定制 | 私有化部署，SSO，SLA |
+| Starter | $79/月 (年付 $63/月) | 3 活跃项目，完整体检，行动工单与自动验收 |
+| Pro | $199/月 (年付 $159/月) | 10 活跃项目，无限采样（BYOK），定时追踪与自动告警 |
+| Agency | $499/月 (年付 $399/月) | 30 活跃项目，全白标交付报告，团队权限，优先队列 |
+| Enterprise | 定制 | 私有化部署，OIDC SSO，数据保留与专属 SLA |
 
 试用限额：3 projects × 2 runs × 30 questions × 8 engines = 1440 次调用（用户自付 Key）
 
@@ -503,7 +504,7 @@ POST   /billing/subscribe
 | 采样 API 成本高 | MVP 强制 BYOK；试用有限额 |
 | 答案随机性 | 多问聚合、repeat、文案降级承诺 |
 | 开源快速演进 | upstream 在 engine/，定期 git pull + rebase |
-| 品牌/功能撞车 | 产品名 DisvorAI；卖点钉死闭环+多引擎+交付 |
+| 品牌/功能撞车 | 产品名 CiteAura；卖点钉死闭环+多引擎+交付 |
 | 安全暴露 | 所有 API 需 JWT 认证；work 目录 per-tenant 隔离；Key AES 加密 |
 | fcntl 仅单机 | MVP 单节点 + P1 Redis 锁 |
 | `sys.exit` 在 worker 中 | W1 第一件事适配 |
@@ -514,7 +515,7 @@ POST   /billing/subscribe
 
 - 工作区文件夹：**disvorai**
 - 开源代码位于：`engine/`（已去品牌化，作为 git 子目录）
-- 商业产品名：**DisvorAI**
+- 商业产品名：**CiteAura**（官网：`citeaura.com`）
 - 避免使用已冲突品牌：GeoForge / GEOforge
 
 ---

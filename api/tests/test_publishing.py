@@ -255,3 +255,12 @@ def test_wordpress_and_wechat_engine_contracts_create_drafts_only(monkeypatch):
     assert result["ok"]
     assert "/cgi-bin/draft/add" in wechat_requests[0]["url"]
     assert "freepublish" not in wechat_requests[0]["url"]
+
+
+def test_publishing_destinations_reject_insecure_and_private_urls():
+    with pytest.raises(ValueError, match="public HTTPS host"):
+        publishing.validate_config("wordpress", {"site_url": "http://blog.example.com"})
+    with pytest.raises(ValueError, match="public HTTPS host"):
+        publishing.validate_config("wordpress", {"site_url": "https://127.0.0.1"})
+    with pytest.raises(ValueError, match="public HTTPS host"):
+        publishing.validate_credentials("webhook", {"PUBLISH_WEBHOOK_URL": "https://169.254.169.254/hook"})

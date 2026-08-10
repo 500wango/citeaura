@@ -198,7 +198,7 @@ def test_archive_worker_verifies_snapshot_and_restore_conflicts(archive_client, 
             "audit.json",
             "metrics/2026-07-31.json",
         }
-    assert json.loads((root / ".disvorai" / "archives.json").read_text("utf-8"))["archives"][0]["id"] == entry["id"]
+    assert json.loads((root / ".citeaura" / "archives.json").read_text("utf-8"))["archives"][0]["id"] == entry["id"]
     with session_factory() as db:
         assert db.get(Job, archive_job_id).status == "done"
 

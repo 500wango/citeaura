@@ -17,15 +17,16 @@ def test_celery_registers_all_pipeline_tasks():
     registered = set(celery_app.tasks)
 
     assert {
-        "disvorai.bootstrap",
-        "disvorai.sample",
-        "disvorai.cycle",
-        "disvorai.verify",
-        "disvorai.deliver",
-        "disvorai.pipeline",
-        "disvorai.dispatch_schedules",
+        "citeaura.bootstrap",
+        "citeaura.sample",
+        "citeaura.cycle",
+        "citeaura.verify",
+        "citeaura.deliver",
+        "citeaura.pipeline",
+        "citeaura.dispatch_schedules",
     } <= registered
-    assert celery_app.conf.beat_schedule["dispatch-due-project-schedules"]["task"] == "disvorai.dispatch_schedules"
+    assert celery_app.conf.beat_schedule["dispatch-due-project-schedules"]["task"] == "citeaura.dispatch_schedules"
+    assert celery_app.conf.task_ignore_result is True
     assert {"bootstrap", "sample", "cycle", "expand", "generate", "autopilot", "serve"} == set(
         tasks.PLATFORM_FUNDED_ACTIONS
     )

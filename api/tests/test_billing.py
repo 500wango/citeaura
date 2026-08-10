@@ -1,4 +1,3 @@
-import base64
 import hashlib
 import hmac
 import json
@@ -21,9 +20,9 @@ from api.projects import router as project_router
 @pytest.fixture()
 def billing_client(tmp_path, monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "test-secret-that-is-long-enough-32")
-    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_disvorai")
-    monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_disvorai")
-    monkeypatch.setenv("STRIPE_CURRENCY", "cny")
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_citeaura")
+    monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_citeaura")
+    monkeypatch.setenv("STRIPE_CURRENCY", "usd")
     monkeypatch.setattr("api.adapters.engine.WORK_ROOT", tmp_path / "work")
     engine = create_engine(f"sqlite:///{tmp_path / 'billing.sqlite'}")
     Base.metadata.create_all(engine)
@@ -62,7 +61,7 @@ def _stripe_event(event_id, event_type, value):
     }
 
 
-def _post_stripe_event(client, event, secret="whsec_disvorai"):
+def _post_stripe_event(client, event, secret="whsec_citeaura"):
     payload = json.dumps(event, separators=(",", ":")).encode()
     timestamp = int(time.time())
     digest = hmac.new(
@@ -188,8 +187,8 @@ def test_subscribe_creates_checkout_without_opening_limits(billing_client, monke
     )
     plans = client.get("/api/v1/billing/plans")
     assert plans.status_code == 200
-    assert {plan["code"] for plan in plans.json()["plans"]} == {"pro", "agency", "enterprise"}
-    assert plans.json()["payment"] == {"provider": "stripe", "configured": True, "currency": "cny"}
+    assert {plan["code"] for plan in plans.json()["plans"]} == {"starter", "pro", "agency", "enterprise"}
+    assert plans.json()["payment"] == {"provider": "stripe", "configured": True, "currency": "usd"}
 
     subscribed = client.post("/api/v1/billing/subscribe", headers=headers, json={"plan": "pro"})
     assert subscribed.status_code == 200
@@ -217,9 +216,9 @@ def test_annual_plan_catalog_and_checkout_amount(billing_client, monkeypatch):
 
     plans = client.get("/api/v1/billing/plans").json()["plans"]
     pro = next(plan for plan in plans if plan["code"] == "pro")
-    assert pro["prices"]["monthly"] == {"cny": 199, "usd": 29, "months": 1}
-    assert pro["prices"]["annual"] == {"cny": 1990, "usd": 290, "months": 12}
-    assert pro["annual_savings_cny"] == 398
+    assert pro["prices"]["monthly"] == {"cny": 1499, "usd": 199, "months": 1}
+    assert pro["prices"]["annual"] == {"cny": 14989, "usd": 1990, "months": 12}
+    assert pro["annual_savings_usd"] == 398
     assert pro["annual_discount_percent"] == 16.67
 
     subscribed = client.post(
@@ -246,7 +245,7 @@ def test_signed_webhook_activates_subscription_once(billing_client):
         "customer": "cus_paid",
         "subscription": "sub_paid",
         "payment_status": "paid",
-        "currency": "cny",
+        "currency": "usd",
         "amount_total": 19900,
         "metadata": {
             "tenant_id": str(tenant_id),
@@ -298,6 +297,13 @@ def test_subscription_deleted_webhook_revokes_paid_plan(billing_client):
         {"id": "sub_cancel", "status": "canceled", "customer": "cus_cancel"},
     ))
     assert deleted.status_code == 200
+    stale_invoice = _post_stripe_event(client, _stripe_event(
+        "evt_stale_invoice_paid",
+        "invoice.paid",
+        {"id": "in_stale", "subscription": "sub_cancel"},
+    ))
+    assert stale_invoice.status_code == 200
+    assert stale_invoice.json()["processed"] is False
     with session_factory() as db:
         assert db.get(Tenant, tenant_id).plan == "trial"
         assert db.query(Subscription).one().status == "canceled"
@@ -313,7 +319,7 @@ def test_webhook_rejects_invalid_signature_and_amount(billing_client):
         "client_reference_id": str(tenant_id),
         "subscription": "sub_bad",
         "payment_status": "paid",
-        "currency": "cny",
+        "currency": "usd",
         "amount_total": 1,
         "metadata": {"tenant_id": str(tenant_id), "plan": "pro", "billing_interval": "monthly"},
     })

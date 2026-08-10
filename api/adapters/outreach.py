@@ -12,6 +12,7 @@ from email.utils import formataddr, make_msgid
 from urllib.parse import urlparse
 
 from api.adapters.engine import geolib
+from api.adapters.network import NetworkTargetError, assert_public_host
 
 
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -248,6 +249,10 @@ def send_smtp(draft, settings, credentials):
     from_email = _clean_email(settings.get("from_email"))
     if not host or port not in (25, 465, 587, 2525) or security_mode not in ("starttls", "ssl"):
         raise OutreachError("outreach_smtp_config_invalid")
+    try:
+        assert_public_host(host, port)
+    except NetworkTargetError as exc:
+        raise OutreachError("outreach_smtp_host_blocked") from exc
     message = EmailMessage()
     message["From"] = formataddr((str(settings.get("from_name") or "").strip(), from_email))
     message["To"] = draft["recipient_email"]

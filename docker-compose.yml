@@ -4,7 +4,7 @@ x-app: &app
   volumes:
     - .:/app
   environment:
-    DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://disvorai:disvorai@postgres:5432/disvorai}
+    DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://citeaura:citeaura@postgres:5432/citeaura}
     REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
     RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-120}
@@ -26,7 +26,7 @@ x-app: &app
     AUTH_SMTP_USERNAME: ${AUTH_SMTP_USERNAME:-}
     AUTH_SMTP_PASSWORD: ${AUTH_SMTP_PASSWORD:-}
     AUTH_SMTP_FROM_EMAIL: ${AUTH_SMTP_FROM_EMAIL:-}
-    AUTH_SMTP_FROM_NAME: ${AUTH_SMTP_FROM_NAME:-DisvorAI}
+    AUTH_SMTP_FROM_NAME: ${AUTH_SMTP_FROM_NAME:-CiteAura}
     GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
     GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
     OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-}
@@ -34,7 +34,7 @@ x-app: &app
     OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION:-us-east-1}
     OBJECT_STORAGE_ACCESS_KEY_ID: ${OBJECT_STORAGE_ACCESS_KEY_ID:-}
     OBJECT_STORAGE_SECRET_ACCESS_KEY: ${OBJECT_STORAGE_SECRET_ACCESS_KEY:-}
-    OBJECT_STORAGE_PREFIX: ${OBJECT_STORAGE_PREFIX:-disvorai-archives}
+    OBJECT_STORAGE_PREFIX: ${OBJECT_STORAGE_PREFIX:-citeaura-archives}
     OBJECT_STORAGE_FORCE_PATH_STYLE: ${OBJECT_STORAGE_FORCE_PATH_STYLE:-false}
     OBJECT_STORAGE_SSE: ${OBJECT_STORAGE_SSE:-}
     OBJECT_STORAGE_RETENTION_COUNT: ${OBJECT_STORAGE_RETENTION_COUNT:-12}
@@ -48,9 +48,9 @@ services:
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-disvorai}
-      POSTGRES_USER: ${POSTGRES_USER:-disvorai}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-disvorai}
+      POSTGRES_DB: ${POSTGRES_DB:-citeaura}
+      POSTGRES_USER: ${POSTGRES_USER:-citeaura}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-citeaura}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -86,7 +86,7 @@ services:
     command: >-
       sh -c "pip install --no-cache-dir -r requirements.txt &&
       celery -A api.worker.celery_app beat --loglevel=INFO
-      --schedule=/tmp/disvorai-celerybeat-schedule"
+      --schedule=/tmp/citeaura-celerybeat-schedule"
 
 volumes:
   postgres_data:

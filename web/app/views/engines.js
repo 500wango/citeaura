@@ -1,0 +1,199 @@
+/**
+ * AI 可见性与模型采样回放视图 (Engines & Sample Replay)
+ */
+
+import { projects } from '../api.js';
+import { t } from '../i18n.js';
+import { toast } from '../components/toast.js';
+import { samplingModeBadge, statusPill } from '../components/badge.js';
+import { renderEmpty } from '../components/empty.js';
+import { renderSkeleton } from '../components/skeleton.js';
+
+export default {
+  render: async (ctx) => {
+    const projectId = ctx.activeProjectId;
+    if (!projectId) {
+      return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
+    }
+
+    let enginesData = null;
+    let samples = [];
+
+    try {
+      enginesData = await projects.getEngines(projectId).catch(() => null);
+      // 获取最新日期的样本
+      const today = new Date().toISOString().slice(0, 10);
+      samples = await projects.getSamples(projectId, today).catch(async () => {
+        // 尝试获取 framing 或报告里的日期
+        return [];
+      });
+    } catch (err) {
+      console.error('Failed to load engines data:', err);
+    }
+
+    const engines = (enginesData && enginesData.engines) || [];
+
+    return `
+      <div class="app-view-container">
+        <div class="view-header">
+          <div class="view-title-group">
+            <h1 class="view-title">${t('engines.title', {}, 'AI Engine Visibility Matrix')}</h1>
+            <p class="view-desc">
+              ${t('engines.desc', {}, 'Unified visibility measurement across parametric knowledge, search-grounded models, and manual interface sampling.')}
+            </p>
+          </div>
+          <div class="view-actions">
+            <a href="#/engine-settings" class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+              <span>${t('engines.configure_keys', {}, 'Configure API Keys')}</span>
+            </a>
+            <button type="button" id="btn-trigger-sample" class="btn btn-primary btn-sm">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>${t('engines.sample_now', {}, 'Sample Matrix Now')}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 引擎矩阵大盘 -->
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('engines.matrix_head', {}, 'Monitored Model Engines')}</h3>
+            <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${engines.length} ${t('common.engines_total', {}, 'engines configured')}</span>
+          </div>
+
+          ${
+            engines.length
+              ? `
+            <div class="tbl" style="overflow-x:auto;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>${t('engines.col_engine', {}, 'Engine')}</th>
+                    <th>${t('engines.col_mode', {}, 'Sampling Mode')}</th>
+                    <th style="text-align:right;">${t('engines.col_mention_rate', {}, 'Mention Rate')}</th>
+                    <th style="text-align:right;">${t('engines.col_avg_rank', {}, 'Avg Rank')}</th>
+                    <th style="text-align:right;">${t('engines.col_samples', {}, 'Samples')}</th>
+                    <th>${t('common.status', {}, 'Status')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${engines
+                    .map(
+                      (eng) => `
+                    <tr>
+                      <td>
+                        <div style="display:flex;align-items:center;gap:var(--sp-2);">
+                          <strong style="font-size:var(--fs-3);">${eng.engine_name || eng.engine_code}</strong>
+                          <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${eng.engine_code}</span>
+                        </div>
+                      </td>
+                      <td>${samplingModeBadge(eng.sampling_mode)}</td>
+                      <td data-num style="font-size:var(--fs-4);font-weight:700;color:var(--ink);">
+                        ${eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : '—'}
+                      </td>
+                      <td data-num style="font-weight:600;">
+                        ${eng.avg_rank ? `#${eng.avg_rank.toFixed(1)}` : '—'}
+                      </td>
+                      <td data-num>
+                        ${eng.sample_count || 0}
+                      </td>
+                      <td>
+                        ${statusPill(eng.status || (eng.has_key ? 'good' : 'idle'), eng.has_key ? 'Configured' : 'Missing Key')}
+                      </td>
+                    </tr>
+                  `
+                    )
+                    .join('')}
+                </tbody>
+              </table>
+            </div>
+          `
+              : `<div style="padding:var(--sp-8);text-align:center;color:var(--muted);">${t('engines.no_engines_msg', {}, 'No engine data available. Please configure API keys and run a sample.')}</div>`
+          }
+        </div>
+
+        <!-- 样本回答回放 (Raw Answers) -->
+        <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--sp-3);">
+            <div>
+              <h3 style="font-size:var(--fs-5);font-weight:700;margin:0;">${t('engines.replay_title', {}, 'Raw AI Sample Answers & Citations')}</h3>
+              <p style="color:var(--muted);font-size:var(--fs-2);margin-top:2px;">
+                ${t('engines.replay_desc', {}, 'Inspect exact prompt inputs, generated model responses, and cited source URLs.')}
+              </p>
+            </div>
+          </div>
+
+          ${
+            samples && samples.length
+              ? `
+            <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
+              ${samples
+                .map(
+                  (s, idx) => `
+                <div class="sample-replay-card">
+                  <div class="sample-head">
+                    <div style="display:flex;align-items:center;gap:var(--sp-2);">
+                      <strong class="sample-model-tag">${s.engine_name || s.engine_code || 'AI Model'}</strong>
+                      ${samplingModeBadge(s.sampling_mode)}
+                      ${s.mentioned ? '<span class="tag pill-good">Mentioned</span>' : '<span class="tag tag-dim">Not Mentioned</span>'}
+                    </div>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${s.date || ''}</span>
+                  </div>
+
+                  <div class="sample-query">${s.query || s.prompt || 'Query'}</div>
+                  <div class="sample-answer">${s.answer || s.response || 'No answer text recorded'}</div>
+
+                  ${
+                    s.citations && s.citations.length
+                      ? `
+                    <div class="sample-citations">
+                      <span style="color:var(--muted);font-weight:600;">Citations:</span>
+                      ${s.citations
+                        .map(
+                          (c) => `
+                        <a href="${c}" target="_blank" rel="noopener noreferrer" class="tag tag-neutral num" style="text-decoration:none;">
+                          ${c.replace(/^https?:\/\//, '').slice(0, 32)}...
+                        </a>
+                      `
+                        )
+                        .join('')}
+                    </div>
+                  `
+                      : ''
+                  }
+                </div>
+              `
+                )
+                .join('')}
+            </div>
+          `
+              : `<div class="card" style="padding:var(--sp-8);text-align:center;color:var(--muted);font-size:var(--fs-2);">
+                ${t('engines.no_samples_yet', {}, 'No answer samples collected for this date. Run a sampling task to inspect raw AI responses.')}
+              </div>`
+          }
+        </div>
+      </div>
+    `;
+  },
+
+  mounted: (ctx) => {
+    const projectId = ctx.activeProjectId;
+    if (!projectId) return;
+
+    const sampleBtn = document.getElementById('btn-trigger-sample');
+    if (sampleBtn) {
+      sampleBtn.addEventListener('click', async () => {
+        sampleBtn.disabled = true;
+        try {
+          await projects.triggerSample(projectId);
+          toast.success(t('engines.sample_queued', {}, 'Sampling task queued across matrix!'));
+          ctx.pollActiveJobs();
+        } catch (err) {
+          toast.error(t(err.error, {}, err.detail || 'Sampling task failed to start'));
+        } finally {
+          sampleBtn.disabled = false;
+        }
+      });
+    }
+  },
+};

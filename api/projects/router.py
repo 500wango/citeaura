@@ -56,6 +56,8 @@ class ProjectCreate(BaseModel):
         parsed = urlparse(value)
         if parsed.scheme not in ("http", "https") or not parsed.hostname:
             raise ValueError("url must be a valid http(s) URL")
+        if parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise ValueError("url must not contain credentials, query, or fragment")
         return value.rstrip("/")
 
 class SampleRequest(BaseModel):
@@ -145,8 +147,11 @@ def _error(status_code: int, message: str):
     raise HTTPException(status_code=status_code, detail={"error": message})
 
 
-def _tenant_for_user(db: Session, user: User) -> Tenant:
-    tenant = db.get(Tenant, user.tenant_id)
+def _tenant_for_user(db: Session, user: User, for_update=False) -> Tenant:
+    if for_update:
+        tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).with_for_update().first()
+    else:
+        tenant = db.get(Tenant, user.tenant_id)
     if tenant is None:
         _error(status.HTTP_403_FORBIDDEN, "no_tenant_membership")
     return tenant
@@ -207,7 +212,6 @@ def _job_payload(job: Job, include_log: bool = True, log_offset: int | None = No
         "started_at": job.started_at,
         "finished_at": job.finished_at,
         "error": job.error,
-        "log_path": job.log_path,
         "log": log,
         "log_offset": next_offset,
     }
@@ -486,7 +490,7 @@ def create_project(
     db: Session = Depends(get_db),
 ):
     """创建项目、初始化引擎目录并投递 Bootstrap 任务。"""
-    tenant = _tenant_for_user(db, current_user)
+    tenant = _tenant_for_user(db, current_user, for_update=True)
     check_project_creation(db, tenant)
     slug = geolib.slugify(payload.url)
     existing = db.query(Project).filter(Project.tenant_id == tenant.id, Project.slug == slug).first()

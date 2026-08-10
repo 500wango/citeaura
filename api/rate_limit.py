@@ -6,7 +6,6 @@ import time
 from dataclasses import dataclass
 
 import jwt
-from fastapi import Request
 from redis.exceptions import RedisError
 
 from api import config
@@ -14,7 +13,7 @@ from api.adapters import locking
 from api.auth.security import ACCESS_TOKEN_COOKIE, decode_token
 
 
-RATE_LIMIT_PREFIX = "disvorai:rate-limit"
+RATE_LIMIT_PREFIX = "citeaura:rate-limit"
 AUTH_PATHS = frozenset((
     "/api/v1/auth/register",
     "/api/v1/auth/login",

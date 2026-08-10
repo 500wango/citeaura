@@ -23,7 +23,7 @@ def test_tenant_context_uses_namespaced_distributed_lock(project_lock_redis, tmp
 
     assert geolib.project_lock is original
     name, lock = project_lock_redis.created[-1]
-    assert name == "disvorai:project-lock:tenant-a:example"
+    assert name == "citeaura:project-lock:tenant-a:example"
     assert lock.options == {
         "timeout": config.project_lock_ttl_seconds(),
         "blocking_timeout": config.project_lock_wait_seconds(),
