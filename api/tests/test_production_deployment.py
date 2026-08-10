@@ -53,3 +53,25 @@ def test_one_click_deploy_is_executable_and_documents_safe_caddy_update():
     assert "restore_caddy 130" in text
     assert "restore_caddy 143" in text
     assert "api worker beat nginx" not in text
+
+
+def test_github_main_push_deploys_with_strict_ssh_host_verification():
+    workflow = (ROOT / ".github/workflows/deploy-production.yml").read_text("utf-8")
+
+    assert "push:\n    branches:\n      - main" in workflow
+    assert "workflow_dispatch:" in workflow
+    assert "environment:\n      name: production" in workflow
+    assert "group: citeaura-production" in workflow
+    assert "cancel-in-progress: false" in workflow
+    assert "BatchMode=yes" in workflow
+    assert "IdentitiesOnly=yes" in workflow
+    assert "StrictHostKeyChecking=yes" in workflow
+    assert "UserKnownHostsFile=$KNOWN_HOSTS_FILE" in workflow
+    assert "PROJECT_DIR=/opt/citeaura" in workflow
+    assert "git pull --ff-only origin main" in workflow
+    assert "git merge-base --is-ancestor" in workflow
+    assert "scripts/one-click-deploy.sh" in workflow
+    assert "--env-file \"$PROJECT_DIR/.env.production\"" in workflow
+    assert "DATABASE_URL" not in workflow
+    assert "JWT_SECRET" not in workflow
+    assert "scp " not in workflow
