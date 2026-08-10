@@ -17,4 +17,4 @@ beat:
 	celery -A api.worker.celery_app beat --loglevel=INFO --schedule=/tmp/citeaura-celerybeat-schedule
 
 preflight:
-	python3 scripts/production_preflight.py --env-file $${ENV_FILE:-.env.production}
+	python3 scripts/production_preflight.py --env-file $${ENV_FILE:-.env.production} --skip-certificate

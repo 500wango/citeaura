@@ -9,23 +9,37 @@ export function onAuthFailure(callback) {
   onAuthFailureCallback = callback;
 }
 
-let isRefreshing = false;
-let refreshSubscribers = [];
+let refreshPromise = null;
 
-function subscribeTokenRefresh(cb) {
-  refreshSubscribers.push(cb);
+async function refreshSession() {
+  if (!refreshPromise) {
+    refreshPromise = fetch('/api/v1/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-CiteAura-Session': 'cookie', Accept: 'application/json' },
+    })
+      .then((response) => response.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
 }
 
-function onRefreshed(success) {
-  refreshSubscribers.forEach((cb) => cb(success));
-  refreshSubscribers = [];
+function responseField(data, key, fallback) {
+  return data && Object.prototype.hasOwnProperty.call(data, key) ? data[key] : fallback;
+}
+
+function fieldRequest(promise, key, fallback) {
+  return promise.then((data) => responseField(data, key, fallback));
 }
 
 async function request(endpoint, options = {}) {
   const url = endpoint.startsWith('http') ? endpoint : endpoint.startsWith('/') ? endpoint : `/api/v1/${endpoint}`;
   const headers = {
     Accept: 'application/json',
-    'X-CiteAura-Session': '1',
+    'X-CiteAura-Session': 'cookie',
     ...(options.headers || {}),
   };
 
@@ -50,39 +64,11 @@ async function request(endpoint, options = {}) {
 
   // 处理 401 刷新
   if (res.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/refresh') && !url.includes('/auth/register')) {
-    if (!isRefreshing) {
-      isRefreshing = true;
-      try {
-        const refreshRes = await fetch('/api/v1/auth/refresh', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'X-CiteAura-Session': '1', Accept: 'application/json' },
-        });
-        if (refreshRes.ok) {
-          isRefreshing = false;
-          onRefreshed(true);
-        } else {
-          isRefreshing = false;
-          onRefreshed(false);
-          if (onAuthFailureCallback) onAuthFailureCallback();
-          const errData = await refreshRes.json().catch(() => ({}));
-          throw { status: 401, error: errData.error || 'unauthorized', detail: errData.detail };
-        }
-      } catch (err) {
-        isRefreshing = false;
-        onRefreshed(false);
-        if (onAuthFailureCallback) onAuthFailureCallback();
-        throw { status: 401, error: 'session_expired', detail: 'Session expired' };
-      }
-    }
-
-    // 等待刷新结果并重试
-    const retrySuccess = await new Promise((resolve) => subscribeTokenRefresh(resolve));
-    if (retrySuccess) {
+    if (await refreshSession()) {
       return request(endpoint, options);
-    } else {
-      throw { status: 401, error: 'unauthorized', detail: 'Authentication required' };
     }
+    if (onAuthFailureCallback) onAuthFailureCallback();
+    throw { status: 401, error: 'session_expired', detail: 'Session expired' };
   }
 
   if (res.status === 204) {
@@ -134,19 +120,30 @@ export const projects = {
   list: () => request('/api/v1/projects'),
   create: (body) => request('/api/v1/projects', { method: 'POST', body }),
   preflight: (body) => request('/api/v1/projects/preflight', { method: 'POST', body }),
-  get: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}`),
+  get: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}`).then((data) => ({
+    ...data,
+    ...(data.project || {}),
+    name: (data.brand && data.brand.name) || (data.project && data.project.slug),
+  })),
   delete: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   getStatus: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/status`),
   getActions: () => request('/api/v1/projects/actions'),
   triggerAction: (id, action, body = {}) =>
     request(`/api/v1/projects/${encodeURIComponent(id)}/actions/${encodeURIComponent(action)}`, { method: 'POST', body }),
 
-  getJobs: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/jobs`),
-  getJob: (id, jobId) => request(`/api/v1/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}`),
+  getJobs: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/jobs`), 'jobs', []),
+  getJob: (id, jobId) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}`), 'job', null),
   retryJob: (id, jobId) => request(`/api/v1/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}/retry`, { method: 'POST' }),
 
-  getSchedule: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/schedule`),
-  updateSchedule: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/schedule`, { method: 'POST', body }),
+  getSchedule: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/schedule`), 'schedule', {}),
+  updateSchedule: (id, body) => fieldRequest(
+    request(`/api/v1/projects/${encodeURIComponent(id)}/schedule`, {
+      method: 'POST',
+      body: { interval_days: body.enabled === false ? 0 : body.interval_days },
+    }),
+    'schedule',
+    {},
+  ),
 
   getFunding: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/sampling-funding`),
   updateFunding: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/sampling-funding`, { method: 'PUT', body }),
@@ -157,12 +154,14 @@ export const projects = {
   estimateSample: (id, body = {}) => request(`/api/v1/projects/${encodeURIComponent(id)}/sample/estimate`, { method: 'POST', body }),
   triggerSample: (id, body = {}) => request(`/api/v1/projects/${encodeURIComponent(id)}/sample`, { method: 'POST', body }),
 
-  getReport: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/report`),
+  getReport: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/report`).then((data) => (
+    data && data.report ? { ...data.report, report_quality: data.report_quality, date: data.date } : null
+  )),
   getEngines: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/engines`),
-  getFraming: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/framing`),
-  getSamples: (id, date) => request(`/api/v1/projects/${encodeURIComponent(id)}/samples/${encodeURIComponent(date)}`),
+  getFraming: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/framing`), 'framing', null),
+  getSamples: (id, date) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/samples/${encodeURIComponent(date)}`), 'samples', []),
 
-  getTickets: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/tickets`),
+  getTickets: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/tickets`), 'tickets', []),
   getPlaybook: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/playbook`),
   createTicket: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/tickets`, { method: 'POST', body }),
   patchTicketsBulk: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/tickets`, { method: 'PATCH', body }),
@@ -170,10 +169,10 @@ export const projects = {
   patchTicket: (id, tid, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/tickets/${encodeURIComponent(tid)}`, { method: 'PATCH', body }),
 
   triggerVerify: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/verify`, { method: 'POST' }),
-  getVerifyHistory: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/verify/history`),
+  getVerifyHistory: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/verify/history`), 'history', []),
 
   triggerDeliver: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/deliver`, { method: 'POST' }),
-  getDeliveries: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/deliveries`),
+  getDeliveries: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/deliveries`), 'deliveries', []),
   getDeliveryDownloadUrl: (id, date) => `/api/v1/projects/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(date)}`,
 };
 
@@ -203,7 +202,7 @@ export const workspace = {
    Settings API Keys
    ========================================================================== */
 export const settings = {
-  getKeys: () => request('/api/v1/settings/keys'),
+  getKeys: () => fieldRequest(request('/api/v1/settings/keys'), 'keys', []),
   saveKey: (engineCode, keyValue) => request('/api/v1/settings/keys', { method: 'PUT', body: { engine_code: engineCode, key_value: keyValue } }),
   deleteKey: (engineCode) => request(`/api/v1/settings/keys/${encodeURIComponent(engineCode)}`, { method: 'DELETE' }),
   testKey: (engineCode, keyValue = '') => request(`/api/v1/settings/keys/${encodeURIComponent(engineCode)}/test`, { method: 'POST', body: { key_value: keyValue } }),
@@ -213,7 +212,12 @@ export const settings = {
    Branding 白标设置
    ========================================================================== */
 export const branding = {
-  get: () => request('/api/v1/settings/delivery-branding'),
+  get: () => request('/api/v1/settings/delivery-branding').then((data) => ({
+    ...(data.branding || {}),
+    available: Boolean(data.available),
+    can_edit: Boolean(data.can_edit),
+    plan: data.plan,
+  })),
   save: (body) => request('/api/v1/settings/delivery-branding', { method: 'PUT', body }),
   delete: () => request('/api/v1/settings/delivery-branding', { method: 'DELETE' }),
 };
@@ -254,8 +258,8 @@ export const integrations = {
    Team 团队成员
    ========================================================================== */
 export const team = {
-  getMembers: () => request('/api/v1/team/members'),
-  getInvitations: () => request('/api/v1/team/invitations'),
+  getMembers: () => fieldRequest(request('/api/v1/team/members'), 'members', []),
+  getInvitations: () => fieldRequest(request('/api/v1/team/invitations'), 'invitations', []),
   createInvitation: (body) => request('/api/v1/team/invitations', { method: 'POST', body }),
   revokeInvitation: (id) => request(`/api/v1/team/invitations/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   updateMemberRole: (userId, role) => request(`/api/v1/team/members/${encodeURIComponent(userId)}`, { method: 'PATCH', body: { role } }),
@@ -280,19 +284,19 @@ export const sso = {
   getConfig: () => request('/api/v1/sso/config'),
   saveConfig: (body) => request('/api/v1/sso/config', { method: 'PUT', body }),
   deleteConfig: () => request('/api/v1/sso/config', { method: 'DELETE' }),
-  getAuditEvents: () => request('/api/v1/sso/audit-events'),
+  getAuditEvents: () => fieldRequest(request('/api/v1/sso/audit-events'), 'events', []),
 };
 
 /* ==========================================================================
    Archive 备份归档
    ========================================================================== */
 export const archive = {
-  list: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/archives`),
+  list: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/archives`), 'archives', []),
   create: (id, note = '') => request(`/api/v1/projects/${encodeURIComponent(id)}/archives`, { method: 'POST', body: { note } }),
   restore: (id, archiveId, confirmationText) =>
     request(`/api/v1/projects/${encodeURIComponent(id)}/archives/${encodeURIComponent(archiveId)}/restore`, {
       method: 'POST',
-      body: { confirmation_text: confirmationText },
+      body: { confirmation_text: confirmationText, confirmed: true, overwrite: true },
     }),
 };
 

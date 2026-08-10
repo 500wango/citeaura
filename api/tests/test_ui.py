@@ -1,3 +1,6 @@
+import re
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -43,6 +46,11 @@ def test_spa_is_served_with_citeaura_shell():
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
     assert "/site-assets/styles/app.css" in response.text
+    assert '<script src="/site-assets/theme-init.js"></script>' in response.text
+    assert re.search(r"<script(?![^>]*\bsrc=)[^>]*>", response.text, re.IGNORECASE) is None
+    policy = response.headers["content-security-policy"]
+    assert "script-src 'self';" in policy
+    assert "script-src 'self' 'unsafe-inline'" not in policy
 
 
 def test_spa_static_modules_are_served():
@@ -51,6 +59,7 @@ def test_spa_static_modules_are_served():
         "/app/app.js",
         "/app/api.js",
         "/app/i18n.js",
+        "/app/safe-html.js",
         "/app/views/overview.js",
         "/app/views/engines.js",
         "/app/views/plan.js",
@@ -79,6 +88,53 @@ def test_api_js_covers_all_core_endpoints():
     assert "/api/v1/auth/password/reset" in text
     assert "/api/v1/projects" in text
     assert "/api/v1/settings/keys" in text
+
+
+def test_api_js_uses_cookie_session_refresh_and_unwraps_collections():
+    text = TestClient(app).get("/app/api.js").text
+
+    assert "'X-CiteAura-Session': 'cookie'" in text
+    assert "'X-CiteAura-Session': '1'" not in text
+    assert "let refreshPromise = null" in text
+    assert "refreshSubscribers" not in text
+    for field in ("jobs", "tickets", "members", "invitations", "schedule", "keys", "history", "deliveries", "events", "archives"):
+        assert f"'{field}'" in text
+
+
+def test_frontend_contracts_match_backend_request_models():
+    root = Path(__file__).resolve().parents[2]
+    reset = (root / "web/app/views/auth-reset.js").read_text("utf-8")
+    invite = (root / "web/app/views/auth-invite.js").read_text("utf-8")
+    plan = (root / "web/app/views/plan.js").read_text("utf-8")
+    engines = (root / "web/app/views/engine-settings.js").read_text("utf-8")
+    automation = (root / "web/app/views/automation.js").read_text("utf-8")
+    publishing = (root / "web/app/views/publishing.js").read_text("utf-8")
+    outreach = (root / "web/app/views/outreach.js").read_text("utf-8")
+
+    assert "resetPassword({ token, password })" in reset
+    assert "preview.tenant?.name" in invite
+    assert "invitation_token: token" in invite
+    assert "{ url, ask_text, influenced_questions }" in plan
+    assert "{ code: 'openai'" in engines
+    assert 'option value="1"' not in automation
+    assert "{ config, credentials }" in publishing
+    assert "revision," in outreach and "confirmed: true" in outreach
+
+
+def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():
+    root = Path(__file__).resolve().parents[2]
+    app_js = (root / "web/app/app.js").read_text("utf-8")
+    modal_js = (root / "web/app/components/modal.js").read_text("utf-8")
+    sanitizer = (root / "web/app/safe-html.js").read_text("utf-8")
+
+    assert "setSafeHtml(appRoot" in app_js
+    assert "setSafeHtml(viewContainer" in app_js
+    assert "setSafeHtml(box" in modal_js
+    assert "name.startsWith('on')" in sanitizer
+    assert "URL_ATTRIBUTES" in sanitizer
+    for path in (root / "web").rglob("*"):
+        if path.suffix in (".html", ".js"):
+            assert re.search(r"\bon(?:click|error|load)\s*=", path.read_text("utf-8"), re.IGNORECASE) is None
 
 
 def test_ui_compatibility_route_remains_available():

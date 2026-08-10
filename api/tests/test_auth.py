@@ -218,6 +218,35 @@ def test_password_reset_is_non_enumerating_single_use_and_hashed(client, monkeyp
     assert reused.json() == {"error": "password_reset_token_invalid"}
 
 
+def test_password_reset_email_uses_spa_hash_route(monkeypatch):
+    sent = []
+    monkeypatch.setattr(password_reset.config, "public_base_url", lambda: "https://citeaura.example")
+    monkeypatch.setattr(password_reset.config, "password_reset_ttl_minutes", lambda: 30)
+    monkeypatch.setattr(password_reset.config, "auth_smtp_configured", lambda: True)
+    monkeypatch.setattr(
+        password_reset.config,
+        "auth_smtp_settings",
+        lambda: {
+            "host": "smtp.example.com",
+            "port": 587,
+            "security_mode": "starttls",
+            "from_email": "noreply@example.com",
+            "from_name": "CiteAura",
+            "username": "smtp-user",
+            "password": "smtp-password",
+        },
+    )
+    monkeypatch.setattr(
+        password_reset.outreach,
+        "send_smtp",
+        lambda draft, settings, credentials: sent.append((draft, settings, credentials)),
+    )
+
+    password_reset.send_password_reset_email("user@example.com", "token-value")
+
+    assert "https://citeaura.example/app/#/reset-password?token=token-value" in sent[0][0]["body"]
+
+
 def test_expired_password_reset_token_is_rejected(client, monkeypatch):
     payload = {"email": "expired-reset@example.com", "password": "old-password-123"}
     assert client.post("/api/v1/auth/register", json=payload).status_code == 201

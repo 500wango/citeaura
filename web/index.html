@@ -6,16 +6,7 @@
   <title data-i18n="landing.title">CiteAura | Make Your Brand the Default Answer in AI Search — Next-Gen GEO Platform</title>
   <meta name="description" content="CiteAura is the next-gen Generative Engine Optimization (GEO) platform. Enter a domain to audit AI visibility gaps, generate 13 actionable engineering tickets, verify improvements, and export client delivery packs." data-i18n-content="landing.meta_description">
   <meta name="theme-color" content="#f7f9fa" data-theme-color>
-  <script>
-    (function () {
-      var param = new URLSearchParams(location.search).get('theme');
-      var saved = null;
-      try { saved = localStorage.getItem('utheme'); } catch (e) {}
-      var choice = param || saved;
-      var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    })();
-  </script>
+  <script src="/site-assets/theme-init.js"></script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">

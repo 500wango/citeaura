@@ -1,6 +1,6 @@
 x-app: &app
   env_file:
-    - .env.production
+    - ${ENV_FILE:-.env.production}
   restart: unless-stopped
   depends_on:
     redis:
@@ -32,6 +32,8 @@ services:
     command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
     volumes:
       - citeaura_work:/app/work
+    ports:
+      - "127.0.0.1:${APP_PORT:-18000}:8000"
     expose:
       - "8000"
     healthcheck:
@@ -55,9 +57,10 @@ services:
       context: .
       dockerfile: Dockerfile
       target: worker
-      command: ["celery", "-A", "api.worker.celery_app", "beat", "--loglevel=INFO", "--schedule=/tmp/citeaura-celerybeat-schedule"]
+    command: ["celery", "-A", "api.worker.celery_app", "beat", "--loglevel=INFO", "--schedule=/tmp/citeaura-celerybeat-schedule"]
 
   nginx:
+    profiles: ["standalone-nginx"]
     image: nginx:1.27-alpine
     restart: unless-stopped
     depends_on:

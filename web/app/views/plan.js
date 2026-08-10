@@ -278,28 +278,16 @@ function showCreateTicketModal(projectId, ctx) {
   const content = `
     <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
       <div class="field" style="margin:0;">
-        <label>${t('plan.create_title_label', {}, 'Ticket Title')} *</label>
-        <input type="text" id="new-t-title" class="input" placeholder="e.g. Optimize JSON-LD Product schema on pricing page" required>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);">
-        <div class="field" style="margin:0;">
-          <label>${t('plan.col_impact', {}, 'Impact')}</label>
-          <select id="new-t-impact" class="input">
-            <option value="High">High</option>
-            <option value="Low">Low</option>
-          </select>
-        </div>
-        <div class="field" style="margin:0;">
-          <label>${t('plan.col_effort', {}, 'Effort')}</label>
-          <select id="new-t-effort" class="input">
-            <option value="Low">Low</option>
-            <option value="High">High</option>
-          </select>
-        </div>
+        <label>${t('plan.target_page_label', {}, 'Target URL / Page')} *</label>
+        <input type="url" id="new-t-url" class="input" placeholder="https://example.com/review" required>
       </div>
       <div class="field" style="margin:0;">
-        <label>${t('plan.target_page_label', {}, 'Target URL / Page')}</label>
-        <input type="text" id="new-t-page" class="input" placeholder="/pricing">
+        <label>${t('plan.create_title_label', {}, 'Requested Update')} *</label>
+        <textarea id="new-t-ask" class="input" rows="3" placeholder="Describe the factual change requested from the page owner" required></textarea>
+      </div>
+      <div class="field" style="margin:0;">
+        <label>${t('plan.influenced_questions_label', {}, 'Influenced Question IDs')} *</label>
+        <input type="text" id="new-t-questions" class="input" placeholder="q001, q014" required>
       </div>
     </div>
   `;
@@ -309,15 +297,17 @@ function showCreateTicketModal(projectId, ctx) {
     content,
     confirmText: t('common.create', {}, 'Create Ticket'),
     onConfirm: async () => {
-      const title = document.getElementById('new-t-title')?.value.trim();
-      const impact = document.getElementById('new-t-impact')?.value;
-      const effort = document.getElementById('new-t-effort')?.value;
-      const target_page = document.getElementById('new-t-page')?.value.trim();
+      const url = document.getElementById('new-t-url')?.value.trim();
+      const ask_text = document.getElementById('new-t-ask')?.value.trim();
+      const influenced_questions = (document.getElementById('new-t-questions')?.value || '')
+        .split(/[\s,]+/)
+        .map((value) => value.trim())
+        .filter(Boolean);
 
-      if (!title) return false;
+      if (!url || !ask_text || !influenced_questions.length) return false;
 
       try {
-        await projects.createTicket(projectId, { title, impact, effort, target_page, status: 'todo' });
+        await projects.createTicket(projectId, { url, ask_text, influenced_questions });
         toast.success(t('plan.ticket_created_success', {}, 'Ticket created successfully'));
         ctx.navigate('#/plan');
         return true;

@@ -68,7 +68,7 @@ def test_new_user_invitation_registers_directly_into_team_and_never_stores_plain
     created = _invite(client, owner_headers, "editor@example.com", "editor")
     token = created["token"]
     assert token in created["invite_url"]
-    assert created["invite_url"].startswith("/app?invite=")
+    assert created["invite_url"].startswith("/app/#/invite?token=")
     assert created["invitation"]["status"] == "pending"
     with session_factory() as db:
         invitation = db.query(TeamInvitation).one()

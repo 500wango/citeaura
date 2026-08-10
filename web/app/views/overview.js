@@ -147,7 +147,7 @@ export default {
                   .slice(0, 5)
                   .map(
                     (ticket) => `
-                  <div class="ticket-item" onclick="location.hash='#/plan'">
+                  <a class="ticket-item" href="#/plan" style="text-decoration:none;">
                     <div style="display:flex;align-items:center;justify-content:space-between;">
                       <span class="ticket-item-title">${ticket.title || ticket.name || ticket.id}</span>
                       ${statusPill(ticket.status)}
@@ -157,7 +157,7 @@ export default {
                       <span>·</span>
                       <span>Effort: <strong>${ticket.effort || 'Low'}</strong></span>
                     </div>
-                  </div>
+                  </a>
                 `
                   )
                   .join('')}

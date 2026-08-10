@@ -2,11 +2,13 @@
  * 协作外联与草稿发送视图 (Outreach & Media Pitches)
  */
 
-import { outreach } from '../api.js';
+import { outreach, projects } from '../api.js';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
+
+let draftState = [];
 
 export default {
   render: async (ctx) => {
@@ -21,7 +23,8 @@ export default {
     } catch (e) {}
 
     const drafts = outreachData.drafts || [];
-    const hasSmtp = outreachData.has_smtp || false;
+    draftState = drafts;
+    const hasSmtp = Boolean(outreachData.smtp?.configured);
 
     return `
       <div class="app-view-container">
@@ -68,11 +71,11 @@ export default {
                     .map(
                       (d) => `
                     <tr>
-                      <td><strong class="num">${d.recipient}</strong></td>
+                      <td><strong class="num">${d.recipient_email}</strong></td>
                       <td>${d.subject}</td>
                       <td><span class="tag ${d.status === 'sent' ? 'pill-good' : 'tag-dim'}">${d.status || 'draft'}</span></td>
                       <td style="text-align:right;">
-                        <button type="button" class="btn btn-primary btn-sm btn-send-draft" data-id="${d.id}" data-rec="${d.recipient}" data-sub="${d.subject}">
+                        <button type="button" class="btn btn-primary btn-sm btn-send-draft" data-id="${d.id}" ${['draft', 'failed'].includes(d.status) ? '' : 'disabled'}>
                           ${t('outreach.review_send', {}, 'Review & Send')}
                         </button>
                       </td>
@@ -101,6 +104,47 @@ export default {
   mounted: (ctx) => {
     const projectId = ctx.activeProjectId;
     if (!projectId) return;
+
+    document.getElementById('btn-new-draft')?.addEventListener('click', async () => {
+      const tickets = await projects.getTickets(projectId).catch(() => []);
+      const offsiteTickets = tickets.filter((ticket) => ticket.kind === 'offsite');
+      if (!offsiteTickets.length) {
+        toast.error(t('outreach.offsite_ticket_required', {}, 'Create an offsite action ticket before drafting outreach.'));
+        return;
+      }
+      openModal({
+        title: t('outreach.new_pitch_btn', {}, 'New Pitch Draft'),
+        content: `
+          <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
+            <div class="field" style="margin:0;">
+              <label>Offsite Ticket</label>
+              <select id="outreach-ticket" class="input">
+                ${offsiteTickets.map((ticket) => `<option value="${ticket.id}">${ticket.ask_text || ticket.title || ticket.id}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field" style="margin:0;">
+              <label>Recipient Email</label>
+              <input type="email" id="outreach-recipient" class="input" required>
+            </div>
+          </div>
+        `,
+        confirmText: t('common.create', {}, 'Create Draft'),
+        onConfirm: async () => {
+          const ticket_id = document.getElementById('outreach-ticket')?.value;
+          const recipient_email = document.getElementById('outreach-recipient')?.value.trim();
+          if (!ticket_id || !recipient_email) return false;
+          try {
+            await outreach.createDraft(projectId, { ticket_id, recipient_email });
+            toast.success(t('outreach.draft_created', {}, 'Outreach draft created'));
+            ctx.navigate(`#/outreach?updated=${Date.now()}`);
+            return true;
+          } catch (err) {
+            toast.error(t(err.error, {}, err.detail || 'Failed to create outreach draft'));
+            return false;
+          }
+        },
+      });
+    });
 
     // SMTP 配置弹窗
     document.getElementById('btn-config-smtp')?.addEventListener('click', () => {
@@ -161,8 +205,10 @@ export default {
     document.querySelectorAll('.btn-send-draft').forEach((btn) => {
       btn.addEventListener('click', () => {
         const draftId = btn.getAttribute('data-id');
-        const rec = btn.getAttribute('data-rec');
-        const sub = btn.getAttribute('data-sub');
+        const draft = draftState.find((item) => item.id === draftId) || {};
+        const rec = draft.recipient_email || '';
+        const sub = draft.subject || '';
+        const revision = Number(draft.revision);
 
         const content = `
           <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
@@ -197,7 +243,11 @@ export default {
             }
 
             try {
-              await outreach.sendDraft(projectId, draftId, { confirmation_text: inputVal });
+              await outreach.sendDraft(projectId, draftId, {
+                revision,
+                confirmed: true,
+                confirmation_text: inputVal,
+              });
               toast.success(t('outreach.sent_success', {}, 'Email dispatched successfully'));
               ctx.navigate('#/outreach');
               return true;

@@ -50,7 +50,7 @@ export default {
             </a>
             <h1 class="auth-title">${t('auth.join_team_title', {}, 'Join Team Workspace')}</h1>
             <p class="auth-subtitle">
-              ${t('auth.invited_to_join', { tenant: preview.tenant_name || 'Organization', role: preview.role || 'Member' }, `You have been invited to join ${preview.tenant_name || 'Organization'} as ${preview.role || 'Member'}.`)}
+              ${t('auth.invited_to_join', { tenant: preview.tenant?.name || 'Organization', role: preview.role || 'Member' }, `You have been invited to join ${preview.tenant?.name || 'Organization'} as ${preview.role || 'Member'}.`)}
             </p>
           </div>
 
@@ -59,7 +59,7 @@ export default {
 
             <div class="field" style="margin:0;">
               <label>${t('auth.email', {}, 'Email')}</label>
-              <input type="email" class="input" value="${preview.email || ''}" disabled>
+              <input type="email" id="invite-email" class="input" value="${preview.email || ''}" disabled>
             </div>
 
             <div class="field" style="margin:0;">
@@ -88,6 +88,7 @@ export default {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const token = document.getElementById('invite-token').value;
+      const email = document.getElementById('invite-email').value;
       const password = document.getElementById('invite-password').value;
       const submitBtn = form.querySelector('button[type="submit"]');
 
@@ -95,7 +96,21 @@ export default {
       submitBtn.innerHTML = `<span class="spin"></span> ${t('common.joining', {}, 'Joining...')}`;
 
       try {
-        await auth.acceptInvitation({ token, password });
+        let registered = false;
+        try {
+          await auth.login({ email, password });
+        } catch (loginError) {
+          if (loginError.status !== 401) throw loginError;
+          try {
+            await auth.register({ email, password, invitation_token: token });
+            registered = true;
+            await auth.login({ email, password });
+          } catch (registerError) {
+            if (registerError.error === 'email_already_registered') throw loginError;
+            throw registerError;
+          }
+        }
+        if (!registered) await auth.acceptInvitation({ token });
         toast.success(t('auth.invite_accepted', {}, 'Invitation accepted! Welcome to the team.'));
         await ctx.reloadSession();
         ctx.navigate('#/overview');

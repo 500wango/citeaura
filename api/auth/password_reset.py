@@ -3,7 +3,7 @@
 import hashlib
 import logging
 import secrets
-from urllib.parse import urlencode
+from urllib.parse import quote
 
 from api import config
 from api.adapters import outreach
@@ -24,8 +24,7 @@ def send_password_reset_email(email, token):
     settings = config.auth_smtp_settings()
     if not config.auth_smtp_configured():
         raise RuntimeError("auth_smtp_not_configured")
-    query = urlencode({"reset_token": token})
-    reset_url = f"{config.public_base_url()}/app?{query}"
+    reset_url = f"{config.public_base_url()}/app/#/reset-password?token={quote(token)}"
     draft = {
         "id": f"password-reset-{token_hash(token)[:12]}",
         "recipient_email": email,

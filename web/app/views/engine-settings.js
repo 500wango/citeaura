@@ -8,12 +8,16 @@ import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 
 const AVAILABLE_ENGINES = [
-  { code: 'DEEPSEEK_API_KEY', name: 'DeepSeek (V3 / R1)', provider: 'DeepSeek Official API' },
-  { code: 'OPENAI_API_KEY', name: 'OpenAI (GPT-4o / Search)', provider: 'OpenAI Platform' },
-  { code: 'ANTHROPIC_API_KEY', name: 'Anthropic (Claude 3.5 Sonnet)', provider: 'Anthropic Console' },
-  { code: 'GEMINI_API_KEY', name: 'Google (Gemini 2.0 Flash)', provider: 'Google AI Studio' },
-  { code: 'ZHIPU_API_KEY', name: 'Zhipu AI (GLM-4 / 清言)', provider: 'Zhipu BigModel' },
-  { code: 'DOUBAO_API_KEY', name: 'Doubao (ByteDance Ark API)', provider: 'Volcengine Ark' },
+  { code: 'deepseek', name: 'DeepSeek (V3 / R1)', provider: 'DeepSeek Official API' },
+  { code: 'openai', name: 'OpenAI (GPT-4o / Search)', provider: 'OpenAI Platform' },
+  { code: 'claude', name: 'Anthropic (Claude)', provider: 'Anthropic Console' },
+  { code: 'gemini', name: 'Google (Gemini)', provider: 'Google AI Studio' },
+  { code: 'glm', name: 'Zhipu AI (GLM)', provider: 'Zhipu BigModel' },
+  { code: 'doubao', name: 'Doubao', provider: 'Volcengine Ark' },
+  { code: 'kimi', name: 'Kimi', provider: 'Moonshot AI' },
+  { code: 'minimax', name: 'MiniMax', provider: 'MiniMax Platform' },
+  { code: 'grok', name: 'Grok', provider: 'xAI Console' },
+  { code: 'perplexity', name: 'Perplexity', provider: 'Perplexity API' },
 ];
 
 export default {

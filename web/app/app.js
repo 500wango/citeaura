@@ -5,6 +5,7 @@
 import { auth, projects, onAuthFailure } from './api.js';
 import { t, loadCatalogs, getLocale, setLocale } from './i18n.js';
 import { toast } from './components/toast.js';
+import { setSafeHtml } from './safe-html.js';
 
 /* ---------- 轨道与导航配置 ---------- */
 export const TRACKS = [
@@ -222,7 +223,7 @@ async function renderApp() {
     if (loader) {
       const module = await loader();
       const view = module.default;
-      appRoot.innerHTML = typeof view.render === 'function' ? await view.render(createContext()) : '';
+      setSafeHtml(appRoot, typeof view.render === 'function' ? await view.render(createContext()) : '');
       if (typeof view.mounted === 'function') view.mounted(createContext());
     }
     return;
@@ -230,7 +231,7 @@ async function renderApp() {
 
   // 渲染应用主外壳
   state.currentTrack = findTrackForView(route).id;
-  appRoot.innerHTML = renderAppShell();
+  setSafeHtml(appRoot, renderAppShell());
   bindAppShellEvents();
 
   // 挂载当前子视图
@@ -240,11 +241,11 @@ async function renderApp() {
     try {
       const module = await loader();
       const view = module.default;
-      viewContainer.innerHTML = typeof view.render === 'function' ? await view.render(createContext()) : '';
+      setSafeHtml(viewContainer, typeof view.render === 'function' ? await view.render(createContext()) : '');
       if (typeof view.mounted === 'function') view.mounted(createContext());
     } catch (err) {
       console.error('Failed to mount view:', err);
-      viewContainer.innerHTML = `<div class="app-view-container"><div class="banner bad">Error loading view: ${err.message}</div></div>`;
+      setSafeHtml(viewContainer, `<div class="app-view-container"><div class="banner bad">Error loading view: ${err.message}</div></div>`);
     }
   }
 
@@ -488,12 +489,12 @@ async function checkJobs() {
       state.activeJob = active;
       if (indicator) {
         indicator.style.display = 'inline-block';
-        indicator.innerHTML = `
+        setSafeHtml(indicator, `
           <div class="job-pill" title="Job #${active.id}">
             <span class="pulse-dot"></span>
             <span>${active.action}: ${active.status}...</span>
           </div>
-        `;
+        `);
       }
       lastJobStatus = active.status;
     } else {
@@ -517,6 +518,7 @@ function startJobPolling() {
 
 /* ---------- 启动应用 ---------- */
 async function init() {
+  normalizeLegacyAuthLink();
   await loadCatalogs();
 
   onAuthFailure(() => {
@@ -525,6 +527,16 @@ async function init() {
 
   window.addEventListener('hashchange', renderApp);
   renderApp();
+}
+
+function normalizeLegacyAuthLink() {
+  const params = new URLSearchParams(location.search);
+  const resetToken = params.get('reset_token');
+  const inviteToken = params.get('invite');
+  if (!resetToken && !inviteToken) return;
+  const route = resetToken ? 'reset-password' : 'invite';
+  const token = resetToken || inviteToken;
+  history.replaceState(null, '', `${location.pathname}#/${route}?token=${encodeURIComponent(token)}`);
 }
 
 if (document.readyState === 'loading') {

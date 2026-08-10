@@ -2,6 +2,8 @@
  * Modal 对话框组件
  */
 
+import { setSafeHtml } from '../safe-html.js';
+
 let modalRoot = null;
 
 function getRoot() {
@@ -38,7 +40,7 @@ export function openModal({
   box.className = 'box';
   box.style.width = width;
 
-  box.innerHTML = `
+  setSafeHtml(box, `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-4);">
       <h3 style="font-size:var(--fs-5);font-weight:700;margin:0;">${title}</h3>
       <button type="button" class="modal-close-btn" style="color:var(--muted);padding:4px;cursor:pointer;">
@@ -58,7 +60,7 @@ export function openModal({
     `
         : ''
     }
-  `;
+  `);
 
   if (typeof content !== 'string' && content instanceof HTMLElement) {
     box.querySelector('.modal-body').appendChild(content);
@@ -110,7 +112,7 @@ export function openModal({
 
 export function closeModal() {
   const root = getRoot();
-  root.innerHTML = '';
+  root.replaceChildren();
 }
 
 export function confirmModal(message, options = {}) {

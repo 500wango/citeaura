@@ -7,6 +7,8 @@ import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 
+let pendingInviteUrl = '';
+
 export default {
   render: async (ctx) => {
     let members = [];
@@ -95,7 +97,7 @@ export default {
                   <tr>
                     <th>Email</th>
                     <th>Role</th>
-                    <th>Invitation Link</th>
+                    <th>Status</th>
                     <th style="text-align:right;">Action</th>
                   </tr>
                 </thead>
@@ -106,13 +108,9 @@ export default {
                     <tr>
                       <td><strong>${inv.email}</strong></td>
                       <td><span class="tag tag-dim">${inv.role}</span></td>
-                      <td>
-                        <button type="button" class="btn btn-ghost btn-sm btn-copy-invite" data-token="${inv.token}">
-                          Copy Link
-                        </button>
-                      </td>
+                      <td><span class="tag ${inv.status === 'pending' ? 'tag-accent' : 'tag-dim'}">${inv.status}</span></td>
                       <td style="text-align:right;">
-                        <button type="button" class="btn btn-ghost btn-sm btn-revoke-inv" data-id="${inv.id}" style="color:var(--bad);">
+                        <button type="button" class="btn btn-ghost btn-sm btn-revoke-inv" data-id="${inv.id}" style="color:var(--bad);" ${inv.status === 'pending' ? '' : 'disabled'}>
                           Revoke
                         </button>
                       </td>
@@ -158,9 +156,10 @@ export default {
           if (!email) return false;
 
           try {
-            await team.createInvitation({ email, role });
+            const result = await team.createInvitation({ email, role });
+            pendingInviteUrl = new URL(result.invite_url, location.origin).href;
             toast.success(t('team.invite_created', {}, 'Invitation created!'));
-            ctx.navigate('#/team');
+            ctx.navigate(`#/team?updated=${Date.now()}`);
             return true;
           } catch (err) {
             toast.error(t(err.error, {}, err.detail || 'Failed to create invitation'));
@@ -182,5 +181,37 @@ export default {
         }
       });
     });
+
+    if (pendingInviteUrl) {
+      const url = pendingInviteUrl;
+      pendingInviteUrl = '';
+      showInvitationLink(url);
+    }
   },
 };
+
+function showInvitationLink(url) {
+  const result = openModal({
+    title: t('team.invite_created', {}, 'Invitation Created'),
+    showFooter: false,
+    content: `
+      <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
+        <div class="field" style="margin:0;">
+          <label>Invitation Link</label>
+          <input type="text" id="created-invite-url" class="input" value="${url}" readonly>
+        </div>
+        <button type="button" id="copy-created-invite" class="btn btn-primary">Copy Link</button>
+      </div>
+    `,
+  });
+  result.box.querySelector('#copy-created-invite')?.addEventListener('click', async () => {
+    const input = result.box.querySelector('#created-invite-url');
+    try {
+      await navigator.clipboard.writeText(input.value);
+      toast.success('Invitation link copied');
+    } catch (e) {
+      input.select();
+      toast.error('Copy failed. Select and copy the link manually.');
+    }
+  });
+}

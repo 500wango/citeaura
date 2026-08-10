@@ -77,6 +77,7 @@ export default {
 
       try {
         await auth.register({ tenant_name, email, password });
+        await auth.login({ email, password });
         toast.success(t('auth.register_success', {}, 'Workspace created successfully'));
         await ctx.reloadSession();
         ctx.navigate('#/onboarding');

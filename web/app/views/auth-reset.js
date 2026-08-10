@@ -54,7 +54,7 @@ export default {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const token = document.getElementById('reset-token').value;
-      const new_password = document.getElementById('new-password').value;
+      const password = document.getElementById('new-password').value;
       const confirm = document.getElementById('new-password-confirm').value;
       const submitBtn = form.querySelector('button[type="submit"]');
 
@@ -62,7 +62,7 @@ export default {
         toast.error(t('auth.missing_token', {}, 'Invalid or missing reset token'));
         return;
       }
-      if (new_password !== confirm) {
+      if (password !== confirm) {
         toast.error(t('auth.passwords_must_match', {}, 'Passwords do not match'));
         return;
       }
@@ -71,7 +71,7 @@ export default {
       submitBtn.innerHTML = `<span class="spin"></span> ${t('common.submitting', {}, 'Updating...')}`;
 
       try {
-        await auth.resetPassword({ token, new_password });
+        await auth.resetPassword({ token, password });
         toast.success(t('auth.password_reset_success', {}, 'Password updated. Please sign in with your new password.'));
         ctx.navigate('#/login');
       } catch (err) {

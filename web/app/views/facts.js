@@ -6,6 +6,7 @@ import { workspace } from '../api.js';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
+import { setSafeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -106,7 +107,7 @@ export default {
       row.className = 'card fact-row';
       row.style.background = 'var(--page)';
       row.style.padding = 'var(--sp-3)';
-      row.innerHTML = `
+      setSafeHtml(row, `
         <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);">
           <input type="text" class="input fact-claim" placeholder="Fact Claim..." style="font-weight:600;">
           <select class="input fact-grade" style="width:140px;flex:none;">
@@ -116,7 +117,7 @@ export default {
           </select>
           <button type="button" class="btn btn-ghost btn-sm btn-remove-fact" style="color:var(--bad);">✕</button>
         </div>
-      `;
+      `);
       row.querySelector('.btn-remove-fact').addEventListener('click', () => row.remove());
       container.appendChild(row);
     });
