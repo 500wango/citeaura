@@ -20,7 +20,9 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     monkeypatch.setenv("SESSION_COOKIE_SECURE", "yes")
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://app.example.test/")
     monkeypatch.setenv("WORK_ROOT", str(tmp_path / "tenant-work"))
+    monkeypatch.setenv("BILLING_ENABLED", "true")
     monkeypatch.setenv("BILLING_ANNUAL_DISCOUNT_PERCENT", "20")
+    monkeypatch.setenv("PASSWORD_RESET_EMAIL_ENABLED", "yes")
     monkeypatch.setenv("PASSWORD_RESET_TTL_MINUTES", "45")
     monkeypatch.setenv("AUTH_SMTP_HOST", "smtp.example.test")
     monkeypatch.setenv("AUTH_SMTP_PORT", "465")
@@ -44,7 +46,9 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     assert config.session_cookie_secure() is True
     assert config.public_base_url() == "https://app.example.test"
     assert config.work_root(Path("unused")) == (tmp_path / "tenant-work").resolve()
+    assert config.billing_enabled() is True
     assert config.billing_annual_discount_percent() == Decimal("20")
+    assert config.password_reset_email_enabled() is True
     assert config.password_reset_ttl_minutes() == 45
     assert config.auth_smtp_configured() is True
     assert config.auth_smtp_settings()["security_mode"] == "ssl"

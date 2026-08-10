@@ -20,10 +20,12 @@ class StripeError(RuntimeError):
 
 
 def configured():
-    return bool(config.stripe_secret_key() and config.stripe_webhook_secret())
+    return bool(config.billing_enabled() and config.stripe_secret_key() and config.stripe_webhook_secret())
 
 
 def create_checkout_session(tenant, user, plan, billing_interval, amount):
+    if not config.billing_enabled():
+        raise StripeError("billing_disabled")
     secret = config.stripe_secret_key()
     if not secret or not config.stripe_webhook_secret():
         raise StripeError("stripe_not_configured")
@@ -75,6 +77,8 @@ def create_checkout_session(tenant, user, plan, billing_interval, amount):
 
 def cancel_subscription(provider_subscription_id):
     """取消 Stripe 订阅，套餐状态随后由 Webhook 同步。"""
+    if not config.billing_enabled():
+        raise StripeError("billing_disabled")
     secret = config.stripe_secret_key()
     if not secret or not provider_subscription_id:
         raise StripeError("stripe_not_configured")
@@ -97,6 +101,8 @@ def cancel_subscription(provider_subscription_id):
 
 
 def verify_event(payload, signature_header, now=None):
+    if not config.billing_enabled():
+        raise StripeError("billing_disabled")
     secret = config.stripe_webhook_secret()
     if not secret:
         raise StripeError("stripe_not_configured")

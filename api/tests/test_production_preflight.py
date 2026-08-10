@@ -17,7 +17,9 @@ def _valid_environment():
         "RATE_LIMIT_AUTH_REQUESTS": "20",
         "RATE_LIMIT_WINDOW_SECONDS": "60",
         "RATE_LIMIT_TRUST_PROXY_HEADERS": "true",
+        "BILLING_ENABLED": "true",
         "PASSWORD_RESET_TTL_MINUTES": "30",
+        "PASSWORD_RESET_EMAIL_ENABLED": "true",
         "AUTH_SMTP_HOST": "smtp.example.test",
         "AUTH_SMTP_PORT": "587",
         "AUTH_SMTP_SECURITY": "starttls",
@@ -65,6 +67,41 @@ def test_preflight_rejects_placeholders_insecure_url_and_test_payments():
     assert "RATE_LIMIT_ENABLED must be true" in errors
     assert "AUTH_SMTP_HOST is required" in errors
     assert "STRIPE_SECRET_KEY must be a live-mode key" in errors
+
+
+def test_preflight_allows_disabled_billing_and_password_reset_email():
+    values = _valid_environment()
+    values.update({
+        "BILLING_ENABLED": "false",
+        "STRIPE_SECRET_KEY": "",
+        "STRIPE_WEBHOOK_SECRET": "",
+        "STRIPE_CURRENCY": "",
+        "PASSWORD_RESET_EMAIL_ENABLED": "false",
+        "PASSWORD_RESET_TTL_MINUTES": "",
+        "AUTH_SMTP_HOST": "",
+        "AUTH_SMTP_PORT": "",
+        "AUTH_SMTP_SECURITY": "",
+        "AUTH_SMTP_USERNAME": "",
+        "AUTH_SMTP_PASSWORD": "",
+        "AUTH_SMTP_FROM_EMAIL": "",
+    })
+
+    errors, warnings = validate_environment(values)
+
+    assert errors == []
+    assert "Billing is disabled by BILLING_ENABLED=false" in warnings
+    assert "Password reset email is disabled by PASSWORD_RESET_EMAIL_ENABLED=false" in warnings
+
+
+def test_preflight_requires_explicit_valid_feature_flags():
+    values = _valid_environment()
+    values["BILLING_ENABLED"] = "sometimes"
+    values.pop("PASSWORD_RESET_EMAIL_ENABLED")
+
+    errors, _warnings = validate_environment(values)
+
+    assert "BILLING_ENABLED must be true or false" in errors
+    assert "PASSWORD_RESET_EMAIL_ENABLED is required" in errors
 
 
 def test_env_reader_never_interprets_shell_syntax(tmp_path):

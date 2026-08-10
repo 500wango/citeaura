@@ -25,7 +25,8 @@ Options:
   -h, --help         Show this help
 
 The environment file must contain the real DOMAIN, APP_PORT, database,
-Stripe, SMTP, JWT and AES settings required by production_preflight.py.
+JWT and AES settings required by production_preflight.py. Stripe and auth
+SMTP settings are required only when their feature switches are enabled.
 EOF
 }
 

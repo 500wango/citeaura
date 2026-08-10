@@ -20,6 +20,9 @@ export default {
     const currentPlan = usage.plan || 'trial';
     const activeProjects = usage.projects_active || 0;
     const maxProjects = usage.projects_limit || 3;
+    const paymentAvailable = Boolean(plansData.payment?.enabled && plansData.payment?.configured);
+    const paymentDisabled = paymentAvailable ? '' : 'disabled aria-disabled="true"';
+    const paymentUnavailable = t('billing.payment_unavailable', {}, 'Payments unavailable');
 
     return `
       <div class="app-view-container">
@@ -45,8 +48,8 @@ export default {
               </div>
             </div>
             <div class="seg" id="billing-interval-toggle">
-              <button type="button" class="seg-opt is-active" data-int="monthly">Monthly</button>
-              <button type="button" class="seg-opt" data-int="annual">Annual (Save ~20%)</button>
+              <button type="button" class="seg-opt is-active" data-int="monthly" ${paymentDisabled}>Monthly</button>
+              <button type="button" class="seg-opt" data-int="annual" ${paymentDisabled}>Annual (Save ~20%)</button>
             </div>
           </div>
         </div>
@@ -66,8 +69,8 @@ export default {
               <li>13 standard action tickets & auto-verification</li>
               <li>Full reports & customer delivery packs</li>
             </ul>
-            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="starter">
-              ${currentPlan === 'starter' ? 'Current Plan' : 'Subscribe Starter'}
+            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="starter" ${paymentDisabled}>
+              ${currentPlan === 'starter' ? 'Current Plan' : paymentAvailable ? 'Subscribe Starter' : paymentUnavailable}
             </button>
           </article>
 
@@ -85,8 +88,8 @@ export default {
               <li>Unlimited BYOK sampling</li>
               <li>Matrix scheduled tracking & regression alerts</li>
             </ul>
-            <button type="button" class="btn btn-primary btn-block btn-subscribe" data-plan="pro">
-              ${currentPlan === 'pro' ? 'Current Plan' : 'Subscribe Pro'}
+            <button type="button" class="btn btn-primary btn-block btn-subscribe" data-plan="pro" ${paymentDisabled}>
+              ${currentPlan === 'pro' ? 'Current Plan' : paymentAvailable ? 'Subscribe Pro' : paymentUnavailable}
             </button>
           </article>
 
@@ -103,8 +106,8 @@ export default {
               <li>White-label client delivery headers (No CiteAura)</li>
               <li>Team multi-role permissions & priority execution queue</li>
             </ul>
-            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="agency">
-              ${currentPlan === 'agency' ? 'Current Plan' : 'Subscribe Agency'}
+            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="agency" ${paymentDisabled}>
+              ${currentPlan === 'agency' ? 'Current Plan' : paymentAvailable ? 'Subscribe Agency' : paymentUnavailable}
             </button>
           </article>
 
@@ -156,7 +159,7 @@ export default {
 
         btn.disabled = true;
         try {
-          const res = await billing.subscribe({ plan, interval: currentInterval });
+          const res = await billing.subscribe({ plan, billing_interval: currentInterval });
           if (res && res.checkout_url) {
             window.location.assign(res.checkout_url);
           } else {

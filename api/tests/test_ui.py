@@ -110,6 +110,7 @@ def test_frontend_contracts_match_backend_request_models():
     automation = (root / "web/app/views/automation.js").read_text("utf-8")
     publishing = (root / "web/app/views/publishing.js").read_text("utf-8")
     outreach = (root / "web/app/views/outreach.js").read_text("utf-8")
+    billing = (root / "web/app/views/billing.js").read_text("utf-8")
 
     assert "resetPassword({ token, password })" in reset
     assert "preview.tenant?.name" in invite
@@ -119,6 +120,8 @@ def test_frontend_contracts_match_backend_request_models():
     assert 'option value="1"' not in automation
     assert "{ config, credentials }" in publishing
     assert "revision," in outreach and "confirmed: true" in outreach
+    assert "{ plan, billing_interval: currentInterval }" in billing
+    assert "plansData.payment?.enabled" in billing
 
 
 def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():

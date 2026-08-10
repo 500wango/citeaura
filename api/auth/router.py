@@ -254,6 +254,8 @@ def forgot_password(
     db: Session = Depends(get_db),
 ):
     """对所有邮箱返回相同结果，仅为现有用户发送一次性链接。"""
+    if not config.password_reset_email_enabled():
+        _error(status.HTTP_503_SERVICE_UNAVAILABLE, "password_reset_email_disabled")
     user = db.query(User).filter(User.email == payload.email).first()
     if user is not None:
         now = datetime.now(timezone.utc)

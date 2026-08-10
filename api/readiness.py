@@ -34,6 +34,6 @@ def readiness_checks(db):
         checks["encryption"] = False
     checks["jwt"] = len(config.jwt_secret() or "") >= 32
     checks["https"] = config.session_cookie_secure() and config.public_base_url().startswith("https://")
-    checks["stripe"] = stripe_adapter.configured()
-    checks["password_reset_email"] = config.auth_smtp_configured()
+    checks["stripe"] = not config.billing_enabled() or stripe_adapter.configured()
+    checks["password_reset_email"] = not config.password_reset_email_enabled() or config.auth_smtp_configured()
     return {"status": "ready" if all(checks.values()) else "not_ready", "checks": checks}

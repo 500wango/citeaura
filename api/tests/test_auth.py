@@ -15,6 +15,7 @@ from api.models import PasswordResetToken
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "test-secret-that-is-long-enough-32")
+    monkeypatch.setenv("PASSWORD_RESET_EMAIL_ENABLED", "true")
     engine = create_engine(f"sqlite:///{tmp_path / 'auth.sqlite'}")
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -220,6 +221,7 @@ def test_password_reset_is_non_enumerating_single_use_and_hashed(client, monkeyp
 
 def test_password_reset_email_uses_spa_hash_route(monkeypatch):
     sent = []
+    monkeypatch.setattr(password_reset.config, "password_reset_email_enabled", lambda: True)
     monkeypatch.setattr(password_reset.config, "public_base_url", lambda: "https://citeaura.example")
     monkeypatch.setattr(password_reset.config, "password_reset_ttl_minutes", lambda: 30)
     monkeypatch.setattr(password_reset.config, "auth_smtp_configured", lambda: True)
@@ -245,6 +247,19 @@ def test_password_reset_email_uses_spa_hash_route(monkeypatch):
     password_reset.send_password_reset_email("user@example.com", "token-value")
 
     assert "https://citeaura.example/app/#/reset-password?token=token-value" in sent[0][0]["body"]
+
+
+def test_disabled_password_reset_email_does_not_create_token(client, monkeypatch):
+    payload = {"email": "disabled-reset@example.com", "password": "old-password-123"}
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    monkeypatch.setenv("PASSWORD_RESET_EMAIL_ENABLED", "false")
+
+    response = client.post("/api/v1/auth/password/forgot", json={"email": payload["email"]})
+
+    assert response.status_code == 503
+    assert response.json() == {"error": "password_reset_email_disabled"}
+    with client.session_factory() as db:
+        assert db.query(PasswordResetToken).count() == 0
 
 
 def test_expired_password_reset_token_is_rejected(client, monkeypatch):

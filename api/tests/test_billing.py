@@ -20,6 +20,7 @@ from api.projects import router as project_router
 @pytest.fixture()
 def billing_client(tmp_path, monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "test-secret-that-is-long-enough-32")
+    monkeypatch.setenv("BILLING_ENABLED", "true")
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_citeaura")
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_citeaura")
     monkeypatch.setenv("STRIPE_CURRENCY", "usd")
@@ -188,7 +189,9 @@ def test_subscribe_creates_checkout_without_opening_limits(billing_client, monke
     plans = client.get("/api/v1/billing/plans")
     assert plans.status_code == 200
     assert {plan["code"] for plan in plans.json()["plans"]} == {"starter", "pro", "agency", "enterprise"}
-    assert plans.json()["payment"] == {"provider": "stripe", "configured": True, "currency": "usd"}
+    assert plans.json()["payment"] == {
+        "provider": "stripe", "enabled": True, "configured": True, "currency": "usd",
+    }
 
     subscribed = client.post("/api/v1/billing/subscribe", headers=headers, json={"plan": "pro"})
     assert subscribed.status_code == 200
@@ -367,6 +370,27 @@ def test_checkout_requires_stripe_configuration_and_rejects_enterprise(billing_c
     )
     assert enterprise.status_code == 409
     assert enterprise.json() == {"error": "enterprise_contact_required"}
+
+
+def test_disabled_billing_rejects_checkout_and_webhooks(billing_client, monkeypatch):
+    client, _ = billing_client
+    headers = _register(client, "disabled-billing-owner@example.com")
+    monkeypatch.setenv("BILLING_ENABLED", "false")
+
+    plans = client.get("/api/v1/billing/plans").json()
+    assert plans["payment"]["enabled"] is False
+    assert plans["payment"]["configured"] is False
+    checkout = client.post(
+        "/api/v1/billing/subscribe",
+        headers=headers,
+        json={"plan": "pro"},
+    )
+    webhook = client.post("/api/v1/billing/webhook", content=b"{}")
+
+    assert checkout.status_code == 503
+    assert checkout.json() == {"error": "billing_disabled"}
+    assert webhook.status_code == 503
+    assert webhook.json() == {"error": "billing_disabled"}
 
 
 def test_expired_trial_cannot_create_projects(billing_client):

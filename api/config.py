@@ -120,6 +120,10 @@ def billing_annual_discount_percent():
     return value if value.is_finite() and Decimal("0") <= value < Decimal("100") else Decimal("16.67")
 
 
+def billing_enabled():
+    return _enabled("BILLING_ENABLED")
+
+
 def stripe_secret_key():
     return os.getenv("STRIPE_SECRET_KEY", "").strip()
 
@@ -135,6 +139,10 @@ def stripe_currency():
 
 def password_reset_ttl_minutes():
     return _integer("PASSWORD_RESET_TTL_MINUTES", 30, minimum=5, maximum=1440)
+
+
+def password_reset_email_enabled():
+    return _enabled("PASSWORD_RESET_EMAIL_ENABLED")
 
 
 def auth_smtp_settings():

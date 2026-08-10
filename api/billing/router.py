@@ -22,6 +22,15 @@ from api.models import BillingEvent, Subscription, Tenant, User
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
 
+
+def _require_billing_enabled():
+    if not config.billing_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": "billing_disabled"},
+        )
+
+
 class SubscribePayload(BaseModel):
     plan: str
     billing_interval: str = "monthly"
@@ -297,6 +306,7 @@ def billing_plans():
         "plans": _catalog(),
         "payment": {
             "provider": "stripe",
+            "enabled": config.billing_enabled(),
             "configured": stripe_adapter.configured(),
             "currency": config.stripe_currency(),
         },
@@ -324,6 +334,7 @@ def subscribe(
     db: Session = Depends(get_db),
 ):
     """创建 Stripe Checkout，会话付款成功后由 Webhook 开通套餐。"""
+    _require_billing_enabled()
     tenant = db.get(Tenant, current_user.tenant_id)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
@@ -367,6 +378,7 @@ def subscribe(
 @router.post("/cancel")
 def cancel_subscription(current_user: User = Depends(require_owner), db: Session = Depends(get_db)):
     """取消当前订阅，等待 Stripe Webhook 将租户降回试用状态。"""
+    _require_billing_enabled()
     tenant = db.get(Tenant, current_user.tenant_id)
     subscription = db.query(Subscription).filter(
         Subscription.tenant_id == tenant.id,
@@ -384,6 +396,7 @@ def cancel_subscription(current_user: User = Depends(require_owner), db: Session
 @router.post("/webhook")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     """验证 Stripe 签名并幂等同步订阅状态。"""
+    _require_billing_enabled()
     payload = await request.body()
     try:
         event = stripe_adapter.verify_event(payload, request.headers.get("Stripe-Signature"))

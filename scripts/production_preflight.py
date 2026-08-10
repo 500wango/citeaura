@@ -13,6 +13,8 @@ from urllib.parse import urlparse
 
 
 PLACEHOLDERS = ("replace-with", "example.com", "changeme")
+TRUE_VALUES = ("1", "true", "yes")
+FALSE_VALUES = ("0", "false", "no")
 PLATFORM_KEYS = (
     "ZHIPUAI_API_KEY", "ARK_API_KEY", "DEEPSEEK_API_KEY", "MOONSHOT_API_KEY",
     "MINIMAX_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
@@ -44,6 +46,17 @@ def _placeholder(value):
     return any(item in lowered for item in PLACEHOLDERS)
 
 
+def _feature_flag(values, key, errors):
+    value = values.get(key, "").strip().lower()
+    if not value:
+        errors.append(f"{key} is required")
+        return False
+    if value not in TRUE_VALUES + FALSE_VALUES:
+        errors.append(f"{key} must be true or false")
+        return False
+    return value in TRUE_VALUES
+
+
 def validate_environment(values):
     errors = []
     warnings = []
@@ -52,13 +65,12 @@ def validate_environment(values):
         "PUBLIC_BASE_URL", "REDIS_URL", "JWT_SECRET", "AES_KEY", "SESSION_COOKIE_SECURE",
         "RATE_LIMIT_ENABLED", "RATE_LIMIT_REQUESTS", "RATE_LIMIT_AUTH_REQUESTS",
         "RATE_LIMIT_WINDOW_SECONDS", "RATE_LIMIT_TRUST_PROXY_HEADERS",
-        "PASSWORD_RESET_TTL_MINUTES", "AUTH_SMTP_HOST", "AUTH_SMTP_PORT",
-        "AUTH_SMTP_SECURITY", "AUTH_SMTP_FROM_EMAIL",
-        "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_CURRENCY",
     )
     for key in required:
         if not values.get(key):
             errors.append(f"{key} is required")
+    billing_enabled = _feature_flag(values, "BILLING_ENABLED", errors)
+    password_reset_email_enabled = _feature_flag(values, "PASSWORD_RESET_EMAIL_ENABLED", errors)
     domain = values.get("DOMAIN", "")
     if domain and (not re.fullmatch(r"[A-Za-z0-9.-]+", domain) or "." not in domain or _placeholder(domain)):
         errors.append("DOMAIN must be a real hostname")
@@ -100,35 +112,51 @@ def validate_environment(values):
             number = 0
         if not 1 <= number <= maximum:
             errors.append(f"{key} must be an integer between 1 and {maximum}")
-    try:
-        reset_ttl = int(values.get("PASSWORD_RESET_TTL_MINUTES", ""))
-    except ValueError:
-        reset_ttl = 0
-    if not 5 <= reset_ttl <= 1440:
-        errors.append("PASSWORD_RESET_TTL_MINUTES must be an integer between 5 and 1440")
-    if values.get("AUTH_SMTP_SECURITY", "").lower() not in ("starttls", "ssl"):
-        errors.append("AUTH_SMTP_SECURITY must be starttls or ssl")
-    try:
-        smtp_port = int(values.get("AUTH_SMTP_PORT", ""))
-    except ValueError:
-        smtp_port = 0
-    if not 1 <= smtp_port <= 65535:
-        errors.append("AUTH_SMTP_PORT must be an integer between 1 and 65535")
-    smtp_username = values.get("AUTH_SMTP_USERNAME", "")
-    smtp_password = values.get("AUTH_SMTP_PASSWORD", "")
-    if bool(smtp_username) != bool(smtp_password):
-        errors.append("AUTH_SMTP_USERNAME and AUTH_SMTP_PASSWORD must be configured together")
-    from_email = values.get("AUTH_SMTP_FROM_EMAIL", "")
-    if from_email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", from_email):
-        errors.append("AUTH_SMTP_FROM_EMAIL must be a valid email address")
-    stripe_key = values.get("STRIPE_SECRET_KEY", "")
-    if stripe_key and not stripe_key.startswith("sk_live_"):
-        errors.append("STRIPE_SECRET_KEY must be a live-mode key")
-    webhook_secret = values.get("STRIPE_WEBHOOK_SECRET", "")
-    if webhook_secret and not webhook_secret.startswith("whsec_"):
-        errors.append("STRIPE_WEBHOOK_SECRET has an invalid format")
-    if values.get("STRIPE_CURRENCY", "").lower() not in ("cny", "usd"):
-        errors.append("STRIPE_CURRENCY must be cny or usd")
+    if password_reset_email_enabled:
+        required_email = (
+            "PASSWORD_RESET_TTL_MINUTES", "AUTH_SMTP_HOST", "AUTH_SMTP_PORT",
+            "AUTH_SMTP_SECURITY", "AUTH_SMTP_FROM_EMAIL",
+        )
+        for key in required_email:
+            if not values.get(key):
+                errors.append(f"{key} is required")
+        try:
+            reset_ttl = int(values.get("PASSWORD_RESET_TTL_MINUTES", ""))
+        except ValueError:
+            reset_ttl = 0
+        if not 5 <= reset_ttl <= 1440:
+            errors.append("PASSWORD_RESET_TTL_MINUTES must be an integer between 5 and 1440")
+        if values.get("AUTH_SMTP_SECURITY", "").lower() not in ("starttls", "ssl"):
+            errors.append("AUTH_SMTP_SECURITY must be starttls or ssl")
+        try:
+            smtp_port = int(values.get("AUTH_SMTP_PORT", ""))
+        except ValueError:
+            smtp_port = 0
+        if not 1 <= smtp_port <= 65535:
+            errors.append("AUTH_SMTP_PORT must be an integer between 1 and 65535")
+        smtp_username = values.get("AUTH_SMTP_USERNAME", "")
+        smtp_password = values.get("AUTH_SMTP_PASSWORD", "")
+        if bool(smtp_username) != bool(smtp_password):
+            errors.append("AUTH_SMTP_USERNAME and AUTH_SMTP_PASSWORD must be configured together")
+        from_email = values.get("AUTH_SMTP_FROM_EMAIL", "")
+        if from_email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", from_email):
+            errors.append("AUTH_SMTP_FROM_EMAIL must be a valid email address")
+    else:
+        warnings.append("Password reset email is disabled by PASSWORD_RESET_EMAIL_ENABLED=false")
+    if billing_enabled:
+        for key in ("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_CURRENCY"):
+            if not values.get(key):
+                errors.append(f"{key} is required")
+        stripe_key = values.get("STRIPE_SECRET_KEY", "")
+        if stripe_key and not stripe_key.startswith("sk_live_"):
+            errors.append("STRIPE_SECRET_KEY must be a live-mode key")
+        webhook_secret = values.get("STRIPE_WEBHOOK_SECRET", "")
+        if webhook_secret and not webhook_secret.startswith("whsec_"):
+            errors.append("STRIPE_WEBHOOK_SECRET has an invalid format")
+        if values.get("STRIPE_CURRENCY", "").lower() not in ("cny", "usd"):
+            errors.append("STRIPE_CURRENCY must be cny or usd")
+    else:
+        warnings.append("Billing is disabled by BILLING_ENABLED=false")
     google_values = (values.get("GOOGLE_OAUTH_CLIENT_ID"), values.get("GOOGLE_OAUTH_CLIENT_SECRET"))
     if any(google_values) and not all(google_values):
         errors.append("GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET must be configured together")
@@ -144,7 +172,7 @@ def validate_environment(values):
         warnings.append("Object storage archive is disabled until a bucket is configured")
     if not any(values.get(f"PLATFORM_POOL_{key}") for key in PLATFORM_KEYS):
         warnings.append("Platform-funded sampling is disabled until at least one platform key is configured")
-    warnings.append("Semrush, SMTP, and OIDC credentials are tenant-managed and require in-app connection tests")
+    warnings.append("Semrush, outreach SMTP, and OIDC credentials are tenant-managed and require in-app connection tests")
     return errors, warnings
 
 

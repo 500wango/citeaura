@@ -21,6 +21,8 @@ def token_hash(token):
 
 
 def send_password_reset_email(email, token):
+    if not config.password_reset_email_enabled():
+        raise RuntimeError("password_reset_email_disabled")
     settings = config.auth_smtp_settings()
     if not config.auth_smtp_configured():
         raise RuntimeError("auth_smtp_not_configured")

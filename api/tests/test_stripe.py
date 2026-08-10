@@ -10,6 +10,7 @@ from api.billing import stripe
 
 
 def test_checkout_sends_server_owned_price_and_metadata(monkeypatch):
+    monkeypatch.setenv("BILLING_ENABLED", "true")
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_secret")
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_secret")
     monkeypatch.setenv("STRIPE_CURRENCY", "cny")
@@ -46,6 +47,7 @@ def test_checkout_sends_server_owned_price_and_metadata(monkeypatch):
 
 
 def test_webhook_signature_checks_age_and_payload(monkeypatch):
+    monkeypatch.setenv("BILLING_ENABLED", "true")
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_secret")
     event = {"id": "evt_test", "type": "invoice.paid", "data": {"object": {}}}
     payload = json.dumps(event, separators=(",", ":")).encode()
