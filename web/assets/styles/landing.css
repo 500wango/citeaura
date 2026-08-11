@@ -900,11 +900,11 @@
 .price-card .btn { margin-top: auto; }
 
 .pricing-note {
-  display: block;
-  text-align: center;
-  margin: var(--sp-8) auto 0 auto;
-  max-width: 760px;
-  width: 100%;
+  display: block !important;
+  text-align: center !important;
+  margin: var(--sp-8) auto 0 auto !important;
+  max-width: 100% !important;
+  width: 100% !important;
   color: var(--muted);
   font-size: var(--fs-2);
   line-height: 1.6;
