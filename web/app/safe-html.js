@@ -1,5 +1,5 @@
 /**
- * 清洗由视图模板生成的 HTML，阻断数据字段注入可执行标记。
+ *  HTML，。
  */
 
 const BLOCKED_TAGS = new Set([

@@ -1,6 +1,6 @@
 /**
- * 表格组件
- * 规则：12.5px、等宽数字列右对齐、行 hover 有反馈、空表有引导
+ * 
+ * ：12.5px、、 hover 、
  */
 
 export function renderTable({ columns = [], data = [], emptyText = 'No items found' } = {}) {

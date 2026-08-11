@@ -1,5 +1,5 @@
 /**
- * 项目快照与备份归档视图 (Archive & Snapshots)
+ *  (Archive & Snapshots)
  */
 
 import { archive } from '../api.js';

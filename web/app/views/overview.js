@@ -1,5 +1,5 @@
 /**
- * 品牌概览视图 (Overview)
+ *  (Overview)
  */
 
 import { projects } from '../api.js';
@@ -61,7 +61,7 @@ export default {
 
     return `
       <div class="app-view-container">
-        <!-- 视图顶栏 -->
+        <!-- View Header -->
         <div class="view-header">
           <div class="view-title-group">
             <div style="display:flex;align-items:center;gap:var(--sp-2);">
@@ -92,12 +92,12 @@ export default {
           </div>
         </div>
 
-        <!-- 关键指标条 -->
+        <!-- Key Metrics Bar -->
         ${renderKpis(kpiData)}
 
-        <!-- 核心模块分栏 -->
+        <!-- Core Modules Column -->
         <div style="display:grid;grid-template-columns:minmax(0, 7fr) minmax(0, 5fr);gap:var(--sp-6);">
-          <!-- 左栏：各模型推荐率与采样模式 -->
+          <!-- Left: Model Mention Rates & Sampling Modes -->
           <div class="card" style="gap:var(--sp-4);">
             <div style="display:flex;align-items:center;justify-content:space-between;">
               <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('overview.engines_visibility', {}, 'AI Engine Visibility Matrix')}</h3>
@@ -132,7 +132,7 @@ export default {
             }
           </div>
 
-          <!-- 右栏：高优工单速览 -->
+          <!-- Right: High-Priority Tickets -->
           <div class="card" style="gap:var(--sp-4);">
             <div style="display:flex;align-items:center;justify-content:space-between;">
               <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('overview.priority_tickets', {}, 'High-Impact Action Tickets')}</h3>
@@ -145,11 +145,12 @@ export default {
               <div style="display:flex;flex-direction:column;gap:var(--sp-2);">
                 ${tickets
                   .slice(0, 5)
-                  .map(
-                    (ticket) => `
+                  .map((ticket) => {
+                    const title = t(ticket.title, {}, ticket.title_en || ticket.title || ticket.name || ticket.id);
+                    return `
                   <a class="ticket-item" href="#/plan" style="text-decoration:none;">
                     <div style="display:flex;align-items:center;justify-content:space-between;">
-                      <span class="ticket-item-title">${ticket.title || ticket.name || ticket.id}</span>
+                      <span class="ticket-item-title">${title}</span>
                       ${statusPill(ticket.status)}
                     </div>
                     <div class="ticket-item-meta">
@@ -158,8 +159,8 @@ export default {
                       <span>Effort: <strong>${ticket.effort || 'Low'}</strong></span>
                     </div>
                   </a>
-                `
-                  )
+                `;
+                  })
                   .join('')}
               </div>
             `
@@ -168,7 +169,7 @@ export default {
           </div>
         </div>
 
-        <!-- 任务管线历史 -->
+        <!-- Pipeline Jobs History -->
         <div class="card" style="gap:var(--sp-3);">
           <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('overview.pipeline_activity', {}, 'Pipeline Job History')}</h3>
           ${
@@ -218,9 +219,12 @@ export default {
       sampleBtn.addEventListener('click', async () => {
         sampleBtn.disabled = true;
         try {
-          await projects.triggerSample(projectId);
+          const res = await projects.triggerSample(projectId);
           toast.success(t('overview.sample_triggered', {}, 'AI sampling task queued!'));
           ctx.pollActiveJobs();
+          if (res && res.job_id && typeof ctx.openTelemetry === 'function') {
+            ctx.openTelemetry(res.job_id, 'sample');
+          }
         } catch (err) {
           toast.error(t(err.error, {}, err.detail || 'Failed to trigger sampling'));
         } finally {
@@ -234,9 +238,12 @@ export default {
       verifyBtn.addEventListener('click', async () => {
         verifyBtn.disabled = true;
         try {
-          await projects.triggerVerify(projectId);
+          const res = await projects.triggerVerify(projectId);
           toast.success(t('overview.verify_triggered', {}, 'Verification task queued!'));
           ctx.pollActiveJobs();
+          if (res && res.job_id && typeof ctx.openTelemetry === 'function') {
+            ctx.openTelemetry(res.job_id, 'verify');
+          }
         } catch (err) {
           toast.error(t(err.error, {}, err.detail || 'Failed to trigger verification'));
         } finally {

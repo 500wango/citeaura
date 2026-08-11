@@ -1,5 +1,5 @@
 /**
- * 站点 GEO 体检视图 (Site Audit)
+ *  GEO  (Site Audit)
  */
 
 import { projects } from '../api.js';
@@ -41,7 +41,7 @@ export default {
           </div>
         </div>
 
-        <!-- 评分概览卡 -->
+        <!-- Score Overview Card -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:var(--sp-4);">
           <div class="card" style="gap:var(--sp-2);">
             <span class="kicker">${t('siteaudit.overall_score', {}, 'Technical Score')}</span>
@@ -63,7 +63,7 @@ export default {
           </div>
         </div>
 
-        <!-- 页面体检细项明细 -->
+        <!-- Page Audit Detailed Breakdown -->
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('siteaudit.pages_table_title', {}, 'Page Level Extraction Audit')}</h3>

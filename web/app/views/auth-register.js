@@ -1,5 +1,5 @@
 /**
- * 注册视图
+ * 
  */
 
 import { auth } from '../api.js';

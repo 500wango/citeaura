@@ -13,19 +13,19 @@ CFG = {
     "brand": {"name": "Acme", "site": "https://www.acme.com", "aliases": []},
     "market": "both",
     "competitors": [
-        {"name": "国内对手", "market": "cn", "aliases": []},
+        {"name": "LocalRival", "market": "cn", "aliases": []},
         {"name": "GlobalRival", "market": "global", "aliases": []},
-        {"name": "通用对手", "aliases": []},
+        {"name": "GeneralRival", "aliases": []},
     ],
     "questions": [
-        {"id": "q1", "text": "有什么好用的方案工具？", "group": "推荐", "market": "cn"},
-        {"id": "q2", "text": "Acme 是什么？", "group": "品牌验证", "market": "cn"},
-        {"id": "q3", "text": "Best proposal tools?", "group": "推荐", "market": "global"},
+        {"id": "q1", "text": "What are the best proposal tools in 2026?", "group": "Recommendation", "market": "cn"},
+        {"id": "q2", "text": "What is Acme and how does it work?", "group": "Brand Verification", "market": "cn"},
+        {"id": "q3", "text": "Best proposal tools?", "group": "Recommendation", "market": "global"},
     ],
 }
 
 
-def row(qid="q1", question="有什么好用的方案工具？", platform="p1", market="cn",
+def row(qid="q1", question="What are the best proposal tools in 2026?", platform="p1", market="cn",
         probe=False, mentioned=False, cites=None, comps=None, rank=None,
         own_cited=False, ok=True):
     cites = cites or []
@@ -124,21 +124,21 @@ class TestCompetitors(Base):
     def test_split_by_market(self):
         self.make_project()
         rows = [
-            row(market="cn", comps=["国内对手"]),
+            row(market="cn", comps=["LocalRival"]),
             row(market="cn"),
             row(qid="q3", question="Best proposal tools?", platform="p2",
-                market="global", comps=["GlobalRival", "国内对手"]),
+                market="global", comps=["GlobalRival", "LocalRival"]),
         ]
         c = A.competitors("demo", rows)
         cn = {x["name"]: x for x in c["tables"]["cn"]}
         gl = {x["name"]: x for x in c["tables"]["global"]}
-        self.assertIn("国内对手", cn)
-        self.assertNotIn("国内对手", gl)
+        self.assertIn("LocalRival", cn)
+        self.assertNotIn("LocalRival", gl)
         self.assertIn("GlobalRival", gl)
         self.assertNotIn("GlobalRival", cn)
-        self.assertIn("通用对手", cn)
-        self.assertIn("通用对手", gl)
-        self.assertEqual(cn["国内对手"]["presence"], 0.5)
+        self.assertIn("GeneralRival", cn)
+        self.assertIn("GeneralRival", gl)
+        self.assertEqual(cn["LocalRival"]["presence"], 0.5)
         self.assertEqual(gl["GlobalRival"]["presence"], 1.0)
         self.assertEqual(c["sample_ns"], {"cn": 2, "global": 1})
 
@@ -146,7 +146,7 @@ class TestCompetitors(Base):
 class TestProbeQuestions(Base):
     def test_probe_not_in_gap_pool_and_has_own_rate(self):
         self.make_project()
-        rows = [row(probe=True, qid="q2", question="Acme 是什么？", mentioned=True)]
+        rows = [row(probe=True, qid="q2", question="What is Acme and how does it work?", mentioned=True)]
         qs = A.questions("demo", rows, None)
         probe = [q for q in qs if q["brand_probe"]]
         self.assertEqual([q["id"] for q in probe], ["q2"])

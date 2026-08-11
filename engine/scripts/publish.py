@@ -181,7 +181,7 @@ def _read_source(slug: str, rel: str) -> tuple[str, str]:
     pdir = G.project_dir(slug).resolve()
     target = (pdir / rel).resolve()
     if not any(target.is_relative_to(pdir / d) for d in ("content", "assets")):
-        raise ValueError("只允许发布 content/ 或 assets/ 下的文件")
+        raise ValueError("Only files under content/ or assets/ can be published")
     return target.read_text("utf-8"), target.name
 
 
@@ -196,14 +196,14 @@ def records(slug: str) -> list[dict]:
 
 def publish(slug: str, code: str, rel: str, title: str = "") -> dict:
     if code not in PUBLISHERS:
-        return {"ok": False, "error": f"未知渠道 {code}"}
+        return {"ok": False, "error": f"Unknown destination: {code}"}
     miss = missing_env(code)
     if miss:
-        return {"ok": False, "error": "缺凭证：" + "、".join(miss)}
+        return {"ok": False, "error": "Missing credentials: " + ", ".join(miss)}
     try:
         text, fname = _read_source(slug, rel)
     except (ValueError, FileNotFoundError):
-        return {"ok": False, "error": f"文件不可用：{rel}"}
+        return {"ok": False, "error": f"File unavailable: {rel}"}
     title = title or _title_of(text, fname)
     res = _IMPL[code](_cfg(slug, code), text, title, fname)
     entry = {"at": G.now_iso(), "platform": code, "platform_name": PUBLISHERS[code]["name"],

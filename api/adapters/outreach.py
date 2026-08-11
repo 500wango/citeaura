@@ -92,14 +92,14 @@ def create_draft(project_slug, ticket, recipient_email):
     config = geolib.load_config(project_slug)
     brand = (config.get("brand") or {}).get("name") or project_slug
     target_url = str(ticket.get("url") or "").strip()
-    target_host = urlparse(target_url).hostname or "目标页面"
-    ask_text = str(ticket.get("ask_text") or ticket.get("action") or "补充可核验的品牌信息").strip()
-    subject = f"关于更新 {target_host} 上的 {brand} 信息"
+    target_host = urlparse(target_url).hostname or "target page"
+    ask_text = str(ticket.get("ask_text") or ticket.get("action") or "Enrich verifiable brand facts").strip()
+    subject = f"Regarding updating {brand} information on {target_host}"
     body = (
-        "您好，\n\n"
-        f"我们注意到页面 {target_url} 与 {brand} 相关，想请您协助完成以下更新：\n\n"
+        "Hello,\n\n"
+        f"We noticed that {target_url} references {brand}, and we would appreciate your assistance with the following update:\n\n"
         f"{ask_text}\n\n"
-        "如需事实来源或补充材料，请直接回复此邮件。\n\n谢谢。"
+        "If you need further factual sources or materials, please reply directly to this email.\n\nThank you."
     )
     now = _now()
     draft = {

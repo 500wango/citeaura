@@ -1,5 +1,5 @@
 /**
- * 协作外联与草稿发送视图 (Outreach & Media Pitches)
+ *  (Outreach & Media Pitches)
  */
 
 import { outreach, projects } from '../api.js';
@@ -46,7 +46,7 @@ export default {
           </div>
         </div>
 
-        <!-- 外联草稿列表 -->
+        <!-- Outreach Drafts List -->
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('outreach.drafts_head', {}, 'Outreach Pitch Queue')}</h3>
@@ -146,7 +146,7 @@ export default {
       });
     });
 
-    // SMTP 配置弹窗
+    // SMTP configuration modal
     document.getElementById('btn-config-smtp')?.addEventListener('click', () => {
       const content = `
         <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
@@ -201,7 +201,7 @@ export default {
       });
     });
 
-    // 发送审核弹窗（硬约束：人工确认）
+    // Send review modal (human confirmation required)
     document.querySelectorAll('.btn-send-draft').forEach((btn) => {
       btn.addEventListener('click', () => {
         const draftId = btn.getAttribute('data-id');

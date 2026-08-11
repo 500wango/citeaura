@@ -3,7 +3,7 @@
 SUPPORTED_LOCALES = ("en", "zh", "ja")
 DEFAULT_LOCALE = "en"
 LOCALE_HTML_LANG = {"en": "en", "zh": "zh-CN", "ja": "ja"}
-LOCALE_LABELS = {"en": "EN", "zh": "中", "ja": "日"}
+LOCALE_LABELS = {"en": "EN", "zh": "ZH", "ja": "JA"}
 
 
 def normalize_locale(value, default=DEFAULT_LOCALE):

@@ -55,7 +55,7 @@ def _ask_json(prompt: str, provider: str | None = None, timeout: int = 300) -> d
         return None
     res = S.ask(plat, prompt, timeout=timeout)
     if not res.get("ok"):
-        G.info(f"  LLM 调用失败：{str(res.get('error'))[:120]}")
+        G.info(f"  LLM call failed: {str(res.get('error'))[:120]}")
         return None
     txt = res["answer"]
     m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", txt, re.S) or re.search(r"(\{.*\})", txt, re.S)
@@ -107,7 +107,7 @@ BRAND_PROMPT = """你是 GEO（生成式引擎优化）分析师。下面是从�
 
 
 def brand_facts(slug: str, digest: str) -> dict | None:
-    G.info("  推导品牌事实…")
+    G.info("  Inferring brand facts...")
     return _ask_json(BRAND_PROMPT + digest)
 
 
@@ -143,7 +143,7 @@ def question_bank(brand: dict, market: str) -> list[dict]:
     hint = {"cn": "只出国内（cn）问题，18-24 题",
             "global": "只出海外（global）问题，14-20 题",
             "both": "国内 16-20 题 + 海外 12-16 题 + 通用 2 题"}[market]
-    G.info("  设计问题库…")
+    G.info("  Designing target question bank...")
     data = _ask_json(QUESTION_PROMPT.format(
         name=brand.get("name", ""), industry=brand.get("industry", ""),
         target_users=brand.get("target_users", ""), definition=brand.get("definition", ""),
@@ -185,7 +185,7 @@ COMPETITOR_PROMPT = """列出下面这个产品在市场上的**真实竞品**�
 
 
 def competitors(brand: dict, market: str) -> list[dict]:
-    G.info("  推导竞品候选…")
+    G.info("  Inferring competitor candidates...")
     data = _ask_json(COMPETITOR_PROMPT.format(
         name=brand.get("name", ""), industry=brand.get("industry", ""),
         definition=brand.get("definition", "")))
@@ -280,16 +280,16 @@ def run(slug: str, skip_llm: bool = False) -> dict:
     market = cfg.get("market", "cn")
     digest = _site_digest(slug)
     if not digest:
-        G.die("没有抓取结果，先运行 crawl")
+        G.die("No crawl evidence found. Run crawl first.")
 
-    G.info(f"自动引导：从 {len(digest)} 字官网正文推导项目底座")
+    G.info(f"Auto-bootstrap: Inferring baseline from {len(digest)} characters of site text")
     if skip_llm:
-        G.info("  --skip-llm：跳过 LLM 推导，只建空底座")
+        G.info("  --skip-llm: Skipping LLM inference, creating baseline skeleton only")
         return cfg
 
     brand = brand_facts(slug, digest)
     if not brand:
-        G.info("  LLM 不可用或返回无法解析，底座留空，需人工填写")
+        G.info("  LLM unavailable or parse failed. Baseline left empty for manual input.")
         return cfg
 
     b = cfg["brand"]
@@ -311,7 +311,7 @@ def run(slug: str, skip_llm: bool = False) -> dict:
 
     cfg["competitors"] = competitors(brand, market) or cfg.get("competitors", [])
     cfg["questions"] = question_bank(brand, market) or cfg.get("questions", [])
-    cfg["bootstrap"] = {"at": G.now_iso(), "source": "官网正文 + LLM 抽取",
+    cfg["bootstrap"] = {"at": G.now_iso(), "source": "Site Content + LLM Extraction",
                         "uncertain": brand.get("uncertain") or [],
                         "needs_review": True}
     G.save_config(slug, cfg)
@@ -320,15 +320,15 @@ def run(slug: str, skip_llm: bool = False) -> dict:
     fp.parent.mkdir(parents=True, exist_ok=True)
     if fp.exists():
         (fp.parent / f"facts.bootstrap-{G.today()}.md").write_text(render_facts(slug, brand), "utf-8")
-        G.info("  已有 facts.md，自动版另存为 facts.bootstrap-<日期>.md，请人工合并")
+        G.info("  Existing facts.md found; auto version saved to facts.bootstrap-<date>.md")
     else:
         fp.write_text(render_facts(slug, brand), "utf-8")
 
     qs = cfg["questions"]
-    G.info(f"完成：竞品 {len(cfg['competitors'])} 个、问题 {len(qs)} 题"
-           f"（国内 {sum(1 for q in qs if q['market']=='cn')}"
-           f" / 海外 {sum(1 for q in qs if q['market']=='global')}"
-           f" / 通用 {sum(1 for q in qs if q['market']=='both')}）")
+    G.info(f"Complete: Competitors {len(cfg['competitors'])}, Questions {len(qs)} "
+           f"(CN {sum(1 for q in qs if q['market']=='cn')}"
+           f" / Global {sum(1 for q in qs if q['market']=='global')}"
+           f" / Universal {sum(1 for q in qs if q['market']=='both')})")
     if brand.get("uncertain"):
-        G.info("  官网未提供、需人工补齐：" + "、".join(brand["uncertain"][:5]))
+        G.info("  Needs manual input: " + ", ".join(brand["uncertain"][:5]))
     return cfg

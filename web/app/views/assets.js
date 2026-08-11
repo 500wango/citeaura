@@ -1,5 +1,5 @@
 /**
- * 即插即用部署资产视图 (Assets & LLMs.txt)
+ *  (Assets & LLMs.txt)
  */
 
 import { workspace } from '../api.js';

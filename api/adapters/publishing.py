@@ -196,9 +196,9 @@ def publish(project_slug, platform, path, title=""):
     try:
         result = _engine_publish().publish(project_slug, platform, path, title)
     except requests.RequestException:
-        return {"ok": False, "error": "发布渠道请求失败，请检查渠道地址、凭证和网络连接"}
+        return {"ok": False, "error": "Publishing destination request failed; check URL, credentials, and network connectivity"}
     if not isinstance(result, dict):
-        return {"ok": False, "error": "发布渠道返回了无效响应"}
+        return {"ok": False, "error": "Publishing destination returned an invalid response"}
     cleaned = dict(result)
     if "url" in cleaned:
         cleaned["url"] = _public_url(cleaned["url"])

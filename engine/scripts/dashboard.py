@@ -25,7 +25,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 try:
     import geolib as G
 except ModuleNotFoundError as e:
-    raise SystemExit(f"缺少依赖：{e.name}。请先 pip3 install requests beautifulsoup4 lxml") from e
+    raise SystemExit(f"Missing dependency: {e.name}. Please run: pip3 install requests beautifulsoup4 lxml") from e
 import jobs as J
 import tasks as T
 
@@ -548,7 +548,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True})
 
             return self._send(404, b"not found", "text/plain")
-        except SystemExit:  # G.die 会 sys.exit
+        except SystemExit:  # G.die triggers sys.exit
             return self._json({"ok": False, "error": "操作失败（常见原因：项目标识已被占用）"}, 400)
         except (ValueError, RuntimeError) as e:
             return self._json({"ok": False, "error": str(e)}, 400)
@@ -577,9 +577,9 @@ def _monitor_tick():
             mon["next_run"] = (date.today() + timedelta(days=int(every))).isoformat()
             cfg["monitor"] = mon
             G.save_config(d.name, cfg)
-            G.info(f"周期复跑触发：{d.name}，下次 {mon['next_run']}")
+            G.info(f"Scheduled run triggered: {d.name}, next run at {mon['next_run']}")
         except (ValueError, RuntimeError) as e:
-            G.info(f"周期复跑跳过 {d.name}：{e}")
+            G.info(f"Scheduled run skipped for {d.name}: {e}")
 
 
 def _monitor_loop():
@@ -587,7 +587,7 @@ def _monitor_loop():
         try:
             _monitor_tick()
         except Exception as e:  # noqa: BLE001  调度线程绝不能死
-            G.info(f"周期复跑检查出错：{type(e).__name__}: {e}")
+            G.info(f"Scheduled run error: {type(e).__name__}: {e}")
         time.sleep(1800)
 
 
@@ -596,12 +596,12 @@ def run(port: int = 8765, open_browser: bool = True):
     threading.Thread(target=_monitor_loop, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"
-    G.info(f"看板已启动：{url}（Ctrl+C 退出）")
+    G.info(f"Dashboard started: {url} (Ctrl+C to quit)")
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
-        G.info("看板已停止")
+        G.info("Dashboard stopped")
     finally:
         srv.server_close()

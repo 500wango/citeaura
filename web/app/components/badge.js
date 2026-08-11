@@ -1,19 +1,19 @@
 /**
- * 徽章与标签组件
- * 严格支持三采样模式标注（硬约束 #7）与 A/B/C/D 评级
+ * Badge and Status Pill Component
+ * Supports sampling modes and A/B/C/D letter grades
  */
 
 import { t } from '../i18n.js';
 
 export function samplingModeBadge(mode) {
   const norm = String(mode || '').toLowerCase();
-  if (norm.includes('parametric') || norm.includes('参数化') || norm.includes('model')) {
+  if (norm.includes('parametric') || norm.includes('model') || norm.includes('\u53c2\u6570')) {
     return `<span class="mode-badge mode-parametric">${t('landing.mode_parametric', {}, 'API · Model knowledge')}</span>`;
   }
-  if (norm.includes('search') || norm.includes('联网') || norm.includes('grounded')) {
+  if (norm.includes('search') || norm.includes('grounded') || norm.includes('retrieval') || norm.includes('\u8054\u7f51')) {
     return `<span class="mode-badge mode-search">${t('landing.mode_search', {}, 'API · Web-grounded retrieval')}</span>`;
   }
-  if (norm.includes('manual') || norm.includes('人工') || norm.includes('surface')) {
+  if (norm.includes('manual') || norm.includes('surface') || norm.includes('human') || norm.includes('\u4eba\u5de5')) {
     return `<span class="mode-badge mode-manual">${t('landing.mode_manual', {}, 'Manual · Product surface')}</span>`;
   }
   return `<span class="mode-badge mode-unmeasured">${t('common.unmeasured', {}, 'Unmeasured')}</span>`;

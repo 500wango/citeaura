@@ -1,5 +1,5 @@
 /**
- * 交付报告与客户包导出视图 (Report & Deliveries)
+ *  (Report & Deliveries)
  */
 
 import { projects } from '../api.js';
@@ -47,7 +47,7 @@ export default {
           </div>
         </div>
 
-        <!-- 交付大盘速览 -->
+        <!-- Deliverables Overview -->
         <div class="card" style="gap:var(--sp-4);">
           <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:var(--sp-3);">
             <div style="display:flex;align-items:center;gap:var(--sp-3);">
@@ -81,7 +81,7 @@ export default {
           </div>
         </div>
 
-        <!-- 历史交付包列表 -->
+        <!-- Historical Delivery Packages List -->
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('report.history_title', {}, 'Delivery Pack Archives')}</h3>

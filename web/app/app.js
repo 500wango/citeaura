@@ -1,13 +1,14 @@
 /**
- * CiteAura 单页应用核心路由器与状态中心
+ * CiteAura 
  */
 
 import { auth, projects, onAuthFailure } from './api.js';
 import { t, loadCatalogs, getLocale, setLocale } from './i18n.js';
 import { toast } from './components/toast.js';
 import { setSafeHtml } from './safe-html.js';
+import { openTelemetryModal } from './components/telemetry-modal.js';
 
-/* ---------- 轨道与导航配置 ---------- */
+/* ----------  ---------- */
 export const TRACKS = [
   {
     id: 'overview',
@@ -87,7 +88,7 @@ export const TRACKS = [
   },
 ];
 
-/* ---------- 视图模块映射表 ---------- */
+/* ----------  ---------- */
 const VIEW_LOADERS = {
   login: () => import('./views/auth-login.js'),
   register: () => import('./views/auth-register.js'),
@@ -123,7 +124,7 @@ const VIEW_LOADERS = {
 
 const PUBLIC_ROUTES = ['login', 'register', 'forgot-password', 'reset-password', 'invite'];
 
-/* ---------- 全局状态 ---------- */
+/* ----------  ---------- */
 class AppState {
   constructor() {
     this.user = null;
@@ -175,7 +176,7 @@ class AppState {
 
 const state = new AppState();
 
-/* ---------- 路由解析 ---------- */
+/* ----------  ---------- */
 function parseHash() {
   const raw = location.hash.replace(/^#\/?/, '') || 'overview';
   const [routePart, queryPart] = raw.split('?');
@@ -198,13 +199,13 @@ function findTrackForView(viewId) {
   return TRACKS[0];
 }
 
-/* ---------- 渲染与外壳 ---------- */
+/* ----------  ---------- */
 async function renderApp() {
   const { route, params } = parseHash();
   state.currentRoute = route;
   state.currentParams = params;
 
-  // 认证拦截
+  // 
   const isPublic = PUBLIC_ROUTES.includes(route);
   if (!isPublic && !state.user) {
     const ok = await state.initSession();
@@ -218,7 +219,7 @@ async function renderApp() {
   if (!appRoot) return;
 
   if (isPublic) {
-    // 渲染独立全屏认证视图
+    // 
     const loader = VIEW_LOADERS[route];
     if (loader) {
       const module = await loader();
@@ -229,12 +230,12 @@ async function renderApp() {
     return;
   }
 
-  // 渲染应用主外壳
+  // 
   state.currentTrack = findTrackForView(route).id;
   setSafeHtml(appRoot, renderAppShell());
   bindAppShellEvents();
 
-  // 挂载当前子视图
+  // 
   const viewContainer = document.getElementById('view-mount');
   if (viewContainer) {
     const loader = VIEW_LOADERS[route] || VIEW_LOADERS.overview;
@@ -275,6 +276,13 @@ function createContext() {
     pollActiveJobs: () => {
       checkJobs();
     },
+    openTelemetry: (jobId, actionName) => {
+      openTelemetryModal({
+        projectId: state.activeProjectId,
+        jobId,
+        actionName: actionName || 'Pipeline Execution',
+      });
+    },
   };
 }
 
@@ -284,10 +292,10 @@ function renderAppShell() {
 
   return `
     <div class="app-layout">
-      <!-- 1. 全局轨道导航 (Rail) -->
+      <!-- 1.  (Rail) -->
       <aside class="app-rail">
         <div class="rail-top">
-          <a class="rail-brand" href="#/overview" title="CiteAura">
+          <a class="rail-brand" href="/" title="${t('common.back_to_home', {}, 'Return to Homepage')}">
             <span class="brand-mark"></span>
           </a>
 
@@ -314,7 +322,7 @@ function renderAppShell() {
         </div>
       </aside>
 
-      <!-- 2. 次级子面板导航 (Sub-Nav) -->
+      <!-- 2.  (Sub-Nav) -->
       <aside class="app-subnav" id="app-subnav">
         <div class="subnav-head">
           <span class="subnav-title">${t(currentTrackObj.labelKey, {}, currentTrackObj.defaultLabel)}</span>
@@ -331,11 +339,11 @@ function renderAppShell() {
         </div>
       </aside>
 
-      <!-- 3. 主界面区域 -->
+      <!-- 3.  -->
       <div class="app-main">
         <header class="app-header">
           <div class="header-left">
-            <!-- 项目选择器 -->
+            <!--  -->
             <div class="project-switcher">
               <button type="button" class="project-selector-btn" id="project-dropdown-btn">
                 <span style="font-weight:700;">${activeProj ? (activeProj.name || activeProj.slug) : 'Select Brand'}</span>
@@ -364,19 +372,17 @@ function renderAppShell() {
               </div>
             </div>
 
-            <!-- 活动任务胶囊 -->
+            <!--  -->
             <div id="active-job-indicator" style="display:none;"></div>
           </div>
 
           <div class="header-right">
-            <!-- 语言切换 -->
+            <!-- Language Indicator -->
             <div class="lang-switch" role="group" aria-label="Language">
-              <button type="button" data-lang="en" class="lang-btn ${getLocale() === 'en' ? 'is-active' : ''}">EN</button>
-              <button type="button" data-lang="zh" class="lang-btn ${getLocale() === 'zh' ? 'is-active' : ''}">中文</button>
-              <button type="button" data-lang="ja" class="lang-btn ${getLocale() === 'ja' ? 'is-active' : ''}">日本語</button>
+              <button type="button" data-lang="en" class="lang-btn is-active" aria-pressed="true">EN</button>
             </div>
 
-            <!-- 用户菜单 -->
+            <!--  -->
             <div class="user-menu">
               <button type="button" class="user-menu-btn" id="user-menu-btn">
                 <span class="user-avatar">${(state.user?.email || 'U')[0].toUpperCase()}</span>
@@ -400,7 +406,7 @@ function renderAppShell() {
           </div>
         </header>
 
-        <!-- 挂载视图 -->
+        <!--  -->
         <main class="app-main" id="view-mount" style="overflow-y:auto;"></main>
       </div>
     </div>
@@ -408,7 +414,7 @@ function renderAppShell() {
 }
 
 function bindAppShellEvents() {
-  // 项目下拉
+  // 
   const projBtn = document.getElementById('project-dropdown-btn');
   const projMenu = document.getElementById('project-dropdown-menu');
   if (projBtn && projMenu) {
@@ -428,7 +434,7 @@ function bindAppShellEvents() {
     });
   }
 
-  // 用户下拉
+  // 
   const userBtn = document.getElementById('user-menu-btn');
   const userMenu = document.getElementById('user-dropdown-menu');
   if (userBtn && userMenu) {
@@ -443,7 +449,7 @@ function bindAppShellEvents() {
     if (userMenu) userMenu.style.display = 'none';
   });
 
-  // 登出
+  // 
   document.getElementById('btn-app-logout')?.addEventListener('click', async () => {
     try {
       await auth.logout();
@@ -453,7 +459,7 @@ function bindAppShellEvents() {
     location.hash = '#/login';
   });
 
-  // 主题切换
+  // 
   document.getElementById('app-theme-btn')?.addEventListener('click', () => {
     const isDark = document.documentElement.dataset.theme === 'dark';
     const nextTheme = isDark ? 'light' : 'dark';
@@ -463,7 +469,7 @@ function bindAppShellEvents() {
     } catch (e) {}
   });
 
-  // 语言切换
+  // 
   document.querySelectorAll('.lang-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const l = btn.getAttribute('data-lang');
@@ -475,7 +481,7 @@ function bindAppShellEvents() {
   });
 }
 
-/* ---------- 任务轮询机制 ---------- */
+/* ----------  ---------- */
 let lastJobStatus = null;
 
 async function checkJobs() {
@@ -488,19 +494,35 @@ async function checkJobs() {
     if (active) {
       state.activeJob = active;
       if (indicator) {
-        indicator.style.display = 'inline-block';
+        indicator.style.display = 'inline-flex';
+        const actionLabel = active.action || 'Job';
+        const stageLabel = active.stage || (active.status === 'running' ? 'executing' : 'queued');
+        const progressVal = active.progress || (active.status === 'running' ? 45 : 10);
         setSafeHtml(indicator, `
-          <div class="job-pill" title="Job #${active.id}">
-            <span class="pulse-dot"></span>
-            <span>${active.action}: ${active.status}...</span>
+          <div class="active-job-capsule" id="header-job-capsule" title="Click to view live execution logs & telemetry">
+            <div class="job-capsule-content">
+              <span class="job-spinner"></span>
+              <span class="job-action-label">${actionLabel}</span>
+              <span class="job-stage-badge">${stageLabel}</span>
+              <span class="job-pct-badge">${progressVal}%</span>
+            </div>
+            <div class="job-capsule-bar">
+              <div class="job-capsule-fill" style="width: ${progressVal}%;"></div>
+            </div>
           </div>
         `);
+        document.getElementById('header-job-capsule')?.addEventListener('click', () => {
+          openTelemetryModal({
+            projectId: state.activeProjectId,
+            jobId: active.id,
+            actionName: active.action,
+          });
+        });
       }
       lastJobStatus = active.status;
     } else {
-      if (state.activeJob && lastJobStatus === 'running') {
-        toast.success(`Pipeline job finished!`);
-        // 自动刷新当前视图数据
+      if (state.activeJob && (lastJobStatus === 'running' || lastJobStatus === 'queued')) {
+        toast.success(`Pipeline task completed successfully!`);
         renderApp();
       }
       state.activeJob = null;
@@ -513,10 +535,10 @@ async function checkJobs() {
 function startJobPolling() {
   if (state.isJobPolling) return;
   state.isJobPolling = true;
-  setInterval(checkJobs, 3500);
+  setInterval(checkJobs, 2500);
 }
 
-/* ---------- 启动应用 ---------- */
+/* ----------  ---------- */
 async function init() {
   normalizeLegacyAuthLink();
   await loadCatalogs();

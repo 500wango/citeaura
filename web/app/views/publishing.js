@@ -1,5 +1,5 @@
 /**
- * 内容发布渠道视图 (Publishing Destinations)
+ *  (Publishing Destinations)
  */
 
 import { publishing } from '../api.js';

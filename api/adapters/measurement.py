@@ -99,8 +99,8 @@ def sampling_quality(project_slug):
             "available": False,
             "current": {"total": 0, "successful": 0, "failed": 0, "failure_rate": None},
             "comparable": False,
-            "comparison_reason": "还没有采样数据",
-            "trend": {"status": "unavailable", "label": "暂无趋势", "delta_pp": None},
+            "comparison_reason": "No sampling data available yet",
+            "trend": {"status": "unavailable", "label": "No trend data", "delta_pp": None},
         }
 
     current = metrics[-1]
@@ -118,34 +118,34 @@ def sampling_quality(project_slug):
             "available": True,
             "current": current_summary,
             "comparable": False,
-            "comparison_reason": "只有一期数据，至少需要两期才能判断趋势",
-            "trend": {"status": "unavailable", "label": "仅一期数据", "delta_pp": None},
+            "comparison_reason": "Single baseline run, at least two periods required to determine trends",
+            "trend": {"status": "unavailable", "label": "Single baseline", "delta_pp": None},
         }
 
     previous = metrics[-2]
     previous_rate, previous_n = _weighted_mention(previous)
     comparable = True
-    reason = "问题集、平台和采样模式一致"
+    reason = "Question set, platforms, and sampling modes consistent"
     current_version = _question_version(current)
     previous_version = _question_version(previous)
     if not current_version or not previous_version:
-        comparable, reason = False, "历史数据缺少问题集版本，不能确认口径一致"
+        comparable, reason = False, "Historical data missing question set version, methodology consistency unconfirmed"
     elif current_version != previous_version:
-        comparable, reason = False, "问题集版本发生变化，前后期不能直接比较"
+        comparable, reason = False, "Question set version changed; periods cannot be directly compared"
     elif _cohort_signature(current) != _cohort_signature(previous):
-        comparable, reason = False, "采样平台、模式或模型发生变化，前后期不能直接比较"
+        comparable, reason = False, "Sampling platforms, modes, or models changed; periods cannot be directly compared"
     elif current_rate is None or previous_rate is None:
-        comparable, reason = False, "缺少可见性有效样本"
+        comparable, reason = False, "Missing valid visibility samples"
 
     delta = (current_rate - previous_rate) if comparable else None
     if not comparable:
-        trend = {"status": "not_comparable", "label": "口径不可比", "delta_pp": None}
+        trend = {"status": "not_comparable", "label": "Incomparable methodology", "delta_pp": None}
     elif min(current_n, previous_n) < MIN_COMPARABLE_SAMPLES:
         trend = {
             "status": "insufficient_samples",
-            "label": "样本不足",
+            "label": "Insufficient samples",
             "delta_pp": round(delta * 100, 2),
-            "detail": f"前后期有效样本分别为 {previous_n} 和 {current_n}，每期至少需要 {MIN_COMPARABLE_SAMPLES} 条",
+            "detail": f"Valid sample counts are {previous_n} and {current_n}; at least {MIN_COMPARABLE_SAMPLES} required per period",
         }
     else:
         variance = previous_rate * (1 - previous_rate) / previous_n + current_rate * (1 - current_rate) / current_n
@@ -153,11 +153,11 @@ def sampling_quality(project_slug):
         noteworthy = abs(delta) >= 0.05 and z_score >= 1.96
         trend = {
             "status": "noteworthy" if noteworthy else "normal_fluctuation",
-            "label": "值得关注" if noteworthy else "正常波动",
+            "label": "Worth monitoring" if noteworthy else "Normal variance",
             "direction": "up" if delta > 0 else ("down" if delta < 0 else "flat"),
             "delta_pp": round(delta * 100, 2),
             "z_score": round(z_score, 3) if math.isfinite(z_score) else None,
-            "detail": "统计变化不等于优化归因，仍需结合工单上线时间和连续多期结果判断",
+            "detail": "Statistical variance does not imply optimization attribution; evaluate with ticket deployment timelines and multi-period trends.",
         }
     return {
         "available": True,

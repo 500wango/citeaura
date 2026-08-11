@@ -1,5 +1,5 @@
 /**
- * 竞品分析视图 (Competitors)
+ *  (Competitors)
  */
 
 import { workspace } from '../api.js';

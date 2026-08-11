@@ -37,20 +37,20 @@ def _copy_execution_plan(project_directory: Path, delivery_directory: Path):
 def _write_empty_risk_report(project_directory: Path, delivery_directory: Path):
     lint = geolib.read_json(project_directory / "assets" / "drafts" / "_lint.json", None)
     if lint is None:
-        result = "本期未生成 AI 初稿，暂无需要核实的初稿风险。"
+        result = "No AI draft generated for this cycle; no risk items to verify."
     else:
-        result = "本期初稿风险检查未发现需要人工核实的内容。"
-    markdown = f"# AI 初稿风险清单 · {geolib.today()}\n\n{result}\n"
-    (delivery_directory / "05-初稿风险清单.md").write_text(markdown, "utf-8")
+        result = "Draft risk inspection found no items requiring manual verification for this cycle."
+    markdown = f"# AI Draft Risk Inspection · {geolib.today()}\n\n{result}\n"
+    (delivery_directory / "05-Draft-Risks.md").write_text(markdown, "utf-8")
 
     import report
 
     html = report.build_html(
-        "AI 初稿风险清单",
+        "AI Draft Risk Inspection",
         markdown,
-        [("待核实项", "0"), ("高风险", "0")],
+        [("Items to Verify", "0"), ("High Risk", "0")],
     )
-    (delivery_directory / "05-初稿风险清单.html").write_text(html, "utf-8")
+    (delivery_directory / "05-Draft-Risks.html").write_text(html, "utf-8")
 
 
 def ensure_delivery_contract(project_slug: str, delivery_directory: Path | None = None):

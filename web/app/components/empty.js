@@ -1,6 +1,6 @@
 /**
- * 空状态组件
- * 规则：空状态必须教用户下一步
+ * 
+ * ：
  */
 
 export function renderEmpty({

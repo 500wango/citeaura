@@ -1,5 +1,5 @@
 /**
- * 重置密码视图
+ * 
  */
 
 import { auth } from '../api.js';

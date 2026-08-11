@@ -257,7 +257,7 @@ def run(slug: str, use_llm: bool = True) -> dict:
                         err = type(e).__name__
                         time.sleep(0.5)
                 if sugs is None:
-                    G.info(f"  拓词请求失败（{q}）：{err}")
+                    G.info(f"  Query expansion request failed ({q}): {err}")
                     continue
                 n_calls += 1
                 time.sleep(0.15)          # 对公开端点保持克制
@@ -294,6 +294,6 @@ def run(slug: str, use_llm: bool = True) -> dict:
            "roots": roots, "terms": terms,
            "q_demand": _match_questions(cfg, terms)}
     G.write_json(path, out)
-    G.info(f"拓词完成：{len(roots)} 个词根 → {len(terms)} 条候选"
+    G.info(f"Query expansion complete: {len(roots)} root terms → {len(terms)} candidates"
            f"（新词 {sum(1 for t in terms if t['new'])}，问句转写：{'LLM' if llm_used else '模板'}）")
     return out

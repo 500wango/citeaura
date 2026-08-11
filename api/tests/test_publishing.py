@@ -186,7 +186,7 @@ def test_publish_requires_confirmation_injects_only_tenant_credentials_and_recor
         json={"path": "content/../../geo.json", "confirmed": True},
     )
     assert traversal.status_code == 200
-    assert traversal.json() == {"ok": False, "error": "文件不可用：content/../../geo.json"}
+    assert traversal.json() == {"ok": False, "error": "File unavailable: content/../../geo.json"}
 
     def unavailable(*args, **kwargs):
         import requests
@@ -202,7 +202,7 @@ def test_publish_requires_confirmation_injects_only_tenant_credentials_and_recor
     assert failed.status_code == 200
     assert failed.json() == {
         "ok": False,
-        "error": "发布渠道请求失败，请检查渠道地址、凭证和网络连接",
+        "error": "Publishing destination request failed; check URL, credentials, and network connectivity",
     }
     assert "token must not appear" not in failed.text
     assert "GITHUB_TOKEN" not in os.environ

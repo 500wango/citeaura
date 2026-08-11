@@ -1,5 +1,5 @@
 /**
- * 品牌设置视图 (Project Settings)
+ *  (Project Settings)
  */
 
 import { projects, workspace } from '../api.js';
@@ -39,7 +39,7 @@ export default {
         </div>
 
         <div style="display:flex;flex-direction:column;gap:var(--sp-6);max-width:680px;">
-          <!-- 基础设置 -->
+          <!-- Basic Settings -->
           <div class="card" style="gap:var(--sp-4);">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('project_settings.general', {}, 'General Information')}</h3>
 
@@ -63,7 +63,7 @@ export default {
             </div>
           </div>
 
-          <!-- 危险区 -->
+          <!-- Danger Zone -->
           <div class="card" style="border-color:var(--bad);gap:var(--sp-3);">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;color:var(--bad);">${t('common.danger_zone', {}, 'Danger Zone')}</h3>
             <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">

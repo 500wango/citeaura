@@ -1,5 +1,5 @@
 /**
- * 订阅与计费管理视图 (Billing & Plans)
+ *  (Billing & Plans)
  */
 
 import { billing } from '../api.js';
@@ -35,7 +35,7 @@ export default {
           </div>
         </div>
 
-        <!-- 当前套餐状态卡 -->
+        <!-- Current Plan Status Card -->
         <div class="card" style="gap:var(--sp-4);">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--sp-3);">
             <div style="display:flex;align-items:center;gap:var(--sp-3);">
@@ -54,7 +54,7 @@ export default {
           </div>
         </div>
 
-        <!-- 套餐选购卡片网格 -->
+        <!-- Pricing Plans Grid -->
         <div class="pricing-grid">
           <!-- Starter -->
           <article class="price-card">

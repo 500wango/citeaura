@@ -1,5 +1,5 @@
 /**
- * 白标品牌与报告定制视图 (Delivery Branding & White-Label)
+ *  (Delivery Branding & White-Label)
  */
 
 import { branding } from '../api.js';

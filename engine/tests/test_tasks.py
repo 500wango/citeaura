@@ -86,7 +86,7 @@ class TestDeliverablesNone(unittest.TestCase):
                          _metrics({"deepseek": _plat(mention=None, cite=None)}))
             with mock.patch.object(G, "WORK", Path(d)):
                 md = D.optimization_plan(slug)
-        self.assertIn("未测", md)
+        self.assertIn("Unmeasured", md)
 
 
 if __name__ == "__main__":

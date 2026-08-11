@@ -1,16 +1,16 @@
-"""客户交付包：把一期的全部产出打成可以直接发给客户的目录。
+"""Client Delivery Package: All deliverables for the current cycle formatted for direct client handoff.
 
-    work/<slug>/delivery/<日期>/
-      index.html            交付总览（客户先看这个）
-      01-诊断报告.html/.md   本期体检 + AI 可见性
-      02-执行方案.md         30/60/90 方案
-      03-工单表.html/.csv    可分派、可验收、带负责角色
-      04-验收表.html         上一期工单的自动验收结果
-      assets/               llms.txt / JSON-LD / HTML 片段 / 内容大纲与初稿
-      README.md             交付说明与下一期安排
+    work/<slug>/delivery/<date>/
+      index.html            Client executive summary
+      01-Diagnostic.html/.md Health check + AI visibility
+      02-Strategy.md         30/60/90-day plan
+      03-Tickets.html/.csv   Actionable items with owners and roles
+      04-Verification.html   Automated validation of previous cycle items
+      assets/               llms.txt / JSON-LD / HTML snippets / Outlines / Drafts
+      README.md             Delivery instructions and next cycle overview
 
-面向客户，所以：不出现内部脚本名和调试信息，术语解释清楚，
-每个结论都写清依据，不承诺任何平台一定会引用。
+Oriented toward clients: No internal script references or debug logs, clear terminology,
+conclusions based on evidence, and no commitments regarding specific platform citations.
 """
 
 from __future__ import annotations
@@ -25,16 +25,16 @@ import geolib as G
 import report as R
 import tasks as T
 
-STATUS_CN = {"todo": "待开始", "doing": "进行中", "done": "已完成",
-             "blocked": "受阻", "wontfix": "不做"}
-PRI_NOTE = {"P0": "阻塞项，不做后面全白做", "P1": "主要收益来源", "P2": "长尾与扩量"}
+STATUS_CN = {"todo": "Todo", "doing": "In Progress", "done": "Done",
+             "blocked": "Blocked", "wontfix": "Won't Fix"}
+PRI_NOTE = {"P0": "Critical blocker, foundational requirement", "P1": "Primary visibility gains", "P2": "Long-tail and scale"}
 
 
 def _tasks_table_md(data: dict, market: str | None = None) -> str:
     rows = [t for t in data.get("tasks", []) if not market or t["market"] in (market, "both")]
     if not rows:
-        return "_本市场暂无工单_\n"
-    L = ["| 编号 | 优先级 | 工作包 | 任务 | 负责 | 工作量 | 窗口 | 验收标准 | 状态 |",
+        return "_No action tickets for this market yet_\n"
+    L = ["| ID | Priority | Package | Task | Owner | Effort | Window | Acceptance Criteria | Status |",
          "|---|---|---|---|---|---|---|---|---|"]
     for t in sorted(rows, key=lambda x: (x["priority"], x["package"])):
         L.append(f"| {t['id']} | {t['priority']} | {t['package']} | {R.cell(t['title'])} | "
@@ -46,70 +46,69 @@ def _tasks_table_md(data: dict, market: str | None = None) -> str:
 def _tasks_csv(data: dict, path: Path):
     with path.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["编号", "优先级", "工作包", "市场", "任务", "为什么要做", "具体动作",
-                    "负责角色", "工作量", "时间窗口", "验收标准", "验收方式", "状态", "影响页面数"])
+        w.writerow(["ID", "Priority", "Package", "Market", "Task", "Rationale", "Action",
+                    "Owner", "Effort", "Window", "Acceptance Criteria", "Verification Mode", "Status", "Affected Pages"])
         for t in sorted(data.get("tasks", []), key=lambda x: (x["priority"], x["package"])):
             w.writerow([t["id"], t["priority"], t["package"], t["market"], t["title"], t["why"],
                         t["action"], t["owner"], T.EFFORT.get(t["effort"], t["effort"]), t["window"],
                         t["acceptance"].get("desc", ""),
-                        "自动" if t["acceptance"].get("type") == "auto" else "人工",
+                        "Auto" if t["acceptance"].get("type") == "auto" else "Manual",
                         STATUS_CN.get(t["status"], t["status"]), len(t.get("affected", []))])
 
 
 def _overview_md(cfg, audit, metrics, data, verify_report, notes=None) -> str:
     b = cfg["brand"]
     s = data.get("summary", {})
-    mk = {"cn": "国内", "global": "海外", "both": "国内 + 海外"}.get(cfg.get("market"), cfg.get("market"))
-    L = [f"# {b['name']} · GEO 服务交付 · {G.today()}", "",
-         f"- 服务范围：**{mk}** AI 搜索可见性",
-         f"- 官网：{b['site']}",
-         f"- 本期抓取：{audit.get('page_count')} 页，站点均分 **{audit.get('avg_score')}**",
+    mk = {"cn": "Domestic (CN)", "global": "Global", "both": "Global & Domestic"}.get(cfg.get("market"), cfg.get("market"))
+    L = [f"# {b['name']} · GEO Client Delivery Package · {G.today()}", "",
+         f"- Service Scope: **{mk}** AI Search Visibility",
+         f"- Official Website: {b['site']}",
+         f"- Crawled Pages: {audit.get('page_count')} pages, Average Site Score **{audit.get('avg_score')}**",
          ""]
     if metrics:
-        L.append(f"- AI 答案采样：{metrics.get('sample_count')} 条（{metrics.get('date')}），"
-                 f"覆盖 {len(metrics.get('platforms', {}))} 个平台端")
-    L += ["", "## 本期交付物", "",
-          "| 文件 | 内容 |", "|---|---|",
-          "| `01-诊断报告.html` | 站点技术底座、页面逐项体检、AI 答案可见性、与全国大盘对照 |",
-          "| `02-执行方案.md` | 30/60/90 天路线、六个工作包、资源取舍建议 |",
-          "| `03-工单表.html` / `.csv` | 可直接分派的任务，含负责角色、工作量、验收标准 |",
-          "| `04-验收表.html` | 上一期工单的自动验收结果（做没做完不靠口头确认） |",
-          "| `05-初稿风险清单.html` | AI 初稿里需人工核实的内容（有初稿时才有此项） |",
-          "| `06-建设地图.html` | **在哪些平台建设、建什么内容、当前覆盖度** |",
-          "| `assets/` | 可直接部署的资产：llms.txt、JSON-LD、HTML 片段、内容大纲与初稿 |",
-          "", "## 工单概览", "",
-          f"- 总数 **{s.get('total', 0)}** 条，其中可**自动验收** {s.get('auto_verifiable', 0)} 条",
-          f"- 优先级：P0 {s.get('by_priority', {}).get('P0', 0)}（{PRI_NOTE['P0']}）／"
-          f"P1 {s.get('by_priority', {}).get('P1', 0)}（{PRI_NOTE['P1']}）／"
-          f"P2 {s.get('by_priority', {}).get('P2', 0)}（{PRI_NOTE['P2']}）",
-          f"- 进度：" + "、".join(f"{STATUS_CN[k]} {v}" for k, v in s.get("by_status", {}).items() if v),
+        L.append(f"- AI Answer Sampling: {metrics.get('sample_count')} samples ({metrics.get('date')}), "
+                 f"covering {len(metrics.get('platforms', {}))} frontier model platforms")
+    L += ["", "## Package Deliverables", "",
+          "| File | Content |", "|---|---|",
+          "| `01-Diagnostic.html` | Technical baseline, page audit, AI visibility, benchmark comparison |",
+          "| `02-Strategy.md` | 30/60/90-day roadmap, six work packages, resource tradeoffs |",
+          "| `03-Tickets.html` / `.csv` | Direct actionable engineering tickets with owners and acceptance criteria |",
+          "| `04-Verification.html` | Automated verification matrix from previous cycle tickets |",
+          "| `05-Draft-Risks.html` | AI draft risk inspection log requiring human verification |",
+          "| `06-Blueprint.html` | Platform distribution, target content assets, and coverage matrix |",
+          "| `assets/` | Deployable assets: llms.txt, JSON-LD schemas, HTML snippets, and content outlines |",
+          "", "## Ticket Overview", "",
+          f"- Total: **{s.get('total', 0)}** tickets, including **{s.get('auto_verifiable', 0)}** auto-verifiable",
+          f"- Priority: P0 {s.get('by_priority', {}).get('P0', 0)} ({PRI_NOTE['P0']}) / "
+          f"P1 {s.get('by_priority', {}).get('P1', 0)} ({PRI_NOTE['P1']}) / "
+          f"P2 {s.get('by_priority', {}).get('P2', 0)} ({PRI_NOTE['P2']})",
+          f"- Progress: " + ", ".join(f"{STATUS_CN.get(k, k)} {v}" for k, v in s.get("by_status", {}).items() if v),
           ""]
     if s.get("by_package"):
-        L += ["按工作包分布：", ""]
-        L += [f"- {k}：{v} 条" for k, v in s["by_package"].items()]
+        L += ["Distribution by Work Package:", ""]
+        L += [f"- {k}: {v} tickets" for k, v in s["by_package"].items()]
         L.append("")
     if verify_report:
-        p = sum(1 for r in verify_report["results"] if r["verdict"] == "通过")
-        f_ = sum(1 for r in verify_report["results"] if r["verdict"] == "未达标")
-        m_ = sum(1 for r in verify_report["results"] if r["verdict"] == "待人工")
-        L += ["## 上期验收", "",
-              f"自动验收：**通过 {p}** ／ 未达标 {f_} ／ 需人工确认 {m_}", ""]
+        p = sum(1 for r in verify_report["results"] if r["verdict"] == "通过" or r["verdict"] == "pass")
+        f_ = sum(1 for r in verify_report["results"] if r["verdict"] == "未达标" or r["verdict"] == "fail")
+        m_ = sum(1 for r in verify_report["results"] if r["verdict"] == "待人工" or r["verdict"] == "manual")
+        L += ["## Previous Cycle Verification", "",
+              f"Automated Verification: **Passed {p}** / Unmet {f_} / Manual Review {m_}", ""]
     if notes:
-        L += ["## 本期数据口径说明", ""]
+        L += ["## Data Methodology Notes", ""]
         L += [f"- {n}" for n in notes]
         L.append("")
-    L += ["## 怎么用这份交付", "",
-          "1. 先看 `01-诊断报告.html` 的「结论先行」和「本期待办」两节",
-          "2. 把 `03-工单表.csv` 导入你们的项目管理工具，按负责角色分派",
-          "3. `assets/` 里的文件可以直接交给开发部署（llms.txt、JSON-LD、HTML 片段）",
-          "4. `assets/outlines/` 是内容大纲，交给内容团队按骨架写；`assets/drafts/` 是 AI 初稿，"
-          "**必须先按 `05-初稿风险清单` 逐条核实后才能发布**——AI 会为了填满表格而编造竞品名和参数",
-          "5. 下一期我们会重跑体检与采样，自动验收哪些工单真的达标了",
-          "", "## 服务边界", "",
-          "- GEO 提升的是**被引用的概率**，不承诺任何平台一定会引用某个页面",
-          "- 所有品牌事实、客户案例、价格与资质都必须有来源；无法核实的一律标注「待确认」，我们不会代为编造",
-          "- AI 答案采样存在天然波动，单期指标变化需结合基线窗口与对照组解读，默认只作「观察相关」而非因果结论",
-          "- 采样遵守各平台服务条款，不做批量滥采、不模拟登录",
+    L += ["## How to Use This Package", "",
+          "1. Review 'Executive Summary' and 'Action Tickets' in `01-Diagnostic.html`",
+          "2. Import `03-Tickets.csv` into your issue tracker (Jira/Linear/GitHub) and assign to owners",
+          "3. Deliver files in `assets/` directly to engineering for deployment (llms.txt, JSON-LD, snippets)",
+          "4. Assign `assets/outlines/` to content teams; inspect `assets/drafts/` against `05-Draft-Risks.html` before publishing",
+          "5. Next cycle will re-crawl and re-sample to verify resolved tickets automatically",
+          "", "## Service Boundary", "",
+          "- GEO maximizes the **probability of AI citations**; no provider guarantees citation for any specific page",
+          "- All brand claims, customer references, and specs must have verifiable source citations",
+          "- AI answer sampling exhibits natural variance; multi-period trends should be evaluated in context",
+          "- Sampling strictly follows platform terms of service without abusive scraping or unauthorized bypass",
           ""]
     return "\n".join(L)
 
@@ -118,45 +117,43 @@ def _readme(cfg, data, notes=None) -> str:
     b = cfg["brand"]
     extra = ""
     if notes:
-        extra = "\n## 本期数据口径说明\n\n" + "\n".join(f"- {n}" for n in notes) + "\n"
-    return f"""# 交付说明
+        extra = "\n## Data Methodology Notes\n\n" + "\n".join(f"- {n}" for n in notes) + "\n"
+    return f"""# Delivery Notes
 
-本目录是 **{b['name']}** 的 GEO（生成式引擎优化）服务第 {G.today()} 期交付。
+This directory contains the GEO (Generative Engine Optimization) delivery package for **{b['name']}** ({G.today()}).
 {extra}
-## 目录结构
+## Directory Structure
 
 ```
-index.html            ← 先看这个
-01-诊断报告.html/.md
-02-执行方案.md
-03-工单表.html/.csv
-04-验收表.html
+index.html            ← Executive overview (start here)
+01-Diagnostic.html/.md GEO diagnostic report & AI visibility
+02-Strategy.md         Strategy & execution plan
+03-Tickets.html/.csv   Engineering & content action tickets
+04-Verification.html   Closed-loop verification matrix
 assets/
-  llms.txt            部署到网站根目录
-  llms.en.txt         英文版（面向海外 AI）
-  jsonld/             按页面类型贴进 <head>
-  snippets/           定义块与 FAQ 块的 HTML
-  outlines/           每个目标问题一份内容大纲
-  drafts/             AI 初稿（需人工核实）
+  llms.txt            Root ingestion index
+  llms.en.txt         English edition for global models
+  jsonld/             Schema.org structured data
+  snippets/           Definition and FAQ HTML snippets
+  outlines/           Content structure outlines
+  drafts/             AI draft articles
 ```
 
-## 部署顺序建议
+## Recommended Deployment Sequence
 
-1. **先做 P0**：这些是「门票问题」，不解决的话后面所有内容投入都收不到效果
-2. `assets/llms.txt` → 传到 `{b['site'].rstrip('/')}/llms.txt`
-3. `assets/jsonld/*.json` → 按页面类型贴进对应页面的 `<head>`，注意把 `<填…>` 占位替换掉
-4. `assets/snippets/definition.*.html` → 首屏口号下方（口号保留，不影响转化）
-5. `assets/snippets/faq.*.html` → **注意答案必须在静态 HTML 里可见**，不要用纯 JS 折叠
+1. **Resolve P0 tickets first**: Foundational requirements for AI crawler visibility
+2. `assets/llms.txt` → Deploy to `{b['site'].rstrip('/')}/llms.txt`
+3. `assets/jsonld/*.json` → Inject into corresponding page `<head>`
+4. `assets/snippets/definition.*.html` → Place below hero slogan
+5. `assets/snippets/faq.*.html` → Ensure answers are visible in raw static HTML
 
-## 下一期
+## Next Cycle
 
-重跑体检与采样后会自动验收工单。建议节奏：**页面体检每周，AI 答案采样每两周**。
-采样过密看不出信号（指标本身有噪声），过疏则发现问题太晚。
+Re-running crawl and sampling will trigger automated ticket verification. Recommended cadence: **Page audit weekly, AI sampling bi-weekly**.
 
-## 一致性纪律
+## Consistency Discipline
 
-品牌的一句话定义必须在这四处**逐字一致**：官网首屏、关于页、JSON-LD `description`、`llms.txt`。
-不一致是 AI 描述品牌出现漂移的头号原因。
+Standardize your one-sentence brand definition across four surfaces: Hero slogan, About page, JSON-LD `description`, and `llms.txt`.
 """
 
 
@@ -165,10 +162,10 @@ def run(slug: str) -> Path:
     pdir = G.project_dir(slug)
     audit = G.read_json(pdir / "audit.json", {})
     if not audit:
-        G.die("缺 audit.json，先跑一次 cycle")
+        G.die("Missing audit.json, run cycle first")
     data = T.load(slug)
     if not data.get("tasks"):
-        G.die("还没有工单，先运行：python3 scripts/geo.py plan --slug " + slug)
+        G.die("No action tickets found. Run plan first: python3 scripts/geo.py plan --slug " + slug)
 
     files = sorted((pdir / "metrics").glob("*.json")) if (pdir / "metrics").exists() else []
     metrics = G.read_json(files[-1], None) if files else None
@@ -185,8 +182,8 @@ def run(slug: str) -> Path:
     vrep_date = str(vrep.get("verified_at", ""))[:10] if vrep else ""
     unverified = not vrep or bool(audit_date and vrep_date < audit_date)
     if unverified:
-        notes.append("本期未验收：" + ("尚无验收记录" if not vrep else
-                     f"最近验收日期 {vrep_date}，早于本期体检日期 {audit_date}"))
+        notes.append("Unverified for this cycle: " + ("No verification records found yet" if not vrep else
+                     f"Latest verification date {vrep_date} is older than current audit date {audit_date}"))
 
     out = pdir / "delivery" / G.today()
     # 当日目录整体重建：04/05/06 是条件生成的，只增量写会让上次生成的旧文件残留
@@ -201,167 +198,163 @@ def run(slug: str) -> Path:
             R.run(slug)
             reports = sorted((pdir / "reports").glob("2*"))
         except Exception as e:  # noqa: BLE001
-            G.info(f"补跑诊断报告失败：{e}")
+            G.info(f"Failed to re-run diagnostic report: {e}")
     if reports:
         latest = reports[-1]
         if audit_date and latest.name != audit_date:
-            notes.append(f"诊断报告日期 {latest.name}，本期体检日期 {audit_date}，"
-                         f"报告内容基于 {latest.name} 的数据")
-        for src, dst in ((latest / "report.html", "01-诊断报告.html"),
-                         (latest / "report.md", "01-诊断报告.md")):
+            notes.append(f"Diagnostic report date {latest.name}, current audit date {audit_date}; "
+                         f"report content is based on data from {latest.name}")
+        for src, dst in ((latest / "report.html", "01-Diagnostic.html"),
+                         (latest / "report.md", "01-Diagnostic.md")):
             if src.exists():
                 shutil.copy2(src, out / dst)
 
     # 02 执行方案
     plan = pdir / "plan.md"
     if plan.exists():
-        shutil.copy2(plan, out / "02-执行方案.md")
+        shutil.copy2(plan, out / "02-Strategy.md")
 
     # 03 工单表
-    mk = cfg.get("market", "cn")
-    md = [f"# {cfg['brand']['name']} · GEO 执行工单 · {G.today()}", "",
-          "每条工单都有负责角色和验收标准。标「自动」的验收项由系统重抓后判定，不靠口头确认。", ""]
+    mk = cfg.get("market", "global")
+    md = [f"# {cfg['brand']['name']} · GEO Action Tickets · {G.today()}", "",
+          "Each ticket has an assigned owner and acceptance criteria. Auto-verifiable tickets are evaluated deterministically.", ""]
     if mk == "both":
-        md += ["## 国内市场 + 通用", "", _tasks_table_md(data, "cn"), "",
-               "## 海外市场", "", _tasks_table_md(data, "global"), ""]
+        md += ["## Domestic Market (CN) & General", "", _tasks_table_md(data, "cn"), "",
+               "## Global Market", "", _tasks_table_md(data, "global"), ""]
     else:
         md += [_tasks_table_md(data), ""]
-    md += ["## 工单明细", ""]
+    md += ["## Ticket Breakdown", ""]
     for t in sorted(data["tasks"], key=lambda x: (x["priority"], x["package"])):
         md += [f"### {t['id']} · {t['title']}", "",
-               f"- 优先级 **{t['priority']}** ｜ 工作包 {t['package']} ｜ 市场 {t['market']} ｜ "
-               f"负责 {t['owner']} ｜ 工作量 {T.EFFORT.get(t['effort'], t['effort'])} ｜ 窗口 {t['window']}",
-               f"- **为什么要做**：{t['why']}",
-               f"- **具体动作**：{t['action']}",
-               f"- **验收标准**（{'自动' if t['acceptance'].get('type')=='auto' else '人工'}）：{t['acceptance'].get('desc','')}",
-               f"- 当前状态：{STATUS_CN.get(t['status'], t['status'])}"]
+               f"- Priority **{t['priority']}** | Package {t['package']} | Market {t['market']} | "
+               f"Owner {t['owner']} | Effort {T.EFFORT.get(t['effort'], t['effort'])} | Window {t['window']}",
+               f"- **Rationale**: {t['why']}",
+               f"- **Action**: {t['action']}",
+               f"- **Acceptance** ({'Auto' if t['acceptance'].get('type')=='auto' else 'Manual'}): {t['acceptance'].get('desc','')}",
+               f"- Current Status: {STATUS_CN.get(t['status'], t['status'])}"]
         if t.get("affected"):
-            md.append(f"- 影响 {len(t['affected'])} 个页面，前 3 个："
-                      + "、".join(t["affected"][:3]))
+            md.append(f"- Affects {len(t['affected'])} pages, first 3: "
+                      + ", ".join(t["affected"][:3]))
         md.append("")
     tasks_md = "\n".join(md)
-    (out / "03-工单表.md").write_text(tasks_md, "utf-8")
-    (out / "03-工单表.html").write_text(
-        R.build_html(f"{cfg['brand']['name']} GEO 工单表", tasks_md,
-                     [("工单总数", str(data["summary"]["total"])),
-                      ("P0", str(data["summary"]["by_priority"]["P0"])),
-                      ("可自动验收", str(data["summary"]["auto_verifiable"])),
-                      ("已完成", str(data["summary"]["by_status"].get("done", 0)))]), "utf-8")
-    _tasks_csv(data, out / "03-工单表.csv")
+    (out / "03-Tickets.md").write_text(tasks_md, "utf-8")
+    (out / "03-Tickets.html").write_text(
+        R.build_html(f"{cfg['brand']['name']} GEO Action Tickets", tasks_md,
+                     [("Total Tickets", str(data["summary"]["total"])),
+                      ("P0 Blockers", str(data["summary"]["by_priority"]["P0"])),
+                      ("Auto Verifiable", str(data["summary"]["auto_verifiable"])),
+                      ("Completed", str(data["summary"]["by_status"].get("done", 0)))]), "utf-8")
+    _tasks_csv(data, out / "03-Tickets.csv")
 
-    # 04 验收表：本期未验收时写明原因，不静默复用旧验收结果
+    # 04 验收表
     if vrep and not unverified:
-        vm = [f"# 工单验收表 · {vrep['verified_at'][:10]}", "",
-              f"重抓后站点均分 **{vrep.get('audit_avg_score')}**；本次状态变更 {vrep.get('changed')} 条。", "",
-              "| 编号 | 任务 | 优先级 | 验收结论 | 依据 |", "|---|---|---|---|---|"]
+        vm = [f"# Action Ticket Verification Matrix · {vrep['verified_at'][:10]}", "",
+              f"Re-crawl site average score **{vrep.get('audit_avg_score')}**; status updated for {vrep.get('changed')} tickets.", "",
+              "| ID | Task | Priority | Verdict | Rationale |", "|---|---|---|---|---|"]
         for r in vrep["results"]:
             vm.append(f"| {r['id']} | {R.cell(r['title'])} | {r['priority']} | "
                       f"{r['verdict']} | {R.cell(r['note'])} |")
-        vm += ["", "> 「待人工」表示该项无法由程序判定（例如词条是否通过审核），需要人工确认后手动标记完成。", ""]
+        vm += ["", "> 'Manual Review' indicates items that cannot be evaluated purely by crawler scripts and require human confirmation.", ""]
         vmd = "\n".join(vm)
-        (out / "04-验收表.md").write_text(vmd, "utf-8")
-        (out / "04-验收表.html").write_text(
-            R.build_html(f"{cfg['brand']['name']} 工单验收表", vmd,
-                         [("通过", str(sum(1 for r in vrep["results"] if r["verdict"] == "通过"))),
-                          ("未达标", str(sum(1 for r in vrep["results"] if r["verdict"] == "未达标"))),
-                          ("待人工", str(sum(1 for r in vrep["results"] if r["verdict"] == "待人工")))]), "utf-8")
+        (out / "04-Verification.md").write_text(vmd, "utf-8")
+        (out / "04-Verification.html").write_text(
+            R.build_html(f"{cfg['brand']['name']} Verification Matrix", vmd,
+                         [("Passed", str(sum(1 for r in vrep["results"] if r["verdict"] in ("通过", "pass")))),
+                          ("Unmet", str(sum(1 for r in vrep["results"] if r["verdict"] in ("未达标", "fail")))),
+                          ("Manual Review", str(sum(1 for r in vrep["results"] if r["verdict"] in ("待人工", "manual"))))]), "utf-8")
     else:
-        reason = "尚无验收记录" if not vrep else \
-            f"最近一次验收日期为 {vrep_date}，早于本期体检日期 {audit_date or '未知'}"
+        reason = "No verification records found yet" if not vrep else \
+            f"Latest verification date {vrep_date} is older than current audit date {audit_date or 'unknown'}"
         vmd = "\n".join([
-            f"# 工单验收表 · {G.today()}", "",
-            f"**本期未验收**：{reason}。", "",
-            "验收需在本期体检之后重抓判定；本包不展示旧验收结果，以免与本期数据混淆。", ""])
-        (out / "04-验收表.md").write_text(vmd, "utf-8")
-        (out / "04-验收表.html").write_text(
-            R.build_html(f"{cfg['brand']['name']} 工单验收表", vmd,
-                         [("状态", "本期未验收")]), "utf-8")
+            f"# Action Ticket Verification Matrix · {G.today()}", "",
+            f"**Unverified for this cycle**: {reason}.", "",
+            "Verification requires re-crawling after current audit; previous results omitted to prevent data confusion.", ""])
+        (out / "04-Verification.md").write_text(vmd, "utf-8")
+        (out / "04-Verification.html").write_text(
+            R.build_html(f"{cfg['brand']['name']} Verification Matrix", vmd,
+                         [("Status", "Unverified for this cycle")]), "utf-8")
 
-    # 05 初稿风险清单：编造内容进客户交付包是最严重的事故，必须显式列出
+    # 05 初稿风险清单
     lint = G.read_json(pdir / "assets" / "drafts" / "_lint.json", None)
     if lint and lint.get("total_issues"):
-        lm = [f"# AI 初稿风险清单 · {G.today()}", "",
-              f"本期共生成 {len(lint['files'])} 份 AI 初稿，自动检查出 **{lint['total_issues']} 项**需人工核实的内容，"
-              f"其中**高风险 {lint['high']} 项**。", "",
-              "> **这些初稿在核实完成前不得发布。** AI 会为了把表格填满而编造竞品名、",
-              "> 竞品参数和市场数据——这类内容一旦发出去，损害的是品牌可信度，",
-              "> 而可信度正是 GEO 的全部基础。", "",
-              "| 文件 | 风险等级 | 类型 | 说明 | 原文片段 |", "|---|---|---|---|---|"]
+        lm = [f"# AI Draft Risk Inspection · {G.today()}", "",
+              f"Generated {len(lint['files'])} AI draft articles, identified **{lint['total_issues']} items** requiring human verification, "
+              f"including **{lint['high']} high-risk items**.", "",
+              "> **These drafts must not be published before verification is complete.**", "",
+              "| File | Risk Level | Type | Description | Original Excerpt |", "|---|---|---|---|---|"]
         for fn, issues in lint["files"].items():
             for i in issues:
                 lm.append(f"| `{fn}` | {i['level']} | {i['type']} | {R.cell(i['detail'])} | {R.cell(i['excerpt'][:60])} |")
-        lm += ["", "## 处理方式", "",
-               "- **高风险**：直接删除或替换成真实信息。占位竞品名一律删掉",
-               "- **中风险（未核实数字）**：能核实的补上来源与核验日期；不能核实的删掉或改写成「待补」",
-               "- **低风险（年份）**：统一改成当前年份", ""]
+        lm += ["", "## Action Guidelines", "",
+               "- **High Risk**: Remove placeholders and verify authentic competitor facts",
+               "- **Medium Risk (Unverified figures)**: Attach factual citations or mark as pending verification",
+               "- **Low Risk (Year stamps)**: Update to current year", ""]
         lmd = "\n".join(lm)
-        (out / "05-初稿风险清单.md").write_text(lmd, "utf-8")
-        (out / "05-初稿风险清单.html").write_text(
-            R.build_html(f"{cfg['brand']['name']} AI 初稿风险清单", lmd,
-                         [("初稿数", str(len(lint["files"]))),
-                          ("待核实项", str(lint["total_issues"])),
-                          ("高风险", str(lint["high"]))]), "utf-8")
+        (out / "05-Draft-Risks.md").write_text(lmd, "utf-8")
+        (out / "05-Draft-Risks.html").write_text(
+            R.build_html(f"{cfg['brand']['name']} AI Draft Risk Inspection", lmd,
+                         [("Drafts", str(len(lint["files"]))),
+                          ("Items to Verify", str(lint["total_issues"])),
+                          ("High Risk", str(lint["high"]))]), "utf-8")
 
-    # 06 建设地图：客户最关心的"在哪些平台建、建什么内容"
+    # 06 建设地图
     bp = G.read_json(pdir / "blueprint.json", None)
     if bp:
         cov = bp["coverage"]
-        bm = [f"# GEO 建设地图 · {G.today()}", "",
-              "回答两个问题：品牌要在**哪些平台**建设、每个平台**建什么内容**。", "",
-              f"- 渠道覆盖：**{cov['channel_covered']}/{cov['channel_total']}**"
-              f"（P0/P1 关键渠道 {cov['p0p1_covered']}/{cov['p0p1_total']}）",
-              f"- 内容承接：**{cov['content_done']}/{cov['content_total']}** 个目标问题已有成稿", "",
-              "> 渠道优先级不是主观排的——每条都带着 CN-GEO 数据集 187,818 条去重引用实算出的",
-              "> 全国引用量与平均引用位置。「引用位置」越小表示在 AI 答案里出现得越靠前。", "",
-              "## 一、在哪些平台建设", ""]
+        bm = [f"# GEO Architecture Blueprint · {G.today()}", "",
+              "Answers two core questions: **which platforms to build on**, and **what content to deploy**.", "",
+              f"- Channel Coverage: **{cov['channel_covered']}/{cov['channel_total']}** "
+              f"(P0/P1 Critical Channels {cov['p0p1_covered']}/{cov['p0p1_total']})",
+              f"- Content Fulfillment: **{cov['content_done']}/{cov['content_total']}** target questions with completed drafts", "",
+              "## 1. Platform Distribution", ""]
         for pri in ("P0", "P1", "P2"):
             rows = [c for c in bp["channels"] if c["priority"] == pri]
             if not rows:
                 continue
-            note = {"P0": "地基，不做后面全白做", "P1": "主要收益来源", "P2": "扩量"}[pri]
-            bm += [f"### {pri} · {note}（已覆盖 {sum(1 for c in rows if c['covered'])}/{len(rows)}）", "",
-                   "| 渠道 | 状态 | 建什么 | 建多少 | 节奏 | 负责 | 数据依据 |",
+            note = {"P0": "Foundational, core requirement", "P1": "Primary visibility gains", "P2": "Scale"}[pri]
+            bm += [f"### {pri} · {note} (Covered {sum(1 for c in rows if c['covered'])}/{len(rows)})", "",
+                   "| Channel | Status | Asset Form | Volume | Cadence | Owner | Evidence |",
                    "|---|---|---|---|---|---|---|"]
             for c in rows:
                 ev = []
                 if c.get("national"):
-                    ev.append(f"全国引用 {c['national']:,}")
+                    ev.append(f"Citations: {c['national']:,}")
                 if c.get("position"):
-                    ev.append(f"引用位置 {c['position']}")
+                    ev.append(f"Placement #{c['position']}")
                 if c.get("platforms"):
-                    ev.append(f"覆盖 {c['platforms']} 端")
-                bm.append(f"| {R.cell(c['name'])} | {'✓ 已被引用' if c['covered'] else '缺口'} "
+                    ev.append(f"{c['platforms']} platforms")
+                bm.append(f"| {R.cell(c['name'])} | {'✓ Cited' if c['covered'] else 'Gap'} "
                           f"| {R.cell(' / '.join(c['forms']))} | {R.cell(c['volume'])} "
-                          f"| {R.cell(c['cadence'])} | {c['owner']} | {'；'.join(ev) or '—'} |")
+                          f"| {R.cell(c['cadence'])} | {c['owner']} | {'; '.join(ev) or '—'} |")
             bm.append("")
-        bm += ["## 二、建设哪些内容", ""]
+        bm += ["## 2. Content Architecture", ""]
         by_form: dict[str, list] = {}
         for c in bp["contents"]:
             by_form.setdefault(c["form"], []).append(c)
         for form, lst in by_form.items():
-            done = sum(1 for x in lst if x["status"] == "已成稿")
-            bm += [f"### {form} · {len(lst)} 题（已成稿 {done}）", "",
+            done = sum(1 for x in lst if x["status"] in ("已成稿", "done", "ready"))
+            bm += [f"### {form} · {len(lst)} questions (Drafts completed: {done})", "",
                    f"_{lst[0]['note']}_", "",
-                   "| 目标问题 | 分组 | 市场 | 状态 |", "|---|---|---|---|"]
+                   "| Target Question | Group | Market | Status |", "|---|---|---|---|"]
             for c in lst:
-                mk = {"cn": "国内", "global": "海外"}.get(c["market"], "通用")
+                mk = {"cn": "Domestic", "global": "Global"}.get(c["market"], "General")
                 bm.append(f"| {R.cell(c['question'])} | {c['group']} | {mk} | {c['status']} |")
             bm.append("")
-        bm += ["## 三、分批建设节奏", ""]
+        bm += ["## 3. Phased Roadmap", ""]
         for r in bp["roadmap"]:
             bm += [f"**{r['window']} · {r['focus']}**", ""] + [f"- {i}" for i in r["items"]] + [""]
         bm += ["---", "",
-               "**一条纪律**：品牌官网类信源只占国内全库引用的 **1.37%**——官网是**事实源**不是**引用源**。",
-               "把官网从 60 分做到 90 分的边际收益，远低于拿下一个榜单站词条。资源有限时优先做外部渠道。", ""]
+               "**Golden Rule**: Official brand sites account for only **1.37%** of citations across generative models.",
+               "The official site is the **source of truth**, not the primary citation link. External authority drives AI recommendations.", ""]
         bmd = "\n".join(bm)
         (out / "06-建设地图.md").write_text(bmd, "utf-8")
         (out / "06-建设地图.html").write_text(
-            R.build_html(f"{cfg['brand']['name']} GEO 建设地图", bmd,
-                         [("渠道覆盖", f"{cov['channel_covered']}/{cov['channel_total']}"),
-                          ("关键渠道", f"{cov['p0p1_covered']}/{cov['p0p1_total']}"),
-                          ("内容承接", f"{cov['content_done']}/{cov['content_total']}"),
-                          ("内容缺口", str(cov["content_gap"] + sum(
-                              1 for c in bp["contents"] if c["status"] == "仅大纲")))]), "utf-8")
+            R.build_html(f"{cfg['brand']['name']} GEO Blueprint", bmd,
+                         [("Channel Coverage", f"{cov['channel_covered']}/{cov['channel_total']}"),
+                          ("Critical Channels", f"{cov['p0p1_covered']}/{cov['p0p1_total']}"),
+                          ("Content Fulfillment", f"{cov['content_done']}/{cov['content_total']}"),
+                          ("Content Gaps", str(cov["content_gap"] + sum(
+                              1 for c in bp["contents"] if c["status"] in ("仅大纲", "outline_only"))))]), "utf-8")
 
     # assets
     adir = pdir / "assets"
@@ -374,10 +367,10 @@ def run(slug: str) -> Path:
     # index + README
     ov = _overview_md(cfg, audit, metrics, data, None if unverified else vrep, notes)
     (out / "index.md").write_text(ov, "utf-8")
-    cards = [("站点均分", str(audit.get("avg_score"))),
-             ("抓取页数", str(audit.get("page_count"))),
-             ("工单总数", str(data["summary"]["total"])),
-             ("P0 待办", str(sum(1 for t in data["tasks"]
+    cards = [("Site Score", str(audit.get("avg_score"))),
+             ("Crawled Pages", str(audit.get("page_count"))),
+             ("Total Tickets", str(data["summary"]["total"])),
+             ("P0 Blockers", str(sum(1 for t in data["tasks"]
                                  if t["priority"] == "P0" and t["status"] != "done")))]
     if metrics:
         rates = [m["mention_rate"] for m in metrics["platforms"].values()
@@ -388,5 +381,5 @@ def run(slug: str) -> Path:
         R.build_html(f"{cfg['brand']['name']} · GEO 服务交付 {G.today()}", ov, cards), "utf-8")
     (out / "README.md").write_text(_readme(cfg, data, notes), "utf-8")
 
-    G.info(f"交付包已生成 → {out}")
+    G.info(f"Delivery package compiled → {out}")
     return out

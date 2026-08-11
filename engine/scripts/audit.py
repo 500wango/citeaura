@@ -206,7 +206,7 @@ def run(slug: str) -> dict:
     pdir = G.project_dir(slug)
     pages = G.read_jsonl(pdir / "evidence" / "pages.jsonl")
     if not pages:
-        G.die("没有抓取结果，先运行：python3 scripts/geo.py crawl --slug " + slug)
+        G.die("Missing crawl results. Run crawl first: python3 scripts/geo.py crawl --slug " + slug)
     site = G.read_json(pdir / "evidence" / "site.json", {})
     kws = keywords_from_config(cfg)
 
@@ -275,7 +275,7 @@ def run(slug: str) -> dict:
         "pages": sorted(results, key=lambda r: r["score"]),
     }
     G.write_json(pdir / "audit.json", out)
-    G.info(f"体检完成：{len(results)} 页，均分 {avg}，分布 {grade_dist} → {pdir/'audit.json'}")
+    G.info(f"Audit complete: {len(results)} pages, avg score {avg}, grade distribution {grade_dist} → {pdir/'audit.json'}")
     return out
 
 

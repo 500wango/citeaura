@@ -1,5 +1,5 @@
 /**
- * 企业安全与单点登录视图 (Security & SSO)
+ *  (Security & SSO)
  */
 
 import { sso } from '../api.js';
@@ -28,7 +28,7 @@ export default {
           </div>
         </div>
 
-        <!-- 诚实合规声明 (硬约束) -->
+        <!-- Compliance & Honesty Notice -->
         <div class="banner">
           <div>
             <strong style="display:block;">${t('security.compliance_title', {}, 'Security Controls & Certification Status')}</strong>
@@ -39,7 +39,7 @@ export default {
         </div>
 
         <div style="display:grid;grid-template-columns:minmax(0, 5fr) minmax(0, 7fr);gap:var(--sp-6);">
-          <!-- OIDC SSO 配置 -->
+          <!-- OIDC SSO Settings -->
           <div class="card" style="gap:var(--sp-4);">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('security.sso_config', {}, 'OIDC Identity Provider')}</h3>
 
@@ -63,7 +63,7 @@ export default {
             </button>
           </div>
 
-          <!-- 审计日志 -->
+          <!-- Audit Logs Table -->
           <div class="card" style="padding:0;overflow:hidden;">
             <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
               <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('security.audit_logs', {}, 'Access & Security Audit Events')}</h3>

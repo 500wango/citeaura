@@ -1,5 +1,5 @@
 /**
- * AI 可见性与模型采样回放视图 (Engines & Sample Replay)
+ * AI  (Engines & Sample Replay)
  */
 
 import { projects } from '../api.js';
@@ -21,10 +21,10 @@ export default {
 
     try {
       enginesData = await projects.getEngines(projectId).catch(() => null);
-      // 获取最新日期的样本
+      // Get samples for latest date
       const today = new Date().toISOString().slice(0, 10);
       samples = await projects.getSamples(projectId, today).catch(async () => {
-        // 尝试获取 framing 或报告里的日期
+        // Attempt to get date from framing or report
         return [];
       });
     } catch (err) {
@@ -54,7 +54,7 @@ export default {
           </div>
         </div>
 
-        <!-- 引擎矩阵大盘 -->
+        <!-- Engine Visibility Matrix -->
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('engines.matrix_head', {}, 'Monitored Model Engines')}</h3>
@@ -112,7 +112,7 @@ export default {
           }
         </div>
 
-        <!-- 样本回答回放 (Raw Answers) -->
+        <!-- Raw Sample Answers Replay -->
         <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--sp-3);">
             <div>
@@ -185,9 +185,12 @@ export default {
       sampleBtn.addEventListener('click', async () => {
         sampleBtn.disabled = true;
         try {
-          await projects.triggerSample(projectId);
+          const res = await projects.triggerSample(projectId);
           toast.success(t('engines.sample_queued', {}, 'Sampling task queued across matrix!'));
           ctx.pollActiveJobs();
+          if (res && res.job_id && typeof ctx.openTelemetry === 'function') {
+            ctx.openTelemetry(res.job_id, 'sample');
+          }
         } catch (err) {
           toast.error(t(err.error, {}, err.detail || 'Sampling task failed to start'));
         } finally {

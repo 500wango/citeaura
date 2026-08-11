@@ -1,35 +1,26 @@
 /**
- * CiteAura 统一多语言国际化客户端
- * 支持点号命名空间 key (e.g. 'overview.title', 'nav.diagnostics')，回退至 en 基线。
+ * CiteAura Internationalization Client (English Baseline)
+ * Supports namespaced keys (e.g. 'overview.title', 'nav.diagnostics') with English resolution.
  */
 
-export const SUPPORTED_LOCALES = ['en', 'zh', 'ja'];
+export const SUPPORTED_LOCALES = ['en'];
 export const DEFAULT_LOCALE = 'en';
 
 const HTML_LANG_MAP = {
   en: 'en',
-  zh: 'zh-CN',
-  ja: 'ja',
 };
 
-let currentLocale = detectLocale();
+let currentLocale = 'en';
 let currentCatalog = {};
 let fallbackCatalog = {};
 const subscribers = [];
 
 export function detectLocale() {
-  const urlParam = new URLSearchParams(location.search).get('lang');
-  let saved = null;
-  try {
-    saved = localStorage.getItem('ulang');
-  } catch (e) {}
-  const nav = (navigator.language || '').toLowerCase();
-  const guess = urlParam || saved || (nav.startsWith('zh') ? 'zh' : nav.startsWith('ja') ? 'ja' : 'en');
-  return SUPPORTED_LOCALES.includes(guess) ? guess : DEFAULT_LOCALE;
+  return 'en';
 }
 
 export function getLocale() {
-  return currentLocale;
+  return 'en';
 }
 
 export function subscribeLocale(callback) {
@@ -41,67 +32,59 @@ export function subscribeLocale(callback) {
 }
 
 function notifySubscribers() {
-  subscribers.forEach((cb) => cb(currentLocale));
+  subscribers.forEach((cb) => cb('en'));
 }
 
-export async function loadCatalogs(locale = currentLocale) {
-  currentLocale = SUPPORTED_LOCALES.includes(locale) ? locale : DEFAULT_LOCALE;
+export async function loadCatalogs(locale = 'en') {
+  currentLocale = 'en';
   try {
-    localStorage.setItem('ulang', currentLocale);
+    localStorage.setItem('ulang', 'en');
   } catch (e) {}
 
-  document.documentElement.lang = HTML_LANG_MAP[currentLocale] || 'en';
+  document.documentElement.lang = 'en';
 
   try {
-    // 始终加载 en 作为回退
-    if (currentLocale !== 'en' && Object.keys(fallbackCatalog).length === 0) {
-      const fbRes = await fetch('/i18n/en.json');
-      if (fbRes.ok) fallbackCatalog = await fbRes.json();
-    }
-
-    const res = await fetch(`/i18n/${currentLocale}.json`);
+    const res = await fetch('/i18n/en.json');
     if (res.ok) {
       currentCatalog = await res.json();
-    } else {
-      currentCatalog = {};
+      fallbackCatalog = currentCatalog;
     }
   } catch (err) {
-    console.error('Failed to load i18n catalog:', err);
+    console.warn('Failed to load English catalog, using in-memory fallbacks', err);
   }
 
   notifySubscribers();
   return currentCatalog;
 }
 
-export function setLocale(locale) {
-  return loadCatalogs(locale);
+export async function setLocale(locale = 'en') {
+  await loadCatalogs('en');
 }
 
 /**
- * 翻译方法 t()
- * @param {string} key - 点号 key (如 'nav.overview')
- * @param {Object} [params] - 插值变量 {name: 'Brand', count: 5}
- * @param {string} [fallback] - 缺失时的回退文案
+ * Translate key with interpolation and fallback.
+ * @param {string} key - Dot-delimited key (e.g. 'nav.overview')
+ * @param {object} params - Interpolation parameters { count: 5 }
+ * @param {string} fallback - Default English fallback text
  */
-export function t(key, params = {}, fallback = null) {
-  if (!key) return '';
+export function t(key, params = {}, fallback = '') {
+  if (!key) return fallback || '';
 
-  let template = currentCatalog[key];
-  if (template == null && currentLocale !== 'en') {
-    template = fallbackCatalog[key];
+  let val = currentCatalog[key];
+  if (val === undefined || val === null) {
+    val = fallbackCatalog[key];
   }
-  if (template == null) {
-    template = fallback != null ? fallback : key;
-  }
-
-  if (typeof template !== 'string') {
-    return String(template);
+  if (val === undefined || val === null) {
+    val = fallback !== undefined && fallback !== '' ? fallback : key;
   }
 
-  // 变量插值: {key} 或 :key
-  return template.replace(/\{([^{}]+)\}/g, (_, name) => {
-    return params[name] !== undefined ? params[name] : `{${name}}`;
-  });
+  let text = String(val);
+  if (params && typeof params === 'object') {
+    Object.entries(params).forEach(([k, v]) => {
+      text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+    });
+  }
+  return text;
 }
 
 export default {
@@ -109,8 +92,8 @@ export default {
   DEFAULT_LOCALE,
   detectLocale,
   getLocale,
-  setLocale,
   loadCatalogs,
+  setLocale,
   subscribeLocale,
   t,
 };

@@ -1,5 +1,5 @@
 /**
- * 外部集成与搜索控制台视图 (Integrations)
+ *  (Integrations)
  */
 
 import { integrations } from '../api.js';

@@ -1,5 +1,5 @@
 /**
- * 团队成员与权限协作视图 (Team & Permissions)
+ *  (Team & Permissions)
  */
 
 import { team } from '../api.js';
@@ -37,7 +37,7 @@ export default {
           </div>
         </div>
 
-        <!-- 活跃成员列表 -->
+        <!-- Active Members List -->
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('team.members_list', {}, 'Active Members')}</h3>
@@ -83,7 +83,7 @@ export default {
           </div>
         </div>
 
-        <!-- 待接受邀请 -->
+        <!-- Pending Invitations -->
         ${
           invitations && invitations.length
             ? `

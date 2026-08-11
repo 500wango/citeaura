@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
     import geolib as G  # noqa: E402
 except ModuleNotFoundError as e:
-    raise SystemExit(f"缺少依赖：{e.name}。请先 pip3 install requests beautifulsoup4 lxml") from e
+    raise SystemExit(f"Missing dependency: {e.name}. Please run: pip3 install requests beautifulsoup4 lxml") from e
 
 
 DEFAULT_PLATFORMS = {
@@ -48,7 +48,7 @@ def cmd_init(a):
     existing = G.project_dir(slug) / "geo.json"
     if existing.exists() and not getattr(a, "force", False):
         cur = G.read_json(existing, {})
-        G.die(f"项目 `{slug}` 已存在（问题 {len(cur.get('questions', []))} 题、"
+        G.die(f"Project `{slug}` already exists ({len(cur.get('questions', []))} questions, "
               f"竞品 {len(cur.get('competitors', []))} 个）。换一个 --slug，"
               f"或确认要清空后加 --force")
 
@@ -86,8 +86,8 @@ def cmd_init(a):
     G.save_config(slug, cfg)
     for sub in ("evidence", "samples", "metrics", "reports", "history", "content"):
         (G.project_dir(slug) / sub).mkdir(parents=True, exist_ok=True)
-    print(f"[geo] 项目已创建：{G.project_dir(slug)/'geo.json'}（品牌：{name}）")
-    print("[geo] 下一步：让 Claude 补全 brand/competitors/questions，再跑 crawl")
+    print(f"[geo] Project initialized: {G.project_dir(slug)/'geo.json'} (Brand: {name})")
+    print("[geo] Next step: Populate brand/competitors/questions, then run crawl")
     return cfg
 
 
@@ -117,48 +117,43 @@ def cmd_new(a):
     import tasks
     import verify as V
 
-    G.info("═══ 1/9 建项目 ═══")
+    G.info("═══ 1/9 Initialize Project ═══")
     cfg = cmd_init(a)
     slug = cfg["slug"]
-    G.info("═══ 2/9 抓取官网 ═══")
+    G.info("═══ 2/9 Crawl Website ═══")
     C.run(slug, max_pages=a.max_pages)
-    G.info("═══ 3/9 体检 ═══")
+    G.info("═══ 3/9 Site Audit ═══")
     A.run(slug)
-    G.info("═══ 4/9 自动推导品牌事实、竞品与问题库 ═══")
+    G.info("═══ 4/9 Bootstrap Baseline & Question Bank ═══")
     bootstrap.run(slug, skip_llm=a.skip_llm)
-    G.info("═══ 5/9 重跑体检（问题库影响对题性评分）═══")
+    G.info("═══ 5/9 Re-run Site Audit ═══")
     A.run(slug)
-    G.info("═══ 6/9 AI 答案采样 ═══")
+    G.info("═══ 6/9 AI Sampling ═══")
     if a.no_sample:
-        G.info("跳过：--no-sample")
+        G.info("Skipped: --no-sample")
     elif not G.load_config(slug).get("questions"):
-        G.info("跳过：问题库为空")
+        G.info("Skipped: questions library is empty")
     else:
         try:
             S.run(slug, limit=a.limit)
         except Exception as e:  # noqa: BLE001
-            G.info(f"采样跳过：{type(e).__name__}: {e}")
-    G.info("═══ 7/9 工单与建设蓝图 ═══")
+            G.info(f"Sampling skipped: {type(e).__name__}: {e}")
+    G.info("═══ 7/9 Action Tickets & Blueprint ═══")
     tasks.build(slug)
     BP.build(slug)
-    G.info("═══ 8/9 资产与报告 ═══")
+    G.info("═══ 8/9 Assets & Diagnostic Report ═══")
     generate.run(slug, with_draft=a.draft, draft_limit=a.draft_limit)
     Rp.run(slug)
-    G.info("═══ 9/9 三份交付物 + 交付包 ═══")
+    G.info("═══ 9/9 Deliverables & Delivery Package ═══")
     DV.run(slug)
     try:
         V.run(slug, recrawl=False)
     except Exception as e:  # noqa: BLE001
-        G.info(f"验收失败：{e}")
+        G.info(f"Verification failed: {e}")
     deliver.run(slug)
     G.info("")
-    G.info(f"完成。交付物在 work/{slug}/deliverables/：")
-    G.info("  1-GEO诊断报告.html   现在什么样")
-    G.info("  2-GEO优化方案.html   应该改成什么样")
-    G.info("  3-GEO执行方案.html   谁在什么时候做什么")
+    G.info(f"Complete. Deliverables saved to work/{slug}/deliverables/:")
     G.info("")
-    G.info("下一步：打开工作台核对自动推导的品牌事实与问题库（标「待确认」的需人工补齐）")
-    G.info("  python3 scripts/geo.py ui")
 
 
 def cmd_autopilot(a):
@@ -176,39 +171,39 @@ def cmd_autopilot(a):
     import verify as V
 
     cfg = G.load_config(a.slug)
-    G.info("═══ 1/8 抓取官网 ═══")
+    G.info("═══ 1/8 Crawl Website ═══")
     C.run(a.slug)
-    G.info("═══ 2/8 体检 ═══")
+    G.info("═══ 2/8 Site Audit ═══")
     A.run(a.slug)
     if not cfg.get("questions"):
-        G.info("═══ 3/8 自动推导品牌事实、竞品与问题库 ═══")
+        G.info("═══ 3/8 Bootstrap Baseline & Question Bank ═══")
         bootstrap.run(a.slug, skip_llm=a.skip_llm)
         A.run(a.slug)
     else:
-        G.info("═══ 3/8 已有问题库，跳过自动推导 ═══")
-    G.info("═══ 4/8 AI 答案采样 ═══")
+        G.info("═══ 3/8 Existing questions found, skipping bootstrap ═══")
+    G.info("═══ 4/8 AI Sampling ═══")
     if a.no_sample:
-        G.info("跳过：--no-sample")
+        G.info("Skipped: --no-sample")
     elif G.load_config(a.slug).get("questions"):
         try:
             S.run(a.slug, limit=a.limit)
         except Exception as e:  # noqa: BLE001
-            G.info(f"采样跳过：{type(e).__name__}: {e}")
-    G.info("═══ 5/8 工单与建设蓝图 ═══")
+            G.info(f"Sampling skipped: {type(e).__name__}: {e}")
+    G.info("═══ 5/8 Action Tickets & Blueprint ═══")
     tasks.build(a.slug)
     BP.build(a.slug)
-    G.info("═══ 6/8 资产与报告 ═══")
+    G.info("═══ 6/8 Assets & Diagnostic Report ═══")
     generate.run(a.slug)
     Rp.run(a.slug)
-    G.info("═══ 7/8 三份交付物 ═══")
+    G.info("═══ 7/8 Three Core Deliverables ═══")
     DV.run(a.slug)
-    G.info("═══ 8/8 验收与打包 ═══")
+    G.info("═══ 8/8 Verification & Delivery Package ═══")
     try:
         V.run(a.slug, recrawl=False)
     except Exception as e:  # noqa: BLE001
-        G.info(f"验收失败：{e}")
+        G.info(f"Verification failed: {e}")
     deliver.run(a.slug)
-    G.info("完成。三份交付物在 deliverables/，标「待确认」的品牌事实需人工补齐。")
+    G.info("Complete. Three deliverables compiled in deliverables/.")
 
 
 def cmd_crawl(a):
@@ -254,20 +249,20 @@ def cmd_cycle(a):
     import report
     import sample
 
-    G.info("=== 1/4 抓取 ===")
+    G.info("=== 1/4 Crawl ===")
     crawl.run(a.slug, max_pages=a.max_pages)
-    G.info("=== 2/4 体检 ===")
+    G.info("=== 2/4 Site Audit ===")
     audit.run(a.slug)
-    G.info("=== 3/4 采样 ===")
+    G.info("=== 3/4 Sampling ===")
     # 采样失败不能把整期带崩：报告和待办比采样更重要
     if not G.load_config(a.slug).get("questions"):
-        G.info("跳过采样：geo.json 里还没有问题库（见 SKILL.md 步骤 2）")
+        G.info("Skipped sampling: question library is empty")
     else:
         try:
             sample.run(a.slug, limit=a.limit)
         except Exception as e:  # noqa: BLE001
-            G.info(f"采样跳过：{type(e).__name__}: {e}")
-    G.info("=== 4/4 报告 ===")
+            G.info(f"Sampling skipped: {type(e).__name__}: {e}")
+    G.info("=== 4/4 Report ===")
     report.run(a.slug)
 
 
@@ -300,18 +295,18 @@ def cmd_lint(a):
 
     rep = generate.lint_all(a.slug)
     if not rep["files"]:
-        print("没有 AI 初稿可检查（用 generate --draft 生成）")
+        print("No AI drafts found to check (generate with generate --draft)")
         return
-    print(f"\n检查 {len(rep['files'])} 份初稿，共 {rep['total_issues']} 项待核实（高风险 {rep['high']} 项）")
+    print(f"\nInspected {len(rep['files'])} drafts, {rep['total_issues']} issues found ({rep['high']} high risk)")
     for fn, issues in rep["files"].items():
         if not issues:
-            print(f"\n  {fn}：无风险")
+            print(f"\n  {fn}: No risk issues")
             continue
         print(f"\n  {fn}")
         for i in issues:
             print(f"    [{i['level']}] {i['type']}：{i['detail']}")
             print(f"          …{i['excerpt'][:76]}")
-    print("\n高风险项必须处理后才能发布；未核实数字需补来源与核验日期。\n")
+    print("\nHigh-risk items must be resolved before publishing.\n")
 
 
 def cmd_verify(a):
@@ -331,9 +326,9 @@ def cmd_publish(a):
 
     r = publish.publish(a.slug, a.platform, a.path, a.title or "")
     if r.get("ok"):
-        G.info(f"已发布：{r.get('url') or r.get('note') or 'ok'}")
+        G.info(f"Published: {r.get('url') or r.get('note') or 'ok'}")
     else:
-        G.die(f"发布失败：{r.get('error')}")
+        G.die(f"Publish failed: {r.get('error')}")
 
 
 def cmd_task(a):
@@ -348,7 +343,7 @@ def cmd_task(a):
         data = tasks.load(a.slug)
         t = next((x for x in data["tasks"] if x["id"] == a.id), None)
         if not t:
-            G.die(f"找不到工单 {a.id}")
+            G.die(f"Ticket not found: {a.id}")
         print(json.dumps(t, ensure_ascii=False, indent=2))
 
 
@@ -360,10 +355,10 @@ def cmd_status(a):
     data = tasks.load(a.slug)
     s = data.get("summary", {})
     print(f"\n{cfg['brand']['name']}  ({cfg.get('market')})  {cfg['brand']['site']}")
-    print(f"  站点均分 {audit.get('avg_score', '—')}  页面 {audit.get('page_count', '—')}"
+    print(f"  Site average score {audit.get('avg_score', '—')}  Pages {audit.get('page_count', '—')}"
           f"  工单 {s.get('total', 0)} 条（可自动验收 {s.get('auto_verifiable', 0)}）")
     if not data.get("tasks"):
-        print("  还没有工单，运行 plan 生成\n")
+        print("  No tickets found. Run plan to generate.\n")
         return
     order = {"P0": 0, "P1": 1, "P2": 2}
     for pri in ("P0", "P1", "P2"):
@@ -371,7 +366,7 @@ def cmd_status(a):
         if not rows:
             continue
         done = sum(1 for t in rows if t["status"] == "done")
-        print(f"\n  {pri}  {done}/{len(rows)} 完成")
+        print(f"\n  {pri}  {done}/{len(rows)} completed")
         for t in sorted(rows, key=lambda x: (x["status"] != "todo", x["package"])):
             mark = {"done": "✓", "doing": "◐", "blocked": "✗", "wontfix": "—"}.get(t["status"], "·")
             print(f"    {mark} {t['id']} [{t['package']}/{t['owner']}/{t['market']}] {t['title']}")
@@ -389,36 +384,36 @@ def cmd_serve(a):
     import tasks
     import verify as V
 
-    G.info("═══ 1/7 抓取 ═══")
+    G.info("═══ 1/7 Crawl ═══")
     C.run(a.slug, max_pages=a.max_pages)
-    G.info("═══ 2/7 体检 ═══")
+    G.info("═══ 2/7 Site Audit ═══")
     A.run(a.slug)
-    G.info("═══ 3/7 AI 答案采样 ═══")
+    G.info("═══ 3/7 AI Sampling ═══")
     if not G.load_config(a.slug).get("questions"):
-        G.info("跳过：问题库为空（见 SKILL.md 步骤 2）")
+        G.info("Skipped: questions library is empty")
     elif a.no_sample:
-        G.info("跳过：--no-sample")
+        G.info("Skipped: --no-sample")
     else:
         try:
             S.run(a.slug, limit=a.limit)
         except Exception as e:  # noqa: BLE001
-            G.info(f"采样跳过：{type(e).__name__}: {e}")
+            G.info(f"Sampling skipped: {type(e).__name__}: {e}")
     try:
         import expand
         expand.run(a.slug)
     except Exception as e:  # noqa: BLE001
-        G.info(f"拓词跳过：{type(e).__name__}: {e}")
-    G.info("═══ 4/7 生成工单与建设蓝图 ═══")
+        G.info(f"Query expansion skipped: {type(e).__name__}: {e}")
+    G.info("═══ 4/7 Action Tickets & Blueprint ═══")
     tasks.build(a.slug)
     import blueprint
     blueprint.build(a.slug)
-    G.info("═══ 5/7 生成资产 ═══")
+    G.info("═══ 5/7 Generate Assets ═══")
     generate.run(a.slug, with_draft=a.draft, draft_limit=a.draft_limit)
-    G.info("═══ 6/7 报告 ═══")
+    G.info("═══ 6/7 Report ═══")
     Rp.run(a.slug)
-    G.info("═══ 7/7 验收上期工单 ═══")
+    G.info("═══ 7/7 Verify Previous Tickets ═══")
     V.run(a.slug, recrawl=False)
-    G.info("═══ 打包交付 ═══")
+    G.info("═══ Compile Delivery Package ═══")
     deliver.run(a.slug)
 
 
@@ -430,7 +425,7 @@ def cmd_ui(a):
 
 def cmd_list(a):
     if not G.WORK.exists():
-        print("还没有任何项目")
+        print("No projects found")
         return
     for d in sorted(G.WORK.iterdir()):
         cfg_path = d / "geo.json"
@@ -438,7 +433,7 @@ def cmd_list(a):
             cfg = G.read_json(cfg_path, {})
             reports = sorted((d / "reports").glob("2*")) if (d / "reports").exists() else []
             last = reports[-1].name if reports else "—"
-            print(f"{d.name:20s} {cfg.get('brand', {}).get('name', ''):22s} 问题 {len(cfg.get('questions', [])):3d}  最近报告 {last}")
+            print(f"{d.name:20s} {cfg.get('brand', {}).get('name', ''):22s} Questions: {len(cfg.get('questions', [])):3d}  Latest report: {last}")
 
 
 def main():

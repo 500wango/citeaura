@@ -1,5 +1,5 @@
 /**
- * Toast 提示组件
+ * Toast 
  */
 
 let toastStack = null;

@@ -1,5 +1,5 @@
 /**
- * KPI 卡片组件
+ * KPI 
  */
 
 export function renderKpis(kpiList = []) {

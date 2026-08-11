@@ -137,15 +137,14 @@ def analyze_page(url: str, res: dict) -> dict:
 
 
 def check_crawl_health(pages: list[dict]):
-    """抓取全灭（目标站挂掉/被 WAF 拦）时直接终止流水线：
-    失败页 status=0 照样进均分，会产出「均分 3 分」的误导报告。"""
+    """Terminate early if crawling fails entirely."""
     if not pages:
         return
     ok = sum(1 for p in pages if p["status"] == 200)
     if ok == 0:
-        G.die("抓取失败：没有页面返回 200，检查站点可达性/WAF")
+        G.die("Crawl failed: No page returned 200 OK. Check site accessibility or WAF.")
     if len(pages) >= 5 and ok / len(pages) < 0.2:
-        G.die(f"抓取失败：仅 {ok}/{len(pages)} 页可访问（<20%），检查 WAF/反爬")
+        G.die(f"Crawl failed: Only {ok}/{len(pages)} pages accessible (<20%). Check WAF/anti-scraping.")
 
 
 def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
@@ -155,7 +154,7 @@ def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
     outdir = G.project_dir(slug) / "evidence"
     (outdir / "html").mkdir(parents=True, exist_ok=True)
 
-    G.info(f"抓取 {root}（上限 {limit} 页）")
+    G.info(f"Crawling {root} (limit: {limit} pages)")
 
     robots_txt = G.fetch_text(G.normalize_url(root, "/robots.txt"))
     llms_txt = G.fetch_text(G.normalize_url(root, "/llms.txt"))
@@ -219,7 +218,7 @@ def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
     }
     G.write_json(outdir / "site.json", site)
     G.write_jsonl(outdir / "pages.jsonl", pages)
-    G.info(f"完成：{site['pages_ok']}/{len(pages)} 页可访问 → {outdir}")
+    G.info(f"Complete: {site['pages_ok']}/{len(pages)} pages accessible → {outdir}")
     check_crawl_health(pages)
     return site
 

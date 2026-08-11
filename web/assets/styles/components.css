@@ -1,6 +1,6 @@
-/* 共享组件库 —— 落地页与应用共用。只依赖 tokens.css 的变量。 */
+/*  —— 。 tokens.css 。 */
 
-/* ---------- 品牌 ---------- */
+/* ----------  ---------- */
 .brand { display: inline-flex; align-items: center; gap: var(--sp-2); text-decoration: none; color: var(--ink); transition: transform var(--dur-fast) var(--ease-out); }
 .brand:hover { transform: scale(1.02); }
 .brand-mark {
@@ -23,7 +23,7 @@
   -webkit-text-fill-color: transparent;
 }
 
-/* ---------- 按钮 ---------- */
+/* ----------  ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
   min-height: 38px; padding: var(--sp-2) var(--sp-4);
@@ -62,7 +62,7 @@
 
 .btn .spin { margin: 0; }
 
-/* ---------- 表单 ---------- */
+/* ----------  ---------- */
 .field { display: block; margin-bottom: var(--sp-4); }
 .field > label, .field-label {
   display: block; margin-bottom: var(--sp-1);
@@ -87,7 +87,7 @@ select.input { appearance: none; padding-right: var(--sp-7); background-image: l
 
 input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; }
 
-/* 分段选择器 */
+/*  */
 .seg { display: inline-flex; overflow: hidden; border: 1px solid var(--divider); border-radius: var(--r-md); background: var(--page); }
 .seg-opt {
   display: inline-flex; align-items: center; gap: var(--sp-2);
@@ -100,7 +100,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .seg-opt:has(input:checked) { background: var(--surface); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); font-weight: 500; }
 .seg-opt:not(:has(input:checked)):hover { background: var(--deep); color: var(--ink); }
 
-/* 标签页 */
+/*  */
 .tabs { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--deep); }
 .tab {
   min-height: 32px; padding: var(--sp-1) var(--sp-4); border-radius: var(--r-md);
@@ -113,7 +113,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tab .cnt { padding: 1px 7px; border-radius: var(--r-pill); background: var(--line); color: var(--muted); font-size: var(--fs-1); font-family: var(--font-mono); }
 .tab.on .cnt { background: var(--accent-soft); color: var(--accent); }
 
-/* ---------- 卡片与面板 ---------- */
+/* ----------  ---------- */
 .card {
   display: flex; flex-direction: column; gap: var(--sp-2);
   padding: var(--sp-4);
@@ -138,7 +138,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .soft { color: var(--ink-2); }
 .faint { color: var(--faint); }
 
-/* ---------- 标签 / 状态丸 ---------- */
+/* ----------  /  ---------- */
 .tag {
   display: inline-flex; align-items: center; gap: var(--sp-1);
   min-height: 22px; padding: 2px var(--sp-2);
@@ -158,7 +158,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .dot-bad { background: var(--bad); }
 .dot-idle { background: var(--faint); }
 
-/* ---------- 表格 ---------- */
+/* ----------  ---------- */
 .tbl { overflow-x: auto; overscroll-behavior-inline: contain; }
 .table { width: 100%; border-collapse: collapse; font-size: var(--fs-2); }
 .table th {
@@ -172,14 +172,14 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .table tbody tr:hover { background: var(--deep); }
 .table .num, .table td[data-num] { text-align: right; }
 
-/* ---------- KPI 条 ---------- */
+/* ---------- KPI  ---------- */
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
 .kpi { min-width: 0; padding: var(--sp-4); background: var(--surface); }
 .kpi-label { color: var(--muted); font-size: var(--fs-1); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; font-family: var(--font-mono); }
 .kpi-value { display: block; margin-top: var(--sp-1); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-6); font-weight: 600; color: var(--ink); }
 .kpi-sub { margin-top: 2px; color: var(--faint); font-size: var(--fs-1); }
 
-/* ---------- 进度条 / 加载 ---------- */
+/* ----------  /  ---------- */
 .bar { height: 5px; border-radius: var(--r-pill); background: var(--deep); overflow: hidden; }
 .bar > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width var(--dur-med) var(--ease-out); }
 
@@ -198,7 +198,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 }
 @keyframes ca-shimmer { to { background-position: -200% 0; } }
 
-/* ---------- 空状态 ---------- */
+/* ----------  ---------- */
 .empty {
   display: grid; place-items: center; gap: var(--sp-2);
   padding: var(--sp-9) var(--sp-6);
@@ -208,7 +208,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .empty strong { color: var(--ink); font-size: var(--fs-3); font-weight: 500; }
 .empty .btn { margin-top: var(--sp-2); }
 
-/* ---------- 横幅 ---------- */
+/* ----------  ---------- */
 .banner {
   display: flex; align-items: flex-start; gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
@@ -220,7 +220,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .banner.bad { border-left-color: var(--bad); }
 .banner.good { border-left-color: var(--good); }
 
-/* ---------- 模态 ---------- */
+/* ----------  ---------- */
 .modal {
   position: fixed; inset: 0; z-index: 90;
   display: grid; place-items: center; padding: var(--sp-6);
@@ -251,7 +251,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .toast.good { border-left-color: var(--good); }
 @keyframes ca-toast { from { opacity: 0; transform: translateY(8px); } }
 
-/* ---------- 工具 ---------- */
+/* ----------  ---------- */
 .row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
 .grow { flex: 1; min-width: 0; }
 .uln { box-shadow: inset 0 -2px 0 var(--accent); }

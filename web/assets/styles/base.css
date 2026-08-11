@@ -1,4 +1,4 @@
-/* 基础层：字体声明、reset、排版默认值、全局焦点与动效约定 */
+/* ：、reset、、 */
 
 @font-face {
   font-family: "Space Grotesk";
@@ -106,14 +106,14 @@ ul, ol { padding: 0; list-style: none; }
 }
 .skip-link:focus-visible { transform: translateY(0); }
 
-/* 数字与度量数据 */
+/*  */
 .num, .metric, td[data-num] {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
 
-/* 滚动渐显：默认隐藏，JS 加 .is-visible；无 JS 时由 <noscript> 兜底显示 */
+/* ：，JS  .is-visible； JS  <noscript>  */
 .reveal { opacity: 0; transform: translateY(14px); }
 .reveal.is-visible {
   opacity: 1;

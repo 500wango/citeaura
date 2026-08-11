@@ -47,7 +47,7 @@ def _validated_questions(questions):
         qid = str(item.get("id") or "").strip()
         text = str(item.get("text") or "").strip()
         market = item.get("market")
-        group = str(item.get("group") or "推荐").strip() or "推荐"
+        group = str(item.get("group") or "Recommendation").strip() or "Recommendation"
         if not re.fullmatch(r"q\d{3,6}", qid) or qid in used_ids:
             raise ValueError("question ids must be unique qNNN values")
         if not text or len(text) > 1000:
@@ -367,16 +367,16 @@ def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced
         ticket = {
             "id": ticket_id,
             "priority": "P1",
-            "package": "外部证据",
+            "package": "External Evidence",
             "market": config.get("market", "both"),
             "kind": "offsite",
             "source": "manual",
-            "title": f"推动 {hostname} 页面补充品牌信息",
-            "why": f"该外部页面会影响 {len(question_ids)} 个用户问题的检索与引用，需要补充可核验的一手信息。",
-            "action": f"联系页面负责人并提出更新诉求：{ask_text}",
-            "owner": "市场",
+            "title": f"Promote {hostname} page to enrich brand facts",
+            "why": f"This external page influences AI search citations across {len(question_ids)} target user questions. First-party verifiable evidence is required.",
+            "action": f"Contact site owner with update request: {ask_text}",
+            "owner": "Marketing",
             "effort": "M",
-            "window": "60天",
+            "window": "60d",
             "url": url,
             "ask_text": ask_text,
             "influenced_questions": question_ids,
@@ -384,7 +384,7 @@ def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced
             "affected": [],
             "acceptance": {
                 "type": "manual",
-                "desc": "人工确认外站已按诉求更新，并在工单证据中记录页面链接或沟通结果",
+                "desc": "Manually verify the external page has been updated with requested facts, and attach URL or outreach log in ticket evidence.",
             },
             "status": "todo",
             "assets": [],

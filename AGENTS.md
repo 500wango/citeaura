@@ -40,7 +40,7 @@ citeaura/
 
 ## 硬约束（违反即失败）
 
-1. **不修改 `engine/` 下的任何文件**。适配逻辑写在 `api/adapters/`。
+#1. **不修改 `engine/` 下的任何文件**。适配逻辑写在 `api/adapters/`。
 2. **不重写引擎逻辑**。SaaS 层通过 `import` 调用 `engine/scripts/` 模块。
 3. **文件系统是管线 SSOT**。Postgres 只存 auth/billing/project-index/job-meta。管线产物（audit.json, tasks.json, metrics/, delivery/）在磁盘 `work/<tenant>/<slug>/`。
 4. **BYOK 优先**。用户自带 API Key，加密存储，运行时注入 `os.environ`。

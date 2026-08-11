@@ -1,5 +1,5 @@
 /**
- * Modal 对话框组件
+ * Modal 
  */
 
 import { setSafeHtml } from '../safe-html.js';
@@ -87,18 +87,18 @@ export function openModal({
     box.querySelector('.btn-confirm').addEventListener('click', async () => {
       if (onConfirm) {
         const result = await onConfirm();
-        if (result === false) return; // 阻止关闭
+        if (result === false) return; // 
       }
       cleanup();
     });
   }
 
-  // 点击遮罩关闭
+  // 
   backdrop.addEventListener('click', (e) => {
     if (e.target === backdrop) cleanup();
   });
 
-  // ESC 键关闭
+  // ESC 
   const handleKeydown = (e) => {
     if (e.key === 'Escape') {
       cleanup();

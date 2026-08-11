@@ -148,7 +148,7 @@ def publish_content(
             state = publishing.overview(project.slug, _configured_codes(db, tenant.id))
             publisher = next(item for item in state["publishers"] if item["code"] == platform)
             if not publisher["ready"]:
-                return {"ok": False, "error": "发布渠道尚未就绪：" + "、".join(publisher["missing"])}
+                return {"ok": False, "error": "Publishing destination not ready: " + ", ".join(publisher["missing"])}
             return publishing.publish(project.slug, platform, payload.path, payload.title.strip())
     except (GeoEngineError, RuntimeError, ValueError) as exc:
         _error(status.HTTP_400_BAD_REQUEST, "publishing_operation_failed", str(exc))

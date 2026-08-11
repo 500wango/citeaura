@@ -1,5 +1,5 @@
 /**
- * 选项卡组件
+ * 
  */
 
 export function renderTabs({ tabs = [], activeId = '', containerClass = '' } = {}) {

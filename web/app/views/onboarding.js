@@ -1,5 +1,5 @@
 /**
- * 新建品牌向导视图 (Onboarding)
+ *  (Onboarding)
  */
 
 import { projects } from '../api.js';
@@ -60,6 +60,32 @@ export default {
   mounted: (ctx) => {
     const form = document.getElementById('onboard-form');
     if (!form) return;
+
+    // Auto-detect pending domain from scanner parameter
+    try {
+      const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+      const paramDomain = urlParams.get('domain');
+      const pendingDomain = paramDomain || sessionStorage.getItem('citeaura_pending_domain') || localStorage.getItem('citeaura_pending_domain');
+      
+      if (pendingDomain) {
+        const clean = pendingDomain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+        const urlInput = document.getElementById('ob-url');
+        const nameInput = document.getElementById('ob-name');
+        
+        if (urlInput && !urlInput.value) {
+          urlInput.value = `https://${clean}`;
+        }
+        if (nameInput && !nameInput.value) {
+          const rawName = clean.split('.')[0];
+          nameInput.value = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+        }
+        toast.info(t('onboard.domain_loaded', {}, `Loaded target domain: ${clean}`));
+        sessionStorage.removeItem('citeaura_pending_domain');
+        localStorage.removeItem('citeaura_pending_domain');
+      }
+    } catch (e) {
+      console.warn('Could not auto-fill domain:', e);
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();

@@ -14,12 +14,12 @@ from pathlib import Path
 
 import geolib as G
 
-GRADE_NOTE = {"A": "可直接被引用", "B": "基本可用", "C": "需要改造", "D": "等于不存在"}
+GRADE_NOTE = {"A": "Directly citeable", "B": "Usable baseline", "C": "Needs optimization", "D": "Non-extractable"}
 
 
 def cell(s) -> str:
-    """表格单元格转义：竖线会破 Markdown 表格，换行同理。"""
-    return re.sub(r"\s+", " ", str(s)).replace("|", "／").strip()
+    """Table cell escaping."""
+    return re.sub(r"\s+", " ", str(s)).replace("|", "/").strip()
 
 
 def prev_metrics(pdir: Path, current: str):
@@ -38,22 +38,22 @@ def delta(cur, prev, pct=False):
         return ""
     d = cur - prev
     if abs(d) < 1e-9:
-        return " (持平)"
+        return " (flat)"
     arrow = "↑" if d > 0 else "↓"
     return f" ({arrow}{abs(d)*100:.1f}pp)" if pct else f" ({arrow}{abs(d):.1f})"
 
 
 def pct(v):
-    """指标 None = 未测（比如该平台只采了点名品牌的验证题），不编数。"""
-    return f"{v:.0%}" if isinstance(v, (int, float)) else "未测"
+    """None metric = unmeasured, do not fabricate numbers."""
+    return f"{v:.0%}" if isinstance(v, (int, float)) else "Unmeasured"
 
 
 def collect_todos(audit: dict, top: int = 20) -> list[dict]:
-    """把页面级 issue 汇总成按优先级排好的待办。"""
+    """Aggregate page-level issues into prioritized action items."""
     buckets: dict[tuple[str, str], list[str]] = {}
     for issue in audit.get("site_issues", []):
         pri, _, body = issue.partition(" ")
-        buckets.setdefault((pri, body), []).append("站点级")
+        buckets.setdefault((pri, body), []).append("Sitewide")
     for p in audit.get("pages", []):
         for issue in p.get("issues", []):
             pri, _, body = issue.partition(" ")
@@ -68,35 +68,35 @@ def collect_todos(audit: dict, top: int = 20) -> list[dict]:
 
 
 def _bench_section(cn_domains: dict[str, int]) -> str:
-    """把本期国内信源和 CN-GEO 全国大盘对照，指出高杠杆缺口。"""
+    """Compare cited sources against national benchmark to identify high-leverage opportunities."""
     import benchmark
 
     b = benchmark.compare(cn_domains)
-    L = ["#### 与全国大盘对照", "",
-         f"CN-GEO 实测的 15 个「跨平台通吃」信源里，本期你占了 **{len(b['cross_platform_covered'])}/15**"
-         f"（{b['coverage_rate']:.0%}）。这类域名覆盖全部 11 个平台端，一次投入全平台受益。", ""]
+    L = ["#### Benchmark Comparison", "",
+         f"Among the 15 high-authority cross-platform citation sources in the national benchmark, you cover **{len(b['cross_platform_covered'])}/15**"
+         f" ({b['coverage_rate']:.0%}). These root domains influence all frontier AI models.", ""]
 
     if b["cross_platform_missing"]:
-        L += ["**还没占到的（按全国引用量排序，越靠前越该先做）**：", "",
-              "| 域名 | 类型 | 全国引用量 |", "|---|---|---:|"]
+        L += ["**Missing Key Sources (Ranked by National Citation Volume)**:", "",
+              "| Domain | Category | National Citations |", "|---|---|---:|"]
         for m in b["cross_platform_missing"][:10]:
             L.append(f"| `{m['domain']}` | {m['category']} | {m['national_citations']:,} |")
         L.append("")
 
     if b["ecosystem_gaps"]:
-        L += ["**平台生态门槛未跨过**（不进这些站，对应平台基本进不去）：", ""]
+        L += ["**Ecosystem Gaps (Critical Platforms Gateways)**:", ""]
         for g in b["ecosystem_gaps"]:
             L.append(f"- `{g['domain']}` — {g['why']}")
         L.append("")
 
     if b["high_position_hits"]:
-        L += ["**已占到且引用位置靠前的**（值得加码）：", ""]
+        L += ["**Covered Sources with High Placement (High Leverage)**:", ""]
         for h in b["high_position_hits"]:
-            L.append(f"- `{h['domain']}`（全国平均引用位置 {h['position']}，本期被引 {h['your_citations']} 次）")
+            L.append(f"- `{h['domain']}` (Avg placement #{h['position']}, cited {h['your_citations']} times this cycle)")
         L.append("")
 
-    L += ["> 提醒：**品牌官网类信源只占全库引用的 1.37%**。官网是事实源不是引用源，",
-          "> 把力气从「官网再优化」转到「外部信源」通常回报更高。依据见 `references/cn-source-ranking.md`。", ""]
+    L += ["> Note: **Brand official sites account for only 1.37% of total citation links across models**. The official site acts as the source of truth, not the primary citation link.",
+          "> Shifting resources from 'micro-optimizing site HTML' to 'building external authoritative sources' typically delivers higher ROI. See `references/sources.md`.", ""]
     return "\n".join(L)
 
 
@@ -104,113 +104,112 @@ def build_markdown(cfg, audit, metrics, prev_m, prev_a, todos) -> str:
     b = cfg["brand"]
     L = []
     A = L.append
-    A(f"# {b['name']} · GEO 执行报告 · {G.today()}")
+    A(f"# {b['name']} · GEO Diagnostic Report · {G.today()}")
     A("")
-    A(f"- 官网：{b['site']}")
-    A(f"- 市场：{ {'cn':'国内','global':'海外','both':'国内+海外'}.get(cfg.get('market','cn'), cfg.get('market')) }")
-    A(f"- 本期抓取：{audit['page_count']} 页；站点均分 **{audit['avg_score']}**"
-      + (delta(audit["avg_score"], prev_a["avg_score"]) if prev_a else " （首期基线）"))
+    A(f"- Official Website: {b['site']}")
+    A(f"- Target Market: { {'cn':'Domestic (CN)','global':'Global','both':'Global & Domestic'}.get(cfg.get('market','global'), cfg.get('market')) }")
+    A(f"- Crawled Pages: {audit['page_count']} pages; Average Site Score **{audit['avg_score']}**"
+      + (delta(audit["avg_score"], prev_a["avg_score"]) if prev_a else " (Baseline run)"))
     A("")
 
-    A("## 一、结论先行")
+    A("## 1. Executive Summary")
     A("")
     p0 = [t for t in todos if t["priority"] == "P0"]
     if p0:
-        A("本期必须先解决的 P0：")
+        A("Critical P0 Blockers to Resolve First:")
         for t in p0[:5]:
-            A(f"- **{t['action']}** — 影响 {t['affected']} 处")
+            A(f"- **{t['action']}** — affects {t['affected']} locations")
     else:
-        A("- 没有 P0 阻塞项，重心转向内容抽取块和外部信源建设。")
+        A("- Zero P0 blockers. Focus on content extraction blocks and authoritative citation building.")
     A("")
     if metrics and metrics.get("platforms"):
-        for mk, mk_name in (("cn", "国内"), ("global", "海外")):
+        for mk, mk_name in (("cn", "Domestic (CN)"), ("global", "Global")):
             pool = [(p, m) for p, m in metrics["platforms"].items()
                     if m.get("market", "cn") == mk]
             if not pool:
                 continue
             rows = [(p, m) for p, m in pool if m.get("mention_rate") is not None]
             if not rows:
-                A(f"- {mk_name}：未测")
+                A(f"- {mk_name}: Unmeasured")
                 continue
             best = max(rows, key=lambda x: x[1]["mention_rate"])
             worst = min(rows, key=lambda x: x[1]["mention_rate"])
             if len(rows) < 2 or best[1]["mention_rate"] == worst[1]["mention_rate"]:
-                A(f"- {mk_name}：各平台提及率无差异或样本不足，不下结论")
+                A(f"- {mk_name}: Uniform mention rates across platforms or insufficient sample size.")
                 continue
-            A(f"- {mk_name}最好：**{best[1].get('label', best[0])}**（提及率 {best[1]['mention_rate']:.0%}）；"
-              f"最弱：**{worst[1].get('label', worst[0])}**（{worst[1]['mention_rate']:.0%}）")
+            A(f"- {mk_name} Top Performer: **{best[1].get('label', best[0])}** (Mention rate {best[1]['mention_rate']:.0%}); "
+              f"Weakest: **{worst[1].get('label', worst[0])}** ({worst[1]['mention_rate']:.0%})")
     A("")
 
-    A("## 二、站点技术底座")
+    A("## 2. Technical Infrastructure")
     A("")
     s = audit.get("site", {})
-    A("| 检查项 | 结果 |")
+    A("| Check Item | Result |")
     A("|---|---|")
-    A(f"| sitemap.xml | {'有（' + str(s.get('sitemap_url_count', 0)) + ' 条 URL）' if s.get('has_sitemap') else '**无**'} |")
-    A(f"| llms.txt | {'有' if s.get('has_llms_txt') else '**无**'} |")
-    A(f"| robots 封禁 AI 抓取器 | {'、'.join(s.get('ai_bots_blocked') or []) or '无'} |")
-    A(f"| 页面可访问率 | {s.get('pages_ok', 0)}/{s.get('pages_crawled', 0)} |")
+    A(f"| sitemap.xml | {'Present (' + str(s.get('sitemap_url_count', 0)) + ' URLs)' if s.get('has_sitemap') else '**Missing**'} |")
+    A(f"| llms.txt | {'Present' if s.get('has_llms_txt') else '**Missing**'} |")
+    A(f"| Robots Disallowed Bots | {', '.join(s.get('ai_bots_blocked') or []) or 'None'} |")
+    A(f"| Page Accessibility Ratio | {s.get('pages_ok', 0)}/{s.get('pages_crawled', 0)} |")
     lc = audit.get("language_coverage") or {}
     if lc:
-        lang_line = f"中文 {lc.get('zh_pages', 0)} 页 / 英文 {lc.get('en_pages', 0)} 页"
+        lang_line = f"Chinese {lc.get('zh_pages', 0)} pages / English {lc.get('en_pages', 0)} pages"
         if lc.get("ja_pages", 0) > 0:
-            lang_line += f" / 日文 {lc['ja_pages']} 页"
-        A(f"| 有效内容页语言 | {lang_line} |")
+            lang_line += f" / Japanese {lc['ja_pages']} pages"
+        A(f"| Language Coverage | {lang_line} |")
     A("")
     if audit.get("site_issues"):
         for i in audit["site_issues"]:
             A(f"- {i}")
         A("")
 
-    A("## 三、页面 GEO 体检")
+    A("## 3. Page GEO Audit")
     A("")
     gd = audit["grade_distribution"]
-    A("| 等级 | 页数 | 含义 |")
+    A("| Grade | Pages | Meaning |")
     A("|---|---:|---|")
     for g in "ABCD":
         A(f"| {g} | {gd.get(g, 0)} | {GRADE_NOTE[g]} |")
     A("")
-    A("最需要改造的页面（分数从低到高）：")
+    A("Pages in Urgent Need of Optimization (Lowest Score First):")
     A("")
-    A("| 分数 | 词数 | 缺失抽取块 | 页面 |")
+    A("| Score | Words | Missing Extraction Blocks | Page |")
     A("|---:|---:|---|---|")
     for p in audit["pages"][:12]:
-        miss = "、".join([k for k, v in p["blocks"].items() if not v]) or "—"
+        miss = ", ".join([k for k, v in p["blocks"].items() if not v]) or "—"
         label = cell(p["title"] or p["url"])[:40]
         A(f"| {p['score']} | {p['word_count']} | {miss} | [{label}]({p['url']}) |")
     A("")
-    A("全站抽取块缺口（GEO 最大的杠杆点）：")
+    A("Sitewide Extraction Block Gaps (Highest Leverage GEO Actions):")
     A("")
-    A("| 抽取块 | 缺失页数 | 实测增益 |")
+    A("| Extraction Block | Missing Pages | Empirical Lift |")
     A("|---|---:|---|")
-    gain = {"数字事实": "+61.6%", "定义": "+57.3%", "对比": "+55.3%", "操作步骤": "+41.2%", "FAQ": "无显著增益，但利于问答召回"}
+    gain = {"数字事实": "+61.6%", "定义": "+57.3%", "对比": "+55.3%", "操作步骤": "+41.2%", "FAQ": "Facilitates direct QA retrieval",
+            "numeric_facts": "+61.6%", "definition": "+57.3%", "comparison": "+55.3%", "steps": "+41.2%", "faq": "Facilitates direct QA retrieval"}
     for g in audit["block_gap"]:
         A(f"| {g['block']} | {g['missing_pages']}/{g['total']} | {gain.get(g['block'], '—')} |")
     A("")
 
-    A("## 四、AI 答案可见性")
+    A("## 4. AI Search Visibility & Citations")
     A("")
     if not metrics or not metrics.get("platforms"):
-        A("本期没有采样数据。API 平台配好 Key 后跑 `sample`，网页端平台用 `sample-sheet` 导出人工采样表。")
+        A("No sampling metrics available for this cycle. Configure API keys in Settings and run Sampling, or export a manual sampling sheet.")
         A("")
     else:
         stale = metrics.get("date") and metrics["date"] != G.today()
-        A(f"样本量 {metrics['sample_count']} 条 / 问题 {metrics['question_count']} 个"
-          + (f"，采样日期 **{metrics['date']}**（非本期，体检与采样节奏不同步属正常）。" if stale else "。"))
+        A(f"Total Samples: {metrics['sample_count']} / Questions: {metrics['question_count']}"
+          + (f", sampled on **{metrics['date']}**." if stale else "."))
         A("")
-        A("> 国内和海外是两套独立战场，指标分开算、不合并平均。"
-          "同一平台的 API 与网页端、Web 与 App 也各记各的。")
+        A("> Domestic and Global markets are measured separately; metrics are never blended or averaged together.")
         A("")
-        # 国内 / 海外分开成表：跨市场求平均没有任何解释力
-        for mk, mk_name in (("cn", "国内"), ("global", "海外")):
+        for mk, mk_name in (("cn", "Domestic (CN)"), ("global", "Global")):
             rows = {p: m for p, m in metrics["platforms"].items() if m.get("market", "cn") == mk}
             if not rows:
                 continue
-            A(f"### {mk_name}市场")
+            A(f"### {mk_name} Market")
             A("")
-            A("**无提示可见性**（问题里不出现品牌名，考的是 AI 会不会主动想到你）：")
+            A("**Unprompted Visibility** (Brand name not in prompt; measures whether AI mentions brand organically):")
             A("")
-            A("| 平台 | 样本 | 提及率 | 首位率 | Top3 | 均排名 | 引用官网率 |")
+            A("| Platform | Samples | Mention Rate | Top 1 | Top 3 | Avg Rank | Own Domain Cited |")
             A("|---|---:|---:|---:|---:|---:|---:|")
             for plat, m in rows.items():
                 pm = (prev_m or {}).get("platforms", {}).get(plat, {})
@@ -221,15 +220,13 @@ def build_markdown(cfg, audit, metrics, prev_m, prev_a, todos) -> str:
             A("")
             probes = {p: m["probe"] for p, m in rows.items() if (m.get("probe") or {}).get("samples")}
             if probes:
-                A("**品牌认知**（直接点名品牌提问，考的是 AI 认不认识你、答得对不对）：")
+                A("**Brand Knowledge Verification** (Direct brand query; measures factual accuracy and perception):")
                 A("")
-                A("| 平台 | 样本 | 认出品牌 | 引用官网 |")
+                A("| Platform | Samples | Recognized | Own Domain Cited |")
                 A("|---|---:|---:|---:|")
                 for plat, pr in probes.items():
                     A(f"| {cell(rows[plat].get('label', plat))} | {pr['samples']} "
                       f"| {pr['recognized_rate']:.0%} | {pr['own_domain_cite_rate']:.0%} |")
-                A("")
-                A("> 这两张表必须分开看。点名提问时答案必然复述品牌名，混进提及率就是假阳性。")
                 A("")
 
             comp: dict[str, int] = {}
@@ -240,10 +237,10 @@ def build_markdown(cfg, audit, metrics, prev_m, prev_a, todos) -> str:
                 for k, v in m["top_cited_domains"].items():
                     doms[k] = doms.get(k, 0) + v
             if comp:
-                A(f"{mk_name}竞品被提及次数：" + "、".join(f"{k} {v}" for k, v in sorted(comp.items(), key=lambda x: -x[1])[:10]))
+                A(f"{mk_name} Competitor Mention Frequency: " + ", ".join(f"{k} ({v})" for k, v in sorted(comp.items(), key=lambda x: -x[1])[:10]))
                 A("")
             if doms:
-                A(f"{mk_name} AI 实际引用的信源域名 Top（这就是你该去铺内容的地方）：")
+                A(f"{mk_name} Top Cited Source Domains by AI (Target destinations for content distribution):")
                 A("")
                 for k, v in sorted(doms.items(), key=lambda x: -x[1])[:15]:
                     A(f"- `{k}` × {v}")
@@ -251,33 +248,33 @@ def build_markdown(cfg, audit, metrics, prev_m, prev_a, todos) -> str:
             if mk == "cn" and doms:
                 A(_bench_section(doms))
 
-    A("## 五、本期待办")
+    A("## 5. Action Tickets")
     A("")
-    A("| 优先级 | 动作 | 影响面 | 示例 |")
+    A("| Priority | Action | Impact Scope | Example |")
     A("|---|---|---:|---|")
     for t in todos:
         ex = t["examples"][0] if t["examples"] else ""
-        ex = ex if ex == "站点级" else f"[链接]({ex})"
+        ex = ex if ex == "Sitewide" else f"[Link]({ex})"
         A(f"| {t['priority']} | {cell(t['action'])} | {t['affected']} | {ex} |")
     A("")
     A("---")
     A("")
-    A(f"评分口径见 `references/method.md`。生成时间 {G.now_iso()}。")
+    A(f"Methodology specifications: `references/method.md`. Generated at {G.now_iso()}.")
     return "\n".join(L)
 
 
 def market_avg_cards(metrics) -> list[tuple[str, str]]:
-    """国内/海外平均提及率分开两张卡，各按各市场非 None 值平均；全 None 显示未测。"""
+    """Domestic/Global average mention rates split into two cards."""
     cards = []
     if not metrics or not metrics.get("platforms"):
         return cards
-    for mk, mk_name in (("cn", "国内"), ("global", "海外")):
+    for mk, mk_name in (("cn", "Domestic (CN)"), ("global", "Global")):
         pool = [m for m in metrics["platforms"].values() if m.get("market", "cn") == mk]
         if not pool:
             continue
         rates = [m["mention_rate"] for m in pool if m.get("mention_rate") is not None]
-        cards.append((f"{mk_name}平均提及率",
-                      f"{sum(rates)/len(rates):.0%}" if rates else "未测"))
+        cards.append((f"{mk_name} Avg Mention",
+                      f"{sum(rates)/len(rates):.0%}" if rates else "Unmeasured"))
     return cards
 
 
@@ -287,7 +284,7 @@ CSS = """
 :root[data-theme=dark]{--bg:#14161a;--fg:#e6e6e6;--mut:#9aa0a6;--line:#2c3037;--acc:#7fb3e0;--warn:#e08b5f;--card:#1b1e23}
 :root[data-theme=light]{--bg:#fdfcfa;--fg:#1f2328;--mut:#6b7280;--line:#e5e1d8;--acc:#1f4e79;--warn:#b4451f;--card:#fff}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 .wrap{max-width:920px;margin:0 auto;padding:40px 24px 96px}
 h1{font-size:28px;margin:0 0 4px;letter-spacing:-.01em}
 h2{font-size:20px;margin:44px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--line);color:var(--acc)}
@@ -311,7 +308,7 @@ hr{border:0;border-top:1px solid var(--line);margin:36px 0}
 
 
 def md_to_html(md: str) -> str:
-    """够用的 Markdown 子集渲染：标题/表格/列表/链接/粗体/行内码。"""
+    """Markdown subset renderer."""
     def inline(s):
         s = html.escape(s)
         s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', s)
@@ -325,7 +322,7 @@ def md_to_html(md: str) -> str:
         if ln.startswith("|") and i + 1 < len(lines) and re.match(r"^\|[\s:|-]+\|$", lines[i + 1]):
             aligns = [c.strip() for c in lines[i + 1].strip("|").split("|")]
             head = [c.strip() for c in ln.strip("|").split("|")]
-            cls = ["n" if a.endswith(":") else "" for a in aligns]  # ---: 表示右对齐数字列
+            cls = ["n" if a.endswith(":") else "" for a in aligns]
             rows = []
             i += 2
             while i < len(lines) and lines[i].startswith("|"):
@@ -358,7 +355,7 @@ def md_to_html(md: str) -> str:
 def build_html(title: str, md: str, cards: list[tuple[str, str]]) -> str:
     card_html = "".join(f'<div class="card"><div class="k">{html.escape(k)}</div><div class="v">{html.escape(v)}</div></div>' for k, v in cards)
     return (
-        f"<!doctype html><html lang=zh-CN><head><meta charset=utf-8>"
+        f"<!doctype html><html lang=en><head><meta charset=utf-8>"
         f'<meta name=viewport content="width=device-width,initial-scale=1">'
         f"<title>{html.escape(title)}</title><style>{CSS}</style></head><body><div class=wrap>"
         f'<div class="cards">{card_html}</div>{md_to_html(md)}</div></body></html>'
@@ -370,9 +367,7 @@ def run(slug: str) -> Path:
     pdir = G.project_dir(slug)
     audit = G.read_json(pdir / "audit.json")
     if not audit:
-        G.die("缺 audit.json，先运行 audit")
-    # 优先用当天的采样；没有就回退到最近一期，并在报告里标明日期。
-    # （体检可以天天跑，采样通常两周一次，两者日期本来就不会总对齐）
+        G.die("Missing audit.json, run audit first")
     metrics = G.read_json(pdir / "metrics" / f"{G.today()}.json", None)
     if metrics is None:
         files = sorted((pdir / "metrics").glob("*.json")) if (pdir / "metrics").exists() else []
@@ -384,24 +379,24 @@ def run(slug: str) -> Path:
     md = build_markdown(cfg, audit, metrics, pm, pa, todos)
 
     cards = [
-        ("站点均分", str(audit["avg_score"])),
-        ("抓取页数", str(audit["page_count"])),
-        ("待改造页(C/D)", str(audit["grade_distribution"].get("C", 0) + audit["grade_distribution"].get("D", 0))),
-        ("P0 待办", str(sum(1 for t in todos if t["priority"] == "P0"))),
+        ("Site Score", str(audit["avg_score"])),
+        ("Crawled Pages", str(audit["page_count"])),
+        ("Pages to Fix (C/D)", str(audit["grade_distribution"].get("C", 0) + audit["grade_distribution"].get("D", 0))),
+        ("P0 Blockers", str(sum(1 for t in todos if t["priority"] == "P0"))),
     ]
     cards += market_avg_cards(metrics)
 
     outdir = pdir / "reports" / G.today()
     outdir.mkdir(parents=True, exist_ok=True)
     (outdir / "report.md").write_text(md, "utf-8")
-    (outdir / "report.html").write_text(build_html(f"{cfg['brand']['name']} GEO 报告 {G.today()}", md, cards), "utf-8")
+    (outdir / "report.html").write_text(build_html(f"{cfg['brand']['name']} GEO Report {G.today()}", md, cards), "utf-8")
     (pdir / "reports" / "latest.md").write_text(md, "utf-8")
     G.write_json(pdir / "todos.json", todos)
 
-    # 归档本期 audit，供下期算 delta
+    # Archive current audit for delta calculation in next run
     G.write_json(pdir / "history" / f"audit-{G.today()}.json",
                  {"avg_score": audit["avg_score"], "grade_distribution": audit["grade_distribution"],
                   "page_count": audit["page_count"], "date": G.today()})
 
-    G.info(f"报告已生成 → {outdir/'report.html'}")
+    G.info(f"Report generated → {outdir/'report.html'}")
     return outdir / "report.html"

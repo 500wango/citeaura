@@ -21,184 +21,182 @@ import geolib as G
 # national / position / platforms 均来自 references/cn-source-ranking.md 的实算值。
 # position 越小 = 在 AI 答案里出现得越靠前。None 表示该数据集中样本不足。
 
+# ---------------------------------------------------------------- 渠道库
+
 CHANNELS_CN = [
-    dict(id="official", name="官网", kind="自有阵地", domains=[], national=2569, position=None,
+    dict(id="official", name="Official Site", kind="Owned Asset", domains=[], national=2569, position=None,
          platforms=None, priority="P0",
-         why="品牌官网类信源只占国内全库引用的 1.37%——它是**事实源**不是引用源。"
-             "作用是让 AI 描述你时口径正确、被外部站引用时有可信落点。",
-         forms=["定义块与首屏事实", "产品/定价/案例页", "FAQ（答案须在静态 HTML 可见）",
-                "llms.txt", "JSON-LD 结构化数据"],
-         volume="核心页 8–15 个", cadence="一次建好 + 季度维护", owner="开发 + 内容",
-         effect="纠正 AI 对品牌的描述口径；不指望它带来引用量"),
-    dict(id="baike", name="百度百科 / 搜狗百科", kind="百科", domains=["baike.baidu.com"],
+         why="Brand official sites account for only 1.37% of citations—it is a **source of truth**, not the primary citation link. It ensures AI describes brand facts accurately.",
+         forms=["Definition block & hero facts", "Product / Pricing / Case study pages", "FAQ (visible in static HTML)",
+                "llms.txt", "JSON-LD structured data"],
+         volume="8–15 core pages", cadence="Initial setup + quarterly maintenance", owner="Engineering + Content",
+         effect="Aligns factual brand descriptions across frontier models"),
+    dict(id="baike", name="Baidu Baike / Sogou Baike", kind="Encyclopedia", domains=["baike.baidu.com"],
          national=9396, position=None, platforms=9, priority="P0",
-         why="实体消歧的地基。baidu.com 同时是**百度 AI 37.7%、文心 29.0%** 引用的来源，一举两得。",
-         forms=["品牌词条", "产品词条", "名称消歧段落"],
-         volume="1–2 个词条", cadence="一次建好 + 半年维护", owner="市场",
-         effect="修正品牌归类；成为多平台的共同事实源"),
-    dict(id="ranking", name="榜单/品牌库站（买购网 chinapp cnpp 排行榜123）", kind="榜单",
+         why="Foundational entity disambiguation source; baidu.com provides 37.7% of Baidu AI citations.",
+         forms=["Brand entity", "Product entry", "Disambiguation paragraph"],
+         volume="1–2 entries", cadence="Initial setup + semi-annual updates", owner="Marketing",
+         effect="Fixes brand entity categorization across multi-model knowledge bases"),
+    dict(id="ranking", name="Ranking & Directory Platforms (Chinapp / Maigoo / PHB123)", kind="Directory",
          domains=["maigoo.com", "chinapp.com", "cnpp.cn", "phb123.com", "cnpp100.com"],
          national=17116, position=6.3, platforms=11, priority="P1",
-         why="**仅 28 个域名吃掉全库引用的 9.1%，且平均引用位置全库最靠前**（cnpp 6.10、maigoo 6.36）。"
-             "AI 回答「有哪些/哪个好/怎么选」时最省事就是抄一份现成榜单——而这正是大多数商业问题的问法。"
-             "覆盖全部 11 个平台端，一次投入全平台受益。",
-         forms=["品牌条目（长/中/短三版）", "品类榜单收录", "参数对比表"],
-         volume="4–5 个站点条目", cadence="一次提交 + 季度更新", owner="市场",
-         effect="国内 GEO 里性价比最高、也最常被忽略的一块"),
-    dict(id="wechat", name="微信公众号 / 腾讯新闻", kind="内容平台", domains=["qq.com", "mp.weixin.qq.com"],
+         why="28 domains capture 9.1% of national citations with the highest placement ranks (#6.10–#6.36). AI frequently synthesizes listicles from directory databases.",
+         forms=["Brand profile (long/medium/short)", "Category rankings inclusion", "Spec comparison tables"],
+         volume="4–5 directory profiles", cadence="Initial submission + quarterly updates", owner="Marketing",
+         effect="Highest leverage external authority channels"),
+    dict(id="wechat", name="WeChat Official Accounts / Tencent News", kind="Media", domains=["qq.com", "mp.weixin.qq.com"],
          national=11017, position=None, platforms=11, priority="P1",
-         why="qq.com 覆盖全部 11 个平台端，且是**腾讯元宝 20.5%** 引用的来源——元宝几乎唯一的护城河。",
-         forms=["深度长文（1500 字+）", "行业观点", "案例复盘"],
-         volume="每月 2–4 篇", cadence="每周或每两周", owner="内容",
-         effect="打通微信生态与元宝；同时覆盖微信搜一搜"),
-    dict(id="toutiao", name="今日头条号 / 抖音图文", kind="内容平台",
+         why="qq.com spans 11 platforms and contributes 20.5% of Tencent Yuanbao citations.",
+         forms=["In-depth articles (1,500+ words)", "Industry insights", "Case studies"],
+         volume="2–4 articles/month", cadence="Bi-weekly", owner="Content",
+         effect="Tencent Yuanbao and WeChat search ecosystem coverage"),
+    dict(id="toutiao", name="Toutiao / Douyin Articles", kind="Media",
          domains=["toutiao.com", "iesdouyin.com"], national=20956, position=None, platforms=11,
          priority="P1",
-         why="toutiao.com 覆盖 11 个平台端；iesdouyin.com 是**豆包 App 28.1%** 引用的来源。"
-             "抖音 AI 更是只引用自家一个域名。",
-         forms=["图文（口语化标题）", "短视频 + 字幕", "行业科普"],
-         volume="每月 3–5 条", cadence="每周", owner="内容",
-         effect="字节生态是豆包系的硬门槛，不进去基本没戏"),
-    dict(id="zhihu", name="知乎", kind="知识社区", domains=["zhihu.com", "zhuanlan.zhihu.com"],
+         why="toutiao.com spans 11 platforms; iesdouyin.com represents 28.1% of Doubao App citations.",
+         forms=["Visual articles", "Short videos with transcripts", "Industry primers"],
+         volume="3–5 articles/month", cadence="Weekly", owner="Content",
+         effect="Doubao and ByteDance ecosystem visibility"),
+    dict(id="zhihu", name="Zhihu", kind="Q&A Community", domains=["zhihu.com", "zhuanlan.zhihu.com"],
          national=None, position=None, platforms=None, priority="P1",
-         why="长期被反复引用的高质量问答源，也是 B2B 决策者的聚集地。本项目首期采样中被引 13 次。",
-         forms=["回答具体问题（先结论后论证）", "专栏长文"],
-         volume="每月 2–4 篇", cadence="每两周", owner="内容",
-         effect="承接「哪个好/怎么选」类问题，克制植入"),
-    dict(id="tech", name="CSDN / 博客园 / 腾讯云开发者社区", kind="技术社区",
+         why="High-authority community discussion cited across multiple LLM search synthesis pipelines.",
+         forms=["Direct answers to target queries", "Column articles"],
+         volume="2–4 answers/month", cadence="Bi-weekly", owner="Content",
+         effect="Captures comparison, recommendation, and selection intent"),
+    dict(id="tech", name="CSDN / CNBlogs / Cloud Dev Communities", kind="Tech Community",
          domains=["csdn.net", "blog.csdn.net", "cnblogs.com", "cloud.tencent.com"],
          national=1388, position=7.53, platforms=11, priority="P1",
-         why="技术类 B2B 产品的高权重信源。csdn.net 引用位置 7.53 靠前；"
-             "cnblogs.com 覆盖 11 个平台端，且是 Kimi 的第二大信源（9.1%）。"
-             "本项目首期采样中 CSDN 被引 17 次、腾讯云 10 次，是实测第一梯队。",
-         forms=["技术实现文章", "选型对比", "踩坑记录"],
-         volume="每月 2–4 篇", cadence="每两周", owner="内容 + 技术",
-         effect="技术决策者路径；对 DeepSeek、Kimi 权重高"),
-    dict(id="quark", name="夸克 / 神马搜索收录", kind="搜索代理", domains=["sm.cn", "uc.cn"],
+         why="High-weight authority sources for B2B tech products; cnblogs is Kimi's #2 citation domain (9.1%).",
+         forms=["Technical walkthroughs", "Architecture comparisons", "Implementation guides"],
+         volume="2–4 articles/month", cadence="Bi-weekly", owner="Content + Engineering",
+         effect="High weight for DeepSeek, Kimi, and technical evaluators"),
+    dict(id="quark", name="Quark / Shenma Search Indexing", kind="Search Index", domains=["sm.cn", "uc.cn"],
          national=6990, position=5.31, platforms=6, priority="P1",
-         why="**sm.cn 是全库平均引用位置最靠前的域名（5.31），也是千问 19.2% 引用的来源。**"
-             "提交收录成本极低，但几乎没人做——这是当前最明显的信息差。",
-         forms=["站点收录提交", "sitemap 推送"],
-         volume="一次性", cadence="一次 + 新页面时补提", owner="开发",
-         effect="优化夸克收录 ≈ 优化千问，性价比极高"),
-    dict(id="baijia", name="百家号 / 百度知道", kind="平台生态", domains=["baijiahao.baidu.com"],
+         why="sm.cn has the highest placement rank (#5.31) and accounts for 19.2% of Qwen citations.",
+         forms=["URL submission", "Sitemap ping"],
+         volume="One-time submission", cadence="Initial + upon new URLs", owner="Engineering",
+         effect="Directly boosts Qwen and Quark search citation probability"),
+    dict(id="baijia", name="Baijiahao / Baidu Zhidao", kind="Platform Ecosystem", domains=["baijiahao.baidu.com"],
          national=9396, position=None, platforms=9, priority="P2",
-         why="百度 AI（Top8 集中度 66.2%）和文心（66.8%）都高度封闭在百度生态内，不进去基本进不了这两个平台。",
-         forms=["百家号文章", "百度知道问答"],
-         volume="每月 2–3 篇", cadence="每两周", owner="内容",
-         effect="百度系专属通道"),
-    dict(id="media", name="行业垂类媒体 / 研究机构", kind="媒体",
+         why="Baidu AI and Ernie heavily rely on native Baidu ecosystem content.",
+         forms=["Baijiahao articles", "Zhidao Q&A entries"],
+         volume="2–3 entries/month", cadence="Bi-weekly", owner="Content",
+         effect="Baidu ecosystem gateway"),
+    dict(id="media", name="Industry Media / Research Portals", kind="Media",
          domains=["36kr.com", "zol.com.cn", "askci.com", "iimedia.cn", "sohu.com", "163.com"],
          national=14733, position=6.8, platforms=11, priority="P2",
-         why="综合新闻媒体占全库引用 13.6%；行业研究站（askci 6.27、iimedia 7.27）引用位置很靠前。",
-         forms=["新闻稿", "行业观点投稿", "研究数据引用"],
-         volume="每季 1–2 篇", cadence="按节奏", owner="市场",
-         effect="权威度背书；时效性衰减快，不适合做常青内容"),
-    dict(id="bilibili", name="B站 / 视频号", kind="视频", domains=["bilibili.com"],
+         why="General and vertical media account for 13.6% of national citations with high placement ranks.",
+         forms=["Press releases", "Industry op-eds", "Research citations"],
+         volume="1–2 articles/quarter", cadence="Periodic", owner="Marketing",
+         effect="Domain authority endorsement"),
+    dict(id="bilibili", name="Bilibili / Video Channels", kind="Video", domains=["bilibili.com"],
          national=None, position=None, platforms=11, priority="P2",
-         why="视频内容在多平台被引用，且豆包/抖音 AI 对视频生态权重高。首期采样中被引 3 次。",
-         forms=["产品演示视频", "教程视频（带完整字幕）"],
-         volume="每月 1–2 条", cadence="每月", owner="内容",
-         effect="字幕是关键——AI 读的是字幕不是画面"),
+         why="Video transcripts are actively ingested by multimodal frontier search engines.",
+         forms=["Product walkthroughs", "Tutorials with complete subtitles"],
+         volume="1–2 videos/month", cadence="Monthly", owner="Content",
+         effect="Multimodal text extraction via subtitles"),
 ]
 
 CHANNELS_GLOBAL = [
-    dict(id="official_en", name="英文官网", kind="自有阵地", domains=[], national=None, position=None,
+    dict(id="official_en", name="English Official Site", kind="Owned Asset", domains=[], national=None, position=None,
          platforms=None, priority="P0",
-         why="海外 AI 引用的可识别语言里英文占 **82.90%–95.07%**，可识别国家里 US 占 82.70%–86.76%。"
-             "机翻页几乎进不了候选池，必须英文原生。",
-         forms=["英文原生产品/定价/对比页", "英文 FAQ", "llms.en.txt"],
-         volume="核心页 8+ 个", cadence="一次建好 + 季度维护", owner="内容 + 开发",
-         effect="海外的入场门票，不是可选项"),
-    dict(id="wikipedia", name="Wikipedia", kind="百科", domains=["wikipedia.org"], national=None,
+         why="Global AI citations are dominated by English (82.90%–95.07%). Native English content is essential.",
+         forms=["Native English product/pricing/comparison pages", "English FAQ", "llms.en.txt"],
+         volume="8+ core pages", cadence="Initial setup + quarterly maintenance", owner="Content + Engineering",
+         effect="Mandatory baseline for global frontier models"),
+    dict(id="wikipedia", name="Wikipedia", kind="Encyclopedia", domains=["wikipedia.org"], national=None,
          position=None, platforms=None, priority="P1",
-         why="实体消歧的地基，规则严但一旦进去长期有效，被各平台反复引用。",
-         forms=["英文词条（需第三方来源支撑）"], volume="1 个词条",
-         cadence="一次建好", owner="市场", effect="长期权威锚点"),
-    dict(id="review", name="G2 / Capterra / Product Hunt", kind="评测聚合", domains=["g2.com", "capterra.com"],
+         why="Primary entity resolution foundation across ChatGPT, Claude, and Perplexity.",
+         forms=["English entry with third-party citations"], volume="1 entry",
+         cadence="Initial setup", owner="Marketing", effect="Long-term entity authority anchor"),
+    dict(id="review", name="G2 / Capterra / Product Hunt", kind="Review Aggregator", domains=["g2.com", "capterra.com"],
          national=None, position=None, platforms=None, priority="P1",
-         why="B2B 软件类几乎必备。AI 回答 best/alternatives 类问题时高频引用评测聚合站。",
-         forms=["产品页", "真实用户评价", "品类对比"],
-         volume="3–4 个平台", cadence="一次建好 + 持续收评价", owner="市场",
-         effect="承接 best / alternatives / vs 类问题"),
-    dict(id="reddit", name="Reddit / Hacker News", kind="社区", domains=["reddit.com"], national=None,
+         why="Frequently cited for 'best', 'vs', and 'alternatives' commercial queries.",
+         forms=["Product profile", "Verified customer reviews", "Category comparisons"],
+         volume="3–4 platforms", cadence="Initial setup + review collection", owner="Marketing",
+         effect="Captures best / alternatives / comparison queries"),
+    dict(id="reddit", name="Reddit / Hacker News", kind="Community", domains=["reddit.com"], national=None,
          position=None, platforms=None, priority="P1",
-         why="社区讨论被大量引用。本项目首期采样中 reddit.com 被引 4 次。",
-         forms=["真实参与讨论", "AMA"], volume="持续参与", cadence="每周",
-         owner="产品 + 市场",
-         effect="**绝对不要刷**——被识破反噬极大，社区记忆很长"),
-    dict(id="youtube", name="YouTube", kind="视频", domains=["youtube.com"], national=None,
+         why="Authentic peer discussions heavily prioritized by Perplexity and Google AI Overviews.",
+         forms=["Authentic community participation", "AMA sessions"], volume="Ongoing participation", cadence="Weekly",
+         owner="Product + Marketing",
+         effect="Peer recommendations and high-intent citations"),
+    dict(id="youtube", name="YouTube", kind="Video", domains=["youtube.com"], national=None,
          position=None, platforms=None, priority="P1",
-         why="本项目首期海外采样中 **youtube.com 是被引最多的域名（7 次）**。",
-         forms=["产品演示", "教程", "对比评测（须带英文字幕）"],
-         volume="每月 1–2 条", cadence="每月", owner="内容",
-         effect="海外实测第一信源"),
-    dict(id="devsite", name="GitHub / 技术文档站 / dev.to", kind="技术社区",
+         why="Leading citation domain across global AI models for product walkthroughs and comparisons.",
+         forms=["Product demonstrations", "Tutorials", "Comparison reviews (with English subtitles)"],
+         volume="1–2 videos/month", cadence="Monthly", owner="Content",
+         effect="Top-tier global citation source"),
+    dict(id="devsite", name="GitHub / Docs / dev.to", kind="Tech Community",
          domains=["github.com", "dev.to", "huggingface.co"], national=None, position=None,
          platforms=None, priority="P2",
-         why="技术类产品的高权重信源，首期采样中 dev.to、huggingface.co 均被引用。",
-         forms=["开源组件", "技术文档", "技术博客"], volume="按能力",
-         cadence="持续", owner="技术", effect="技术可信度背书"),
-    dict(id="media_en", name="英文行业媒体（TechCrunch / VentureBeat / 垂类）", kind="媒体",
+         why="High-weight authority source for developer and technical tools.",
+         forms=["Open source repositories", "Technical documentation", "Engineering blog"], volume="Ongoing",
+         cadence="Ongoing", owner="Engineering", effect="Technical authority and developer mindshare"),
+    dict(id="media_en", name="English Industry Media (TechCrunch / VentureBeat)", kind="Media",
          domains=["techcrunch.com", "venturebeat.com"], national=None, position=None,
          platforms=None, priority="P2",
-         why="三平台对来源类型高度集中：官网+新闻+行业垂类合计占 79.12%–87.52%。",
-         forms=["新闻稿", "专栏投稿"], volume="每季 1–2 篇", cadence="按节奏",
-         owner="市场", effect="权威度门槛（被引来源 DR 中位数 526–592）"),
-    dict(id="linkedin", name="LinkedIn", kind="社交", domains=["linkedin.com"], national=None,
+         why="News and vertical portals account for 79.12%–87.52% of editorial citations in frontier models.",
+         forms=["Press releases", "Guest columns"], volume="1–2 articles/quarter", cadence="Periodic",
+         owner="Marketing", effect="High Domain Rating (DR 526–592) authoritative backlinks"),
+    dict(id="linkedin", name="LinkedIn", kind="Social", domains=["linkedin.com"], national=None,
          position=None, platforms=None, priority="P2",
-         why="首期采样中被引 3 次；B2B 决策者聚集地。",
-         forms=["公司页", "创始人长文"], volume="每月 2–4 条", cadence="每周",
-         owner="市场", effect="补充信源"),
+         why="B2B decision-maker network and corporate identity verification.",
+         forms=["Company profile", "Founder long-form articles"], volume="2–4 posts/month", cadence="Weekly",
+         owner="Marketing", effect="Supplementary B2B citation grounding"),
 ]
 
 
-# 阵地 id → 适配的问题组（内容↔渠道关联的口径来源）。
-# 官网是所有内容的“家”，全组适配；其余阵地按其内容形态选择性承接；
-# quark 是收录型基础设施，不承接具体内容。
 CHANNEL_FITS = {
-    "official": ["推荐", "比较", "替代", "价格", "风险", "品牌验证", "场景"],
-    "baike": ["品牌验证"],
-    "ranking": ["推荐", "比较", "替代"],
-    "wechat": ["场景", "推荐", "风险"],
-    "toutiao": ["场景", "推荐"],
-    "zhihu": ["推荐", "比较", "替代", "风险"],
-    "tech": ["场景", "比较", "风险"],
+    "official": ["recommendation", "comparison", "alternative", "pricing", "risk", "brand_verification", "scenario",
+                 "推荐", "比较", "替代", "价格", "风险", "品牌验证", "场景"],
+    "baike": ["brand_verification", "品牌验证"],
+    "ranking": ["recommendation", "comparison", "alternative", "推荐", "比较", "替代"],
+    "wechat": ["scenario", "recommendation", "risk", "场景", "推荐", "风险"],
+    "toutiao": ["scenario", "recommendation", "场景", "推荐"],
+    "zhihu": ["recommendation", "comparison", "alternative", "risk", "推荐", "比较", "替代", "风险"],
+    "tech": ["scenario", "comparison", "risk", "场景", "比较", "风险"],
     "quark": [],
-    "baijia": ["推荐", "场景", "品牌验证"],
-    "media": ["推荐", "品牌验证"],
-    "bilibili": ["场景"],
-    "official_en": ["推荐", "比较", "替代", "价格", "风险", "品牌验证", "场景"],
-    "wikipedia": ["品牌验证"],
-    "review": ["推荐", "比较", "替代"],
-    "reddit": ["推荐", "替代", "风险"],
-    "youtube": ["场景", "比较"],
-    "devsite": ["场景", "风险"],
-    "media_en": ["推荐", "品牌验证"],
-    "linkedin": ["品牌验证", "场景"],
+    "baijia": ["recommendation", "scenario", "brand_verification", "推荐", "场景", "品牌验证"],
+    "media": ["recommendation", "brand_verification", "推荐", "品牌验证"],
+    "bilibili": ["scenario", "场景"],
+    "official_en": ["recommendation", "comparison", "alternative", "pricing", "risk", "brand_verification", "scenario",
+                    "推荐", "比较", "替代", "价格", "风险", "品牌验证", "场景"],
+    "wikipedia": ["brand_verification", "品牌验证"],
+    "review": ["recommendation", "comparison", "alternative", "推荐", "比较", "替代"],
+    "reddit": ["recommendation", "alternative", "risk", "推荐", "替代", "风险"],
+    "youtube": ["scenario", "comparison", "场景", "比较"],
+    "devsite": ["scenario", "risk", "场景", "风险"],
+    "media_en": ["recommendation", "brand_verification", "推荐", "品牌验证"],
+    "linkedin": ["brand_verification", "scenario", "品牌验证", "场景"],
 }
 
 
 # ---------------------------------------------------------------- 内容矩阵
 
-# 问题分组 → 需要什么形态的内容承接（依据 content-patterns.md）
 GROUP_PLAN = {
-    "推荐": ("榜单/品类页", "承接「有哪些/best」——必须先写评选方法再给榜单，否则 AI 视为软文"),
-    "比较": ("对比页", "同口径维度 6–10 个，**必须写自己的局限**，只夸自己可信度极低"),
-    "替代": ("对比页", "承接「XX 的替代方案」，正面回应为什么不用现有方案"),
-    "价格": ("定义/说明页", "价格透明度直接影响可信度；有特殊币种或计费方式要单独解释"),
-    "风险": ("定义/说明页", "正面回应质疑（数据安全、可靠性），回避反而降低可信度"),
-    "品牌验证": ("关于页 + 百科", "AI 回答「是家什么公司」时的事实源，实体消歧的主战场"),
-    "场景": ("教程/how-to 页", "含数字 +61.6%、how-to +41.2% 影响力；步骤块是必需项"),
+    "recommendation": ("Listicle / Category Page", "Addresses 'best / top' queries — provide evaluation criteria first"),
+    "comparison": ("Comparison Matrix Page", "6–10 standardized dimensions, acknowledge trade-offs for credibility"),
+    "alternative": ("Alternative Guide Page", "Directly addresses migration considerations and key differentiators"),
+    "pricing": ("Transparent Pricing Page", "Pricing clarity directly influences model confidence scores"),
+    "risk": ("Security & Reliability Page", "Addresses data safety and compliance proactively"),
+    "brand_verification": ("About Us & Knowledge Graph", "Primary factual source for entity recognition queries"),
+    "scenario": ("How-To Tutorial Page", "Step-by-step instructions with numeric facts (+61.6% impact)"),
+    "推荐": ("Listicle / Category Page", "Addresses 'best / top' queries — provide evaluation criteria first"),
+    "比较": ("Comparison Matrix Page", "6–10 standardized dimensions, acknowledge trade-offs for credibility"),
+    "替代": ("Alternative Guide Page", "Directly addresses migration considerations and key differentiators"),
+    "价格": ("Transparent Pricing Page", "Pricing clarity directly influences model confidence scores"),
+    "风险": ("Security & Reliability Page", "Addresses data safety and compliance proactively"),
+    "品牌验证": ("About Us & Knowledge Graph", "Primary factual source for entity recognition queries"),
+    "场景": ("How-To Tutorial Page", "Step-by-step instructions with numeric facts (+61.6% impact)"),
 }
 
 
 def _existing_content(slug: str) -> dict[str, list[str]]:
-    """扫 content/ 与 assets/，看每个问题有没有内容承接。约定：文件头注释里写 `目标问题 qXXX`。"""
     pdir = G.project_dir(slug)
     hit: dict[str, list[str]] = {}
-    for d, tag in ((pdir / "content", "已成稿"), (pdir / "assets" / "drafts", "AI初稿"),
-                   (pdir / "assets" / "outlines", "仅大纲")):
+    for d, tag in ((pdir / "content", "ready"), (pdir / "assets" / "drafts", "draft"),
+                   (pdir / "assets" / "outlines", "outline_only")):
         if not d.exists():
             continue
         for f in d.glob("*.md"):
@@ -211,9 +209,8 @@ def _existing_content(slug: str) -> dict[str, list[str]]:
 def build(slug: str) -> dict:
     cfg = G.load_config(slug)
     pdir = G.project_dir(slug)
-    market = cfg.get("market", "cn")
+    market = cfg.get("market", "global")
 
-    # 本期采样实际引用到的域名 → 判断渠道是否已覆盖
     files = sorted((pdir / "metrics").glob("*.json")) if (pdir / "metrics").exists() else []
     metrics = G.read_json(files[-1], {}) if files else {}
     cited: dict[str, set] = {"cn": set(), "global": set()}
@@ -241,12 +238,12 @@ def build(slug: str) -> dict:
     hits = _existing_content(slug)
     contents = []
     for q in cfg.get("questions", []):
-        form, note = GROUP_PLAN.get(q.get("group", ""), ("定义/说明页", ""))
+        form, note = GROUP_PLAN.get(q.get("group", ""), ("Definition / Guide Page", ""))
         st = hits.get(q.get("id"), [])
-        status = "已成稿" if "已成稿" in st else "AI初稿" if "AI初稿" in st else "仅大纲" if st else "缺口"
+        status = "ready" if "ready" in st else "draft" if "draft" in st else "outline_only" if st else "gap"
         contents.append({"id": q.get("id"), "market": q.get("market", market),
-                         "group": q.get("group", ""), "question": q.get("text", ""),
-                         "form": form, "note": note, "status": status})
+                          "group": q.get("group", ""), "question": q.get("text", ""),
+                          "form": form, "note": note, "status": status})
 
     def rate(items, ok):
         return round(sum(1 for x in items if ok(x)) / len(items), 3) if items else 0
@@ -258,27 +255,27 @@ def build(slug: str) -> dict:
         "p0p1_total": sum(1 for c in channels if c["priority"] in ("P0", "P1")),
         "p0p1_covered": sum(1 for c in channels if c["priority"] in ("P0", "P1") and c["covered"]),
         "content_total": len(contents),
-        "content_done": sum(1 for c in contents if c["status"] == "已成稿"),
-        "content_rate": rate(contents, lambda c: c["status"] == "已成稿"),
-        "content_gap": sum(1 for c in contents if c["status"] == "缺口"),
+        "content_done": sum(1 for c in contents if c["status"] == "ready"),
+        "content_rate": rate(contents, lambda c: c["status"] == "ready"),
+        "content_gap": sum(1 for c in contents if c["status"] == "gap"),
     }
 
     roadmap = [
-        {"window": "0–30 天", "focus": "地基",
+        {"window": "0–30 Days", "focus": "Foundational Baseline",
          "items": [c["name"] for c in channels if c["priority"] == "P0"] +
-                  ["承接品牌验证与价格类问题的页面"]},
-        {"window": "30–60 天", "focus": "高杠杆渠道 + 内容矩阵",
+                  ["Brand verification and pricing guide pages"]},
+        {"window": "30–60 Days", "focus": "High-Leverage Channels & Content Matrix",
          "items": [c["name"] for c in channels if c["priority"] == "P1"][:6] +
-                  ["推荐/比较/替代类内容各 1–2 篇"]},
-        {"window": "60–90 天", "focus": "扩量与闭环",
+                  ["1–2 articles each for recommendations, comparisons, and alternatives"]},
+        {"window": "60–90 Days", "focus": "Scale & Closed-Loop Verification",
          "items": [c["name"] for c in channels if c["priority"] == "P2"][:5] +
-                  ["场景/风险类内容补齐", "监测跑满 6 期并复盘"]},
+                  ["Complete scenario tutorials and risk explanations", "Run 6 consecutive verification cycles"]},
     ]
 
     data = {"slug": slug, "generated_at": G.now_iso(), "market": market,
             "channels": channels, "contents": contents,
             "coverage": coverage, "roadmap": roadmap}
     G.write_json(pdir / "blueprint.json", data)
-    G.info(f"建设蓝图：{coverage['channel_covered']}/{coverage['channel_total']} 渠道已覆盖，"
-           f"内容 {coverage['content_done']}/{coverage['content_total']} 已成稿 → blueprint.json")
+    G.info(f"Blueprint: {coverage['channel_covered']}/{coverage['channel_total']} channels covered, "
+           f"{coverage['content_done']}/{coverage['content_total']} drafts completed → blueprint.json")
     return data

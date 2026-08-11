@@ -147,7 +147,7 @@ def market_of(platform: str) -> str:
     if platform in MANUAL_ONLY:
         return MANUAL_ONLY[platform][1]
     # 未识别的平台代码（多半是笔误）：绝不默认并入国内，标记 unknown 不进任何市场统计
-    G.info(f"未识别的平台代码 {platform!r}，市场标记为 unknown（不进国内/海外统计）")
+    G.info(f"Unrecognized platform code {platform!r}, market tagged as unknown")
     return "unknown"
 
 
@@ -465,7 +465,6 @@ def analyze_answer(answer: str, cfg: dict, citations: list | None = None) -> dic
 
 
 def dedup_rows(rows: list[dict]) -> list[dict]:
-    """同日重跑/重复导入去重：按 (platform, question_id, round, sample_mode) 保留最后一条。"""
     seen: dict[tuple, dict] = {}
     for r in rows:
         seen[(r.get("platform"), r.get("question_id"), r.get("round"), r.get("sample_mode"))] = r
@@ -479,13 +478,9 @@ def aggregate(rows: list[dict], cfg: dict) -> dict:
 
     out = {}
     for plat, all_rs in by_platform.items():
-        # 点名品牌的问题（品牌验证类）不能算进可见性——答案必然复述品牌名。
-        # 它们单独统计成「品牌认知」：AI 到底知不知道这个品牌、说得对不对。
         probe = [r for r in all_rs if r.get("brand_in_question")
                  or brand_in_question(r.get("question", ""), cfg)]
         rs = [r for r in all_rs if r not in probe]
-        # 绝不回退：某平台只采了点名题时，可见性指标就是「未测」（None），
-        # 不能把点名样本塞回去凑出 mention_rate=1.0 的假阳性。
         n = len(rs)
         market = (rs[0].get("market") if rs else None) or market_of(plat)
         mentioned = [r for r in rs if r["analysis"]["brand_mentioned"]]
@@ -508,7 +503,6 @@ def aggregate(rows: list[dict], cfg: dict) -> dict:
             "own_domain_cite_rate": round(sum(1 for r in rs if r["analysis"]["own_domain_cited"]) / n, 3) if n else None,
             "competitor_mentions": dict(sorted(comp.items(), key=lambda x: -x[1])),
             "top_cited_domains": dict(sorted(dom.items(), key=lambda x: -x[1])[:15]),
-            # 品牌认知：直接点名品牌时，AI 认不认识、有没有引到官网
             "probe": {
                 "samples": len(probe),
                 "recognized_rate": round(sum(1 for r in probe if r["analysis"]["brand_mentioned"]) / len(probe), 3) if probe else None,
@@ -519,8 +513,6 @@ def aggregate(rows: list[dict], cfg: dict) -> dict:
 
 
 def confirm_competitors(slug: str, rows: list[dict]):
-    """采样里真实出现过的竞品，把 geo.json 里对应候选的 confirmed 转正。
-    只在值需要变化时才写配置（save_config 会自动备份）。"""
     seen = {c for r in rows for c in (r.get("analysis", {}).get("competitors_mentioned") or [])}
     if not seen:
         return
@@ -532,7 +524,7 @@ def confirm_competitors(slug: str, rows: list[dict]):
             confirmed.append(c["name"])
     if confirmed:
         G.save_config(slug, cfg)
-        G.info("  竞品经采样确认：" + "、".join(confirmed))
+        G.info("  Competitors confirmed by sampling: " + ", ".join(confirmed))
 
 
 # ------------------------------------------------------------ 命令
@@ -541,27 +533,26 @@ def confirm_competitors(slug: str, rows: list[dict]):
 def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: int | None = None) -> dict:
     cfg = G.load_config(slug)
     if not cfg.get("questions"):
-        G.die("geo.json 里还没有问题库，先让 Claude 生成 questions（见 SKILL.md 步骤 2）")
+        G.die("geo.json is missing questions. Please populate questions first.")
 
     plats = platforms or [p for p in cfg.get("platforms", []) if p in PROVIDERS]
     runnable = [p for p in plats if available(p)]
     skipped = [p for p in plats if not available(p)]
     if skipped:
-        G.info("跳过（缺 API Key）：" + "、".join(f"{p}({PROVIDERS[p]['key_env']})" for p in skipped))
+        G.info("Skipped (Missing API Key): " + ", ".join(f"{p}({PROVIDERS[p]['key_env']})" for p in skipped))
     if not runnable:
-        G.info("没有可用的 API 平台。用 `geo.py sample-sheet` 导出人工/浏览器采样清单。")
+        G.info("No runnable API platforms available. Use `geo.py sample-sheet` for manual sampling.")
         return {}
 
-    # 任务清单：平台 × 问题 × 轮次
     jobs = []
     for plat in runnable:
         questions = questions_for(cfg, plat)
         if limit:
             questions = questions[:limit]
         if not questions:
-            G.info(f"跳过 {plat}：问题库里没有 {market_of(plat)} 市场的问题")
+            G.info(f"Skipped {plat}: No questions matching {market_of(plat)} market")
             continue
-        G.info(f"[{plat}] {market_of(plat)} 市场 · {len(questions)} 题 × {repeat} 轮")
+        G.info(f"[{plat}] {market_of(plat)} market · {len(questions)} questions × {repeat} round(s)")
         for q in questions:
             for k in range(repeat):
                 jobs.append((plat, q, k + 1))
@@ -625,7 +616,7 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
             try:
                 rows.extend(fut.result())
             except Exception as e:  # noqa: BLE001
-                G.info(f"某平台采样中断：{type(e).__name__}: {e}")
+                G.info(f"Engine query interrupted: {type(e).__name__}: {e}")
     fh.close()
 
     all_rows = dedup_rows(G.read_jsonl(path))
@@ -637,7 +628,7 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
     }
     G.write_json(pdir / "metrics" / f"{G.today()}.json", metrics)
     confirm_competitors(slug, ok_rows)
-    G.info(f"采样完成：{len(rows)} 条 → {path}")
+    G.info(f"Sampling complete: {len(rows)} answers collected → {path}")
     return metrics
 
 
@@ -665,7 +656,7 @@ def sheet(slug: str) -> Path:
     path = G.project_dir(slug) / "samples" / f"{G.today()}-manual.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines), "utf-8")
-    G.info(f"采样表已导出：{path}")
+    G.info(f"Sampling sheet exported: {path}")
     return path
 
 
@@ -699,7 +690,7 @@ def sample_import(slug: str, file: str) -> dict:
             rows.append(rec)
 
     if not rows:
-        G.die("没解析到任何答案，检查 ```answer 代码块是否填写")
+        G.die("No answers parsed, please check if ```answer blocks are filled")
     pdir = G.project_dir(slug)
     path = pdir / "samples" / f"{G.today()}.jsonl"
     G.write_jsonl(path, G.read_jsonl(path) + rows)
@@ -711,5 +702,5 @@ def sample_import(slug: str, file: str) -> dict:
     }
     G.write_json(pdir / "metrics" / f"{G.today()}.json", metrics)
     confirm_competitors(slug, all_rows)
-    G.info(f"导入 {len(rows)} 条人工样本 → {path}")
+    G.info(f"Imported {len(rows)} manual sample(s) → {path}")
     return metrics

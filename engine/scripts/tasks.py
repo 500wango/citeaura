@@ -252,7 +252,7 @@ def build(slug: str) -> dict:
     pdir = G.project_dir(slug)
     audit = G.read_json(pdir / "audit.json")
     if not audit:
-        G.die("缺 audit.json，先运行 audit")
+        G.die("Missing audit.json, run audit first")
 
     files = sorted((pdir / "metrics").glob("*.json")) if (pdir / "metrics").exists() else []
     metrics = G.read_json(files[-1], None) if files else None
@@ -294,7 +294,7 @@ def build(slug: str) -> dict:
         "tasks": tasks,
     }
     G.write_json(pdir / "tasks.json", data)
-    G.info(f"生成 {len(tasks)} 条工单 → {pdir/'tasks.json'}")
+    G.info(f"Generated {len(tasks)} ticket(s) → {pdir/'tasks.json'}")
     return data
 
 
@@ -345,4 +345,4 @@ def set_status(slug: str, task_id: str, status: str, note: str = "") -> dict:
                 save(slug, data)
                 G.info(f"{task_id} → {status}")
                 return t
-    raise KeyError(f"工单 {task_id} 不存在")
+    raise KeyError(f"Ticket {task_id} does not exist")

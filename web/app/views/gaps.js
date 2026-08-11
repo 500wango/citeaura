@@ -1,5 +1,5 @@
 /**
- * 差异诊断与认知偏离视图 (Gaps & AI Framing)
+ *  (Gaps & AI Framing)
  */
 
 import { projects } from '../api.js';
@@ -31,7 +31,7 @@ export default {
           </div>
         </div>
 
-        <!-- 差异诊断卡片 -->
+        <!-- Gap Diagnosis Card -->
         <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
           <div class="card" style="gap:var(--sp-3);">
             <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -43,7 +43,7 @@ export default {
             </p>
           </div>
 
-          <!-- 偏差明细表 -->
+          <!-- Perception Gap Details Table -->
           <div class="card" style="padding:0;overflow:hidden;">
             <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
               <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('gaps.deviations_title', {}, 'Detected Fact Deviations & Hallucinations')}</h3>

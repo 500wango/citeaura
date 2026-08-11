@@ -168,9 +168,9 @@ def run(slug: str, recrawl: bool = True) -> dict:
     if recrawl:
         import audit as A
         import crawl as C
-        G.info("=== 重抓站点 ===")
+        G.info("=== Re-crawling Site ===")
         C.run(slug)
-        G.info("=== 重跑体检 ===")
+        G.info("=== Re-running Site Audit ===")
         A.run(slug)
 
     audit = G.read_json(pdir / "audit.json", {})
@@ -181,7 +181,7 @@ def run(slug: str, recrawl: bool = True) -> dict:
     with G.project_lock(slug):
         data = T.load(slug)
         if not data.get("tasks"):
-            G.die("还没有工单，先运行：python3 scripts/geo.py plan --slug " + slug)
+            G.die("No action tickets found. Run first: python3 scripts/geo.py plan --slug " + slug)
 
         for t in data["tasks"]:
             ok, note, prog = check(t, audit, metrics)
@@ -204,7 +204,7 @@ def run(slug: str, recrawl: bool = True) -> dict:
             t["evidence"] = t["evidence"][-6:]  # 只留最近 6 条，别把文件撑爆
             results.append({"id": t["id"], "title": t["title"], "priority": t["priority"],
                             "market": t["market"], "package": t["package"],
-                            "verdict": {True: "通过", False: "未达标", None: "待人工"}[ok],
+                            "verdict": {True: "pass", False: "fail", None: "manual"}[ok],
                             "note": note, "was": prev, "now": t["status"],
                             "progress": prog, "progress_first": t.get("progress_first")})
 
@@ -220,8 +220,8 @@ def run(slug: str, recrawl: bool = True) -> dict:
     stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")  # 一天验多次不互相覆盖
     G.write_json(pdir / "verify" / f"{stamp}.json", report)
 
-    p = sum(1 for r in results if r["verdict"] == "通过")
-    f = sum(1 for r in results if r["verdict"] == "未达标")
-    m = sum(1 for r in results if r["verdict"] == "待人工")
-    G.info(f"验收：通过 {p} / 未达标 {f} / 待人工 {m}；状态变更 {changed} 条")
+    p = sum(1 for r in results if r["verdict"] == "pass")
+    f = sum(1 for r in results if r["verdict"] == "fail")
+    m = sum(1 for r in results if r["verdict"] == "manual")
+    G.info(f"Verification: Passed {p} / Unmet {f} / Manual review {m}; Status changed: {changed} items")
     return report

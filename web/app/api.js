@@ -1,6 +1,6 @@
 /**
- * CiteAura API 客户端
- * 封装 /api/v1/ 端点，处理 Cookie 会话、401 自动 Refresh 重试与错误规整。
+ * CiteAura API 
+ *  /api/v1/ ， Cookie 、401  Refresh 。
  */
 
 let onAuthFailureCallback = null;
@@ -62,7 +62,7 @@ async function request(endpoint, options = {}) {
     throw errorObj;
   }
 
-  // 处理 401 刷新
+  //  401 
   if (res.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/refresh') && !url.includes('/auth/register')) {
     if (await refreshSession()) {
       return request(endpoint, options);
@@ -98,7 +98,7 @@ async function request(endpoint, options = {}) {
 }
 
 /* ==========================================================================
-   Auth 认证
+   Auth 
    ========================================================================== */
 export const auth = {
   register: (body) => request('/api/v1/auth/register', { method: 'POST', body }),
@@ -114,7 +114,7 @@ export const auth = {
 };
 
 /* ==========================================================================
-   Projects 项目与管线
+   Projects 
    ========================================================================== */
 export const projects = {
   list: () => request('/api/v1/projects'),
@@ -132,7 +132,12 @@ export const projects = {
     request(`/api/v1/projects/${encodeURIComponent(id)}/actions/${encodeURIComponent(action)}`, { method: 'POST', body }),
 
   getJobs: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/jobs`), 'jobs', []),
-  getJob: (id, jobId) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}`), 'job', null),
+  getJob: (id, jobId, offset) =>
+    fieldRequest(
+      request(`/api/v1/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}${offset !== undefined && offset !== null ? `?offset=${offset}` : ''}`),
+      'job',
+      null,
+    ),
   retryJob: (id, jobId) => request(`/api/v1/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}/retry`, { method: 'POST' }),
 
   getSchedule: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/schedule`), 'schedule', {}),
@@ -177,7 +182,7 @@ export const projects = {
 };
 
 /* ==========================================================================
-   Workspace 工作区产物与事实库
+   Workspace 
    ========================================================================== */
 export const workspace = {
   getConfig: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/config`),
@@ -209,7 +214,7 @@ export const settings = {
 };
 
 /* ==========================================================================
-   Branding 白标设置
+   Branding 
    ========================================================================== */
 export const branding = {
   get: () => request('/api/v1/settings/delivery-branding').then((data) => ({
@@ -223,7 +228,7 @@ export const branding = {
 };
 
 /* ==========================================================================
-   Publishing 发布渠道
+   Publishing 
    ========================================================================== */
 export const publishing = {
   get: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/publishing`),
@@ -232,7 +237,7 @@ export const publishing = {
 };
 
 /* ==========================================================================
-   Outreach 协作外联
+   Outreach 
    ========================================================================== */
 export const outreach = {
   get: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/outreach`),
@@ -244,7 +249,7 @@ export const outreach = {
 };
 
 /* ==========================================================================
-   Integrations 外部集成
+   Integrations 
    ========================================================================== */
 export const integrations = {
   list: () => request('/api/v1/integrations'),
@@ -255,7 +260,7 @@ export const integrations = {
 };
 
 /* ==========================================================================
-   Team 团队成员
+   Team 
    ========================================================================== */
 export const team = {
   getMembers: () => fieldRequest(request('/api/v1/team/members'), 'members', []),
@@ -267,7 +272,7 @@ export const team = {
 };
 
 /* ==========================================================================
-   Billing 计费与订阅
+   Billing 
    ========================================================================== */
 export const billing = {
   getUsage: () => request('/api/v1/billing/usage'),
@@ -278,7 +283,7 @@ export const billing = {
 };
 
 /* ==========================================================================
-   SSO & Security 企业安全
+   SSO & Security 
    ========================================================================== */
 export const sso = {
   getConfig: () => request('/api/v1/sso/config'),
@@ -288,7 +293,7 @@ export const sso = {
 };
 
 /* ==========================================================================
-   Archive 备份归档
+   Archive 
    ========================================================================== */
 export const archive = {
   list: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/archives`), 'archives', []),

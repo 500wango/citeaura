@@ -1,5 +1,5 @@
 /**
- * 自动化调度与定期监测视图 (Automation & Schedule)
+ *  (Automation & Schedule)
  */
 
 import { projects } from '../api.js';

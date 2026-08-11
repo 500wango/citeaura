@@ -32,6 +32,7 @@ from api.worker.tasks import (
     task_verify,
 )
 from api.adapters.localization import localize_tickets
+from api.adapters.log_translator import translate_engine_log
 
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
@@ -211,8 +212,8 @@ def _job_payload(job: Job, include_log: bool = True, log_offset: int | None = No
         "can_retry": job.status == "failed",
         "started_at": job.started_at,
         "finished_at": job.finished_at,
-        "error": job.error,
-        "log": log,
+        "error": translate_engine_log(job.error) if job.error else None,
+        "log": translate_engine_log(log),
         "log_offset": next_offset,
     }
 
@@ -300,10 +301,10 @@ def _top_actions(tickets, limit=3):
         if not isinstance(evidence, list):
             evidence = [evidence]
         first_evidence = evidence[0] if evidence and isinstance(evidence[0], dict) else {}
-        item.setdefault("why", item.get("reason") or first_evidence.get("detail") or "该行动优先级较高，建议本周完成")
-        item.setdefault("action", item.get("title") or item.get("description") or "按工单执行")
-        item.setdefault("owner", item.get("owner") or "GEO顾问")
-        item.setdefault("acceptance", item.get("acceptance") or {"type": "manual", "desc": "完成后重新运行验收"})
+        item.setdefault("why", item.get("reason") or first_evidence.get("detail") or "High-priority action; recommended for completion this cycle")
+        item.setdefault("action", item.get("title") or item.get("description") or "Execute ticket playbook")
+        item.setdefault("owner", item.get("owner") or "GEO Strategist")
+        item.setdefault("acceptance", item.get("acceptance") or {"type": "manual", "desc": "Re-run verification after deployment"})
         item["evidence"] = evidence
         items.append(item)
     return localize_tickets(items)
@@ -478,7 +479,7 @@ def project_preflight(
                      "minutes": max(1, round(full_calls * 0.4)) if full_calls else 0},
             "repeat": 1,
             "platform_pool_cost_cny_fen": None,
-            "cost_note": "BYOK 费用由各 API 供应商直接收取；当前预检不估算供应商账单。",
+            "cost_note": "BYOK costs are billed directly by API providers; current preflight does not estimate provider invoices.",
         },
     }
 

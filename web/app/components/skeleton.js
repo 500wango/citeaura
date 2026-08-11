@@ -1,5 +1,5 @@
 /**
- * 骨架屏加载组件
+ * 
  */
 
 export function renderSkeleton({ rows = 4, height = 40 } = {}) {

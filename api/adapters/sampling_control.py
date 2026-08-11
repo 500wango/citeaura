@@ -106,7 +106,7 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1):
             "platform_pool_calls": pool_calls,
             "platform_pool_cost_cny_fen": pool_cost,
             "byok_cost_cny_fen": None,
-            "byok_cost_note": "BYOK 费用由 API 供应商直接收取，CiteAura 无法读取供应商账单。",
+            "byok_cost_note": "BYOK costs are billed directly by API providers; CiteAura does not read provider invoices.",
             "minutes": max(1, round(total_calls * 0.4)) if total_calls else 0,
         },
         "budget": {

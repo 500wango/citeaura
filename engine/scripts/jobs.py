@@ -121,9 +121,9 @@ def recent(slug: str | None = None, limit: int = 12) -> list[dict]:
 
 def start(slug: str, action: str, params: dict | None = None) -> dict:
     if action not in ACTIONS:
-        raise ValueError(f"不支持的动作：{action}")
+        raise ValueError(f"Unsupported action: {action}")
     if running_for(slug):
-        raise RuntimeError("该项目已有任务在运行，等它结束或先停止")
+        raise RuntimeError("A task is already running for this project. Wait for it to finish or cancel it first.")
 
     spec = ACTIONS[action]
     cmd = [sys.executable, "-u", str(GEO_PY), action, "--slug", slug]
@@ -240,5 +240,5 @@ def reap_orphans() -> int:
         _write(job)
         reaped += 1
     if reaped:
-        G.info(f"回收了 {reaped} 个中断的任务记录")
+        G.info(f"Reclaimed {reaped} interrupted task records")
     return reaped

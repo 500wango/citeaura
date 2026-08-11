@@ -1,5 +1,5 @@
 /**
- * 引用来源与渠道分析视图 (Channels & Citation Sources)
+ *  (Channels & Citation Sources)
  */
 
 import { projects } from '../api.js';

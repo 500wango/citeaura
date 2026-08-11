@@ -1,5 +1,5 @@
 /**
- * 模型与测量设置视图 (Engine Keys & BYOK)
+ *  (Engine Keys & BYOK)
  */
 
 import { settings } from '../api.js';

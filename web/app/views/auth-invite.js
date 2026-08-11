@@ -1,5 +1,5 @@
 /**
- * 接受团队邀请视图
+ * 
  */
 
 import { auth } from '../api.js';

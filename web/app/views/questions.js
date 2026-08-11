@@ -1,5 +1,5 @@
 /**
- * 目标问题库视图 (Questions)
+ *  (Questions)
  */
 
 import { workspace } from '../api.js';

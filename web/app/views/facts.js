@@ -1,5 +1,5 @@
 /**
- * 品牌事实库视图 (Brand Facts Library)
+ *  (Brand Facts Library)
  */
 
 import { workspace } from '../api.js';
@@ -39,7 +39,7 @@ export default {
           </div>
         </div>
 
-        <!-- 一句话核心定义 -->
+        <!-- Core One-Sentence Definition -->
         <div class="card" style="gap:var(--sp-3);">
           <div class="kicker">Core Entity Definition</div>
           <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('facts.one_sentence_head', {}, 'Standard One-Sentence Brand Definition')}</h3>
@@ -49,7 +49,7 @@ export default {
           <textarea id="fact-definition-input" class="input" rows="3" placeholder="CiteAura is the next-generation Generative Engine Optimization (GEO) platform that audits AI visibility gaps and exports actionable engineering tickets.">${definition}</textarea>
         </div>
 
-        <!-- 结构化事实卡列表 -->
+        <!-- Structured Fact Cards List -->
         <div class="card" style="gap:var(--sp-4);">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('facts.numeric_facts_head', {}, 'Verified Numeric Facts & Entities')}</h3>

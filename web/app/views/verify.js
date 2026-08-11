@@ -1,5 +1,5 @@
 /**
- * 闭环验收与复跑验证视图 (Verify & Acceptance Loops)
+ *  (Verify & Acceptance Loops)
  */
 
 import { projects } from '../api.js';
@@ -94,9 +94,12 @@ export default {
       const btn = document.getElementById('btn-run-verify-now');
       btn.disabled = true;
       try {
-        await projects.triggerVerify(projectId);
+        const res = await projects.triggerVerify(projectId);
         toast.success(t('verify.queued', {}, 'Verification cycle initiated!'));
         ctx.pollActiveJobs();
+        if (res && res.job_id && typeof ctx.openTelemetry === 'function') {
+          ctx.openTelemetry(res.job_id, 'verify');
+        }
       } catch (err) {
         toast.error(t(err.error, {}, err.detail || 'Failed to start verification'));
       } finally {

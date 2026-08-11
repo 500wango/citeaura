@@ -1,5 +1,5 @@
 /**
- * 实时工作台与模型提问演练视图 (Workbench)
+ *  (Workbench)
  */
 
 import { workspace } from '../api.js';
@@ -33,7 +33,7 @@ export default {
           </div>
         </div>
 
-        <!-- 查询输入区 -->
+        <!-- Query Input Area -->
         <div class="card" style="gap:var(--sp-4);">
           <div class="field" style="margin:0;">
             <label for="wb-query-input">${t('workbench.query_label', {}, 'Prompt / User Query')}</label>
@@ -47,7 +47,7 @@ export default {
           </div>
         </div>
 
-        <!-- 结果展示区 -->
+        <!-- Results Display Area -->
         <div id="wb-results" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));gap:var(--sp-4);">
           <div class="card" style="gap:var(--sp-2);">
             <div style="display:flex;align-items:center;justify-content:space-between;">

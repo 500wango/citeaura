@@ -39,42 +39,42 @@ def md(platforms):
 
 class TestBestWorstDegenerate(unittest.TestCase):
     def test_all_zero_no_conclusion(self):
-        m = md({"qwen": plat("cn", 0.0, "千问"), "deepseek": plat("cn", 0.0, "DeepSeek"),
+        m = md({"qwen": plat("cn", 0.0, "Qwen"), "deepseek": plat("cn", 0.0, "DeepSeek"),
                 "perplexity": plat("global", 0.0, "Perplexity")})
-        self.assertIn("不下结论", m)
-        self.assertNotIn("最好", m)
-        self.assertNotIn("最弱", m)
+        self.assertIn("Uniform mention rates", m)
+        self.assertNotIn("Top Performer", m)
+        self.assertNotIn("Weakest", m)
 
     def test_single_platform_no_conclusion(self):
-        m = md({"qwen": plat("cn", 0.5, "千问")})
-        self.assertIn("不下结论", m)
-        self.assertNotIn("最好", m)
-        self.assertNotIn("最弱", m)
+        m = md({"qwen": plat("cn", 0.5, "Qwen")})
+        self.assertIn("Uniform mention rates", m)
+        self.assertNotIn("Top Performer", m)
+        self.assertNotIn("Weakest", m)
 
     def test_all_equal_no_conclusion(self):
-        m = md({"qwen": plat("cn", 0.3, "千问"), "deepseek": plat("cn", 0.3, "DeepSeek")})
-        self.assertIn("不下结论", m)
-        self.assertNotIn("最好", m)
-        self.assertNotIn("最弱", m)
+        m = md({"qwen": plat("cn", 0.3, "Qwen"), "deepseek": plat("cn", 0.3, "DeepSeek")})
+        self.assertIn("Uniform mention rates", m)
+        self.assertNotIn("Top Performer", m)
+        self.assertNotIn("Weakest", m)
 
     def test_normal_two_platforms_conclusion(self):
-        m = md({"qwen": plat("cn", 0.5, "千问"), "deepseek": plat("cn", 0.1, "DeepSeek")})
-        self.assertIn("最好", m)
-        self.assertIn("最弱", m)
-        self.assertIn("千问", m)
+        m = md({"qwen": plat("cn", 0.5, "Qwen"), "deepseek": plat("cn", 0.1, "DeepSeek")})
+        self.assertIn("Top Performer", m)
+        self.assertIn("Weakest", m)
+        self.assertIn("Qwen", m)
         self.assertIn("DeepSeek", m)
-        self.assertNotIn("不下结论", m)
+        self.assertNotIn("Uniform mention rates", m)
 
     def test_none_filtered_then_single_no_conclusion(self):
-        m = md({"qwen": plat("cn", 0.5, "千问"), "deepseek": plat("cn", None, "DeepSeek")})
-        self.assertIn("不下结论", m)
-        self.assertNotIn("最好", m)
+        m = md({"qwen": plat("cn", 0.5, "Qwen"), "deepseek": plat("cn", None, "DeepSeek")})
+        self.assertIn("Uniform mention rates", m)
+        self.assertNotIn("Top Performer", m)
 
     def test_all_none_market_untested(self):
-        m = md({"qwen": plat("cn", 0.5, "千问"), "deepseek": plat("cn", 0.1, "DeepSeek"),
+        m = md({"qwen": plat("cn", 0.5, "Qwen"), "deepseek": plat("cn", 0.1, "DeepSeek"),
                 "perplexity": plat("global", None, "Perplexity")})
-        self.assertIn("海外：未测", m)
-        self.assertIn("国内最好", m)
+        self.assertIn("Global: Unmeasured", m)
+        self.assertIn("Domestic (CN) Top Performer", m)
 
 
 class TestMarketAvgCards(unittest.TestCase):
@@ -82,14 +82,14 @@ class TestMarketAvgCards(unittest.TestCase):
         cards = dict(R.market_avg_cards(metrics_with({
             "qwen": plat("cn", 0.5), "deepseek": plat("cn", 0.5),
             "perplexity": plat("global", 0.1)})))
-        self.assertEqual(cards["国内平均提及率"], "50%")
-        self.assertEqual(cards["海外平均提及率"], "10%")
+        self.assertEqual(cards["Domestic (CN) Avg Mention"], "50%")
+        self.assertEqual(cards["Global Avg Mention"], "10%")
 
     def test_none_market_untested(self):
         cards = dict(R.market_avg_cards(metrics_with({
             "qwen": plat("cn", 0.5), "perplexity": plat("global", None)})))
-        self.assertEqual(cards["国内平均提及率"], "50%")
-        self.assertEqual(cards["海外平均提及率"], "未测")
+        self.assertEqual(cards["Domestic (CN) Avg Mention"], "50%")
+        self.assertEqual(cards["Global Avg Mention"], "Unmeasured")
 
     def test_no_metrics_no_cards(self):
         self.assertEqual(R.market_avg_cards(None), [])

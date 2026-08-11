@@ -475,21 +475,21 @@ def run(slug: str, which: list[str] | None = None, with_draft: bool = False,
         d = adir / "drafts"
         d.mkdir(parents=True, exist_ok=True)
         for o in outlines[:draft_limit]:
-            G.info(f"起草 {o['question_id']} · {o['target_question'][:30]}…")
+            G.info(f"Drafting {o['question_id']} · {o['target_question'][:30]}…")
             text = draft(slug, o)
             if text:
                 (d / f"{o['question_id']}.md").write_text(
                     f"<!-- 初稿，需人工核实所有事实后再发布 · {G.today()} -->\n\n" + text, "utf-8")
                 made.append(f"assets/drafts/{o['question_id']}.md")
             else:
-                G.info("  没有可用的 LLM API Key，跳过起草")
+                G.info("  No available LLM API Key, skipping draft generation")
                 break
         rep = lint_all(slug)
         if rep.get("total_issues"):
-            G.info(f"初稿风险检查：{rep['total_issues']} 项（高风险 {rep['high']} 项）"
+            G.info(f"Draft risk inspection: {rep['total_issues']} items (High risk: {rep['high']} items)"
                    f" → assets/drafts/_lint.json。**发布前必须人工核实**")
 
     index = {"slug": slug, "generated_at": G.now_iso(), "market": market, "assets": made}
     G.write_json(adir / "index.json", index)
-    G.info(f"生成 {len(made)} 项资产 → {adir}")
+    G.info(f"Generated {len(made)} asset(s) → {adir}")
     return index

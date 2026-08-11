@@ -1,5 +1,5 @@
 /**
- * 行动工单矩阵视图 (Plan & Playbook)
+ *  (Plan & Playbook)
  */
 
 import { projects } from '../api.js';
@@ -26,7 +26,7 @@ export default {
 
     const currentMode = ctx.params.view || 'matrix';
 
-    // 分类四个象限
+    // Categorize four quadrants
     const quickWins = [];
     const strategic = [];
     const lowHanging = [];
@@ -66,9 +66,9 @@ export default {
         ${
           currentMode === 'matrix'
             ? `
-          <!-- 2x2 矩阵模式 -->
+          <!-- 2x2 Matrix Mode -->
           <div class="matrix-grid">
-            <!-- 快速见效 Quick Wins -->
+            <!-- Quick Wins -->
             <div class="matrix-quadrant q-quick-wins">
               <div class="quadrant-head">
                 <span class="quadrant-title" style="color:var(--good);">${t('plan.q_quick_wins', {}, '1. Quick Wins (High Impact · Low Effort)')}</span>
@@ -83,7 +83,7 @@ export default {
               </div>
             </div>
 
-            <!-- 战略深耕 Strategic -->
+            <!-- Strategic -->
             <div class="matrix-quadrant q-strategic">
               <div class="quadrant-head">
                 <span class="quadrant-title" style="color:var(--accent);">${t('plan.q_strategic', {}, '2. Strategic (High Impact · High Effort)')}</span>
@@ -98,7 +98,7 @@ export default {
               </div>
             </div>
 
-            <!-- 顺手修复 Low-hanging -->
+            <!-- Low-hanging -->
             <div class="matrix-quadrant q-low-hanging">
               <div class="quadrant-head">
                 <span class="quadrant-title" style="color:var(--warn);">${t('plan.q_low_hanging', {}, '3. Low-Hanging Fruit (Low Impact · Low Effort)')}</span>
@@ -113,7 +113,7 @@ export default {
               </div>
             </div>
 
-            <!-- 暂缓处理 Deprioritize -->
+            <!-- Deprioritize -->
             <div class="matrix-quadrant q-deprioritize">
               <div class="quadrant-head">
                 <span class="quadrant-title" style="color:var(--muted);">${t('plan.q_deprioritize', {}, '4. Deprioritize (Low Impact · High Effort)')}</span>
@@ -130,7 +130,7 @@ export default {
           </div>
         `
             : `
-          <!-- 表格模式 -->
+          <!-- Table Mode -->
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl" style="overflow-x:auto;">
               <table class="table">
@@ -148,24 +148,28 @@ export default {
                 <tbody>
                   ${tickets
                     .map(
-                      (ticket, idx) => `
-                    <tr>
-                      <td class="num" style="color:var(--muted);">${idx + 1}</td>
-                      <td>
-                        <strong style="font-size:var(--fs-2);color:var(--ink);">${ticket.title || ticket.name || ticket.id}</strong>
-                        ${ticket.target_page ? `<div class="num" style="font-size:11px;color:var(--muted);">${ticket.target_page}</div>` : ''}
-                      </td>
-                      <td><span class="tag tag-neutral">${ticket.role || 'Engineering'}</span></td>
-                      <td><span class="tag ${ticket.impact === 'High' ? 'pill-good' : 'tag-dim'}">${ticket.impact || 'High'}</span></td>
-                      <td><span class="tag ${ticket.effort === 'Low' ? 'pill-good' : 'tag-dim'}">${ticket.effort || 'Low'}</span></td>
-                      <td>${statusPill(ticket.status)}</td>
-                      <td style="text-align:right;">
-                        <button type="button" class="btn btn-secondary btn-sm btn-edit-ticket" data-tid="${ticket.id}">
-                          ${t('common.edit', {}, 'Edit')}
-                        </button>
-                      </td>
-                    </tr>
-                  `
+                      (ticket, idx) => {
+                        const title = t(ticket.title, {}, ticket.title_en || ticket.title || ticket.name || ticket.id);
+                        const role = t(ticket.owner || ticket.role, {}, ticket.owner_en || ticket.role || 'Engineering');
+                        return `
+                        <tr>
+                          <td class="num" style="color:var(--muted);">${idx + 1}</td>
+                          <td>
+                            <strong style="font-size:var(--fs-2);color:var(--ink);">${title}</strong>
+                            ${ticket.target_page ? `<div class="num" style="font-size:11px;color:var(--muted);">${ticket.target_page}</div>` : ''}
+                          </td>
+                          <td><span class="tag tag-neutral">${role}</span></td>
+                          <td><span class="tag ${ticket.impact === 'High' ? 'pill-good' : 'tag-dim'}">${ticket.impact || 'High'}</span></td>
+                          <td><span class="tag ${ticket.effort === 'Low' ? 'pill-good' : 'tag-dim'}">${ticket.effort || 'Low'}</span></td>
+                          <td>${statusPill(ticket.status)}</td>
+                          <td style="text-align:right;">
+                            <button type="button" class="btn btn-secondary btn-sm btn-edit-ticket" data-tid="${ticket.id}">
+                              ${t('common.edit', {}, 'Edit')}
+                            </button>
+                          </td>
+                        </tr>
+                      `;
+                      }
                     )
                     .join('')}
                 </tbody>
@@ -182,7 +186,7 @@ export default {
     const projectId = ctx.activeProjectId;
     if (!projectId) return;
 
-    // 绑定工单卡片点击
+    // Bind ticket card clicks
     document.querySelectorAll('.ticket-item, .btn-edit-ticket').forEach((el) => {
       el.addEventListener('click', (e) => {
         const tid = el.getAttribute('data-tid');
@@ -190,7 +194,7 @@ export default {
       });
     });
 
-    // 自定义工单
+    // Custom ticket modal
     const customBtn = document.getElementById('btn-create-custom-ticket');
     if (customBtn) {
       customBtn.addEventListener('click', () => {
@@ -202,14 +206,16 @@ export default {
 
 function renderTicketCard(ticket) {
   const isDone = ticket.status === 'done';
+  const title = t(ticket.title, {}, ticket.title_en || ticket.title || ticket.name || ticket.id);
+  const role = t(ticket.owner || ticket.role, {}, ticket.owner_en || ticket.role || 'Engineering');
   return `
     <div class="ticket-item ${isDone ? 'is-done' : ''}" data-tid="${ticket.id}">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-2);">
-        <span class="ticket-item-title">${ticket.title || ticket.name || ticket.id}</span>
+        <span class="ticket-item-title">${title}</span>
         ${statusPill(ticket.status)}
       </div>
       <div class="ticket-item-meta">
-        <span class="tag tag-dim" style="font-size:10px;">${ticket.role || 'Engineering'}</span>
+        <span class="tag tag-dim" style="font-size:10px;">${role}</span>
         ${ticket.target_page ? `<span class="num" style="max-width:18ch;overflow:hidden;text-overflow:ellipsis;">${ticket.target_page}</span>` : ''}
       </div>
     </div>

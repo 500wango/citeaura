@@ -38,7 +38,7 @@ def test_measurement_quality_marks_noteworthy_and_incomparable_periods(tmp_path,
         assert result["current"]["failure_rate"] == 0
         assert result["comparable"] is True
         assert result["trend"]["status"] == "noteworthy"
-        assert result["trend"]["label"] == "值得关注"
+        assert result["trend"]["label"] == "Worth monitoring"
         assert result["trend"]["delta_pp"] == 10.0
 
         changed = _metrics("2026-08-01", "v2", 0.20)
@@ -46,7 +46,7 @@ def test_measurement_quality_marks_noteworthy_and_incomparable_periods(tmp_path,
         result = measurement.sampling_quality("project")
         assert result["comparable"] is False
         assert result["trend"]["status"] == "not_comparable"
-        assert "问题集版本" in result["comparison_reason"]
+        assert "Question set version changed" in result["comparison_reason"]
 
 
 def test_report_quality_explains_crawl_sampling_and_delivery_gaps(tmp_path, monkeypatch):
@@ -185,7 +185,7 @@ def test_sampling_estimate_splits_byok_and_platform_cost_and_enforces_limits(tmp
             "platform_pool_calls": 2,
             "platform_pool_cost_cny_fen": 6,
             "byok_cost_cny_fen": None,
-            "byok_cost_note": "BYOK 费用由 API 供应商直接收取，CiteAura 无法读取供应商账单。",
+            "byok_cost_note": "BYOK costs are billed directly by API providers; CiteAura does not read provider invoices.",
             "minutes": 2,
         }
         assert estimate["budget"]["call_limit_exceeded"] is True

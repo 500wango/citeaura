@@ -61,7 +61,7 @@ def slugify(text: str) -> str:
 
 
 def die(msg: str, code: int = 1):
-    print(f"[geo] 错误：{msg}", file=sys.stderr)
+    print(f"[geo] Error: {msg}", file=sys.stderr)
     sys.exit(code)
 
 
@@ -76,7 +76,7 @@ SLUG_OK = re.compile(r"^[a-z0-9一-鿿][a-z0-9一-鿿-]{0,47}$")
 
 def project_dir(slug: str) -> Path:
     if not SLUG_OK.match(slug or ""):
-        die(f"非法项目标识：{slug!r}")
+        die(f"Invalid project slug: {slug!r}")
     return WORK / slug
 
 
@@ -96,7 +96,7 @@ def project_lock(slug: str):
 def load_config(slug: str) -> dict:
     p = project_dir(slug) / "geo.json"
     if not p.exists():
-        die(f"找不到项目配置 {p}，先运行：python3 scripts/geo.py init --url <网址>")
+        die(f"Project config not found {p}. Run first: python3 scripts/geo.py init --url <URL>")
     return json.loads(p.read_text("utf-8"))
 
 
