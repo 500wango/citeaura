@@ -1,11 +1,14 @@
 /* 共享组件库 —— 落地页与应用共用。只依赖 tokens.css 的变量。 */
 
 /* ---------- 品牌 ---------- */
-.brand { display: inline-flex; align-items: center; gap: var(--sp-2); text-decoration: none; color: var(--ink); }
+.brand { display: inline-flex; align-items: center; gap: var(--sp-2); text-decoration: none; color: var(--ink); transition: transform var(--dur-fast) var(--ease-out); }
+.brand:hover { transform: scale(1.02); }
 .brand-mark {
   width: 28px; height: 28px; flex: none;
   background: url("/site-assets/brand/mark.svg") center / contain no-repeat;
+  transition: transform var(--dur-med) var(--ease-spring);
 }
+.brand:hover .brand-mark { transform: rotate(-5deg) scale(1.08); }
 .brand-mark-sm {
   width: 18px; height: 18px;
 }
@@ -14,7 +17,10 @@
   font-size: var(--fs-5);
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: var(--ink);
+  background: var(--grad-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 /* ---------- 按钮 ---------- */
@@ -24,17 +30,25 @@
   border: 1px solid transparent; border-radius: var(--r-md);
   font-size: var(--fs-3); font-weight: 500; line-height: 1.2; text-decoration: none;
   transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
-              color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+              color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
   user-select: none; white-space: nowrap;
 }
-.btn:active { transform: translateY(1px); }
+.btn:active { transform: translateY(1px) scale(0.98); }
 .btn:disabled, .btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-.btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-.btn-primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--on-accent); }
+.btn-primary {
+  background: var(--accent); color: var(--on-accent); border-color: var(--accent);
+  box-shadow: 0 2px 8px oklch(0.52 0.10 196 / 0.15);
+}
+.btn-primary:hover {
+  background: var(--accent-strong); border-color: var(--accent-strong); color: var(--on-accent);
+  box-shadow: 0 4px 16px oklch(0.52 0.10 196 / 0.25);
+  transform: translateY(-1px);
+}
 
 .btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--divider); box-shadow: var(--sh-sm); }
-.btn-secondary:hover { border-color: var(--faint); background: var(--deep); }
+.btn-secondary:hover { border-color: var(--faint); background: var(--deep); box-shadow: var(--sh-md); transform: translateY(-1px); }
 
 .btn-ghost { color: var(--accent); padding-inline: var(--sp-2); }
 .btn-ghost:hover { background: var(--accent-soft); }
@@ -105,8 +119,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
   padding: var(--sp-4);
   border: 1px solid var(--line); border-radius: var(--r-lg);
   background: var(--surface);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
 }
+.card:hover { border-color: var(--divider); box-shadow: var(--sh-sm); }
 .card.elev { box-shadow: var(--sh-sm); }
+.card.elev:hover { box-shadow: var(--sh-md); transform: translateY(-2px); }
 .card-pad-lg { padding: var(--sp-6); }
 
 .kicker {

@@ -52,11 +52,14 @@
 
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
+      <canvas class="hero-particles" aria-hidden="true"></canvas>
       <div class="page-shell hero-layout">
         <div class="hero-copy-block">
           <p class="eyebrow"><span class="brand-mark brand-mark-sm" aria-hidden="true"></span><span data-i18n="landing.eyebrow">Next-Gen Generative Engine Optimization (GEO)</span></p>
           <h1 id="hero-title" data-i18n="landing.hero_title">Make your brand the default answer in AI search.</h1>
-          <p class="hero-copy" data-i18n="landing.hero_copy">Enter a domain to audit AI recommendation gaps, generate 13 engineering-grade tickets, automate verification loops, and export client-ready delivery packs.</p>
+          <div class="hero-typed-wrap" aria-live="polite">
+            <p class="hero-copy"><span class="hero-typed"></span><span class="typed-cursor" aria-hidden="true"></span></p>
+          </div>
           <div class="hero-actions">
             <a class="btn btn-primary btn-lg" href="/app" data-i18n="nav.cta">Start free trial</a>
             <a class="btn btn-ghost btn-lg" href="#workflow" data-i18n="landing.hero_cta_secondary">Explore 5-step workflow</a>
@@ -99,7 +102,7 @@
           <h2 id="workflow-title" data-i18n="landing.workflow_title">From domain to verifiable delivery in 5 closed-loop steps</h2>
           <p data-i18n="landing.workflow_body">Unify AI diagnosis, strategy, engineering tickets, before/after verification, and client delivery into one standard pipeline.</p>
         </div>
-        <ol class="workflow-list">
+        <ol class="workflow-list reveal-stagger">
           <li class="reveal">
             <span class="workflow-number">01</span>
             <h3 data-i18n="landing.workflow_1_title">1. Scan & extract facts</h3>
@@ -169,7 +172,7 @@
           <h2 id="operations-title" data-i18n="landing.ops_title">Enterprise data isolation & zero data retention commitment.</h2>
           <p data-i18n="landing.ops_body">Secure tenant workspaces built for brand teams, growth consultants, and digital marketing agencies.</p>
         </div>
-        <dl class="operations-list">
+        <dl class="operations-list reveal-stagger">
           <div class="reveal">
             <dt data-i18n="landing.ops_byok">BYOK priority (Bring Your Own Key)</dt>
             <dd data-i18n="landing.ops_byok_dd">Pay model providers directly with no markup; API keys encrypted with AES-256-GCM and injected only during runtime.</dd>
@@ -203,7 +206,7 @@
             <button type="button" class="seg-opt" data-billing="annual" aria-pressed="false" data-i18n="landing.billing_annual">Annual · save ~20%</button>
           </div>
         </div>
-        <div class="pricing-grid">
+        <div class="pricing-grid reveal-stagger">
           <article class="price-card reveal">
             <p class="plan-name">Starter</p>
             <p class="price"><strong data-monthly="$79" data-annual="$759">$79</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>

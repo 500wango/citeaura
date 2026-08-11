@@ -1,4 +1,4 @@
-/* CiteAura 落地页交互：i18n、主题、导航、定价切换、滚动渐显 */
+/* CiteAura 落地页交互：i18n、主题、导航、定价切换、滚动渐显、打字机、粒子、鼠标跟踪光晕 */
 (function () {
   'use strict';
 
@@ -10,7 +10,9 @@
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 
-  /* ---------- 语言 ---------- */
+  /* ================================================================
+     语言 i18n
+     ================================================================ */
   function detectLocale() {
     var requested = new URLSearchParams(location.search).get('lang');
     var saved = null;
@@ -83,7 +85,9 @@
       .catch(function () { state.catalog = {}; applyI18n(); });
   }
 
-  /* ---------- 主题 ---------- */
+  /* ================================================================
+     主题
+     ================================================================ */
   function renderThemeControl() {
     var toggle = $('.theme-toggle');
     var meta = $('[data-theme-color]');
@@ -123,7 +127,9 @@
     }
   }
 
-  /* ---------- 移动导航 ---------- */
+  /* ================================================================
+     移动导航
+     ================================================================ */
   function initNav() {
     var header = $('.site-header');
     var toggle = $('.nav-menu-toggle');
@@ -143,7 +149,27 @@
     });
   }
 
-  /* ---------- 定价切换 ---------- */
+  /* ================================================================
+     Header 滚动状态
+     ================================================================ */
+  function initHeaderScroll() {
+    var header = $('.site-header');
+    if (!header) return;
+    var ticking = false;
+    window.addEventListener('scroll', function () {
+      if (!ticking) {
+        requestAnimationFrame(function () {
+          header.classList.toggle('scrolled', window.scrollY > 10);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    }, { passive: true });
+  }
+
+  /* ================================================================
+     定价切换
+     ================================================================ */
   function applyBilling() {
     var interval = state.billing;
     $$('[data-' + interval + ']').forEach(function (node) {
@@ -167,7 +193,9 @@
     });
   }
 
-  /* ---------- 滚动渐显 ---------- */
+  /* ================================================================
+     滚动渐显 —— 增强版：交错延迟 + 动画类型
+     ================================================================ */
   function initReveal() {
     var nodes = $$('.reveal');
     if (!nodes.length) return;
@@ -181,19 +209,178 @@
         entry.target.classList.add('is-visible');
         observer.unobserve(entry.target);
       });
-    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+    }, { rootMargin: '0px 0px -6% 0px', threshold: 0.05 });
     nodes.forEach(function (node, index) {
-      node.style.transitionDelay = (index % 5) * 60 + 'ms';
+      node.style.transitionDelay = (index % 6) * 70 + 'ms';
       observer.observe(node);
     });
   }
 
-  /* ---------- 启动 ---------- */
+  /* ================================================================
+     Hero 打字机效果
+     ================================================================ */
+  var TYPED_SENTENCES = {
+    en: [
+      'Enter a domain to audit AI recommendation gaps.',
+      'Generate 13 engineering-grade action tickets.',
+      'Automate before/after verification loops.',
+      'Export client-ready white-label delivery packs.'
+    ],
+    zh: [
+      '输入域名，审计 AI 推荐缺口。',
+      '生成 13 张工程级行动工单。',
+      '自动化前后对比验收循环。',
+      '导出客户级白标交付包。'
+    ],
+    ja: [
+      'ドメインを入力してAI推奨のギャップを監査。',
+      '13件のエンジニアリンググレードチケットを生成。',
+      ' Before/After検証ループを自動化。',
+      'クライアント向けデリバリーをエクスポート。'
+    ]
+  };
+
+  function initTypewriter() {
+    var el = $('.hero-typed');
+    if (!el) return;
+    var sentences = TYPED_SENTENCES[state.locale] || TYPED_SENTENCES.en;
+    var sentIdx = 0;
+    var charIdx = 0;
+    var isDeleting = false;
+    var speed = 35;
+    var pauseEnd = 2200;
+    var pauseStart = 600;
+
+    function tick() {
+      var current = sentences[sentIdx];
+      if (!isDeleting) {
+        charIdx++;
+        el.textContent = current.substring(0, charIdx);
+        if (charIdx === current.length) {
+          isDeleting = true;
+          setTimeout(tick, pauseEnd);
+          return;
+        }
+        speed = 28 + Math.random() * 24;
+      } else {
+        charIdx--;
+        el.textContent = current.substring(0, charIdx);
+        if (charIdx === 0) {
+          isDeleting = false;
+          sentIdx = (sentIdx + 1) % sentences.length;
+          setTimeout(tick, pauseStart);
+          return;
+        }
+        speed = 15;
+      }
+      setTimeout(tick, speed);
+    }
+    setTimeout(tick, 1200);
+  }
+
+  /* ================================================================
+     Hero 粒子动画（Canvas）
+     ================================================================ */
+  function initParticles() {
+    var canvas = $('.hero-particles');
+    if (!canvas || !canvas.getContext) return;
+    var ctx = canvas.getContext('2d');
+    var particles = [];
+    var PARTICLE_COUNT = 40;
+    var animId;
+
+    function resize() {
+      var hero = canvas.parentElement;
+      if (!hero) return;
+      canvas.width = hero.offsetWidth;
+      canvas.height = hero.offsetHeight;
+    }
+
+    function createParticle() {
+      return {
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: 1.5 + Math.random() * 2.5,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        alpha: 0.1 + Math.random() * 0.25,
+        hue: Math.random() > 0.5 ? 196 : 250
+      };
+    }
+
+    function init() {
+      resize();
+      particles = [];
+      for (var i = 0; i < PARTICLE_COUNT; i++) particles.push(createParticle());
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      var dpr = window.devicePixelRatio || 1;
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      for (var i = 0; i < particles.length; i++) {
+        var p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < -10) p.x = canvas.width + 10;
+        if (p.x > canvas.width + 10) p.x = -10;
+        if (p.y < -10) p.y = canvas.height + 10;
+        if (p.y > canvas.height + 10) p.y = -10;
+
+        ctx.beginPath();
+        ctx.arc(p.x / dpr, p.y / dpr, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'oklch(0.55 0.11 ' + p.hue + ' / ' + p.alpha + ')';
+        ctx.fill();
+      }
+      ctx.restore();
+      animId = requestAnimationFrame(draw);
+    }
+
+    init();
+    draw();
+    window.addEventListener('resize', function () {
+      resize();
+    }, { passive: true });
+
+    // 页面不可见时暂停
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) {
+        cancelAnimationFrame(animId);
+      } else {
+        draw();
+      }
+    });
+  }
+
+  /* ================================================================
+     鼠标跟踪光晕（卡片跟随）
+     ================================================================ */
+  function initMouseGlow() {
+    var cards = $$('.price-card, .operations-list > div, .product-shot .shot-frame');
+    cards.forEach(function (card) {
+      card.addEventListener('mousemove', function (e) {
+        var rect = card.getBoundingClientRect();
+        var x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1);
+        var y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1);
+        card.style.setProperty('--mouse-x', x + '%');
+        card.style.setProperty('--mouse-y', y + '%');
+      });
+    });
+  }
+
+  /* ================================================================
+     启动
+     ================================================================ */
   function init() {
     initTheme();
     initNav();
+    initHeaderScroll();
     initBilling();
     initReveal();
+    initTypewriter();
+    initParticles();
+    initMouseGlow();
     setLocale(detectLocale(), false);
     $$('.lang-btn').forEach(function (btn) {
       btn.addEventListener('click', function () { setLocale(btn.getAttribute('data-lang'), true); });
