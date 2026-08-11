@@ -226,7 +226,7 @@
   var TYPED_SENTENCES = {
     en: [
       'Audit citations across ChatGPT, Claude, and Perplexity.',
-      'Generate 13 engineering-grade action tickets.',
+      'Turn AI audits into 13 actionable engineering tickets.',
       'Close knowledge gaps and competitor blind spots.',
       'Automate before/after verification loops.',
       'Export client-ready white-label delivery packs.'
