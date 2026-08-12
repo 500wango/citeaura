@@ -163,7 +163,7 @@ def test_search_console_oauth_binds_verified_project_property(integration_client
     overview = client.get(f"/api/v1/projects/{project_id}/integrations", headers=headers)
     assert overview.status_code == 200
     assert overview.json()["search_console_property"] == "sc-domain:example.com"
-    assert overview.json()["latest"] == {"semrush": None, "search_console": None}
+    assert overview.json()["latest"] == {"semrush": None, "search_console": None, "tabapi": None}
     assert "google-refresh-secret" not in overview.text
 
 
@@ -290,3 +290,57 @@ def test_integration_worker_marks_job_failed_if_credential_was_removed(integrati
         job = db.get(Job, job_id)
         assert job.status == "failed"
         assert "integration_not_configured" in job.error
+
+
+def test_tabapi_config_and_traffic_sync(integration_client, monkeypatch):
+    client, session_factory, _tmp_path = integration_client
+    registered, headers = _register(client, "tabuser@example.com", "tenant-tab")
+    tenant_id = registered["tenant"]["id"]
+    project_id = _project(session_factory, tenant_id)
+
+    # Initial state
+    initial = client.get("/api/v1/integrations", headers=headers)
+    assert initial.status_code == 200
+    assert initial.json()["providers"]["tabapi"]["configured"] is False
+
+    # Configure TabAPI
+    configured = client.put(
+        "/api/v1/integrations/tabapi",
+        headers=headers,
+        json={"api_key": "tab_live_secret_token_12345"},
+    )
+    assert configured.status_code == 200
+    assert configured.json()["providers"]["tabapi"] == {
+        "configured": True,
+        "masked": "****2345",
+    }
+
+    # Query initial project traffic
+    traffic_init = client.get(f"/api/v1/projects/{project_id}/traffic", headers=headers)
+    assert traffic_init.status_code == 200
+    assert traffic_init.json()["configured"] is True
+    assert traffic_init.json()["traffic"] is None
+
+    # Test TabAPI adapter
+    class TabapiMockResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "monthly_visits": 85000,
+                "global_rank": 210500,
+                "bounce_rate": 0.42,
+                "dwell_time": 150.5,
+                "pages_per_visit": 3.1,
+                "traffic_sources": {"direct": 0.5, "organic_search": 0.3},
+            }
+
+    monkeypatch.setattr(integrations.requests, "get", lambda *args, **kwargs: TabapiMockResponse())
+    snapshot = integrations.sync_tabapi("https://www.example.com", "tab_live_secret_token_12345")
+    assert snapshot["metrics"]["monthly_visits"] == 85000
+    assert snapshot["metrics"]["global_rank"] == 210500
+    assert snapshot["metrics"]["bounce_rate"] == 0.42
+    assert snapshot["metrics"]["dwell_time"] == 150.5
+    assert snapshot["metrics"]["pages_per_visit"] == 3.1
+

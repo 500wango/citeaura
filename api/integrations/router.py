@@ -44,6 +44,18 @@ class SemrushConfigRequest(BaseModel):
         return value
 
 
+class TabapiConfigRequest(BaseModel):
+    api_key: str = Field(min_length=1, max_length=4096)
+
+    @field_validator("api_key")
+    @classmethod
+    def validate_api_key(cls, value):
+        value = value.strip()
+        if not value or "\n" in value or "\r" in value:
+            raise ValueError("api_key must be a non-empty single line")
+        return value
+
+
 def _error(status_code, message, detail=None):
     body = {"error": message}
     if detail:
@@ -86,9 +98,15 @@ def _settings_payload(db, tenant, can_edit):
     }
     semrush = rows.get("semrush")
     semrush_settings = integrations.credential_config(semrush) if semrush else {}
+    tabapi = rows.get("tabapi")
+    tabapi_settings = integrations.credential_config(tabapi) if tabapi else {}
     return {
         "can_edit": can_edit,
         "providers": {
+            "tabapi": {
+                "configured": tabapi is not None,
+                "masked": tabapi_settings.get("masked") if tabapi else None,
+            },
             "semrush": {
                 "configured": semrush is not None,
                 "masked": semrush_settings.get("masked") if semrush else None,
@@ -126,6 +144,25 @@ def configure_semrush(
     settings = {"database": payload.database, "masked": mask_key(payload.api_key)}
     if row is None:
         row = IntegrationCredential(tenant_id=tenant.id, provider="semrush")
+        db.add(row)
+    row.encrypted_value = encrypt_key(payload.api_key)
+    row.config_json = json.dumps(settings, sort_keys=True)
+    db.commit()
+    return _settings_payload(db, tenant, True)
+
+
+@router.put("/integrations/tabapi")
+def configure_tabapi(
+    payload: TabapiConfigRequest,
+    current_user: User = Depends(require_owner),
+    db: Session = Depends(get_db),
+):
+    """加密保存 TabAPI (AITDK 流量数据源) API Key。"""
+    tenant = _tenant(db, current_user)
+    row = _credential(db, tenant.id, "tabapi")
+    settings = {"masked": mask_key(payload.api_key), "provider": "tabapi"}
+    if row is None:
+        row = IntegrationCredential(tenant_id=tenant.id, provider="tabapi")
         db.add(row)
     row.encrypted_value = encrypt_key(payload.api_key)
     row.config_json = json.dumps(settings, sort_keys=True)
@@ -280,3 +317,22 @@ def sync_project_integration(
         db.commit()
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
     return {"job_id": job.id, "project_id": project.id, "provider": provider}
+
+
+@router.get("/projects/{project_id}/traffic")
+def project_traffic(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """返回项目的最新全网流量快照（TabAPI / AITDK）。"""
+    tenant, project = _project(db, current_user, project_id)
+    with with_tenant_context(tenant.name, project.slug):
+        snapshot = integrations.latest_snapshot(project.slug, "tabapi")
+    return {
+        "project_id": project.id,
+        "slug": project.slug,
+        "configured": _credential(db, tenant.id, "tabapi") is not None,
+        "traffic": snapshot,
+    }
+

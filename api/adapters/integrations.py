@@ -18,7 +18,8 @@ GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_SEARCH_CONSOLE_ENDPOINT = "https://searchconsole.googleapis.com/webmasters/v3"
 GOOGLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
-PROVIDERS = frozenset(("semrush", "search_console"))
+TABAPI_ENDPOINT = "https://api.tabapi.com/v1/traffic"
+PROVIDERS = frozenset(("semrush", "search_console", "tabapi"))
 
 
 class IntegrationError(RuntimeError):
@@ -242,6 +243,58 @@ def sync_search_console(project_url, refresh_token, property_url=None, days=28):
             "rows": len(rows),
         },
         "rows": rows,
+    }
+
+
+def sync_tabapi(project_url, api_key):
+    """调用 TabAPI 获取域名的实时全网流量大盘数据。"""
+    domain = (urlparse(project_url).hostname or "").lower().removeprefix("www.")
+    if not domain:
+        raise IntegrationError("project_domain_invalid")
+    try:
+        response = requests.get(
+            TABAPI_ENDPOINT,
+            params={"domain": domain},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Accept": "application/json",
+                "User-Agent": "CiteAura-Integration/1.0",
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise IntegrationError("tabapi_query_failed") from exc
+
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    monthly_visits = int(_number(data.get("monthly_visits") or data.get("visits") or 0))
+    history = data.get("visits_history") or data.get("history") or []
+    sources = data.get("traffic_sources") or data.get("sources") or {}
+    countries = data.get("top_countries") or data.get("countries") or []
+    bounce_rate = _number(data.get("bounce_rate"))
+    dwell_time = _number(data.get("dwell_time"))
+    pages_per_visit = _number(data.get("pages_per_visit"))
+    global_rank = data.get("global_rank")
+    country_rank = data.get("country_rank")
+
+    return {
+        "provider": "tabapi",
+        "source": "TabAPI (AITDK Traffic Intelligence)",
+        "domain": domain,
+        "synced_at": datetime.now(timezone.utc).isoformat(),
+        "metrics": {
+            "monthly_visits": monthly_visits,
+            "global_rank": global_rank,
+            "country_rank": country_rank,
+            "bounce_rate": round(bounce_rate, 4),
+            "dwell_time": round(dwell_time, 1),
+            "pages_per_visit": round(pages_per_visit, 2),
+        },
+        "visits_history": history,
+        "traffic_sources": sources,
+        "top_countries": countries,
+        "raw": data,
     }
 
 

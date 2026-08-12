@@ -625,6 +625,11 @@ def task_sync_integration(tenant_id: str, project_slug: str, provider: str, job_
                     secret,
                     database=credential_settings.get("database", "us"),
                 )
+            elif provider == "tabapi":
+                snapshot = integrations.sync_tabapi(
+                    project_url,
+                    secret,
+                )
             else:
                 snapshot = integrations.sync_search_console(
                     project_url,
