@@ -230,11 +230,19 @@ async function showTicketDetailModal(projectId, tid, ctx) {
 
   const ticket = tickets.find((t) => String(t.id) === String(tid)) || { id: tid };
 
+  const title = ticket.title_en || t(ticket.title, {}, ticket.title || ticket.name || ticket.id);
+  const desc = ticket.desc_en || t(ticket.desc, {}, ticket.desc || ticket.description || 'Actionable engineering implementation item.');
+  const action = ticket.action_en || t(ticket.action, {}, ticket.action || '');
+  const role = ticket.owner_en || ticket.role_en || t(ticket.owner || ticket.role, {}, ticket.role || 'Engineering');
+  const acceptance = ticket.acceptance?.desc_en || t(ticket.acceptance?.desc, {}, ticket.acceptance?.desc || '');
+
   const content = `
     <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
       <div>
-        <h4 style="font-size:var(--fs-4);font-weight:700;margin:0 0 var(--sp-1) 0;">${ticket.title || ticket.name || ticket.id}</h4>
-        <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${ticket.desc || ticket.description || 'Actionable engineering implementation item.'}</p>
+        <h4 style="font-size:var(--fs-4);font-weight:700;margin:0 0 var(--sp-1) 0;">${title}</h4>
+        <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${desc}</p>
+        ${action ? `<div style="margin-top:var(--sp-2);padding:var(--sp-2) var(--sp-3);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);font-size:var(--fs-1);color:var(--ink);"><strong style="color:var(--accent);">Recommendation:</strong> ${action}</div>` : ''}
+        ${acceptance ? `<div style="margin-top:var(--sp-1);font-size:11px;color:var(--faint);"><strong>Acceptance:</strong> ${acceptance}</div>` : ''}
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);">
@@ -248,7 +256,7 @@ async function showTicketDetailModal(projectId, tid, ctx) {
         </div>
         <div class="field" style="margin:0;">
           <label>${t('plan.col_role', {}, 'Role')}</label>
-          <input type="text" class="input" value="${ticket.role || 'Engineering'}" disabled>
+          <input type="text" class="input" value="${role}" disabled>
         </div>
       </div>
 
