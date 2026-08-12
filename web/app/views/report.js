@@ -27,8 +27,8 @@ export default {
       console.error('Failed to load report data:', err);
     }
 
-    const overallGrade = (report && report.grade) || 'C';
-    const mentionRate = report && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : '—';
+    const overallGrade = report && report.grade;
+    const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : 'Unmeasured';
 
     return `
       <div class="app-view-container">
@@ -51,10 +51,10 @@ export default {
         <div class="card" style="gap:var(--sp-4);">
           <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:var(--sp-3);">
             <div style="display:flex;align-items:center;gap:var(--sp-3);">
-              ${gradeBadge(overallGrade)}
+              ${overallGrade ? gradeBadge(overallGrade) : '<span class="tag tag-dim">Unmeasured</span>'}
               <div>
                 <strong style="font-size:var(--fs-4);">${t('report.exec_summary', {}, 'Executive Audit Summary')}</strong>
-                <div style="color:var(--muted);font-size:var(--fs-2);">${t('report.verified_baseline', {}, 'Deterministic GEO visibility score baseline')}</div>
+                <div style="color:var(--muted);font-size:var(--fs-2);">Latest measured API and site-audit artifacts</div>
               </div>
             </div>
             <div class="num" style="font-size:var(--fs-7);font-weight:700;color:var(--ink);">
@@ -70,7 +70,7 @@ export default {
             </div>
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
               <span class="kicker">02 · Action</span>
-              <strong style="font-size:var(--fs-2);margin-top:2px;">13 Action Tickets</strong>
+              <strong style="font-size:var(--fs-2);margin-top:2px;">Action Tickets</strong>
               <span style="font-size:11px;color:var(--muted);margin-top:2px;">Impact × Effort roadmap</span>
             </div>
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">

@@ -9,9 +9,9 @@ from api.adapters.engine import geolib
 
 
 SCHEMA_VERSION = "1.0"
-MODE_API = "API·参数化知识"
-MODE_SEARCH = "API·联网检索"
-MODE_MANUAL = "人工·产品端"
+MODE_API = "API - Parametric knowledge"
+MODE_SEARCH = "API - Search grounded"
+MODE_MANUAL = "Manual - Product interface"
 MIN_COMPARABLE_SAMPLES = 20
 
 

@@ -113,7 +113,7 @@ def test_key(engine_code: str, current_user: User = Depends(require_owner), db: 
             "ok": ok,
             "engine": engine_code,
             "model": sample.model_for(engine_code),
-            "sampling_mode": "API·联网检索" if sample.PROVIDERS[engine_code].get("search") else "API·参数化知识",
+            "sampling_mode": "API - Search grounded" if sample.PROVIDERS[engine_code].get("search") else "API - Parametric knowledge",
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": error,
         }
@@ -122,7 +122,7 @@ def test_key(engine_code: str, current_user: User = Depends(require_owner), db: 
             "ok": False,
             "engine": engine_code,
             "model": None,
-            "sampling_mode": "API·参数化知识",
+            "sampling_mode": "API - Parametric knowledge",
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": _safe_provider_error(exc),
         }

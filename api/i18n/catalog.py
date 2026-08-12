@@ -1,4 +1,4 @@
-"""多语言消息目录：locale 平等，en 为缺失回退。"""
+"""Product message catalogs with English fallback."""
 
 import json
 from functools import lru_cache
@@ -11,7 +11,7 @@ MESSAGES_DIR = Path(__file__).resolve().parent / "messages"
 
 @lru_cache(maxsize=1)
 def load_all_catalogs():
-    """加载全部 locale JSON，返回 {locale: {id: text}}。"""
+    """Load all supported locale JSON catalogs as {locale: {id: text}}."""
     catalogs = {}
     for locale in SUPPORTED_LOCALES:
         path = MESSAGES_DIR / f"{locale}.json"
@@ -30,7 +30,7 @@ def clear_catalog_cache():
 
 
 def resolve(message_id, locale=DEFAULT_LOCALE, catalogs=None):
-    """按 locale → en → id 解析文案。中文不是非 zh 语言的回退。"""
+    """Resolve copy as locale -> English -> original id."""
     if message_id is None:
         return message_id
     key = str(message_id)
@@ -45,12 +45,11 @@ def resolve(message_id, locale=DEFAULT_LOCALE, catalogs=None):
         english = catalogs.get(DEFAULT_LOCALE) or {}
         if key in english:
             return english[key]
-    # zh 下允许把未登记的中文 id 原样显示；其它语言不再回退到中文
     return key
 
 
 def translate_map(entries, locale=DEFAULT_LOCALE, catalogs=None):
-    """entries: {source_zh_or_id: {en, ja, ...}} → 解析后的字符串。"""
+    """Resolve mapping entries like {source_id: {en: text}} for one locale."""
     if not entries:
         return {}
     locale = normalize_locale(locale)
@@ -70,5 +69,5 @@ def translate_map(entries, locale=DEFAULT_LOCALE, catalogs=None):
 
 
 def catalogs_as_json():
-    """供前端注入的完整目录。"""
+    """Return all catalogs as JSON for frontend injection."""
     return json.dumps(load_all_catalogs(), ensure_ascii=False, separators=(",", ":"))

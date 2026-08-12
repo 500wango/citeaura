@@ -21,8 +21,8 @@ export default {
 
     const audit = (report && report.audit) || {};
     const pages = (audit && audit.pages) || [];
-    const avgScore = audit.avg_score || audit.score || 72;
-    const grade = (report && report.grade) || 'B';
+    const avgScore = audit.avg_score ?? audit.score ?? null;
+    const grade = report && report.grade;
 
     return `
       <div class="app-view-container">
@@ -46,20 +46,20 @@ export default {
           <div class="card" style="gap:var(--sp-2);">
             <span class="kicker">${t('siteaudit.overall_score', {}, 'Technical Score')}</span>
             <div style="display:flex;align-items:center;gap:var(--sp-3);">
-              ${gradeBadge(grade)}
-              <span class="num" style="font-size:var(--fs-7);font-weight:700;">${avgScore}</span>
-              <span style="color:var(--muted);font-size:var(--fs-2);">/ 100</span>
+              ${grade ? gradeBadge(grade) : '<span class="tag tag-dim">Unmeasured</span>'}
+              <span class="num" style="font-size:var(--fs-7);font-weight:700;">${avgScore ?? 'Unmeasured'}</span>
+              ${avgScore === null ? '' : '<span style="color:var(--muted);font-size:var(--fs-2);">/ 100</span>'}
             </div>
           </div>
           <div class="card" style="gap:var(--sp-2);">
             <span class="kicker">${t('siteaudit.crawled_pages', {}, 'Audited Pages')}</span>
-            <span class="num" style="font-size:var(--fs-7);font-weight:700;">${pages.length || 1}</span>
-            <span style="color:var(--muted);font-size:11px;">Core domain pages indexed</span>
+            <span class="num" style="font-size:var(--fs-7);font-weight:700;">${pages.length}</span>
+            <span style="color:var(--muted);font-size:11px;">Pages included in the latest audit</span>
           </div>
           <div class="card" style="gap:var(--sp-2);">
             <span class="kicker">LLMs.txt Status</span>
-            <span style="font-weight:600;font-size:var(--fs-4);color:var(--good);">Ready to Deploy</span>
-            <a href="#/assets" style="font-size:11px;">View generated /llms.txt →</a>
+            <span style="font-weight:600;font-size:var(--fs-4);">${audit.site?.has_llms_txt ? 'Detected on site' : 'Not detected on site'}</span>
+            <a href="#/assets" style="font-size:11px;">Review generated assets →</a>
           </div>
         </div>
 
@@ -91,14 +91,14 @@ export default {
                       <td>
                         <span class="num" style="font-weight:600;color:var(--ink);">${p.url || p.path || '/'}</span>
                       </td>
-                      <td>${gradeBadge(p.grade || 'B')}</td>
-                      <td data-num style="font-weight:700;color:var(--ink);">${p.score || 80}</td>
+                      <td>${p.grade ? gradeBadge(p.grade) : '<span class="tag tag-dim">Unmeasured</span>'}</td>
+                      <td data-num style="font-weight:700;color:var(--ink);">${p.score ?? 'Unmeasured'}</td>
                       <td>
                         <div style="display:flex;gap:4px;flex-wrap:wrap;">
                           ${
                             p.issues && p.issues.length
                               ? p.issues.map((iss) => `<span class="tag pill-warn">${iss}</span>`).join('')
-                              : '<span class="tag pill-good">No critical blockers</span>'
+                              : '<span class="tag tag-dim">No issue labels recorded</span>'
                           }
                         </div>
                       </td>
@@ -112,7 +112,7 @@ export default {
           `
               : `
             <div style="padding:var(--sp-6);font-size:var(--fs-2);color:var(--muted);">
-              <p>Home page audit baseline established. Extraction blocks: <strong>JSON-LD</strong>, <strong>FAQ</strong>, <strong>Numeric facts</strong>.</p>
+              ${renderEmpty({ title: 'No site audit data', description: 'Run a site audit to measure crawlability and extraction structure.' })}
             </div>
           `
           }

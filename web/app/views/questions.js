@@ -17,8 +17,7 @@ export default {
 
     let questions = [];
     try {
-      const data = await workspace.getContent(projectId).catch(() => ({}));
-      questions = data.questions || data.items || [];
+      questions = await workspace.getQuestions(projectId).catch(() => []);
     } catch (err) {
       console.error('Failed to load questions:', err);
     }
@@ -71,7 +70,7 @@ export default {
                         <span class="tag tag-dim num">${q.market || 'Universal'}</span>
                       </td>
                       <td style="text-align:right;">
-                        <a href="#/workbench?qid=${idx}" class="btn btn-ghost btn-sm">
+                        <a href="#/workbench?qid=${encodeURIComponent(q.id)}" class="btn btn-ghost btn-sm">
                           ${t('questions.test_in_workbench', {}, 'Test in Workbench')} →
                         </a>
                       </td>
@@ -126,7 +125,8 @@ export default {
             if (!lines.length) return false;
 
             try {
-              await workspace.addQuestions(projectId, lines);
+              const items = lines.map((text) => ({ text, market: 'both', group: 'Recommendation' }));
+              await workspace.addQuestions(projectId, { items });
               toast.success(t('questions.added_success', {}, 'Questions added successfully'));
               ctx.navigate('#/questions');
               return true;

@@ -167,10 +167,10 @@ export default {
                         <span class="num" style="font-weight:600;font-size:var(--fs-3);color:var(--ink);">${ch.domain || ch.name}</span>
                       </td>
                       <td>
-                        <span class="tag tag-neutral">${ch.type || 'Directory / Media'}</span>
+                        <span class="tag tag-neutral">Cited domain</span>
                       </td>
                       <td data-num style="font-weight:700;">
-                        ${ch.count || 1}
+                        ${ch.count ?? 0}
                       </td>
                       <td>
                         <a href="#/outreach" class="btn btn-ghost btn-sm">
@@ -217,4 +217,3 @@ export default {
     });
   },
 };
-

@@ -48,16 +48,13 @@ def test_landing_assets_are_served():
 
 
 def test_i18n_catalogs_are_public():
-    for locale, sample in (
-        ("en", "Start free trial"),
-        ("zh", "免费试用"),
-        ("ja", "無料トライアル"),
-    ):
-        response = client.get(f"/i18n/{locale}.json")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["nav.cta"] == sample
-        assert "landing.title" in data
+    response = client.get("/i18n/en.json")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["nav.cta"] == "Start free trial"
+    assert "landing.title" in data
+    assert client.get("/i18n/zh.json").status_code == 404
+    assert client.get("/i18n/ja.json").status_code == 404
 
 
 def test_landing_has_no_forbidden_brand_or_false_claims():
@@ -70,10 +67,10 @@ def test_landing_has_no_forbidden_brand_or_false_claims():
     assert "已通过 SOC 2" not in response.text
 
 
-def test_landing_js_uses_shared_locale_preference():
+def test_landing_js_is_english_only():
     response = client.get("/site-assets/landing.js")
     assert response.status_code == 200
-    assert "localStorage.getItem('ulang')" in response.text
     assert "localStorage.setItem('ulang'" in response.text
-    assert "fetch('/i18n/' + state.locale + '.json')" in response.text
-    assert 'data-locale-src-' in response.text
+    assert "fetch('/i18n/en.json')" in response.text
+    assert "zh-CN" not in response.text
+    assert "ja" not in response.text

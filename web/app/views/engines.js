@@ -21,12 +21,7 @@ export default {
 
     try {
       enginesData = await projects.getEngines(projectId).catch(() => null);
-      // Get samples for latest date
-      const today = new Date().toISOString().slice(0, 10);
-      samples = await projects.getSamples(projectId, today).catch(async () => {
-        // Attempt to get date from framing or report
-        return [];
-      });
+      if (enginesData?.date) samples = await projects.getSamples(projectId, enginesData.date).catch(() => []);
     } catch (err) {
       console.error('Failed to load engines data:', err);
     }
@@ -89,16 +84,16 @@ export default {
                       </td>
                       <td>${samplingModeBadge(eng.sampling_mode)}</td>
                       <td data-num style="font-size:var(--fs-4);font-weight:700;color:var(--ink);">
-                        ${eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : '—'}
+                        ${eng.mention_rate !== null && eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : 'Unmeasured'}
                       </td>
                       <td data-num style="font-weight:600;">
-                        ${eng.avg_rank ? `#${eng.avg_rank.toFixed(1)}` : '—'}
+                        ${eng.median_rank ? `#${Number(eng.median_rank).toFixed(1)}` : 'Unmeasured'}
                       </td>
                       <td data-num>
                         ${eng.sample_count || 0}
                       </td>
                       <td>
-                        ${statusPill(eng.status || (eng.has_key ? 'good' : 'idle'), eng.has_key ? 'Configured' : 'Missing Key')}
+                        ${statusPill(eng.sample_count ? 'good' : 'idle', eng.sample_count ? 'Measured' : 'Unmeasured')}
                       </td>
                     </tr>
                   `
@@ -133,15 +128,15 @@ export default {
                 <div class="sample-replay-card">
                   <div class="sample-head">
                     <div style="display:flex;align-items:center;gap:var(--sp-2);">
-                      <strong class="sample-model-tag">${s.engine_name || s.engine_code || 'AI Model'}</strong>
-                      ${samplingModeBadge(s.sampling_mode)}
-                      ${s.mentioned ? '<span class="tag pill-good">Mentioned</span>' : '<span class="tag tag-dim">Not Mentioned</span>'}
+                      <strong class="sample-model-tag">${s.platform_name || s.platform || 'AI Model'}</strong>
+                      ${samplingModeBadge(s.sample_mode === 'manual' || s.terminal === 'web' ? 'Manual - Product interface' : (s.search_enabled ? 'API - Search grounded' : 'API - Parametric knowledge'))}
+                      ${s.analysis?.brand_mentioned ? '<span class="tag pill-good">Mentioned</span>' : '<span class="tag tag-dim">Not Mentioned</span>'}
                     </div>
                     <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${s.date || ''}</span>
                   </div>
 
-                  <div class="sample-query">${s.query || s.prompt || 'Query'}</div>
-                  <div class="sample-answer">${s.answer || s.response || 'No answer text recorded'}</div>
+                  <div class="sample-query">${s.question || 'Question unavailable'}</div>
+                  <div class="sample-answer">${s.ok ? (s.answer || 'Empty model response') : `Sampling failed: ${s.error || 'Unknown provider error'}`}</div>
 
                   ${
                     s.citations && s.citations.length
@@ -150,11 +145,13 @@ export default {
                       <span style="color:var(--muted);font-weight:600;">Citations:</span>
                       ${s.citations
                         .map(
-                          (c) => `
-                        <a href="${c}" target="_blank" rel="noopener noreferrer" class="tag tag-neutral num" style="text-decoration:none;">
-                          ${c.replace(/^https?:\/\//, '').slice(0, 32)}...
+                          (c) => {
+                            const url = typeof c === 'string' ? c : c.url;
+                            return `
+                        <a href="${url}" target="_blank" rel="noopener noreferrer" class="tag tag-neutral num" style="text-decoration:none;">
+                          ${url.replace(/^https?:\/\//, '').slice(0, 32)}...
                         </a>
-                      `
+                      `; }
                         )
                         .join('')}
                     </div>

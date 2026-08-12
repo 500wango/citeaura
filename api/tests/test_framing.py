@@ -82,8 +82,8 @@ def test_framing_uses_latest_samples_and_keeps_source_evidence(tmp_path, monkeyp
     assert repeated["count"] == 2
     assert repeated["share"] == 0.667
     assert repeated["engines"] == ["DeepSeek", "Perplexity"]
-    assert {item["sampling_mode"] for item in repeated["evidence"]} == {"API·参数化知识", "API·联网检索"}
-    assert result["terms"][1]["evidence"][0]["sampling_mode"] == "人工·产品端"
+    assert {item["sampling_mode"] for item in repeated["evidence"]} == {"API - Parametric knowledge", "API - Search grounded"}
+    assert result["terms"][1]["evidence"][0]["sampling_mode"] == "Manual - Product interface"
     assert "old product" not in str(result)
 
 

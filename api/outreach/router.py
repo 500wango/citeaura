@@ -299,7 +299,7 @@ def send_outreach_draft(
     except outreach.OutreachError as exc:
         code = status.HTTP_409_CONFLICT if str(exc) == "outreach_revision_conflict" else status.HTTP_400_BAD_REQUEST
         _error(code, str(exc))
-    job = Job(project_id=project.id, action="outreach_send", status="queued")
+    job = Job(project_id=project.id, action="outreach_send", status="queued", request_json=json.dumps({"draft_id": draft_id}))
     db.add(job)
     project.status = "processing"
     db.commit()

@@ -300,7 +300,7 @@ def sync_project_integration(
     if active is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     action = f"integration_{provider}"
-    job = Job(project_id=project.id, action=action, status="queued")
+    job = Job(project_id=project.id, action=action, status="queued", request_json=json.dumps({"provider": provider}))
     db.add(job)
     project.status = "processing"
     db.commit()
@@ -335,4 +335,3 @@ def project_traffic(
         "configured": _credential(db, tenant.id, "tabapi") is not None,
         "traffic": snapshot,
     }
-

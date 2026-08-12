@@ -6,6 +6,27 @@ import { billing } from '../api.js';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 
+function formatUsd(amount) {
+  if (amount === null || amount === undefined) return 'Custom';
+  return '$' + String(amount);
+}
+
+function planByCode(plans, code) {
+  return (plans || []).find((item) => item.code === code) || null;
+}
+
+function planSummary(plan, interval, fallbackMonthly, fallbackAnnual) {
+  if (!plan) return interval === 'annual' ? fallbackAnnual : fallbackMonthly;
+  if (interval === 'annual') {
+    const yearly = plan.prices?.annual?.usd;
+    const months = plan.prices?.annual?.months || 12;
+    if (typeof yearly === 'number' && months > 0) {
+      return 'About $' + Math.round(yearly / months) + ' / month billed annually';
+    }
+  }
+  return fallbackMonthly;
+}
+
 export default {
   render: async (ctx) => {
     let usage = {};
@@ -23,6 +44,9 @@ export default {
     const paymentAvailable = Boolean(plansData.payment?.enabled && plansData.payment?.configured);
     const paymentDisabled = paymentAvailable ? '' : 'disabled aria-disabled="true"';
     const paymentUnavailable = t('billing.payment_unavailable', {}, 'Payments unavailable');
+    const starter = planByCode(plansData.plans, 'starter');
+    const pro = planByCode(plansData.plans, 'pro');
+    const agency = planByCode(plansData.plans, 'agency');
 
     return `
       <div class="app-view-container">
@@ -60,13 +84,13 @@ export default {
           <article class="price-card">
             <p class="plan-name">Starter</p>
             <p class="price">
-              <strong class="price-val" data-m="$79" data-a="$759">$79</strong>
+              <strong class="price-val" data-m="${formatUsd(starter?.prices?.monthly?.usd)}" data-a="${formatUsd(starter?.prices?.annual?.usd)}">${formatUsd(starter?.prices?.monthly?.usd || 79)}</strong>
               <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
             </p>
-            <p class="plan-summary">Ideal for indie makers & single brands</p>
+            <p class="plan-summary" data-m="Ideal for indie makers & single brands" data-a="${planSummary(starter, 'annual', 'Ideal for indie makers & single brands', 'About $63 / month billed annually')}">Ideal for indie makers & single brands</p>
             <ul>
-              <li>3 active projects</li>
-              <li>13 standard action tickets & auto-verification</li>
+              <li>${starter?.projects || 3} active projects</li>
+              <li>13 standard action tickets & verification runs</li>
               <li>Full reports & customer delivery packs</li>
             </ul>
             <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="starter" ${paymentDisabled}>
@@ -79,12 +103,12 @@ export default {
             <p class="plan-badge">Most popular</p>
             <p class="plan-name">Pro</p>
             <p class="price">
-              <strong class="price-val" data-m="$199" data-a="$1,910">$199</strong>
+              <strong class="price-val" data-m="${formatUsd(pro?.prices?.monthly?.usd)}" data-a="${formatUsd(pro?.prices?.annual?.usd)}">${formatUsd(pro?.prices?.monthly?.usd || 199)}</strong>
               <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
             </p>
-            <p class="plan-summary">Continuous multi-model tracking for growth brands</p>
+            <p class="plan-summary" data-m="Continuous multi-model tracking for growth brands" data-a="${planSummary(pro, 'annual', 'Continuous multi-model tracking for growth brands', 'About $159 / month billed annually')}">Continuous multi-model tracking for growth brands</p>
             <ul>
-              <li>10 active projects</li>
+              <li>${pro?.projects || 10} active projects</li>
               <li>Unlimited BYOK sampling</li>
               <li>Matrix scheduled tracking & regression alerts</li>
             </ul>
@@ -97,14 +121,14 @@ export default {
           <article class="price-card">
             <p class="plan-name">Agency</p>
             <p class="price">
-              <strong class="price-val" data-m="$499" data-a="$4,790">$499</strong>
+              <strong class="price-val" data-m="${formatUsd(agency?.prices?.monthly?.usd)}" data-a="${formatUsd(agency?.prices?.annual?.usd)}">${formatUsd(agency?.prices?.monthly?.usd || 499)}</strong>
               <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
             </p>
-            <p class="plan-summary">Parallel client delivery for digital agencies</p>
+            <p class="plan-summary" data-m="Parallel client delivery for digital agencies" data-a="${planSummary(agency, 'annual', 'Parallel client delivery for digital agencies', 'About $399 / month billed annually')}">Parallel client delivery for digital agencies</p>
             <ul>
-              <li>30 active projects</li>
+              <li>${agency?.projects || 30} active projects</li>
               <li>White-label client delivery headers (No CiteAura)</li>
-              <li>Team multi-role permissions & priority execution queue</li>
+              <li>Team multi-role permissions & white-label delivery branding</li>
             </ul>
             <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="agency" ${paymentDisabled}>
               ${currentPlan === 'agency' ? 'Current Plan' : paymentAvailable ? 'Subscribe Agency' : paymentUnavailable}
@@ -145,6 +169,9 @@ export default {
         });
         document.querySelectorAll('.price-period').forEach((pp) => {
           pp.textContent = currentInterval === 'annual' ? pp.getAttribute('data-a') : pp.getAttribute('data-m');
+        });
+        document.querySelectorAll('.plan-summary').forEach((item) => {
+          item.textContent = currentInterval === 'annual' ? item.getAttribute('data-a') : item.getAttribute('data-m');
         });
       });
     });

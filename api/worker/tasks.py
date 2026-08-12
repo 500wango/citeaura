@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from api.adapters import measurement, sampling_control, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract
-from api.adapters.engine import job_log_path, load_tenant_keys, with_tenant_context
+from api.adapters.engine import geolib, job_log_path, load_tenant_keys, with_tenant_context
 from api.adapters.workspace import ensure_all_engine_scope, preserve_manual_tickets
 from api.billing.limits import check_sample_run
 from api.billing.platform_pool import meter_platform_calls, record_usage, resolve_funding
@@ -96,6 +96,52 @@ _INTEGER_LIMITS = {
 }
 _FLAG_ARGS = {"--no-recrawl", "--draft", "--no-sample", "--skip-llm", "--no-llm"}
 _CSV_ARGS = {"--platforms", "--asset"}
+
+
+def _latest_metrics(project_slug):
+    directory = geolib.project_dir(project_slug) / "metrics"
+    files = sorted(directory.glob("*.json")) if directory.exists() else []
+    return geolib.read_json(files[-1], {}) if files else {}
+
+
+def _sampling_succeeded(result, project_slug):
+    if isinstance(result, dict):
+        sample_count = int(result.get("sample_count") or 0)
+        if sample_count > 0:
+            platforms = result.get("platforms") or {}
+            return any(
+                isinstance(item, dict) and int(item.get("samples") or 0) > 0
+                for item in platforms.values()
+            )
+    metrics = _latest_metrics(project_slug)
+    sample_summary = (metrics or {}).get("sample_summary") or {}
+    successful = int(sample_summary.get("successful") or 0)
+    if successful > 0:
+        return True
+    return any(
+        isinstance(item, dict) and int(item.get("samples") or 0) > 0
+        for item in ((metrics or {}).get("platforms") or {}).values()
+    )
+
+
+def _require_sampling_output(result, project_slug):
+    if not _sampling_succeeded(result, project_slug):
+        raise RuntimeError("sampling produced no measurable successful samples")
+    return result
+
+
+def _should_require_sampling_result(action, params):
+    if action == "sample":
+        return True
+    if action not in ("autopilot", "serve"):
+        return False
+    params = params or {}
+    if params.get("--no-sample", False):
+        return False
+    requested_platforms = params.get("--platforms")
+    if requested_platforms:
+        return True
+    return False
 
 
 def _action_namespace(action, params=None):
@@ -198,6 +244,36 @@ def _engine_funding(tenant_id, project_slug, allow_pool=True):
         }
     finally:
         db.close()
+
+
+def _latest_metrics(project_slug):
+    directory = geolib.project_dir(project_slug) / "metrics"
+    files = sorted(directory.glob("*.json")) if directory.exists() else []
+    return geolib.read_json(files[-1], {}) if files else {}
+
+
+def _sampling_succeeded(result, project_slug):
+    if isinstance(result, dict):
+        sample_count = int(result.get("sample_count") or 0)
+        if sample_count > 0:
+            return any(
+                isinstance(item, dict) and int(item.get("samples") or 0) > 0
+                for item in (result.get("platforms") or {}).values()
+            )
+    metrics = _latest_metrics(project_slug)
+    sample_summary = (metrics or {}).get("sample_summary") or {}
+    if int(sample_summary.get("successful") or 0) > 0:
+        return True
+    return any(
+        isinstance(item, dict) and int(item.get("samples") or 0) > 0
+        for item in ((metrics or {}).get("platforms") or {}).values()
+    )
+
+
+def _require_sampling_output(result, project_slug):
+    if not _sampling_succeeded(result, project_slug):
+        raise RuntimeError("sampling produced no measurable successful samples")
+    return result
 
 
 @contextmanager
@@ -365,6 +441,7 @@ def task_bootstrap(
                     byok_codes=funding.get("keys", {}).keys(),
                     pool_codes=funding.get("pool_codes", ()),
                 )
+                _require_sampling_output(_latest_metrics(project_slug), project_slug)
             return {"status": "done", "action": job_action, "project_slug": project_slug}
 
 
@@ -385,6 +462,7 @@ def task_sample(
         update("sampling", 15)
         with _funded_engine_context(tenant_id, project_slug, "sample", job_id=job_id):
             result = sample.run(project_slug, platforms=platforms, repeat=repeat, limit=limit)
+            _require_sampling_output(result, project_slug)
             funding = _engine_funding(tenant_id, project_slug)
             measurement.record_sampling(
                 project_slug,
@@ -419,6 +497,7 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
                 byok_codes=funding.get("keys", {}).keys(),
                 pool_codes=funding.get("pool_codes", ()),
             )
+            _require_sampling_output(_latest_metrics(project_slug), project_slug)
             update("finalizing", 90)
             return {"status": "done", "project_slug": project_slug}
 
@@ -572,6 +651,8 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                     byok_codes=funding.get("keys", {}).keys(),
                     pool_codes=funding.get("pool_codes", ()),
                 )
+                if _should_require_sampling_result(action, params):
+                    _require_sampling_output(_latest_metrics(project_slug), project_slug)
             update("finalizing", 90)
             if action in ("deliver", "autopilot", "serve"):
                 ensure_delivery_contract(project_slug)

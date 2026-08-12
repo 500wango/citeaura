@@ -1,4 +1,4 @@
-"""为引擎管线产物附加展示层语言字段，不改写原始 tasks.json。"""
+"""Attach English display fields to engine artifacts without rewriting tasks.json."""
 
 import re
 from api.i18n import DEFAULT_LOCALE, resolve
@@ -124,7 +124,7 @@ def localize_ticket(ticket):
     package = ticket.get("package") or ticket.get("category")
     owner = ticket.get("owner") or ticket.get("role")
 
-    for locale in ("en", "ja"):
+    for locale in ("en",):
         result[f"title_{locale}"] = _localize_text(title, locale)
         result[f"desc_{locale}"] = _localize_text(desc, locale)
         if action:
@@ -140,7 +140,7 @@ def localize_ticket(ticket):
     acc = ticket.get("acceptance")
     if isinstance(acc, dict) and "desc" in acc:
         acc_copy = dict(acc)
-        for locale in ("en", "ja"):
+        for locale in ("en",):
             acc_copy[f"desc_{locale}"] = _localize_text(acc.get("desc"), locale)
         result["acceptance"] = acc_copy
 

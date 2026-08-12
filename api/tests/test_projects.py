@@ -203,7 +203,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     engines = client.get(f"/api/v1/projects/{body['project_id']}/engines", headers=headers)
     assert engines.status_code == 200
     modes = {item["platform"]: item["sampling_mode"] for item in engines.json()["engines"]}
-    assert modes == {"deepseek": "API·参数化知识", "chatgpt": "人工·产品端"}
+    assert modes == {"deepseek": "API - Parametric knowledge", "chatgpt": "Manual - Product interface"}
     assert all("market" not in item for item in engines.json()["engines"])
     samples = client.get(f"/api/v1/projects/{body['project_id']}/samples/2026-07-31", headers=headers)
     assert samples.status_code == 200
@@ -211,7 +211,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     framing = client.get(f"/api/v1/projects/{body['project_id']}/framing", headers=headers)
     assert framing.status_code == 200
     assert framing.json()["framing"]["terms"][0]["term"] == "reliable AI visibility platform"
-    assert framing.json()["framing"]["terms"][0]["evidence"][0]["sampling_mode"] == "API·参数化知识"
+    assert framing.json()["framing"]["terms"][0]["evidence"][0]["sampling_mode"] == "API - Parametric knowledge"
 
     monkeypatch.setattr(project_router.task_sample, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-2"))
     sampled = client.post(

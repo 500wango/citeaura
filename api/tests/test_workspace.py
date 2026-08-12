@@ -189,7 +189,7 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
     assert sample_rows[0]["sample_mode"] == "manual"
     assert sample_rows[0]["terminal"] == "web"
     engine_rows = client.get(f"/api/v1/projects/{project_id}/engines", headers=headers).json()["engines"]
-    assert engine_rows[0]["sampling_mode"] == "人工·产品端"
+    assert engine_rows[0]["sampling_mode"] == "Manual - Product interface"
 
     invalid_import = client.post(
         f"/api/v1/projects/{project_id}/samples/import",

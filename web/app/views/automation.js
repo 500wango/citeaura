@@ -28,7 +28,7 @@ export default {
           <div class="view-title-group">
             <h1 class="view-title">${t('automation.title', {}, 'Automated Matrix Monitoring')}</h1>
             <p class="view-desc">
-              ${t('automation.desc', {}, 'Configure scheduled background cycles to re-sample AI visibility models and receive automated regression alerts.')}
+              ${t('automation.desc', {}, 'Configure scheduled background cycles to re-crawl, re-run sampling, and refresh reports. Verification remains a separate explicit step.')}
             </p>
           </div>
           <div class="view-actions">
@@ -45,7 +45,7 @@ export default {
               <div style="font-size:var(--fs-2);">
                 <strong style="color:var(--ink);">${t('automation.enable_title', {}, 'Enable automated periodic monitoring')}</strong>
                 <div style="color:var(--muted);margin-top:2px;">
-                  ${t('automation.enable_desc', {}, 'CiteAura background workers will automatically execute full sampling runs and verify tickets.')}
+                  ${t('automation.enable_desc', {}, 'CiteAura background workers will automatically execute crawl, audit, sampling, and report runs on this schedule.')}
                 </div>
               </div>
             </label>

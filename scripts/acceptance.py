@@ -21,9 +21,9 @@ def collect_checks(base_url, production=False):
     try:
         landing = _get(base_url, "/")
         check("landing", landing.status_code == 200 and "CiteAura" in landing.text, landing.status_code)
-        modes_ok = (
-            all(label in landing.text for label in ("API · Model knowledge", "API · Web-grounded retrieval", "Manual · Product surface"))
-            or all(label in landing.text for label in ("API·参数化知识", "API·联网检索", "人工·产品端"))
+        modes_ok = all(
+            label in landing.text
+            for label in ("API · Model knowledge", "API · Web-grounded retrieval", "Manual · Product surface")
         )
         check(
             "truthful_sampling_copy",

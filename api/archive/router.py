@@ -1,5 +1,6 @@
 """项目对象存储归档和恢复 API。"""
 
+import json
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -64,7 +65,10 @@ def _enqueue(db, tenant, project, action, task, *task_args):
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     previous_status = project.status
-    job = Job(project_id=project.id, action=action, status="queued")
+    request_json = {}
+    if action == "archive_restore":
+        request_json = {"archive_id": task_args[0], "overwrite": bool(task_args[1])}
+    job = Job(project_id=project.id, action=action, status="queued", request_json=json.dumps(request_json))
     db.add(job)
     project.status = "archiving" if action == "archive" else "restoring"
     db.commit()

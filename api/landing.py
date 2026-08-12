@@ -1,4 +1,4 @@
-"""公开官网入口与 i18n 消息目录。"""
+"""Public landing pages and the English message catalog."""
 
 from pathlib import Path
 
@@ -38,7 +38,7 @@ def serve_docs_page():
 
 @router.get("/i18n/{locale}.json")
 def serve_i18n_catalog(locale: str):
-    """提供落地页与共享文案目录（en 为默认回退基线）。"""
+    """Serve the English landing-page catalog."""
     code = normalize_locale(locale, default="")
     if code not in SUPPORTED_LOCALES:
         raise HTTPException(status_code=404, detail={"error": "locale_not_found"})

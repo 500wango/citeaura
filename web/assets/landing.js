@@ -1,16 +1,8 @@
-/* ================================================================
-   CiteAura Landing Page Interactive System
-   - Live Interactive GEO Sandbox & Matrix Simulator
-   - Particle & Constellation Canvas Engine
-   - Trilingual i18n & Theme Controller
-   - Annual/Monthly Pricing Switcher & Code Copier
-   ================================================================ */
+/* CiteAura landing interactions: English-only locale, theme, pricing, and guided workspace preview. */
 
 (function () {
   'use strict';
 
-  var LOCALES = ['en'];
-  var HTML_LANG = { en: 'en', zh: 'zh-CN', ja: 'ja' };
   var THEME_COLORS = { light: '#f7f9fa', dark: '#15181e' };
   var state = { locale: 'en', theme: 'light', billing: 'monthly', catalog: {}, activeDomain: 'yourbrand.com' };
 
@@ -18,14 +10,9 @@
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 
   /* ================================================================
-      i18n 
+      English-only product locale
      ================================================================ */
   function detectLocale() {
-    var requested = new URLSearchParams(location.search).get('lang');
-    var saved = null;
-    try { saved = localStorage.getItem('ulang'); } catch (e) {}
-    var nav = (navigator.language || '').toLowerCase();
-    var guess = requested || saved || (nav.indexOf('zh') === 0 ? 'zh' : nav.indexOf('ja') === 0 ? 'ja' : 'en');
     return 'en';
   }
 
@@ -56,37 +43,14 @@
       if (value != null) node.setAttribute('alt', value);
     });
     applyBilling();
-    applyLocaleImages();
     renderThemeControl();
   }
 
-  function applyLocaleImages() {
-    $$('img[data-locale-src-en]').forEach(function (img) {
-      var src = img.getAttribute('data-locale-src-' + state.locale) || img.getAttribute('data-locale-src-en');
-      if (src && img.getAttribute('src') !== src) img.setAttribute('src', src);
-    });
-  }
-
-  function setLocale(locale, push) {
-    state.locale = LOCALES.indexOf(locale) >= 0 ? locale : 'en';
-    try { localStorage.setItem('ulang', state.locale); } catch (e) {}
-    document.documentElement.lang = HTML_LANG[state.locale] || 'en';
-    $$('.lang-btn').forEach(function (btn) {
-      var active = btn.getAttribute('data-lang') === state.locale;
-      btn.classList.toggle('is-active', active);
-      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
-    if (push) {
-      var url = new URL(location.href);
-      url.searchParams.set('lang', state.locale);
-      history.replaceState({}, '', url.toString());
-    }
-    if (state.locale === 'en') {
-      state.catalog = {};
-      applyI18n();
-      return;
-    }
-    fetch('/i18n/' + state.locale + '.json')
+  function setLocale() {
+    state.locale = 'en';
+    document.documentElement.lang = 'en';
+    try { localStorage.setItem('ulang', 'en'); } catch (e) {}
+    fetch('/i18n/en.json')
       .then(function (r) { return r.ok ? r.json() : {}; })
       .then(function (data) { state.catalog = data || {}; applyI18n(); })
       .catch(function () { state.catalog = {}; applyI18n(); });
@@ -228,7 +192,7 @@
       'Audit citations across ChatGPT, Claude, and Perplexity.',
       'Turn AI audits into 13 actionable engineering tickets.',
       'Close knowledge gaps and competitor blind spots.',
-      'Automate before/after verification loops.',
+      'Review before and after evidence with repeatable verification runs.',
       'Export client-ready white-label delivery packs.'
     ]
   };
@@ -362,93 +326,19 @@
   }
 
   /* ================================================================
-      GEO  (Interactive Live Scanner System)
+      Example workspace preview
      ================================================================ */
-  var DOMAIN_PRESETS = {
-    'yourbrand.com': {
-      grade: 'Grade A', overallScore: 94,
-      scores: { deepseek: 98, chatgpt: 95, claude: 97, gemini: 94, perplexity: 99 },
-      status: { deepseek: '#1 Cited Source', chatgpt: 'Verified Grounded Link', claude: 'Primary Recommendation', gemini: 'Grounded Fact Citations', perplexity: 'Top Deep Research Citation' },
-      gaps: '3 extraction blocks missing /llms.txt',
-      tickets: [
-        { id: 'GEO-01', title: 'Schema.org JSON-LD Knowledge Graph', impact: 'High', effort: 'Quick' },
-        { id: 'GEO-03', title: '/llms.txt LLM Direct Ingestion Specification', impact: 'High', effort: 'Quick' },
-        { id: 'GEO-07', title: 'Semantic Markdown Extraction Blocks', impact: 'High', effort: 'Medium' }
-      ]
-    },
-    'linear.app': {
-      grade: 'Grade A+', overallScore: 98,
-      scores: { deepseek: 99, chatgpt: 97, claude: 98, gemini: 96, perplexity: 100 },
-      status: { deepseek: '#1 Issue Tracker', chatgpt: 'Default Rec', claude: 'Top Cited Tool', gemini: 'Grounded Fact', perplexity: '100% Citation' },
-      gaps: 'Minor competitor comparison block needed',
-      tickets: [
-        { id: 'GEO-05', title: 'Competitor Matrix Differentiation Block', impact: 'High', effort: 'Quick' },
-        { id: 'GEO-12', title: 'Brand Anchor Entity Cross-Verification', impact: 'Medium', effort: 'Quick' }
-      ]
-    },
-    'supabase.com': {
-      grade: 'Grade A', overallScore: 96,
-      scores: { deepseek: 98, chatgpt: 96, claude: 97, gemini: 95, perplexity: 99 },
-      status: { deepseek: '#1 Firebase Alt', chatgpt: 'Verified Link', claude: 'Primary Choice', gemini: 'Grounded Fact', perplexity: 'Top Citation' },
-      gaps: 'Pricing page JSON-LD table refresh needed',
-      tickets: [
-        { id: 'GEO-02', title: 'Pricing & SLA Structured Table Entity', impact: 'High', effort: 'Quick' },
-        { id: 'GEO-09', title: 'Robots.txt AI Bot Whitelist Rules', impact: 'Medium', effort: 'Quick' }
-      ]
-    },
-    'stripe.com': {
-      grade: 'Grade A+', overallScore: 99,
-      scores: { deepseek: 100, chatgpt: 99, claude: 99, gemini: 98, perplexity: 100 },
-      status: { deepseek: '#1 Payment Gateway', chatgpt: 'Gold Standard', claude: 'Primary Choice', gemini: 'Grounded Fact', perplexity: 'Top Citation' },
-      gaps: 'Localized market citation alignment',
-      tickets: [
-        { id: 'GEO-08', title: 'Multi-lingual Fact Mirroring Matrix', impact: 'High', effort: 'Medium' },
-        { id: 'GEO-13', title: 'Automated Regression Alert Trigger', impact: 'High', effort: 'Quick' }
-      ]
-    }
+  var PREVIEW_BARS = {
+    deepseek: { width: '68%', badge: 'Example API trace', value: 'Prompt log' },
+    chatgpt: { width: '72%', badge: 'Example grounded run', value: 'Source links' },
+    claude: { width: '64%', badge: 'Example answer replay', value: 'Answer diff' },
+    gemini: { width: '58%', badge: 'Example retrieval view', value: 'Crawl notes' },
+    perplexity: { width: '76%', badge: 'Example research replay', value: 'Citation trail' }
   };
-
-  function getDomainAuditData(domain) {
-    if (DOMAIN_PRESETS[domain]) return DOMAIN_PRESETS[domain];
-    
-    // 
-    var hash = 0;
-    for (var i = 0; i < domain.length; i++) {
-      hash = ((hash << 5) - hash) + domain.charCodeAt(i);
-      hash |= 0;
-    }
-    var posHash = Math.abs(hash);
-    var dScore = 86 + (posHash % 12);
-    var cScore = 84 + ((posHash >> 2) % 13);
-    var clScore = 85 + ((posHash >> 4) % 13);
-    var gScore = 82 + ((posHash >> 6) % 14);
-    var pScore = 90 + ((posHash >> 8) % 10);
-    var overall = Math.round((dScore + cScore + clScore + gScore + pScore) / 5);
-    var grade = overall >= 95 ? 'Grade A+' : (overall >= 90 ? 'Grade A' : (overall >= 80 ? 'Grade B+' : 'Grade B'));
-
-    return {
-      grade: grade,
-      overallScore: overall,
-      scores: { deepseek: dScore, chatgpt: cScore, claude: clScore, gemini: gScore, perplexity: pScore },
-      status: {
-        deepseek: dScore >= 95 ? '#1 Cited Source' : 'Top 3 Citation',
-        chatgpt: cScore >= 90 ? 'Verified Grounded Link' : 'Grounded Fact Gap',
-        claude: clScore >= 90 ? 'Primary Recommendation' : 'Secondary Choice',
-        gemini: gScore >= 90 ? 'Grounded Fact Citation' : 'Search Grounding Gap',
-        perplexity: pScore >= 95 ? 'Top Deep Research Citation' : 'Indexed Source'
-      },
-      gaps: 'Entity schema & /llms.txt missing for 2 core pages',
-      tickets: [
-        { id: 'GEO-01', title: 'Schema.org JSON-LD Knowledge Graph for ' + domain, impact: 'High', effort: 'Quick' },
-        { id: 'GEO-03', title: '/llms.txt LLM Direct Ingestion Specification', impact: 'High', effort: 'Quick' },
-        { id: 'GEO-06', title: 'Target Conversational FAQ Answer Units', impact: 'High', effort: 'Medium' }
-      ]
-    };
-  }
 
   var isScanning = false;
 
-  function runLiveScanner(domain, onComplete) {
+  function runPreview(domain, onComplete) {
     if (isScanning) return;
     isScanning = true;
 
@@ -461,10 +351,10 @@
     var resultBanner = $('#console-result-banner');
 
     if (resultBanner) resultBanner.classList.add('is-hidden');
-    if (titleEl) titleEl.textContent = 'Scanning ' + domain + '...';
+    if (titleEl) titleEl.textContent = 'Preparing ' + domain + ' workspace...';
     if (submitBtn) {
       submitBtn.classList.add('is-loading');
-      submitBtn.textContent = 'Scanning across 8 AI engines...';
+      submitBtn.textContent = 'Preparing workspace preview...';
     }
 
     if (scannerOverlay) {
@@ -472,11 +362,11 @@
     }
 
     var steps = [
-      { pct: 20, log: '▶ Initializing multi-model audit pipeline for: https://' + domain, delay: 50 },
-      { pct: 45, log: '● [1/4] Crawling schema.org JSON-LD graph & /llms.txt protocols...', delay: 280 },
-      { pct: 70, log: '● [2/4] Live querying DeepSeek-V4, GPT-5.6, Claude 5, Gemini 3.6, Perplexity...', delay: 620 },
-      { pct: 88, log: '● [3/4] Calculating competitor perception gap & citation dropoff...', delay: 980 },
-      { pct: 100, log: '✔ [4/4] 100% COMPLETE · 13-point GEO Action Playbook compiled!', delay: 1350 }
+      { pct: 20, log: '▶ Capturing the requested domain: https://' + domain, delay: 50 },
+      { pct: 45, log: '● [1/4] Opening the guided setup flow and project shell...', delay: 260 },
+      { pct: 70, log: '● [2/4] Previewing example report, ticket, and asset views...', delay: 560 },
+      { pct: 88, log: '● [3/4] Saving the domain for workspace onboarding...', delay: 860 },
+      { pct: 100, log: '✔ [4/4] Preview ready. Run the full audit inside the app.', delay: 1160 }
     ];
 
     if (logBox) {
@@ -502,37 +392,31 @@
       if (scannerOverlay) scannerOverlay.classList.remove('is-active');
       if (submitBtn) {
         submitBtn.classList.remove('is-loading');
-        submitBtn.textContent = 'Run Instant Audit →';
+        submitBtn.textContent = 'Start Workspace Setup →';
       }
 
-      var data = getDomainAuditData(domain);
-      renderAuditResult(domain, data);
-
-      if (typeof onComplete === 'function') onComplete(data);
+      renderAuditResult(domain);
+      if (typeof onComplete === 'function') onComplete({});
     }, 1600);
   }
 
-  function renderAuditResult(domain, data) {
+  function renderAuditResult(domain) {
     var input = $('.hero-scanner-input');
     if (input) input.value = domain;
 
-    // 
-    Object.keys(data.scores).forEach(function (engine) {
-      var score = data.scores[engine];
-      var status = data.status[engine];
+    Object.keys(PREVIEW_BARS).forEach(function (engine) {
+      var preview = PREVIEW_BARS[engine];
       var bar = $('[data-radar-bar="' + engine + '"]');
       var val = $('[data-radar-val="' + engine + '"]');
       var badge = $('[data-radar-badge="' + engine + '"]');
-      if (bar) bar.style.width = score + '%';
-      if (val) val.textContent = score + '%';
-      if (badge) badge.textContent = status;
+      if (bar) bar.style.width = preview.width;
+      if (val) val.textContent = preview.value;
+      if (badge) badge.textContent = preview.badge;
     });
 
-    //  Live Ping
     var ping = $('.console-live-ping');
-    if (ping) ping.textContent = '● PING: ' + (12 + Math.floor(Math.random() * 8)) + 'ms · ' + domain;
+    if (ping) ping.textContent = '● Example workspace preview · ' + domain;
 
-    // 
     var banner = $('#console-result-banner');
     var domainEl = $('#banner-domain-name');
     var gradeEl = $('#banner-grade-val');
@@ -540,7 +424,7 @@
 
     if (banner) {
       if (domainEl) domainEl.textContent = domain;
-      if (gradeEl) gradeEl.textContent = data.grade + ' (' + data.overallScore + '/100)';
+      if (gradeEl) gradeEl.textContent = 'Preview ready';
       if (actionBtn) {
         actionBtn.href = '/app#/onboarding?domain=' + encodeURIComponent(domain);
         actionBtn.addEventListener('click', function () {
@@ -555,19 +439,17 @@
   }
 
   function initSimulator() {
-    // ：
     $$('.preset-pill').forEach(function (pill) {
       pill.addEventListener('click', function () {
         var domain = pill.getAttribute('data-domain');
         if (domain) {
           var input = $('.hero-scanner-input');
           if (input) input.value = domain;
-          runLiveScanner(domain);
+          runPreview(domain);
         }
       });
     });
 
-    // ：
     var form = $('.hero-scanner-form');
     if (form) {
       form.addEventListener('submit', function (e) {
@@ -577,17 +459,15 @@
         domain = domain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
         if (!domain) domain = 'yourbrand.com';
         
-        // 
         try {
           localStorage.setItem('citeaura_pending_domain', domain);
           sessionStorage.setItem('citeaura_pending_domain', domain);
         } catch(e){}
 
-        runLiveScanner(domain);
+        runPreview(domain);
       });
     }
 
-    // 
     $$('.console-tab-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var target = btn.getAttribute('data-target');
@@ -599,7 +479,6 @@
       });
     });
 
-    // 
     var copyBtn = $('.code-copy-btn');
     if (copyBtn) {
       copyBtn.addEventListener('click', function () {
@@ -644,10 +523,7 @@
     initParticles();
     initSimulator();
     initMouseGlow();
-    setLocale(detectLocale(), false);
-    $$('.lang-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () { setLocale(btn.getAttribute('data-lang'), true); });
-    });
+    setLocale();
   }
 
   if (document.readyState === 'loading') {

@@ -186,12 +186,13 @@ export const projects = {
    ========================================================================== */
 export const workspace = {
   getConfig: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/config`),
+  getQuestions: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/questions`), 'questions', []),
   patchConfig: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/config`, { method: 'PATCH', body }),
   getFacts: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/facts`),
   saveFacts: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/facts`, { method: 'PUT', body }),
   getAssets: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/assets`),
-  getAsset: (id, name) => request(`/api/v1/projects/${encodeURIComponent(id)}/asset?name=${encodeURIComponent(name)}`),
-  saveAsset: (id, name, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/asset?name=${encodeURIComponent(name)}`, { method: 'PUT', body }),
+  getAsset: (id, path) => request(`/api/v1/projects/${encodeURIComponent(id)}/asset?path=${encodeURIComponent(path)}`),
+  saveAsset: (id, path, text) => request(`/api/v1/projects/${encodeURIComponent(id)}/asset`, { method: 'PUT', body: { path, text } }),
   getWorkbench: (id, qid = '') => request(`/api/v1/projects/${encodeURIComponent(id)}/workbench${qid ? `?qid=${encodeURIComponent(qid)}` : ''}`),
   saveFactcheck: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/factcheck`, { method: 'PUT', body }),
   saveDistribution: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/distribution`, { method: 'PUT', body }),

@@ -1,4 +1,4 @@
-"""把引擎交付目录补齐为 SaaS 的六文档契约。"""
+"""Normalize engine delivery output into the SaaS six-document contract."""
 
 import shutil
 from pathlib import Path
@@ -9,12 +9,21 @@ from api.adapters.exceptions import GeoEngineError
 
 
 REQUIRED_DOCUMENTS = {
-    "01": "诊断报告",
-    "02": "执行方案",
-    "03": "工单表",
-    "04": "验收表",
-    "05": "初稿风险清单",
-    "06": "建设地图",
+    "01": "Audit-Report",
+    "02": "Execution-Plan",
+    "03": "Ticket-Log",
+    "04": "Acceptance-Checklist",
+    "05": "Draft-Risks",
+    "06": "Build-Map",
+}
+
+LEGACY_DOCUMENT_NAMES = {
+    "01": ("Audit-Report", "诊断报告"),
+    "02": ("Execution-Plan", "执行方案"),
+    "03": ("Ticket-Log", "工单表"),
+    "04": ("Acceptance-Checklist", "验收表"),
+    "05": ("Draft-Risks", "初稿风险清单"),
+    "06": ("Build-Map", "建设地图"),
 }
 
 
@@ -31,7 +40,25 @@ def _copy_execution_plan(project_directory: Path, delivery_directory: Path):
     }
     for suffix, source in sources.items():
         if source.is_file():
-            shutil.copy2(source, delivery_directory / f"02-执行方案{suffix}")
+            shutil.copy2(source, delivery_directory / f"02-{REQUIRED_DOCUMENTS['02']}{suffix}")
+
+
+def _normalize_legacy_filenames(delivery_directory: Path):
+    for number, candidates in LEGACY_DOCUMENT_NAMES.items():
+        canonical = candidates[0]
+        if any(delivery_directory.glob(f"{number}-{canonical}.*")):
+            continue
+        for name in candidates[1:]:
+            matches = sorted(delivery_directory.glob(f"{number}-{name}.*"))
+            if not matches:
+                continue
+            for source in matches:
+                target = source.with_name(f"{number}-{canonical}{source.suffix}")
+                if target.exists():
+                    source.unlink()
+                else:
+                    source.rename(target)
+            break
 
 
 def _write_empty_risk_report(project_directory: Path, delivery_directory: Path):
@@ -54,12 +81,13 @@ def _write_empty_risk_report(project_directory: Path, delivery_directory: Path):
 
 
 def ensure_delivery_contract(project_slug: str, delivery_directory: Path | None = None):
-    """确保交付目录包含 01 到 06 六类文档。"""
+    """Ensure the delivery directory contains the six required SaaS documents."""
     project_directory = geolib.project_dir(project_slug)
     delivery_directory = Path(delivery_directory) if delivery_directory else _latest_delivery(project_directory)
     if delivery_directory is None or not delivery_directory.is_dir():
         raise GeoEngineError("delivery directory was not generated")
 
+    _normalize_legacy_filenames(delivery_directory)
     if not any(delivery_directory.glob("02-*")):
         _copy_execution_plan(project_directory, delivery_directory)
     if not any(delivery_directory.glob("05-*")):

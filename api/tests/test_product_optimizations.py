@@ -19,7 +19,7 @@ def _metrics(date, version, mention_rate, samples=100, successful=100, failed=0)
         "provenance": {
             "platforms": [{
                 "engine_code": "deepseek",
-                "sampling_mode": "API·参数化知识",
+                "sampling_mode": "API - Parametric knowledge",
                 "model": "deepseek-chat",
             }],
         },

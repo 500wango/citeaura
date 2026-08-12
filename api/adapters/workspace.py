@@ -127,7 +127,32 @@ def workbench(project_slug: str, question_id: str):
 
     if question_id and not re.fullmatch(r"q\d{3,6}", question_id):
         raise ValueError("invalid question id")
-    return dashboard.workbench(project_slug, question_id)
+    result = dashboard.workbench(project_slug, question_id)
+    sample_directory = geolib.project_dir(project_slug) / "samples"
+    files = sorted(sample_directory.glob("*.jsonl")) if sample_directory.exists() else []
+    rows = geolib.read_jsonl(files[-1]) if files else []
+    result["samples"] = [
+        {
+            "engine_code": row.get("platform"),
+            "engine_name": row.get("platform_name") or row.get("platform"),
+            "question_id": row.get("question_id"),
+            "question": row.get("question"),
+            "answer": row.get("answer"),
+            "ok": bool(row.get("ok")),
+            "error": row.get("error"),
+            "mentioned": bool((row.get("analysis") or {}).get("brand_mentioned")),
+            "rank": (row.get("analysis") or {}).get("brand_rank"),
+            "citations": row.get("citations") or [],
+            "sampling_mode": "Manual - Product interface" if row.get("sample_mode") == "manual" or row.get("terminal") == "web" else (
+                "API - Search grounded" if row.get("search_enabled") else "API - Parametric knowledge"
+            ),
+            "sampled_at": row.get("ts"),
+        }
+        for row in rows
+        if not question_id or row.get("question_id") == question_id
+    ]
+    result["sample_date"] = files[-1].stem if files else None
+    return result
 
 
 def precheck(text: str):
@@ -204,7 +229,7 @@ def add_questions(project_slug: str, items: list):
         for item in items:
             text = str(item.get("text") or "").strip()
             market = item.get("market") if item.get("market") in series else "cn"
-            group = str(item.get("group") or "场景").strip() or "场景"
+            group = str(item.get("group") or "Scenario").strip() or "Scenario"
             if not text or len(text) > 1000 or text in existing:
                 continue
             number = series[market]

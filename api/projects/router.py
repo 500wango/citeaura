@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy.orm import Session
 
+from api.adapters import engine as engine_adapter
 from api.adapters.engine import ENGINE_KEY_ENV, geolib, job_log_path, load_tenant_keys, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import framing, preflight, report_quality, sampling_control, ticket_workflow, workspace
@@ -38,6 +39,12 @@ from api.adapters.log_translator import translate_engine_log
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 PLAYBOOK_PRIORITY = {"P0": 0, "P1": 1, "P2": 2}
 PLAYBOOK_EFFORT = {"S": 0, "M": 1, "L": 2}
+RETRYABLE_ACTIONS = frozenset((
+    "bootstrap", "autopilot", "sample", "cycle", "verify", "deliver",
+    "crawl", "audit", "deliverables", "plan", "expand", "blueprint", "generate", "lint", "report",
+    "sample-sheet", "serve", "archive", "archive_restore", "outreach_send",
+    "integration_semrush", "integration_search_console", "integration_tabapi",
+))
 
 
 class ProjectCreate(BaseModel):
@@ -209,7 +216,7 @@ def _job_payload(job: Job, include_log: bool = True, log_offset: int | None = No
         "request": _request_payload(job.request_json),
         "celery_task_id": job.celery_task_id,
         "retry_of_job_id": job.retry_of_job_id,
-        "can_retry": job.status == "failed",
+        "can_retry": job.status == "failed" and job.action in RETRYABLE_ACTIONS,
         "started_at": job.started_at,
         "finished_at": job.finished_at,
         "error": translate_engine_log(job.error) if job.error else None,
@@ -283,6 +290,136 @@ def _available_outputs(project_slug):
         "metrics": bool(list((directory / "metrics").glob("*.json"))) if (directory / "metrics").exists() else False,
         "tasks": (directory / "tasks.json").is_file(),
         "delivery": bool(list((directory / "delivery").glob("*"))) if (directory / "delivery").exists() else False,
+    }
+
+
+def _project_directory_exists(tenant_name: str, project_slug: str) -> bool:
+    return (engine_adapter.WORK_ROOT / engine_adapter.tenant_slug(tenant_name) / project_slug).is_dir()
+
+
+def _dispatch_retry(task_name, tenant_name, project_slug, request, job_id, source_action):
+    if source_action in ("bootstrap", "autopilot"):
+        return task_bootstrap.delay(
+            tenant_name,
+            project_slug,
+            skip_llm=bool(request.get("skip_llm", request.get("--skip-llm", False))),
+            no_sample=_pipeline_flag(request, "no-sample") or _pipeline_flag(request, "no_sample"),
+            job_action=source_action,
+            job_id=job_id,
+        )
+    if source_action == "sample":
+        return task_sample.delay(
+            tenant_name,
+            project_slug,
+            limit=request.get("limit", request.get("--limit")),
+            platforms=request.get("platforms", request.get("--platforms")),
+            repeat=int(request.get("repeat", request.get("--repeat", 1)) or 1),
+            job_id=job_id,
+        )
+    if source_action == "cycle":
+        return task_cycle.delay(tenant_name, project_slug, job_id=job_id)
+    if source_action == "verify":
+        return task_verify.delay(tenant_name, project_slug, job_id=job_id)
+    if source_action == "deliver":
+        return task_deliver.delay(tenant_name, project_slug, job_id=job_id)
+    if source_action == "archive":
+        from api.archive.router import task_archive_project
+        return task_archive_project.delay(tenant_name, project_slug, job_id=job_id)
+    if source_action == "archive_restore":
+        from api.archive.router import task_restore_project
+        archive_id = request.get("archive_id")
+        overwrite = bool(request.get("overwrite", False))
+        if not archive_id:
+            raise ValueError("archive_restore request is missing archive_id")
+        return task_restore_project.delay(tenant_name, project_slug, archive_id, overwrite, job_id=job_id)
+    if source_action == "outreach_send":
+        from api.outreach.router import task_send_outreach
+        draft_id = request.get("draft_id")
+        if not draft_id:
+            raise ValueError("outreach_send request is missing draft_id")
+        return task_send_outreach.delay(tenant_name, project_slug, draft_id, job_id=job_id)
+    if source_action.startswith("integration_"):
+        from api.integrations.router import task_sync_integration
+        provider = request.get("provider") or source_action.removeprefix("integration_")
+        return task_sync_integration.delay(tenant_name, project_slug, provider, job_id=job_id)
+    return task_pipeline.delay(tenant_name, project_slug, source_action, params=request, job_id=job_id)
+
+
+def _grade_for_score(score):
+    if score is None:
+        return None
+    if score >= 90:
+        return "A"
+    if score >= 75:
+        return "B"
+    if score >= 60:
+        return "C"
+    return "D"
+
+
+def _product_report(project_slug, metrics):
+    """Normalize filesystem artifacts into the stable product report contract."""
+    import analytics
+
+    project_directory = geolib.project_dir(project_slug)
+    audit = geolib.read_json(project_directory / "audit.json", {}) or {}
+    sample_path = _latest_file(project_directory / "samples", "*.jsonl")
+    rows = geolib.read_jsonl(sample_path) if sample_path else []
+    engine_rows = analytics.engines(project_slug, rows, metrics)
+
+    engines = []
+    citations = {}
+    for item in engine_rows:
+        platform_rows = [row for row in rows if row.get("platform") == item.get("platform")]
+        modes = {
+            "manual" if row.get("sample_mode") == "manual" or row.get("terminal") == "web" else "api"
+            for row in platform_rows
+        }
+        if len(modes) > 1:
+            sampling_mode = "Mixed API and product-interface samples"
+        elif "manual" in modes:
+            sampling_mode = "Manual - Product interface"
+        else:
+            sampling_mode = "API - Search grounded" if item.get("searched") else "API - Parametric knowledge"
+        normalized = {
+            "engine_code": item.get("platform"),
+            "engine_name": item.get("label") or item.get("platform"),
+            "sampling_mode": sampling_mode,
+            "mention_rate": item.get("mention"),
+            "median_rank": item.get("pos_median"),
+            "sample_count": item.get("samples", 0),
+            "citation_share": item.get("cite_share"),
+            "citation_counts": item.get("cite_counts", [0, 0]),
+            "top_sources": item.get("top_sources", []),
+            "example": item.get("example"),
+            "negative_sample_count": item.get("neg_n", 0),
+        }
+        engines.append(normalized)
+        for row in platform_rows:
+            if not row.get("ok"):
+                continue
+            for domain in (row.get("analysis") or {}).get("cited_domains") or []:
+                citations[domain] = citations.get(domain, 0) + 1
+
+    measured = [item for item in engines if item["mention_rate"] is not None and item["sample_count"]]
+    measured_count = sum(item["sample_count"] for item in measured)
+    mention_rate = (
+        sum(item["mention_rate"] * item["sample_count"] for item in measured) / measured_count
+        if measured_count else None
+    )
+    channels = [
+        {"domain": domain, "count": count}
+        for domain, count in sorted(citations.items(), key=lambda pair: (-pair[1], pair[0]))
+    ]
+    return {
+        **(metrics or {}),
+        "mention_rate": round(mention_rate, 4) if mention_rate is not None else None,
+        "grade": _grade_for_score(audit.get("avg_score")),
+        "engines": engines,
+        "channels": channels,
+        "audit": audit,
+        "measured": bool(measured),
+        "sample_artifact": sample_path.stem if sample_path else None,
     }
 
 
@@ -466,7 +603,7 @@ def project_preflight(
         "site": site,
         "byok_engines": sorted(byok),
         "manual_only": [
-            {"engine_code": code, "name": name, "sampling_mode": "人工·产品端", "market": market}
+            {"engine_code": code, "name": name, "sampling_mode": "Manual - Product interface", "market": market}
             for code, (name, market) in sorted(sample.MANUAL_ONLY.items())
         ],
         "requested_platforms": requested,
@@ -498,6 +635,7 @@ def create_project(
     if existing is not None and existing.archived_at is None and existing.status != "archived":
         _error(status.HTTP_409_CONFLICT, "project_already_exists")
 
+    restoring_existing_workspace = existing is not None and _project_directory_exists(tenant.name, slug)
     if existing is not None:
         project = existing
         project.url = payload.url
@@ -535,35 +673,36 @@ def create_project(
     db.refresh(project)
     db.refresh(job)
 
-    try:
-        import geo
+    if not restoring_existing_workspace:
+        try:
+            import geo
 
-        args = SimpleNamespace(
-            url=payload.url,
-            name=payload.name.strip() if payload.name else None,
-            slug=slug,
-            market="both",
-            max_pages=25,
-            force=False,
-        )
-        with with_tenant_context(tenant.name, slug):
-            geo.cmd_init(args)
-    except GeoEngineError as exc:
-        project.status = "failed"
-        job.status = "failed"
-        job.stage = "failed"
-        job.error = str(exc)
-        job.finished_at = datetime.now(timezone.utc)
-        db.commit()
-        _error(status.HTTP_400_BAD_REQUEST, "engine_init_failed")
-    except Exception as exc:  # noqa: BLE001
-        project.status = "failed"
-        job.status = "failed"
-        job.stage = "failed"
-        job.error = f"{type(exc).__name__}: {exc}"
-        job.finished_at = datetime.now(timezone.utc)
-        db.commit()
-        _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "project_init_failed")
+            args = SimpleNamespace(
+                url=payload.url,
+                name=payload.name.strip() if payload.name else None,
+                slug=slug,
+                market="both",
+                max_pages=25,
+                force=False,
+            )
+            with with_tenant_context(tenant.name, slug):
+                geo.cmd_init(args)
+        except GeoEngineError as exc:
+            project.status = "failed"
+            job.status = "failed"
+            job.stage = "failed"
+            job.error = str(exc)
+            job.finished_at = datetime.now(timezone.utc)
+            db.commit()
+            _error(status.HTTP_400_BAD_REQUEST, "engine_init_failed")
+        except Exception as exc:  # noqa: BLE001
+            project.status = "failed"
+            job.status = "failed"
+            job.stage = "failed"
+            job.error = f"{type(exc).__name__}: {exc}"
+            job.finished_at = datetime.now(timezone.utc)
+            db.commit()
+            _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "project_init_failed")
 
     project.status = "bootstrapping"
     job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
@@ -699,13 +838,14 @@ def project_status(project_id: int, current_user: User = Depends(get_current_use
             },
         )
         quality = report_quality.assess(project.slug, _has_sampling_access(db, tenant, project))
+        outputs = _available_outputs(project.slug)
     latest_job = db.query(Job).filter(Job.project_id == project.id).order_by(Job.id.desc()).first()
     return {
         "project_id": project.id,
         "slug": project.slug,
         "status": project.status,
         "summary": summary,
-        "available_outputs": _available_outputs(project.slug),
+        "available_outputs": outputs,
         "report_quality": quality,
         "latest_job": _job_payload(latest_job, include_log=False) if latest_job else None,
     }
@@ -856,6 +996,8 @@ def retry_project_job(
         _error(status.HTTP_404_NOT_FOUND, "job_not_found")
     if source.status != "failed":
         _error(status.HTTP_409_CONFLICT, "job_not_failed")
+    if source.action not in RETRYABLE_ACTIONS:
+        _error(status.HTTP_409_CONFLICT, "job_retry_not_supported")
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     request = _request_payload(source.request_json)
@@ -890,29 +1032,7 @@ def retry_project_job(
     job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
     db.commit()
     try:
-        if source.action in ("bootstrap", "autopilot"):
-            result = task_bootstrap.delay(
-                tenant.name, project.slug,
-                skip_llm=bool(request.get("skip_llm", request.get("--skip-llm", False))),
-                no_sample=request_no_sample,
-                job_action=source.action,
-                job_id=job.id,
-            )
-        elif source.action == "sample":
-            result = task_sample.delay(
-                tenant.name, project.slug,
-                limit=request.get("limit", request.get("--limit")),
-                platforms=request.get("platforms", request.get("--platforms")),
-                repeat=int(request.get("repeat", request.get("--repeat", 1)) or 1), job_id=job.id,
-            )
-        elif source.action == "cycle":
-            result = task_cycle.delay(tenant.name, project.slug, job_id=job.id)
-        elif source.action == "verify":
-            result = task_verify.delay(tenant.name, project.slug, job_id=job.id)
-        elif source.action == "deliver":
-            result = task_deliver.delay(tenant.name, project.slug, job_id=job.id)
-        else:
-            result = task_pipeline.delay(tenant.name, project.slug, source.action, params=request, job_id=job.id)
+        result = _dispatch_retry("retry", tenant.name, project.slug, request, job.id, source.action)
         job.celery_task_id = getattr(result, "id", None)
         db.commit()
     except Exception as exc:  # noqa: BLE001
@@ -1050,8 +1170,9 @@ def project_report(project_id: int, current_user: User = Depends(get_current_use
         if path is None:
             _error(status.HTTP_404_NOT_FOUND, "report_not_found")
         metrics = geolib.read_json(path, None)
+        product_report = _product_report(project.slug, metrics)
         quality = report_quality.assess(project.slug, _has_sampling_access(db, tenant, project))
-    return {"report": metrics, "date": metrics.get("date") if metrics else None, "report_quality": quality}
+    return {"report": product_report, "date": metrics.get("date") if metrics else None, "report_quality": quality}
 
 
 @router.get("/{project_id}/engines")
@@ -1065,26 +1186,20 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
         sample_path = _latest_file(pdir / "samples", "*.jsonl")
         metrics = geolib.read_json(metrics_path, None) if metrics_path else None
         rows = geolib.read_jsonl(sample_path) if sample_path else []
-        import analytics
-
-        engines = analytics.engines(project.slug, rows, metrics)
+        engines = _product_report(project.slug, metrics)["engines"]
         measurement_quality = report_quality.assess(
             project.slug, _has_sampling_access(db, tenant, project),
         )["measurement_quality"]
-    for item in engines:
-        platform_rows = [row for row in rows if row.get("platform") == item.get("platform")]
-        modes = {"manual" if row.get("sample_mode") == "manual" or row.get("terminal") == "web" else "api" for row in platform_rows}
-        if len(modes) > 1:
-            item["sample_mode"] = "mixed"
-            item["sampling_mode"] = "API·参数化知识 / 人工·产品端"
-        else:
-            manual = "manual" in modes
-            item["sample_mode"] = "manual" if manual else "api"
-            item["sampling_mode"] = "人工·产品端" if manual else ("API·联网检索" if item.get("searched") else "API·参数化知识")
-        item.pop("market", None)
     return {
         "date": metrics.get("date") if metrics else None,
-        "engines": engines,
+        "engines": [
+            {
+                **item,
+                "platform": item.get("engine_code"),
+                "platform_name": item.get("engine_name"),
+            }
+            for item in engines
+        ],
         "provenance": metrics.get("provenance") if metrics else None,
         "question_set_version": metrics.get("question_set_version") if metrics else None,
         "sample_summary": metrics.get("sample_summary") if metrics else None,

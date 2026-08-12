@@ -26,7 +26,7 @@ def test_delivery_contract_fills_plan_and_empty_risk_report(tmp_path, monkeypatc
     result = delivery.ensure_delivery_contract("example", output)
 
     assert result == output
-    assert (output / "02-执行方案.md").read_text("utf-8") == "# Execution plan\n"
+    assert (output / "02-Execution-Plan.md").read_text("utf-8") == "# Execution plan\n"
     risk = (output / "05-Draft-Risks.md").read_text("utf-8")
     assert "No AI draft generated for this cycle" in risk
     assert (output / "05-Draft-Risks.html").is_file()
@@ -39,5 +39,5 @@ def test_delivery_contract_rejects_missing_core_document(tmp_path, monkeypatch):
     monkeypatch.setattr(delivery.geolib, "project_dir", lambda slug: project)
     monkeypatch.setattr(delivery.geolib, "today", lambda: "2026-07-31")
 
-    with pytest.raises(GeoEngineError, match="06-"):
+    with pytest.raises(GeoEngineError, match="06-Build-Map"):
         delivery.ensure_delivery_contract("example", output)

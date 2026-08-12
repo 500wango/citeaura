@@ -46,15 +46,15 @@ export default {
       return `<div class="app-view-container">${renderSkeleton({ rows: 6 })}</div>`;
     }
 
-    const mentionRate = report && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : '—';
-    const overallGrade = (report && report.grade) || 'C';
+    const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : 'Unmeasured';
+    const overallGrade = report && report.grade;
     const totalTickets = Array.isArray(tickets) ? tickets.length : 0;
     const doneTickets = Array.isArray(tickets) ? tickets.filter((t) => t.status === 'done').length : 0;
     const engines = (report && report.engines) || [];
 
     const kpiData = [
       { label: t('overview.kpi_mention_rate', {}, 'AI Mention Rate'), value: mentionRate, className: 'num' },
-      { label: t('overview.kpi_grade', {}, 'Overall GEO Grade'), value: gradeBadge(overallGrade) },
+      { label: t('overview.kpi_grade', {}, 'Technical Audit Grade'), value: overallGrade ? gradeBadge(overallGrade) : 'Unmeasured' },
       { label: t('overview.kpi_tickets', {}, 'Action Tickets'), value: `${doneTickets} / ${totalTickets}`, sub: `${totalTickets - doneTickets} pending` },
       { label: t('overview.kpi_engines', {}, 'Active Engines'), value: engines.length || '0', sub: 'Multi-model matrix' },
     ];
@@ -66,7 +66,7 @@ export default {
           <div class="view-title-group">
             <div style="display:flex;align-items:center;gap:var(--sp-2);">
               <h1 class="view-title">${project.name || project.slug}</h1>
-              ${gradeBadge(overallGrade)}
+              ${overallGrade ? gradeBadge(overallGrade) : '<span class="tag tag-dim">Unmeasured</span>'}
             </div>
             <div class="view-desc">
               <a href="${project.url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:4px;color:var(--muted);text-decoration:none;">
@@ -119,7 +119,7 @@ export default {
                     </div>
                     <div style="display:flex;align-items:center;gap:var(--sp-4);">
                       <div class="num" style="font-size:var(--fs-4);font-weight:700;color:var(--ink);">
-                        ${eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : '—'}
+                        ${eng.mention_rate !== null && eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : 'Unmeasured'}
                       </div>
                     </div>
                   </div>

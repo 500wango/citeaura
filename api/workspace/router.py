@@ -87,6 +87,12 @@ def project_config(project_id: int, current_user: User = Depends(get_current_use
     return _call(db, current_user, project_id, workspace.read_config)
 
 
+@router.get("/api/v1/projects/{project_id}/questions")
+def project_questions(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    config = _call(db, current_user, project_id, workspace.read_config)
+    return {"questions": config.get("questions", [])}
+
+
 @router.patch("/api/v1/projects/{project_id}/config")
 def update_project_config(
     project_id: int,

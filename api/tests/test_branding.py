@@ -173,7 +173,7 @@ def test_delivery_contract_applies_idempotent_print_branding(tmp_path, monkeypat
     ensure_delivery_contract("example", output)
     ensure_delivery_contract("example", output)
 
-    branded = (output / "01-诊断报告.html").read_text("utf-8")
+    branded = (output / "01-Audit-Report.html").read_text("utf-8")
     assert branded.count(branding.STYLE_START) == 1
     assert branded.count(branding.BODY_START) == 1
     assert "Northstar &lt;Studio&gt;" in branded
@@ -187,6 +187,6 @@ def test_delivery_contract_applies_idempotent_print_branding(tmp_path, monkeypat
 
     branding.save_branding({"enabled": False})
     ensure_delivery_contract("example", output)
-    unbranded = (output / "01-诊断报告.html").read_text("utf-8")
+    unbranded = (output / "01-Audit-Report.html").read_text("utf-8")
     assert branding.STYLE_START not in unbranded
     assert branding.BODY_START not in unbranded

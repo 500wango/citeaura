@@ -83,7 +83,7 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1):
             items.append({
                 "engine_code": code,
                 "engine_name": sample.PROVIDERS[code].get("name", code),
-                "sampling_mode": "API·联网检索" if sample.PROVIDERS[code].get("search") else "API·参数化知识",
+                "sampling_mode": "API - Search grounded" if sample.PROVIDERS[code].get("search") else "API - Parametric knowledge",
                 "source": source,
                 "questions": question_count,
                 "repeat": int(repeat),

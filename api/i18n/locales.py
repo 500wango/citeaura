@@ -1,13 +1,13 @@
-"""支持的界面语言与解析规则。"""
+"""Supported product locales and normalization rules."""
 
-SUPPORTED_LOCALES = ("en", "zh", "ja")
+SUPPORTED_LOCALES = ("en",)
 DEFAULT_LOCALE = "en"
-LOCALE_HTML_LANG = {"en": "en", "zh": "zh-CN", "ja": "ja"}
-LOCALE_LABELS = {"en": "EN", "zh": "ZH", "ja": "JA"}
+LOCALE_HTML_LANG = {"en": "en"}
+LOCALE_LABELS = {"en": "EN"}
 
 
 def normalize_locale(value, default=DEFAULT_LOCALE):
-    """把任意输入收敛到支持的 locale 代码。"""
+    """Normalize any input to a supported locale code."""
     if value is None:
         return default
     raw = str(value).strip().lower().replace("_", "-")
@@ -16,17 +16,13 @@ def normalize_locale(value, default=DEFAULT_LOCALE):
     primary = raw.split("-", 1)[0]
     if primary in SUPPORTED_LOCALES:
         return primary
-    if raw.startswith("zh"):
-        return "zh"
-    if raw.startswith("ja"):
-        return "ja"
     if raw.startswith("en"):
         return "en"
     return default
 
 
 def detect_locale(query_lang=None, stored=None, accept_language=None):
-    """查询参数 > 本地存储 > Accept-Language > 默认 en。"""
+    """Query string > stored preference > Accept-Language > default English."""
     if query_lang:
         return normalize_locale(query_lang)
     if stored:
