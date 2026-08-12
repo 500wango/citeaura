@@ -37,8 +37,14 @@ export default {
 
           <div class="field" style="margin:0;">
             <label for="brand-logo-file">${t('branding.logo_url_label', {}, 'Custom Logo (PNG, JPEG, or WebP)')}</label>
-            <input type="file" id="brand-logo-file" class="input" accept="image/png,image/jpeg,image/webp" ${brandConfig.can_edit ? '' : 'disabled'}>
-            ${brandConfig.logo_data_url ? '<div class="field-hint">A logo is currently configured. Select a file to replace it.</div>' : ''}
+            <div style="display:flex;align-items:center;gap:var(--sp-3);">
+              <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;display:inline-flex;align-items:center;gap:var(--sp-2);">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>${t('common.choose_file', {}, 'Choose File')}</span>
+                <input type="file" id="brand-logo-file" accept="image/png,image/jpeg,image/webp" style="display:none;" ${brandConfig.can_edit ? '' : 'disabled'}>
+              </label>
+              <span id="brand-logo-filename" style="color:var(--muted);font-size:var(--fs-1);">${brandConfig.logo_data_url ? t('branding.logo_configured', {}, 'Logo configured (Click to replace)') : t('common.no_file_chosen', {}, 'No file chosen')}</span>
+            </div>
           </div>
 
           <div class="field" style="margin:0;">
@@ -68,6 +74,15 @@ export default {
   },
 
   mounted: (ctx) => {
+    const logoInput = document.getElementById('brand-logo-file');
+    const logoFilename = document.getElementById('brand-logo-filename');
+    if (logoInput && logoFilename) {
+      logoInput.addEventListener('change', () => {
+        const file = logoInput.files?.[0];
+        logoFilename.textContent = file ? file.name : t('common.no_file_chosen', {}, 'No file chosen');
+      });
+    }
+
     document.getElementById('btn-save-branding')?.addEventListener('click', async () => {
       const company_name = document.getElementById('brand-company-name')?.value.trim();
       const file = document.getElementById('brand-logo-file')?.files?.[0];

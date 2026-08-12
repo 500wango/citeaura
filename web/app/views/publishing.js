@@ -35,7 +35,7 @@ export default {
         </div>
 
         <div class="banner warn">
-          <strong>Editorial review required:</strong> WordPress and WeChat integrations create drafts. Other destinations require an explicit publish action.
+          <strong>${t('publishing.banner_title', {}, 'Editorial review required:')}</strong> ${t('publishing.banner_desc', {}, 'CMS and webhook integrations create drafts or dispatch payloads for editorial review.')}
         </div>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:var(--sp-6);">

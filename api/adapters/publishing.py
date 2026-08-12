@@ -170,10 +170,17 @@ def overview(project_slug, configured_codes):
     """返回脱敏后的渠道状态和发布记录。"""
     engine_publish = _engine_publish()
     config = geolib.load_config(project_slug)
+    market = config.get("market", "global")
     publishing = config.get("publishing") if isinstance(config.get("publishing"), dict) else {}
     configured_codes = set(configured_codes)
     items = []
     for platform, spec in engine_publish.PUBLISHERS.items():
+        # Hide WeChat for purely global market unless credentials or configs are explicitly present
+        if platform == "wechat_draft" and market == "global":
+            has_wechat_env = any(credential_code(platform, env) in configured_codes for env in spec["env"])
+            if not has_wechat_env and not publishing.get(platform):
+                continue
+
         current = publishing.get(platform) if isinstance(publishing.get(platform), dict) else {}
         missing = [
             env_name
