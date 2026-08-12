@@ -8,15 +8,15 @@ import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 
 const AVAILABLE_ENGINES = [
-  { code: 'deepseek', name: 'DeepSeek (V3 / R1)', provider: 'DeepSeek Official API' },
-  { code: 'openai', name: 'OpenAI (GPT-4o / Search)', provider: 'OpenAI Platform' },
-  { code: 'claude', name: 'Anthropic (Claude)', provider: 'Anthropic Console' },
-  { code: 'gemini', name: 'Google (Gemini)', provider: 'Google AI Studio' },
-  { code: 'glm', name: 'Zhipu AI (GLM)', provider: 'Zhipu BigModel' },
-  { code: 'doubao', name: 'Doubao', provider: 'Volcengine Ark' },
-  { code: 'kimi', name: 'Kimi', provider: 'Moonshot AI' },
+  { code: 'deepseek', name: 'DeepSeek', provider: 'DeepSeek Official API' },
+  { code: 'openai', name: 'OpenAI', provider: 'OpenAI Platform' },
+  { code: 'claude', name: 'Anthropic', provider: 'Anthropic Console' },
+  { code: 'gemini', name: 'Google', provider: 'Google AI Studio' },
+  { code: 'glm', name: 'Zhipu AI', provider: 'Zhipu BigModel Platform' },
+  { code: 'doubao', name: 'ByteDance', provider: 'Volcengine Ark Platform' },
+  { code: 'kimi', name: 'Moonshot AI', provider: 'Moonshot Platform' },
   { code: 'minimax', name: 'MiniMax', provider: 'MiniMax Platform' },
-  { code: 'grok', name: 'Grok', provider: 'xAI Console' },
+  { code: 'grok', name: 'xAI', provider: 'xAI Console' },
   { code: 'perplexity', name: 'Perplexity', provider: 'Perplexity API' },
 ];
 
