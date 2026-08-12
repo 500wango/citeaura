@@ -385,32 +385,34 @@
         <nav class="docs-nav-section" aria-label="Core Concepts">
           <div class="docs-nav-heading">Core Concepts</div>
           <a href="#geo-vs-seo" class="docs-nav-link">🧠 GEO vs Traditional SEO</a>
-          <a href="#ai-recommendations" class="docs-nav-link">🤖 How AI Recommends Brands</a>
+          <a href="#ai-recommendations" class="docs-nav-link">🤖 How AI Models Recommend Brands</a>
           <a href="#probe-concept" class="docs-nav-link">💡 API Keys as "Probes", Not Ads</a>
           <a href="#sampling-modes" class="docs-nav-link">📡 3 Sampling Modes Explained</a>
         </nav>
 
         <nav class="docs-nav-section" aria-label="BYOK Setup">
           <div class="docs-nav-heading">Model Keys (BYOK)</div>
-          <a href="#byok-overview" class="docs-nav-link">🔑 Why BYOK (Zero Markup)</a>
-          <a href="#key-setup-deepseek" class="docs-nav-link">⚡ DeepSeek Setup Guide</a>
-          <a href="#key-setup-openai" class="docs-nav-link">⚡ OpenAI (GPT-4o) Setup</a>
-          <a href="#key-setup-claude" class="docs-nav-link">⚡ Anthropic Claude Setup</a>
-          <a href="#security-guarantee" class="docs-nav-link">🛡️ AES-256-GCM & Zero Training</a>
+          <a href="#byok-overview" class="docs-nav-link">🔑 Why BYOK (Zero Token Markup)</a>
+          <a href="#key-setup-deepseek" class="docs-nav-link">⚡ DeepSeek Setup</a>
+          <a href="#key-setup-openai" class="docs-nav-link">⚡ OpenAI Setup</a>
+          <a href="#key-setup-claude" class="docs-nav-link">⚡ Anthropic Setup</a>
+          <a href="#security-guarantee" class="docs-nav-link">🛡️ Security & Zero Training</a>
         </nav>
 
         <nav class="docs-nav-section" aria-label="Action Tickets">
           <div class="docs-nav-heading">13 Action Tickets</div>
-          <a href="#tickets-overview" class="docs-nav-link">📋 Playbook Architecture</a>
+          <a href="#tickets-overview" class="docs-nav-link">📋 13 Standard Action Tickets</a>
           <a href="#llms-txt" class="docs-nav-link">📄 Deploying /llms.txt</a>
-          <a href="#citations-penetration" class="docs-nav-link">🌐 Citation Source Penetration</a>
+          <a href="#citations-penetration" class="docs-nav-link">🌐 Citation Source Strategy</a>
           <a href="#closed-loop" class="docs-nav-link">📈 Closed-Loop Verification</a>
         </nav>
 
         <nav class="docs-nav-section" aria-label="Integrations">
-          <div class="docs-nav-heading">Integrations</div>
-          <a href="#tabapi-integration" class="docs-nav-link">📊 TabAPI (AITDK Traffic)</a>
+          <div class="docs-nav-heading">External Integrations</div>
+          <a href="#integrations-overview" class="docs-nav-link">📊 Data Integrations Overview</a>
+          <a href="#tabapi-integration" class="docs-nav-link">⚡ TabAPI (AITDK)</a>
           <a href="#gsc-integration" class="docs-nav-link">🔍 Google Search Console</a>
+          <a href="#semrush-integration" class="docs-nav-link">📈 Semrush API</a>
         </nav>
 
         <nav class="docs-nav-section" aria-label="FAQ">
@@ -427,7 +429,7 @@
         <section id="quickstart">
           <span class="docs-badge">Getting Started</span>
           <h1>5-Minute Quickstart Guide</h1>
-          <p>CiteAura is an enterprise Generative Engine Optimization (GEO) platform that diagnoses, tracks, and maximizes your brand's recommendation rate across ChatGPT, Claude, Gemini, DeepSeek, and Perplexity.</p>
+          <p>CiteAura is a Generative Engine Optimization (GEO) platform that audits, measures, and helps improve your brand's citation and visibility across generative AI engines.</p>
           
           <div class="docs-steps">
             <div class="docs-step-card">
@@ -442,15 +444,15 @@
               <div class="docs-step-num">2</div>
               <div class="docs-step-content">
                 <h4>Connect 1~2 AI Model Probes (BYOK)</h4>
-                <p>Navigate to <strong>Settings → Model Keys (BYOK)</strong>. Paste your official OpenAI, DeepSeek, or Claude API key. Your keys are immediately encrypted at rest using AES-256-GCM.</p>
+                <p>Navigate to <strong>Settings → Model Keys (BYOK)</strong>. Paste your official OpenAI, DeepSeek, or Anthropic API key. Your keys are immediately encrypted at rest using AES-256-GCM.</p>
               </div>
             </div>
 
             <div class="docs-step-card">
               <div class="docs-step-num">3</div>
               <div class="docs-step-content">
-                <h4>Run First GEO Audit & Sampling</h4>
-                <p>Click <strong>Run Full Diagnosis</strong>. CiteAura will crawl your domain, analyze semantic extractability, and simulate real multi-turn user prompt queries across AI models.</p>
+                <h4>Run GEO Diagnosis & Sampling</h4>
+                <p>Click <strong>Run Full Diagnosis</strong> in the Overview or Workbench. CiteAura will analyze semantic extractability and simulate multi-turn prompt queries across the configured AI models.</p>
               </div>
             </div>
 
@@ -458,7 +460,7 @@
               <div class="docs-step-num">4</div>
               <div class="docs-step-content">
                 <h4>Implement 13 Action Tickets & /llms.txt</h4>
-                <p>Review your <strong>Perception Gaps</strong> and download your tailor-made <code>/llms.txt</code> file and structured JSON-LD schemas to deploy directly onto your web server.</p>
+                <p>Review detected <strong>Perception Gaps</strong> and download your generated <code>/llms.txt</code> file and structured JSON-LD schemas to deploy onto your web server.</p>
               </div>
             </div>
 
@@ -466,157 +468,188 @@
               <div class="docs-step-num">5</div>
               <div class="docs-step-content">
                 <h4>Closed-Loop Verification & Trend Tracking</h4>
-                <p>After deploying changes, trigger a verification sampling run in <strong>Verify</strong> to observe your AI Visibility Score leap from baseline to 60%+.</p>
+                <p>After deploying updates, run a verification sampling task in <strong>Verify</strong> to observe visibility improvements and confirm whether identified perception gaps are resolved.</p>
               </div>
             </div>
           </div>
         </section>
 
+        <!-- Continuous Loop -->
+        <section id="how-it-works">
+          <h2>The 5-Step Continuous GEO Loop</h2>
+          <p>GEO is an ongoing optimization cycle rather than a one-time audit:</p>
+          <ol>
+            <li><strong>Audit (诊断):</strong> Crawls domain pages to evaluate semantic extractability, WAF accessibility, and entity clarity.</li>
+            <li><strong>Diagnose (分析):</strong> Multi-model probe sampling measures brand mention rate, sentiment, and perception gaps.</li>
+            <li><strong>Plan (工单):</strong> Compiles 13 standardized engineering tickets prioritized by impact and difficulty.</li>
+            <li><strong>Deploy (落地):</strong> Provides machine-readable <code>/llms.txt</code>, structured metadata, and target citation channels.</li>
+            <li><strong>Verify (复测):</strong> Re-runs calibrated sampling to track visibility score progression over time.</li>
+          </ol>
+        </section>
+
         <!-- Core Concepts -->
         <section id="geo-vs-seo">
           <h2>GEO vs. Traditional Search SEO</h2>
-          <p>Traditional SEO was built for a world of <strong>10 blue links on Google</strong>. Generative Engine Optimization (GEO) is built for the new era where users receive <strong>synthesized AI answers, direct brand recommendations, and comparative tables</strong>.</p>
+          <p>Traditional SEO focuses on search engine ranking pages for keyword queries. Generative Engine Optimization (GEO) focuses on ensuring AI synthesis engines understand, cite, and recommend your brand when answering complex user prompts.</p>
           
           <div class="docs-table-wrap">
             <table class="docs-table">
               <thead>
                 <tr>
                   <th>Dimension</th>
-                  <th>Traditional SEO (Google)</th>
+                  <th>Traditional SEO</th>
                   <th>Generative Engine Optimization (GEO)</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td><strong>Core Target</strong></td>
-                  <td>PageRank, Backlink Quantity, Keyword Density</td>
-                  <td>Entity Clarity, Semantic Extractability, Citation Authority</td>
+                  <td><strong>Primary Target</strong></td>
+                  <td>Search Engine Result Pages (10 Blue Links)</td>
+                  <td>Direct AI Answer Synthesis & Recommendations</td>
                 </tr>
                 <tr>
-                  <td><strong>User Experience</strong></td>
-                  <td>User clicks multiple links to read articles</td>
-                  <td>AI synthesizes direct recommendation in 1 summary</td>
+                  <td><strong>Evaluation Metric</strong></td>
+                  <td>Keyword Rankings, Organic Clicks, Backlinks</td>
+                  <td>AI Visibility Score, Mention Rate, Citation Share</td>
                 </tr>
                 <tr>
-                  <td><strong>Ranking Unit</strong></td>
-                  <td>URL webpage</td>
-                  <td>Brand Entity & Verifiable Fact Statements</td>
+                  <td><strong>Optimization Unit</strong></td>
+                  <td>Webpage URL & Title Tags</td>
+                  <td>Brand Entity, Verifiable Facts, Fact Consistency</td>
                 </tr>
                 <tr>
-                  <td><strong>Bot Ingestion</strong></td>
-                  <td>Googlebot HTML Crawler</td>
-                  <td>LLM Markdown / Semantic Scrapers (GPTBot, ClaudeBot)</td>
+                  <td><strong>Crawler Targets</strong></td>
+                  <td>Traditional Search Engine Bots</td>
+                  <td>AI Training Scrapers & Live Retrieval Bots</td>
                 </tr>
                 <tr>
-                  <td><strong>Action Items</strong></td>
-                  <td>Meta tags, H1-H3, generic guest posts</td>
-                  <td><code>/llms.txt</code>, JSON-LD Schemas, Reddit/G2 Citation Infiltration</td>
+                  <td><strong>Core Deliverables</strong></td>
+                  <td>Meta descriptions, Keyword Density, Backlinks</td>
+                  <td><code>/llms.txt</code>, Schema JSON-LD, Citation Infiltration</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
 
+        <!-- How AI Recommends Brands -->
+        <section id="ai-recommendations">
+          <h2>How AI Models Recommend Brands</h2>
+          <p>When an AI model is asked for product or service recommendations, its response is generated through two primary mechanisms:</p>
+          <ul>
+            <li><strong>Parametric Memory:</strong> Information absorbed during the model's pre-training phase, reflecting long-term entity associations and public documentation.</li>
+            <li><strong>Live Web Retrieval:</strong> For connected models (such as Perplexity or live-browsing search engines), the model performs real-time searches and synthesizes content from high-authority review sites, discussion forums, and official fact sheets.</li>
+          </ul>
+        </section>
+
         <!-- Probe Concept -->
         <section id="probe-concept">
-          <h2>Why API Keys are "Probes/Monitors", Not "Paid Ads"</h2>
+          <h2>Why API Keys are "Probes", Not "Paid Ads"</h2>
           <div class="docs-callout warning">
-            <p><strong>Common Misconception:</strong> "If I configure OpenAI's API Key, will ChatGPT automatically mention my brand more?"</p>
+            <p><strong>Important Clarification:</strong> Configuring an AI model's API key does not alter the model's underlying weights or buy advertising placement.</p>
           </div>
-          <p><strong>Answer: No.</strong> Commercial AI models (OpenAI, Anthropic, Google, DeepSeek) cannot be bribed or altered simply by passing an API key. Their weights and web retrieval algorithms are independent.</p>
-          <p><strong>The Real Purpose of BYOK Keys:</strong></p>
+          <p><strong>The Role of BYOK (Bring Your Own Key):</strong></p>
           <ul>
-            <li><strong>The "Diagnostic Radar":</strong> CiteAura uses your API key as a calibrated probe to query the model on your behalf (e.g. <em>"What are the top 5 tools for SaaS attribution?"</em>) and scientifically score how often and in what sentiment your brand appears.</li>
-            <li><strong>Zero Middleman Markup:</strong> By using your own official key directly, each diagnostic query costs only a fraction of a cent (paid straight to OpenAI/DeepSeek), avoiding inflated token subscription surcharges.</li>
+            <li><strong>Calibrated Measurement:</strong> CiteAura uses your provided API key to query the model with representative industry questions, measuring your brand's presence and accuracy.</li>
+            <li><strong>Direct Cost Transparency:</strong> Queries are billed directly by the respective AI vendor at standard API rates, avoiding third-party token markups.</li>
           </ul>
         </section>
 
         <!-- Sampling Modes -->
         <section id="sampling-modes">
-          <h2>The 3 Sampling Modes Explained</h2>
-          <p>CiteAura enforces strict scientific truth in all measurement dashboards. Every citation and visibility score is tagged with one of three transparent sampling modes:</p>
+          <h2>3 Sampling Modes Explained</h2>
+          <p>Every visibility measurement in CiteAura clearly states its sampling source:</p>
           <ul>
-            <li><strong>API · Model Knowledge (Parametric Memory):</strong> Tests what the AI model knows internally from its pre-training cutoff without active web searching.</li>
-            <li><strong>API · Web-Grounded Retrieval (Live Search):</strong> Tests what the model recommends when live search browsing (Perplexity, GPT-4o Search, Claude Search) is triggered.</li>
-            <li><strong>Manual · Product Surface:</strong> Captures direct user-facing prompt transcripts audited manually via web UI.</li>
+            <li><strong>API · Model Knowledge (Parametric):</strong> Queries the model directly using its internal parameters without live web browsing.</li>
+            <li><strong>API · Web-Grounded Retrieval (Live Search):</strong> Queries models that use real-time web search capabilities to synthesize answers.</li>
+            <li><strong>Manual · Product Surface:</strong> Incorporates transcripts audited manually from consumer web interfaces.</li>
           </ul>
         </section>
 
         <!-- BYOK Setup Guide -->
         <section id="byok-overview">
           <h2>BYOK Model API Key Setup Guides</h2>
-          <p>All API keys are encrypted at rest using isolated <strong>AES-256-GCM</strong> envelopes. We uphold a strict <strong>Zero Model Training Guarantee</strong>: your queries, keys, and brand facts are never used to train public AI models.</p>
+          <p>Supported vendors include <strong>DeepSeek</strong>, <strong>OpenAI</strong>, <strong>Anthropic</strong>, <strong>Google</strong>, <strong>Zhipu AI</strong>, <strong>ByteDance</strong>, <strong>Moonshot AI</strong>, <strong>MiniMax</strong>, <strong>xAI</strong>, and <strong>Perplexity</strong>.</p>
 
-          <h3 id="key-setup-deepseek">1. DeepSeek API Key Setup</h3>
+          <h3 id="key-setup-deepseek">1. DeepSeek Setup</h3>
           <ol>
-            <li>Visit the official <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">DeepSeek Open Platform (platform.deepseek.com)</a>.</li>
-            <li>Log in, navigate to <strong>API Keys</strong>, and click <strong>Create new API key</strong>.</li>
-            <li>Copy the <code>sk-••••••••</code> key and paste it into CiteAura at <strong>Settings → Model Keys (BYOK) → DeepSeek</strong>.</li>
+            <li>Log into the <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">DeepSeek Open Platform</a>.</li>
+            <li>Navigate to <strong>API Keys</strong> and create a new key.</li>
+            <li>Paste the key into CiteAura under <strong>Settings → Model Keys (BYOK) → DeepSeek</strong>.</li>
           </ol>
 
-          <h3 id="key-setup-openai">2. OpenAI (ChatGPT / GPT-4o) API Key Setup</h3>
+          <h3 id="key-setup-openai">2. OpenAI Setup</h3>
           <ol>
-            <li>Visit the <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenAI Developer Platform (platform.openai.com)</a>.</li>
-            <li>Click <strong>Create new secret key</strong>, assign permissions, and copy the key.</li>
+            <li>Log into the <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenAI Developer Platform</a>.</li>
+            <li>Generate a new secret key under <strong>API Keys</strong>.</li>
             <li>Paste into CiteAura under <strong>OpenAI</strong>.</li>
           </ol>
 
-          <h3 id="key-setup-claude">3. Anthropic Claude API Key Setup</h3>
+          <h3 id="key-setup-claude">3. Anthropic Setup</h3>
           <ol>
-            <li>Visit <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Anthropic Console (console.anthropic.com)</a>.</li>
-            <li>Navigate to <strong>API Keys</strong> and generate a live key.</li>
-            <li>Paste into CiteAura under <strong>Anthropic</strong>.</li>
+            <li>Log into the <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Anthropic Console</a>.</li>
+            <li>Generate an API key and paste it into CiteAura under <strong>Anthropic</strong>.</li>
           </ol>
+
+          <h3 id="security-guarantee">Security & Zero Training Guarantee</h3>
+          <p>All API keys are encrypted at rest with <strong>AES-256-GCM</strong>. CiteAura guarantees that customer data, audit results, and diagnostic queries are never used to train or fine-tune public AI models.</p>
         </section>
 
         <!-- 13 Action Tickets -->
         <section id="tickets-overview">
-          <h2>13 Action Tickets Playbook Overview</h2>
-          <p>Unlike vanity analytics that only show charts, CiteAura outputs **13 standardized, engineering-ready action tickets** categorized into Site-Level Architecture, Entity Alignment, and Citation Outreach.</p>
+          <h2>13 Standard Action Tickets Overview</h2>
+          <p>CiteAura provides 13 standardized engineering tickets covering technical site readiness, brand entity clarification, and third-party citation building.</p>
           
-          <h3 id="llms-txt">Deploying /llms.txt (The Machine-Readable Standard)</h3>
-          <p><code>/llms.txt</code> is the emerging web standard for AI scrapers (supported by Anthropic, OpenAI, and modern LLM agents). CiteAura automatically compiles your brand facts, product USPs, and pricing tiers into a deterministic Markdown manifest.</p>
+          <h3 id="llms-txt">Deploying /llms.txt</h3>
+          <p><code>/llms.txt</code> is a clean Markdown standard that helps AI crawlers easily discover your core facts, features, and official links.</p>
           
           <div class="code-block">
-# CiteAura — Core Brand Fact Sheet
-> Next-Gen Generative Engine Optimization (GEO) SaaS Platform.
+# Brand Fact Sheet
+> Summary of core capabilities, official offerings, and verified facts.
 
 ## Core Capabilities
 - Site-wide GEO semantic extractability audits
-- Multi-model perception gap diagnosis (GPT-4o, Claude, DeepSeek)
+- Multi-model perception gap diagnosis
 - 13 Standardized engineering tickets
 - Automated /llms.txt and JSON-LD schema generation
-- White-label client delivery packs for marketing agencies
+- White-label delivery package compilation
 
-## Official Endpoints & Verified Pricing
-- Starter: $79/mo (3 projects, full ticket access)
-- Pro: $199/mo (10 projects, multi-model matrix)
-- Agency: $499/mo (30 projects, white-label exports)
-- Website: https://citeaura.com
+## Official Endpoints
+- Website: https://yourbrand.com
+- Documentation: https://yourbrand.com/docs
           </div>
-          <p><strong>Deployment:</strong> Simply upload this file to the root of your web server at <code>https://yourdomain.com/llms.txt</code>.</p>
+          <p>Deploy this file directly to the root of your web server at <code>https://yourbrand.com/llms.txt</code>.</p>
         </section>
 
         <!-- Citations Penetration -->
         <section id="citations-penetration">
-          <h2>Citation Source Penetration Strategy</h2>
-          <p>When an AI model searches the web to answer a comparison query (e.g. <em>"Best alternatives to Brand X"</em>), it primarily relies on high-authority aggregator and discussion hubs.</p>
-          <p>In CiteAura's <strong>Channels (信源与渠道)</strong> dashboard:</p>
-          <ul>
-            <li>Examine the top 20 domain citations where competitors are mentioned;</li>
-            <li>Identify missing high-intent properties (e.g. Reddit subreddits, G2 reviews, GitHub repositories, authoritative industry benchmarks);</li>
-            <li>Deploy outreach campaigns targeting the exact pages that feed into ChatGPT's live retrieval index.</li>
-          </ul>
+          <h2>Citation Source Strategy</h2>
+          <p>In the <strong>Channels (信源与渠道)</strong> dashboard, CiteAura lists the third-party websites and platforms most frequently referenced by AI search engines in your industry. By contributing quality information to these referenced domains, you increase the likelihood of inclusion during live web synthesis.</p>
+        </section>
+
+        <!-- Integrations -->
+        <section id="integrations-overview">
+          <h2>External Data Integrations</h2>
+          <p>CiteAura connects with third-party tools to cross-reference search engine metrics with generative AI visibility.</p>
+
+          <h3 id="tabapi-integration">1. TabAPI (AITDK) Traffic Intelligence</h3>
+          <p>Connect your TabAPI key under <strong>Integrations → TabAPI</strong> to track monthly domain visits, global rankings, and traffic source distributions.</p>
+
+          <h3 id="gsc-integration">2. Google Search Console</h3>
+          <p>Authorize read-only access (<code>webmasters.readonly</code>) to monitor organic Google clicks, search impressions, and top search queries alongside AI visibility trends.</p>
+
+          <h3 id="semrush-integration">3. Semrush API</h3>
+          <p>Configure a Semrush API key to benchmark domain authority scores and organic competitor keyword matrices.</p>
         </section>
 
         <!-- FAQ -->
         <section id="faq-unmeasured">
           <h2>Frequently Asked Questions</h2>
-          <h3>Why does an AI engine show "Unmeasured" in my matrix?</h3>
-          <p>CiteAura does not fake or simulate arbitrary scores. If you have not configured an API key for a specific engine (e.g. Claude), that column is marked honestly as <em>Unmeasured</em> rather than misleadingly displaying 0%.</p>
+          <h3>Why does an AI engine show "Unmeasured"?</h3>
+          <p>If you have not connected an API key for a specific vendor, CiteAura marks that vendor as <em>Unmeasured</em> rather than displaying simulated or estimated values.</p>
 
-          <h3 id="faq-white-label">How do I export white-label delivery decks for agency clients?</h3>
-          <p>Navigate to <strong>Delivery → Client Delivery Packs</strong>. Click <strong>Generate Delivery Pack</strong>. CiteAura will compile executive Markdown summaries, audit PDFs, before-and-after visibility comparisons, and custom branded deliverables in one package.</p>
+          <h3 id="faq-white-label">How do I export client delivery packs?</h3>
+          <p>Go to <strong>Delivery → Client Delivery Packs</strong> and click <strong>Generate Delivery Pack</strong> to compile executive summaries, audit reports, and deployment assets for client handoff.</p>
         </section>
 
       </main>
@@ -625,13 +658,16 @@
       <nav class="docs-toc" aria-label="Table of contents">
         <div class="docs-toc-title">On this page</div>
         <a href="#quickstart">5-Minute Quickstart</a>
+        <a href="#how-it-works">5-Step Continuous Loop</a>
         <a href="#geo-vs-seo">GEO vs Traditional SEO</a>
+        <a href="#ai-recommendations">How AI Recommends Brands</a>
         <a href="#probe-concept">API Keys as Probes</a>
         <a href="#sampling-modes">3 Sampling Modes</a>
         <a href="#byok-overview">BYOK Setup Guides</a>
         <a href="#tickets-overview">13 Action Tickets</a>
         <a href="#llms-txt">Deploying /llms.txt</a>
-        <a href="#citations-penetration">Citation Outreach</a>
+        <a href="#citations-penetration">Citation Strategy</a>
+        <a href="#integrations-overview">External Integrations</a>
         <a href="#faq-unmeasured">FAQ & Troubleshooting</a>
       </nav>
 
