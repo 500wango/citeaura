@@ -1,7 +1,7 @@
 """Attach English display fields to engine artifacts without rewriting tasks.json."""
 
 import re
-from api.i18n import DEFAULT_LOCALE, resolve
+from api.i18n import resolve
 
 # Exact English mappings for standard ticket titles
 EXACT_TITLES_EN = {
@@ -120,6 +120,7 @@ def localize_ticket(ticket):
     result = dict(ticket)
     title = ticket.get("title") or ticket.get("name")
     desc = ticket.get("desc") or ticket.get("description")
+    why = ticket.get("why")
     action = ticket.get("action")
     package = ticket.get("package") or ticket.get("category")
     owner = ticket.get("owner") or ticket.get("role")
@@ -127,6 +128,8 @@ def localize_ticket(ticket):
     for locale in ("en",):
         result[f"title_{locale}"] = _localize_text(title, locale)
         result[f"desc_{locale}"] = _localize_text(desc, locale)
+        if why:
+            result[f"why_{locale}"] = _localize_text(why, locale)
         if action:
             result[f"action_{locale}"] = _localize_text(action, locale)
         if package:

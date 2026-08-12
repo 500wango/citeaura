@@ -290,6 +290,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     delivered = client.post(f"/api/v1/projects/{body['project_id']}/deliver", headers=headers)
     assert delivered.status_code == 202
     assert delivered.json()["job_id"] == 4
+    monkeypatch.setattr(project_router.delivery, "ensure_delivery_contract", lambda slug, directory: directory)
     archive = client.get(f"/api/v1/projects/{body['project_id']}/deliveries/2026-07-31", headers=headers)
     assert archive.status_code == 200
     assert archive.headers["content-type"] == "application/zip"
@@ -315,6 +316,32 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert incremental.status_code == 200
     assert incremental.json()["job"]["log"] == "second\n"
     assert incremental.json()["job"]["log_offset"] == 13
+
+
+def test_delivery_download_rejects_noncompliant_legacy_package(project_client, monkeypatch, tmp_path):
+    client, _ = project_client
+    headers = _register(client, "owner@example.com")
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_init=lambda args: None))
+    monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *args, **kwargs: types.SimpleNamespace(id="task-1"))
+    created = client.post("/api/v1/projects", headers=headers, json={"url": "example.com"})
+    assert created.status_code == 202
+
+    output = tmp_path / "work" / "owner" / "example-com" / "delivery" / "2026-07-31"
+    output.mkdir(parents=True)
+    (output / "01-诊断报告.md").write_text("# 中文报告\n", "utf-8")
+
+    def reject_delivery(slug, directory):
+        raise project_router.GeoEngineError("delivery contains non-English content: 01-诊断报告.md")
+
+    monkeypatch.setattr(project_router.delivery, "ensure_delivery_contract", reject_delivery)
+    response = client.get(
+        f"/api/v1/projects/{created.json()['project_id']}/deliveries/2026-07-31",
+        headers=headers,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"] == "delivery_contract_invalid"
+    assert "01-诊断报告.md" in response.json()["detail"]
 
 
 def test_project_isolation_and_duplicate_rejection(project_client, monkeypatch):

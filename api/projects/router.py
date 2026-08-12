@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from api.adapters import engine as engine_adapter
 from api.adapters.engine import ENGINE_KEY_ENV, geolib, job_log_path, load_tenant_keys, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import framing, preflight, report_quality, sampling_control, ticket_workflow, workspace
+from api.adapters import delivery, framing, preflight, report_quality, sampling_control, ticket_workflow, workspace
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
@@ -1532,6 +1532,13 @@ def download_delivery(
         directory = geolib.project_dir(project.slug) / "delivery" / delivery_date
         if not directory.is_dir():
             _error(status.HTTP_404_NOT_FOUND, "delivery_not_found")
+        try:
+            directory = delivery.ensure_delivery_contract(project.slug, directory)
+        except GeoEngineError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": "delivery_contract_invalid", "detail": str(exc)},
+            ) from exc
         archive = io.BytesIO()
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
             for file_path in sorted(directory.rglob("*")):

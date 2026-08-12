@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from api.adapters import branding
 from api.adapters import engine as engine_adapter
 from api.adapters.delivery import ensure_delivery_contract
+from api.tests.test_delivery_adapter import seed_delivery_project
 from api.db import Base, get_db
 from api.main import app
 from api.models import Tenant
@@ -148,16 +149,7 @@ def test_branding_api_rejects_invalid_enabled_config(branding_client):
 
 def test_delivery_contract_applies_idempotent_print_branding(tmp_path, monkeypatch):
     tenant_root = tmp_path / "tenant"
-    project = tenant_root / "example"
-    output = project / "delivery" / "2026-07-31"
-    output.mkdir(parents=True)
-    document = "<!doctype html><html><head><title>Report</title></head><body><main>Content</main></body></html>"
-    for number, name in (("01", "诊断报告"), ("03", "工单表"), ("04", "验收表"), ("06", "建设地图")):
-        (output / f"{number}-{name}.html").write_text(document, "utf-8")
-    (output / "index.html").write_text(document, "utf-8")
-    plan = project / "deliverables" / "2-GEO优化方案.md"
-    plan.parent.mkdir()
-    plan.write_text("# Execution plan\n", "utf-8")
+    project, output = seed_delivery_project(tenant_root)
 
     monkeypatch.setattr(branding.geolib, "WORK", tenant_root)
     monkeypatch.setattr("api.adapters.delivery.geolib.project_dir", lambda slug: project)
