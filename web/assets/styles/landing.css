@@ -984,21 +984,58 @@
 .final-cta-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
 
 /* ================================================================
-    (Site Footer)
+   Site Footer — Modern Structured Layout
    ================================================================ */
 .site-footer {
-  padding: var(--sp-9) 0;
+  padding: var(--sp-10) 0 var(--sp-9);
   border-top: 1px solid var(--line);
   background: var(--page); color: var(--muted); font-size: var(--fs-2);
 }
 .footer-layout {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--sp-6); flex-wrap: wrap;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: var(--sp-8); flex-wrap: wrap;
 }
-.footer-tagline { color: var(--faint); font-size: var(--fs-2); margin: 0; }
-.footer-links { display: flex; align-items: center; gap: var(--sp-4); }
-.footer-links a { color: var(--muted); text-decoration: none; transition: color var(--dur-fast); }
-.footer-links a:hover { color: var(--ink); }
+.footer-brand-col {
+  display: flex; flex-direction: column; gap: var(--sp-3);
+  max-width: 320px;
+}
+.footer-brand-col .brand {
+  margin-bottom: var(--sp-1);
+}
+.footer-tagline {
+  color: var(--muted);
+  font-size: var(--fs-2);
+  line-height: 1.6;
+  margin: 0;
+}
+.footer-copy {
+  color: var(--faint);
+  font-size: var(--fs-1);
+  font-family: var(--font-mono);
+  margin-top: var(--sp-2);
+}
+.footer-nav-col {
+  display: flex; gap: var(--sp-9); flex-wrap: wrap;
+}
+.footer-nav-group {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.footer-nav-title {
+  font-size: var(--fs-2);
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 var(--sp-1) 0;
+  letter-spacing: -0.01em;
+}
+.footer-nav-group a {
+  color: var(--muted);
+  font-size: var(--fs-2);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.footer-nav-group a:hover {
+  color: var(--ink);
+}
 
 /* ================================================================
     (Reveal Animations)
