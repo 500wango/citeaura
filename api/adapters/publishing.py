@@ -151,14 +151,14 @@ PUBLISHER_NAMES_EN = {
     "github": "GitHub Repository",
     "wordpress": "WordPress",
     "wechat_draft": "WeChat Official Account Drafts",
-    "webhook": "Custom Webhook",
+    "webhook": "Custom Webhook / Zapier / CMS",
 }
 
 PUBLISHER_NOTES_EN = {
     "github": "Submit Markdown to your repository via Contents API (deploys instantly with GitHub Pages or static site generators).",
     "wordpress": "Create draft posts via REST API; review and publish from your WordPress admin console.",
     "wechat_draft": "Create drafts in WeChat Official Account for editorial review and broadcast; server IP must be whitelisted.",
-    "webhook": "POST JSON payload {title, markdown, html, slug, path} to your custom webhook endpoint.",
+    "webhook": "POST JSON payload {title, markdown, html, slug, path} to your custom webhook endpoint, Zapier, Make, Ghost, or Webflow.",
 }
 
 HINT_MAP_EN = {
@@ -175,8 +175,8 @@ def overview(project_slug, configured_codes):
     configured_codes = set(configured_codes)
     items = []
     for platform, spec in engine_publish.PUBLISHERS.items():
-        # Hide WeChat for purely global market unless credentials or configs are explicitly present
-        if platform == "wechat_draft" and market == "global":
+        # Hide WeChat unless project target market is specifically Chinese ('cn') or WeChat credentials are set
+        if platform == "wechat_draft" and market != "cn":
             has_wechat_env = any(credential_code(platform, env) in configured_codes for env in spec["env"])
             if not has_wechat_env and not publishing.get(platform):
                 continue
@@ -188,22 +188,24 @@ def overview(project_slug, configured_codes):
             if credential_code(platform, env_name) not in configured_codes
         ]
         missing.extend(key for key in _REQUIRED_CONFIG[platform] if not current.get(key))
+        name = PUBLISHER_NAMES_EN.get(platform, spec["name"])
+        note = PUBLISHER_NOTES_EN.get(platform, spec["note"])
         items.append({
             "code": platform,
-            "name": spec["name"],
-            "name_en": PUBLISHER_NAMES_EN.get(platform, spec["name"]),
+            "name": name,
+            "name_en": name,
             "env": list(spec["env"]),
             "cfg": [
                 {
                     "key": key,
-                    "hint": hint,
+                    "hint": HINT_MAP_EN.get(hint, hint),
                     "hint_en": HINT_MAP_EN.get(hint, hint),
                     "value": str(current.get(key) or ""),
                 }
                 for key, hint in spec["cfg"]
             ],
-            "note": spec["note"],
-            "note_en": PUBLISHER_NOTES_EN.get(platform, spec["note"]),
+            "note": note,
+            "note_en": note,
             "missing": missing,
             "ready": not missing,
         })

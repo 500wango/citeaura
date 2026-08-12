@@ -92,7 +92,7 @@ def test_publisher_config_is_encrypted_tenant_isolated_and_hidden_from_engine_ke
     initial = client.get(f"/api/v1/projects/{project_id}/publishing", headers=headers)
     assert initial.status_code == 200
     assert [item["code"] for item in initial.json()["publishers"]] == [
-        "github", "wordpress", "wechat_draft", "webhook",
+        "github", "wordpress", "webhook",
     ]
     github = initial.json()["publishers"][0]
     assert github["missing"] == ["GITHUB_TOKEN", "repo"]
