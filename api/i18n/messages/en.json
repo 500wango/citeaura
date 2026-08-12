@@ -364,7 +364,7 @@
   "branding.title": "White-Label & Delivery Branding",
   "branding.desc": "Customize the header logo, agency name, and confidentiality notices exported in client delivery packs.",
   "branding.agency_name_label": "Agency / Consultant Organization Name",
-  "branding.logo_url_label": "Custom Logo URL (PNG/SVG)",
+  "branding.logo_url_label": "Custom Logo (PNG, JPEG, or WebP)",
   "branding.footer_label": "Report Footer & Copyright Notice",
   "branding.hide_badge_title": "Enable custom branding in client delivery packs",
   "branding.hide_badge_desc": "Requires an Agency or Enterprise plan and adds your header and footer to generated delivery documents.",
