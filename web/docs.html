@@ -391,11 +391,18 @@
         </nav>
 
         <nav class="docs-nav-section" aria-label="BYOK Setup">
-          <div class="docs-nav-heading">Model Keys (BYOK)</div>
-          <a href="#byok-overview" class="docs-nav-link">🔑 Why BYOK (Zero Token Markup)</a>
-          <a href="#key-setup-deepseek" class="docs-nav-link">⚡ DeepSeek Setup</a>
-          <a href="#key-setup-openai" class="docs-nav-link">⚡ OpenAI Setup</a>
-          <a href="#key-setup-claude" class="docs-nav-link">⚡ Anthropic Setup</a>
+          <div class="docs-nav-heading">Model Keys (10 Vendors)</div>
+          <a href="#byok-overview" class="docs-nav-link">🔑 BYOK Architecture</a>
+          <a href="#key-setup-deepseek" class="docs-nav-link">⚡ DeepSeek</a>
+          <a href="#key-setup-openai" class="docs-nav-link">⚡ OpenAI</a>
+          <a href="#key-setup-claude" class="docs-nav-link">⚡ Anthropic</a>
+          <a href="#key-setup-google" class="docs-nav-link">⚡ Google</a>
+          <a href="#key-setup-zhipu" class="docs-nav-link">⚡ Zhipu AI</a>
+          <a href="#key-setup-bytedance" class="docs-nav-link">⚡ ByteDance</a>
+          <a href="#key-setup-moonshot" class="docs-nav-link">⚡ Moonshot AI</a>
+          <a href="#key-setup-minimax" class="docs-nav-link">⚡ MiniMax</a>
+          <a href="#key-setup-xai" class="docs-nav-link">⚡ xAI</a>
+          <a href="#key-setup-perplexity" class="docs-nav-link">⚡ Perplexity</a>
           <a href="#security-guarantee" class="docs-nav-link">🛡️ Security & Zero Training</a>
         </nav>
 
@@ -569,26 +576,78 @@
         <!-- BYOK Setup Guide -->
         <section id="byok-overview">
           <h2>BYOK Model API Key Setup Guides</h2>
-          <p>Supported vendors include <strong>DeepSeek</strong>, <strong>OpenAI</strong>, <strong>Anthropic</strong>, <strong>Google</strong>, <strong>Zhipu AI</strong>, <strong>ByteDance</strong>, <strong>Moonshot AI</strong>, <strong>MiniMax</strong>, <strong>xAI</strong>, and <strong>Perplexity</strong>.</p>
+          <p>CiteAura supports 10 major AI engine providers. Connecting your official API keys allows CiteAura to run direct diagnostic sampling with zero token markup. All keys are encrypted at rest with hardware-grade <strong>AES-256-GCM</strong> and are protected under our strict <strong>Zero Model Training Guarantee</strong>.</p>
 
           <h3 id="key-setup-deepseek">1. DeepSeek Setup</h3>
           <ol>
-            <li>Log into the <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">DeepSeek Open Platform</a>.</li>
-            <li>Navigate to <strong>API Keys</strong> and create a new key.</li>
-            <li>Paste the key into CiteAura under <strong>Settings → Model Keys (BYOK) → DeepSeek</strong>.</li>
+            <li>Visit the official <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">DeepSeek Open Platform (platform.deepseek.com)</a>.</li>
+            <li>In the left sidebar, click <strong>API Keys</strong>.</li>
+            <li>Click <strong>Create API Key</strong>, assign a name (e.g. <code>CiteAura</code>), and copy the <code>sk-...</code> key.</li>
+            <li>In CiteAura, navigate to <strong>Settings → Model Keys (BYOK) → DeepSeek</strong> and paste the key.</li>
           </ol>
 
           <h3 id="key-setup-openai">2. OpenAI Setup</h3>
           <ol>
-            <li>Log into the <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenAI Developer Platform</a>.</li>
-            <li>Generate a new secret key under <strong>API Keys</strong>.</li>
-            <li>Paste into CiteAura under <strong>OpenAI</strong>.</li>
+            <li>Visit the official <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenAI Developer Platform (platform.openai.com/api-keys)</a>.</li>
+            <li>In the dashboard, click <strong>Create new secret key</strong>.</li>
+            <li>Select your organization or project, assign permissions, and copy the secret key.</li>
+            <li>In CiteAura, open <strong>Settings → Model Keys (BYOK) → OpenAI</strong> and paste the key.</li>
           </ol>
 
           <h3 id="key-setup-claude">3. Anthropic Setup</h3>
           <ol>
-            <li>Log into the <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Anthropic Console</a>.</li>
-            <li>Generate an API key and paste it into CiteAura under <strong>Anthropic</strong>.</li>
+            <li>Visit the official <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Anthropic Console (console.anthropic.com)</a>.</li>
+            <li>Navigate to <strong>API Keys</strong> and click <strong>Create Key</strong>.</li>
+            <li>Name your key, copy the <code>sk-ant-...</code> token, and paste it into CiteAura under <strong>Settings → Model Keys (BYOK) → Anthropic</strong>.</li>
+          </ol>
+
+          <h3 id="key-setup-google">4. Google Setup</h3>
+          <ol>
+            <li>Visit the official <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Google AI Studio (aistudio.google.com/apikey)</a>.</li>
+            <li>Click <strong>Create API key</strong> and choose an existing or new Google Cloud Project.</li>
+            <li>Copy the generated <code>AIzaSy...</code> key and paste it into CiteAura under <strong>Settings → Model Keys (BYOK) → Google</strong>.</li>
+          </ol>
+
+          <h3 id="key-setup-zhipu">5. Zhipu AI Setup</h3>
+          <ol>
+            <li>Visit the official <a href="https://open.bigmodel.cn/usercenter/apikeys" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Zhipu BigModel Platform (open.bigmodel.cn)</a>.</li>
+            <li>Navigate to <strong>User Center (个人中心) → API Keys (API 密钥)</strong>.</li>
+            <li>Click <strong>Add API Key (添加新的 API Key)</strong>, copy the key, and paste into CiteAura under <strong>Settings → Model Keys (BYOK) → Zhipu AI</strong>.</li>
+          </ol>
+
+          <h3 id="key-setup-bytedance">6. ByteDance Setup</h3>
+          <ol>
+            <li>Visit the official <a href="https://console.volcengine.com/ark" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Volcengine Ark Platform (console.volcengine.com/ark)</a>.</li>
+            <li>In the left navigation menu, select <strong>API Key Management (API Key 管理)</strong>.</li>
+            <li>Click <strong>Create API Key (创建 API Key)</strong>, copy the secret key, and paste into CiteAura under <strong>Settings → Model Keys (BYOK) → ByteDance</strong>.</li>
+          </ol>
+
+          <h3 id="key-setup-moonshot">7. Moonshot AI Setup</h3>
+          <ol>
+            <li>Visit the official <a href="https://platform.moonshot.cn/console/api-keys" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Moonshot Open Platform (platform.moonshot.cn)</a>.</li>
+            <li>In the console menu, navigate to <strong>API Key Management (API Key 管理)</strong>.</li>
+            <li>Click <strong>Create API Key (新建 API Key)</strong>, copy the key string, and paste into CiteAura under <strong>Settings → Model Keys (BYOK) → Moonshot AI</strong>.</li>
+          </ol>
+
+          <h3 id="key-setup-minimax">8. MiniMax Setup</h3>
+          <ol>
+            <li>Visit the official <a href="https://platform.minimaxi.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">MiniMax Open Platform (platform.minimaxi.com)</a>.</li>
+            <li>Navigate to <strong>Account Management (账户管理) → Interface Key (接口密钥)</strong>.</li>
+            <li>Create or copy your active API key and paste into CiteAura under <strong>Settings → Model Keys (BYOK) → MiniMax</strong>.</li>
+          </ol>
+
+          <h3 id="key-setup-xai">9. xAI Setup</h3>
+          <ol>
+            <li>Visit the official <a href="https://console.x.ai" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">xAI Console (console.x.ai)</a>.</li>
+            <li>Navigate to <strong>API Keys</strong> in your team management console.</li>
+            <li>Click <strong>Create API Key</strong>, set access permissions, copy the key, and paste into CiteAura under <strong>Settings → Model Keys (BYOK) → xAI</strong>.</li>
+          </ol>
+
+          <h3 id="key-setup-perplexity">10. Perplexity Setup</h3>
+          <ol>
+            <li>Visit the official <a href="https://www.perplexity.ai/settings/api" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Perplexity API Settings (perplexity.ai/settings/api)</a>.</li>
+            <li>Ensure billing is active on your API account, then click <strong>Generate</strong> under API Keys.</li>
+            <li>Copy the <code>pplx-...</code> token and paste it into CiteAura under <strong>Settings → Model Keys (BYOK) → Perplexity</strong>.</li>
           </ol>
 
           <h3 id="security-guarantee">Security & Zero Training Guarantee</h3>
