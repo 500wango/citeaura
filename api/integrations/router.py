@@ -129,13 +129,13 @@ def integration_settings(
 ):
     """返回当前租户的外部数据源连接状态。"""
     tenant = _tenant(db, current_user)
-    return _settings_payload(db, tenant, current_user.tenant_role == "owner")
+    return _settings_payload(db, tenant, current_user.tenant_role in ("owner", "editor"))
 
 
 @router.put("/integrations/semrush")
 def configure_semrush(
     payload: SemrushConfigRequest,
-    current_user: User = Depends(require_owner),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     """加密保存 Semrush API Key。"""
@@ -154,7 +154,7 @@ def configure_semrush(
 @router.put("/integrations/tabapi")
 def configure_tabapi(
     payload: TabapiConfigRequest,
-    current_user: User = Depends(require_owner),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     """加密保存 TabAPI (AITDK 流量数据源) API Key。"""
@@ -173,7 +173,7 @@ def configure_tabapi(
 @router.delete("/integrations/{provider}")
 def disconnect_integration(
     provider: str,
-    current_user: User = Depends(require_owner),
+    current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     """删除租户级外部数据源凭证，不删除历史项目快照。"""

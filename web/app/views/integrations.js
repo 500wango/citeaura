@@ -124,6 +124,8 @@ export default {
   },
 
   mounted: (ctx) => {
+    const refresh = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
+
     // TabAPI Modal
     document.querySelector('.btn-connect-tabapi')?.addEventListener('click', () => {
       openModal({
@@ -135,14 +137,15 @@ export default {
             </p>
             <div class="field" style="margin:0;">
               <label>TabAPI Bearer Token *</label>
-              <input type="password" id="tabapi-key-input" class="input" placeholder="tab_live_••••••••••••••••">
+              <input type="password" id="tabapi-key-input" class="input" placeholder="tab_live_••••••••••••••••" autofocus>
               <span class="field-hint">You can find or create API tokens at <a href="https://tabapi.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">tabapi.com/dashboard</a>.</span>
             </div>
           </div>
         `,
         confirmText: 'Save & Encrypt Key',
         onConfirm: async () => {
-          const api_key = document.getElementById('tabapi-key-input')?.value.trim();
+          const input = document.getElementById('tabapi-key-input') || document.querySelector('#tabapi-key-input');
+          const api_key = input?.value?.trim();
           if (!api_key) {
             toast.error('Please enter a valid TabAPI key');
             return false;
@@ -151,7 +154,7 @@ export default {
           try {
             await integrations.saveTabapi({ api_key });
             toast.success('TabAPI key encrypted and saved');
-            ctx.router.navigate(ctx.router.getCurrentPath());
+            refresh();
             return true;
           } catch (err) {
             toast.error(t(err.error, {}, err.detail || 'Failed to save TabAPI key'));
@@ -186,18 +189,19 @@ export default {
         content: `
           <div class="field" style="margin:0;">
             <label>Semrush API Key *</label>
-            <input type="password" id="semrush-key-input" class="input" placeholder="••••••••••••••••">
+            <input type="password" id="semrush-key-input" class="input" placeholder="••••••••••••••••" autofocus>
           </div>
         `,
         confirmText: 'Save Key',
         onConfirm: async () => {
-          const api_key = document.getElementById('semrush-key-input')?.value.trim();
+          const input = document.getElementById('semrush-key-input') || document.querySelector('#semrush-key-input');
+          const api_key = input?.value?.trim();
           if (!api_key) return false;
 
           try {
             await integrations.saveSemrush({ api_key });
             toast.success('Semrush API key saved');
-            ctx.router.navigate(ctx.router.getCurrentPath());
+            refresh();
             return true;
           } catch (err) {
             toast.error(t(err.error, {}, err.detail || 'Failed to save Semrush key'));
@@ -215,7 +219,7 @@ export default {
         try {
           await integrations.delete(provider);
           toast.success(`${provider} disconnected`);
-          ctx.router.navigate(ctx.router.getCurrentPath());
+          refresh();
         } catch (err) {
           toast.error(t(err.error, {}, 'Failed to disconnect integration'));
         }
