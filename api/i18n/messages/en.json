@@ -418,6 +418,7 @@
   "billing.current_plan": "Active Plan",
   "billing.payment_unavailable": "Payments unavailable",
   "billing_disabled": "Payments are currently unavailable.",
+  "project_questions_required": "Add at least one target question before running AI sampling.",
   "security.title": "Enterprise Security & OIDC SSO",
   "security.desc": "Configure SAML/OIDC Single Sign-On and review tamper-evident organization access audit logs.",
   "security.compliance_title": "Security Controls & Certification Status",

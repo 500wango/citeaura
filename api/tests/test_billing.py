@@ -142,7 +142,17 @@ def test_paid_project_limits_are_enforced_and_reported(billing_client):
 def test_trial_sample_limit_is_per_project(billing_client, monkeypatch):
     client, session_factory = billing_client
     headers = _register(client, "owner@example.com")
-    monkeypatch.setitem(__import__("sys").modules, "geo", types.SimpleNamespace(cmd_init=lambda args: None))
+
+    def fake_init(args):
+        from api.adapters.engine import geolib
+
+        geolib.write_json(geolib.project_dir(args.slug) / "geo.json", {
+            "brand": {"name": "Example", "site": args.url},
+            "market": "both",
+            "questions": [{"id": "q901", "text": "What is Example?", "market": "both"}],
+        })
+
+    monkeypatch.setitem(__import__("sys").modules, "geo", types.SimpleNamespace(cmd_init=fake_init))
     monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: types.SimpleNamespace(id="boot"))
     created = client.post("/api/v1/projects", headers=headers, json={"url": "example.com"})
     project_id = created.json()["project_id"]

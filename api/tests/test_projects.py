@@ -380,6 +380,45 @@ def test_pipeline_actions_are_whitelisted_and_project_serialized(project_client,
     assert unsupported.status_code == 400
 
 
+def test_sampling_requires_questions_before_job_is_queued(project_client, monkeypatch):
+    client, session_factory = project_client
+    headers = _register(client, "questions-owner@example.com")
+
+    def fake_init(args):
+        from api.adapters.engine import geolib
+
+        geolib.write_json(geolib.project_dir(args.slug) / "geo.json", {
+            "brand": {"name": "Questions", "site": args.url},
+            "market": "both",
+            "questions": [],
+        })
+
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_init=fake_init))
+    monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: types.SimpleNamespace(id="boot"))
+    monkeypatch.setattr(project_router.task_sample, "delay", lambda *a, **kw: pytest.fail("sample must not be queued"))
+    monkeypatch.setattr(project_router.task_pipeline, "delay", lambda *a, **kw: pytest.fail("sample must not be queued"))
+
+    created = client.post("/api/v1/projects", headers=headers, json={"url": "questions.example"}).json()
+    project_id = created["project_id"]
+    with session_factory() as db:
+        db.get(Job, created["job_id"]).status = "done"
+        db.commit()
+
+    direct = client.post(f"/api/v1/projects/{project_id}/sample", headers=headers)
+    pipeline = client.post(
+        f"/api/v1/projects/{project_id}/actions/sample",
+        headers=headers,
+        json={"params": {}},
+    )
+
+    assert direct.status_code == 409
+    assert direct.json() == {"error": "project_questions_required"}
+    assert pipeline.status_code == 409
+    assert pipeline.json() == {"error": "project_questions_required"}
+    with session_factory() as db:
+        assert db.query(Job).filter(Job.project_id == project_id).count() == 1
+
+
 def test_sampling_budget_blocks_direct_pipeline_retry_and_schedule(project_client, monkeypatch):
     client, session_factory = project_client
     headers = _register(client, "budget-owner@example.com")

@@ -283,6 +283,17 @@ def _active_job(db: Session, project_id: int):
     ).order_by(Job.id.desc()).first()
 
 
+def _require_project_questions(tenant: Tenant, project: Project):
+    """采样入队前确认项目已有目标问题。"""
+    try:
+        with with_tenant_context(tenant.name, project.slug):
+            config = workspace.ensure_all_engine_scope(project.slug)
+    except GeoEngineError:
+        config = {}
+    if not config.get("questions"):
+        _error(status.HTTP_409_CONFLICT, "project_questions_required")
+
+
 def _available_outputs(project_slug):
     directory = geolib.project_dir(project_slug)
     return {
@@ -1000,6 +1011,8 @@ def retry_project_job(
         _error(status.HTTP_409_CONFLICT, "job_retry_not_supported")
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    if source.action == "sample":
+        _require_project_questions(tenant, project)
     request = _request_payload(source.request_json)
     request_no_sample = _pipeline_flag(request, "no-sample") or _pipeline_flag(request, "no_sample")
     estimate = None
@@ -1065,6 +1078,7 @@ def sample_project(
     check_sample_run(db, tenant, project)
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    _require_project_questions(tenant, project)
     payload = payload or SampleRequest()
     estimate = _sample_estimate(db, tenant, project, payload, enforce=True)
     request_values = {"limit": payload.limit, "platforms": payload.platforms, "repeat": payload.repeat}
@@ -1114,6 +1128,8 @@ def run_pipeline_action(
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     params = (payload or PipelineActionRequest()).params
+    if action == "sample":
+        _require_project_questions(tenant, project)
     no_sample = _pipeline_flag(params, "no-sample") or _pipeline_flag(params, "no_sample")
     estimate = None
     if action in ("sample", "autopilot", "serve") and not no_sample:

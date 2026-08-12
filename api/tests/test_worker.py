@@ -2,6 +2,7 @@ import sys
 import types
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
@@ -231,6 +232,45 @@ def test_job_status_updates_project_on_success_and_failure(tmp_path, monkeypatch
     assert "engine output" in bootstrap_log
     assert "bootstrap done" in bootstrap_log
     assert "verify failed: RuntimeError: verification failed" in verify_log
+
+
+def test_job_status_marks_failure_when_log_directory_is_not_writable(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'log-failure.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with session_factory() as db:
+        tenant = Tenant(name="tenant-a", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="example",
+            url="https://example.com",
+            market="both",
+            status="sampling",
+        )
+        db.add(project)
+        db.flush()
+        job = Job(project_id=project.id, action="sample", status="queued")
+        db.add(job)
+        db.commit()
+        job_id = job.id
+        project_id = project.id
+
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(tasks, "job_log_path", lambda *args: tmp_path / "blocked" / "job.log")
+    monkeypatch.setattr(Path, "open", lambda *args, **kwargs: (_ for _ in ()).throw(PermissionError(13, "denied")))
+
+    with pytest.raises(RuntimeError, match="sampling failed"):
+        with tasks._job_status("tenant-a", "example", "sample", job_id):
+            raise RuntimeError("sampling failed")
+
+    with session_factory() as db:
+        job = db.get(Job, job_id)
+        assert job.status == "failed"
+        assert job.stage == "failed"
+        assert "sampling failed" in job.error
+        assert db.get(Project, project_id).status == "failed"
 
 
 def test_reclaim_stale_jobs_releases_project_after_worker_loss(tmp_path):

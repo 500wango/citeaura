@@ -23,9 +23,11 @@ def test_deploy_script_leaves_tls_to_host_caddy():
     assert "--skip-certificate" in deploy
     assert 'APP_PORT="${APP_PORT:-18000}"' in deploy
     build = deploy.index("build api worker beat")
+    repair_permissions = deploy.index("chown -R citeaura:citeaura /app/work")
     migrate = deploy.index("run --rm api alembic upgrade head")
     start = deploy.index("up -d api worker beat")
-    assert build < migrate < start
+    assert build < repair_permissions < migrate < start
+    assert "run --rm --user root api" in deploy
     assert "up -d --build api worker beat nginx" not in deploy
     assert 'http://127.0.0.1:${APP_PORT}/api/v1/health/ready' in deploy
 

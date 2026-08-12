@@ -341,18 +341,29 @@ def _capture_task_output(log_path):
     if log_path is None:
         yield
         return
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("a", encoding="utf-8", buffering=1) as handle:
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        handle = log_path.open("a", encoding="utf-8", buffering=1)
+    except OSError as exc:
+        logger.error("Unable to capture job output in %s: %s", log_path, exc)
+        yield
+        return
+    with handle:
         with redirect_stdout(handle), redirect_stderr(handle):
             yield
 
 
 def _append_job_event(log_path, message):
     if log_path is None:
-        return
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(f"[citeaura] {message}\n")
+        return False
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with log_path.open("a", encoding="utf-8") as handle:
+            handle.write(f"[citeaura] {message}\n")
+    except OSError as exc:
+        logger.error("Unable to append job event in %s: %s", log_path, exc)
+        return False
+    return True
 
 
 @contextmanager

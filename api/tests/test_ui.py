@@ -111,6 +111,7 @@ def test_frontend_contracts_match_backend_request_models():
     publishing = (root / "web/app/views/publishing.js").read_text("utf-8")
     outreach = (root / "web/app/views/outreach.js").read_text("utf-8")
     billing = (root / "web/app/views/billing.js").read_text("utf-8")
+    overview = (root / "web/app/views/overview.js").read_text("utf-8")
 
     assert "resetPassword({ token, password })" in reset
     assert "preview.tenant?.name" in invite
@@ -125,6 +126,9 @@ def test_frontend_contracts_match_backend_request_models():
     assert "can_upgrade" in billing
     assert "Upgrade to Pro" in billing
     assert "no need to wait" in billing
+    assert "project.questions" in overview
+    assert 'href="#/questions"' in overview
+    assert "project_questions_required" in overview
     app_js = (root / "web/app/app.js").read_text("utf-8")
     assert "citeaura_intent_plan" in app_js
     assert "ENTRY_PLANS" in app_js

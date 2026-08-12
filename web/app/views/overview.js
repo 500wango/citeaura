@@ -51,6 +51,7 @@ export default {
     const totalTickets = Array.isArray(tickets) ? tickets.length : 0;
     const doneTickets = Array.isArray(tickets) ? tickets.filter((t) => t.status === 'done').length : 0;
     const engines = (report && report.engines) || [];
+    const hasQuestions = Array.isArray(project.questions) && project.questions.length > 0;
 
     const kpiData = [
       { label: t('overview.kpi_mention_rate', {}, 'AI Mention Rate'), value: mentionRate, className: 'num' },
@@ -78,10 +79,15 @@ export default {
             </div>
           </div>
           <div class="view-actions">
-            <button type="button" id="btn-run-sample" class="btn btn-secondary btn-sm">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              <span>${t('overview.action_sample', {}, 'Run AI Sample')}</span>
-            </button>
+            ${hasQuestions ? `
+              <button type="button" id="btn-run-sample" class="btn btn-secondary btn-sm">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>${t('overview.action_sample', {}, 'Run AI Sample')}</span>
+              </button>` : `
+              <a href="#/questions" class="btn btn-secondary btn-sm">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>${t('questions.add_btn', {}, 'Add Target Questions')}</span>
+              </a>`}
             <button type="button" id="btn-run-verify" class="btn btn-secondary btn-sm">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
               <span>${t('overview.action_verify', {}, 'Verify Changes')}</span>
@@ -226,6 +232,10 @@ export default {
             ctx.openTelemetry(res.job_id, 'sample');
           }
         } catch (err) {
+          if (err.error === 'project_questions_required') {
+            ctx.navigate('#/questions');
+            return;
+          }
           toast.error(t(err.error, {}, err.detail || 'Failed to trigger sampling'));
         } finally {
           sampleBtn.disabled = false;
