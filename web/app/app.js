@@ -295,7 +295,7 @@ function renderAppShell() {
       <!-- 1.  (Rail) -->
       <aside class="app-rail">
         <div class="rail-top">
-          <a class="rail-brand" href="/" title="${t('common.back_to_home', {}, 'Return to Homepage')}">
+          <a class="rail-brand" href="/" title="CiteAura — ${t('common.back_to_home', {}, 'Return to Homepage')}">
             <span class="brand-mark"></span>
           </a>
 
@@ -324,8 +324,12 @@ function renderAppShell() {
 
       <!-- 2.  (Sub-Nav) -->
       <aside class="app-subnav" id="app-subnav">
-        <div class="subnav-head">
-          <span class="subnav-title">${t(currentTrackObj.labelKey, {}, currentTrackObj.defaultLabel)}</span>
+        <div class="subnav-head" style="flex-direction:column;align-items:flex-start;gap:var(--sp-1);padding:var(--sp-4) var(--sp-4) var(--sp-3);border-bottom:1px solid var(--glass-border);">
+          <a href="/" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;" title="CiteAura — Return to Homepage">
+            <span style="font-family:var(--font-display);font-size:16px;font-weight:800;letter-spacing:-0.03em;color:var(--ink);">CiteAura</span>
+            <span class="tag tag-dim" style="font-size:9.5px;padding:1px 5px;border-radius:4px;font-weight:700;letter-spacing:0.06em;color:var(--brand);background:color-mix(in oklch, var(--brand) 12%, transparent);">GEO</span>
+          </a>
+          <span class="subnav-title" style="margin-top:2px;">${t(currentTrackObj.labelKey, {}, currentTrackObj.defaultLabel)}</span>
         </div>
         <div class="subnav-list">
           ${currentTrackObj.views.map((v) => {
