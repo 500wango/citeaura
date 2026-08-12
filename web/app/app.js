@@ -383,12 +383,7 @@ function renderAppShell() {
               <span>Docs</span>
             </a>
 
-            <!-- Language Indicator -->
-            <div class="lang-switch" role="group" aria-label="Language">
-              <button type="button" data-lang="en" class="lang-btn is-active" aria-pressed="true">EN</button>
-            </div>
-
-            <!--  -->
+            <!-- User Menu -->
             <div class="user-menu">
               <button type="button" class="user-menu-btn" id="user-menu-btn">
                 <span class="user-avatar">${(state.user?.email || 'U')[0].toUpperCase()}</span>
@@ -473,17 +468,6 @@ function bindAppShellEvents() {
     try {
       localStorage.setItem('utheme', nextTheme);
     } catch (e) {}
-  });
-
-  // 
-  document.querySelectorAll('.lang-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const l = btn.getAttribute('data-lang');
-      if (l) {
-        await setLocale(l);
-        renderApp();
-      }
-    });
   });
 }
 
