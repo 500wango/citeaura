@@ -16,8 +16,9 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'data-i18n="landing.mode_parametric"' in response.text
     assert 'data-i18n="landing.mode_search"' in response.text
     assert 'data-i18n="landing.mode_manual"' in response.text
-    assert 'class="lang-switch"' in response.text
-    assert 'data-lang="en"' in response.text
+    assert 'class="nav-sign-in"' in response.text
+    assert 'href="/privacy"' in response.text
+    assert 'href="/terms"' in response.text
     assert "$199" in response.text
     assert "$79" in response.text
     assert 'data-i18n="landing.pricing_note"' in response.text

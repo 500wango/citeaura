@@ -112,6 +112,19 @@
 }
 
 .nav-actions { display: flex; align-items: center; gap: var(--sp-2); }
+.nav-sign-in {
+  padding: 6px 12px;
+  color: var(--muted);
+  font-size: var(--fs-2);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--r-md);
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.nav-sign-in:hover {
+  color: var(--ink);
+  background: color-mix(in oklch, var(--accent) 8%, transparent);
+}
 .lang-switch {
   display: flex; gap: 2px; padding: 2px;
   border: 1px solid var(--line); border-radius: var(--r-md); background: var(--deep);
@@ -1017,6 +1030,7 @@
   
   .nav-links { display: none; }
   .nav-menu-toggle { display: inline-flex; }
+  .header-status-badge { display: none; }
   
   .site-header.nav-open .nav-links {
     display: flex; flex-direction: column; align-items: stretch;
