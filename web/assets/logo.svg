@@ -14,13 +14,8 @@
         font-size: 44px;
         font-weight: 700;
         letter-spacing: -1.5px;
-        fill: #0f172a;
+        fill: url(#ca-logo-grad1-sub);
       }
-      @media (prefers-color-scheme: dark) {
-        .ca-brand-text { fill: #f8fafc; }
-      }
-      [data-theme="dark"] .ca-brand-text { fill: #f8fafc; }
-      [data-theme="light"] .ca-brand-text { fill: #0f172a; }
     </style>
   </defs>
 
