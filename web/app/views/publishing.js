@@ -39,21 +39,25 @@ export default {
         </div>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:var(--sp-6);">
-          ${publisherState.map((publisher) => `
+          ${publisherState.map((publisher) => {
+            const name = publisher.name_en || t(publisher.name, {}, publisher.name || publisher.code);
+            const note = publisher.note_en || t(publisher.note, {}, publisher.note || '');
+            return `
             <div class="card" style="gap:var(--sp-4);">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);">
-                <strong style="font-size:var(--fs-4);">${publisher.name || publisher.code}</strong>
+                <strong style="font-size:var(--fs-4);">${name}</strong>
                 <span class="tag ${publisher.ready ? 'pill-good' : 'tag-dim'}">
                   ${publisher.ready ? 'Ready' : 'Setup required'}
                 </span>
               </div>
-              <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${publisher.note || ''}</p>
+              <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${note}</p>
               ${publisher.missing?.length ? `<div class="field-hint">Missing: ${publisher.missing.join(', ')}</div>` : ''}
               <button type="button" class="btn btn-secondary btn-sm btn-config-publisher" data-code="${publisher.code}" style="align-self:flex-start;">
-                ${t('publishing.config_btn', {}, 'Configure')}
+                ${t('publishing.config_btn', {}, 'Configure Destination')}
               </button>
             </div>
-          `).join('')}
+            `;
+          }).join('')}
         </div>
       </div>
     `;
@@ -73,6 +77,7 @@ export default {
 };
 
 function showPublisherModal(projectId, publisher, ctx) {
+  const name = publisher.name_en || t(publisher.name, {}, publisher.name || publisher.code);
   const configFields = Array.isArray(publisher.cfg) ? publisher.cfg : [];
   const credentialFields = Array.isArray(publisher.env) ? publisher.env : [];
   const content = `
@@ -80,7 +85,7 @@ function showPublisherModal(projectId, publisher, ctx) {
       ${configFields.map((field, index) => `
         <div class="field" style="margin:0;">
           <label>${field.key}</label>
-          <input type="text" id="publisher-config-${index}" class="input" value="${field.value || ''}" placeholder="${field.hint || ''}">
+          <input type="text" id="publisher-config-${index}" class="input" value="${field.value || ''}" placeholder="${field.hint_en || field.hint || ''}">
         </div>
       `).join('')}
       ${credentialFields.map((name, index) => `
@@ -94,7 +99,7 @@ function showPublisherModal(projectId, publisher, ctx) {
   `;
 
   openModal({
-    title: `Configure ${publisher.name || publisher.code}`,
+    title: `Configure ${name}`,
     content,
     confirmText: t('common.save', {}, 'Save Settings'),
     onConfirm: async () => {

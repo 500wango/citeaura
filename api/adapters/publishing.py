@@ -147,6 +147,25 @@ def save_config(project_slug, platform, values):
     return cleaned
 
 
+PUBLISHER_NAMES_EN = {
+    "github": "GitHub Repository",
+    "wordpress": "WordPress",
+    "wechat_draft": "WeChat Official Account Drafts",
+    "webhook": "Custom Webhook",
+}
+
+PUBLISHER_NOTES_EN = {
+    "github": "Submit Markdown to your repository via Contents API (deploys instantly with GitHub Pages or static site generators).",
+    "wordpress": "Create draft posts via REST API; review and publish from your WordPress admin console.",
+    "wechat_draft": "Create drafts in WeChat Official Account for editorial review and broadcast; server IP must be whitelisted.",
+    "webhook": "POST JSON payload {title, markdown, html, slug, path} to your custom webhook endpoint.",
+}
+
+HINT_MAP_EN = {
+    "永久素材封面 media_id（草稿必需）": "Permanent cover image media_id (required for drafts)",
+}
+
+
 def overview(project_slug, configured_codes):
     """返回脱敏后的渠道状态和发布记录。"""
     engine_publish = _engine_publish()
@@ -165,12 +184,19 @@ def overview(project_slug, configured_codes):
         items.append({
             "code": platform,
             "name": spec["name"],
+            "name_en": PUBLISHER_NAMES_EN.get(platform, spec["name"]),
             "env": list(spec["env"]),
             "cfg": [
-                {"key": key, "hint": hint, "value": str(current.get(key) or "")}
+                {
+                    "key": key,
+                    "hint": hint,
+                    "hint_en": HINT_MAP_EN.get(hint, hint),
+                    "value": str(current.get(key) or ""),
+                }
                 for key, hint in spec["cfg"]
             ],
             "note": spec["note"],
+            "note_en": PUBLISHER_NOTES_EN.get(platform, spec["note"]),
             "missing": missing,
             "ready": not missing,
         })
