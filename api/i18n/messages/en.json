@@ -42,6 +42,8 @@
   "nav.security": "Enterprise Security",
   "nav.archive": "Backup Snapshots",
   "nav.add_brand": "Add Brand",
+  "nav.privacy": "Privacy Policy",
+  "nav.terms": "Terms of Service",
   "theme.to_light": "Switch to light theme",
   "theme.to_dark": "Switch to dark theme",
   "theme.light": "Light",

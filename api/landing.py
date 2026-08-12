@@ -18,6 +18,18 @@ def serve_landing_page():
     return FileResponse(WEB_ROOT / "index.html", media_type="text/html; charset=utf-8")
 
 
+@router.get("/privacy")
+def serve_privacy_page():
+    """返回 CiteAura 隐私政策页面。"""
+    return FileResponse(WEB_ROOT / "privacy.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/terms")
+def serve_terms_page():
+    """返回 CiteAura 服务条款页面。"""
+    return FileResponse(WEB_ROOT / "terms.html", media_type="text/html; charset=utf-8")
+
+
 @router.get("/i18n/{locale}.json")
 def serve_i18n_catalog(locale: str):
     """提供落地页与共享文案目录（en 为默认回退基线）。"""

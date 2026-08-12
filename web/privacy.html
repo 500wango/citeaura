@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — CiteAura</title>
+  <meta name="description" content="CiteAura Privacy Policy. Learn about our enterprise data isolation, AES-256-GCM BYOK encryption, and zero model training commitment.">
+  <meta name="theme-color" content="#f7f9fa">
+  <script src="/site-assets/theme-init.js"></script>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css?v=2.2">
+  <link rel="stylesheet" href="/site-assets/styles/base.css?v=2.2">
+  <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.2">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.2">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <style>
+    .legal-content {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: var(--sp-10) var(--sp-6) var(--sp-12);
+    }
+    .legal-header {
+      border-bottom: 1px solid var(--divider);
+      padding-bottom: var(--sp-6);
+      margin-bottom: var(--sp-8);
+    }
+    .legal-header h1 {
+      font-size: clamp(var(--fs-7), 3.5vw, var(--fs-9));
+      margin-bottom: var(--sp-2);
+    }
+    .legal-meta {
+      color: var(--muted);
+      font-size: var(--fs-2);
+      font-family: var(--font-mono);
+    }
+    .legal-body section {
+      margin-bottom: var(--sp-8);
+    }
+    .legal-body h2 {
+      font-size: var(--fs-5);
+      margin-top: var(--sp-8);
+      margin-bottom: var(--sp-3);
+      color: var(--ink);
+    }
+    .legal-body h3 {
+      font-size: var(--fs-4);
+      margin-top: var(--sp-5);
+      margin-bottom: var(--sp-2);
+      color: var(--ink);
+    }
+    .legal-body p {
+      color: var(--ink-2);
+      font-size: var(--fs-3);
+      line-height: 1.7;
+      margin-bottom: var(--sp-4);
+      max-width: 100%;
+    }
+    .legal-body ul, .legal-body ol {
+      margin: 0 0 var(--sp-4) var(--sp-5);
+      list-style: disc;
+      color: var(--ink-2);
+      line-height: 1.7;
+      font-size: var(--fs-3);
+    }
+    .legal-body li {
+      margin-bottom: var(--sp-2);
+    }
+    .legal-highlight {
+      background: var(--surface);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--r-md);
+      padding: var(--sp-4) var(--sp-5);
+      margin: var(--sp-5) 0;
+      box-shadow: var(--sh-sm);
+    }
+    .legal-highlight p {
+      margin: 0;
+      color: var(--ink);
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+      
+      <nav class="nav-links" aria-label="Main Navigation">
+        <a href="/#workflow">Workflow</a>
+        <a href="/#pricing">Pricing</a>
+        <a href="/#faq">FAQ</a>
+      </nav>
+      
+      <div class="header-actions">
+        <a class="btn btn-secondary btn-sm" href="/app#/login">Sign In</a>
+        <a class="btn btn-primary btn-sm" href="/app">Get Started</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="legal-content">
+    <div class="legal-header">
+      <h1>Privacy Policy</h1>
+      <p class="legal-meta">Effective Date: August 12, 2026 · Version 1.2</p>
+    </div>
+
+    <div class="legal-body">
+      <div class="legal-highlight">
+        <p><strong>Our Core Privacy Commitment:</strong> CiteAura never trains AI models on your private data, prompt matrices, or customer audits. All API keys are encrypted with hardware-grade AES-256-GCM and stored exclusively within your isolated tenant workspace.</p>
+      </div>
+
+      <section>
+        <h2>1. Overview & Scope</h2>
+        <p>CiteAura ("we", "our", or "us") provides a Generative Engine Optimization (GEO) platform that diagnoses, tracks, and verifies brand visibility across artificial intelligence search engines and large language models. This Privacy Policy describes how we collect, use, process, and protect your information when you visit <a href="https://citeaura.com">citeaura.com</a>, access the CiteAura web application at <code>citeaura.com/app</code>, or interact with our APIs.</p>
+      </section>
+
+      <section>
+        <h2>2. Information We Collect</h2>
+        <h3>2.1 Account & Workspace Information</h3>
+        <p>When you register for a CiteAura workspace, we collect your email address, organization or team name, role, and hashed password. For single sign-on (SSO) users, we process authentication tokens provided by your OpenID Connect (OIDC) identity provider.</p>
+
+        <h3>2.2 Project & Brand Measurement Data</h3>
+        <p>To perform GEO audits and generate engineering tickets, you provide website URLs, target domains, competitor names, and target keyword question sets. This data is stored in tenant-isolated filesystems (Open SSOT) to generate diagnostic reports and deployment assets.</p>
+
+        <h3>2.3 Bring Your Own Key (BYOK) Model Credentials</h3>
+        <p>If you configure model API keys (e.g. OpenAI, Anthropic, DeepSeek, Google Gemini, Zhipu AI, Moonshot AI, xAI, Perplexity), your credentials are immediately encrypted at rest using AES-256-GCM. Plaintext API keys are never written to logs, never exposed in client-side responses, and only injected temporarily into isolated worker processes during live sampling executions.</p>
+
+        <h3>2.4 Third-Party Integrations</h3>
+        <p>If you choose to connect third-party SEO and analytics integrations (such as Google Search Console, Semrush, or TabAPI/AITDK):</p>
+        <ul>
+          <li><strong>Google Search Console:</strong> We request read-only access (<code>webmasters.readonly</code>) to fetch search performance statistics (clicks, impressions, queries). OAuth refresh tokens are encrypted at rest.</li>
+          <li><strong>Semrush & TabAPI:</strong> We use your provided API keys solely to fetch domain traffic and competitor matrix metrics on your behalf.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>3. How We Use Your Information</h2>
+        <p>We use the collected information strictly for the following purposes:</p>
+        <ul>
+          <li>Delivering GEO audit diagnostics, perception gap analyses, and 13 standardized engineering tickets;</li>
+          <li>Executing AI visibility sampling and verification runs across model matrices;</li>
+          <li>Compiling white-label client delivery decks and deployment asset packages (JSON-LD, /llms.txt);</li>
+          <li>Managing billing subscriptions, team role permissions, and usage counters;</li>
+          <li>Providing technical customer support and critical platform notifications.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>4. Zero Model Training Guarantee</h2>
+        <p>We believe in absolute data sovereignty for brand teams and marketing consultants. <strong>CiteAura will never sell, license, share, or use your proprietary content, prompt archives, audit findings, or custom strategies to train, fine-tune, or evaluate public machine learning models.</strong></p>
+      </section>
+
+      <section>
+        <h2>5. Data Isolation & Security Architecture</h2>
+        <p>CiteAura enforces strict multi-tenant isolation:</p>
+        <ul>
+          <li><strong>Tenant Boundaries:</strong> All audit reports, tickets, metrics, and delivery archives are segregated per tenant ID on disk with strict directory traversal prevention.</li>
+          <li><strong>Cryptographic Security:</strong> Sensitive credentials are encrypted with AES-256-GCM using isolated tenant keys. Communications are encrypted in transit via TLS 1.3.</li>
+          <li><strong>Role-Based Access Control (RBAC):</strong> Tenant workspaces support Owner, Editor, and Viewer permission tiers to prevent unauthorized access.</li>
+          <li><strong>Audit Logging:</strong> All security-sensitive operations (key updates, role changes, exports) are recorded in tamper-evident audit event logs.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>6. Cookies & Tracking Technologies</h2>
+        <p>We use strictly necessary HTTP-only session cookies to maintain your authenticated login state and CSRF defense headers. We do not use third-party behavioral tracking cookies or advertising pixels.</p>
+      </section>
+
+      <section>
+        <h2>7. Data Retention & Deletion Rights</h2>
+        <p>Under GDPR, CCPA, and global data privacy standards, you have the right to:</p>
+        <ul>
+          <li><strong>Access & Export:</strong> Export all audit records, JSON snapshots, and delivery packs at any time in open standard formats (JSON/Markdown);</li>
+          <li><strong>Rectification:</strong> Update your profile, organization, or project configurations;</li>
+          <li><strong>Permanent Deletion:</strong> Request the complete purge of your tenant workspace, encrypted keys, and associated file storage by contacting our privacy team.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>8. Contact Us</h2>
+        <p>If you have any questions, privacy concerns, or data subject requests regarding this policy, please contact our Data Protection Team at:</p>
+        <p><strong>Email:</strong> <a href="mailto:privacy@citeaura.com">privacy@citeaura.com</a><br>
+        <strong>Official Website:</strong> <a href="https://citeaura.com">https://citeaura.com</a></p>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+      
+      <p class="footer-tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
+      
+      <nav class="footer-links" aria-label="Footer">
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+        <a href="/app">Product workbench</a>
+        <a href="/#pricing">Pricing</a>
+      </nav>
+      
+      <p class="footer-copy">© 2026 CiteAura</p>
+    </div>
+  </footer>
+</body>
+</html>
