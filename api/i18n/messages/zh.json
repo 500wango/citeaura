@@ -340,6 +340,8 @@
   "publishing.title": "内容发布渠道",
   "publishing.desc": "将生成的知识文章以草稿形式推送到 CMS 平台供人工审核。",
   "publishing.config_btn": "配置渠道凭证",
+  "publishing.tip_title": "认证与安全提示",
+  "publishing.tip_body": "如果您的接收端需要密钥验证，可以直接将 Token 附加在 URL 参数中（例如 https://your-cms.com/api/publish?secret=YOUR_TOKEN），系统将通过加密 TLS/HTTPS 协议安全发起请求。",
   "branding.title": "白标交付定制",
   "branding.desc": "定制向客户交付的白标报告页眉 Logo、机构名称与保密条款。",
   "branding.agency_name_label": "代理商 / 咨询机构名称",

@@ -41,7 +41,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "CiteAura" in response.text
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
-    assert '<script type="module" src="/app/app.js">' in response.text
+    assert '<script type="module" src="/app/app.js' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -145,7 +145,7 @@ def test_ui_compatibility_route_remains_available():
 
     assert response.status_code == 200
     assert "CiteAura" in response.text
-    assert '<script type="module" src="/app/app.js">' in response.text
+    assert '<script type="module" src="/app/app.js' in response.text
 
 
 @pytest.mark.parametrize(

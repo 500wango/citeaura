@@ -354,6 +354,8 @@
   "publishing.title": "Publishing Destinations",
   "publishing.desc": "Push structured optimization content and FAQ articles directly into your CMS as draft posts for editorial review.",
   "publishing.config_btn": "Configure Destination",
+  "publishing.tip_title": "Authentication & Security Tip",
+  "publishing.tip_body": "If your endpoint requires secret authentication, append tokens directly to the URL query string (e.g. https://your-cms.com/api/publish?secret=YOUR_TOKEN). Requests are transmitted over encrypted TLS/HTTPS.",
   "GitHub 仓库": "GitHub Repository",
   "公众号草稿箱": "WeChat Official Account Drafts",
   "自定义 Webhook": "Custom Webhook",

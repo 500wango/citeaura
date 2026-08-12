@@ -49,9 +49,14 @@ export default {
               </div>
               <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${note}</p>
               ${publisher.missing?.length ? `<div class="field-hint">Missing: ${publisher.missing.join(', ')}</div>` : ''}
-              <button type="button" class="btn btn-secondary btn-sm btn-config-publisher" data-code="${publisher.code}" style="align-self:flex-start;">
-                ${t('publishing.config_btn', {}, 'Configure Destination')}
-              </button>
+              <div style="display:flex;align-items:center;gap:var(--sp-2);">
+                <button type="button" class="btn btn-secondary btn-sm btn-config-publisher" data-code="${publisher.code}">
+                  ${t('publishing.config_btn', {}, 'Configure Destination')}
+                </button>
+                <span title="${t('publishing.tip_body', {}, 'If your endpoint requires secret authentication, append tokens directly to the URL query string (e.g. https://your-cms.com/api/publish?secret=YOUR_TOKEN).')}" style="cursor:help;color:var(--muted);display:inline-flex;align-items:center;">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                </span>
+              </div>
             </div>
             `;
           }).join('')}
@@ -92,6 +97,15 @@ function showPublisherModal(projectId, publisher, ctx) {
         </div>
       `).join('')}
       ${!configFields.length && !credentialFields.length ? '<p>No configuration is required.</p>' : ''}
+      <div style="background:var(--page);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-3);font-size:var(--fs-1);color:var(--muted);display:flex;gap:var(--sp-2);align-items:flex-start;margin-top:var(--sp-1);">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;color:var(--brand);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div>
+          <strong style="color:var(--ink);">${t('publishing.tip_title', {}, 'Authentication & Security Tip')}</strong>
+          <div style="margin-top:2px;line-height:1.4;">
+            ${t('publishing.tip_body', {}, 'If your endpoint requires secret authentication, append tokens directly to the URL query string (e.g. https://your-cms.com/api/publish?secret=YOUR_TOKEN). Requests are transmitted over encrypted TLS/HTTPS.')}
+          </div>
+        </div>
+      </div>
     </div>
   `;
 
