@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation & Getting Started Guide — CiteAura</title>
+  <meta name="description" content="Official documentation and step-by-step guides for CiteAura Generative Engine Optimization (GEO). Learn how to audit AI search visibility, configure BYOK keys, deploy /llms.txt, and execute 13 engineering action tickets.">
+  <meta name="theme-color" content="#f7f9fa">
+  <script src="/site-assets/theme-init.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/base.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.3">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <style>
+    :root {
+      --docs-sidebar-w: 280px;
+      --docs-toc-w: 220px;
+    }
+    .docs-page-shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0 var(--sp-6);
+    }
+    .docs-container {
+      display: grid;
+      grid-template-columns: var(--docs-sidebar-w) minmax(0, 1fr) var(--docs-toc-w);
+      gap: var(--sp-8);
+      min-height: calc(100vh - var(--header-h));
+      padding-top: var(--sp-6);
+      padding-bottom: var(--sp-12);
+    }
+    
+    /* Sidebar */
+    .docs-sidebar {
+      position: sticky;
+      top: calc(var(--header-h) + var(--sp-4));
+      height: calc(100vh - var(--header-h) - var(--sp-8));
+      overflow-y: auto;
+      padding-right: var(--sp-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-6);
+    }
+    .docs-search-wrap {
+      position: relative;
+      margin-bottom: var(--sp-2);
+    }
+    .docs-search-input {
+      width: 100%;
+      padding: 8px 12px 8px 34px;
+      font-size: var(--fs-2);
+      border: 1px solid var(--divider);
+      border-radius: var(--r-md);
+      background: var(--surface);
+      color: var(--ink);
+      outline: none;
+      transition: all var(--dur-fast);
+    }
+    .docs-search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 15%, transparent);
+    }
+    .docs-search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--faint);
+      pointer-events: none;
+    }
+    .docs-nav-section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+    }
+    .docs-nav-heading {
+      font-size: var(--fs-1);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin: var(--sp-2) 0 var(--sp-1);
+    }
+    .docs-nav-link {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: 6px 10px;
+      border-radius: var(--r-sm);
+      color: var(--ink-2);
+      font-size: var(--fs-2);
+      font-weight: 500;
+      text-decoration: none;
+      transition: all var(--dur-fast);
+    }
+    .docs-nav-link:hover {
+      color: var(--accent);
+      background: color-mix(in oklch, var(--accent) 6%, transparent);
+    }
+    .docs-nav-link.is-active {
+      color: var(--accent);
+      background: color-mix(in oklch, var(--accent) 12%, transparent);
+      font-weight: 600;
+    }
+
+    /* Main Article Content */
+    .docs-article {
+      max-width: 820px;
+      padding-bottom: var(--sp-10);
+    }
+    .docs-article section {
+      margin-bottom: var(--sp-10);
+      scroll-margin-top: calc(var(--header-h) + var(--sp-6));
+    }
+    .docs-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: color-mix(in oklch, var(--accent) 10%, transparent);
+      border: 1px solid color-mix(in oklch, var(--accent) 25%, transparent);
+      border-radius: var(--r-pill);
+      color: var(--accent);
+      font-size: var(--fs-1);
+      font-weight: 600;
+      font-family: var(--font-mono);
+      margin-bottom: var(--sp-3);
+    }
+    .docs-article h1 {
+      font-size: clamp(var(--fs-7), 3.5vw, var(--fs-9));
+      letter-spacing: -0.03em;
+      margin-bottom: var(--sp-3);
+      color: var(--ink);
+    }
+    .docs-article h2 {
+      font-size: var(--fs-6);
+      letter-spacing: -0.02em;
+      margin-top: var(--sp-8);
+      margin-bottom: var(--sp-3);
+      color: var(--ink);
+      border-bottom: 1px solid var(--divider);
+      padding-bottom: var(--sp-2);
+    }
+    .docs-article h3 {
+      font-size: var(--fs-4);
+      font-weight: 600;
+      margin-top: var(--sp-6);
+      margin-bottom: var(--sp-2);
+      color: var(--ink);
+    }
+    .docs-article p {
+      color: var(--ink-2);
+      font-size: var(--fs-3);
+      line-height: 1.7;
+      margin-bottom: var(--sp-4);
+    }
+    .docs-article ul, .docs-article ol {
+      margin: 0 0 var(--sp-4) var(--sp-5);
+      color: var(--ink-2);
+      line-height: 1.7;
+      font-size: var(--fs-3);
+    }
+    .docs-article li {
+      margin-bottom: var(--sp-2);
+    }
+    
+    /* Callout Boxes */
+    .docs-callout {
+      border-left: 3px solid var(--accent);
+      background: var(--surface);
+      border-radius: var(--r-md);
+      padding: var(--sp-4) var(--sp-5);
+      margin: var(--sp-5) 0;
+      box-shadow: var(--sh-sm);
+    }
+    .docs-callout.tip {
+      border-left-color: var(--good);
+      background: color-mix(in oklch, var(--good) 4%, var(--surface));
+    }
+    .docs-callout.warning {
+      border-left-color: var(--bad);
+      background: color-mix(in oklch, var(--bad) 4%, var(--surface));
+    }
+    .docs-callout p {
+      margin: 0;
+      font-size: var(--fs-2);
+      color: var(--ink);
+    }
+    
+    /* Step Cards */
+    .docs-steps {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+      margin: var(--sp-5) 0;
+    }
+    .docs-step-card {
+      display: flex;
+      gap: var(--sp-4);
+      background: var(--surface);
+      border: 1px solid var(--divider);
+      border-radius: var(--r-lg);
+      padding: var(--sp-5);
+      box-shadow: var(--sh-xs);
+    }
+    .docs-step-num {
+      width: 32px;
+      height: 32px;
+      flex: none;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: var(--fs-2);
+    }
+    .docs-step-content h4 {
+      font-size: var(--fs-4);
+      font-weight: 700;
+      margin: 0 0 var(--sp-1) 0;
+      color: var(--ink);
+    }
+    .docs-step-content p {
+      font-size: var(--fs-2);
+      color: var(--muted);
+      margin: 0 0 var(--sp-2) 0;
+    }
+
+    /* Code Snippet */
+    .code-block {
+      position: relative;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: var(--sp-4);
+      border-radius: var(--r-md);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      overflow-x: auto;
+      margin: var(--sp-4) 0;
+    }
+    [data-theme="dark"] .code-block {
+      background: #020617;
+      border: 1px solid #1e293b;
+    }
+
+    /* Comparison Table */
+    .docs-table-wrap {
+      overflow-x: auto;
+      margin: var(--sp-5) 0;
+      border-radius: var(--r-md);
+      border: 1px solid var(--divider);
+    }
+    .docs-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--fs-2);
+      text-align: left;
+    }
+    .docs-table th {
+      background: var(--surface);
+      padding: var(--sp-3) var(--sp-4);
+      border-bottom: 1px solid var(--divider);
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .docs-table td {
+      padding: var(--sp-3) var(--sp-4);
+      border-bottom: 1px solid var(--divider);
+      color: var(--ink-2);
+    }
+    .docs-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Right Table of Contents */
+    .docs-toc {
+      position: sticky;
+      top: calc(var(--header-h) + var(--sp-4));
+      height: fit-content;
+      max-height: calc(100vh - var(--header-h) - var(--sp-8));
+      overflow-y: auto;
+      padding-left: var(--sp-4);
+      border-left: 1px solid var(--divider);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+    }
+    .docs-toc-title {
+      font-size: var(--fs-1);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: var(--sp-1);
+    }
+    .docs-toc a {
+      color: var(--muted);
+      font-size: var(--fs-1);
+      text-decoration: none;
+      line-height: 1.4;
+      transition: color var(--dur-fast);
+    }
+    .docs-toc a:hover {
+      color: var(--accent);
+    }
+
+    @media (max-width: 1100px) {
+      .docs-container {
+        grid-template-columns: var(--docs-sidebar-w) minmax(0, 1fr);
+      }
+      .docs-toc {
+        display: none;
+      }
+    }
+    @media (max-width: 768px) {
+      .docs-container {
+        grid-template-columns: 1fr;
+      }
+      .docs-sidebar {
+        position: static;
+        height: auto;
+        border-bottom: 1px solid var(--divider);
+        padding-bottom: var(--sp-6);
+        margin-bottom: var(--sp-6);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+      
+      <nav class="nav-links" aria-label="Main Navigation">
+        <a href="/#simulator">Free AI Audit</a>
+        <a href="/#workflow">How It Works</a>
+        <a href="/#product">Product</a>
+        <a href="/#tickets">Action Tickets</a>
+        <a href="/#pricing">Pricing</a>
+        <a href="/docs" class="is-active" style="color:var(--accent);font-weight:600;">Docs</a>
+        <a href="/#faq">FAQ</a>
+      </nav>
+      
+      <div class="nav-actions">
+        <div class="header-status-badge">
+          <span class="status-pulse" aria-hidden="true"></span>
+          <span>7 Engines Active</span>
+        </div>
+        
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        
+        <a class="nav-sign-in" href="/app#/login">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="docs-page-shell">
+    <div class="docs-container">
+      
+      <!-- Left Sidebar Navigation -->
+      <aside class="docs-sidebar">
+        <div class="docs-search-wrap">
+          <svg class="docs-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="docs-search" class="docs-search-input" placeholder="Search guides & tickets..." aria-label="Search documentation">
+        </div>
+
+        <nav class="docs-nav-section" aria-label="Quickstart">
+          <div class="docs-nav-heading">Getting Started</div>
+          <a href="#quickstart" class="docs-nav-link is-active">🚀 5-Minute Quickstart</a>
+          <a href="#how-it-works" class="docs-nav-link">🔄 5-Step Continuous GEO Loop</a>
+        </nav>
+
+        <nav class="docs-nav-section" aria-label="Core Concepts">
+          <div class="docs-nav-heading">Core Concepts</div>
+          <a href="#geo-vs-seo" class="docs-nav-link">🧠 GEO vs Traditional SEO</a>
+          <a href="#ai-recommendations" class="docs-nav-link">🤖 How AI Recommends Brands</a>
+          <a href="#probe-concept" class="docs-nav-link">💡 API Keys as "Probes", Not Ads</a>
+          <a href="#sampling-modes" class="docs-nav-link">📡 3 Sampling Modes Explained</a>
+        </nav>
+
+        <nav class="docs-nav-section" aria-label="BYOK Setup">
+          <div class="docs-nav-heading">Model Keys (BYOK)</div>
+          <a href="#byok-overview" class="docs-nav-link">🔑 Why BYOK (Zero Markup)</a>
+          <a href="#key-setup-deepseek" class="docs-nav-link">⚡ DeepSeek Setup Guide</a>
+          <a href="#key-setup-openai" class="docs-nav-link">⚡ OpenAI (GPT-4o) Setup</a>
+          <a href="#key-setup-claude" class="docs-nav-link">⚡ Anthropic Claude Setup</a>
+          <a href="#security-guarantee" class="docs-nav-link">🛡️ AES-256-GCM & Zero Training</a>
+        </nav>
+
+        <nav class="docs-nav-section" aria-label="Action Tickets">
+          <div class="docs-nav-heading">13 Action Tickets</div>
+          <a href="#tickets-overview" class="docs-nav-link">📋 Playbook Architecture</a>
+          <a href="#llms-txt" class="docs-nav-link">📄 Deploying /llms.txt</a>
+          <a href="#citations-penetration" class="docs-nav-link">🌐 Citation Source Penetration</a>
+          <a href="#closed-loop" class="docs-nav-link">📈 Closed-Loop Verification</a>
+        </nav>
+
+        <nav class="docs-nav-section" aria-label="Integrations">
+          <div class="docs-nav-heading">Integrations</div>
+          <a href="#tabapi-integration" class="docs-nav-link">📊 TabAPI (AITDK Traffic)</a>
+          <a href="#gsc-integration" class="docs-nav-link">🔍 Google Search Console</a>
+        </nav>
+
+        <nav class="docs-nav-section" aria-label="FAQ">
+          <div class="docs-nav-heading">Support & FAQ</div>
+          <a href="#faq-unmeasured" class="docs-nav-link">❓ Why "Unmeasured" Status?</a>
+          <a href="#faq-white-label" class="docs-nav-link">📦 White-Label Client Reports</a>
+        </nav>
+      </aside>
+
+      <!-- Main Article Content -->
+      <main class="docs-article" id="docs-content">
+        
+        <!-- Quickstart -->
+        <section id="quickstart">
+          <span class="docs-badge">Getting Started</span>
+          <h1>5-Minute Quickstart Guide</h1>
+          <p>CiteAura is an enterprise Generative Engine Optimization (GEO) platform that diagnoses, tracks, and maximizes your brand's recommendation rate across ChatGPT, Claude, Gemini, DeepSeek, and Perplexity.</p>
+          
+          <div class="docs-steps">
+            <div class="docs-step-card">
+              <div class="docs-step-num">1</div>
+              <div class="docs-step-content">
+                <h4>Create your workspace & project</h4>
+                <p>Register at <a href="/app#/register" style="color:var(--accent);">citeaura.com/app</a> (no credit card required). Enter your target website domain (e.g. <code>yourbrand.com</code>) and select your target market (Global, North America, Japan, China).</p>
+              </div>
+            </div>
+
+            <div class="docs-step-card">
+              <div class="docs-step-num">2</div>
+              <div class="docs-step-content">
+                <h4>Connect 1~2 AI Model Probes (BYOK)</h4>
+                <p>Navigate to <strong>Settings → Model Keys (BYOK)</strong>. Paste your official OpenAI, DeepSeek, or Claude API key. Your keys are immediately encrypted at rest using AES-256-GCM.</p>
+              </div>
+            </div>
+
+            <div class="docs-step-card">
+              <div class="docs-step-num">3</div>
+              <div class="docs-step-content">
+                <h4>Run First GEO Audit & Sampling</h4>
+                <p>Click <strong>Run Full Diagnosis</strong>. CiteAura will crawl your domain, analyze semantic extractability, and simulate real multi-turn user prompt queries across AI models.</p>
+              </div>
+            </div>
+
+            <div class="docs-step-card">
+              <div class="docs-step-num">4</div>
+              <div class="docs-step-content">
+                <h4>Implement 13 Action Tickets & /llms.txt</h4>
+                <p>Review your <strong>Perception Gaps</strong> and download your tailor-made <code>/llms.txt</code> file and structured JSON-LD schemas to deploy directly onto your web server.</p>
+              </div>
+            </div>
+
+            <div class="docs-step-card">
+              <div class="docs-step-num">5</div>
+              <div class="docs-step-content">
+                <h4>Closed-Loop Verification & Trend Tracking</h4>
+                <p>After deploying changes, trigger a verification sampling run in <strong>Verify</strong> to observe your AI Visibility Score leap from baseline to 60%+.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Core Concepts -->
+        <section id="geo-vs-seo">
+          <h2>GEO vs. Traditional Search SEO</h2>
+          <p>Traditional SEO was built for a world of <strong>10 blue links on Google</strong>. Generative Engine Optimization (GEO) is built for the new era where users receive <strong>synthesized AI answers, direct brand recommendations, and comparative tables</strong>.</p>
+          
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Dimension</th>
+                  <th>Traditional SEO (Google)</th>
+                  <th>Generative Engine Optimization (GEO)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Core Target</strong></td>
+                  <td>PageRank, Backlink Quantity, Keyword Density</td>
+                  <td>Entity Clarity, Semantic Extractability, Citation Authority</td>
+                </tr>
+                <tr>
+                  <td><strong>User Experience</strong></td>
+                  <td>User clicks multiple links to read articles</td>
+                  <td>AI synthesizes direct recommendation in 1 summary</td>
+                </tr>
+                <tr>
+                  <td><strong>Ranking Unit</strong></td>
+                  <td>URL webpage</td>
+                  <td>Brand Entity & Verifiable Fact Statements</td>
+                </tr>
+                <tr>
+                  <td><strong>Bot Ingestion</strong></td>
+                  <td>Googlebot HTML Crawler</td>
+                  <td>LLM Markdown / Semantic Scrapers (GPTBot, ClaudeBot)</td>
+                </tr>
+                <tr>
+                  <td><strong>Action Items</strong></td>
+                  <td>Meta tags, H1-H3, generic guest posts</td>
+                  <td><code>/llms.txt</code>, JSON-LD Schemas, Reddit/G2 Citation Infiltration</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Probe Concept -->
+        <section id="probe-concept">
+          <h2>Why API Keys are "Probes/Monitors", Not "Paid Ads"</h2>
+          <div class="docs-callout warning">
+            <p><strong>Common Misconception:</strong> "If I configure OpenAI's API Key, will ChatGPT automatically mention my brand more?"</p>
+          </div>
+          <p><strong>Answer: No.</strong> Commercial AI models (OpenAI, Anthropic, Google, DeepSeek) cannot be bribed or altered simply by passing an API key. Their weights and web retrieval algorithms are independent.</p>
+          <p><strong>The Real Purpose of BYOK Keys:</strong></p>
+          <ul>
+            <li><strong>The "Diagnostic Radar":</strong> CiteAura uses your API key as a calibrated probe to query the model on your behalf (e.g. <em>"What are the top 5 tools for SaaS attribution?"</em>) and scientifically score how often and in what sentiment your brand appears.</li>
+            <li><strong>Zero Middleman Markup:</strong> By using your own official key directly, each diagnostic query costs only a fraction of a cent (paid straight to OpenAI/DeepSeek), avoiding inflated token subscription surcharges.</li>
+          </ul>
+        </section>
+
+        <!-- Sampling Modes -->
+        <section id="sampling-modes">
+          <h2>The 3 Sampling Modes Explained</h2>
+          <p>CiteAura enforces strict scientific truth in all measurement dashboards. Every citation and visibility score is tagged with one of three transparent sampling modes:</p>
+          <ul>
+            <li><strong>API · Model Knowledge (Parametric Memory):</strong> Tests what the AI model knows internally from its pre-training cutoff without active web searching.</li>
+            <li><strong>API · Web-Grounded Retrieval (Live Search):</strong> Tests what the model recommends when live search browsing (Perplexity, GPT-4o Search, Claude Search) is triggered.</li>
+            <li><strong>Manual · Product Surface:</strong> Captures direct user-facing prompt transcripts audited manually via web UI.</li>
+          </ul>
+        </section>
+
+        <!-- BYOK Setup Guide -->
+        <section id="byok-overview">
+          <h2>BYOK Model API Key Setup Guides</h2>
+          <p>All API keys are encrypted at rest using isolated <strong>AES-256-GCM</strong> envelopes. We uphold a strict <strong>Zero Model Training Guarantee</strong>: your queries, keys, and brand facts are never used to train public AI models.</p>
+
+          <h3 id="key-setup-deepseek">1. DeepSeek API Key Setup</h3>
+          <ol>
+            <li>Visit the official <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">DeepSeek Open Platform (platform.deepseek.com)</a>.</li>
+            <li>Log in, navigate to <strong>API Keys</strong>, and click <strong>Create new API key</strong>.</li>
+            <li>Copy the <code>sk-••••••••</code> key and paste it into CiteAura at <strong>Settings → Model Keys (BYOK) → DeepSeek</strong>.</li>
+          </ol>
+
+          <h3 id="key-setup-openai">2. OpenAI (ChatGPT / GPT-4o) API Key Setup</h3>
+          <ol>
+            <li>Visit the <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenAI Developer Platform (platform.openai.com)</a>.</li>
+            <li>Click <strong>Create new secret key</strong>, assign permissions, and copy the key.</li>
+            <li>Paste into CiteAura under <strong>OpenAI</strong>.</li>
+          </ol>
+
+          <h3 id="key-setup-claude">3. Anthropic Claude API Key Setup</h3>
+          <ol>
+            <li>Visit <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Anthropic Console (console.anthropic.com)</a>.</li>
+            <li>Navigate to <strong>API Keys</strong> and generate a live key.</li>
+            <li>Paste into CiteAura under <strong>Anthropic</strong>.</li>
+          </ol>
+        </section>
+
+        <!-- 13 Action Tickets -->
+        <section id="tickets-overview">
+          <h2>13 Action Tickets Playbook Overview</h2>
+          <p>Unlike vanity analytics that only show charts, CiteAura outputs **13 standardized, engineering-ready action tickets** categorized into Site-Level Architecture, Entity Alignment, and Citation Outreach.</p>
+          
+          <h3 id="llms-txt">Deploying /llms.txt (The Machine-Readable Standard)</h3>
+          <p><code>/llms.txt</code> is the emerging web standard for AI scrapers (supported by Anthropic, OpenAI, and modern LLM agents). CiteAura automatically compiles your brand facts, product USPs, and pricing tiers into a deterministic Markdown manifest.</p>
+          
+          <div class="code-block">
+# CiteAura — Core Brand Fact Sheet
+> Next-Gen Generative Engine Optimization (GEO) SaaS Platform.
+
+## Core Capabilities
+- Site-wide GEO semantic extractability audits
+- Multi-model perception gap diagnosis (GPT-4o, Claude, DeepSeek)
+- 13 Standardized engineering tickets
+- Automated /llms.txt and JSON-LD schema generation
+- White-label client delivery packs for marketing agencies
+
+## Official Endpoints & Verified Pricing
+- Starter: $79/mo (3 projects, full ticket access)
+- Pro: $199/mo (10 projects, multi-model matrix)
+- Agency: $499/mo (30 projects, white-label exports)
+- Website: https://citeaura.com
+          </div>
+          <p><strong>Deployment:</strong> Simply upload this file to the root of your web server at <code>https://yourdomain.com/llms.txt</code>.</p>
+        </section>
+
+        <!-- Citations Penetration -->
+        <section id="citations-penetration">
+          <h2>Citation Source Penetration Strategy</h2>
+          <p>When an AI model searches the web to answer a comparison query (e.g. <em>"Best alternatives to Brand X"</em>), it primarily relies on high-authority aggregator and discussion hubs.</p>
+          <p>In CiteAura's <strong>Channels (信源与渠道)</strong> dashboard:</p>
+          <ul>
+            <li>Examine the top 20 domain citations where competitors are mentioned;</li>
+            <li>Identify missing high-intent properties (e.g. Reddit subreddits, G2 reviews, GitHub repositories, authoritative industry benchmarks);</li>
+            <li>Deploy outreach campaigns targeting the exact pages that feed into ChatGPT's live retrieval index.</li>
+          </ul>
+        </section>
+
+        <!-- FAQ -->
+        <section id="faq-unmeasured">
+          <h2>Frequently Asked Questions</h2>
+          <h3>Why does an AI engine show "Unmeasured" in my matrix?</h3>
+          <p>CiteAura does not fake or simulate arbitrary scores. If you have not configured an API key for a specific engine (e.g. Claude), that column is marked honestly as <em>Unmeasured</em> rather than misleadingly displaying 0%.</p>
+
+          <h3 id="faq-white-label">How do I export white-label delivery decks for agency clients?</h3>
+          <p>Navigate to <strong>Delivery → Client Delivery Packs</strong>. Click <strong>Generate Delivery Pack</strong>. CiteAura will compile executive Markdown summaries, audit PDFs, before-and-after visibility comparisons, and custom branded deliverables in one package.</p>
+        </section>
+
+      </main>
+
+      <!-- Right Table of Contents -->
+      <nav class="docs-toc" aria-label="Table of contents">
+        <div class="docs-toc-title">On this page</div>
+        <a href="#quickstart">5-Minute Quickstart</a>
+        <a href="#geo-vs-seo">GEO vs Traditional SEO</a>
+        <a href="#probe-concept">API Keys as Probes</a>
+        <a href="#sampling-modes">3 Sampling Modes</a>
+        <a href="#byok-overview">BYOK Setup Guides</a>
+        <a href="#tickets-overview">13 Action Tickets</a>
+        <a href="#llms-txt">Deploying /llms.txt</a>
+        <a href="#citations-penetration">Citation Outreach</a>
+        <a href="#faq-unmeasured">FAQ & Troubleshooting</a>
+      </nav>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-word">CiteAura</span>
+        </a>
+        <p class="footer-tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+      
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/docs" class="is-active" style="color:var(--accent);font-weight:600;">Docs</a>
+        <a href="/app#/login">Sign In</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    // Live Search Filter for Docs Navigation
+    const searchInput = document.getElementById('docs-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('.docs-nav-link').forEach((link) => {
+          const text = link.textContent.toLowerCase();
+          link.style.display = text.includes(query) ? 'flex' : 'none';
+        });
+      });
+    }
+
+    // Active TOC link spy
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const id = entry.target.getAttribute('id');
+          document.querySelectorAll('.docs-nav-link, .docs-toc a').forEach((link) => {
+            if (link.getAttribute('href') === `#${id}`) {
+              link.classList.add('is-active');
+            } else if (link.getAttribute('href')?.startsWith('#')) {
+              link.classList.remove('is-active');
+            }
+          });
+        }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+
+    document.querySelectorAll('.docs-article section[id]').forEach((section) => {
+      observer.observe(section);
+    });
+  </script>
+</body>
+</html>

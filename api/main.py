@@ -28,7 +28,7 @@ from api.readiness import readiness_checks
 from api.rate_limit import RateLimitUnavailable, check_request
 
 
-app = FastAPI(title="CiteAura API", version="1.0.0")
+app = FastAPI(title="CiteAura API", version="1.0.0", docs_url="/api/docs", redoc_url="/api/redoc")
 app.mount("/site-assets", StaticFiles(directory=WEB_ROOT / "assets"), name="site-assets")
 app.mount("/app", StaticFiles(directory=WEB_ROOT / "app", html=True), name="app")
 app.include_router(auth_router)

@@ -30,6 +30,12 @@ def serve_terms_page():
     return FileResponse(WEB_ROOT / "terms.html", media_type="text/html; charset=utf-8")
 
 
+@router.get("/docs")
+def serve_docs_page():
+    """返回 CiteAura 文档与新手上手中心页面。"""
+    return FileResponse(WEB_ROOT / "docs.html", media_type="text/html; charset=utf-8")
+
+
 @router.get("/i18n/{locale}.json")
 def serve_i18n_catalog(locale: str):
     """提供落地页与共享文案目录（en 为默认回退基线）。"""

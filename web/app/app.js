@@ -377,6 +377,12 @@ function renderAppShell() {
           </div>
 
           <div class="header-right">
+            <!-- Docs / Help Guide -->
+            <a href="/docs" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-sm" style="display:flex;align-items:center;gap:6px;text-decoration:none;font-weight:600;color:var(--ink-2);" title="Open Documentation & Getting Started Guide">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>Docs</span>
+            </a>
+
             <!-- Language Indicator -->
             <div class="lang-switch" role="group" aria-label="Language">
               <button type="button" data-lang="en" class="lang-btn is-active" aria-pressed="true">EN</button>
