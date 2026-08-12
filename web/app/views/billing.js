@@ -6,6 +6,9 @@ import { billing } from '../api.js';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 
+const INTENT_PLAN_KEY = 'citeaura_intent_plan';
+const SUBSCRIBABLE = new Set(['starter', 'pro', 'agency']);
+
 function formatUsd(amount) {
   if (amount === null || amount === undefined) return 'Custom';
   return '$' + String(amount);
@@ -27,6 +30,33 @@ function planSummary(plan, interval, fallbackMonthly, fallbackAnnual) {
   return fallbackMonthly;
 }
 
+function formatTrialEnds(value) {
+  if (!value) return '';
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch (e) {
+    return '';
+  }
+}
+
+function readIntentPlan(params) {
+  const fromRoute = String(params?.plan || '').toLowerCase();
+  if (SUBSCRIBABLE.has(fromRoute) || fromRoute === 'enterprise') return fromRoute;
+  try {
+    const stored = String(sessionStorage.getItem(INTENT_PLAN_KEY) || '').toLowerCase();
+    if (SUBSCRIBABLE.has(stored) || stored === 'enterprise') return stored;
+  } catch (e) {}
+  return '';
+}
+
+function clearIntentPlan() {
+  try {
+    sessionStorage.removeItem(INTENT_PLAN_KEY);
+  } catch (e) {}
+}
+
 export default {
   render: async (ctx) => {
     let usage = {};
@@ -43,11 +73,24 @@ export default {
     const activeProjects = usage.projects_active || 0;
     const maxProjects = usage.projects_limit || 3;
     const paymentAvailable = Boolean(plansData.payment?.enabled && plansData.payment?.configured);
-    const paymentDisabled = paymentAvailable ? '' : 'disabled aria-disabled="true"';
+    const canUpgrade = usage.can_upgrade !== false && !['active', 'trialing', 'past_due'].includes(subscription?.status);
+    const paymentDisabled = paymentAvailable && canUpgrade ? '' : 'disabled aria-disabled="true"';
     const paymentUnavailable = t('billing.payment_unavailable', {}, 'Payments unavailable');
     const starter = planByCode(plansData.plans, 'starter');
     const pro = planByCode(plansData.plans, 'pro');
     const agency = planByCode(plansData.plans, 'agency');
+    const intentPlan = readIntentPlan(ctx.params);
+    const trialEndsLabel = formatTrialEnds(usage.trial_ends_at);
+    const onTrial = currentPlan === 'trial';
+    const trialExpired = Boolean(usage.trial_expired);
+    const billingStatus = String(ctx.params?.billing || '').toLowerCase();
+
+    const subscribeLabel = (code, label) => {
+      if (currentPlan === code) return 'Current Plan';
+      if (!paymentAvailable) return paymentUnavailable;
+      if (!canUpgrade) return 'Cancel current plan to switch';
+      return label;
+    };
 
     return `
       <div class="app-view-container">
@@ -60,6 +103,15 @@ export default {
           </div>
         </div>
 
+        ${billingStatus === 'success' ? `
+          <div class="banner good" style="margin-bottom:var(--sp-4);">
+            Payment received. Your plan unlocks as soon as Stripe confirms the subscription.
+          </div>` : ''}
+        ${billingStatus === 'canceled' ? `
+          <div class="banner warn" style="margin-bottom:var(--sp-4);">
+            Checkout was canceled. You can resume any plan below — no need to wait for the trial to end.
+          </div>` : ''}
+
         <!-- Current Plan Status Card -->
         <div class="card" style="gap:var(--sp-4);">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--sp-3);">
@@ -69,12 +121,20 @@ export default {
               </span>
               <div>
                 <strong>${t('billing.current_plan', {}, 'Active Plan')}</strong>
-                <div style="font-size:var(--fs-2);color:var(--muted);">Active projects: ${activeProjects} / ${maxProjects}</div>
+                <div style="font-size:var(--fs-2);color:var(--muted);">Active projects: ${activeProjects} / ${maxProjects === null || maxProjects === undefined ? '∞' : maxProjects}</div>
+                ${onTrial ? `
+                  <div style="font-size:var(--fs-2);color:var(--muted);margin-top:2px;">
+                    ${trialExpired
+                      ? 'Trial ended — upgrade now to restore full access.'
+                      : (trialEndsLabel
+                        ? `Trial ends ${trialEndsLabel}. You can upgrade to Pro or higher anytime — no need to wait.`
+                        : 'You can upgrade to Pro or higher anytime during the trial.')}
+                  </div>` : ''}
               </div>
             </div>
             <div class="seg" id="billing-interval-toggle">
-              <button type="button" class="seg-opt is-active" data-int="monthly" ${paymentDisabled}>Monthly</button>
-              <button type="button" class="seg-opt" data-int="annual" ${paymentDisabled}>Annual (Save ~20%)</button>
+              <button type="button" class="seg-opt is-active" data-int="monthly" ${paymentAvailable ? '' : 'disabled aria-disabled="true"'}>Monthly</button>
+              <button type="button" class="seg-opt" data-int="annual" ${paymentAvailable ? '' : 'disabled aria-disabled="true"'}>Annual (Save ~20%)</button>
             </div>
           </div>
           ${subscription && ['active', 'trialing', 'past_due'].includes(subscription.status) ? `
@@ -87,7 +147,7 @@ export default {
         <!-- Pricing Plans Grid -->
         <div class="pricing-grid">
           <!-- Starter -->
-          <article class="price-card">
+          <article class="price-card ${intentPlan === 'starter' ? 'is-intent' : ''}">
             <p class="plan-name">Starter</p>
             <p class="price">
               <strong class="price-val" data-m="${formatUsd(starter?.prices?.monthly?.usd)}" data-a="${formatUsd(starter?.prices?.annual?.usd)}">${formatUsd(starter?.prices?.monthly?.usd || 79)}</strong>
@@ -99,13 +159,13 @@ export default {
               <li>13 standard action tickets & verification runs</li>
               <li>Full reports & customer delivery packs</li>
             </ul>
-            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="starter" ${paymentDisabled}>
-              ${currentPlan === 'starter' ? 'Current Plan' : paymentAvailable ? 'Subscribe Starter' : paymentUnavailable}
+            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="starter" ${currentPlan === 'starter' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
+              ${subscribeLabel('starter', 'Subscribe Starter')}
             </button>
           </article>
 
           <!-- Pro (Featured) -->
-          <article class="price-card price-card-featured">
+          <article class="price-card price-card-featured ${intentPlan === 'pro' ? 'is-intent' : ''}">
             <p class="plan-badge">Most popular</p>
             <p class="plan-name">Pro</p>
             <p class="price">
@@ -118,13 +178,13 @@ export default {
               <li>Unlimited BYOK sampling</li>
               <li>Matrix scheduled tracking & regression alerts</li>
             </ul>
-            <button type="button" class="btn btn-primary btn-block btn-subscribe" data-plan="pro" ${paymentDisabled}>
-              ${currentPlan === 'pro' ? 'Current Plan' : paymentAvailable ? 'Subscribe Pro' : paymentUnavailable}
+            <button type="button" class="btn btn-primary btn-block btn-subscribe" data-plan="pro" ${currentPlan === 'pro' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
+              ${subscribeLabel('pro', onTrial ? 'Upgrade to Pro' : 'Subscribe Pro')}
             </button>
           </article>
 
           <!-- Agency -->
-          <article class="price-card">
+          <article class="price-card ${intentPlan === 'agency' ? 'is-intent' : ''}">
             <p class="plan-name">Agency</p>
             <p class="price">
               <strong class="price-val" data-m="${formatUsd(agency?.prices?.monthly?.usd)}" data-a="${formatUsd(agency?.prices?.annual?.usd)}">${formatUsd(agency?.prices?.monthly?.usd || 499)}</strong>
@@ -136,13 +196,13 @@ export default {
               <li>White-label client delivery headers (No CiteAura)</li>
               <li>Team multi-role permissions & white-label delivery branding</li>
             </ul>
-            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="agency" ${paymentDisabled}>
-              ${currentPlan === 'agency' ? 'Current Plan' : paymentAvailable ? 'Subscribe Agency' : paymentUnavailable}
+            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="agency" ${currentPlan === 'agency' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
+              ${subscribeLabel('agency', onTrial ? 'Upgrade to Agency' : 'Subscribe Agency')}
             </button>
           </article>
 
           <!-- Enterprise -->
-          <article class="price-card">
+          <article class="price-card ${intentPlan === 'enterprise' ? 'is-intent' : ''}">
             <p class="plan-name">Enterprise</p>
             <p class="price"><strong>Custom</strong></p>
             <p class="plan-summary">Organization-scale private deployment</p>
@@ -162,8 +222,32 @@ export default {
 
   mounted: (ctx) => {
     let currentInterval = 'monthly';
+    const intentPlan = readIntentPlan(ctx.params);
+    let autoCheckoutStarted = false;
 
-    const toggle = document.getElementById('billing-interval-toggle');
+    const startCheckout = async (plan, button) => {
+      if (plan === 'enterprise') {
+        toast.info('Please contact sales@citeaura.com for enterprise plans.');
+        clearIntentPlan();
+        return;
+      }
+      if (!SUBSCRIBABLE.has(plan)) return;
+      if (button) button.disabled = true;
+      try {
+        const res = await billing.subscribe({ plan, billing_interval: currentInterval });
+        clearIntentPlan();
+        if (res && res.checkout_url) {
+          window.location.assign(res.checkout_url);
+          return;
+        }
+        toast.success(`Subscribed to ${plan.toUpperCase()}!`);
+        ctx.navigate('#/billing');
+      } catch (err) {
+        toast.error(t(err.error, {}, err.detail || 'Subscription failed'));
+        if (button) button.disabled = false;
+      }
+    };
+
     document.getElementById('btn-cancel-subscription')?.addEventListener('click', async () => {
       const button = document.getElementById('btn-cancel-subscription');
       if (!window.confirm('Schedule cancellation at the end of the current billing period?')) return;
@@ -177,8 +261,11 @@ export default {
         button.disabled = false;
       }
     });
+
+    const toggle = document.getElementById('billing-interval-toggle');
     toggle?.querySelectorAll('.seg-opt').forEach((btn) => {
       btn.addEventListener('click', () => {
+        if (btn.disabled) return;
         currentInterval = btn.getAttribute('data-int');
         toggle.querySelectorAll('.seg-opt').forEach((b) => b.classList.remove('is-active'));
         btn.classList.add('is-active');
@@ -198,26 +285,20 @@ export default {
     document.querySelectorAll('.btn-subscribe').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const plan = btn.getAttribute('data-plan');
-        if (plan === 'enterprise') {
-          toast.info('Please contact sales@citeaura.com for enterprise plans.');
-          return;
-        }
-
-        btn.disabled = true;
-        try {
-          const res = await billing.subscribe({ plan, billing_interval: currentInterval });
-          if (res && res.checkout_url) {
-            window.location.assign(res.checkout_url);
-          } else {
-            toast.success(`Subscribed to ${plan.toUpperCase()}!`);
-            ctx.navigate('#/billing');
-          }
-        } catch (err) {
-          toast.error(t(err.error, {}, err.detail || 'Subscription failed'));
-        } finally {
-          btn.disabled = false;
-        }
+        await startCheckout(plan, btn);
       });
     });
+
+    // 落地页 /app?plan=pro 或注册意图：试用用户立即发起结账，无需等试用结束。
+    if (intentPlan && SUBSCRIBABLE.has(intentPlan) && !autoCheckoutStarted) {
+      const target = document.querySelector(`.btn-subscribe[data-plan="${intentPlan}"]`);
+      if (target && !target.disabled) {
+        autoCheckoutStarted = true;
+        startCheckout(intentPlan, target);
+      } else if (intentPlan === 'enterprise') {
+        clearIntentPlan();
+        toast.info('Please contact sales@citeaura.com for enterprise plans.');
+      }
+    }
   },
 };

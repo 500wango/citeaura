@@ -44,6 +44,9 @@ def test_checkout_sends_server_owned_price_and_metadata(monkeypatch):
     assert captured["data"]["line_items[0][price_data][recurring][interval]"] == "year"
     assert captured["data"]["metadata[tenant_id]"] == "17"
     assert captured["data"]["subscription_data[metadata][plan]"] == "pro"
+    assert captured["data"]["success_url"].endswith("/app?billing=success")
+    assert captured["data"]["cancel_url"].endswith("/app?billing=canceled")
+    assert "#settings" not in captured["data"]["success_url"]
 
 
 def test_webhook_signature_checks_age_and_payload(monkeypatch):

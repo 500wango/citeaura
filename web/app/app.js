@@ -90,8 +90,8 @@ export const TRACKS = [
 
 /* ----------  ---------- */
 const VIEW_LOADERS = {
-  login: () => import('./views/auth-login.js?v=2.5'),
-  register: () => import('./views/auth-register.js?v=2.5'),
+  login: () => import('./views/auth-login.js?v=2.8'),
+  register: () => import('./views/auth-register.js?v=2.8'),
   'forgot-password': () => import('./views/auth-forgot.js?v=2.5'),
   'reset-password': () => import('./views/auth-reset.js?v=2.5'),
   invite: () => import('./views/auth-invite.js?v=2.5'),
@@ -117,7 +117,7 @@ const VIEW_LOADERS = {
   automation: () => import('./views/automation.js?v=2.5'),
   integrations: () => import('./views/integrations.js?v=2.5'),
   team: () => import('./views/team.js?v=2.5'),
-  billing: () => import('./views/billing.js?v=2.5'),
+  billing: () => import('./views/billing.js?v=2.8'),
   security: () => import('./views/security.js?v=2.5'),
   archive: () => import('./views/archive.js?v=2.5'),
 };
@@ -548,14 +548,35 @@ async function init() {
   renderApp();
 }
 
+const INTENT_PLAN_KEY = 'citeaura_intent_plan';
+const ENTRY_PLANS = new Set(['starter', 'pro', 'agency', 'enterprise']);
+
 function normalizeLegacyAuthLink() {
   const params = new URLSearchParams(location.search);
   const resetToken = params.get('reset_token');
   const inviteToken = params.get('invite');
-  if (!resetToken && !inviteToken) return;
-  const route = resetToken ? 'reset-password' : 'invite';
-  const token = resetToken || inviteToken;
-  history.replaceState(null, '', `${location.pathname}#/${route}?token=${encodeURIComponent(token)}`);
+  const plan = String(params.get('plan') || '').toLowerCase();
+  const billing = String(params.get('billing') || '').toLowerCase();
+
+  if (resetToken || inviteToken) {
+    const route = resetToken ? 'reset-password' : 'invite';
+    const token = resetToken || inviteToken;
+    history.replaceState(null, '', `${location.pathname}#/${route}?token=${encodeURIComponent(token)}`);
+    return;
+  }
+
+  // 落地页「Subscribe Pro」等：保留升级意图，登录后可立刻结账，不必等试用结束。
+  if (ENTRY_PLANS.has(plan)) {
+    try {
+      sessionStorage.setItem(INTENT_PLAN_KEY, plan);
+    } catch (e) {}
+    history.replaceState(null, '', `${location.pathname}#/billing?plan=${encodeURIComponent(plan)}`);
+    return;
+  }
+
+  if (billing === 'success' || billing === 'canceled') {
+    history.replaceState(null, '', `${location.pathname}#/billing?billing=${encodeURIComponent(billing)}`);
+  }
 }
 
 if (document.readyState === 'loading') {

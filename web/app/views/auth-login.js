@@ -65,7 +65,16 @@ export default {
         await auth.login({ email, password });
         toast.success(t('auth.login_success', {}, 'Signed in successfully'));
         await ctx.reloadSession();
-        ctx.navigate('#/overview');
+        // 保留落地页套餐意图（如 ?plan=pro），登录后直接进入升级结账。
+        let intentPlan = '';
+        try {
+          intentPlan = String(sessionStorage.getItem('citeaura_intent_plan') || '').toLowerCase();
+        } catch (e) {}
+        if (intentPlan && ['starter', 'pro', 'agency', 'enterprise'].includes(intentPlan)) {
+          ctx.navigate(`#/billing?plan=${encodeURIComponent(intentPlan)}`);
+        } else {
+          ctx.navigate('#/overview');
+        }
       } catch (err) {
         toast.error(t(err.error, {}, err.detail || 'Incorrect email or password'));
       } finally {

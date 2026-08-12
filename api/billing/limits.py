@@ -101,9 +101,21 @@ def usage(db: Session, tenant: Tenant) -> dict:
         )
     trial = tenant.plan == "trial"
     plan = PLANS.get(tenant.plan) or {}
+    trial_ends_at = tenant.trial_ends_at
+    if trial and trial_ends_at is None and tenant.created_at is not None:
+        trial_ends_at = tenant.created_at + timedelta(days=14)
+    trial_expired = False
+    if trial and trial_ends_at is not None:
+        ends_at = trial_ends_at
+        if ends_at.tzinfo is None:
+            ends_at = ends_at.replace(tzinfo=timezone.utc)
+        trial_expired = datetime.now(timezone.utc) > ends_at
     return {
         "plan": tenant.plan,
         "trial_ends_at": tenant.trial_ends_at,
+        "trial_expired": trial_expired,
+        # 试用未结束也可随时付费升级；不要求等 14 天。
+        "can_upgrade": trial,
         "projects_active": project_count,
         "projects_limit": plan.get("projects"),
         "sample_runs": sample_count,

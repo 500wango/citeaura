@@ -122,6 +122,12 @@ def test_frontend_contracts_match_backend_request_models():
     assert "revision," in outreach and "confirmed: true" in outreach
     assert "{ plan, billing_interval: currentInterval }" in billing
     assert "plansData.payment?.enabled" in billing
+    assert "can_upgrade" in billing
+    assert "Upgrade to Pro" in billing
+    assert "no need to wait" in billing
+    app_js = (root / "web/app/app.js").read_text("utf-8")
+    assert "citeaura_intent_plan" in app_js
+    assert "ENTRY_PLANS" in app_js
 
 
 def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():

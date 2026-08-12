@@ -1040,6 +1040,81 @@
 }
 
 /* ==========================================================================
+   Billing pricing cards
+   ========================================================================== */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-5);
+  align-items: stretch;
+}
+.price-card {
+  position: relative;
+  padding: var(--sp-6);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--divider);
+  box-shadow: var(--sh-md);
+  display: flex;
+  flex-direction: column;
+  transition: all var(--dur-med) var(--ease-out);
+}
+.price-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--sh-lg), 0 16px 40px oklch(0 0 0 / 0.15);
+}
+.price-card-featured {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 94%, var(--accent)) 0%, var(--surface) 100%);
+  box-shadow: var(--sh-lg), 0 0 30px oklch(0.52 0.14 196 / 0.25);
+  transform: scale(1.02);
+}
+.price-card-featured:hover { transform: scale(1.02) translateY(-4px); }
+.price-card.is-intent {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.plan-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  background: var(--grad-accent-vivid);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 4px 14px oklch(0.52 0.14 196 / 0.4);
+}
+.plan-name { font-size: var(--fs-5); font-weight: 700; margin-bottom: var(--sp-2); color: var(--ink); }
+.price { margin-bottom: var(--sp-2); }
+.price strong { font-size: var(--fs-8); font-weight: 800; letter-spacing: -0.04em; color: var(--ink); }
+.price span { font-size: var(--fs-2); color: var(--muted); font-family: var(--font-mono); margin-left: 4px; }
+.plan-summary { font-size: var(--fs-2); color: var(--muted); line-height: 1.5; margin-bottom: var(--sp-5); }
+.price-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--sp-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  font-size: var(--fs-2);
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.price-card li { position: relative; padding-left: var(--sp-5); }
+.price-card li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--good);
+  font-weight: 700;
+}
+.price-card .btn { margin-top: auto; }
+
+/* ==========================================================================
    3.  (Responsive Rules)
    ========================================================================== */
 @media (max-width: 1080px) {
@@ -1051,6 +1126,7 @@
   }
   .app-subnav.is-open { transform: translateX(0); }
   .matrix-grid { grid-template-columns: 1fr; grid-template-rows: auto; }
+  .pricing-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
@@ -1069,4 +1145,5 @@
   }
   .app-header { padding: 0 var(--sp-4); }
   .app-view-container { padding: var(--sp-4); }
+  .pricing-grid { grid-template-columns: 1fr; }
 }

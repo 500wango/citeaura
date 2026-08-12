@@ -83,7 +83,16 @@ export default {
         await auth.login({ email, password });
         toast.success(t('auth.register_success', {}, 'Workspace created successfully'));
         await ctx.reloadSession();
-        ctx.navigate('#/onboarding');
+        // 从落地页带 ?plan=pro 注册时，直接进入计费页发起升级，无需等 14 天试用结束。
+        let intentPlan = '';
+        try {
+          intentPlan = String(sessionStorage.getItem('citeaura_intent_plan') || '').toLowerCase();
+        } catch (e) {}
+        if (intentPlan && ['starter', 'pro', 'agency', 'enterprise'].includes(intentPlan)) {
+          ctx.navigate(`#/billing?plan=${encodeURIComponent(intentPlan)}`);
+        } else {
+          ctx.navigate('#/onboarding');
+        }
       } catch (err) {
         toast.error(t(err.error, {}, err.detail || 'Registration failed'));
       } finally {

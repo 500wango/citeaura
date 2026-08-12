@@ -183,6 +183,8 @@ def _activate_checkout(db, value):
     row.started_at = started_at
     row.expires_at = _add_billing_period(started_at, billing_interval)
     tenant.plan = plan_code
+    # 付费开通后立即离开试用态，不要求等 trial_ends_at。
+    tenant.trial_ends_at = None
     return True
 
 
@@ -285,23 +287,29 @@ def billing_usage(current_user: User = Depends(get_current_user), db: Session = 
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
     result = usage(db, tenant)
     result["platform_pool"] = usage_summary(db, tenant)
-    active = (
+    latest = (
         db.query(Subscription)
         .filter(Subscription.tenant_id == tenant.id)
         .order_by(Subscription.started_at.desc(), Subscription.id.desc())
         .first()
     )
-    result["subscription"] = None if active is None else {
-        "id": active.id,
-        "plan": active.plan,
-        "billing_interval": active.billing_interval,
-        "amount_cny_fen": active.amount_cny_fen,
-        "amount_usd_cents": active.amount_usd_cents,
-        "status": active.status,
-        "cancel_at_period_end": active.cancel_at_period_end,
-        "provider": active.provider,
-        "started_at": active.started_at,
-        "expires_at": active.expires_at,
+    active_paid = (
+        latest is not None
+        and latest.status in ("active", "trialing", "past_due")
+    )
+    # 无活跃付费订阅时（含试用中/试用过期）均可发起升级结账。
+    result["can_upgrade"] = not active_paid
+    result["subscription"] = None if latest is None else {
+        "id": latest.id,
+        "plan": latest.plan,
+        "billing_interval": latest.billing_interval,
+        "amount_cny_fen": latest.amount_cny_fen,
+        "amount_usd_cents": latest.amount_usd_cents,
+        "status": latest.status,
+        "cancel_at_period_end": latest.cancel_at_period_end,
+        "provider": latest.provider,
+        "started_at": latest.started_at,
+        "expires_at": latest.expires_at,
     }
     return result
 
@@ -340,11 +348,12 @@ def subscribe(
     current_user: User = Depends(require_owner),
     db: Session = Depends(get_db),
 ):
-    """创建 Stripe Checkout，会话付款成功后由 Webhook 开通套餐。"""
+    """创建 Stripe Checkout；试用中/试用过期均可立即升级，不要求等 trial 结束。"""
     _require_billing_enabled()
     tenant = db.get(Tenant, current_user.tenant_id)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
+    # 仅阻止已有付费订阅的二次开通；plan=trial（含未过期/已过期）均可升级。
     active = db.query(Subscription).filter(
         Subscription.tenant_id == tenant.id,
         Subscription.status.in_(("active", "trialing", "past_due")),
@@ -379,6 +388,7 @@ def subscribe(
         "payment": "stripe_checkout",
         "checkout_url": session["url"],
         "checkout_session_id": session["id"],
+        "from_plan": tenant.plan,
     }
 
 

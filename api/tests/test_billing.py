@@ -438,3 +438,71 @@ def test_expired_trial_cannot_create_projects(billing_client):
     )
     assert blocked.status_code == 403
     assert blocked.json() == {"error": "trial_limit_exceeded", "detail": "trial has expired"}
+
+
+def test_active_and_expired_trial_can_upgrade_to_pro_without_waiting(billing_client, monkeypatch):
+    """试用中与试用过期均可立刻升级 Pro，不要求等满 14 天。"""
+    client, session_factory = billing_client
+    captured = []
+    monkeypatch.setattr(
+        stripe_adapter,
+        "create_checkout_session",
+        lambda tenant, user, plan, billing_interval, amount: (
+            captured.append({"tenant_id": tenant.id, "plan": plan["code"], "amount": amount})
+            or {"id": f"cs_{plan['code']}_{len(captured)}", "url": f"https://checkout.stripe.test/{plan['code']}"}
+        ),
+    )
+
+    active_headers = _register(client, "active-trial@example.com")
+    usage = client.get("/api/v1/billing/usage", headers=active_headers).json()
+    assert usage["plan"] == "trial"
+    assert usage["can_upgrade"] is True
+    assert usage["trial_expired"] is False
+    active = client.post("/api/v1/billing/subscribe", headers=active_headers, json={"plan": "pro"})
+    assert active.status_code == 200
+    assert active.json()["plan"] == "pro"
+    assert active.json()["from_plan"] == "trial"
+    assert active.json()["checkout_url"] == "https://checkout.stripe.test/pro"
+
+    expired_headers = _register(client, "expired-trial@example.com")
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "expired-trial").one()
+        tenant.trial_ends_at = datetime.now(timezone.utc) - timedelta(days=1)
+        tenant_id = tenant.id
+        db.commit()
+    expired_usage = client.get("/api/v1/billing/usage", headers=expired_headers).json()
+    assert expired_usage["plan"] == "trial"
+    assert expired_usage["trial_expired"] is True
+    assert expired_usage["can_upgrade"] is True
+    expired = client.post("/api/v1/billing/subscribe", headers=expired_headers, json={"plan": "agency"})
+    assert expired.status_code == 200
+    assert expired.json()["plan"] == "agency"
+    assert expired.json()["from_plan"] == "trial"
+
+    # Webhook 开通后立即离开试用，限额按付费套餐生效。
+    paid = _post_stripe_event(client, _stripe_event("evt_trial_upgrade", "checkout.session.completed", {
+        "id": "cs_trial_upgrade",
+        "created": int(time.time()),
+        "client_reference_id": str(tenant_id),
+        "customer": "cus_trial_upgrade",
+        "subscription": "sub_trial_upgrade",
+        "payment_status": "paid",
+        "currency": "usd",
+        "amount_total": 49900,
+        "metadata": {
+            "tenant_id": str(tenant_id),
+            "plan": "agency",
+            "billing_interval": "monthly",
+        },
+    }))
+    assert paid.status_code == 200
+    assert paid.json()["processed"] is True
+    with session_factory() as db:
+        tenant = db.get(Tenant, tenant_id)
+        assert tenant.plan == "agency"
+        assert tenant.trial_ends_at is None
+    after = client.get("/api/v1/billing/usage", headers=expired_headers).json()
+    assert after["plan"] == "agency"
+    assert after["can_upgrade"] is False
+    assert after["projects_limit"] == 30
+    assert [item["plan"] for item in captured] == ["pro", "agency"]
