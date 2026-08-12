@@ -39,6 +39,7 @@ export default {
     } catch (e) {}
 
     const currentPlan = usage.plan || 'trial';
+    const subscription = usage.subscription || null;
     const activeProjects = usage.projects_active || 0;
     const maxProjects = usage.projects_limit || 3;
     const paymentAvailable = Boolean(plansData.payment?.enabled && plansData.payment?.configured);
@@ -76,6 +77,11 @@ export default {
               <button type="button" class="seg-opt" data-int="annual" ${paymentDisabled}>Annual (Save ~20%)</button>
             </div>
           </div>
+          ${subscription && ['active', 'trialing', 'past_due'].includes(subscription.status) ? `
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+              <span style="font-size:var(--fs-2);color:var(--muted);">${subscription.cancel_at_period_end ? 'Cancellation scheduled for the end of the current billing period.' : 'Your subscription is active.'}</span>
+              ${subscription.cancel_at_period_end ? '' : '<button type="button" id="btn-cancel-subscription" class="btn btn-danger btn-sm">Cancel at Period End</button>'}
+            </div>` : ''}
         </div>
 
         <!-- Pricing Plans Grid -->
@@ -158,6 +164,19 @@ export default {
     let currentInterval = 'monthly';
 
     const toggle = document.getElementById('billing-interval-toggle');
+    document.getElementById('btn-cancel-subscription')?.addEventListener('click', async () => {
+      const button = document.getElementById('btn-cancel-subscription');
+      if (!window.confirm('Schedule cancellation at the end of the current billing period?')) return;
+      button.disabled = true;
+      try {
+        await billing.cancel();
+        toast.success('Cancellation scheduled for the end of the current billing period.');
+        await ctx.reloadCurrentView?.();
+      } catch (err) {
+        toast.error(t(err.error, {}, err.detail || 'Cancellation failed'));
+        button.disabled = false;
+      }
+    });
     toggle?.querySelectorAll('.seg-opt').forEach((btn) => {
       btn.addEventListener('click', () => {
         currentInterval = btn.getAttribute('data-int');

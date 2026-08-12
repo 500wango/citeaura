@@ -25,9 +25,9 @@ function isSafeUrl(value, attribute, element) {
 }
 
 export function sanitizeHtml(value) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(String(value ?? ''), 'text/html');
-  doc.body.querySelectorAll('*').forEach((element) => {
+  const template = document.createElement('template');
+  template.innerHTML = String(value ?? '');
+  template.content.querySelectorAll('*').forEach((element) => {
     const tag = element.tagName.toLowerCase();
     if (BLOCKED_TAGS.has(tag)) {
       element.remove();
@@ -51,12 +51,10 @@ export function sanitizeHtml(value) {
       element.setAttribute('rel', 'noopener noreferrer');
     }
   });
-  return doc.body.innerHTML;
+  return template.content;
 }
 
 export function setSafeHtml(target, value) {
   if (!target) return;
-  const template = document.createElement('template');
-  template.innerHTML = sanitizeHtml(value);
-  target.replaceChildren(template.content.cloneNode(true));
+  target.replaceChildren(sanitizeHtml(value));
 }

@@ -85,6 +85,8 @@ def update_config(project_slug: str, updates: dict) -> dict:
         current.update(updates)
         current["slug"] = project_slug
         current["market"] = "both"
+        if "url" in updates:
+            current.setdefault("brand", {})["site"] = updates["url"]
         if "questions" in current:
             current["questions"] = _validated_questions(current["questions"])
         geolib.save_config(project_slug, current)

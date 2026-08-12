@@ -312,6 +312,29 @@ def _next_scheduled_run(scheduled_for, interval_days, now):
     return next_run
 
 
+def _reclaim_stale_jobs(db, now):
+    """回收超过 Celery 最大执行窗口仍 running 的任务，避免项目永久占用。"""
+    cutoff = now - timedelta(hours=2)
+    stale = db.query(Job).filter(
+        Job.status == "running",
+        Job.started_at.isnot(None),
+        Job.started_at < cutoff,
+    ).all()
+    reclaimed = 0
+    for job in stale:
+        project = db.get(Project, job.project_id)
+        job.status = "failed"
+        job.stage = "failed"
+        job.finished_at = now
+        job.error = "worker_lost_or_timeout"
+        if project is not None and project.status not in ("archived",):
+            project.status = "failed"
+        reclaimed += 1
+    if reclaimed:
+        db.commit()
+    return reclaimed
+
+
 @contextmanager
 def _capture_task_output(log_path):
     """把引擎 print 输出写入当前 Job 日志。"""
@@ -510,6 +533,7 @@ def task_dispatch_schedules(now_iso=None):
     result = {"scanned": 0, "enqueued": 0, "busy": 0, "quota_blocked": 0, "failed": 0}
     db = SessionLocal()
     try:
+        _reclaim_stale_jobs(db, now)
         candidate_ids = [
             row[0]
             for row in (

@@ -76,15 +76,16 @@ def create_checkout_session(tenant, user, plan, billing_interval, amount):
 
 
 def cancel_subscription(provider_subscription_id):
-    """取消 Stripe 订阅，套餐状态随后由 Webhook 同步。"""
+    """设置 Stripe 在当前计费周期结束时取消订阅。"""
     if not config.billing_enabled():
         raise StripeError("billing_disabled")
     secret = config.stripe_secret_key()
     if not secret or not provider_subscription_id:
         raise StripeError("stripe_not_configured")
     try:
-        response = requests.delete(
+        response = requests.post(
             f"{API_BASE}/subscriptions/{provider_subscription_id}",
+            data={"cancel_at_period_end": "true"},
             auth=(secret, ""),
             timeout=20,
         )

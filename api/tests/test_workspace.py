@@ -120,6 +120,16 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
     )
     assert updated.status_code == 200
     assert updated.json()["config"]["market"] == "both"
+
+    changed_url = client.patch(
+        f"/api/v1/projects/{project_id}/config",
+        headers=headers,
+        json={"url": "https://new.example.com/"},
+    )
+    assert changed_url.status_code == 200
+    with session_factory() as db:
+        assert db.get(Project, project_id).url == "https://new.example.com"
+    assert changed_url.json()["config"]["brand"]["site"] == "https://new.example.com"
     with session_factory() as db:
         assert db.get(Project, project_id).market == "both"
     assert json.loads((root / "geo.json").read_text("utf-8"))["market"] == "both"

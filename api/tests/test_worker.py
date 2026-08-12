@@ -233,6 +233,35 @@ def test_job_status_updates_project_on_success_and_failure(tmp_path, monkeypatch
     assert "verify failed: RuntimeError: verification failed" in verify_log
 
 
+def test_reclaim_stale_jobs_releases_project_after_worker_loss(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'reclaim.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    now = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    with session_factory() as db:
+        tenant = Tenant(name="reclaim-tenant", plan="pro")
+        db.add(tenant)
+        db.flush()
+        project = Project(tenant_id=tenant.id, slug="reclaim", url="https://reclaim.example", status="processing")
+        db.add(project)
+        db.flush()
+        job = Job(
+            project_id=project.id,
+            action="sample",
+            status="running",
+            stage="sampling",
+            started_at=now - timedelta(hours=3),
+        )
+        db.add(job)
+        db.commit()
+        job_id, project_id = job.id, project.id
+        assert tasks._reclaim_stale_jobs(db, now) == 1
+    with session_factory() as db:
+        assert db.get(Job, job_id).status == "failed"
+        assert db.get(Job, job_id).error == "worker_lost_or_timeout"
+        assert db.get(Project, project_id).status == "failed"
+
+
 def test_schedule_dispatcher_enqueues_due_projects_and_respects_guards(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{tmp_path / 'dispatch.sqlite'}")
     Base.metadata.create_all(engine)

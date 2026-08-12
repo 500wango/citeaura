@@ -207,6 +207,7 @@ class Subscription(Base):
     amount_cny_fen = Column(Integer, nullable=True)
     amount_usd_cents = Column(Integer, nullable=True)
     status = Column(String(32), nullable=False, default="active", server_default="active")
+    cancel_at_period_end = Column(Boolean, nullable=False, default=False, server_default="false")
     provider = Column(String(32), nullable=True)
     provider_customer_id = Column(String(255), nullable=True, index=True)
     provider_subscription_id = Column(String(255), nullable=True, unique=True)

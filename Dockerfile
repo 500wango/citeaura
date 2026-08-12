@@ -19,7 +19,10 @@ COPY api ./api
 COPY engine ./engine
 COPY web ./web
 COPY alembic.ini requirements.txt ./
-RUN mkdir -p /app/work
+RUN addgroup --system citeaura && adduser --system --ingroup citeaura citeaura \
+    && mkdir -p /app/work \
+    && chown -R citeaura:citeaura /app
+USER citeaura
 
 FROM runtime AS api
 EXPOSE 8000

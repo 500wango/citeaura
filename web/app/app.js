@@ -270,6 +270,9 @@ function createContext() {
     reloadProjects: async () => {
       await state.loadProjects();
     },
+    reloadCurrentView: async () => {
+      await renderApp();
+    },
     setActiveProject: (id) => {
       state.setActiveProject(id);
     },

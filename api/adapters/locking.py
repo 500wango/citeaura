@@ -1,5 +1,6 @@
 """租户项目级 Redis 分布式锁。"""
 
+import ctypes
 import threading
 from contextlib import contextmanager
 from functools import lru_cache
@@ -12,6 +13,24 @@ from api.adapters.exceptions import DistributedLockError
 
 
 LOCK_PREFIX = "citeaura:project-lock"
+
+
+class _LockLostSignal(DistributedLockError):
+    """续约线程注入主线程时使用的带错误码异常。"""
+
+    def __init__(self):
+        super().__init__("project_lock_lost")
+
+
+def _interrupt_thread(thread_id):
+    """向持锁线程注入异常，让租约丢失立即终止临界区。"""
+    if not thread_id or thread_id == threading.get_ident():
+        return
+    result = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+        ctypes.c_ulong(thread_id), ctypes.py_object(_LockLostSignal),
+    )
+    if result > 1:
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_ulong(thread_id), None)
 
 
 @lru_cache(maxsize=8)
@@ -53,15 +72,18 @@ def project_lock(tenant_slug, project_slug):
 
     stop = threading.Event()
     renewal_errors = []
+    owner_thread_id = threading.get_ident()
 
     def renew():
         while not stop.wait(renew_interval):
             try:
                 if not lock.extend(ttl, replace_ttl=True):
                     renewal_errors.append(RuntimeError("lock extension rejected"))
+                    _interrupt_thread(owner_thread_id)
                     return
             except (RedisError, LockError) as exc:
                 renewal_errors.append(exc)
+                _interrupt_thread(owner_thread_id)
                 return
 
     renewer = threading.Thread(

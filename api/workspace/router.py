@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from api.adapters.engine import with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import workspace
+from api.adapters.preflight import PreflightError, normalize_url
 from api.auth.deps import get_current_user, require_editor
 from api.billing.limits import check_sample_run
 from api.db import get_db
@@ -102,7 +103,20 @@ def update_project_config(
 ):
     _, project = _tenant_project(db, current_user, project_id)
     _ensure_idle(db, project)
-    config = _call(db, current_user, project_id, workspace.update_config, payload)
+    updates = dict(payload)
+    normalized_url = None
+    if "url" in updates:
+        try:
+            normalized_url = normalize_url(updates["url"])
+        except PreflightError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"error": "invalid_project_url", "detail": str(exc)},
+            ) from exc
+        updates["url"] = normalized_url
+    config = _call(db, current_user, project_id, workspace.update_config, updates)
+    if normalized_url is not None:
+        project.url = normalized_url
     project.market = "both"
     db.commit()
     return {"ok": True, "config": config}

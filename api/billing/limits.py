@@ -1,6 +1,6 @@
 """试用额度检查和用量汇总。"""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
@@ -19,9 +19,12 @@ def _trial_active(tenant: Tenant) -> bool:
     """判断租户是否受试用额度约束；过期试用直接拒绝。"""
     if tenant.plan != "trial":
         return False
-    if tenant.trial_ends_at is None:
-        return True
     ends_at = tenant.trial_ends_at
+    if ends_at is None:
+        created_at = tenant.created_at
+        if created_at is None:
+            _raise_limit("trial expiration is not configured")
+        ends_at = created_at + timedelta(days=14)
     if ends_at.tzinfo is None:
         ends_at = ends_at.replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > ends_at:

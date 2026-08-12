@@ -175,6 +175,7 @@ def _activate_checkout(db, value):
     row.amount_cny_fen = plan["prices"][billing_interval]["cny"] * 100
     row.amount_usd_cents = plan["prices"][billing_interval]["usd"] * 100
     row.status = "active"
+    row.cancel_at_period_end = False
     row.provider = "stripe"
     row.provider_customer_id = _stripe_id(value.get("customer"))
     row.provider_subscription_id = provider_subscription_id
@@ -228,6 +229,11 @@ def _update_subscription(db, value, deleted=False):
     if status_value not in ("active", "trialing", "past_due", "canceled", "unpaid", "incomplete"):
         raise stripe_adapter.StripeError("stripe_subscription_status_invalid")
     row.status = status_value
+    if "cancel_at_period_end" in value:
+        cancel_flag = value["cancel_at_period_end"]
+        if isinstance(cancel_flag, str):
+            cancel_flag = cancel_flag.strip().lower() in ("1", "true", "yes")
+        row.cancel_at_period_end = bool(cancel_flag)
     row.provider = "stripe"
     row.provider_customer_id = _stripe_id(value.get("customer")) or row.provider_customer_id
     row.expires_at = _timestamp(value.get("current_period_end"), row.expires_at)
@@ -292,6 +298,7 @@ def billing_usage(current_user: User = Depends(get_current_user), db: Session = 
         "amount_cny_fen": active.amount_cny_fen,
         "amount_usd_cents": active.amount_usd_cents,
         "status": active.status,
+        "cancel_at_period_end": active.cancel_at_period_end,
         "provider": active.provider,
         "started_at": active.started_at,
         "expires_at": active.expires_at,
@@ -390,7 +397,9 @@ def cancel_subscription(current_user: User = Depends(require_owner), db: Session
         stripe_adapter.cancel_subscription(subscription.provider_subscription_id)
     except stripe_adapter.StripeError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail={"error": str(exc)}) from exc
-    return {"ok": True, "status": "cancel_requested", "subscription_id": subscription.id}
+    subscription.cancel_at_period_end = True
+    db.commit()
+    return {"ok": True, "status": "cancel_at_period_end", "subscription_id": subscription.id}
 
 
 @router.post("/webhook")

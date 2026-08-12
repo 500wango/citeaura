@@ -4,6 +4,7 @@ import json
 import threading
 from collections import Counter
 from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import date, datetime, timezone
 
 from sqlalchemy import func
@@ -17,6 +18,33 @@ from api.models import Job, PlatformUsage, Project, Tenant, UsageCounter
 
 
 PAID_PLANS = frozenset(("starter", "pro", "agency", "enterprise"))
+
+_METER_CONTEXT = ContextVar("citeaura_platform_meter", default=None)
+_METER_HOOK_LOCK = threading.Lock()
+_ACTIVE_METER_LOCK = threading.RLock()
+_ACTIVE_METER = None
+
+
+def _ensure_meter_hook():
+    """安装一次稳定的计量入口；每个任务的计数保存在 ContextVar 中。"""
+    import sample
+
+    with _METER_HOOK_LOCK:
+        if getattr(sample.ask, "_citeaura_meter_hook", False):
+            return
+        original = sample.ask
+
+        def metered(platform, *args, **kwargs):
+            meter = _METER_CONTEXT.get()
+            if meter is None:
+                with _ACTIVE_METER_LOCK:
+                    meter = _ACTIVE_METER
+            if meter is not None and platform in meter[0]:
+                meter[1][platform] += 1
+            return original(platform, *args, **kwargs)
+
+        metered._citeaura_meter_hook = True
+        sample.ask = metered
 
 
 def _prices():
@@ -111,22 +139,18 @@ def meter_platform_calls(engine_codes):
     if not codes:
         yield counts
         return
-    import sample
-
-    original = sample.ask
-    lock = threading.Lock()
-
-    def metered(platform, *args, **kwargs):
-        if platform in codes:
-            with lock:
-                counts[platform] += 1
-        return original(platform, *args, **kwargs)
-
-    sample.ask = metered
+    global _ACTIVE_METER
+    _ensure_meter_hook()
+    with _ACTIVE_METER_LOCK:
+        previous = _ACTIVE_METER
+        _ACTIVE_METER = (codes, counts)
+    token = _METER_CONTEXT.set((codes, counts))
     try:
         yield counts
     finally:
-        sample.ask = original
+        _METER_CONTEXT.reset(token)
+        with _ACTIVE_METER_LOCK:
+            _ACTIVE_METER = previous
 
 
 def _month_start(value=None):

@@ -312,6 +312,36 @@ def test_subscription_deleted_webhook_revokes_paid_plan(billing_client):
         assert db.query(Subscription).one().status == "canceled"
 
 
+def test_cancel_subscription_requests_period_end_and_persists_flag(billing_client, monkeypatch):
+    client, session_factory = billing_client
+    headers = _register(client, "cancel-period@example.com")
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "cancel-period").one()
+        tenant.plan = "pro"
+        db.add(Subscription(
+            tenant_id=tenant.id,
+            plan="pro",
+            billing_interval="monthly",
+            status="active",
+            provider="stripe",
+            provider_subscription_id="sub_period",
+        ))
+        db.commit()
+    calls = []
+    monkeypatch.setattr(
+        stripe_adapter,
+        "cancel_subscription",
+        lambda subscription_id: calls.append(subscription_id) or {"id": subscription_id, "cancel_at_period_end": True},
+    )
+    response = client.post("/api/v1/billing/cancel", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancel_at_period_end"
+    assert calls == ["sub_period"]
+    with session_factory() as db:
+        subscription = db.query(Subscription).one()
+        assert subscription.cancel_at_period_end is True
+
+
 def test_webhook_rejects_invalid_signature_and_amount(billing_client):
     client, session_factory = billing_client
     _register(client, "invalid-payment@example.com")
