@@ -984,57 +984,61 @@
 .final-cta-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
 
 /* ================================================================
-   Site Footer — Modern Structured Layout
+   Site Footer — Sleek Horizontal Layout
    ================================================================ */
 .site-footer {
-  padding: var(--sp-10) 0 var(--sp-9);
+  padding: var(--sp-8) 0;
   border-top: 1px solid var(--line);
   background: var(--page); color: var(--muted); font-size: var(--fs-2);
 }
 .footer-layout {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  gap: var(--sp-8); flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-6); flex-wrap: wrap;
 }
-.footer-brand-col {
-  display: flex; flex-direction: column; gap: var(--sp-3);
-  max-width: 320px;
-}
-.footer-brand-col .brand {
-  margin-bottom: var(--sp-1);
+.footer-brand {
+  display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap;
 }
 .footer-tagline {
-  color: var(--muted);
+  color: var(--faint);
   font-size: var(--fs-2);
-  line-height: 1.6;
   margin: 0;
+  border-left: 1px solid var(--divider);
+  padding-left: var(--sp-4);
+  line-height: 1.4;
 }
 .footer-copy {
   color: var(--faint);
   font-size: var(--fs-1);
   font-family: var(--font-mono);
-  margin-top: var(--sp-2);
+  margin: 0;
 }
-.footer-nav-col {
-  display: flex; gap: var(--sp-9); flex-wrap: wrap;
+.footer-links {
+  display: flex; align-items: center; gap: var(--sp-5); flex-wrap: wrap;
 }
-.footer-nav-group {
-  display: flex; flex-direction: column; gap: 10px;
-}
-.footer-nav-title {
-  font-size: var(--fs-2);
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0 0 var(--sp-1) 0;
-  letter-spacing: -0.01em;
-}
-.footer-nav-group a {
+.footer-links a {
   color: var(--muted);
   font-size: var(--fs-2);
+  font-weight: 500;
   text-decoration: none;
   transition: color var(--dur-fast) var(--ease-out);
 }
-.footer-nav-group a:hover {
+.footer-links a:hover {
   color: var(--ink);
+}
+
+@media (max-width: 860px) {
+  .footer-layout {
+    flex-direction: column; align-items: flex-start; gap: var(--sp-4);
+  }
+  .footer-brand {
+    flex-direction: column; align-items: flex-start; gap: var(--sp-2);
+  }
+  .footer-tagline {
+    border-left: none; padding-left: 0;
+  }
+  .footer-links {
+    gap: var(--sp-3) var(--sp-4);
+  }
 }
 
 /* ================================================================
