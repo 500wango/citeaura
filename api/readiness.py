@@ -6,9 +6,16 @@ from api import config
 from api.adapters.locking import redis_client
 from api.billing import stripe as stripe_adapter
 from api.settings.crypto import _master_key
+from api.worker.celery_app import celery_app
 
 
 EXPECTED_DB_REVISION = "0017_custom_model_providers"
+
+
+def _worker_available():
+    """确认至少一个 Celery Worker 能响应任务控制请求。"""
+    replies = celery_app.control.inspect(timeout=0.5).ping()
+    return bool(replies and any(reply.get("ok") == "pong" for reply in replies.values()))
 
 
 def readiness_checks(db):
@@ -28,6 +35,10 @@ def readiness_checks(db):
         checks["redis"] = bool(redis_client().ping())
     except Exception:  # noqa: BLE001 - Redis 不可用应返回未就绪
         checks["redis"] = False
+    try:
+        checks["worker"] = _worker_available()
+    except Exception:  # noqa: BLE001 - Worker 或 broker 不可用应返回未就绪
+        checks["worker"] = False
     try:
         checks["encryption"] = len(_master_key()) == 32
     except (RuntimeError, ValueError):

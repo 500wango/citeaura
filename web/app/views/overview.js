@@ -52,6 +52,13 @@ export default {
     const doneTickets = Array.isArray(tickets) ? tickets.filter((t) => t.status === 'done').length : 0;
     const engines = (report && report.engines) || [];
     const hasQuestions = Array.isArray(project.questions) && project.questions.length > 0;
+    const projectStatus = project.project?.status || project.status;
+    const isGeneratingQuestions = !hasQuestions && (
+      ['initializing', 'bootstrapping'].includes(projectStatus)
+      || (Array.isArray(jobs) && jobs.some((job) => (
+        ['bootstrap', 'autopilot'].includes(job.action) && ['queued', 'running'].includes(job.status)
+      )))
+    );
 
     const kpiData = [
       { label: t('overview.kpi_mention_rate', {}, 'AI Mention Rate'), value: mentionRate, className: 'num' },
@@ -83,6 +90,10 @@ export default {
               <button type="button" id="btn-run-sample" class="btn btn-secondary btn-sm">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 <span>${t('overview.action_sample', {}, 'Run AI Sample')}</span>
+              </button>` : isGeneratingQuestions ? `
+              <button type="button" class="btn btn-secondary btn-sm" disabled aria-busy="true">
+                <span class="spin"></span>
+                <span>${t('overview.generating_questions', {}, 'Generating Questions...')}</span>
               </button>` : `
               <a href="#/questions" class="btn btn-secondary btn-sm">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>

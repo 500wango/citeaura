@@ -155,6 +155,74 @@ def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypa
     assert delivery.delivery_language_violations(output) == []
 
 
+def test_delivery_contract_references_domestic_questions_without_changing_source(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    config = json.loads((project / "geo.json").read_text("utf-8"))
+    config["questions"] = [{"id": "q001", "text": "这个品牌是什么？", "market": "cn"}]
+    _write_json(project / "geo.json", config)
+    blueprint = json.loads((project / "blueprint.json").read_text("utf-8"))
+    blueprint["contents"][0].update({"market": "cn", "question": "这个品牌是什么？"})
+    _write_json(project / "blueprint.json", blueprint)
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    build_map = (output / "06-Build-Map.md").read_text("utf-8")
+    outline = (output / "assets" / "outlines" / "q001.md").read_text("utf-8")
+    assert "Configured Domestic target question q001" in build_map
+    assert "Configured Domestic target question q001" in outline
+    assert json.loads((project / "geo.json").read_text("utf-8"))["questions"][0]["text"] == "这个品牌是什么？"
+    assert delivery.delivery_language_violations(output) == []
+
+
+def test_delivery_contract_rebuilds_mixed_language_llms_asset(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    (project / "assets" / "llms.en.txt").write_text(
+        "# Example\n\n> 中文品牌定义\n\n- Industry: 中文行业\n",
+        "utf-8",
+    )
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    text = (output / "assets" / "llms.en.txt").read_text("utf-8")
+    assert "# Example" in text
+    assert "https://example.com" in text
+    assert "approved one-sentence English brand definition" in text
+    assert delivery.delivery_language_violations(output) == []
+
+
+def test_delivery_contract_normalizes_generated_jsonld_values(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    _write_json(project / "assets" / "jsonld" / "faq-page.json", {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [{
+            "@type": "Question",
+            "name": "这个品牌是什么？",
+            "acceptedAnswer": {"@type": "Answer", "text": "这里填写答案"},
+        }],
+    })
+    _write_json(project / "assets" / "jsonld" / "software.json", {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Example",
+        "description": "中文品牌定义",
+        "offers": [{"@type": "Offer", "price": "79", "priceCurrency": "美元"}],
+    })
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    faq = json.loads((output / "assets" / "jsonld" / "faq-page.json").read_text("utf-8"))
+    software = json.loads((output / "assets" / "jsonld" / "software.json").read_text("utf-8"))
+    assert faq["mainEntity"][0]["name"] == "Configured Domestic target question 1"
+    assert faq["mainEntity"][0]["acceptedAnswer"]["text"] == "[Add a direct English answer followed by supporting evidence.]"
+    assert software["description"] == "[Add the approved English brand description.]"
+    assert software["offers"][0]["priceCurrency"] == "USD"
+    assert delivery.delivery_language_violations(output) == []
+
+
 def test_language_validator_detects_paths_entities_and_json_escapes(tmp_path):
     output = tmp_path / "delivery"
     output.mkdir()

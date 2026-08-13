@@ -836,8 +836,8 @@
   animation: ca-pop 0.25s var(--ease-out);
 }
 .telemetry-box {
-  width: min(860px, 95vw);
-  max-height: 88vh;
+  width: min(1040px, 96vw);
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -859,6 +859,10 @@
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  min-width: 0;
+}
+.telemetry-title-copy {
+  min-width: 0;
 }
 .telemetry-live-dot {
   width: 10px; height: 10px;
@@ -879,6 +883,9 @@
   font-size: var(--fs-1);
   color: var(--muted);
   font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .telemetry-controls {
@@ -912,11 +919,21 @@
   background: var(--deep);
   color: var(--ink);
 }
+.telemetry-close-btn img { filter: none; }
+.telemetry-live-dot.is-done {
+  animation: none;
+  box-shadow: none;
+}
+.telemetry-live-dot.is-failed {
+  background: var(--bad);
+  box-shadow: none;
+  animation: none;
+}
 
-/* 4 */
+/* Pipeline stages */
 .telemetry-stepper {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(var(--telemetry-stage-count, 4), minmax(0, 1fr));
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-6);
   background: var(--deep);
@@ -982,6 +999,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.telemetry-stepper.is-dense .tel-step-item {
+  min-height: 38px;
+}
 
 .telemetry-progress-track {
   width: 100%;
@@ -994,6 +1014,32 @@
   background: var(--grad-accent);
   transition: width 0.3s ease;
   box-shadow: 0 0 10px var(--accent);
+}
+
+.telemetry-activity {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 42px;
+  padding: var(--sp-2) var(--sp-6);
+  background: color-mix(in oklch, var(--accent) 5%, var(--surface));
+  border-bottom: 1px solid var(--line);
+}
+.telemetry-activity-label {
+  flex: none;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.telemetry-activity-text {
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /*  */
@@ -1127,6 +1173,7 @@
   .app-subnav.is-open { transform: translateX(0); }
   .matrix-grid { grid-template-columns: 1fr; grid-template-rows: auto; }
   .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+  .telemetry-stepper { --telemetry-stage-count: 2 !important; }
 }
 
 @media (max-width: 768px) {
@@ -1146,4 +1193,22 @@
   .app-header { padding: 0 var(--sp-4); }
   .app-view-container { padding: var(--sp-4); }
   .pricing-grid { grid-template-columns: 1fr; }
+  .telemetry-backdrop { padding: 0; align-items: stretch; }
+  .telemetry-box { width: 100%; max-height: 100dvh; border-radius: 0; }
+  .telemetry-header { align-items: flex-start; padding: var(--sp-3) var(--sp-4); }
+  .telemetry-title { font-size: var(--fs-3); }
+  .telemetry-controls { flex-wrap: wrap; justify-content: flex-end; }
+  .telemetry-controls .btn { padding-inline: var(--sp-2); }
+  .telemetry-stepper {
+    display: flex;
+    overflow-x: auto;
+    padding: var(--sp-2) var(--sp-4);
+    scroll-snap-type: x proximity;
+  }
+  .tel-step-item { flex: 0 0 min(210px, 72vw); scroll-snap-align: start; }
+  .telemetry-activity { padding-inline: var(--sp-4); }
+  .telemetry-terminal { min-height: 240px; padding: var(--sp-3) var(--sp-4); }
+  .telemetry-footer { align-items: flex-start; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); }
+  .tel-status-info { min-width: 0; }
+  #tel-status-text { overflow-wrap: anywhere; }
 }

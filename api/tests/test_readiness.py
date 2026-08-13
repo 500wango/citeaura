@@ -24,6 +24,7 @@ class Redis:
 
 def test_readiness_requires_all_production_dependencies(monkeypatch):
     monkeypatch.setattr(readiness, "redis_client", lambda: Redis())
+    monkeypatch.setattr(readiness, "_worker_available", lambda: True)
     monkeypatch.setattr(readiness, "_master_key", lambda: b"a" * 32)
     monkeypatch.setattr(readiness.config, "billing_enabled", lambda: True)
     monkeypatch.setattr(readiness.stripe_adapter, "configured", lambda: True)
@@ -45,6 +46,7 @@ def test_readiness_requires_latest_migration():
 
 def test_readiness_reports_failed_dependency_without_secret_details(monkeypatch):
     monkeypatch.setattr(readiness, "redis_client", lambda: (_ for _ in ()).throw(OSError("secret-host")))
+    monkeypatch.setattr(readiness, "_worker_available", lambda: True)
     monkeypatch.setattr(readiness, "_master_key", lambda: b"a" * 32)
     monkeypatch.setattr(readiness.config, "billing_enabled", lambda: True)
     monkeypatch.setattr(readiness.stripe_adapter, "configured", lambda: True)
@@ -63,6 +65,7 @@ def test_readiness_reports_failed_dependency_without_secret_details(monkeypatch)
 
 def test_readiness_allows_disabled_optional_features(monkeypatch):
     monkeypatch.setattr(readiness, "redis_client", lambda: Redis())
+    monkeypatch.setattr(readiness, "_worker_available", lambda: True)
     monkeypatch.setattr(readiness, "_master_key", lambda: b"a" * 32)
     monkeypatch.setattr(readiness.config, "billing_enabled", lambda: False)
     monkeypatch.setattr(readiness.stripe_adapter, "configured", lambda: False)
@@ -77,3 +80,19 @@ def test_readiness_allows_disabled_optional_features(monkeypatch):
     assert result["status"] == "ready"
     assert result["checks"]["stripe"] is True
     assert result["checks"]["password_reset_email"] is True
+
+
+def test_readiness_requires_an_active_worker(monkeypatch):
+    monkeypatch.setattr(readiness, "redis_client", lambda: Redis())
+    monkeypatch.setattr(readiness, "_worker_available", lambda: False)
+    monkeypatch.setattr(readiness, "_master_key", lambda: b"a" * 32)
+    monkeypatch.setattr(readiness.config, "billing_enabled", lambda: False)
+    monkeypatch.setattr(readiness.config, "jwt_secret", lambda: "j" * 32)
+    monkeypatch.setattr(readiness.config, "session_cookie_secure", lambda: True)
+    monkeypatch.setattr(readiness.config, "public_base_url", lambda: "https://app.example.test")
+    monkeypatch.setattr(readiness.config, "password_reset_email_enabled", lambda: False)
+
+    result = readiness.readiness_checks(Database())
+
+    assert result["status"] == "not_ready"
+    assert result["checks"]["worker"] is False

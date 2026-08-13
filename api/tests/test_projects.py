@@ -92,6 +92,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     body = created.json()
     assert body["project_id"] == 1
     assert body["job_id"] == 1
+    assert body["action"] == "bootstrap"
     assert calls[0].url == "https://example.com"
     assert calls[0].name == "Example Brand"
     assert calls[0].market == "both"

@@ -105,6 +105,15 @@ export default {
           ctx.setActiveProject(res.project_id);
         }
         ctx.navigate('#/overview');
+        if (res?.project_id && res?.job_id && typeof ctx.openTelemetry === 'function') {
+          ctx.openTelemetry(res.job_id, res.action || (skip_llm ? 'bootstrap' : 'autopilot'), {
+            projectId: res.project_id,
+            onComplete: async () => {
+              await ctx.reloadProjects();
+              await ctx.reloadCurrentView();
+            },
+          });
+        }
       } catch (err) {
         toast.error(t(err.error, {}, err.detail || 'Failed to initialize brand'));
         submitBtn.disabled = false;

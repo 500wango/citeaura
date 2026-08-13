@@ -226,6 +226,7 @@
   "overview.kpi_tickets": "Action Tickets",
   "overview.kpi_engines": "Active Engines",
   "overview.action_sample": "Run AI Sample",
+  "overview.generating_questions": "Generating Questions...",
   "overview.action_verify": "Verify Changes",
   "overview.action_deliver": "View Delivery Pack",
   "overview.engines_visibility": "AI Engine Visibility Matrix",

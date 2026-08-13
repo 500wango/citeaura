@@ -6,7 +6,7 @@ import { auth, projects, onAuthFailure } from './api.js';
 import { t, loadCatalogs, getLocale, setLocale } from './i18n.js';
 import { toast } from './components/toast.js';
 import { setSafeHtml } from './safe-html.js';
-import { openTelemetryModal } from './components/telemetry-modal.js';
+import { openTelemetryModal } from './components/telemetry-modal.js?v=2.6';
 
 /* ----------  ---------- */
 export const TRACKS = [
@@ -95,8 +95,8 @@ const VIEW_LOADERS = {
   'forgot-password': () => import('./views/auth-forgot.js?v=2.5'),
   'reset-password': () => import('./views/auth-reset.js?v=2.5'),
   invite: () => import('./views/auth-invite.js?v=2.5'),
-  onboarding: () => import('./views/onboarding.js?v=2.5'),
-  overview: () => import('./views/overview.js?v=2.5'),
+  onboarding: () => import('./views/onboarding.js?v=2.6'),
+  overview: () => import('./views/overview.js?v=2.6'),
   engines: () => import('./views/engines.js?v=2.5'),
   channels: () => import('./views/channels.js?v=2.5'),
   competitors: () => import('./views/competitors.js?v=2.5'),
@@ -279,11 +279,13 @@ function createContext() {
     pollActiveJobs: () => {
       checkJobs();
     },
-    openTelemetry: (jobId, actionName) => {
+    openTelemetry: (jobId, actionName, options = {}) => {
       openTelemetryModal({
-        projectId: state.activeProjectId,
+        projectId: options.projectId || state.activeProjectId,
         jobId,
         actionName: actionName || 'Pipeline Execution',
+        onClose: options.onClose,
+        onComplete: options.onComplete,
       });
     },
   };

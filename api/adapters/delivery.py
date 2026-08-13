@@ -164,6 +164,9 @@ JSON_ASSET_REPLACEMENTS = {
     "<填>": "<add value>",
     "首页": "Home",
     "<栏目>": "<section>",
+    "美元": "USD",
+    "人民币": "CNY",
+    "港币": "HKD",
 }
 
 
@@ -757,6 +760,15 @@ def _channel_name(channel):
     return _require_english(channel.get("name") or channel_id or "Configured channel", "blueprint channel name")
 
 
+def _delivery_question(content, content_id):
+    """英文交付保留英文问题，其他市场用稳定引用，不改项目源问题。"""
+    question = str(content.get("question") or "").strip()
+    if question and not _contains_han(question):
+        return question
+    market = MARKET_NAMES.get(content.get("market"), "Domestic and Global")
+    return f"Configured {market} target question {content_id}"
+
+
 def _build_map_markdown(name, blueprint):
     coverage = blueprint.get("coverage") or {}
     channels = blueprint.get("channels") or []
@@ -798,7 +810,7 @@ def _build_map_markdown(name, blueprint):
     ]
     for content in contents:
         content_id = _require_english(content.get("id") or "Unnumbered", "content id")
-        question = _require_english(content.get("question") or f"Configured target question {content_id}", f"{content_id} target question")
+        question = _delivery_question(content, content_id)
         intent = GROUP_NAMES.get(content.get("group"), _safe_display(content.get("group"), "General"))
         form = _require_english(content.get("form") or "Definition or guide page", f"{content_id} content form")
         status_name = {
@@ -838,17 +850,39 @@ def _write_document(directory, number, markdown, cards):
     (directory / f"{number}-{name}.html").write_text(document, "utf-8")
 
 
-def _replace_json_asset(value):
+def _replace_json_asset(value, field=None, parent_type=None, ordinal=None):
     if isinstance(value, dict):
         result = {}
+        item_type = value.get("@type")
         for key, item in value.items():
             translated_key = JSON_ASSET_REPLACEMENTS.get(str(key), str(key))
-            result[translated_key] = _replace_json_asset(item)
+            result[translated_key] = _replace_json_asset(
+                item,
+                field=translated_key,
+                parent_type=item_type,
+                ordinal=ordinal,
+            )
         return result
     if isinstance(value, list):
-        return [_replace_json_asset(item) for item in value]
+        return [
+            _replace_json_asset(item, field=field, parent_type=parent_type, ordinal=index + 1)
+            for index, item in enumerate(value)
+        ]
     if isinstance(value, str):
-        return JSON_ASSET_REPLACEMENTS.get(value, value)
+        value = JSON_ASSET_REPLACEMENTS.get(value, value)
+        if not _contains_han(value):
+            return value
+        if field == "name" and parent_type == "Question":
+            return f"Configured Domestic target question {ordinal or 1}"
+        if field == "headline":
+            return "[Add an approved English headline containing the target query.]"
+        if field in ("description", "about"):
+            return "[Add the approved English brand description.]"
+        if field == "text" and parent_type == "Answer":
+            return "[Add a direct English answer followed by supporting evidence.]"
+        if field == "priceCurrency":
+            return "[Add an ISO 4217 currency code.]"
+        return "[Add an approved English value.]"
     return value
 
 
@@ -882,7 +916,48 @@ def _write_llms_asset(project_slug, source, destination, config, audit, made):
         "[Add the one-sentence definition used verbatim in the homepage hero and JSON-LD description.]",
     )
     if _contains_han(text):
-        raise GeoEngineError("delivery source cannot be represented in English: assets/llms.en.txt")
+        brand = config.get("brand") if isinstance(config.get("brand"), dict) else {}
+        name = _safe_display(brand.get("name"), project_slug)
+        site = _safe_display(brand.get("site"), (audit.get("site") or {}).get("root") or "Website not configured")
+        aliases = [
+            str(alias).strip() for alias in brand.get("aliases") or []
+            if str(alias).strip() and not _contains_han(alias)
+        ]
+        pages = []
+        for page in audit.get("pages") or []:
+            url = str(page.get("url") or "").strip()
+            title = str(page.get("title") or "").strip()
+            if url and not _contains_han(url):
+                pages.append((title if title and not _contains_han(title) else "Official page", url))
+        lines = [
+            f"# {name}",
+            "",
+            "> [Add the approved one-sentence English brand definition used verbatim on the website and in JSON-LD.]",
+            "",
+            "## Key facts",
+            "",
+            f"- Website: {site}",
+        ]
+        if aliases:
+            lines.append(f"- Also known as: {', '.join(dict.fromkeys(aliases))}")
+        lines += [
+            "- Industry: [Add the approved English industry category.]",
+            "- Audience: [Add the approved English target-audience statement.]",
+            "",
+            "## Important pages",
+            "",
+        ]
+        lines += [f"- [{title}]({url})" for title, url in pages[:12]] or [f"- [Official website]({site})"]
+        lines += [
+            "",
+            "## Scope",
+            "",
+            "- [Add verified English product, pricing, use-case, and limitation statements.]",
+            "",
+            "<!-- Review and replace every bracketed placeholder before deployment. -->",
+            "",
+        ]
+        text = "\n".join(lines)
     destination.mkdir(parents=True, exist_ok=True)
     target = destination / "llms.en.txt"
     target.write_text(text, "utf-8")
@@ -944,10 +1019,7 @@ def _write_outline_assets(source, destination, blueprint, made):
         if content.get("id")
     }
     for content_id, content in sorted(content_by_id.items()):
-        question = str(content.get("question") or "").strip()
-        if not question:
-            continue
-        question = _require_english(question, f"{content_id} target question")
+        question = _delivery_question(content, content_id)
         form = _require_english(content.get("form") or "Definition or guide page", f"{content_id} content form")
         target_dir.mkdir(parents=True, exist_ok=True)
         markdown = "\n".join([

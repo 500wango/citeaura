@@ -42,11 +42,11 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.0' in response.text
+    assert '/app/app.js?v=3.2' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
-    assert "/site-assets/styles/app.css" in response.text
+    assert "/site-assets/styles/app.css?v=3.2" in response.text
     assert '<script src="/site-assets/theme-init.js"></script>' in response.text
     assert re.search(r"<script(?![^>]*\bsrc=)[^>]*>", response.text, re.IGNORECASE) is None
     policy = response.headers["content-security-policy"]
@@ -113,6 +113,8 @@ def test_frontend_contracts_match_backend_request_models():
     outreach = (root / "web/app/views/outreach.js").read_text("utf-8")
     billing = (root / "web/app/views/billing.js").read_text("utf-8")
     overview = (root / "web/app/views/overview.js").read_text("utf-8")
+    onboarding = (root / "web/app/views/onboarding.js").read_text("utf-8")
+    telemetry = (root / "web/app/components/telemetry-modal.js").read_text("utf-8")
 
     assert "resetPassword({ token, password })" in reset
     assert "preview.tenant?.name" in invite
@@ -138,10 +140,25 @@ def test_frontend_contracts_match_backend_request_models():
     assert "project.questions" in overview
     assert 'href="#/questions"' in overview
     assert "project_questions_required" in overview
+    assert "isGeneratingQuestions" in overview
+    assert "project.project?.status || project.status" in overview
+    assert "Generating Questions..." in overview
+    assert "ctx.openTelemetry(res.job_id" in onboarding
+    assert "res.action || (skip_llm ? 'bootstrap' : 'autopilot')" in onboarding
+    assert "onComplete: async ()" in onboarding
+    assert "STAGE_MAP" in telemetry
+    assert "Crawl Website" in telemetry
+    assert "Verification & Delivery Pack" in telemetry
+    assert "Current activity" in telemetry
+    assert "retry?.job_id || retry?.job?.id" in telemetry
+    assert "Math.floor((boundedProgress / 100) * steps.length)" in telemetry
     app_js = (root / "web/app/app.js").read_text("utf-8")
     assert "citeaura_intent_plan" in app_js
     assert "ENTRY_PLANS" in app_js
     assert "engine-settings.js?v=2.8" in app_js
+    assert "overview.js?v=2.6" in app_js
+    assert "onboarding.js?v=2.6" in app_js
+    assert "telemetry-modal.js?v=2.6" in app_js
 
 
 def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():

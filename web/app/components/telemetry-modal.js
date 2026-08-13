@@ -3,42 +3,56 @@
  */
 
 import { projects } from '../api.js';
-import { t } from '../i18n.js';
 import { setSafeHtml } from '../safe-html.js';
 import { toast } from './toast.js';
 
 let activeStreamTimer = null;
 let currentJobId = null;
 let currentProjectId = null;
+let currentStages = [];
+let currentStageIndex = 0;
+let highestProgress = 5;
 let logOffset = 0;
 let autoScroll = true;
 let startTime = null;
 let elapsedTimer = null;
+let streamToken = 0;
+let isFetching = false;
+let completionHandled = false;
+let currentOnClose = null;
+let currentOnComplete = null;
+
+const AUTOPILOT_STAGES = [
+  { key: 'crawl', label: 'Crawl Website' },
+  { key: 'audit', label: 'Site Audit' },
+  { key: 'baseline', label: 'Brand, Competitors & Questions' },
+  { key: 'sampling', label: 'AI Sampling' },
+  { key: 'tickets', label: 'Action Tickets & Blueprint' },
+  { key: 'assets', label: 'Assets & Diagnostic Report' },
+  { key: 'deliverables', label: 'Core Deliverables' },
+  { key: 'verification', label: 'Verification & Delivery Pack' },
+];
 
 const STAGE_MAP = {
+  autopilot: AUTOPILOT_STAGES,
+  bootstrap: AUTOPILOT_STAGES,
   sample: [
-    { key: 'init', label: '1. BYOK Key & Environment Setup' },
-    { key: 'crawling', label: '2. Target Questions & Query Routing' },
-    { key: 'sampling', label: '3. Multi-Model Inference & Citations' },
-    { key: 'finalizing', label: '4. Visibility Synthesis & Metrics Archive' },
+    { key: 'init', label: 'Key & Environment Setup' },
+    { key: 'questions', label: 'Question Routing' },
+    { key: 'sampling', label: 'Model Sampling' },
+    { key: 'finalizing', label: 'Metrics Archive' },
   ],
   verify: [
-    { key: 'init', label: '1. Verification Environment Setup' },
-    { key: 'crawling', label: '2. Incremental Site Crawl & Extraction' },
-    { key: 'auditing', label: '3. Rule Matching & Acceptance Check' },
-    { key: 'finalizing', label: '4. Ticket Updates & Report Generation' },
-  ],
-  bootstrap: [
-    { key: 'init', label: '1. Brand Baseline & Configuration' },
-    { key: 'crawling', label: '2. Site Technical & Page Structure Crawl' },
-    { key: 'auditing', label: '3. GEO Entity Diagnostics & Gap Audit' },
-    { key: 'finalizing', label: '4. 13 Standard Action Tickets Synthesis' },
+    { key: 'init', label: 'Environment Setup' },
+    { key: 'crawl', label: 'Site Crawl' },
+    { key: 'audit', label: 'Acceptance Check' },
+    { key: 'finalizing', label: 'Report Generation' },
   ],
   default: [
-    { key: 'init', label: '1. Environment Initialization' },
-    { key: 'crawling', label: '2. Data Crawling & Extraction' },
-    { key: 'processing', label: '3. Engine Algorithmic Processing' },
-    { key: 'finalizing', label: '4. Deliverables Compilation & Archive' },
+    { key: 'init', label: 'Initialization' },
+    { key: 'crawl', label: 'Data Collection' },
+    { key: 'processing', label: 'Processing' },
+    { key: 'finalizing', label: 'Finalizing Results' },
   ],
 };
 
@@ -48,57 +62,26 @@ function formatElapsed(seconds) {
   return m > 0 ? `${m}m ${s < 10 ? '0' : ''}${s}s` : `${s}s`;
 }
 
-const CLIENT_LOG_TRANSLATIONS = [
-  [/跳过（缺 API Key）：(.*)/, 'Skipped (Missing API Key): $1'],
-  [/\[(.*?)\] (cn|global|both) 市场 · (\d+) 题 × (\d+) 轮/, '[$1] $2 market · $3 questions × $4 round(s)'],
-  [/采样完成：(\d+) 条 → (.*)/, 'Sampling complete: $1 answers collected → $2'],
-  [/=== 重抓站点 ===/, '=== Re-crawling Site ==='],
-  [/抓取 (.*?)（上限 (\d+) 页）/, 'Crawling $1 (limit: $2 pages)'],
-  [/完成：(\d+)\/(\d+) 页可访问 → (.*)/, 'Complete: $1/$2 pages accessible → $3'],
-  [/=== 重跑体检 ===/, '=== Re-running Site Audit ==='],
-  [/体检完成：(\d+) 页，均分 ([\d\.]+)，分布 (.*?) → (.*)/, 'Audit complete: $1 pages, avg score $2, grade distribution $3 → $4'],
-  [/验收：通过 (\d+) \/ 未达标 (\d+) \/ 待人工 (\d+)；状态变更 (\d+) 条/, 'Verification: Passed $1 / Unmet $2 / Manual review $3; Status changed: $4 items'],
-  [/推导品牌事实…/, 'Inferring brand facts...'],
-  [/设计问题库…/, 'Designing target question bank...'],
-  [/推导竞品候选…/, 'Inferring competitor candidates...'],
-  [/自动引导：从 (\d+) 字官网正文推导项目底座/, 'Auto-bootstrap: Inferring brand baseline from $1 characters of text'],
-  [/生成 (\d+) 项资产 → (.*)/, 'Generated $1 asset(s) → $2'],
-  [/三份交付物已生成 → (.*)/, 'Three core deliverables generated → $1'],
-  [/交付包已生成 → (.*)/, 'Delivery package compiled → $1'],
-  [/错误：抓取失败：没有页面返回 200，检查站点可达性\/WAF/, 'Error: Crawl failed: No page returned 200 OK. Check site accessibility or WAF.'],
-  [/某平台采样中断：(.*)/, 'Engine query interrupted: $1'],
-  [/═══ 1\/8 抓取官网 ═══/, '═══ 1/8 Crawl Website ═══'],
-  [/═══ 2\/8 体检 ═══/, '═══ 2/8 Site Audit ═══'],
-  [/═══ 3\/8 自动推导品牌事实、竞品与问题库 ═══/, '═══ 3/8 Bootstrap Baseline & Question Bank ═══'],
-  [/═══ 3\/8 已有问题库，跳过自动推导 ═══/, '═══ 3/8 Existing questions found, skipping bootstrap ═══'],
-  [/═══ 4\/8 AI 答案采样 ═══/, '═══ 4/8 AI Sampling ═══'],
-  [/═══ 5\/8 工单与建设蓝图 ═══/, '═══ 5/8 Action Tickets & Blueprint ═══'],
-  [/═══ 6\/8 资产与报告 ═══/, '═══ 6/8 Assets & Diagnostic Report ═══'],
-  [/═══ 7\/8 三份交付物 ═══/, '═══ 7/8 Three Core Deliverables ═══'],
-  [/═══ 8\/8 验收与打包 ═══/, '═══ 8/8 Verification & Delivery Package ═══'],
-  [/跳过：--no-sample/, 'Skipped: --no-sample'],
-  [/跳过 (.*?)：问题库里没有 (.*?) 市场的问题/, 'Skipped $1: No questions matching $2 market in question library'],
-];
-
 function translateLogLine(text) {
-  let res = String(text || '');
-  CLIENT_LOG_TRANSLATIONS.forEach(([regex, repl]) => {
-    res = res.replace(regex, repl);
-  });
-  return res;
+  return String(text || '');
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function parseLogLine(raw) {
   const line = translateLogLine(String(raw || '').trim());
   if (!line) return '';
+  const comparable = line.toLowerCase();
   let colorClass = 'term-normal';
-  if (line.includes('✓') || line.includes('done') || line.includes('100%') || line.includes('success') || line.includes('complete')) {
+  if (comparable.includes('done') || comparable.includes('100%') || comparable.includes('success') || comparable.includes('complete')) {
     colorClass = 'term-success';
-  } else if (line.includes('failed') || line.includes('Error') || line.includes('die')) {
+  } else if (comparable.includes('failed') || comparable.includes('error') || comparable.includes('die')) {
     colorClass = 'term-error';
-  } else if (line.includes('warning') || line.includes('skip') || line.includes('Skipped')) {
+  } else if (comparable.includes('warning') || comparable.includes('skip')) {
     colorClass = 'term-warn';
-  } else if (line.includes('===') || line.includes('═══') || line.includes('started') || line.includes('progress')) {
+  } else if (line.includes('===') || line.includes('═══') || comparable.includes('started') || comparable.includes('progress')) {
     colorClass = 'term-accent';
   } else if (line.includes('[geo]') || line.includes('[citeaura]')) {
     colorClass = 'term-brand';
@@ -106,18 +89,172 @@ function parseLogLine(raw) {
   return `<div class="term-log-row ${colorClass}">${escapeHtml(line)}</div>`;
 }
 
-function escapeHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function latestMeaningfulActivity(lines) {
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = translateLogLine(String(lines[index] || '').trim());
+    if (!line || /^progress\s+/i.test(line)) continue;
+    return line.replace(/^[═=\s]+|[═=\s]+$/g, '').trim();
+  }
+  return '';
 }
 
-export function openTelemetryModal({ projectId, jobId, actionName = 'Pipeline Execution', onClose = null }) {
+function stageIndexFromLog(log) {
+  let matchedIndex = null;
+  const stagePattern = /═══\s*(\d+)\s*\/\s*(\d+)/g;
+  for (const match of String(log || '').matchAll(stagePattern)) {
+    const current = Number(match[1]);
+    const total = Number(match[2]);
+    if (total === currentStages.length) {
+      matchedIndex = Math.max(0, Math.min(currentStages.length - 1, current - 1));
+    }
+  }
+  return matchedIndex;
+}
+
+function stageIndexFromState(stage, progress) {
+  const normalized = String(stage || '').toLowerCase();
+  if (normalized === 'autopilot' || normalized === 'bootstrap' || normalized === 'preparing') return 0;
+  const matchedIndex = currentStages.findIndex((item) => normalized.includes(item.key));
+  if (matchedIndex >= 0) return matchedIndex;
+  const boundedProgress = Math.max(0, Math.min(99, Number(progress) || 0));
+  return Math.min(currentStages.length - 1, Math.floor((boundedProgress / 100) * currentStages.length));
+}
+
+function stopTimers() {
+  if (activeStreamTimer) {
+    clearInterval(activeStreamTimer);
+    activeStreamTimer = null;
+  }
+  if (elapsedTimer) {
+    clearInterval(elapsedTimer);
+    elapsedTimer = null;
+  }
+}
+
+function startElapsedTimer() {
+  if (elapsedTimer) clearInterval(elapsedTimer);
+  elapsedTimer = setInterval(() => {
+    const timer = document.getElementById('tel-timer-badge');
+    if (timer && startTime) {
+      timer.textContent = `Elapsed ${formatElapsed(Math.floor((Date.now() - startTime) / 1000))}`;
+    }
+  }, 1000);
+}
+
+function closeWithCallback() {
+  const callback = currentOnClose;
+  closeTelemetryModal();
+  if (typeof callback === 'function') callback();
+}
+
+function bindBackgroundButton() {
+  document.getElementById('tel-close-bottom-btn')?.addEventListener('click', closeWithCallback);
+}
+
+function renderBackgroundAction() {
+  const actionsContainer = document.getElementById('tel-actions-container');
+  if (!actionsContainer) return;
+  setSafeHtml(actionsContainer, '<button type="button" class="btn btn-secondary btn-sm" id="tel-close-bottom-btn">Run in Background</button>');
+  bindBackgroundButton();
+}
+
+function updateStepperUI(stageIndex, progress, status) {
+  const steps = document.querySelectorAll('.tel-step-item');
+  if (!steps.length) return;
+  const boundedProgress = Math.max(0, Math.min(100, Number(progress) || 0));
+  const fallbackIndex = Math.min(steps.length - 1, Math.floor((boundedProgress / 100) * steps.length));
+  const activeIndex = Number.isInteger(stageIndex) ? Math.min(steps.length - 1, stageIndex) : fallbackIndex;
+
+  steps.forEach((step, index) => {
+    step.classList.remove('is-active', 'is-done', 'is-failed');
+    if (status === 'failed') {
+      if (index === activeIndex) step.classList.add('is-failed');
+      else if (index < activeIndex) step.classList.add('is-done');
+    } else if (status === 'done' || index < activeIndex) {
+      step.classList.add('is-done');
+    } else if (index === activeIndex) {
+      step.classList.add('is-active');
+    }
+  });
+}
+
+function resetForRetry(jobId) {
+  currentJobId = jobId;
+  logOffset = 0;
+  currentStageIndex = 0;
+  highestProgress = 5;
+  completionHandled = false;
+  startTime = Date.now();
+  streamToken += 1;
+
+  const jobLabel = document.getElementById('tel-job-id');
+  const progressBar = document.getElementById('tel-progress-bar');
+  const subtitle = document.getElementById('tel-header-subtitle');
+  const statusText = document.getElementById('tel-status-text');
+  const activity = document.getElementById('tel-current-activity');
+  const term = document.getElementById('tel-terminal');
+  const liveDot = document.querySelector('.telemetry-live-dot');
+  if (jobLabel) jobLabel.textContent = `Job #${jobId}`;
+  if (progressBar) progressBar.style.width = '5%';
+  if (subtitle) subtitle.textContent = 'Retry queued. Waiting for a worker...';
+  if (statusText) statusText.textContent = 'Retry running in Celery worker queue';
+  if (activity) activity.textContent = 'Waiting for the retry worker to start';
+  if (liveDot) liveDot.classList.remove('is-done', 'is-failed');
+  if (term) {
+    const divider = document.createElement('div');
+    divider.className = 'term-log-row term-brand';
+    divider.textContent = `--- Retrying as Job #${jobId} ---`;
+    term.appendChild(divider);
+    term.scrollTop = term.scrollHeight;
+  }
+  updateStepperUI(currentStageIndex, highestProgress, 'queued');
+  renderBackgroundAction();
+  startElapsedTimer();
+  startLogStream();
+}
+
+async function retryCurrentJob() {
+  const button = document.getElementById('tel-retry-btn');
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Queueing retry...';
+  }
+  try {
+    const retry = await projects.retryJob(currentProjectId, currentJobId);
+    const nextJobId = retry?.job_id || retry?.job?.id;
+    if (!nextJobId) throw new Error('Retry response did not include a job ID');
+    toast.success('Job retry queued');
+    resetForRetry(nextJobId);
+  } catch (error) {
+    toast.error(error.detail || error.message || 'Failed to retry job');
+    if (button) {
+      button.disabled = false;
+      button.textContent = 'Retry Job';
+    }
+  }
+}
+
+export function openTelemetryModal({
+  projectId,
+  jobId,
+  actionName = 'Pipeline Execution',
+  onClose = null,
+  onComplete = null,
+}) {
   closeTelemetryModal();
 
   currentProjectId = projectId;
   currentJobId = jobId;
+  currentStages = STAGE_MAP[String(actionName).toLowerCase()] || STAGE_MAP.default;
+  currentStageIndex = 0;
+  highestProgress = 5;
   logOffset = 0;
   autoScroll = true;
   startTime = Date.now();
+  completionHandled = false;
+  currentOnClose = onClose;
+  currentOnComplete = onComplete;
+  streamToken += 1;
 
   let root = document.getElementById('telemetry-modal-root');
   if (!root) {
@@ -126,63 +263,58 @@ export function openTelemetryModal({ projectId, jobId, actionName = 'Pipeline Ex
     document.body.appendChild(root);
   }
 
-  const stages = STAGE_MAP[actionName] || STAGE_MAP.default;
-
   const modalHtml = `
     <div class="telemetry-backdrop" id="telemetry-backdrop">
-      <div class="telemetry-box">
-        <!-- Header -->
+      <div class="telemetry-box" role="dialog" aria-modal="true" aria-labelledby="tel-title">
         <div class="telemetry-header">
           <div class="telemetry-title-cluster">
             <div class="telemetry-live-dot" aria-hidden="true"></div>
-            <div>
-              <div class="telemetry-title">
-                <strong>${escapeHtml(actionName.toUpperCase())}</strong> · Job #${jobId}
+            <div class="telemetry-title-copy">
+              <div class="telemetry-title" id="tel-title">
+                <strong>${escapeHtml(String(actionName).toUpperCase())}</strong>
+                <span aria-hidden="true">·</span>
+                <span id="tel-job-id">Job #${escapeHtml(jobId)}</span>
               </div>
-              <div class="telemetry-subtitle" id="tel-header-subtitle">
-                Connecting to live computing worker...
-              </div>
+              <div class="telemetry-subtitle" id="tel-header-subtitle">Connecting to the live worker...</div>
             </div>
           </div>
           <div class="telemetry-controls">
-            <span class="telemetry-timer" id="tel-timer-badge">⏱ 0s</span>
-            <button type="button" class="btn btn-ghost btn-sm" id="tel-autoscroll-btn" title="Toggle Auto Scroll">
-              <span id="tel-autoscroll-text">📜 Auto-scroll: ON</span>
+            <span class="telemetry-timer" id="tel-timer-badge">Elapsed 0s</span>
+            <button type="button" class="btn btn-ghost btn-sm" id="tel-autoscroll-btn" title="Toggle automatic log scrolling">
+              <span id="tel-autoscroll-text">Auto-scroll: On</span>
             </button>
-            <button type="button" class="btn btn-ghost btn-sm" id="tel-copy-btn" title="Copy full log">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              <span>Copy</span>
-            </button>
-            <button type="button" class="telemetry-close-btn" id="tel-close-btn" aria-label="Close">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <button type="button" class="btn btn-ghost btn-sm" id="tel-copy-btn" title="Copy full log">Copy log</button>
+            <button type="button" class="telemetry-close-btn" id="tel-close-btn" title="Run in background" aria-label="Run in background">
+              <img src="/site-assets/icons/x.svg" width="18" height="18" alt="">
             </button>
           </div>
         </div>
 
-        <!-- 4-Stage Stepper -->
-        <div class="telemetry-stepper" id="tel-stepper">
-          ${stages.map((st, i) => `
-            <div class="tel-step-item" data-step-index="${i}">
-              <div class="tel-step-bubble">${i + 1}</div>
-              <span class="tel-step-label">${st.label}</span>
+        <div class="telemetry-stepper${currentStages.length > 4 ? ' is-dense' : ''}" id="tel-stepper" style="--telemetry-stage-count:${Math.min(currentStages.length, 4)}">
+          ${currentStages.map((stage, index) => `
+            <div class="tel-step-item${index === 0 ? ' is-active' : ''}" data-step-index="${index}" title="${escapeHtml(stage.label)}">
+              <div class="tel-step-bubble">${index + 1}</div>
+              <span class="tel-step-label">${escapeHtml(stage.label)}</span>
             </div>
           `).join('')}
         </div>
 
-        <!-- Progress Track -->
-        <div class="telemetry-progress-track">
-          <div class="telemetry-progress-bar" id="tel-progress-bar" style="width: 5%;"></div>
+        <div class="telemetry-progress-track" role="progressbar" aria-label="Pipeline progress" aria-valuemin="0" aria-valuemax="100">
+          <div class="telemetry-progress-bar" id="tel-progress-bar" style="width:5%"></div>
         </div>
 
-        <!-- Monospace Terminal -->
-        <div class="telemetry-terminal" id="tel-terminal">
-          <div class="term-log-row term-brand">▶ Connecting to CiteAura GEO Engine log stream...</div>
+        <div class="telemetry-activity" aria-live="polite">
+          <span class="telemetry-activity-label">Current activity</span>
+          <span class="telemetry-activity-text" id="tel-current-activity">Waiting for the first worker update</span>
         </div>
 
-        <!-- Footer -->
+        <div class="telemetry-terminal" id="tel-terminal" role="log" aria-live="polite" aria-label="Live pipeline log">
+          <div class="term-log-row term-brand">Connecting to CiteAura GEO Engine log stream...</div>
+        </div>
+
         <div class="telemetry-footer">
           <div class="tel-status-info" id="tel-status-info">
-            <span class="pulse-dot"></span>
+            <span class="pulse-dot" aria-hidden="true"></span>
             <span id="tel-status-text">Task running in Celery worker queue</span>
           </div>
           <div class="tel-actions" id="tel-actions-container">
@@ -195,171 +327,152 @@ export function openTelemetryModal({ projectId, jobId, actionName = 'Pipeline Ex
 
   setSafeHtml(root, modalHtml);
 
-  document.getElementById('tel-close-btn')?.addEventListener('click', () => {
-    closeTelemetryModal();
-    if (typeof onClose === 'function') onClose();
-  });
-  document.getElementById('tel-close-bottom-btn')?.addEventListener('click', () => {
-    closeTelemetryModal();
-    if (typeof onClose === 'function') onClose();
-  });
-  document.getElementById('telemetry-backdrop')?.addEventListener('click', (e) => {
-    if (e.target.id === 'telemetry-backdrop') {
-      closeTelemetryModal();
-      if (typeof onClose === 'function') onClose();
-    }
+  document.getElementById('tel-close-btn')?.addEventListener('click', closeWithCallback);
+  bindBackgroundButton();
+  document.getElementById('telemetry-backdrop')?.addEventListener('click', (event) => {
+    if (event.target.id === 'telemetry-backdrop') closeWithCallback();
   });
 
-  const scrollBtn = document.getElementById('tel-autoscroll-btn');
+  const scrollButton = document.getElementById('tel-autoscroll-btn');
   const scrollText = document.getElementById('tel-autoscroll-text');
-  if (scrollBtn && scrollText) {
-    scrollBtn.addEventListener('click', () => {
-      autoScroll = !autoScroll;
-      scrollText.textContent = `📜 Auto-scroll: ${autoScroll ? 'ON' : 'OFF'}`;
-      scrollBtn.classList.toggle('is-dim', !autoScroll);
-    });
-  }
+  scrollButton?.addEventListener('click', () => {
+    autoScroll = !autoScroll;
+    if (scrollText) scrollText.textContent = `Auto-scroll: ${autoScroll ? 'On' : 'Off'}`;
+    scrollButton.classList.toggle('is-dim', !autoScroll);
+  });
 
-  const copyBtn = document.getElementById('tel-copy-btn');
-  if (copyBtn) {
-    copyBtn.addEventListener('click', () => {
-      const term = document.getElementById('tel-terminal');
-      if (term && navigator.clipboard) {
-        navigator.clipboard.writeText(term.innerText).then(() => {
-          toast.success('Log copied to clipboard');
-        });
-      }
-    });
-  }
-
-  if (elapsedTimer) clearInterval(elapsedTimer);
-  elapsedTimer = setInterval(() => {
-    const el = document.getElementById('tel-timer-badge');
-    if (el && startTime) {
-      const sec = Math.floor((Date.now() - startTime) / 1000);
-      el.textContent = `⏱ ${formatElapsed(sec)}`;
+  document.getElementById('tel-copy-btn')?.addEventListener('click', () => {
+    const terminal = document.getElementById('tel-terminal');
+    if (terminal && navigator.clipboard) {
+      navigator.clipboard.writeText(terminal.innerText).then(() => toast.success('Log copied to clipboard'));
     }
-  }, 1000);
+  });
 
+  startElapsedTimer();
   startLogStream();
 }
 
-function updateStepperUI(stage, progress, status) {
-  const steps = document.querySelectorAll('.tel-step-item');
-  let activeIndex = 0;
-  if (progress >= 85 || status === 'done') {
-    activeIndex = 3;
-  } else if (progress >= 50) {
-    activeIndex = 2;
-  } else if (progress >= 20) {
-    activeIndex = 1;
-  }
-
-  steps.forEach((st, idx) => {
-    st.classList.remove('is-active', 'is-done', 'is-failed');
-    if (status === 'failed') {
-      if (idx === activeIndex) st.classList.add('is-failed');
-      else if (idx < activeIndex) st.classList.add('is-done');
-    } else if (idx < activeIndex || status === 'done') {
-      st.classList.add('is-done');
-    } else if (idx === activeIndex) {
-      st.classList.add('is-active');
-    }
-  });
-}
-
-async function fetchLogChunk() {
-  if (!currentProjectId || !currentJobId) return;
+async function fetchLogChunk(token) {
+  if (!currentProjectId || !currentJobId || token !== streamToken || isFetching) return;
+  isFetching = true;
+  const requestedProjectId = currentProjectId;
+  const requestedJobId = currentJobId;
   try {
-    const job = await projects.getJob(currentProjectId, currentJobId, logOffset);
-    if (!job) return;
+    const job = await projects.getJob(requestedProjectId, requestedJobId, logOffset);
+    if (!job || token !== streamToken || requestedJobId !== currentJobId) return;
 
-    const term = document.getElementById('tel-terminal');
+    const terminal = document.getElementById('tel-terminal');
     const progressBar = document.getElementById('tel-progress-bar');
+    const progressTrack = progressBar?.parentElement;
     const statusText = document.getElementById('tel-status-text');
     const subtitle = document.getElementById('tel-header-subtitle');
+    const activity = document.getElementById('tel-current-activity');
     const actionsContainer = document.getElementById('tel-actions-container');
+    const liveDot = document.querySelector('.telemetry-live-dot');
 
-    if (job.log && term) {
+    if (job.log) {
       const lines = job.log.split('\n').filter(Boolean);
-      lines.forEach((line) => {
-        const div = document.createElement('div');
-        div.innerHTML = parseLogLine(line);
-        term.appendChild(div.firstElementChild || div);
-      });
-      if (autoScroll) {
-        term.scrollTop = term.scrollHeight;
+      if (terminal) {
+        lines.forEach((line) => {
+          const wrapper = document.createElement('div');
+          setSafeHtml(wrapper, parseLogLine(line));
+          terminal.appendChild(wrapper.firstElementChild || wrapper);
+        });
+        if (autoScroll) terminal.scrollTop = terminal.scrollHeight;
       }
+      const nextStageIndex = stageIndexFromLog(job.log);
+      if (Number.isInteger(nextStageIndex)) {
+        currentStageIndex = Math.max(currentStageIndex, nextStageIndex);
+        highestProgress = Math.max(highestProgress, Math.round(((nextStageIndex + 1) / currentStages.length) * 90));
+      }
+      const nextActivity = latestMeaningfulActivity(lines);
+      if (activity && nextActivity) activity.textContent = nextActivity;
     }
 
-    if (typeof job.log_offset === 'number') {
-      logOffset = job.log_offset;
+    if (typeof job.log_offset === 'number') logOffset = job.log_offset;
+    const reportedProgress = job.progress || (job.status === 'done' ? 100 : (job.status === 'running' ? 10 : 5));
+    highestProgress = job.status === 'done' ? 100 : Math.max(highestProgress, Math.min(99, reportedProgress));
+    if (!job.log || !Number.isInteger(stageIndexFromLog(job.log))) {
+      currentStageIndex = Math.max(currentStageIndex, stageIndexFromState(job.stage, highestProgress));
     }
-
-    const pct = job.progress || (job.status === 'done' ? 100 : (job.status === 'running' ? 45 : 10));
-    if (progressBar) progressBar.style.width = `${pct}%`;
+    if (progressBar) progressBar.style.width = `${highestProgress}%`;
+    if (progressTrack) progressTrack.setAttribute('aria-valuenow', String(highestProgress));
 
     if (subtitle) {
-      subtitle.textContent = `Stage: ${job.stage || 'executing'} · Status: ${job.status}`;
+      const stageLabel = currentStages[currentStageIndex]?.label || job.stage || 'Executing';
+      subtitle.textContent = `${stageLabel} · ${highestProgress}% · ${job.status}`;
     }
-
-    updateStepperUI(job.stage, pct, job.status);
+    updateStepperUI(currentStageIndex, highestProgress, job.status);
 
     if (job.status === 'done') {
-      if (activeStreamTimer) clearInterval(activeStreamTimer);
-      if (statusText) statusText.textContent = `✔ Task completed successfully in ${formatElapsed(Math.floor((Date.now() - startTime) / 1000))}`;
+      stopTimers();
+      liveDot?.classList.add('is-done');
+      if (statusText) statusText.textContent = `Task completed in ${formatElapsed(Math.floor((Date.now() - startTime) / 1000))}`;
+      if (activity) activity.textContent = 'Pipeline complete. Results are ready to review.';
       if (actionsContainer) {
-        actionsContainer.innerHTML = `
-          <a href="#/overview" class="btn btn-primary btn-sm" id="tel-view-result-btn">
-            <span>View Latest Results →</span>
-          </a>
-        `;
+        setSafeHtml(actionsContainer, '<button type="button" class="btn btn-primary btn-sm" id="tel-view-result-btn">View Results</button>');
         document.getElementById('tel-view-result-btn')?.addEventListener('click', () => {
           closeTelemetryModal();
+          if (location.hash !== '#/overview') location.hash = '#/overview';
         });
+      }
+      if (!completionHandled) {
+        completionHandled = true;
+        const callback = currentOnComplete;
+        if (typeof callback === 'function') {
+          Promise.resolve(callback(job)).catch((error) => console.warn('Telemetry completion refresh failed:', error));
+        }
       }
     } else if (job.status === 'failed') {
-      if (activeStreamTimer) clearInterval(activeStreamTimer);
-      if (statusText) statusText.textContent = `✖ Task failed: ${job.error || 'Check log details'}`;
+      stopTimers();
+      liveDot?.classList.add('is-failed');
+      const errorMessage = job.error || 'Check the log for details';
+      if (statusText) statusText.textContent = `Task failed: ${errorMessage}`;
+      if (subtitle) subtitle.textContent = `${currentStages[currentStageIndex]?.label || 'Pipeline'} · failed`;
+      if (activity) activity.textContent = errorMessage;
+      if (terminal && job.error && !job.log?.includes(job.error)) {
+        const row = document.createElement('div');
+        row.className = 'term-log-row term-error';
+        row.textContent = `Error: ${job.error}`;
+        terminal.appendChild(row);
+        terminal.scrollTop = terminal.scrollHeight;
+      }
       if (actionsContainer) {
-        actionsContainer.innerHTML = `
-          <button type="button" class="btn btn-danger btn-sm" id="tel-retry-btn">
-            <span>Retry Job ↺</span>
-          </button>
-        `;
-        document.getElementById('tel-retry-btn')?.addEventListener('click', async () => {
-          try {
-            await projects.retryJob(currentProjectId, currentJobId);
-            toast.success('Job retry queued!');
-            closeTelemetryModal();
-          } catch (e) {
-            toast.error(e.detail || 'Failed to retry job');
-          }
-        });
+        const retryAction = job.can_retry
+          ? '<button type="button" class="btn btn-danger btn-sm" id="tel-retry-btn">Retry Job</button>'
+          : '<button type="button" class="btn btn-secondary btn-sm" id="tel-close-bottom-btn">Close</button>';
+        setSafeHtml(actionsContainer, retryAction);
+        if (job.can_retry) document.getElementById('tel-retry-btn')?.addEventListener('click', retryCurrentJob);
+        else bindBackgroundButton();
       }
     }
-  } catch (err) {
-    console.warn('Telemetry log fetch error:', err);
+  } catch (error) {
+    if (token === streamToken) {
+      const subtitle = document.getElementById('tel-header-subtitle');
+      if (subtitle) subtitle.textContent = 'Live updates temporarily unavailable. Retrying...';
+    }
+    console.warn('Telemetry log fetch error:', error);
+  } finally {
+    if (token === streamToken) isFetching = false;
   }
 }
 
 function startLogStream() {
   if (activeStreamTimer) clearInterval(activeStreamTimer);
-  fetchLogChunk();
-  activeStreamTimer = setInterval(fetchLogChunk, 1200);
+  const token = streamToken;
+  fetchLogChunk(token);
+  activeStreamTimer = setInterval(() => fetchLogChunk(token), 1200);
 }
 
 export function closeTelemetryModal() {
-  if (activeStreamTimer) {
-    clearInterval(activeStreamTimer);
-    activeStreamTimer = null;
-  }
-  if (elapsedTimer) {
-    clearInterval(elapsedTimer);
-    elapsedTimer = null;
-  }
+  stopTimers();
+  streamToken += 1;
   currentJobId = null;
   currentProjectId = null;
+  currentStages = [];
+  currentOnClose = null;
+  currentOnComplete = null;
+  isFetching = false;
   const root = document.getElementById('telemetry-modal-root');
-  if (root) root.innerHTML = '';
+  if (root) root.replaceChildren();
 }

@@ -742,7 +742,13 @@ def create_project(
         db.commit()
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
 
-    return {"project_id": project.id, "job_id": job.id, "slug": project.slug, "status": project.status}
+    return {
+        "project_id": project.id,
+        "job_id": job.id,
+        "action": job_action,
+        "slug": project.slug,
+        "status": project.status,
+    }
 
 
 @router.get("")
