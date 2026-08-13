@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import func
 
-from api.adapters.engine import geolib, with_tenant_context
+from api.adapters.engine import geolib, load_custom_providers, with_tenant_context
 from api.billing.platform_pool import resolve_funding
 from api.models import PlatformUsage
 
@@ -47,13 +47,17 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1):
     if isinstance(requested, str):
         requested = [item.strip() for item in requested.split(",") if item.strip()]
     funding = resolve_funding(db, tenant.id, project.slug)
-    with with_tenant_context(tenant.name, project.slug):
+    custom_providers = load_custom_providers(db, tenant.id)
+    with with_tenant_context(tenant.name, project.slug, custom_providers=custom_providers):
         config_path = geolib.project_dir(project.slug) / "geo.json"
         config = geolib.load_config(project.slug) if config_path.is_file() else {
             "questions": [],
             "platforms": list(requested or []),
         }
-        requested = list(dict.fromkeys(requested or [code for code in config.get("platforms", []) if code in sample.PROVIDERS]))
+        configured = [provider["code"] for provider in custom_providers]
+        requested = list(dict.fromkeys(requested or [
+            code for code in list(config.get("platforms", [])) + configured if code in sample.PROVIDERS
+        ]))
         items = []
         total_calls = 0
         pool_calls = 0

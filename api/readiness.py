@@ -8,7 +8,7 @@ from api.billing import stripe as stripe_adapter
 from api.settings.crypto import _master_key
 
 
-EXPECTED_DB_REVISION = "0016_backfill_trial_expiration"
+EXPECTED_DB_REVISION = "0017_custom_model_providers"
 
 
 def readiness_checks(db):

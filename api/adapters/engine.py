@@ -1,6 +1,7 @@
 """CiteAura 与开源 GEO 引擎之间的运行时适配。"""
 
 import os
+import re
 import sys
 import threading
 from contextlib import contextmanager
@@ -36,6 +37,16 @@ ENGINE_KEY_ENV = {
     "grok": "XAI_API_KEY",
     "perplexity": "PERPLEXITY_API_KEY",
 }
+
+CUSTOM_PROVIDER_CODE = re.compile(r"^custom_[a-z0-9][a-z0-9_-]{2,55}$")
+
+
+def custom_provider_env(code: str) -> str:
+    """返回自定义供应商专用的运行时 Key 环境变量名。"""
+    code = str(code or "").strip().lower()
+    if not CUSTOM_PROVIDER_CODE.fullmatch(code):
+        raise ValueError("invalid custom provider code")
+    return f"CITEAURA_{code.upper()}_API_KEY"
 
 
 def _valid_slug(value: str, label: str) -> str:
@@ -99,6 +110,8 @@ def _environment_name(name: str) -> str:
     name = str(name)
     if name.lower() in ENGINE_KEY_ENV:
         return ENGINE_KEY_ENV[name.lower()]
+    if str(name).lower().startswith("custom_"):
+        return custom_provider_env(name)
     if name.isupper() or name.endswith("_API_KEY"):
         return name
     return f"{name.upper()}_API_KEY"
@@ -148,7 +161,7 @@ def protect_network_fetches():
 
 def load_tenant_keys(db, tenant_id):
     """从数据库解密当前租户的 Key，供 worker 注入环境变量。"""
-    from api.models import ApiKey, Tenant
+    from api.models import ApiKey, CustomProvider, Tenant
     from api.settings.crypto import decrypt_key
 
     try:
@@ -161,11 +174,39 @@ def load_tenant_keys(db, tenant_id):
         ApiKey.tenant_id == tenant.id,
         ApiKey.engine_code.in_(tuple(ENGINE_KEY_ENV)),
     ).all()
-    return {row.engine_code: decrypt_key(row.encrypted_value) for row in rows}
+    keys = {row.engine_code: decrypt_key(row.encrypted_value) for row in rows}
+    custom_rows = db.query(CustomProvider).filter(CustomProvider.tenant_id == tenant.id).all()
+    keys.update({row.code: decrypt_key(row.encrypted_api_key) for row in custom_rows})
+    return keys
+
+
+def load_custom_providers(db, tenant_id):
+    """读取当前租户的自定义供应商配置（含仅供运行时使用的 Key）。"""
+    from api.models import CustomProvider, Tenant
+    from api.settings.crypto import decrypt_key
+
+    try:
+        tenant = db.get(Tenant, int(tenant_id))
+    except (TypeError, ValueError):
+        tenant = db.query(Tenant).filter(Tenant.name == str(tenant_id)).first()
+    if tenant is None:
+        return []
+    rows = db.query(CustomProvider).filter(CustomProvider.tenant_id == tenant.id).order_by(CustomProvider.id).all()
+    return [
+        {
+            "code": row.code,
+            "name": row.name,
+            "base_url": row.base_url,
+            "model_id": row.model_id,
+            "market": row.market,
+            "api_key": decrypt_key(row.encrypted_api_key),
+        }
+        for row in rows
+    ]
 
 
 @contextmanager
-def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = None):
+def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = None, custom_providers: list[dict] | None = None):
     """在租户隔离、Key 注入和异常转换上下文中运行引擎代码。"""
     raw_tenant = str(tenant_id or "")
     if "/" in raw_tenant or "\\" in raw_tenant or ".." in raw_tenant:
@@ -177,10 +218,45 @@ def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = N
         previous_root, previous_work = patch_paths(tenant_directory, project_slug)
         previous_project_lock = patch_project_lock(tenant_directory)
         try:
-            with inject_keys(keys), protect_network_fetches():
+            with inject_keys(keys), protect_network_fetches(), _custom_provider_context(custom_providers):
                 yield
         finally:
             geolib.die = previous_die
             geolib.ROOT = previous_root
             geolib.WORK = previous_work
             geolib.project_lock = previous_project_lock
+
+
+@contextmanager
+def _custom_provider_context(providers):
+    """临时把租户自定义 OpenAI-compatible 供应商注册到引擎采样注册表。"""
+    if not providers:
+        yield
+        return
+    import sample
+
+    previous = {}
+    previous_preferences = sample.LLM_PREFS
+    for provider in providers:
+        code = provider["code"]
+        previous[code] = sample.PROVIDERS.get(code, _MISSING)
+        sample.PROVIDERS[code] = {
+            "name": provider["name"],
+            "market": provider.get("market", "both"),
+            "base": provider["base_url"],
+            "model": provider["model_id"],
+            "model_env": None,
+            "key_env": custom_provider_env(code),
+            "search": False,
+            "note": "Custom OpenAI-compatible provider",
+        }
+    sample.LLM_PREFS = tuple(previous_preferences) + tuple(provider["code"] for provider in providers)
+    try:
+        yield
+    finally:
+        sample.LLM_PREFS = previous_preferences
+        for code, old in previous.items():
+            if old is _MISSING:
+                sample.PROVIDERS.pop(code, None)
+            else:
+                sample.PROVIDERS[code] = old

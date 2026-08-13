@@ -7,6 +7,8 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
+from api.models import CustomProvider
+from api.settings import router as settings_router
 from api.settings.crypto import decrypt_key, encrypt_key
 
 
@@ -27,6 +29,7 @@ def settings_client(tmp_path, monkeypatch):
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
+        test_client.session_factory = session_factory
         yield test_client
     app.dependency_overrides.clear()
 
@@ -79,3 +82,87 @@ def test_keys_are_tenant_isolated(settings_client):
     ).status_code == 200
     assert client.get("/api/v1/settings/keys", headers=second).json() == {"keys": []}
 
+
+def test_custom_provider_lifecycle_is_encrypted_and_tenant_isolated(settings_client, monkeypatch):
+    client = settings_client
+    first = _headers(client, "custom-first@example.com")
+    second = _headers(client, "custom-second@example.com")
+    monkeypatch.setattr(settings_router, "validate_outbound_url", lambda value, **kwargs: value)
+    monkeypatch.setattr(
+        settings_router,
+        "_test_custom_provider",
+        lambda provider: {"ok": True, "answer": "OK", "raw_model": provider["model_id"]},
+    )
+    payload = {
+        "name": "Budget Gateway",
+        "base_url": "https://gateway.example.com/v1/chat/completions",
+        "api_key": "sk-custom-secret",
+        "model_id": "vendor/budget-model",
+        "market": "global",
+    }
+
+    saved = client.put("/api/v1/settings/keys/custom", headers=first, json=payload)
+
+    assert saved.status_code == 200
+    provider = saved.json()["provider"]
+    assert provider["name"] == "Budget Gateway"
+    assert provider["base_url"] == "https://gateway.example.com/v1"
+    assert provider["model_id"] == "vendor/budget-model"
+    assert provider["masked"] == "****cret"
+    assert "sk-custom-secret" not in saved.text
+    listed = client.get("/api/v1/settings/keys/custom", headers=first)
+    assert listed.json() == {"providers": [provider]}
+    assert client.get("/api/v1/settings/keys/custom", headers=second).json() == {"providers": []}
+
+    with client.session_factory() as db:
+        row = db.query(CustomProvider).one()
+        assert row.encrypted_api_key != "sk-custom-secret"
+        assert decrypt_key(row.encrypted_api_key) == "sk-custom-secret"
+
+    updated = client.put(
+        "/api/v1/settings/keys/custom",
+        headers=first,
+        json={
+            **payload,
+            "base_url": "https://other-gateway.example.com/api/v1",
+            "api_key": "sk-replaced-secret",
+            "model_id": "vendor/replacement-model",
+            "market": "cn",
+        },
+    )
+    assert updated.status_code == 200
+    provider = updated.json()["provider"]
+    assert provider["base_url"] == "https://other-gateway.example.com/api/v1"
+    assert provider["model_id"] == "vendor/replacement-model"
+    assert provider["market"] == "cn"
+    with client.session_factory() as db:
+        assert db.query(CustomProvider).count() == 1
+        assert decrypt_key(db.query(CustomProvider).one().encrypted_api_key) == "sk-replaced-secret"
+
+    deleted = client.delete(f"/api/v1/settings/keys/custom/{provider['code']}", headers=first)
+    assert deleted.status_code == 200
+    assert client.get("/api/v1/settings/keys/custom", headers=first).json() == {"providers": []}
+
+
+def test_custom_provider_must_connect_before_save(settings_client, monkeypatch):
+    client = settings_client
+    headers = _headers(client, "custom-failure@example.com")
+    monkeypatch.setattr(settings_router, "validate_outbound_url", lambda value, **kwargs: value)
+    monkeypatch.setattr(settings_router, "_test_custom_provider", lambda provider: {"ok": False})
+
+    response = client.put(
+        "/api/v1/settings/keys/custom",
+        headers=headers,
+        json={
+            "name": "Unavailable Gateway",
+            "base_url": "https://gateway.example.com/v1",
+            "api_key": "sk-failed",
+            "model_id": "vendor/model",
+            "market": "cn",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"] == "custom_provider_connection_failed"
+    with client.session_factory() as db:
+        assert db.query(CustomProvider).count() == 0

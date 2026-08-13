@@ -212,6 +212,10 @@ export const settings = {
   saveKey: (engineCode, keyValue) => request('/api/v1/settings/keys', { method: 'PUT', body: { engine_code: engineCode, key_value: keyValue } }),
   deleteKey: (engineCode) => request(`/api/v1/settings/keys/${encodeURIComponent(engineCode)}`, { method: 'DELETE' }),
   testKey: (engineCode, keyValue = '') => request(`/api/v1/settings/keys/${encodeURIComponent(engineCode)}/test`, { method: 'POST', body: { key_value: keyValue } }),
+  getCustomProviders: () => fieldRequest(request('/api/v1/settings/keys/custom'), 'providers', []),
+  testCustomProvider: (body) => request('/api/v1/settings/keys/custom/test', { method: 'POST', body }),
+  saveCustomProvider: (body) => request('/api/v1/settings/keys/custom', { method: 'PUT', body }),
+  deleteCustomProvider: (code) => request(`/api/v1/settings/keys/custom/${encodeURIComponent(code)}`, { method: 'DELETE' }),
 };
 
 /* ==========================================================================

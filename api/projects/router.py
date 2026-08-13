@@ -15,14 +15,21 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy.orm import Session
 
 from api.adapters import engine as engine_adapter
-from api.adapters.engine import ENGINE_KEY_ENV, geolib, job_log_path, load_tenant_keys, with_tenant_context
+from api.adapters.engine import (
+    ENGINE_KEY_ENV,
+    geolib,
+    job_log_path,
+    load_custom_providers,
+    load_tenant_keys,
+    with_tenant_context,
+)
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import delivery, framing, preflight, report_quality, sampling_control, ticket_workflow, workspace
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.db import get_db
-from api.models import ApiKey, Job, Project, Tenant, User
+from api.models import Job, Project, Tenant, User
 from api.worker.tasks import (
     PIPELINE_ACTIONS,
     task_bootstrap,
@@ -505,7 +512,7 @@ def _sampling_funding_payload(db, tenant, project, user):
     catalog = public_catalog()
     pool_codes = {item["engine_code"] for item in catalog}
     effective = []
-    for code in sorted(set(ENGINE_KEY_ENV) | pool_codes):
+    for code in sorted(set(ENGINE_KEY_ENV) | pool_codes | set(byok)):
         if code in byok:
             source = "byok"
         elif project.platform_pool_enabled and tenant.plan in PAID_PLANS and code in pool_codes:
@@ -532,10 +539,7 @@ def _sampling_funding_payload(db, tenant, project, user):
 
 
 def _has_api_keys(db, tenant_id):
-    return db.query(ApiKey.id).filter(
-        ApiKey.tenant_id == tenant_id,
-        ApiKey.engine_code.in_(tuple(ENGINE_KEY_ENV)),
-    ).first() is not None
+    return bool(load_tenant_keys(db, tenant_id))
 
 
 def _has_sampling_access(db, tenant, project):
@@ -548,7 +552,8 @@ def _sample_estimate(db, tenant, project, payload, enforce=False):
     import sample
 
     platforms = payload.platforms if payload else None
-    if platforms and any(code not in sample.PROVIDERS for code in platforms):
+    custom_codes = {provider["code"] for provider in load_custom_providers(db, tenant.id)}
+    if platforms and any(code not in sample.PROVIDERS and code not in custom_codes for code in platforms):
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "sample_platform_must_have_api")
     function = sampling_control.ensure_allowed if enforce else sampling_control.estimate
     try:
@@ -599,8 +604,10 @@ def project_preflight(
     tenant = _tenant_for_user(db, current_user)
     import sample
 
-    requested = list(dict.fromkeys(payload.platforms or sorted(sample.PROVIDERS)))
-    invalid = sorted(set(requested) - set(sample.PROVIDERS))
+    custom_providers = load_custom_providers(db, tenant.id)
+    custom_codes = {provider["code"] for provider in custom_providers}
+    requested = list(dict.fromkeys(payload.platforms or sorted(set(sample.PROVIDERS) | custom_codes)))
+    invalid = sorted(set(requested) - set(sample.PROVIDERS) - custom_codes)
     if invalid:
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "unsupported_api_platform")
     byok = set(load_tenant_keys(db, tenant.id))
@@ -665,10 +672,7 @@ def create_project(
         )
         db.add(project)
     db.flush()
-    has_engine_keys = db.query(ApiKey.id).filter(
-        ApiKey.tenant_id == tenant.id,
-        ApiKey.engine_code.in_(tuple(ENGINE_KEY_ENV)),
-    ).first() is not None
+    has_engine_keys = _has_api_keys(db, tenant.id)
     skip_llm = payload.skip_llm or not has_engine_keys
     no_sample = payload.no_sample or not has_engine_keys
     job_action = "bootstrap" if no_sample else "autopilot"

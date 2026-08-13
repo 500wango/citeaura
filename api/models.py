@@ -32,6 +32,7 @@ class Tenant(Base):
     memberships = relationship("Membership", back_populates="tenant", cascade="all, delete-orphan")
     projects = relationship("Project", back_populates="tenant", cascade="all, delete-orphan")
     api_keys = relationship("ApiKey", back_populates="tenant", cascade="all, delete-orphan")
+    custom_providers = relationship("CustomProvider", back_populates="tenant", cascade="all, delete-orphan")
     subscriptions = relationship("Subscription", back_populates="tenant", cascade="all, delete-orphan")
     usage_counters = relationship("UsageCounter", back_populates="tenant", cascade="all, delete-orphan")
     invitations = relationship("TeamInvitation", back_populates="tenant", cascade="all, delete-orphan")
@@ -156,6 +157,26 @@ class ApiKey(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     tenant = relationship("Tenant", back_populates="api_keys")
+
+
+class CustomProvider(Base):
+    __tablename__ = "custom_providers"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="uq_custom_providers_tenant_code"),
+        CheckConstraint("market IN ('cn', 'global')", name="ck_custom_providers_market"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    code = Column(String(64), nullable=False)
+    name = Column(String(128), nullable=False)
+    base_url = Column(String(2048), nullable=False)
+    model_id = Column(String(255), nullable=False)
+    market = Column(String(16), nullable=False, default="global", server_default="global")
+    encrypted_api_key = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    tenant = relationship("Tenant", back_populates="custom_providers")
 
 
 class Job(Base):

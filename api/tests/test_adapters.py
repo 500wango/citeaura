@@ -44,6 +44,88 @@ def test_key_injection_supports_engine_codes_and_restores_environment(monkeypatc
     assert os.environ["GEMINI_API_KEY"] == "global-fallback"
 
 
+def test_custom_provider_is_registered_only_inside_tenant_context():
+    import sample
+
+    provider = {
+        "code": "custom_abc123",
+        "name": "Budget Gateway",
+        "base_url": "https://gateway.example.com/v1",
+        "model_id": "vendor/budget-model",
+        "market": "global",
+        "api_key": "sk-custom",
+    }
+    original_preferences = sample.LLM_PREFS
+    assert provider["code"] not in sample.PROVIDERS
+
+    with with_tenant_context(
+        "tenant", "project", {provider["code"]: provider["api_key"]}, custom_providers=[provider],
+    ):
+        registered = sample.PROVIDERS[provider["code"]]
+        assert registered["base"] == provider["base_url"]
+        assert registered["model"] == provider["model_id"]
+        assert sample.model_for(provider["code"]) == provider["model_id"]
+        assert sample.available(provider["code"]) is True
+        assert sample.LLM_PREFS[-1] == provider["code"]
+
+    assert provider["code"] not in sample.PROVIDERS
+    assert sample.LLM_PREFS == original_preferences
+
+
+def test_custom_provider_uses_exact_endpoint_key_and_model(monkeypatch):
+    import sample
+
+    provider = {
+        "code": "custom_abc123",
+        "name": "Budget Gateway",
+        "base_url": "https://gateway.example.com/v1",
+        "model_id": "vendor/budget-model:exact",
+        "market": "global",
+        "api_key": "sk-custom",
+    }
+    calls = []
+
+    class Response:
+        status_code = 200
+        text = ""
+
+        @staticmethod
+        def json():
+            return {
+                "model": provider["model_id"],
+                "choices": [{"message": {"content": "OK"}}],
+            }
+
+    def fake_post(url, **kwargs):
+        calls.append((url, kwargs))
+        return Response()
+
+    monkeypatch.setattr(sample.requests, "post", fake_post)
+    with with_tenant_context(
+        "tenant", "project", {provider["code"]: provider["api_key"]}, custom_providers=[provider],
+    ):
+        result = sample.ask(provider["code"], "connection check", timeout=20)
+
+    assert result["ok"] is True
+    assert calls == [
+        (
+            "https://gateway.example.com/v1/chat/completions",
+            {
+                "headers": {
+                    "Authorization": "Bearer sk-custom",
+                    "Content-Type": "application/json",
+                },
+                "json": {
+                    "model": "vendor/budget-model:exact",
+                    "messages": [{"role": "user", "content": "connection check"}],
+                    "temperature": 0.7,
+                },
+                "timeout": 20,
+            },
+        ),
+    ]
+
+
 def test_context_rejects_path_traversal():
     with pytest.raises(ValueError):
         with with_tenant_context("../other-tenant", "project"):

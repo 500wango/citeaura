@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from api.adapters import measurement, sampling_control, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract
-from api.adapters.engine import geolib, job_log_path, load_tenant_keys, with_tenant_context
+from api.adapters.engine import geolib, job_log_path, load_custom_providers, load_tenant_keys, with_tenant_context
 from api.adapters.workspace import ensure_all_engine_scope, preserve_manual_tickets
 from api.billing.limits import check_sample_run
 from api.billing.platform_pool import meter_platform_calls, record_usage, resolve_funding
@@ -246,6 +246,35 @@ def _engine_funding(tenant_id, project_slug, allow_pool=True):
         db.close()
 
 
+def _engine_custom_providers(tenant_id):
+    """读取租户自定义供应商；数据库不可用时降级为空。"""
+    db = SessionLocal()
+    try:
+        return load_custom_providers(db, tenant_id)
+    except SQLAlchemyError:
+        db.rollback()
+        return []
+    finally:
+        db.close()
+
+
+def _sync_custom_provider_scope(project_slug, providers):
+    """把当前租户自定义供应商加入项目默认采样集合。"""
+    config_path = geolib.project_dir(project_slug) / "geo.json"
+    if not config_path.is_file():
+        return
+    config = geolib.load_config(project_slug)
+    configured = {provider["code"] for provider in providers}
+    original = list(config.get("platforms") or [])
+    platforms = [code for code in original if not code.startswith("custom_") or code in configured]
+    for provider in providers:
+        if provider["code"] not in platforms:
+            platforms.append(provider["code"])
+    if platforms != original:
+        config["platforms"] = platforms
+        geolib.save_config(project_slug, config)
+
+
 def _latest_metrics(project_slug):
     directory = geolib.project_dir(project_slug) / "metrics"
     files = sorted(directory.glob("*.json")) if directory.exists() else []
@@ -280,8 +309,13 @@ def _require_sampling_output(result, project_slug):
 def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_pool=True):
     """注入 BYOK/平台池密钥，并在退出时持久化平台代付逻辑调用。"""
     funding = _engine_funding(tenant_id, project_slug, allow_pool=allow_pool)
-    with with_tenant_context(str(tenant_id), project_slug, keys=funding["keys"]):
+    custom_providers = _engine_custom_providers(tenant_id)
+    context_options = {"keys": funding["keys"]}
+    if custom_providers:
+        context_options["custom_providers"] = custom_providers
+    with with_tenant_context(str(tenant_id), project_slug, **context_options):
         ensure_all_engine_scope(project_slug)
+        _sync_custom_provider_scope(project_slug, custom_providers)
         with meter_platform_calls(funding["pool_codes"]) as counts:
             pending_error = None
             try:

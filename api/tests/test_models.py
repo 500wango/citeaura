@@ -83,6 +83,7 @@ def test_initial_schema_contains_all_tables():
         "platform_usage",
         "projects",
         "api_keys",
+        "custom_providers",
         "audit_events",
         "billing_events",
         "jobs",

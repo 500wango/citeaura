@@ -39,8 +39,8 @@ def test_readiness_requires_all_production_dependencies(monkeypatch):
     assert all(result["checks"].values())
 
 
-def test_readiness_requires_active_job_migration():
-    assert readiness.EXPECTED_DB_REVISION == "0016_backfill_trial_expiration"
+def test_readiness_requires_latest_migration():
+    assert readiness.EXPECTED_DB_REVISION == "0017_custom_model_providers"
 
 
 def test_readiness_reports_failed_dependency_without_secret_details(monkeypatch):
