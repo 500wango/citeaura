@@ -42,6 +42,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
+    assert '/app/app.js?v=3.0' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -118,6 +119,14 @@ def test_frontend_contracts_match_backend_request_models():
     assert "invitation_token: token" in invite
     assert "{ url, ask_text, influenced_questions }" in plan
     assert "{ code: 'openai'" in engines
+    assert "Testing endpoint, API Key, and Model ID..." in engines
+    assert "provider_http_401" in engines
+    assert "await ctx.reloadCurrentView()" in engines
+    assert "ctx.navigate('#/engine-settings')" not in engines
+    assert 'id="supported-model-endpoints"' in engines
+    assert 'data-provider-kind="custom"' in engines
+    assert "Third-party / OpenAI-compatible" in engines
+    assert "Custom OpenAI-Compatible Providers" not in engines
     assert 'option value="1"' not in automation
     assert "{ config, credentials }" in publishing
     assert "revision," in outreach and "confirmed: true" in outreach
@@ -132,6 +141,7 @@ def test_frontend_contracts_match_backend_request_models():
     app_js = (root / "web/app/app.js").read_text("utf-8")
     assert "citeaura_intent_plan" in app_js
     assert "ENTRY_PLANS" in app_js
+    assert "engine-settings.js?v=2.8" in app_js
 
 
 def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():

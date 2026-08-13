@@ -113,7 +113,7 @@ const VIEW_LOADERS = {
   report: () => import('./views/report.js?v=2.5'),
   branding: () => import('./views/branding.js?v=2.5'),
   'project-settings': () => import('./views/project-settings.js?v=2.5'),
-  'engine-settings': () => import('./views/engine-settings.js?v=2.5'),
+  'engine-settings': () => import('./views/engine-settings.js?v=2.8'),
   automation: () => import('./views/automation.js?v=2.5'),
   integrations: () => import('./views/integrations.js?v=2.5'),
   team: () => import('./views/team.js?v=2.5'),

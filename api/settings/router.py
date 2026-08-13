@@ -4,6 +4,7 @@ import re
 import time
 from urllib.parse import urlparse
 
+import requests
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
@@ -107,20 +108,49 @@ def _provider_response(row: CustomProvider, include_key=False):
 
 def _test_custom_provider(provider: dict):
     """对 OpenAI-compatible chat/completions 发一条最小连接请求。"""
-    import sample
-
     code = provider["code"]
-    custom = {
-        "code": code,
-        "name": provider["name"],
-        "base_url": provider["base_url"],
-        "model_id": provider["model_id"],
-        "market": provider.get("market", "both"),
-        "api_key": provider["api_key"],
+    with with_tenant_context("provider-test", "custom-provider-test", keys={code: provider["api_key"]}):
+        try:
+            response = requests.post(
+                f"{provider['base_url']}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {provider['api_key']}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": provider["model_id"],
+                    "messages": [{"role": "user", "content": "Reply with exactly OK."}],
+                    "temperature": 0.7,
+                },
+                timeout=15,
+            )
+        except requests.exceptions.Timeout as exc:
+            return {"ok": False, "error": f"Timeout: {exc}"}
+        except requests.exceptions.RequestException as exc:
+            return {"ok": False, "error": f"RequestException: {exc}"}
+    if response.status_code != 200:
+        return {"ok": False, "error": f"HTTP {response.status_code}"}
+    try:
+        data = response.json()
+        answer = data["choices"][0]["message"].get("content") or ""
+    except (AttributeError, IndexError, KeyError, TypeError, ValueError):
+        return {"ok": False, "error": "provider_invalid_response"}
+    return {
+        "ok": True,
+        "answer": answer,
+        "raw_model": data.get("model", provider["model_id"]),
     }
-    with with_tenant_context("provider-test", "custom-provider-test", keys={code: custom["api_key"]}, custom_providers=[custom]):
-        result = sample.ask(code, "Reply with exactly OK.", timeout=20)
-    return result
+
+
+def _custom_provider_connection_error(error):
+    """返回稳定错误及可安全展示的供应商诊断码。"""
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail={
+            "error": "custom_provider_connection_failed",
+            "detail": _safe_provider_error(error),
+        },
+    )
 
 
 @router.get("/custom")
@@ -168,9 +198,9 @@ def put_custom_provider(payload: CustomProviderPayload, current_user: User = Dep
     try:
         result = _test_custom_provider(provider)
     except Exception as exc:  # noqa: BLE001 - provider failure is exposed only as a stable API error
-        _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "custom_provider_connection_failed")
+        _custom_provider_connection_error(exc)
     if not result.get("ok"):
-        _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "custom_provider_connection_failed")
+        _custom_provider_connection_error(result.get("error"))
     row = db.query(CustomProvider).filter(CustomProvider.tenant_id == tenant.id, CustomProvider.code == provider["code"]).first()
     if row is None:
         row = CustomProvider(tenant_id=tenant.id, code=provider["code"])

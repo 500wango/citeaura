@@ -144,11 +144,59 @@ def test_custom_provider_lifecycle_is_encrypted_and_tenant_isolated(settings_cli
     assert client.get("/api/v1/settings/keys/custom", headers=first).json() == {"providers": []}
 
 
+def test_custom_provider_connection_uses_single_exact_request(monkeypatch):
+    calls = []
+
+    class Response:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "model": "vendor/model:exact",
+                "choices": [{"message": {"content": "OK"}}],
+            }
+
+    def fake_post(url, **kwargs):
+        calls.append((url, kwargs))
+        return Response()
+
+    monkeypatch.setattr(settings_router.requests, "post", fake_post)
+    result = settings_router._test_custom_provider({
+        "code": "custom_abc123",
+        "name": "Gateway",
+        "base_url": "https://gateway.example.com/v1",
+        "api_key": "sk-test",
+        "model_id": "vendor/model:exact",
+        "market": "global",
+    })
+
+    assert result == {"ok": True, "answer": "OK", "raw_model": "vendor/model:exact"}
+    assert calls == [
+        (
+            "https://gateway.example.com/v1/chat/completions",
+            {
+                "headers": {"Authorization": "Bearer sk-test", "Content-Type": "application/json"},
+                "json": {
+                    "model": "vendor/model:exact",
+                    "messages": [{"role": "user", "content": "Reply with exactly OK."}],
+                    "temperature": 0.7,
+                },
+                "timeout": 15,
+            },
+        ),
+    ]
+
+
 def test_custom_provider_must_connect_before_save(settings_client, monkeypatch):
     client = settings_client
     headers = _headers(client, "custom-failure@example.com")
     monkeypatch.setattr(settings_router, "validate_outbound_url", lambda value, **kwargs: value)
-    monkeypatch.setattr(settings_router, "_test_custom_provider", lambda provider: {"ok": False})
+    monkeypatch.setattr(
+        settings_router,
+        "_test_custom_provider",
+        lambda provider: {"ok": False, "error": "HTTP 401: provider response is not returned"},
+    )
 
     response = client.put(
         "/api/v1/settings/keys/custom",
@@ -164,5 +212,6 @@ def test_custom_provider_must_connect_before_save(settings_client, monkeypatch):
 
     assert response.status_code == 422
     assert response.json()["error"] == "custom_provider_connection_failed"
+    assert response.json()["detail"] == "provider_http_401"
     with client.session_factory() as db:
         assert db.query(CustomProvider).count() == 0

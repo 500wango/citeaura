@@ -59,6 +59,7 @@ function customProviderForm(provider = null) {
         <input type="password" id="custom-provider-key" class="input" placeholder="sk-••••••••••••••••" required>
         <div class="field-hint">The connection is tested before the encrypted configuration is saved.</div>
       </div>
+      <div id="custom-provider-status" role="status" aria-live="polite" style="min-height:20px;font-size:var(--fs-2);color:var(--muted);"></div>
     </div>
   `;
 }
@@ -71,6 +72,82 @@ function customProviderPayload() {
     market: document.getElementById('custom-provider-market')?.value || 'global',
     api_key: document.getElementById('custom-provider-key')?.value.trim() || '',
   };
+}
+
+function customProviderErrorMessage(err) {
+  const diagnostic = err?.detail || err?.data?.detail || err?.error;
+  const messages = {
+    provider_http_400: 'The provider rejected the request. Verify the Base URL and exact Model ID.',
+    provider_http_401: 'Authentication failed. Verify the API Key.',
+    provider_http_403: 'The API Key cannot access this model.',
+    provider_http_404: 'The endpoint or Model ID was not found.',
+    provider_http_429: 'The provider rate limit or account quota was reached.',
+    provider_timeout: 'The provider did not respond before the connection test timed out.',
+    provider_request_failed: 'The provider returned an invalid response or could not be reached.',
+    network_error: 'CiteAura could not reach the server. Check the network and try again.',
+  };
+  if (messages[diagnostic]) return messages[diagnostic];
+  if (typeof diagnostic === 'string' && diagnostic.startsWith('provider_http_')) {
+    return `The provider returned HTTP ${diagnostic.slice('provider_http_'.length)}.`;
+  }
+  return 'Failed to connect custom provider.';
+}
+
+async function saveCustomProvider(ctx, successMessage) {
+  const inputs = [
+    document.getElementById('custom-provider-name'),
+    document.getElementById('custom-provider-url'),
+    document.getElementById('custom-provider-model'),
+    document.getElementById('custom-provider-market'),
+    document.getElementById('custom-provider-key'),
+  ];
+  const invalid = inputs.find((input) => input && !input.checkValidity());
+  if (invalid) {
+    invalid.reportValidity();
+    return false;
+  }
+
+  const payload = customProviderPayload();
+  const modal = document.getElementById('modal-root');
+  const confirmButton = modal?.querySelector('.btn-confirm');
+  const status = document.getElementById('custom-provider-status');
+  const originalButton = confirmButton?.innerHTML || 'Test & Save';
+  inputs.forEach((input) => { if (input) input.disabled = true; });
+  if (confirmButton) {
+    confirmButton.disabled = true;
+    confirmButton.setAttribute('aria-busy', 'true');
+    confirmButton.innerHTML = '<span class="spin"></span><span>Testing...</span>';
+  }
+  if (status) {
+    status.style.color = 'var(--muted)';
+    status.textContent = 'Testing endpoint, API Key, and Model ID...';
+  }
+
+  let saved = false;
+  try {
+    await settings.saveCustomProvider(payload);
+    saved = true;
+    await ctx.reloadCurrentView();
+    toast.success(successMessage);
+    return true;
+  } catch (err) {
+    const message = customProviderErrorMessage(err);
+    if (status) {
+      status.style.color = 'var(--bad)';
+      status.textContent = message;
+    }
+    toast.error(message, 6000);
+    return false;
+  } finally {
+    if (!saved) {
+      inputs.forEach((input) => { if (input) input.disabled = false; });
+      if (confirmButton) {
+        confirmButton.disabled = false;
+        confirmButton.removeAttribute('aria-busy');
+        confirmButton.innerHTML = originalButton;
+      }
+    }
+  }
 }
 
 export default {
@@ -101,8 +178,12 @@ export default {
         </div>
 
         <div class="card" style="padding:0;overflow:hidden;">
-          <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
+          <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('engine_settings.matrix_title', {}, 'Supported Model Matrix Endpoints')}</h3>
+            <button type="button" id="btn-add-custom-provider" class="btn btn-primary btn-sm">
+              <img src="/site-assets/icons/plus.svg" width="14" height="14" alt="">
+              <span>Add Provider</span>
+            </button>
           </div>
 
           <div class="tbl" style="overflow-x:auto;">
@@ -115,7 +196,7 @@ export default {
                   <th style="text-align:right;">${t('common.action', {}, 'Action')}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="supported-model-endpoints">
                 ${AVAILABLE_ENGINES.map((eng) => {
                   const conf = keyMap[eng.code];
                   const isSet = !!conf;
@@ -146,50 +227,33 @@ export default {
                     </tr>
                   `;
                 }).join('')}
+                ${customProviders.map((provider) => `
+                  <tr data-provider-kind="custom">
+                    <td>
+                      <strong>${escapeHtml(provider.name)}</strong>
+                      <div style="font-size:11px;color:var(--muted);">Third-party / OpenAI-compatible</div>
+                    </td>
+                    <td>
+                      <span class="num">${escapeHtml(provider.code)}</span>
+                      <div class="num" style="font-size:11px;color:var(--muted);margin-top:var(--sp-1);word-break:break-all;">Base URL: ${escapeHtml(provider.base_url)}</div>
+                      <div class="num" style="font-size:11px;color:var(--muted);word-break:break-all;">Model ID: ${escapeHtml(provider.model_id)}</div>
+                    </td>
+                    <td><span class="tag pill-good">Encrypted & Active</span></td>
+                    <td style="text-align:right;">
+                      <div style="display:inline-flex;gap:var(--sp-2);">
+                        <button type="button" class="btn btn-secondary btn-sm btn-edit-custom"
+                          data-name="${escapeHtml(provider.name)}"
+                          data-base-url="${escapeHtml(provider.base_url)}"
+                          data-model-id="${escapeHtml(provider.model_id)}"
+                          data-market="${escapeHtml(provider.market)}">Edit</button>
+                        <button type="button" class="btn btn-ghost btn-sm btn-del-custom" data-code="${escapeHtml(provider.code)}" style="color:var(--bad);">✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
               </tbody>
             </table>
           </div>
-        </div>
-
-        <div class="card" style="padding:0;overflow:hidden;">
-          <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);">
-            <div>
-              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Custom OpenAI-Compatible Providers</h3>
-              <p style="font-size:var(--fs-2);color:var(--muted);margin:var(--sp-1) 0 0;">Connect a third-party gateway or relay with a fixed Model ID.</p>
-            </div>
-            <button type="button" id="btn-add-custom-provider" class="btn btn-primary btn-sm">
-              <img src="/site-assets/icons/plus.svg" width="14" height="14" alt="">
-              <span>Add Provider</span>
-            </button>
-          </div>
-          ${customProviders.length ? `
-            <div class="tbl" style="overflow-x:auto;">
-              <table class="table">
-                <thead><tr><th>Provider</th><th>Base URL</th><th>Model ID</th><th>Market</th><th>Status</th><th style="text-align:right;">Action</th></tr></thead>
-                <tbody>
-                  ${customProviders.map((provider) => `
-                    <tr>
-                      <td><strong>${escapeHtml(provider.name)}</strong><div class="num" style="font-size:11px;color:var(--muted);">${escapeHtml(provider.code)}</div></td>
-                      <td class="num">${escapeHtml(provider.base_url)}</td>
-                      <td class="num">${escapeHtml(provider.model_id)}</td>
-                      <td><span class="tag tag-neutral">${provider.market === 'cn' ? 'Domestic' : 'Global'}</span></td>
-                      <td><span class="tag pill-good">Encrypted & Active</span></td>
-                      <td style="text-align:right;">
-                        <div style="display:inline-flex;gap:var(--sp-2);">
-                          <button type="button" class="btn btn-secondary btn-sm btn-edit-custom"
-                            data-name="${escapeHtml(provider.name)}"
-                            data-base-url="${escapeHtml(provider.base_url)}"
-                            data-model-id="${escapeHtml(provider.model_id)}"
-                            data-market="${escapeHtml(provider.market)}">Edit</button>
-                          <button type="button" class="btn btn-ghost btn-sm btn-del-custom" data-code="${escapeHtml(provider.code)}" style="color:var(--bad);">✕</button>
-                        </div>
-                      </td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-          ` : `<div style="padding:var(--sp-6);color:var(--muted);font-size:var(--fs-2);">No custom providers configured.</div>`}
         </div>
       </div>
     `;
@@ -201,19 +265,7 @@ export default {
         title: 'Add Custom Provider',
         content: customProviderForm(),
         confirmText: 'Test & Save',
-        onConfirm: async () => {
-          const payload = customProviderPayload();
-          if (!payload.name || !payload.base_url || !payload.model_id || !payload.api_key) return false;
-          try {
-            await settings.saveCustomProvider(payload);
-            toast.success('Custom provider connected and saved');
-            ctx.navigate('#/engine-settings');
-            return true;
-          } catch (err) {
-            toast.error(t(err.error, {}, err.detail || 'Failed to connect custom provider'));
-            return false;
-          }
-        },
+        onConfirm: () => saveCustomProvider(ctx, 'Custom provider connected and saved'),
       });
     });
 
@@ -229,19 +281,7 @@ export default {
           title: 'Edit Custom Provider',
           content: customProviderForm(provider),
           confirmText: 'Test & Save',
-          onConfirm: async () => {
-            const payload = customProviderPayload();
-            if (!payload.name || !payload.base_url || !payload.model_id || !payload.api_key) return false;
-            try {
-              await settings.saveCustomProvider(payload);
-              toast.success('Custom provider connected and updated');
-              ctx.navigate('#/engine-settings');
-              return true;
-            } catch (err) {
-              toast.error(t(err.error, {}, err.detail || 'Failed to connect custom provider'));
-              return false;
-            }
-          },
+          onConfirm: () => saveCustomProvider(ctx, 'Custom provider connected and updated'),
         });
       });
     });
@@ -250,8 +290,8 @@ export default {
       btn.addEventListener('click', async () => {
         try {
           await settings.deleteCustomProvider(btn.getAttribute('data-code'));
+          await ctx.reloadCurrentView();
           toast.success('Custom provider removed');
-          ctx.navigate('#/engine-settings');
         } catch (err) {
           toast.error(t(err.error, {}, err.detail || 'Failed to remove custom provider'));
         }
@@ -281,8 +321,8 @@ export default {
 
             try {
               await settings.saveKey(code, keyValue);
+              await ctx.reloadCurrentView();
               toast.success(`${name} API key encrypted and saved`);
-              ctx.navigate('#/engine-settings');
               return true;
             } catch (err) {
               toast.error(t(err.error, {}, err.detail || 'Failed to save key'));
@@ -315,8 +355,8 @@ export default {
         const code = btn.getAttribute('data-code');
         try {
           await settings.deleteKey(code);
+          await ctx.reloadCurrentView();
           toast.success('Key removed');
-          ctx.navigate('#/engine-settings');
         } catch (err) {
           toast.error(t(err.error, {}, err.detail || 'Failed to remove key'));
         }
