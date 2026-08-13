@@ -4,8 +4,10 @@ import os
 import re
 import sys
 import threading
+import time
 from contextlib import contextmanager
 from pathlib import Path
+from urllib.parse import urljoin, urlparse
 
 from api import config
 from api.adapters import locking
@@ -33,6 +35,10 @@ ENGINE_KEY_ENV = {
     "perplexity": "PERPLEXITY_API_KEY",
 }
 GLOBAL_LLM_PREFS = ("openai", "gemini", "claude", "grok", "perplexity")
+NETWORK_REDIRECT_STATUSES = frozenset((301, 302, 303, 307, 308))
+NETWORK_RETRY_STATUSES = frozenset((429, 500, 502, 503, 504))
+NETWORK_MAX_REDIRECTS = 5
+NETWORK_MAX_ATTEMPTS = 2
 
 CUSTOM_PROVIDER_CODE = re.compile(r"^custom_[a-z0-9][a-z0-9_-]{2,55}$")
 
@@ -137,16 +143,77 @@ def inject_keys(keys: dict | None):
 
 @contextmanager
 def protect_network_fetches():
-    """在引擎网络调用期间阻止私网目标和跨主机重定向。"""
+    """校验每一跳网络目标，安全跟随同站跳转并重试临时 GET 故障。"""
     original_request = geolib.requests.sessions.Session.request
 
+    def same_site(source, target):
+        source_host = (urlparse(source).hostname or "").lower().removeprefix("www.")
+        target_host = (urlparse(target).hostname or "").lower().removeprefix("www.")
+        return bool(source_host and target_host) and (
+            source_host == target_host
+            or source_host.endswith("." + target_host)
+            or target_host.endswith("." + source_host)
+        )
+
+    def request_once(session, method, url, args, kwargs):
+        retryable = str(method).upper() in ("GET", "HEAD")
+        for attempt in range(NETWORK_MAX_ATTEMPTS):
+            try:
+                response = original_request(
+                    session, method, url, *args, **kwargs, allow_redirects=False,
+                )
+            except geolib.requests.RequestException:
+                if not retryable or attempt + 1 >= NETWORK_MAX_ATTEMPTS:
+                    raise
+                time.sleep(0.35)
+                continue
+            if (
+                retryable
+                and response.status_code in NETWORK_RETRY_STATUSES
+                and attempt + 1 < NETWORK_MAX_ATTEMPTS
+            ):
+                response.close()
+                time.sleep(0.35)
+                continue
+            return response
+        raise GeoEngineError("network_retry_exhausted")
+
     def guarded_request(session, method, url, *args, **kwargs):
-        try:
-            validate_outbound_url(url, require_https=False)
-        except NetworkTargetError as exc:
-            raise GeoEngineError(str(exc)) from exc
-        kwargs["allow_redirects"] = False
-        return original_request(session, method, url, *args, **kwargs)
+        follow_redirects = bool(kwargs.pop("allow_redirects", True))
+        current_url = str(url)
+        original_url = current_url
+        history = []
+        for redirect_count in range(NETWORK_MAX_REDIRECTS + 1):
+            try:
+                validate_outbound_url(current_url, require_https=False)
+            except NetworkTargetError as exc:
+                raise GeoEngineError(str(exc)) from exc
+            response = request_once(session, method, current_url, args, kwargs)
+            location = response.headers.get("Location") if hasattr(response, "headers") else None
+            if (
+                not follow_redirects
+                or str(method).upper() not in ("GET", "HEAD")
+                or response.status_code not in NETWORK_REDIRECT_STATUSES
+                or not location
+            ):
+                if hasattr(response, "history"):
+                    response.history = history
+                return response
+            redirected = urljoin(str(getattr(response, "url", None) or current_url), location)
+            if not same_site(original_url, redirected):
+                response.close()
+                raise GeoEngineError("network_cross_site_redirect")
+            try:
+                validate_outbound_url(redirected, require_https=False)
+            except NetworkTargetError as exc:
+                response.close()
+                raise GeoEngineError(str(exc)) from exc
+            if redirect_count >= NETWORK_MAX_REDIRECTS:
+                response.close()
+                raise GeoEngineError("network_redirect_limit")
+            history.append(response)
+            current_url = redirected
+        raise GeoEngineError("network_redirect_limit")
 
     geolib.requests.sessions.Session.request = guarded_request
     try:

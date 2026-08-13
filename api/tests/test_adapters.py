@@ -194,7 +194,7 @@ def test_tenant_context_serializes_process_global_state(tmp_path, monkeypatch):
     assert "tenant-b" in str(observed[2][1])
 
 
-def test_tenant_context_guards_all_http_methods_and_disables_redirects(monkeypatch):
+def test_tenant_context_keeps_non_get_redirects_disabled(monkeypatch):
     calls = []
 
     def resolve_public(host, port, type=None):
@@ -210,6 +210,86 @@ def test_tenant_context_guards_all_http_methods_and_disables_redirects(monkeypat
         requests.post("https://example.com/hook", allow_redirects=True)
 
     assert calls == [("post", "https://example.com/hook", {"data": None, "json": None, "allow_redirects": False})]
+
+
+def _http_response(url, status, *, location=None, body=b""):
+    response = requests.Response()
+    response.url = url
+    response.status_code = status
+    response._content = body
+    response._content_consumed = True
+    if location:
+        response.headers["Location"] = location
+    return response
+
+
+def test_tenant_context_safely_follows_same_site_get_redirect(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        network.socket,
+        "getaddrinfo",
+        lambda host, port, type=None: [(2, 1, 6, "", ("93.184.216.34", port))],
+    )
+
+    def fake_request(session, method, url, **kwargs):
+        calls.append((method, url, kwargs.get("allow_redirects")))
+        if url == "https://example.com/":
+            return _http_response(url, 307, location="/en")
+        return _http_response(url, 200, body=b"English homepage")
+
+    monkeypatch.setattr(requests.sessions.Session, "request", fake_request)
+    with with_tenant_context("tenant", "project"):
+        response = requests.get("https://example.com/", allow_redirects=True)
+
+    assert response.status_code == 200
+    assert response.url == "https://example.com/en"
+    assert [item[:2] for item in calls] == [
+        ("get", "https://example.com/"),
+        ("get", "https://example.com/en"),
+    ]
+    assert all(item[2] is False for item in calls)
+    assert len(response.history) == 1
+
+
+def test_tenant_context_rejects_cross_site_redirect(monkeypatch):
+    monkeypatch.setattr(
+        network.socket,
+        "getaddrinfo",
+        lambda host, port, type=None: [(2, 1, 6, "", ("93.184.216.34", port))],
+    )
+    monkeypatch.setattr(
+        requests.sessions.Session,
+        "request",
+        lambda session, method, url, **kwargs: _http_response(url, 302, location="https://other.test/path"),
+    )
+
+    with with_tenant_context("tenant", "project"):
+        with pytest.raises(GeoEngineError, match="network_cross_site_redirect"):
+            requests.get("https://example.com/")
+
+
+def test_tenant_context_retries_temporary_get_failure(monkeypatch):
+    responses = iter((503, 200))
+    calls = []
+    monkeypatch.setattr(engine_adapter.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(
+        network.socket,
+        "getaddrinfo",
+        lambda host, port, type=None: [(2, 1, 6, "", ("93.184.216.34", port))],
+    )
+
+    def fake_request(session, method, url, **kwargs):
+        status = next(responses)
+        calls.append(status)
+        return _http_response(url, status)
+
+    monkeypatch.setattr(requests.sessions.Session, "request", fake_request)
+    with with_tenant_context("tenant", "project"):
+        response = requests.get("https://example.com/")
+
+    assert response.status_code == 200
+    assert calls == [503, 200]
 
 
 def test_tenant_context_blocks_private_and_mixed_dns_results(monkeypatch):

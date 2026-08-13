@@ -1,6 +1,9 @@
 from types import SimpleNamespace
 
+import pytest
+
 from api.adapters import site_signals
+from api.adapters.exceptions import GeoEngineError
 
 
 def _response(text, content_type, *, status=200, url="https://example.com/resource"):
@@ -44,6 +47,58 @@ def test_sitemap_validation_requires_real_xml_with_locations():
     result = site_signals.validate_sitemap_response(valid, "https://example.com")
     assert result["valid"] is True
     assert result["url_count"] == 1
+
+
+def test_sitemap_validation_rejects_localhost_and_offsite_locations():
+    invalid = _response(
+        '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        "<url><loc>http://localhost:3000/en</loc></url>"
+        "<url><loc>https://unrelated.example/page</loc></url></urlset>",
+        "application/xml",
+        url="https://example.com/sitemap.xml",
+    )
+
+    result = site_signals.validate_sitemap_response(invalid, "https://example.com")
+
+    assert result["valid"] is False
+    assert result["reason"] == "no_same_site_urls"
+    assert result["invalid_url_count"] == 2
+
+
+def test_crawl_context_filters_unsafe_candidates_and_reports_statuses(monkeypatch):
+    import crawl
+
+    monkeypatch.setattr(
+        site_signals,
+        "validate_project_signals",
+        lambda slug: {"slug": slug},
+    )
+    original_rank = crawl.rank
+    original_health = crawl.check_crawl_health
+    try:
+        monkeypatch.setattr(
+            crawl,
+            "rank",
+            lambda urls, root: [
+                "https://example.com/",
+                "https://example.com/en",
+                "http://localhost:3000/en",
+                "https://unrelated.example/page",
+            ],
+        )
+        monkeypatch.setattr(crawl, "check_crawl_health", lambda pages: None)
+        with site_signals.semantic_site_signals("example"):
+            assert crawl.rank([], "https://example.com") == [
+                "https://example.com/", "https://example.com/en",
+            ]
+            with pytest.raises(GeoEngineError, match=r"HTTP 403 x1.*HTTP 503 x1"):
+                crawl.check_crawl_health([
+                    {"url": "https://example.com/", "final_url": "https://example.com/", "status": 403, "error": None},
+                    {"url": "https://example.com/en", "final_url": "https://example.com/en", "status": 503, "error": None},
+                ])
+    finally:
+        crawl.rank = original_rank
+        crawl.check_crawl_health = original_health
 
 
 def test_signal_validation_rejects_cross_site_redirect():

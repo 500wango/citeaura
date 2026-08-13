@@ -137,11 +137,17 @@ def resilient_crawl_evidence(project_slug: str):
     previous_pages, previous_usable = _usable_crawl_pages(project_slug)
     site_path = evidence_dir / "site.json"
     previous_site = geolib.read_json(site_path, None)
+    config = geolib.read_json(project_dir / "geo.json", {}) or {}
+    configured_site = str(((config.get("brand") or {}).get("site")) or "").rstrip("/")
+    evidence_site = str((previous_site or {}).get("root") or "").rstrip("/")
+    same_site_evidence = not configured_site or not evidence_site or configured_site == evidence_site
+    if not same_site_evidence:
+        previous_pages, previous_usable, previous_site = [], [], None
     original_run = engine_crawl.run
 
     with tempfile.TemporaryDirectory(prefix=f"citeaura-crawl-{project_slug}-") as temporary:
         backup_dir = Path(temporary) / "evidence"
-        if evidence_dir.is_dir():
+        if evidence_dir.is_dir() and same_site_evidence:
             shutil.copytree(evidence_dir, backup_dir)
 
         def restore_previous_evidence():
@@ -251,6 +257,7 @@ def update_config(project_slug: str, updates: dict) -> dict:
         raise ValueError("publishing config must use the publishing API")
     with geolib.project_lock(project_slug):
         current = global_scope.normalize_config_data(geolib.load_config(project_slug))
+        previous_site = str((current.get("brand") or {}).get("site") or "").rstrip("/")
         if updates.get("slug", project_slug) != project_slug:
             raise ValueError("project slug cannot be changed")
         current.update(updates)
@@ -262,6 +269,9 @@ def update_config(project_slug: str, updates: dict) -> dict:
             current["questions"] = _validated_questions(current["questions"])
         current = global_scope.normalize_config_data(current)
         geolib.save_config(project_slug, current)
+        current_site = str((current.get("brand") or {}).get("site") or "").rstrip("/")
+        if previous_site and current_site and previous_site != current_site:
+            shutil.rmtree(geolib.project_dir(project_slug) / "evidence", ignore_errors=True)
     return current
 
 

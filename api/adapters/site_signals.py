@@ -2,12 +2,14 @@
 
 import re
 import xml.etree.ElementTree as ET
+from collections import Counter
 from contextlib import contextmanager
 from urllib.parse import urljoin, urlparse
 
 import requests
 
 from api.adapters.engine import geolib
+from api.adapters.exceptions import GeoEngineError
 from api.adapters.network import NetworkTargetError, validate_outbound_url
 
 
@@ -86,7 +88,52 @@ def validate_sitemap_response(response, root_url):
     ]
     if not locations:
         return _result(False, "empty_sitemap", response, url_count=0)
-    return _result(True, "valid", response, url_count=len(locations))
+    valid_locations = [location for location in locations if _safe_crawl_url(root_url, location)]
+    if not valid_locations:
+        return _result(
+            False, "no_same_site_urls", response, url_count=0, invalid_url_count=len(locations),
+        )
+    return _result(
+        True, "valid", response, url_count=len(valid_locations),
+        invalid_url_count=len(locations) - len(valid_locations),
+    )
+
+
+def _safe_crawl_url(root_url, candidate):
+    candidate = str(candidate or "").strip()
+    parsed = urlparse(candidate)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname or not _same_site(root_url, candidate):
+        return False
+    try:
+        validate_outbound_url(candidate, require_https=False, resolve=False)
+    except NetworkTargetError:
+        return False
+    return True
+
+
+def _crawl_failure(pages):
+    statuses = Counter(int(page.get("status") or 0) for page in pages if isinstance(page, dict))
+    parts = [f"HTTP {code} x{count}" for code, count in sorted(statuses.items()) if code]
+    if statuses.get(0):
+        parts.append(f"network errors x{statuses[0]}")
+    examples = []
+    for page in pages[:3]:
+        url = str(page.get("final_url") or page.get("url") or "unknown URL")
+        result = f"HTTP {page.get('status')}" if page.get("status") else str(page.get("error") or "network error")
+        examples.append(f"{url} -> {result[:120]}")
+    if any(code in statuses for code in (403, 401)):
+        action = "The target CDN or origin denied the worker request; review bot/WAF rules for the reported URL."
+    elif 429 in statuses:
+        action = "The target site rate-limited the crawl; retry later or relax the site rate limit."
+    elif any(code >= 500 for code in statuses):
+        action = "The target origin or CDN returned a temporary server error; retry after it recovers."
+    elif any(300 <= code < 400 for code in statuses):
+        action = "The target returned a redirect that could not be followed safely; verify its Location header."
+    else:
+        action = "Check DNS, TLS, origin reachability, and the target site's access logs."
+    summary = ", ".join(parts) or "no response details"
+    detail = "; ".join(examples) or "no candidate pages"
+    return f"Crawl failed: 0/{len(pages)} pages returned 200. Responses: {summary}. {action} Examples: {detail}"
 
 
 def _fetch(url, timeout=10):
@@ -175,13 +222,36 @@ def semantic_site_signals(project_slug):
     import crawl as engine_crawl
 
     original_run = engine_crawl.run
+    original_rank = engine_crawl.rank
+    original_health = engine_crawl.check_crawl_health
+
+    def rank_safe_candidates(urls, root):
+        ranked = original_rank(urls, root)
+        safe = [url for url in ranked if _safe_crawl_url(root, url)]
+        rejected = len(ranked) - len(safe)
+        if rejected:
+            geolib.info(f"Ignored {rejected} unsafe or off-site crawl candidate(s) from sitemap/seeds")
+        return safe
+
+    def check_with_diagnostics(pages):
+        ok = sum(
+            isinstance(page, dict) and int(page.get("status") or 0) == 200
+            for page in pages
+        )
+        if pages and not ok:
+            raise GeoEngineError(_crawl_failure(pages))
+        return original_health(pages)
 
     def run_with_validation(slug, *args, **kwargs):
         result = original_run(slug, *args, **kwargs)
         return validate_project_signals(project_slug) if slug == project_slug else result
 
     engine_crawl.run = run_with_validation
+    engine_crawl.rank = rank_safe_candidates
+    engine_crawl.check_crawl_health = check_with_diagnostics
     try:
         yield
     finally:
         engine_crawl.run = original_run
+        engine_crawl.rank = original_rank
+        engine_crawl.check_crawl_health = original_health

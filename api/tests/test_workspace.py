@@ -98,6 +98,10 @@ def _seed_workspace(tmp_path):
     (root / "deliverables").mkdir()
     (root / "deliverables" / "1-GEO诊断报告.html").write_text("deliverable", "utf-8")
     (root / "delivery" / "2026-07-31").mkdir(parents=True)
+    (root / "evidence" / "html").mkdir(parents=True)
+    (root / "evidence" / "site.json").write_text(
+        json.dumps({"root": "https://example.com", "pages_ok": 1}), "utf-8",
+    )
     return root
 
 
@@ -132,6 +136,9 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
     with session_factory() as db:
         assert db.get(Project, project_id).url == "https://new.example.com"
     assert changed_url.json()["config"]["brand"]["site"] == "https://new.example.com"
+    assert not (root / "evidence").exists()
+    assert (root / "content" / "facts.md").is_file()
+    assert (root / "delivery" / "2026-07-31").is_dir()
     with session_factory() as db:
         assert db.get(Project, project_id).market == "global"
     assert json.loads((root / "geo.json").read_text("utf-8"))["market"] == "global"
@@ -518,6 +525,42 @@ def test_resilient_crawl_evidence_uses_project_identity_for_client_only_site(tmp
     assert result == {"pages_ok": 1, "pages_crawled": 1}
     assert "Brand: Example" in page["text"]
     assert "no server-rendered page text" in page["text"]
+
+
+def test_resilient_crawl_does_not_restore_evidence_from_previous_domain(tmp_path, monkeypatch):
+    import crawl
+
+    monkeypatch.setattr(workspace.geolib, "WORK", tmp_path)
+    project = tmp_path / "example"
+    evidence = project / "evidence"
+    workspace.geolib.write_json(project / "geo.json", {
+        "slug": "example",
+        "brand": {"name": "New Brand", "site": "https://new.example"},
+    })
+    workspace.geolib.write_json(evidence / "site.json", {
+        "root": "https://old.example", "pages_ok": 1, "pages_crawled": 1,
+    })
+    workspace.geolib.write_jsonl(evidence / "pages.jsonl", [{
+        "url": "https://old.example", "status": 200, "text": "Old website content",
+    }])
+
+    def failed_new_crawl(slug):
+        workspace.geolib.write_json(evidence / "site.json", {
+            "root": "https://new.example", "pages_ok": 0, "pages_crawled": 1,
+        })
+        workspace.geolib.write_jsonl(evidence / "pages.jsonl", [{
+            "url": "https://new.example", "status": 403, "text": "",
+        }])
+        raise GeoEngineError("new website denied crawl")
+
+    monkeypatch.setattr(crawl, "run", failed_new_crawl)
+
+    with pytest.raises(GeoEngineError, match="new website denied crawl"):
+        with resilient_crawl_evidence("example"):
+            crawl.run("example")
+
+    assert workspace.geolib.read_json(evidence / "site.json")["root"] == "https://new.example"
+    assert workspace.geolib.read_jsonl(evidence / "pages.jsonl")[0]["url"] == "https://new.example"
 
 
 def test_resilient_crawl_evidence_reports_unextractable_without_project_identity(tmp_path, monkeypatch):
