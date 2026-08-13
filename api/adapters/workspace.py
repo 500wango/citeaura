@@ -2,16 +2,119 @@
 
 import os
 import re
+import shutil
+import tempfile
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
 from urllib.parse import urlparse
 
 from api.adapters.engine import geolib
+from api.adapters.exceptions import GeoEngineError
 
 
 QUESTION_MARKETS = {"cn", "global", "both"}
 TEXT_SUFFIXES = {".txt", ".json", ".html", ".md"}
+
+
+def _usable_crawl_pages(project_slug: str):
+    path = geolib.project_dir(project_slug) / "evidence" / "pages.jsonl"
+    pages = geolib.read_jsonl(path)
+    usable = [
+        page for page in pages
+        if isinstance(page, dict) and page.get("status") == 200 and str(page.get("text") or "").strip()
+    ]
+    return pages, usable
+
+
+def _visible_snapshot_text(path: Path):
+    if not path.is_file():
+        return ""
+    soup = geolib.parse_html(path.read_text("utf-8", errors="replace"))
+    return " ".join(geolib.main_text(soup).split())[:20000]
+
+
+def _recover_snapshot_text(project_slug: str):
+    project_dir = geolib.project_dir(project_slug)
+    snapshot_dir = (project_dir / "evidence" / "html").resolve()
+    path = project_dir / "evidence" / "pages.jsonl"
+    pages = geolib.read_jsonl(path)
+    recovered = 0
+    for page in pages:
+        if not isinstance(page, dict) or page.get("status") != 200 or str(page.get("text") or "").strip():
+            continue
+        snapshot = str(page.get("snapshot") or "").strip()
+        if not snapshot:
+            continue
+        snapshot_path = (project_dir / snapshot).resolve()
+        try:
+            snapshot_path.relative_to(snapshot_dir)
+        except ValueError:
+            continue
+        if snapshot_path.suffix.lower() != ".html":
+            continue
+        text = _visible_snapshot_text(snapshot_path)
+        if text:
+            page["text"] = text
+            recovered += 1
+    if recovered:
+        geolib.write_jsonl(path, pages)
+    return recovered
+
+
+@contextmanager
+def resilient_crawl_evidence(project_slug: str):
+    """Autopilot 抓取正文为空时恢复快照文本或沿用上一份有效证据。"""
+    import crawl as engine_crawl
+
+    project_dir = geolib.project_dir(project_slug)
+    evidence_dir = project_dir / "evidence"
+    previous_pages, previous_usable = _usable_crawl_pages(project_slug)
+    site_path = evidence_dir / "site.json"
+    previous_site = geolib.read_json(site_path, None)
+    original_run = engine_crawl.run
+
+    with tempfile.TemporaryDirectory(prefix=f"citeaura-crawl-{project_slug}-") as temporary:
+        backup_dir = Path(temporary) / "evidence"
+        if evidence_dir.is_dir():
+            shutil.copytree(evidence_dir, backup_dir)
+
+        def restore_previous_evidence():
+            if not backup_dir.is_dir():
+                return
+            if evidence_dir.exists():
+                shutil.rmtree(evidence_dir)
+            shutil.copytree(backup_dir, evidence_dir)
+
+        def run_with_recovery(slug, *args, **kwargs):
+            if slug != project_slug:
+                return original_run(slug, *args, **kwargs)
+            try:
+                result = original_run(slug, *args, **kwargs)
+            except Exception:
+                restore_previous_evidence()
+                raise
+            _, current_usable = _usable_crawl_pages(project_slug)
+            if current_usable:
+                return result
+            recovered = _recover_snapshot_text(project_slug)
+            if recovered:
+                geolib.info(f"Recovered extractable text from {recovered} HTML crawl snapshot(s)")
+                return result
+            if previous_usable:
+                restore_previous_evidence()
+                geolib.info("Current crawl returned no extractable text; retained previous usable crawl evidence")
+                return previous_site or result
+            raise GeoEngineError(
+                "Crawl completed but no extractable website text was found. "
+                "The site may require JavaScript rendering or block automated crawlers."
+            )
+
+        engine_crawl.run = run_with_recovery
+        try:
+            yield
+        finally:
+            engine_crawl.run = original_run
 
 
 def _safe_target(base: Path, relative: str, suffixes=None) -> Path:

@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from api.adapters import measurement, sampling_control, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract
 from api.adapters.engine import geolib, job_log_path, load_custom_providers, load_tenant_keys, with_tenant_context
-from api.adapters.workspace import ensure_all_engine_scope, preserve_manual_tickets
+from api.adapters.workspace import ensure_all_engine_scope, preserve_manual_tickets, resilient_crawl_evidence
 from api.billing.limits import check_sample_run
 from api.billing.platform_pool import meter_platform_calls, record_usage, resolve_funding
 from api.db import SessionLocal
@@ -494,7 +494,8 @@ def task_bootstrap(
         update("bootstrap", 15)
         with _funded_engine_context(tenant_id, project_slug, job_action, job_id=job_id):
             with preserve_manual_tickets(project_slug):
-                geo.cmd_autopilot(args)
+                with resilient_crawl_evidence(project_slug):
+                    geo.cmd_autopilot(args)
             update("finalizing", 90)
             ensure_delivery_contract(project_slug)
             if not no_sample:
@@ -705,7 +706,11 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
         ):
             if action in ("plan", "autopilot", "serve"):
                 with preserve_manual_tickets(project_slug):
-                    result = _run_pipeline_action(action, project_slug, params)
+                    if action == "autopilot":
+                        with resilient_crawl_evidence(project_slug):
+                            result = _run_pipeline_action(action, project_slug, params)
+                    else:
+                        result = _run_pipeline_action(action, project_slug, params)
             else:
                 result = _run_pipeline_action(action, project_slug, params)
             if action in ("sample", "autopilot", "serve") and not (params or {}).get("--no-sample", False):

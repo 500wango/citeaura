@@ -8,6 +8,8 @@ from sqlalchemy.orm import sessionmaker
 from api.adapters import engine as engine_adapter
 from api.adapters import workspace
 from api.adapters.engine import with_tenant_context
+from api.adapters.exceptions import GeoEngineError
+from api.adapters.workspace import resilient_crawl_evidence
 from api.db import Base, get_db
 from api.main import app
 from api.models import Job, Project
@@ -383,3 +385,122 @@ def test_manual_offsite_ticket_survives_engine_plan_rebuild(workspace_client):
     assert manual[0]["status"] == "doing"
     assert manual[0]["evidence"][-1]["note"] == "Outreach started"
     assert data["summary"]["total"] == len(data["tasks"])
+
+
+def test_resilient_crawl_evidence_recovers_visible_snapshot_text(tmp_path, monkeypatch):
+    import crawl
+
+    monkeypatch.setattr(workspace.geolib, "WORK", tmp_path)
+    root = tmp_path / "example"
+    evidence = root / "evidence"
+    snapshot = evidence / "html" / "001.html"
+    snapshot.parent.mkdir(parents=True)
+    snapshot.write_text(
+        "<html><head><script>ignored()</script></head><body><main>Visible brand evidence</main></body></html>",
+        "utf-8",
+    )
+    rows = [{
+        "url": "https://example.com",
+        "status": 200,
+        "text": "",
+        "snapshot": "evidence/html/001.html",
+    }]
+    workspace.geolib.write_jsonl(evidence / "pages.jsonl", rows)
+    monkeypatch.setattr(crawl, "run", lambda slug: {"pages_ok": 1, "pages_crawled": 1})
+
+    with resilient_crawl_evidence("example"):
+        result = crawl.run("example")
+
+    pages = workspace.geolib.read_jsonl(evidence / "pages.jsonl")
+    assert result == {"pages_ok": 1, "pages_crawled": 1}
+    assert pages[0]["text"] == "Visible brand evidence"
+
+
+def test_resilient_crawl_evidence_retains_previous_usable_pages(tmp_path, monkeypatch):
+    import crawl
+
+    monkeypatch.setattr(workspace.geolib, "WORK", tmp_path)
+    root = tmp_path / "example"
+    evidence = root / "evidence"
+    evidence.mkdir(parents=True)
+    previous_pages = [{
+        "url": "https://example.com",
+        "status": 200,
+        "text": "Previous verified brand evidence",
+        "snapshot": "evidence/html/001.html",
+    }]
+    previous_site = {"pages_ok": 1, "pages_crawled": 1, "crawled_at": "previous"}
+    workspace.geolib.write_jsonl(evidence / "pages.jsonl", previous_pages)
+    workspace.geolib.write_json(evidence / "site.json", previous_site)
+
+    def empty_run(slug):
+        workspace.geolib.write_jsonl(evidence / "pages.jsonl", [{
+            "url": "https://example.com",
+            "status": 200,
+            "text": "",
+            "snapshot": "evidence/html/002.html",
+        }])
+        workspace.geolib.write_json(evidence / "site.json", {"pages_ok": 1, "pages_crawled": 1, "crawled_at": "current"})
+        return {"pages_ok": 1, "pages_crawled": 1, "crawled_at": "current"}
+
+    monkeypatch.setattr(crawl, "run", empty_run)
+
+    with resilient_crawl_evidence("example"):
+        result = crawl.run("example")
+
+    assert result == previous_site
+    assert workspace.geolib.read_jsonl(evidence / "pages.jsonl") == previous_pages
+    assert workspace.geolib.read_json(evidence / "site.json") == previous_site
+
+
+def test_resilient_crawl_evidence_reports_unextractable_first_crawl(tmp_path, monkeypatch):
+    import crawl
+
+    monkeypatch.setattr(workspace.geolib, "WORK", tmp_path)
+    evidence = tmp_path / "example" / "evidence"
+
+    def empty_run(slug):
+        workspace.geolib.write_jsonl(evidence / "pages.jsonl", [{
+            "url": "https://example.com",
+            "status": 200,
+            "text": "",
+            "snapshot": "evidence/html/001.html",
+        }])
+        return {"pages_ok": 1, "pages_crawled": 1}
+
+    monkeypatch.setattr(crawl, "run", empty_run)
+
+    with resilient_crawl_evidence("example"):
+        with pytest.raises(GeoEngineError, match="JavaScript rendering or block automated crawlers"):
+            crawl.run("example")
+
+
+def test_resilient_crawl_evidence_restores_previous_snapshot_after_crawl_failure(tmp_path, monkeypatch):
+    import crawl
+
+    monkeypatch.setattr(workspace.geolib, "WORK", tmp_path)
+    evidence = tmp_path / "example" / "evidence"
+    snapshot = evidence / "html" / "001.html"
+    snapshot.parent.mkdir(parents=True)
+    snapshot.write_text("<main>Previous snapshot</main>", "utf-8")
+    previous_pages = [{
+        "url": "https://example.com",
+        "status": 200,
+        "text": "Previous verified brand evidence",
+        "snapshot": "evidence/html/001.html",
+    }]
+    workspace.geolib.write_jsonl(evidence / "pages.jsonl", previous_pages)
+
+    def failed_run(slug):
+        snapshot.write_text("<main>Incomplete new snapshot</main>", "utf-8")
+        workspace.geolib.write_jsonl(evidence / "pages.jsonl", [])
+        raise GeoEngineError("Crawl failed: WAF")
+
+    monkeypatch.setattr(crawl, "run", failed_run)
+
+    with resilient_crawl_evidence("example"):
+        with pytest.raises(GeoEngineError, match="Crawl failed: WAF"):
+            crawl.run("example")
+
+    assert workspace.geolib.read_jsonl(evidence / "pages.jsonl") == previous_pages
+    assert snapshot.read_text("utf-8") == "<main>Previous snapshot</main>"

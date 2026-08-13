@@ -50,9 +50,15 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
         calls.append(("preserve", project_slug))
         yield
 
+    @contextmanager
+    def fake_crawl_evidence(project_slug):
+        calls.append(("crawl-evidence", project_slug))
+        yield
+
     monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_autopilot=fake_autopilot))
     monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
     monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
+    monkeypatch.setattr(tasks, "resilient_crawl_evidence", fake_crawl_evidence)
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
@@ -62,6 +68,7 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
     assert calls == [
         ("tenant-a", "example"),
         ("preserve", "example"),
+        ("crawl-evidence", "example"),
         ("autopilot", "example", True, True, None),
         ("delivery", "example"),
     ]
@@ -107,6 +114,40 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
         tasks._action_namespace("publish", {})
     with pytest.raises(ValueError, match="must be between 1 and 1000"):
         tasks._action_namespace("sample", {"limit": 0})
+
+
+def test_pipeline_autopilot_uses_resilient_crawl_evidence(monkeypatch):
+    calls = []
+
+    @contextmanager
+    def fake_context(*args, **kwargs):
+        yield
+
+    @contextmanager
+    def fake_preserve(project_slug):
+        calls.append(("preserve", project_slug))
+        yield
+
+    @contextmanager
+    def fake_crawl_evidence(project_slug):
+        calls.append(("crawl-evidence", project_slug))
+        yield
+
+    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
+    monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
+    monkeypatch.setattr(tasks, "resilient_crawl_evidence", fake_crawl_evidence)
+    monkeypatch.setattr(tasks, "_run_pipeline_action", lambda action, slug, params: calls.append((action, slug)))
+    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: None)
+    monkeypatch.setattr(tasks.measurement, "record_sampling", lambda *args, **kwargs: None)
+
+    tasks.task_pipeline.run("tenant-a", "example", "autopilot", params={"--no-sample": True})
+
+    assert calls == [
+        ("preserve", "example"),
+        ("crawl-evidence", "example"),
+        ("autopilot", "example"),
+    ]
 
 
 def test_funded_context_unifies_historical_project_scope(monkeypatch):
