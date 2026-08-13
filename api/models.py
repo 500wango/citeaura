@@ -22,10 +22,16 @@ from api.db import Base
 
 class Tenant(Base):
     __tablename__ = "tenants"
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'disabled')", name="ck_tenants_status"),
+    )
 
     id = Column(Integer, primary_key=True)
     name = Column(String(128), nullable=False, unique=True)
     plan = Column(String(32), nullable=False, default="trial", server_default="trial")
+    status = Column(String(32), nullable=False, default="active", server_default="active")
+    acquisition_country_code = Column(String(2), nullable=True, index=True)
+    country_source = Column(String(32), nullable=True)
     trial_ends_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -48,10 +54,18 @@ class Tenant(Base):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'disabled')", name="ck_users_status"),
+        CheckConstraint("registration_kind IN ('self_service', 'invited', 'sso')", name="ck_users_registration_kind"),
+    )
 
     id = Column(Integer, primary_key=True)
     email = Column(String(320), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
+    status = Column(String(32), nullable=False, default="active", server_default="active")
+    registration_kind = Column(String(32), nullable=False, default="self_service", server_default="self_service")
+    signup_country_code = Column(String(2), nullable=True, index=True)
+    last_login_at = Column(DateTime(timezone=True), nullable=True, index=True)
     session_version = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -252,6 +266,70 @@ class BillingEvent(Base):
     event_type = Column(String(128), nullable=False)
     payload_sha256 = Column(String(64), nullable=False)
     processed_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class PaymentTransaction(Base):
+    __tablename__ = "payment_transactions"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_event_id", name="uq_payment_transactions_provider_event"),
+        CheckConstraint("status IN ('succeeded', 'failed', 'refunded')", name="ck_payment_transactions_status"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    subscription_id = Column(Integer, ForeignKey("subscriptions.id", ondelete="SET NULL"), nullable=True, index=True)
+    provider = Column(String(32), nullable=False)
+    provider_event_id = Column(String(255), nullable=False)
+    provider_invoice_id = Column(String(255), nullable=True, index=True)
+    status = Column(String(32), nullable=False)
+    currency = Column(String(3), nullable=False)
+    amount_usd_cents = Column(Integer, nullable=True)
+    billing_country_code = Column(String(2), nullable=True, index=True)
+    occurred_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class ProductEvent(Base):
+    __tablename__ = "product_events"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    anonymous_id = Column(String(64), nullable=True, index=True)
+    name = Column(String(64), nullable=False, index=True)
+    country_code = Column(String(2), nullable=True, index=True)
+    properties = Column(Text, nullable=False, default="{}", server_default="{}")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+
+
+class PlatformAdmin(Base):
+    __tablename__ = "platform_admins"
+    __table_args__ = (
+        CheckConstraint("role IN ('support', 'ops', 'finance', 'superadmin')", name="ck_platform_admins_role"),
+        CheckConstraint("status IN ('active', 'disabled')", name="ck_platform_admins_status"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(320), nullable=False, unique=True)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(32), nullable=False, default="superadmin", server_default="superadmin")
+    status = Column(String(32), nullable=False, default="active", server_default="active")
+    session_version = Column(Integer, nullable=False, default=0, server_default="0")
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class AdminAuditEvent(Base):
+    __tablename__ = "admin_audit_events"
+
+    id = Column(Integer, primary_key=True)
+    admin_id = Column(Integer, ForeignKey("platform_admins.id", ondelete="SET NULL"), nullable=True, index=True)
+    action = Column(String(128), nullable=False, index=True)
+    target = Column(String(2048), nullable=False)
+    outcome = Column(String(32), nullable=False)
+    ip_address = Column(String(64), nullable=True)
+    details = Column(Text, nullable=False, default="{}", server_default="{}")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
 
 
 class UsageCounter(Base):

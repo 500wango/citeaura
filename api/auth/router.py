@@ -25,8 +25,11 @@ from api.auth.security import (
     hash_password,
     verify_password,
 )
+from api.country import request_country_code
+from api.analytics.router import request_visitor
 from api.db import get_db
 from api.models import Membership, PasswordResetToken, Tenant, User
+from api.product_events import record_product_event
 from api.team.invitations import invitation_for_token, is_expired
 
 
@@ -131,12 +134,13 @@ def token_response(response: Response, user_id: int, tenant_id: int, db: Session
 
 
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+def register(request: Request, payload: RegisterRequest, db: Session = Depends(get_db)):
     """创建用户、默认租户和 owner membership。"""
     if db.query(User.id).filter(User.email == payload.email).first() is not None:
         _error(status.HTTP_409_CONFLICT, "email_already_registered")
 
     invitation = invitation_for_token(db, payload.invitation_token, for_update=True) if payload.invitation_token else None
+    country_code = request_country_code(request)
     if payload.invitation_token:
         if invitation is None:
             _error(status.HTTP_400_BAD_REQUEST, "invitation_invalid")
@@ -153,10 +157,17 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         tenant = Tenant(
             name=_tenant_name(db, payload.tenant_name, payload.email),
             plan="trial",
+            acquisition_country_code=country_code,
+            country_source="cloudflare_signup" if country_code else None,
             trial_ends_at=datetime.now(timezone.utc) + timedelta(days=14),
         )
 
-    user = User(email=payload.email, password_hash=hash_password(payload.password))
+    user = User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        registration_kind="invited" if invitation else "self_service",
+        signup_country_code=country_code,
+    )
     db.add(user)
     if not payload.invitation_token:
         db.add(tenant)
@@ -164,6 +175,15 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         db.flush()
         role = invitation.role if invitation else "owner"
         db.add(Membership(tenant_id=tenant.id, user_id=user.id, role=role))
+        record_product_event(
+            db,
+            "signup_completed",
+            tenant_id=tenant.id,
+            user_id=user.id,
+            anonymous_id=request_visitor(request),
+            country_code=country_code,
+            properties={"registration_kind": user.registration_kind},
+        )
         if invitation:
             invitation.accepted_at = datetime.now(timezone.utc)
         db.commit()
@@ -198,6 +218,12 @@ def login(request: Request, payload: LoginRequest, response: Response, db: Sessi
     membership = membership_query.order_by(Membership.tenant_id).first()
     if membership is None:
         _error(status.HTTP_403_FORBIDDEN, "no_tenant_membership")
+    tenant = db.get(Tenant, membership.tenant_id)
+    if user.status != "active" or tenant is None or tenant.status != "active":
+        _error(status.HTTP_403_FORBIDDEN, "account_disabled")
+
+    user.last_login_at = datetime.now(timezone.utc)
+    db.commit()
 
     return token_response(
         response,
@@ -227,7 +253,15 @@ def refresh(
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
     user = db.get(User, user_id)
     membership = db.get(Membership, {"tenant_id": tenant_id, "user_id": user_id})
-    if user is None or membership is None or int(claims.get("sv", -1)) != int(user.session_version):
+    tenant = db.get(Tenant, tenant_id)
+    if (
+        user is None
+        or membership is None
+        or tenant is None
+        or user.status != "active"
+        or tenant.status != "active"
+        or int(claims.get("sv", -1)) != int(user.session_version)
+    ):
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
     return token_response(
         response,
@@ -313,8 +347,11 @@ def switch_tenant(
 ):
     """切换到当前用户所属的另一个工作区。"""
     membership = db.get(Membership, {"tenant_id": payload.tenant_id, "user_id": current_user.id})
-    if membership is None:
+    target_tenant = db.get(Tenant, payload.tenant_id)
+    if membership is None or target_tenant is None:
         _error(status.HTTP_404_NOT_FOUND, "tenant_membership_not_found")
+    if target_tenant.status != "active":
+        _error(status.HTTP_403_FORBIDDEN, "account_disabled")
     return token_response(
         response,
         current_user.id,

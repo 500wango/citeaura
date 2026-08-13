@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import BillingEvent, Job, Project, Subscription, Tenant
+from api.models import BillingEvent, Job, PaymentTransaction, Project, Subscription, Tenant
 from api.billing import stripe as stripe_adapter
 from api.projects import router as project_router
 
@@ -286,6 +286,90 @@ def test_signed_webhook_activates_subscription_once(billing_client):
     assert usage["plan"] == "pro"
     assert usage["subscription"]["provider"] == "stripe"
     assert usage["subscription"]["status"] == "active"
+
+
+def test_invoice_payments_and_incremental_refunds_are_recorded_in_usd(billing_client):
+    client, session_factory = billing_client
+    _register(client, "refund-owner@example.com")
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "refund-owner").one()
+        tenant.plan = "pro"
+        db.add(Subscription(
+            tenant_id=tenant.id,
+            plan="pro",
+            billing_interval="monthly",
+            amount_usd_cents=19900,
+            status="active",
+            provider="stripe",
+            provider_subscription_id="sub_refund",
+        ))
+        db.commit()
+
+    paid = _post_stripe_event(client, _stripe_event("evt_invoice_paid", "invoice.paid", {
+        "id": "in_refund",
+        "subscription": "sub_refund",
+        "currency": "usd",
+        "amount_paid": 19900,
+        "created": int(time.time()),
+        "customer_address": {"country": "US"},
+    }))
+    first_refund = _post_stripe_event(client, _stripe_event("evt_refund_first", "charge.refunded", {
+        "id": "ch_refund",
+        "invoice": "in_refund",
+        "currency": "usd",
+        "amount_refunded": 5000,
+        "created": int(time.time()),
+        "billing_details": {"address": {"country": "US"}},
+    }))
+    second_refund = _post_stripe_event(client, _stripe_event("evt_refund_second", "charge.refunded", {
+        "id": "ch_refund",
+        "invoice": "in_refund",
+        "currency": "usd",
+        "amount_refunded": 7500,
+        "created": int(time.time()),
+    }))
+
+    assert paid.json()["processed"] is True
+    assert first_refund.json()["processed"] is True
+    assert second_refund.json()["processed"] is True
+    with session_factory() as db:
+        payments = db.query(PaymentTransaction).order_by(PaymentTransaction.id).all()
+        assert [(item.status, item.amount_usd_cents) for item in payments] == [
+            ("succeeded", 19900),
+            ("refunded", 5000),
+            ("refunded", 2500),
+        ]
+        assert all(item.billing_country_code == "US" for item in payments)
+
+
+def test_invoice_can_arrive_before_checkout_session_webhook(billing_client):
+    client, session_factory = billing_client
+    _register(client, "invoice-first@example.com")
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "invoice-first").one()
+        tenant_id = tenant.id
+
+    invoice = _post_stripe_event(client, _stripe_event("evt_invoice_first", "invoice.paid", {
+        "id": "in_first",
+        "subscription": "sub_invoice_first",
+        "customer": "cus_invoice_first",
+        "currency": "usd",
+        "amount_paid": 19900,
+        "created": int(time.time()),
+        "parent": {"subscription_details": {"metadata": {
+            "tenant_id": str(tenant_id),
+            "plan": "pro",
+            "billing_interval": "monthly",
+        }}},
+    }))
+
+    assert invoice.status_code == 200
+    assert invoice.json()["processed"] is True
+    with session_factory() as db:
+        subscription = db.query(Subscription).one()
+        assert subscription.provider_subscription_id == "sub_invoice_first"
+        assert subscription.status == "active"
+        assert db.query(PaymentTransaction).one().amount_usd_cents == 19900
 
 
 def test_subscription_deleted_webhook_revokes_paid_plan(billing_client):

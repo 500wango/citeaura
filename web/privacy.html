@@ -122,13 +122,16 @@
         <h3>2.1 Account & Workspace Information</h3>
         <p>When you register for a CiteAura workspace, we collect your email address, organization or team name, role, and hashed password. For single sign-on (SSO) users, we process authentication tokens provided by your OpenID Connect (OIDC) identity provider.</p>
 
-        <h3>2.2 Project & Brand Measurement Data</h3>
+        <h3>2.2 Usage & Approximate Location Information</h3>
+        <p>We use a first-party random visitor identifier to measure visits, registrations, activation, and subscription conversion. When traffic passes through our trusted edge network, we retain the two-letter country code associated with registration or a visit for aggregate geographic reporting. We do not require you to provide a country during registration, and we do not retain a precise location for this purpose.</p>
+
+        <h3>2.3 Project & Brand Measurement Data</h3>
         <p>To perform GEO audits and generate engineering tickets, you provide website URLs, target domains, competitor names, and target keyword question sets. This data is stored in tenant-isolated filesystems (Open SSOT) to generate diagnostic reports and deployment assets.</p>
 
-        <h3>2.3 Bring Your Own Key (BYOK) Model Credentials</h3>
+        <h3>2.4 Bring Your Own Key (BYOK) Model Credentials</h3>
         <p>If you configure model API keys (e.g. OpenAI, Anthropic, DeepSeek, Google Gemini, Zhipu AI, Moonshot AI, xAI, Perplexity), your credentials are immediately encrypted at rest using AES-256-GCM. Plaintext API keys are never written to logs, never exposed in client-side responses, and only injected temporarily into isolated worker processes during live sampling executions.</p>
 
-        <h3>2.4 Third-Party Integrations</h3>
+        <h3>2.5 Third-Party Integrations</h3>
         <p>If you choose to connect third-party SEO and analytics integrations (such as Google Search Console, Semrush, or TabAPI/AITDK):</p>
         <ul>
           <li><strong>Google Search Console:</strong> We request read-only access (<code>webmasters.readonly</code>) to fetch search performance statistics (clicks, impressions, queries). OAuth refresh tokens are encrypted at rest.</li>
@@ -166,7 +169,7 @@
 
       <section>
         <h2>6. Cookies & Tracking Technologies</h2>
-        <p>We use strictly necessary HTTP-only session cookies to maintain your authenticated login state and CSRF defense headers. We do not use third-party behavioral tracking cookies or advertising pixels.</p>
+        <p>We use strictly necessary HTTP-only session cookies to maintain your authenticated login state and CSRF defense headers. We also use a first-party HTTP-only random visitor cookie for aggregate registration and conversion measurement. We do not use third-party behavioral tracking cookies or advertising pixels.</p>
       </section>
 
       <section>

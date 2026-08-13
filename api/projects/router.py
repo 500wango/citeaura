@@ -30,6 +30,7 @@ from api.billing.limits import check_project_creation, check_sample_run
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.db import get_db
 from api.models import Job, Project, Tenant, User
+from api.product_events import record_product_event
 from api.worker.tasks import (
     PIPELINE_ACTIONS,
     task_bootstrap,
@@ -693,6 +694,14 @@ def create_project(
         request_json=json.dumps({"skip_llm": skip_llm, "no_sample": no_sample, "job_action": job_action}),
     )
     db.add(job)
+    record_product_event(
+        db,
+        "project_created",
+        tenant_id=tenant.id,
+        user_id=current_user.id,
+        country_code=tenant.acquisition_country_code,
+        properties={"project_id": project.id, "job_action": job_action},
+    )
     db.commit()
     db.refresh(project)
     db.refresh(job)
@@ -1104,6 +1113,14 @@ def sample_project(
     job = Job(project_id=project.id, action="sample", status="queued", stage="queued",
               request_json=_safe_request_json("sample", request_values))
     db.add(job)
+    record_product_event(
+        db,
+        "sample_started",
+        tenant_id=tenant.id,
+        user_id=current_user.id,
+        country_code=tenant.acquisition_country_code,
+        properties={"project_id": project.id, "job_id": job.id},
+    )
     project.status = "sampling"
     db.commit()
     db.refresh(job)

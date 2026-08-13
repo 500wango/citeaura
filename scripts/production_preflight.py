@@ -65,6 +65,7 @@ def validate_environment(values):
         "PUBLIC_BASE_URL", "REDIS_URL", "JWT_SECRET", "AES_KEY", "SESSION_COOKIE_SECURE",
         "RATE_LIMIT_ENABLED", "RATE_LIMIT_REQUESTS", "RATE_LIMIT_AUTH_REQUESTS",
         "RATE_LIMIT_WINDOW_SECONDS", "RATE_LIMIT_TRUST_PROXY_HEADERS",
+        "TRUST_CLOUDFLARE_COUNTRY_HEADER",
     )
     for key in required:
         if not values.get(key):
@@ -105,6 +106,8 @@ def validate_environment(values):
         errors.append("RATE_LIMIT_ENABLED must be true")
     if values.get("RATE_LIMIT_TRUST_PROXY_HEADERS", "").lower() not in ("1", "true", "yes"):
         errors.append("RATE_LIMIT_TRUST_PROXY_HEADERS must be true behind the production proxy")
+    if values.get("TRUST_CLOUDFLARE_COUNTRY_HEADER", "").lower() not in ("1", "true", "yes"):
+        errors.append("TRUST_CLOUDFLARE_COUNTRY_HEADER must be true after restricting the origin to Cloudflare traffic")
     for key, maximum in (("RATE_LIMIT_REQUESTS", 1_000_000), ("RATE_LIMIT_AUTH_REQUESTS", 1_000_000), ("RATE_LIMIT_WINDOW_SECONDS", 3600)):
         try:
             number = int(values.get(key, ""))
@@ -153,8 +156,8 @@ def validate_environment(values):
         webhook_secret = values.get("STRIPE_WEBHOOK_SECRET", "")
         if webhook_secret and not webhook_secret.startswith("whsec_"):
             errors.append("STRIPE_WEBHOOK_SECRET has an invalid format")
-        if values.get("STRIPE_CURRENCY", "").lower() not in ("cny", "usd"):
-            errors.append("STRIPE_CURRENCY must be cny or usd")
+        if values.get("STRIPE_CURRENCY", "").lower() != "usd":
+            errors.append("STRIPE_CURRENCY must be usd")
     else:
         warnings.append("Billing is disabled by BILLING_ENABLED=false")
     google_values = (values.get("GOOGLE_OAUTH_CLIENT_ID"), values.get("GOOGLE_OAUTH_CLIENT_SECRET"))

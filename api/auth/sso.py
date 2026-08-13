@@ -4,6 +4,7 @@ import hmac
 import json
 import re
 import secrets
+from datetime import datetime, timezone
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -17,8 +18,10 @@ from api.auth import oidc
 from api.auth.deps import get_current_user, require_owner
 from api.auth.router import token_response
 from api.auth.security import create_sso_state, decode_token, hash_password
+from api.country import request_country_code
 from api.db import get_db
 from api.models import AuditEvent, Membership, SsoConfiguration, Tenant, User
+from api.product_events import record_product_event
 from api.settings.crypto import decrypt_key, encrypt_key
 
 
@@ -158,6 +161,8 @@ def delete_sso_config(current_user: User = Depends(require_owner), db: Session =
 @router.get("/login/{tenant_id}")
 def start_sso_login(tenant_id: int, response: Response, db: Session = Depends(get_db)):
     tenant = _tenant(db, tenant_id)
+    if tenant.status != "active":
+        _error(status.HTTP_403_FORBIDDEN, "account_disabled")
     configuration = db.get(SsoConfiguration, tenant.id)
     if tenant.plan != "enterprise" or configuration is None or not configuration.enabled:
         _error(status.HTTP_404_NOT_FOUND, "sso_not_configured")
@@ -224,13 +229,30 @@ def sso_callback(
         _error(status.HTTP_403_FORBIDDEN, "sso_domain_not_allowed")
     user = db.query(User).filter(User.email == email).first()
     if user is None:
-        user = User(email=email, password_hash=hash_password(secrets.token_urlsafe(48)))
+        country_code = request_country_code(request)
+        user = User(
+            email=email,
+            password_hash=hash_password(secrets.token_urlsafe(48)),
+            registration_kind="sso",
+            signup_country_code=country_code,
+        )
         db.add(user)
         db.flush()
+        record_product_event(
+            db,
+            "signup_completed",
+            tenant_id=tenant.id,
+            user_id=user.id,
+            country_code=country_code,
+            properties={"registration_kind": "sso"},
+        )
+    elif user.status != "active":
+        _error(status.HTTP_403_FORBIDDEN, "account_disabled")
     membership = db.get(Membership, {"tenant_id": tenant.id, "user_id": user.id})
     if membership is None:
         membership = Membership(tenant_id=tenant.id, user_id=user.id, role=configuration.default_role)
         db.add(membership)
+    user.last_login_at = datetime.now(timezone.utc)
     record_event(
         db, tenant.id, "sso.login", f"sso:{configuration.provider_name}",
         user_id=user.id, ip_address=request.client.host if request.client else None,

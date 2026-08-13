@@ -104,6 +104,22 @@ def test_auth_rejects_duplicate_and_invalid_credentials(client):
     assert invalid.json() == {"error": "invalid_credentials"}
 
 
+def test_disabled_user_cannot_start_a_new_session(client):
+    payload = {"email": "disabled@example.com", "password": "correct-horse-battery"}
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    with client.session_factory() as db:
+        from api.models import User
+
+        user = db.query(User).filter(User.email == payload["email"]).one()
+        user.status = "disabled"
+        db.commit()
+
+    response = client.post("/api/v1/auth/login", json=payload)
+
+    assert response.status_code == 403
+    assert response.json() == {"error": "account_disabled"}
+
+
 def test_me_requires_valid_access_token(client):
     response = client.get("/api/v1/me", headers={"Authorization": "Bearer invalid"})
 

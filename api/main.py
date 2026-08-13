@@ -9,6 +9,8 @@ from sqlalchemy.exc import IntegrityError
 
 from api import config
 from api.adapters.exceptions import DistributedLockError
+from api.admin.router import router as admin_router
+from api.analytics.router import router as analytics_router
 from api.auth.router import router as auth_router
 from api.auth.sso import router as sso_router
 from api.archive.router import router as archive_router
@@ -31,6 +33,9 @@ from api.rate_limit import RateLimitUnavailable, check_request
 app = FastAPI(title="CiteAura API", version="1.0.0", docs_url="/api/docs", redoc_url="/api/redoc")
 app.mount("/site-assets", StaticFiles(directory=WEB_ROOT / "assets"), name="site-assets")
 app.mount("/app", StaticFiles(directory=WEB_ROOT / "app", html=True), name="app")
+app.mount("/admin", StaticFiles(directory=WEB_ROOT / "admin", html=True), name="admin")
+app.include_router(admin_router)
+app.include_router(analytics_router)
 app.include_router(auth_router)
 app.include_router(sso_router)
 app.include_router(archive_router)

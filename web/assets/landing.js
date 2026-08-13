@@ -1,4 +1,5 @@
 /* CiteAura landing interactions: English-only locale, theme, pricing, and guided workspace preview. */
+fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', headers: { Accept: 'application/json' } }).catch(() => {});
 
 (function () {
   'use strict';

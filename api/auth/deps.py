@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.audit import record_event
 from api.db import get_db
-from api.models import Membership, User
+from api.models import Membership, Tenant, User
 from api.auth.security import ACCESS_TOKEN_COOKIE, decode_token
 
 
@@ -49,7 +49,15 @@ def get_current_user(
 
     user = db.get(User, user_id)
     membership = db.get(Membership, {"tenant_id": tenant_id, "user_id": user_id})
-    if user is None or membership is None or int(payload.get("sv", -1)) != int(user.session_version):
+    tenant = db.get(Tenant, tenant_id)
+    if (
+        user is None
+        or membership is None
+        or tenant is None
+        or user.status != "active"
+        or tenant.status != "active"
+        or int(payload.get("sv", -1)) != int(user.session_version)
+    ):
         _unauthorized("invalid_token")
 
     # 后续租户路由统一从 current_user.tenant_id 读取当前 token 的租户。

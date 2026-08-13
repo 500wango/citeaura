@@ -7,6 +7,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, field_validator
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,7 +18,9 @@ from api.billing.plans import PLANS, SUBSCRIBABLE_PLANS
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.billing import stripe as stripe_adapter
 from api.db import get_db
-from api.models import BillingEvent, Subscription, Tenant, User
+from api.country import normalize_country_code
+from api.models import BillingEvent, PaymentTransaction, Subscription, Tenant, User
+from api.product_events import record_product_event
 
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
@@ -185,6 +188,13 @@ def _activate_checkout(db, value):
     tenant.plan = plan_code
     # 付费开通后立即离开试用态，不要求等 trial_ends_at。
     tenant.trial_ends_at = None
+    record_product_event(
+        db,
+        "payment_succeeded",
+        tenant_id=tenant.id,
+        country_code=tenant.acquisition_country_code,
+        properties={"plan": plan_code, "billing_interval": billing_interval, "source": "checkout"},
+    )
     return True
 
 
@@ -246,18 +256,116 @@ def _update_subscription(db, value, deleted=False):
 
 def _update_invoice_status(db, value, paid):
     provider_subscription_id = _stripe_id(value.get("subscription"))
+    parent = value.get("parent") if isinstance(value.get("parent"), dict) else {}
+    details = parent.get("subscription_details") if isinstance(parent.get("subscription_details"), dict) else {}
     if not provider_subscription_id:
-        parent = value.get("parent") if isinstance(value.get("parent"), dict) else {}
-        details = parent.get("subscription_details") if isinstance(parent.get("subscription_details"), dict) else {}
         provider_subscription_id = _stripe_id(details.get("subscription"))
     row = _subscription_row(db, provider_subscription_id)
     if row is None:
-        return False
+        metadata = details.get("metadata") if isinstance(details.get("metadata"), dict) else value.get("metadata")
+        try:
+            tenant_id, plan_code, billing_interval, plan = _validated_selection({"metadata": metadata})
+        except stripe_adapter.StripeError:
+            return False
+        if not provider_subscription_id or db.get(Tenant, tenant_id) is None:
+            return False
+        row = Subscription(
+            tenant_id=tenant_id,
+            plan=plan_code,
+            billing_interval=billing_interval,
+            amount_cny_fen=plan["prices"][billing_interval]["cny"] * 100,
+            amount_usd_cents=plan["prices"][billing_interval]["usd"] * 100,
+            status="active" if paid else "past_due",
+            provider="stripe",
+            provider_customer_id=_stripe_id(value.get("customer")),
+            provider_subscription_id=provider_subscription_id,
+            started_at=_timestamp(value.get("created")),
+        )
+        db.add(row)
+        db.flush()
     if paid and row.status in ("canceled", "unpaid"):
         return False
     row.status = "active" if paid else "past_due"
     db.flush()
     _sync_tenant_plan(db, row.tenant_id)
+    return row
+
+
+def _record_invoice_transaction(db, event, value, subscription, paid):
+    currency = str(value.get("currency") or "").strip().lower()
+    amount_field = "amount_paid" if paid else "amount_due"
+    try:
+        amount = max(0, int(value.get(amount_field) or 0))
+    except (TypeError, ValueError):
+        amount = 0
+    address = value.get("customer_address") if isinstance(value.get("customer_address"), dict) else {}
+    country_code = normalize_country_code(address.get("country"))
+    transaction = PaymentTransaction(
+        tenant_id=subscription.tenant_id,
+        subscription_id=subscription.id,
+        provider="stripe",
+        provider_event_id=event["id"],
+        provider_invoice_id=value.get("id"),
+        status="succeeded" if paid else "failed",
+        currency=currency[:3] if currency else "xxx",
+        amount_usd_cents=amount if currency == "usd" else None,
+        billing_country_code=country_code,
+        occurred_at=_timestamp(value.get("status_transitions", {}).get("paid_at") if paid and isinstance(value.get("status_transitions"), dict) else value.get("created")),
+    )
+    db.add(transaction)
+    tenant = db.get(Tenant, subscription.tenant_id)
+    record_product_event(
+        db,
+        "payment_succeeded" if paid else "payment_failed",
+        tenant_id=subscription.tenant_id,
+        country_code=tenant.acquisition_country_code if tenant is not None else None,
+        properties={"invoice_id": value.get("id"), "currency": currency, "amount": amount},
+    )
+
+
+def _record_refund_transaction(db, event, value):
+    invoice_id = _stripe_id(value.get("invoice"))
+    source = db.query(PaymentTransaction).filter(
+        PaymentTransaction.provider == "stripe",
+        PaymentTransaction.provider_invoice_id == invoice_id,
+        PaymentTransaction.status == "succeeded",
+    ).order_by(PaymentTransaction.id.desc()).first()
+    if source is None:
+        return False
+    currency = str(value.get("currency") or source.currency or "").strip().lower()
+    try:
+        cumulative_amount = max(0, int(value.get("amount_refunded") or 0))
+    except (TypeError, ValueError):
+        cumulative_amount = 0
+    previously_recorded = db.query(func.coalesce(func.sum(PaymentTransaction.amount_usd_cents), 0)).filter(
+        PaymentTransaction.provider == "stripe",
+        PaymentTransaction.provider_invoice_id == invoice_id,
+        PaymentTransaction.status == "refunded",
+    ).scalar() or 0
+    amount = max(0, cumulative_amount - previously_recorded) if currency == "usd" else cumulative_amount
+    billing_details = value.get("billing_details") if isinstance(value.get("billing_details"), dict) else {}
+    address = billing_details.get("address") if isinstance(billing_details.get("address"), dict) else {}
+    country_code = normalize_country_code(address.get("country")) or source.billing_country_code
+    db.add(PaymentTransaction(
+        tenant_id=source.tenant_id,
+        subscription_id=source.subscription_id,
+        provider="stripe",
+        provider_event_id=event["id"],
+        provider_invoice_id=invoice_id,
+        status="refunded",
+        currency=currency[:3] if currency else "xxx",
+        amount_usd_cents=amount if currency == "usd" else None,
+        billing_country_code=country_code,
+        occurred_at=_timestamp(value.get("created")),
+    ))
+    tenant = db.get(Tenant, source.tenant_id)
+    record_product_event(
+        db,
+        "payment_refunded",
+        tenant_id=source.tenant_id,
+        country_code=tenant.acquisition_country_code if tenant is not None else None,
+        properties={"invoice_id": invoice_id, "currency": currency, "amount": amount},
+    )
     return True
 
 
@@ -273,9 +381,17 @@ def _process_stripe_event(db, event):
     if event_type == "customer.subscription.deleted":
         return _update_subscription(db, value, deleted=True)
     if event_type == "invoice.payment_failed":
-        return _update_invoice_status(db, value, paid=False)
+        row = _update_invoice_status(db, value, paid=False)
+        if row:
+            _record_invoice_transaction(db, event, value, row, paid=False)
+        return bool(row)
     if event_type == "invoice.paid":
-        return _update_invoice_status(db, value, paid=True)
+        row = _update_invoice_status(db, value, paid=True)
+        if row:
+            _record_invoice_transaction(db, event, value, row, paid=True)
+        return bool(row)
+    if event_type == "charge.refunded":
+        return _record_refund_transaction(db, event, value)
     return False
 
 
@@ -382,6 +498,15 @@ def subscribe(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"error": str(exc)},
         ) from exc
+    record_product_event(
+        db,
+        "checkout_started",
+        tenant_id=tenant.id,
+        user_id=current_user.id,
+        country_code=tenant.acquisition_country_code,
+        properties={"plan": payload.plan, "billing_interval": payload.billing_interval, "session_id": session["id"]},
+    )
+    db.commit()
     return {
         "plan": payload.plan,
         "billing_interval": payload.billing_interval,

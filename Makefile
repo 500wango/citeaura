@@ -1,4 +1,4 @@
-.PHONY: dev test migrate worker beat preflight
+.PHONY: dev test migrate worker beat preflight create-admin
 
 dev:
 	uvicorn api.main:app --reload
@@ -18,3 +18,6 @@ beat:
 
 preflight:
 	python3 scripts/production_preflight.py --env-file $${ENV_FILE:-.env.production} --skip-certificate
+
+create-admin:
+	python3 -m api.admin.cli create --email "$${EMAIL}" --role "$${ROLE:-superadmin}"

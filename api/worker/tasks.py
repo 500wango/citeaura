@@ -16,7 +16,8 @@ from api.adapters.workspace import ensure_global_engine_scope, preserve_manual_t
 from api.billing.limits import check_sample_run
 from api.billing.platform_pool import meter_platform_calls, record_usage, resolve_funding
 from api.db import SessionLocal
-from api.models import IntegrationCredential, Job, Project, Tenant
+from api.models import IntegrationCredential, Job, ProductEvent, Project, Tenant
+from api.product_events import record_product_event
 from api.settings.crypto import decrypt_key
 from api.worker.celery_app import celery_app
 
@@ -528,6 +529,15 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                 job.error = None
                 if project is not None:
                     project.status = "ready"
+                    tenant = db.get(Tenant, project.tenant_id)
+                    event_name = "sample_completed" if job.action in ("sample", "autopilot", "serve", "cycle") else "job_completed"
+                    record_product_event(
+                        db,
+                        event_name,
+                        tenant_id=project.tenant_id,
+                        country_code=tenant.acquisition_country_code if tenant is not None else None,
+                        properties={"project_id": project.id, "job_id": job.id, "action": job.action},
+                    )
 
             _job_transaction(mark_complete)
         _append_job_event(log_path, f"{action} done")
