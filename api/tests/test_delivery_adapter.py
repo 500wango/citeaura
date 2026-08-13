@@ -249,6 +249,38 @@ def test_delivery_manifest_separates_ready_review_and_template_assets(tmp_path, 
     assert "Ready to deploy" in (output / "index.md").read_text("utf-8")
 
 
+def test_delivery_manifest_rejects_jsonld_path_placeholders(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    _write_json(project / "assets" / "jsonld" / "breadcrumb.json", {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [{
+            "@type": "ListItem", "position": 1,
+            "name": "<section>", "item": "https://example.com/<path>",
+        }],
+    })
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    records = {item["path"]: item for item in index["assets"]}
+    record = records["templates/jsonld/breadcrumb.json"]
+    assert record["status"] == "template"
+    assert "Contains unresolved placeholders" in record["issues"]
+    assert not (output / "assets" / "jsonld" / "breadcrumb.json").exists()
+
+
+def test_delivery_labels_english_pages_as_content_threshold(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    report = (output / "01-Audit-Report.md").read_text("utf-8")
+    assert "English content pages (120+ words)" in report
+
+
 def test_delivery_outlines_are_specific_to_question_intent(tmp_path, monkeypatch):
     project, output = seed_delivery_project(tmp_path)
     blueprint = json.loads((project / "blueprint.json").read_text("utf-8"))

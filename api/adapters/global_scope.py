@@ -36,6 +36,75 @@ GLOBAL_CHANNEL_NAMES = {
     "linkedin": "LinkedIn",
 }
 
+# 渠道必须由项目画像选择，不能把某一个行业的渠道硬编码给所有客户。
+CHANNEL_STRATEGIES = {
+    "manufacturer": [
+        ("official_en", "English Official Site", "P0"),
+        ("b2b_marketplaces", "B2B Manufacturing Marketplaces", "P1"),
+        ("trade_media", "Trade Media and Buyer Publications", "P1"),
+        ("certification", "Certification and Compliance Registries", "P1"),
+        ("linkedin", "LinkedIn", "P1"),
+        ("youtube", "YouTube", "P1"),
+        ("buyer_communities", "Buyer Communities and Industry Associations", "P2"),
+        ("wikipedia", "Wikipedia (only if independently notable)", "P2"),
+    ],
+    "software": [
+        ("official_en", "English Official Site", "P0"),
+        ("docs", "Product Documentation and API Reference", "P0"),
+        ("review", "Software Review Platforms", "P1"),
+        ("developer_community", "Developer Communities and Technical Media", "P1"),
+        ("youtube", "YouTube", "P1"),
+        ("linkedin", "LinkedIn", "P1"),
+        ("industry_media", "Software Industry Media", "P2"),
+        ("wikipedia", "Wikipedia (only if independently notable)", "P2"),
+    ],
+    "service": [
+        ("official_en", "English Official Site", "P0"),
+        ("linkedin", "LinkedIn", "P1"),
+        ("industry_directories", "Industry Directories and Professional Associations", "P1"),
+        ("trade_media", "Trade Media and Expert Publications", "P1"),
+        ("youtube", "YouTube", "P1"),
+        ("customer_communities", "Customer Communities and Q&A Sources", "P2"),
+        ("industry_media", "Industry Media", "P2"),
+        ("wikipedia", "Wikipedia (only if independently notable)", "P2"),
+    ],
+    "commerce": [
+        ("official_en", "English Official Site", "P0"),
+        ("shopping_feeds", "Search and Shopping Product Feeds", "P0"),
+        ("marketplaces", "Relevant Retail Marketplaces", "P1"),
+        ("review_communities", "Product Review and Customer Communities", "P1"),
+        ("youtube", "YouTube", "P1"),
+        ("social_discovery", "Visual and Social Discovery Channels", "P1"),
+        ("consumer_media", "Consumer and Category Media", "P2"),
+    ],
+    "publisher": [
+        ("official_en", "Primary Publication and Content Archive", "P0"),
+        ("news_feeds", "Search, News, and Publisher Feeds", "P0"),
+        ("syndication", "Relevant Content Syndication Partners", "P1"),
+        ("expert_sources", "Expert Profiles and Primary Source Networks", "P1"),
+        ("youtube", "YouTube", "P1"),
+        ("social_distribution", "Relevant Social Distribution Channels", "P2"),
+        ("industry_media", "Peer Publications and Industry Media", "P2"),
+    ],
+    "generic": [
+        ("official_en", "English Official Site", "P0"),
+        ("linkedin", "LinkedIn", "P1"),
+        ("industry_directories", "Relevant Industry Directories", "P1"),
+        ("industry_media", "Relevant Industry Media", "P1"),
+        ("youtube", "YouTube", "P2"),
+        ("customer_communities", "Relevant Customer Communities", "P2"),
+        ("wikipedia", "Wikipedia (only if independently notable)", "P2"),
+    ],
+}
+
+PROFILE_RULES = (
+    ("manufacturer", ("manufacturer", "manufacturing", "oem", "odm", "factory", "private label", "contract production", "制造", "工厂", "代工", "生产商")),
+    ("software", ("software", "saas", "api platform", "developer tool", "cloud platform", "web application", "software platform", "软件", "开发者工具", "云平台")),
+    ("service", ("consulting", "agency", "professional service", "law firm", "accounting", "advisory", "studio", "咨询", "代理服务", "专业服务", "事务所")),
+    ("commerce", ("ecommerce", "e-commerce", "online store", "retail brand", "consumer products", "shop", "电商", "零售", "消费品牌", "网店")),
+    ("publisher", ("publisher", "publication", "newsroom", "magazine", "editorial", "media company", "出版社", "新闻", "杂志", "媒体")),
+)
+
 TASK_COPY = {
     "补 sitemap.xml 并提交各搜索引擎": {
         "title": "Add sitemap.xml and submit it to international search engines",
@@ -56,6 +125,62 @@ TASK_COPY = {
 
 def contains_han(value):
     return bool(HAN.search(str(value or "")))
+
+
+def infer_business_profile(config):
+    """从项目画像推断渠道策略；信息不足时返回通用策略并降低置信度。"""
+    brand = config.get("brand") if isinstance(config, dict) and isinstance(config.get("brand"), dict) else {}
+    industry = str(brand.get("industry") or "").lower()
+    fields = [brand.get("target_users"), brand.get("business_goal")]
+    fields += brand.get("products") if isinstance(brand.get("products"), list) else []
+    supporting = " ".join(str(value or "").lower() for value in fields if value)
+    matches = []
+    for profile, keywords in PROFILE_RULES:
+        industry_hits = [keyword for keyword in keywords if keyword in industry]
+        support_hits = [keyword for keyword in keywords if keyword in supporting]
+        hits = list(dict.fromkeys(industry_hits + support_hits))
+        if hits:
+            matches.append((len(industry_hits) * 3 + len(support_hits), profile, industry_hits, hits))
+    if matches:
+        _score, profile, industry_hits, hits = max(matches, key=lambda item: item[0])
+        evidence = []
+        if industry_hits:
+            evidence.append(f"brand.industry matched the {profile} profile")
+        if len(hits) > len(industry_hits):
+            evidence.append(f"brand products, audience, or business goal matched the {profile} profile")
+        return {
+            "id": profile,
+            "label": profile.replace("_", " ").title(),
+            "confidence": "high" if industry_hits else "medium",
+            "evidence": evidence,
+        }
+    return {
+        "id": "generic",
+        "label": "General business",
+        "confidence": "low",
+        "evidence": [],
+    }
+
+
+def _profile_channels(profile, existing):
+    existing_by_id = {
+        str(channel.get("id")): channel
+        for channel in existing
+        if isinstance(channel, dict) and channel.get("market") == "global"
+    }
+    rows = []
+    for channel_id, name, priority in CHANNEL_STRATEGIES[profile["id"]]:
+        previous = existing_by_id.get(channel_id, {})
+        rows.append({
+            **previous,
+            "id": channel_id,
+            "name": name,
+            "priority": priority,
+            "market": "global",
+            "covered": bool(previous.get("covered")),
+            "strategy_profile": profile["id"],
+        })
+    return rows
 
 
 def is_global_sample(row):
@@ -147,9 +272,9 @@ def _rate(items, predicate):
     return round(sum(1 for item in items if predicate(item)) / len(items), 3) if items else 0
 
 
-def normalize_blueprint_data(blueprint):
+def normalize_blueprint_data(blueprint, *, profile=None):
     current = deepcopy(blueprint) if isinstance(blueprint, dict) else {}
-    channels = [
+    existing_channels = [
         {
             **channel,
             "name": GLOBAL_CHANNEL_NAMES.get(channel.get("id"), channel.get("name")),
@@ -158,6 +283,8 @@ def normalize_blueprint_data(blueprint):
         for channel in current.get("channels", [])
         if isinstance(channel, dict) and channel.get("market") == "global"
     ]
+    profile = profile if isinstance(profile, dict) and profile.get("id") in CHANNEL_STRATEGIES else None
+    channels = _profile_channels(profile, existing_channels) if profile else existing_channels
     contents = normalize_questions([
         {
             **content,
@@ -208,6 +335,7 @@ def normalize_blueprint_data(blueprint):
     return {
         **current,
         "market": "global",
+        **({"channel_strategy": profile} if profile else {}),
         "channels": channels,
         "contents": contents,
         "coverage": coverage,
@@ -221,7 +349,9 @@ def normalize_blueprint(project_slug):
         return None
     with geolib.project_lock(project_slug):
         current = geolib.read_json(path, {}) or {}
-        normalized = normalize_blueprint_data(current)
+        config = geolib.load_config(project_slug)
+        profile = infer_business_profile(config)
+        normalized = normalize_blueprint_data(current, profile=profile)
         if normalized != current:
             geolib.write_json(path, normalized)
         return normalized

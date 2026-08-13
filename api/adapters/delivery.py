@@ -30,7 +30,7 @@ HAN_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\U00020000-\U
 UNICODE_ESCAPE_PATTERN = re.compile(r"\\u([0-9a-fA-F]{4})")
 TEXT_SUFFIXES = frozenset((".md", ".html", ".csv", ".json", ".txt", ".xml", ".js", ".css"))
 PLACEHOLDER_PATTERN = re.compile(
-    r"(?i)(\[\s*add\b|<\s*add\b|\b(?:todo|tbd)\b|replace every bracketed placeholder|configured global target question)"
+    r"(?i)(\[\s*add\b|<\s*add\b|<\s*(?:section|path|column|value|url)\s*>|\b(?:todo|tbd)\b|replace every bracketed placeholder|configured global target question)"
 )
 
 MARKET_NAMES = {
@@ -516,7 +516,7 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
         f"| llms.txt | {'Present' if site_data.get('has_llms_txt') else 'Missing'} |",
         f"| AI crawlers blocked | {', '.join(site_data.get('ai_bots_blocked') or []) or 'None'} |",
         f"| Accessible pages | {site_data.get('pages_ok', 0)}/{site_data.get('pages_crawled', 0)} |",
-        f"| English pages | {coverage.get('en_pages', 0)} |",
+        f"| English content pages (120+ words) | {coverage.get('en_pages', 0)} |",
         "",
         "## Grade Distribution",
         "",
@@ -762,6 +762,8 @@ def _risk_markdown(name, lint):
 
 def _channel_name(channel):
     channel_id = str(channel.get("id") or "")
+    if channel.get("strategy_profile") and channel.get("name"):
+        return _require_english(channel["name"], "blueprint channel name")
     if channel_id in CHANNEL_NAMES:
         return CHANNEL_NAMES[channel_id]
     return _require_english(channel.get("name") or channel_id or "Configured channel", "blueprint channel name")
@@ -807,6 +809,20 @@ def _build_map_markdown(name, blueprint):
         f"- P0/P1 channel coverage: **{coverage.get('p0p1_covered', 0)}/{coverage.get('p0p1_total', 0)}**",
         f"- Content completed: **{coverage.get('content_done', 0)}/{coverage.get('content_total', 0)}**",
         "",
+    ]
+    strategy = blueprint.get("channel_strategy") or {}
+    if strategy:
+        lines += [
+            f"- Strategy profile: **{strategy.get('label', 'Configured profile')}**",
+            f"- Profile confidence: **{strategy.get('confidence', 'unknown').title()}**",
+        ]
+        evidence = strategy.get("evidence") or []
+        if evidence:
+            lines.append(f"- Profile evidence: {', '.join(str(item) for item in evidence)}")
+        if strategy.get("confidence") == "low":
+            lines.append("- Review required: project metadata was insufficient, so neutral cross-industry channels were used.")
+        lines.append("")
+    lines += [
         "## Channel Map",
         "",
         "| Priority | Channel | Market | Coverage | Evidence |",
@@ -1324,6 +1340,15 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         f"- Action tickets: {len(tickets)}",
         f"- Channel coverage: {coverage.get('channel_covered', 0)}/{coverage.get('channel_total', 0)}",
         "",
+    ]
+    strategy = blueprint.get("channel_strategy") or {}
+    if strategy:
+        lines += [
+            f"- Channel strategy: {strategy.get('label', 'Configured profile')} (confidence: {strategy.get('confidence', 'unknown')})",
+            "- Channel recommendations are selected from the project business profile; review low-confidence profiles before execution.",
+            "",
+        ]
+    lines += [
         "## Documents",
         "",
     ]

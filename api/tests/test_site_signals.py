@@ -101,6 +101,51 @@ def test_crawl_context_filters_unsafe_candidates_and_reports_statuses(monkeypatc
         crawl.check_crawl_health = original_health
 
 
+def test_crawl_context_uses_server_rendered_body_when_main_is_loading(monkeypatch):
+    import crawl
+
+    html = """
+    <html lang="en"><body>
+      <header>Navigation</header><main>Loading...</main>
+      <div id="S:2"><h1>Industrial Laundry Pod Manufacturing</h1>
+      <p>LANCCO is an OEM and ODM manufacturing partner for private-label brands,
+      importers, distributors, and hospitality buyers around the world.</p>
+      <p>Its static page describes formula development, packaging customization,
+      quality inspection, export documentation, delivery planning, and production capacity.</p>
+      </div><footer>Copyright</footer>
+    </body></html>
+    """
+    response = {"html": html, "status": 200, "final_url": "https://example.com/en", "error": None}
+    monkeypatch.setattr(site_signals, "validate_project_signals", lambda slug: {"slug": slug})
+    monkeypatch.setattr(crawl, "analyze_page", lambda url, res: {
+        "url": url, "status": 200, "text": "Loading...", "word_count": 1,
+        "lang": "en", "language": "en", "cjk_ratio": 0,
+    })
+
+    with site_signals.semantic_site_signals("example"):
+        page = crawl.analyze_page("https://example.com/en", response)
+
+    assert page["word_count"] > 30
+    assert "manufacturing partner" in page["text"]
+    assert "Navigation" not in page["text"]
+    assert page["extraction_fallback"] == "static_body"
+
+
+def test_static_body_fallback_does_not_replace_usable_engine_text():
+    existing = " ".join(["verified"] * 120)
+    page = {
+        "status": 200, "text": existing, "word_count": 120,
+        "lang": "en", "language": "en", "cjk_ratio": 0,
+    }
+
+    result = site_signals._repair_static_page(page, {
+        "html": "<html><body><p>different fallback body</p></body></html>",
+    })
+
+    assert result is page
+    assert "extraction_fallback" not in result
+
+
 def test_signal_validation_rejects_cross_site_redirect():
     response = _response(
         "# Example\n\n## Facts\n\n- One sufficiently detailed verified fact for the requested website.\n- Another fact.",

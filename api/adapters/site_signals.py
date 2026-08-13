@@ -16,6 +16,7 @@ from api.adapters.network import NetworkTargetError, validate_outbound_url
 MAX_SIGNAL_BYTES = 2 * 1024 * 1024
 MAX_REDIRECTS = 3
 HTML_MARKERS = re.compile(r"(?is)<\s*(?:!doctype\s+html|html|head|body|script|div)\b")
+STATIC_BOILERPLATE = re.compile(r"(nav|header|footer|sidebar|menu|breadcrumb|cookie|banner|advert)", re.I)
 
 
 def _same_site(source, target):
@@ -136,6 +137,45 @@ def _crawl_failure(pages):
     return f"Crawl failed: 0/{len(pages)} pages returned 200. Responses: {summary}. {action} Examples: {detail}"
 
 
+def _static_body_text(html):
+    """从 React/Next 流式 HTML 的 body 提取服务端已输出的正文。"""
+    soup = geolib.parse_html(html)
+    body = soup.body or soup
+    clone = geolib.parse_html(str(body))
+    for tag in clone(("script", "style", "noscript", "svg", "iframe", "form", "template")):
+        tag.decompose()
+    for tag in clone.find_all(["nav", "header", "footer"]):
+        tag.decompose()
+    for tag in reversed(clone.find_all(True)):
+        if tag.get_text(" ", strip=True).lower() == "loading...":
+            tag.decompose()
+            continue
+        classes = " ".join(tag.get("class") or [])
+        if STATIC_BOILERPLATE.search(classes) or STATIC_BOILERPLATE.search(str(tag.get("id") or "")):
+            tag.decompose()
+    return re.sub(r"\n{3,}", "\n\n", clone.get_text("\n", strip=True))
+
+
+def _repair_static_page(page, response):
+    """保留引擎口径，同时补偿 main=Loading 的 Next.js 页面。"""
+    if not isinstance(page, dict) or int(page.get("status") or 0) != 200:
+        return page
+    current_text = str(page.get("text") or "")
+    current_words = max(int(page.get("word_count") or 0), 0)
+    if current_words >= 120:
+        return page
+    fallback_text = _static_body_text((response or {}).get("html") or "")
+    if geolib.word_count(fallback_text) <= current_words:
+        return page
+    page = dict(page)
+    page["text"] = fallback_text[:20000]
+    page["word_count"] = geolib.word_count(page["text"])
+    page["language"] = geolib.page_language(page["text"], page.get("lang", ""))
+    page["cjk_ratio"] = geolib.cjk_ratio(page["text"])
+    page["extraction_fallback"] = "static_body"
+    return page
+
+
 def _fetch(url, timeout=10):
     try:
         current = validate_outbound_url(url, require_https=False)
@@ -224,6 +264,7 @@ def semantic_site_signals(project_slug):
     original_run = engine_crawl.run
     original_rank = engine_crawl.rank
     original_health = engine_crawl.check_crawl_health
+    original_analyze = engine_crawl.analyze_page
 
     def rank_safe_candidates(urls, root):
         ranked = original_rank(urls, root)
@@ -242,6 +283,9 @@ def semantic_site_signals(project_slug):
             raise GeoEngineError(_crawl_failure(pages))
         return original_health(pages)
 
+    def analyze_with_static_fallback(url, response):
+        return _repair_static_page(original_analyze(url, response), response)
+
     def run_with_validation(slug, *args, **kwargs):
         result = original_run(slug, *args, **kwargs)
         return validate_project_signals(project_slug) if slug == project_slug else result
@@ -249,9 +293,11 @@ def semantic_site_signals(project_slug):
     engine_crawl.run = run_with_validation
     engine_crawl.rank = rank_safe_candidates
     engine_crawl.check_crawl_health = check_with_diagnostics
+    engine_crawl.analyze_page = analyze_with_static_fallback
     try:
         yield
     finally:
         engine_crawl.run = original_run
         engine_crawl.rank = original_rank
         engine_crawl.check_crawl_health = original_health
+        engine_crawl.analyze_page = original_analyze

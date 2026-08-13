@@ -81,6 +81,40 @@ def test_blueprint_and_tasks_remove_domestic_recommendations():
     assert all(task["market"] == "global" for task in tasks["tasks"])
 
 
+def test_channel_strategy_is_selected_per_project_profile():
+    manufacturer = global_scope.infer_business_profile({
+        "brand": {"industry": "Laundry detergent OEM/ODM manufacturer"},
+    })
+    software = global_scope.infer_business_profile({
+        "brand": {"industry": "B2B SaaS software platform", "products": ["API"]},
+    })
+    service = global_scope.infer_business_profile({
+        "brand": {"industry": "Professional consulting services"},
+    })
+    unknown = global_scope.infer_business_profile({"brand": {"industry": ""}})
+
+    assert manufacturer["id"] == "manufacturer"
+    assert software["id"] == "software"
+    assert service["id"] == "service"
+    assert unknown == {
+        "id": "generic", "label": "General business", "confidence": "low", "evidence": [],
+    }
+
+    manufacturer_blueprint = global_scope.normalize_blueprint_data({}, profile=manufacturer)
+    software_blueprint = global_scope.normalize_blueprint_data({}, profile=software)
+    unknown_blueprint = global_scope.normalize_blueprint_data({}, profile=unknown)
+    manufacturer_ids = {item["id"] for item in manufacturer_blueprint["channels"]}
+    software_ids = {item["id"] for item in software_blueprint["channels"]}
+    unknown_ids = {item["id"] for item in unknown_blueprint["channels"]}
+
+    assert {"b2b_marketplaces", "certification", "trade_media"} <= manufacturer_ids
+    assert "review" not in manufacturer_ids
+    assert {"docs", "review", "developer_community"} <= software_ids
+    assert "b2b_marketplaces" not in software_ids
+    assert "industry_directories" in unknown_ids
+    assert unknown_blueprint["channel_strategy"]["confidence"] == "low"
+
+
 def test_project_normalization_updates_files(tmp_path, monkeypatch):
     project = tmp_path / "example"
     project.mkdir()
