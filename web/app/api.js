@@ -177,7 +177,12 @@ export const projects = {
   getVerifyHistory: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/verify/history`), 'history', []),
 
   triggerDeliver: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/deliver`, { method: 'POST' }),
-  getDeliveries: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/deliveries`), 'deliveries', []),
+  getDeliveries: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/deliveries`).then((data) => {
+    if (data && Array.isArray(data.packages)) return data.packages;
+    return (responseField(data, 'deliveries', []) || []).map((item) => (
+      typeof item === 'string' ? { date: item, readiness: 'unknown', asset_summary: {} } : item
+    ));
+  }),
   getDeliveryDownloadUrl: (id, date) => `/api/v1/projects/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(date)}`,
 };
 

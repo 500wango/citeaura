@@ -188,7 +188,7 @@ def test_delivery_contract_rebuilds_mixed_language_llms_asset(tmp_path, monkeypa
 
     delivery.ensure_delivery_contract("example", output)
 
-    text = (output / "assets" / "llms.en.txt").read_text("utf-8")
+    text = (output / "assets" / "templates" / "llms.en.txt").read_text("utf-8")
     assert "# Example" in text
     assert "https://example.com" in text
     assert "approved one-sentence English brand definition" in text
@@ -217,13 +217,61 @@ def test_delivery_contract_normalizes_generated_jsonld_values(tmp_path, monkeypa
 
     delivery.ensure_delivery_contract("example", output)
 
-    faq = json.loads((output / "assets" / "jsonld" / "faq-page.json").read_text("utf-8"))
-    software = json.loads((output / "assets" / "jsonld" / "software.json").read_text("utf-8"))
+    faq = json.loads((output / "assets" / "templates" / "jsonld" / "faq-page.json").read_text("utf-8"))
+    software = json.loads((output / "assets" / "templates" / "jsonld" / "software.json").read_text("utf-8"))
     assert faq["mainEntity"][0]["name"] == "Configured Global target question 1"
     assert faq["mainEntity"][0]["acceptedAnswer"]["text"] == "[Add a direct English answer followed by supporting evidence.]"
     assert software["description"] == "[Add the approved English brand description.]"
     assert software["offers"][0]["priceCurrency"] == "USD"
     assert delivery.delivery_language_violations(output) == []
+
+
+def test_delivery_manifest_separates_ready_review_and_template_assets(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    _write_json(project / "assets" / "jsonld" / "organization-ready.json", {
+        "@context": "https://schema.org", "@type": "Organization", "name": "Example",
+        "url": "https://example.com", "sameAs": [],
+    })
+    draft = project / "assets" / "drafts" / "q001.md"
+    draft.parent.mkdir(parents=True)
+    draft.write_text("# What is Example?\n\nExample is a software platform. Verify this claim before publication.\n", "utf-8")
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    records = {item["path"]: item for item in index["assets"]}
+    assert index["readiness"] == "review_required"
+    assert records["jsonld/organization-ready.json"]["status"] == "ready"
+    assert records["drafts/q001.md"]["status"] == "needs_review"
+    assert records["templates/llms.en.txt"]["status"] == "template"
+    assert "Contains unresolved placeholders" in records["templates/llms.en.txt"]["issues"]
+    assert "Ready to deploy" in (output / "index.md").read_text("utf-8")
+
+
+def test_delivery_outlines_are_specific_to_question_intent(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    blueprint = json.loads((project / "blueprint.json").read_text("utf-8"))
+    blueprint["contents"] = [
+        {
+            "id": "q001", "market": "global", "group": "comparison",
+            "question": "How does Example compare with Acme?", "form": "Comparison page", "status": "gap",
+        },
+        {
+            "id": "q002", "market": "global", "group": "pricing",
+            "question": "How much does Example cost?", "form": "Pricing guide", "status": "gap",
+        },
+    ]
+    _write_json(project / "blueprint.json", blueprint)
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    comparison = (output / "assets" / "templates" / "outlines" / "q001.md").read_text("utf-8")
+    pricing = (output / "assets" / "templates" / "outlines" / "q002.md").read_text("utf-8")
+    assert "Criterion-by-criterion comparison" in comparison
+    assert "Worked cost scenarios" in pricing
+    assert comparison != pricing
 
 
 def test_language_validator_detects_paths_entities_and_json_escapes(tmp_path):

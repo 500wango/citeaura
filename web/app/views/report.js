@@ -5,7 +5,7 @@
 import { projects } from '../api.js';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { gradeBadge } from '../components/badge.js';
+import { gradeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
 
 export default {
@@ -29,6 +29,16 @@ export default {
 
     const overallGrade = report && report.grade;
     const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : 'Unmeasured';
+    const quality = report && report.report_quality;
+    const confidence = quality && quality.confidence;
+    const confidenceLabel = confidence && confidence.label ? confidence.label : 'No baseline';
+    const assetTotals = deliveries.reduce((totals, item) => {
+      const summary = item && item.asset_summary ? item.asset_summary : {};
+      totals.ready += Number(summary.ready || 0);
+      totals.needs_review += Number(summary.needs_review || 0);
+      totals.template += Number(summary.template || 0);
+      return totals;
+    }, { ready: 0, needs_review: 0, template: 0 });
 
     return `
       <div class="app-view-container">
@@ -36,7 +46,7 @@ export default {
           <div class="view-title-group">
             <h1 class="view-title">${t('report.title', {}, 'Deliverables & Client Delivery Packs')}</h1>
             <p class="view-desc">
-              ${t('report.desc', {}, 'Export audit decks, action matrices, ticket logs, before/after comparisons, and ready-to-deploy structured assets.')}
+              ${t('report.desc', {}, 'Export audit decks, action matrices, ticket logs, comparisons, and explicitly classified implementation assets.')}
             </p>
           </div>
           <div class="view-actions">
@@ -52,6 +62,7 @@ export default {
           <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:var(--sp-3);">
             <div style="display:flex;align-items:center;gap:var(--sp-3);">
               ${overallGrade ? gradeBadge(overallGrade) : '<span class="tag tag-dim">Unmeasured</span>'}
+              ${statusPill(confidence && confidence.sufficient ? 'good' : 'warning', confidenceLabel)}
               <div>
                 <strong style="font-size:var(--fs-4);">${t('report.exec_summary', {}, 'Executive Audit Summary')}</strong>
                 <div style="color:var(--muted);font-size:var(--fs-2);">Latest measured API and site-audit artifacts</div>
@@ -75,8 +86,8 @@ export default {
             </div>
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
               <span class="kicker">03 · Assets</span>
-              <strong style="font-size:var(--fs-2);margin-top:2px;">Deployable Assets</strong>
-              <span style="font-size:11px;color:var(--muted);margin-top:2px;">JSON-LD, /llms.txt, blocks</span>
+              <strong style="font-size:var(--fs-2);margin-top:2px;">Asset readiness</strong>
+              <span style="font-size:11px;color:var(--muted);margin-top:2px;">${assetTotals.ready} ready · ${assetTotals.needs_review} review · ${assetTotals.template} templates</span>
             </div>
           </div>
         </div>
@@ -111,7 +122,10 @@ export default {
                           <span class="num" style="font-weight:700;font-size:var(--fs-3);">${dateStr}</span>
                         </td>
                         <td>
-                          <span style="font-size:var(--fs-2);color:var(--muted);">index.html, 01~06 markdown documentation, and /assets zip</span>
+                          <div style="display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;">
+                            ${statusPill(d.readiness === 'customer_ready' ? 'good' : 'warning', d.readiness === 'customer_ready' ? 'Ready for customer review' : d.readiness === 'review_required' ? 'Review required' : 'Status unavailable')}
+                            <span style="font-size:var(--fs-2);color:var(--muted);">${Number((d.asset_summary || {}).ready || 0)} ready · ${Number((d.asset_summary || {}).needs_review || 0)} review · ${Number((d.asset_summary || {}).template || 0)} templates</span>
+                          </div>
                         </td>
                         <td style="text-align:right;">
                           <a href="${dlUrl}" class="btn btn-secondary btn-sm" download>

@@ -46,10 +46,10 @@ TASK_COPY = {
         "why": "A curated official facts index gives AI systems a stable source of truth.",
     },
     "百科词条（实体消歧地基）": {
-        "title": "Create a Wikipedia entry for entity disambiguation",
-        "why": "A well-sourced Wikipedia entry strengthens entity resolution across global AI systems.",
-        "action": "Prepare an English Wikipedia entry supported by independent, reliable third-party sources.",
-        "acceptance": "The Wikipedia entry passes editorial review and is publicly available.",
+        "title": "Assess independent-source notability before encyclopedia work",
+        "why": "An encyclopedia entry is appropriate only when substantial independent reliable coverage already establishes notability.",
+        "action": "Review independent sources before drafting. If the threshold is not met, strengthen the owned facts library and verified third-party profiles instead.",
+        "acceptance": "Record at least three substantial independent reliable sources, or document the non-encyclopedia alternative and its evidence.",
     },
 }
 

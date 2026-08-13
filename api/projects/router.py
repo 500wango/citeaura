@@ -1550,14 +1550,22 @@ def deliver_project(project_id: int, current_user: User = Depends(require_editor
 
 @router.get("/{project_id}/deliveries")
 def deliveries(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """返回已生成的交付日期列表。"""
+    """返回已生成的交付包及其资产就绪状态。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     with with_tenant_context(tenant.name, project.slug):
         directory = geolib.project_dir(project.slug) / "delivery"
-        dates = sorted((item.name for item in directory.iterdir() if item.is_dir()), reverse=True) \
+        packages = []
+        directories = sorted((item for item in directory.iterdir() if item.is_dir()), reverse=True) \
             if directory.exists() else []
-    return {"deliveries": dates}
+        for item in directories:
+            asset_index = geolib.read_json(item / "assets" / "index.json", {}) or {}
+            packages.append({
+                "date": item.name,
+                "readiness": asset_index.get("readiness", "unknown"),
+                "asset_summary": asset_index.get("summary") or {"ready": 0, "needs_review": 0, "template": 0},
+            })
+    return {"deliveries": [item["date"] for item in packages], "packages": packages}
 
 
 @router.get("/{project_id}/deliveries/{delivery_date}")

@@ -14,7 +14,7 @@ from api.adapters.branding import apply_delivery_branding
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
 from api.adapters.localization import localize_ticket
-from api.adapters import global_scope
+from api.adapters import global_scope, measurement
 
 
 REQUIRED_DOCUMENTS = {
@@ -29,6 +29,9 @@ REQUIRED_DOCUMENTS = {
 HAN_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\U00020000-\U0002fa1f]")
 UNICODE_ESCAPE_PATTERN = re.compile(r"\\u([0-9a-fA-F]{4})")
 TEXT_SUFFIXES = frozenset((".md", ".html", ".csv", ".json", ".txt", ".xml", ".js", ".css"))
+PLACEHOLDER_PATTERN = re.compile(
+    r"(?i)(\[\s*add\b|<\s*add\b|\b(?:todo|tbd)\b|replace every bracketed placeholder|configured global target question)"
+)
 
 MARKET_NAMES = {
     "global": "Global",
@@ -136,10 +139,10 @@ MANUAL_TICKET_COPY = {
         "acceptance": "facts.md exists and every claim has an evidence grade.",
     },
     "百科词条（实体消歧地基）": {
-        "title": "Create an encyclopedia entry for entity disambiguation",
-        "rationale": "A third-party encyclopedia entry strengthens long-term entity resolution.",
-        "action": "Prepare an encyclopedia entry supported by independent third-party sources.",
-        "acceptance": "The entry passes editorial review and is publicly available.",
+        "title": "Assess independent-source notability before any encyclopedia work",
+        "rationale": "Encyclopedia publication is appropriate only when independent, reliable sources establish notability.",
+        "action": "Document qualifying independent sources first. If the threshold is not met, strengthen the owned facts library and verified third-party profiles instead.",
+        "acceptance": "The evidence review records at least three substantial independent reliable sources, or documents the safer non-encyclopedia alternative.",
     },
 }
 
@@ -444,6 +447,9 @@ def _ticket_en(ticket):
 
 def _load_sources(project_directory):
     audit = _read_required(project_directory / "audit.json", "audit.json")
+    validated_site = geolib.read_json(project_directory / "evidence" / "site.json", None)
+    if isinstance(validated_site, dict) and validated_site:
+        audit = {**audit, "site": validated_site}
     tasks = _read_required(project_directory / "tasks.json", "tasks.json")
     blueprint = _read_required(project_directory / "blueprint.json", "blueprint.json")
     if not isinstance(tasks.get("tasks"), list) or not tasks["tasks"]:
@@ -488,7 +494,7 @@ def _sample_modes(project_directory, metrics):
     }
 
 
-def _audit_markdown(project_directory, name, site, audit, metrics):
+def _audit_markdown(project_slug, project_directory, name, site, audit, metrics):
     site_data = audit.get("site") or {}
     coverage = audit.get("language_coverage") or {}
     grades = audit.get("grade_distribution") or {}
@@ -545,7 +551,18 @@ def _audit_markdown(project_directory, name, site, audit, metrics):
         block = BLOCK_NAMES.get(gap.get("block"), "Extraction block")
         lines.append(f"| {block} | {gap.get('missing_pages', 0)}/{gap.get('total', 0)} |")
 
-    lines += ["", "## AI Visibility Sampling", ""]
+    quality = measurement.sampling_quality(project_slug)
+    confidence = quality.get("confidence") or {}
+    lines += [
+        "", "## AI Visibility Sampling", "",
+        f"**Confidence: {confidence.get('label', 'No baseline')}**", "",
+    ]
+    for limitation in confidence.get("limitations") or []:
+        lines.append(f"- Limitation: {_require_english(limitation, 'sampling limitation')}")
+    if not confidence.get("allows_global_conclusions"):
+        lines.append("- Do not generalize these observations to global AI visibility or unsampled platforms.")
+    lines.append("- Observed changes do not establish optimization attribution; use deployment evidence and repeated comparable periods.")
+    lines.append("")
     platforms = (metrics or {}).get("platforms") or {}
     if not platforms:
         lines += ["No AI visibility samples are available for this cycle.", ""]
@@ -1030,31 +1047,76 @@ def _write_outline_assets(source, destination, blueprint, made):
         question = _delivery_question(content, content_id)
         form = _require_english(content.get("form") or "Definition or guide page", f"{content_id} content form")
         target_dir.mkdir(parents=True, exist_ok=True)
-        markdown = "\n".join([
+        group = GROUP_NAMES.get(content.get("group"), _safe_display(content.get("group"), "Recommendation"))
+        structures = {
+            "Recommendation": (
+                ["Direct recommendation by user profile", "Who this is and is not for", "Evaluation criteria and weights", "Evidence-backed shortlist table", "Trade-offs and final selection guidance"],
+                "A scored decision matrix with consistent criteria",
+                "Independent category evidence, current product capabilities, pricing, and explicit exclusions",
+            ),
+            "Comparison": (
+                ["Decision summary", "Like-for-like scope and assumptions", "Criterion-by-criterion comparison", "Trade-off table", "Migration and switching considerations", "Verdict by user profile"],
+                "A side-by-side table using identical definitions and measurement dates",
+                "Primary documentation and dated evidence for every compared product",
+            ),
+            "Alternatives": (
+                ["Why buyers seek an alternative", "Non-negotiable requirements", "Alternative shortlist", "Capability and cost comparison", "Switching risks", "Best fit by scenario"],
+                "A shortlist table that states exclusion criteria",
+                "Verified limitations of the incumbent and primary evidence for each alternative",
+            ),
+            "Pricing": (
+                ["Current pricing summary", "Plan and entitlement table", "Usage assumptions", "Worked cost scenarios", "Overages and contract caveats", "Buyer checklist"],
+                "A dated pricing table plus low, expected, and high usage scenarios",
+                "Official pricing and contract sources with currency, tax, billing period, and verification date",
+            ),
+            "Risk": (
+                ["Risk statement and affected users", "Threat or failure scenarios", "Controls and evidence", "Residual risk", "Deployment checklist", "Incident and escalation boundaries"],
+                "A risk-control-evidence matrix",
+                "Security documentation, certifications, architecture evidence, and clearly marked unknowns",
+            ),
+            "Use case": (
+                ["Outcome and prerequisites", "Starting state", "Step-by-step workflow", "Expected outputs", "Troubleshooting", "Verification checklist", "Next-step variations"],
+                "A reproducible procedure with inputs, outputs, and acceptance checks",
+                "Product documentation, tested steps, version information, and observable results",
+            ),
+            "Brand verification": (
+                ["One-sentence entity definition", "Official identity and aliases", "Products and audience", "Verified facts table", "What the brand does not claim", "Official sources and last verification"],
+                "A fact-evidence-source table with confidence grades",
+                "Approved facts library, official pages, legal identity, and independent reliable sources where available",
+            ),
+        }
+        sections, decision_aid, evidence = structures.get(group, structures["Recommendation"])
+        markdown_lines = [
             f"# Content Outline - {question}",
             "",
             f"- Question ID: `{content_id}`",
             "- Market: Global",
+            f"- Intent: {group}",
             f"- Recommended format: {form}",
+            f"- Editorial angle: Answer '{question}' for a reader making a {group.lower()} decision.",
             "",
             "## Required Structure",
             "",
-            "1. Direct answer and concise definition",
-            "2. Evidence-backed key facts",
-            "3. Comparison table with consistent criteria",
-            "4. Step-by-step implementation guidance",
-            "5. Limitations and decision boundaries",
-            "6. Frequently asked questions",
-            "7. Sources and verification date",
+        ]
+        markdown_lines += [f"{index}. {section}" for index, section in enumerate(sections, 1)]
+        markdown_lines += [
             "",
-            "## Quality Requirements",
+            "## Required Evidence",
             "",
-            "- Use at least 1,000 words when the topic requires a comprehensive guide.",
-            "- Include a clear definition, numeric facts, comparison, steps, and FAQ.",
+            f"- {evidence}.",
             "- Cite a source and verification date for every material claim.",
-            "- Mark unsupported claims for review; never invent customer, pricing, or competitor data.",
+            f"- Include {decision_aid.lower()}.",
+            "- Identify missing brand facts in the approved facts library before drafting.",
             "",
-        ])
+            "## Publication Guardrails",
+            "",
+            "- Never invent customer, pricing, security, performance, or competitor claims.",
+            "- Label assumptions and unknowns; do not convert them into factual statements.",
+            "- Use only the length and heading depth needed to answer this question completely.",
+            "- Add limitations, decision boundaries, source links, and a verification date.",
+            "",
+        ]
+        markdown = "\n".join(markdown_lines)
         target = target_dir / f"{content_id}.md"
         target.write_text(markdown, "utf-8")
         made.append(target.relative_to(destination.parent).as_posix())
@@ -1139,6 +1201,76 @@ def _copy_other_assets(source, destination, blueprint, made):
         made.append(target.relative_to(destination.parent).as_posix())
 
 
+def _json_asset_issues(value):
+    issues = []
+    if not isinstance(value, dict):
+        return ["JSON asset must contain an object"]
+    if not value.get("@context") or not value.get("@type"):
+        issues.append("Missing @context or @type")
+    item_type = value.get("@type")
+    if item_type == "FAQPage":
+        entities = value.get("mainEntity")
+        if not isinstance(entities, list) or not entities:
+            issues.append("FAQPage has no questions and answers")
+        else:
+            for entity in entities:
+                answer = entity.get("acceptedAnswer") if isinstance(entity, dict) else None
+                if not entity.get("name") or not isinstance(answer, dict) or not answer.get("text"):
+                    issues.append("FAQPage contains an incomplete question or answer")
+                    break
+    if item_type in ("Organization", "SoftwareApplication", "Product"):
+        if not value.get("name"):
+            issues.append(f"{item_type} is missing name")
+        if not value.get("url"):
+            issues.append(f"{item_type} is missing canonical URL")
+    if item_type in ("SoftwareApplication", "Product") and not value.get("description"):
+        issues.append(f"{item_type} is missing description")
+    offers = value.get("offers")
+    if offers:
+        offers = offers if isinstance(offers, list) else [offers]
+        if any(
+            not isinstance(offer, dict)
+            or offer.get("price") in (None, "")
+            or not offer.get("priceCurrency")
+            for offer in offers
+        ):
+            issues.append("Offer is missing price or ISO currency")
+    return issues
+
+
+def _asset_record(destination, delivery_path):
+    relative = Path(delivery_path).relative_to("assets")
+    path = destination / relative
+    issues = []
+    try:
+        text = path.read_text("utf-8")
+    except UnicodeDecodeError:
+        text = ""
+    if text and PLACEHOLDER_PATTERN.search(text):
+        issues.append("Contains unresolved placeholders")
+    if path.suffix.lower() == ".json" and relative.parts and relative.parts[0] == "jsonld":
+        try:
+            issues.extend(_json_asset_issues(json.loads(text)))
+        except json.JSONDecodeError:
+            issues.append("Invalid JSON")
+    if relative.parts and relative.parts[0] == "outlines" and path.suffix.lower() in (".md", ".json"):
+        issues.append("Editorial outline collection requires research and drafting")
+    status = "template" if issues else ("needs_review" if relative.parts and relative.parts[0] == "drafts" else "ready")
+    if status == "needs_review":
+        issues.append("Draft requires factual and editorial review")
+    if status == "template":
+        target = destination / "templates" / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(path, target)
+        relative = target.relative_to(destination)
+    return {
+        "path": relative.as_posix(),
+        "status": status,
+        "type": relative.suffix.lower().lstrip(".") or "file",
+        "issues": list(dict.fromkeys(issues)),
+    }
+
+
 def _write_assets(project_slug, project_directory, directory, config, audit, blueprint):
     source = project_directory / "assets"
     destination = directory / "assets"
@@ -1150,17 +1282,38 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
     _write_outline_assets(source, destination, blueprint, made)
     _copy_drafts(source, destination, blueprint, made)
     _copy_other_assets(source, destination, blueprint, made)
+    records = [_asset_record(destination, path) for path in sorted(set(made))]
+    records.sort(key=lambda item: (item["status"], item["path"]))
+    summary = {
+        status: sum(item["status"] == status for item in records)
+        for status in ("ready", "needs_review", "template")
+    }
+    sampling = measurement.sampling_quality(project_slug)
+    confidence = sampling.get("confidence") or {}
+    readiness_issues = []
+    if summary["needs_review"]:
+        readiness_issues.append(f"{summary['needs_review']} asset(s) require factual or editorial review")
+    if summary["template"]:
+        readiness_issues.append(f"{summary['template']} template asset(s) contain incomplete material")
+    if not confidence.get("sufficient"):
+        readiness_issues.append(f"Sampling confidence is {confidence.get('label', 'unavailable')}")
     index = {
         "generated_at": geolib.now_iso(),
         "language": "English",
-        "assets": sorted(made),
+        "readiness": "customer_ready" if records and not readiness_issues else "review_required",
+        "readiness_issues": readiness_issues,
+        "report_confidence": confidence,
+        "summary": summary,
+        "assets": records,
     }
     (destination / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", "utf-8")
-    return sorted(made)
+    return index
 
 
-def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint, assets):
+def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint, asset_index):
     coverage = blueprint.get("coverage") or {}
+    assets = asset_index.get("assets") or []
+    asset_summary = asset_index.get("summary") or {}
     documents = [f"{number}-{title}.html" for number, title in REQUIRED_DOCUMENTS.items()]
     lines = [
         f"# {name} GEO Delivery Pack",
@@ -1176,8 +1329,25 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     ]
     for number, title in REQUIRED_DOCUMENTS.items():
         lines.append(f"- [{number} - {title}]({number}-{title}.html)")
-    lines += ["", "## Deployable Assets", ""]
-    lines += [f"- `{path}`" for path in assets] or ["No deployable assets were generated for this cycle."]
+    lines += [
+        "", "## Asset Readiness", "",
+        f"- Ready to deploy: {asset_summary.get('ready', 0)}",
+        f"- Needs factual or editorial review: {asset_summary.get('needs_review', 0)}",
+        f"- Templates requiring completion: {asset_summary.get('template', 0)}",
+        "",
+    ]
+    for status, heading in (
+        ("ready", "Ready to Deploy"),
+        ("needs_review", "Needs Review"),
+        ("template", "Templates"),
+    ):
+        lines += [f"### {heading}", ""]
+        matching = [item for item in assets if item.get("status") == status]
+        lines += [
+            f"- `assets/{item['path']}`" + (f" - {'; '.join(item['issues'])}" if item.get("issues") else "")
+            for item in matching
+        ] or ["- None"]
+        lines.append("")
     lines += [
         "",
         "## Use and Verification",
@@ -1198,7 +1368,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
                 ("Site Score", _format_number(audit.get("avg_score"))),
                 ("Tickets", str(len(tickets))),
                 ("Documents", str(len(documents))),
-                ("Assets", str(len(assets))),
+                ("Ready Assets", str(asset_summary.get("ready", 0))),
             ],
         ),
         "utf-8",
@@ -1216,7 +1386,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         "- `04-Acceptance-Checklist`: current automated and manual verification state.",
         "- `05-Draft-Risks`: publication risks requiring human review.",
         "- `06-Build-Map`: channel and target-query content architecture.",
-        "- `assets/`: English-safe deployable assets and an asset index.",
+        "- `assets/`: assets grouped as ready, needs review, or template in `assets/index.json`.",
         "",
         "Do not publish drafts or deploy placeholders until the responsible owner has verified every claim and value.",
         "",
@@ -1232,7 +1402,7 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
         raise GeoEngineError("delivery source is missing or invalid: no usable tickets")
     tickets.sort(key=lambda ticket: (ticket["priority"], ticket["id"]))
 
-    audit_markdown = _audit_markdown(project_directory, name, site, audit, metrics)
+    audit_markdown = _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
     execution_markdown = _execution_markdown(name, tickets, task_data)
     tickets_markdown = _tickets_markdown(name, tickets)
     verification_markdown = _verification_markdown(name, audit, verification, tickets)
@@ -1264,8 +1434,8 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
         ("Channel Coverage", f"{coverage.get('channel_covered', 0)}/{coverage.get('channel_total', 0)}"),
         ("Content Complete", f"{coverage.get('content_done', 0)}/{coverage.get('content_total', 0)}"),
     ])
-    assets = _write_assets(project_slug, project_directory, directory, config, audit, blueprint)
-    _write_index(directory, name, site, delivery_date, audit, tickets, blueprint, assets)
+    asset_index = _write_assets(project_slug, project_directory, directory, config, audit, blueprint)
+    _write_index(directory, name, site, delivery_date, audit, tickets, blueprint, asset_index)
     apply_delivery_branding(directory)
     validate_delivery_language(directory)
 

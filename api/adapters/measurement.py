@@ -14,6 +14,7 @@ MODE_API = "API - Parametric knowledge"
 MODE_SEARCH = "API - Search grounded"
 MODE_MANUAL = "Manual - Product interface"
 MIN_COMPARABLE_SAMPLES = 20
+MIN_REPRESENTATIVE_PLATFORMS = 2
 
 
 def question_set_version(config):
@@ -90,6 +91,48 @@ def _weighted_mention(metrics):
     return (mentions / samples if samples else None), samples
 
 
+def _platform_count(metrics):
+    """Count platforms that contributed at least one successful visibility sample."""
+    summary = (metrics or {}).get("sample_summary") or {}
+    per_platform = summary.get("per_platform") if isinstance(summary, dict) else {}
+    if isinstance(per_platform, dict) and per_platform:
+        return sum(
+            int(item.get("successful") or 0) > 0
+            for item in per_platform.values()
+            if isinstance(item, dict)
+        )
+    return sum(
+        int(item.get("samples") or 0) > 0
+        for item in ((metrics or {}).get("platforms") or {}).values()
+        if isinstance(item, dict)
+    )
+
+
+def _confidence(metrics, effective_samples):
+    platform_count = _platform_count(metrics)
+    limitations = []
+    if effective_samples < MIN_COMPARABLE_SAMPLES:
+        limitations.append(
+            f"Only {effective_samples} valid samples; at least {MIN_COMPARABLE_SAMPLES} are required per period"
+        )
+    if platform_count < MIN_REPRESENTATIVE_PLATFORMS:
+        limitations.append(
+            f"Only {platform_count} sampled platform(s); at least {MIN_REPRESENTATIVE_PLATFORMS} are required for cross-platform conclusions"
+        )
+    sufficient = not limitations
+    return {
+        "level": "representative_baseline" if sufficient else "limited_baseline",
+        "label": "Representative baseline" if sufficient else "Limited baseline",
+        "sufficient": sufficient,
+        "platform_count": platform_count,
+        "minimum_samples": MIN_COMPARABLE_SAMPLES,
+        "minimum_platforms": MIN_REPRESENTATIVE_PLATFORMS,
+        "limitations": limitations,
+        "allows_global_conclusions": sufficient,
+        "allows_trend_attribution": False,
+    }
+
+
 def sampling_quality(project_slug):
     """返回当前样本质量、跨期可比性和保守的趋势解释。"""
     directory = geolib.project_dir(project_slug) / "metrics"
@@ -98,7 +141,17 @@ def sampling_quality(project_slug):
     if not metrics:
         return {
             "available": False,
-            "current": {"total": 0, "successful": 0, "failed": 0, "failure_rate": None},
+            "current": {
+                "total": 0, "successful": 0, "failed": 0, "failure_rate": None,
+                "effective_visibility_samples": 0, "platform_count": 0,
+            },
+            "confidence": {
+                "level": "unavailable", "label": "No baseline", "sufficient": False,
+                "platform_count": 0, "minimum_samples": MIN_COMPARABLE_SAMPLES,
+                "minimum_platforms": MIN_REPRESENTATIVE_PLATFORMS,
+                "limitations": ["No sampling data available"],
+                "allows_global_conclusions": False, "allows_trend_attribution": False,
+            },
             "comparable": False,
             "comparison_reason": "No sampling data available yet",
             "trend": {"status": "unavailable", "label": "No trend data", "delta_pp": None},
@@ -113,11 +166,14 @@ def sampling_quality(project_slug):
     current_rate, current_n = _weighted_mention(current)
     current_summary["effective_visibility_samples"] = current_n
     current_summary["mention_rate"] = round(current_rate, 4) if current_rate is not None else None
+    confidence = _confidence(current, current_n)
+    current_summary["platform_count"] = confidence["platform_count"]
 
     if len(metrics) < 2:
         return {
             "available": True,
             "current": current_summary,
+            "confidence": confidence,
             "comparable": False,
             "comparison_reason": "Single baseline run, at least two periods required to determine trends",
             "trend": {"status": "unavailable", "label": "Single baseline", "delta_pp": None},
@@ -125,6 +181,7 @@ def sampling_quality(project_slug):
 
     previous = metrics[-2]
     previous_rate, previous_n = _weighted_mention(previous)
+    previous_confidence = _confidence(previous, previous_n)
     comparable = True
     reason = "Question set, platforms, and sampling modes consistent"
     current_version = _question_version(current)
@@ -148,6 +205,16 @@ def sampling_quality(project_slug):
             "delta_pp": round(delta * 100, 2),
             "detail": f"Valid sample counts are {previous_n} and {current_n}; at least {MIN_COMPARABLE_SAMPLES} required per period",
         }
+    elif min(confidence["platform_count"], previous_confidence["platform_count"]) < MIN_REPRESENTATIVE_PLATFORMS:
+        trend = {
+            "status": "insufficient_platforms",
+            "label": "Limited platform coverage",
+            "delta_pp": round(delta * 100, 2),
+            "detail": (
+                f"Sampled platform counts are {previous_confidence['platform_count']} and "
+                f"{confidence['platform_count']}; at least {MIN_REPRESENTATIVE_PLATFORMS} required per period"
+            ),
+        }
     else:
         variance = previous_rate * (1 - previous_rate) / previous_n + current_rate * (1 - current_rate) / current_n
         z_score = abs(delta) / math.sqrt(variance) if variance > 0 else (float("inf") if delta else 0.0)
@@ -163,11 +230,13 @@ def sampling_quality(project_slug):
     return {
         "available": True,
         "current": current_summary,
+        "confidence": confidence,
         "previous": {
             "date": previous.get("date"),
             "question_set_version": previous_version,
             "effective_visibility_samples": previous_n,
             "mention_rate": round(previous_rate, 4) if previous_rate is not None else None,
+            "platform_count": previous_confidence["platform_count"],
         },
         "comparable": comparable,
         "comparison_reason": reason,

@@ -10,19 +10,25 @@ from api.db import Base
 from api.models import Project, Tenant
 
 
-def _metrics(date, version, mention_rate, samples=100, successful=100, failed=0):
+def _metrics(date, version, mention_rate, samples=100, successful=100, failed=0, platforms=2):
+    platform_data = {
+        f"provider_{index}": {"mention_rate": mention_rate, "samples": samples // platforms}
+        for index in range(platforms)
+    }
+    provenance = [
+        {
+            "engine_code": code,
+            "sampling_mode": "API - Parametric knowledge",
+            "model": "test-model",
+        }
+        for code in platform_data
+    ]
     return {
         "date": date,
         "question_set_version": version,
         "sample_summary": {"total": successful + failed, "successful": successful, "failed": failed},
-        "platforms": {"deepseek": {"mention_rate": mention_rate, "samples": samples}},
-        "provenance": {
-            "platforms": [{
-                "engine_code": "deepseek",
-                "sampling_mode": "API - Parametric knowledge",
-                "model": "deepseek-chat",
-            }],
-        },
+        "platforms": platform_data,
+        "provenance": {"platforms": provenance},
     }
 
 
@@ -40,6 +46,7 @@ def test_measurement_quality_marks_noteworthy_and_incomparable_periods(tmp_path,
         assert result["trend"]["status"] == "noteworthy"
         assert result["trend"]["label"] == "Worth monitoring"
         assert result["trend"]["delta_pp"] == 10.0
+        assert result["confidence"]["label"] == "Representative baseline"
 
         changed = _metrics("2026-08-01", "v2", 0.20)
         geolib.write_json(directory / "metrics" / "2026-08-01.json", changed)
@@ -70,6 +77,30 @@ def test_report_quality_explains_crawl_sampling_and_delivery_gaps(tmp_path, monk
     assert all(item["action"] and item["route"] for item in result["issues"])
     assert result["effective_report"] is False
     assert result["components"]["measurement"]["successful_samples"] == 4
+
+
+def test_single_platform_with_fourteen_samples_is_a_limited_baseline(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    with with_tenant_context("tenant", "project"):
+        directory = geolib.project_dir("project")
+        geolib.write_json(directory / "audit.json", {
+            "page_count": 3,
+            "site": {"pages_crawled": 3, "pages_ok": 3, "ai_bots_blocked": []},
+        })
+        geolib.write_json(
+            directory / "metrics" / "2026-08-13.json",
+            _metrics("2026-08-13", "v1", 0.2, samples=14, successful=14, platforms=1),
+        )
+        geolib.write_json(directory / "tasks.json", {"tasks": [{"id": "T-001"}]})
+
+        measurement_result = measurement.sampling_quality("project")
+        report_result = report_quality.assess("project", has_sampling_access=True)
+
+    assert measurement_result["confidence"]["level"] == "limited_baseline"
+    assert measurement_result["confidence"]["allows_global_conclusions"] is False
+    assert measurement_result["confidence"]["allows_trend_attribution"] is False
+    assert report_result["effective_report"] is False
+    assert "sampling_platforms_limited" in {item["code"] for item in report_result["issues"]}
 
 
 def test_preflight_failures_always_include_a_repair_action(monkeypatch):

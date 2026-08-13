@@ -206,19 +206,23 @@ def run_workflow(
             expected=(202,),
         ))
         _poll_job(session, base_url, project_id, delivery.get("job_id"), timeout, poll_interval, sleep)
-        dates = _json(_request(
+        deliveries = _json(_request(
             session,
             "GET",
             base_url,
             f"/api/v1/projects/{project_id}/deliveries",
         )).get("deliveries") or []
-        if not dates:
+        if not deliveries:
             raise AcceptanceError("delivery_missing")
+        latest = deliveries[0] if isinstance(deliveries[0], dict) else {"date": deliveries[0]}
+        delivery_date = latest.get("date")
+        if not delivery_date:
+            raise AcceptanceError("delivery_date_missing")
         archive = _request(
             session,
             "GET",
             base_url,
-            f"/api/v1/projects/{project_id}/deliveries/{dates[0]}",
+            f"/api/v1/projects/{project_id}/deliveries/{delivery_date}",
         )
         names = _delivery_contract(archive.content)
         passed("delivery", f"{len(names)} files")

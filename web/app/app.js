@@ -52,7 +52,7 @@ export const TRACKS = [
     views: [
       { id: 'plan', labelKey: 'nav.plan', defaultLabel: 'Action Tickets' },
       { id: 'workbench', labelKey: 'nav.workbench_view', defaultLabel: 'Interactive Workbench' },
-      { id: 'assets', labelKey: 'nav.assets', defaultLabel: 'Deployable Assets' },
+      { id: 'assets', labelKey: 'nav.assets', defaultLabel: 'Assets & Templates' },
       { id: 'outreach', labelKey: 'nav.outreach', defaultLabel: 'Media Outreach' },
       { id: 'publishing', labelKey: 'nav.publishing', defaultLabel: 'Publishing Destinations' },
       { id: 'verify', labelKey: 'nav.verify', defaultLabel: 'Closed-Loop Verify' },

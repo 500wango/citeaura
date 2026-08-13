@@ -1,7 +1,7 @@
 """首份报告完整度和缺失项诊断。"""
 
 from api.adapters.engine import geolib
-from api.adapters.measurement import MIN_COMPARABLE_SAMPLES, sampling_quality
+from api.adapters.measurement import MIN_COMPARABLE_SAMPLES, MIN_REPRESENTATIVE_PLATFORMS, sampling_quality
 
 
 def _latest(directory, pattern="*.json"):
@@ -44,8 +44,12 @@ def assess(project_slug, has_sampling_access=False):
         ))
 
     current = measurement.get("current") or {}
+    confidence = measurement.get("confidence") or {}
     successful = int(current.get("successful") or 0)
-    sampling_ratio = min(1.0, successful / MIN_COMPARABLE_SAMPLES) if metrics else 0
+    platform_count = int(confidence.get("platform_count") or 0)
+    sample_coverage = min(1.0, successful / MIN_COMPARABLE_SAMPLES) if metrics else 0
+    platform_coverage = min(1.0, platform_count / MIN_REPRESENTATIVE_PLATFORMS) if metrics else 0
+    sampling_ratio = sample_coverage * platform_coverage
     sampling_score = round(35 * sampling_ratio)
     if not has_sampling_access:
         issues.append(_issue(
@@ -58,6 +62,12 @@ def assess(project_slug, has_sampling_access=False):
         issues.append(_issue(
             "sampling_insufficient", "warning", f"Currently only {successful} valid samples",
             f"Collect at least {MIN_COMPARABLE_SAMPLES} valid samples before evaluating trends", "engines",
+        ))
+    if metrics and platform_count < MIN_REPRESENTATIVE_PLATFORMS:
+        issues.append(_issue(
+            "sampling_platforms_limited", "warning", f"Currently only {platform_count} sampled platform(s)",
+            f"Sample at least {MIN_REPRESENTATIVE_PLATFORMS} representative platforms before making global conclusions",
+            "engines",
         ))
     if current.get("failure_rate") is not None and current["failure_rate"] > 0.2:
         issues.append(_issue(
@@ -88,10 +98,14 @@ def assess(project_slug, has_sampling_access=False):
     return {
         "score": score,
         "level": level,
-        "effective_report": score >= 60 and page_count > 0 and bool(metrics),
+        "effective_report": score >= 60 and page_count > 0 and bool(metrics) and bool(confidence.get("sufficient")),
+        "confidence": confidence,
         "components": {
             "site_audit": {"score": audit_score, "max": 35, "pages_ok": pages_ok, "pages_crawled": pages_crawled},
-            "measurement": {"score": sampling_score, "max": 35, "successful_samples": successful},
+            "measurement": {
+                "score": sampling_score, "max": 35, "successful_samples": successful,
+                "sampled_platforms": platform_count, "confidence": confidence.get("level", "unavailable"),
+            },
             "playbook": {"score": playbook_score, "max": 20, "tickets": ticket_count},
             "delivery": {"score": delivery_score, "max": 10, "available": has_delivery},
         },

@@ -76,7 +76,8 @@ def test_blueprint_and_tasks_remove_domestic_recommendations():
     assert all(name in roadmap for name in ("Wikipedia", "G2 / Capterra / Product Hunt", "Reddit / Hacker News", "YouTube"))
     assert [task["id"] for task in tasks["tasks"]] == ["T-002", "T-003"]
     assert "Google and Bing" in tasks["tasks"][0]["action"]
-    assert tasks["tasks"][1]["title"] == "Create a Wikipedia entry for entity disambiguation"
+    assert tasks["tasks"][1]["title"] == "Assess independent-source notability before encyclopedia work"
+    assert "If the threshold is not met" in tasks["tasks"][1]["action"]
     assert all(task["market"] == "global" for task in tasks["tasks"])
 
 

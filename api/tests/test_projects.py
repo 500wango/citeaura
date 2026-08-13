@@ -287,6 +287,11 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     deliveries = client.get(f"/api/v1/projects/{body['project_id']}/deliveries", headers=headers)
     assert deliveries.status_code == 200
     assert deliveries.json()["deliveries"] == ["2026-07-31"]
+    assert deliveries.json()["packages"] == [{
+        "date": "2026-07-31",
+        "readiness": "unknown",
+        "asset_summary": {"ready": 0, "needs_review": 0, "template": 0},
+    }]
     monkeypatch.setattr(project_router.task_deliver, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-4"))
     delivered = client.post(f"/api/v1/projects/{body['project_id']}/deliver", headers=headers)
     assert delivered.status_code == 202

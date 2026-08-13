@@ -47,7 +47,11 @@ class Session:
         if path == "/api/v1/projects/7/deliver" and method == "POST":
             return Response(202, {"job_id": 13})
         if path == "/api/v1/projects/7/deliveries":
-            return Response(body={"deliveries": ["2026-08-01"]})
+            package = {
+                "date": "2026-08-01", "readiness": "review_required",
+                "asset_summary": {"ready": 1, "needs_review": 0, "template": 1},
+            }
+            return Response(body={"deliveries": ["2026-08-01"], "packages": [package]})
         if path == "/api/v1/projects/7/deliveries/2026-08-01":
             output = io.BytesIO()
             with zipfile.ZipFile(output, "w") as bundle:
