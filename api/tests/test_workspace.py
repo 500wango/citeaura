@@ -414,6 +414,33 @@ def test_resilient_crawl_evidence_recovers_visible_snapshot_text(tmp_path, monke
     pages = workspace.geolib.read_jsonl(evidence / "pages.jsonl")
     assert result == {"pages_ok": 1, "pages_crawled": 1}
     assert pages[0]["text"] == "Visible brand evidence"
+    assert pages[0]["word_count"] == 3
+
+
+def test_resilient_crawl_evidence_recovers_page_metadata(tmp_path, monkeypatch):
+    import crawl
+
+    monkeypatch.setattr(workspace.geolib, "WORK", tmp_path)
+    evidence = tmp_path / "example" / "evidence"
+    rows = [{
+        "url": "https://example.com",
+        "status": 200,
+        "text": "",
+        "title": "Example Analytics",
+        "meta_description": "Official analytics platform for product teams.",
+        "h1": [],
+        "h2": [],
+        "snapshot": "evidence/html/001.html",
+    }]
+    workspace.geolib.write_jsonl(evidence / "pages.jsonl", rows)
+    monkeypatch.setattr(crawl, "run", lambda slug: {"pages_ok": 1, "pages_crawled": 1})
+
+    with resilient_crawl_evidence("example"):
+        crawl.run("example")
+
+    page = workspace.geolib.read_jsonl(evidence / "pages.jsonl")[0]
+    assert page["text"] == "Example Analytics\nOfficial analytics platform for product teams."
+    assert page["word_count"] == 8
 
 
 def test_resilient_crawl_evidence_retains_previous_usable_pages(tmp_path, monkeypatch):
@@ -453,7 +480,38 @@ def test_resilient_crawl_evidence_retains_previous_usable_pages(tmp_path, monkey
     assert workspace.geolib.read_json(evidence / "site.json") == previous_site
 
 
-def test_resilient_crawl_evidence_reports_unextractable_first_crawl(tmp_path, monkeypatch):
+def test_resilient_crawl_evidence_uses_project_identity_for_client_only_site(tmp_path, monkeypatch):
+    import crawl
+
+    monkeypatch.setattr(workspace.geolib, "WORK", tmp_path)
+    project = tmp_path / "example"
+    evidence = project / "evidence"
+    workspace.geolib.write_json(project / "geo.json", {
+        "slug": "example",
+        "brand": {"name": "Example", "site": "https://example.com"},
+    })
+
+    def empty_run(slug):
+        workspace.geolib.write_jsonl(evidence / "pages.jsonl", [{
+            "url": "https://example.com",
+            "status": 200,
+            "text": "",
+            "snapshot": "evidence/html/001.html",
+        }])
+        return {"pages_ok": 1, "pages_crawled": 1}
+
+    monkeypatch.setattr(crawl, "run", empty_run)
+
+    with resilient_crawl_evidence("example"):
+        result = crawl.run("example")
+
+    page = workspace.geolib.read_jsonl(evidence / "pages.jsonl")[0]
+    assert result == {"pages_ok": 1, "pages_crawled": 1}
+    assert "Brand: Example" in page["text"]
+    assert "no server-rendered page text" in page["text"]
+
+
+def test_resilient_crawl_evidence_reports_unextractable_without_project_identity(tmp_path, monkeypatch):
     import crawl
 
     monkeypatch.setattr(workspace.geolib, "WORK", tmp_path)

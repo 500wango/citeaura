@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 
 from api.adapters import measurement, sampling_control, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract
@@ -400,66 +400,127 @@ def _append_job_event(log_path, message):
     return True
 
 
-@contextmanager
-def _job_status(tenant_id, project_slug, action, job_id=None):
-    """把 Job 标为 running/done/failed，并提供粗粒度进度回调。"""
-    db = SessionLocal()
-    job = None
-    project = None
-    log_path = None
-    try:
+def _database_connection_lost(exc):
+    if exc.connection_invalidated:
+        return True
+    message = str(getattr(exc, "orig", exc)).lower()
+    return any(marker in message for marker in (
+        "connection has been closed",
+        "connection is closed",
+        "connection already closed",
+        "closed the connection unexpectedly",
+        "closed unexpectedly",
+        "connection reset",
+        "server closed the connection",
+        "terminating connection",
+    ))
+
+
+def _job_transaction(operation):
+    """用短会话更新 Job；断开的数据库连接可安全重放一次。"""
+    for attempt in range(2):
+        db = SessionLocal()
         try:
-            job = _find_job(db, tenant_id, project_slug, action, job_id)
-            if job is not None:
-                project = db.get(Project, job.project_id)
-                tenant = db.get(Tenant, project.tenant_id) if project is not None else None
-                if tenant is not None:
-                    log_path = job_log_path(tenant.name, project.slug, job.id)
-                    job.log_path = str(log_path)
-                job.status = "running"
-                job.stage = "preparing"
-                job.progress = max(int(job.progress or 0), 5)
-                job.started_at = datetime.now(timezone.utc)
-                job.error = None
-                db.commit()
+            result = operation(db)
+            db.commit()
+            return result
+        except DBAPIError as exc:
+            try:
+                db.rollback()
+            except SQLAlchemyError:
+                pass
+            if attempt == 0 and _database_connection_lost(exc):
+                logger.warning("job status database connection lost; retrying with a fresh session")
+                continue
+            raise
         except SQLAlchemyError:
             db.rollback()
             raise
+        finally:
+            db.close()
 
-        try:
-            _append_job_event(log_path, f"{action} started")
-            def update(stage, progress):
+
+@contextmanager
+def _job_status(tenant_id, project_slug, action, job_id=None):
+    """把 Job 标为 running/done/failed，并提供粗粒度进度回调。"""
+    tracked_job_id = None
+    log_path = None
+
+    def prepare(db):
+        nonlocal tracked_job_id, log_path
+        job = _find_job(db, tenant_id, project_slug, action, job_id)
+        if job is None:
+            return
+        project = db.get(Project, job.project_id)
+        tenant = db.get(Tenant, project.tenant_id) if project is not None else None
+        if tenant is not None:
+            log_path = job_log_path(tenant.name, project.slug, job.id)
+            job.log_path = str(log_path)
+        tracked_job_id = job.id
+        job.status = "running"
+        job.stage = "preparing"
+        job.progress = max(int(job.progress or 0), 5)
+        job.started_at = datetime.now(timezone.utc)
+        job.error = None
+
+    _job_transaction(prepare)
+
+    try:
+        _append_job_event(log_path, f"{action} started")
+
+        def update(stage, progress):
+            if tracked_job_id is None:
+                return
+
+            def persist(db):
+                job = db.get(Job, tracked_job_id)
+                if job is None:
+                    return None
+                job.stage = str(stage)[:64]
+                job.progress = max(int(job.progress or 0), max(0, min(99, int(progress))))
+                return job.stage, job.progress
+
+            try:
+                state = _job_transaction(persist)
+            except SQLAlchemyError as exc:
+                logger.warning(
+                    "Unable to persist job progress; completion will retry with a fresh session: %s",
+                    exc,
+                )
+                _append_job_event(log_path, f"progress {stage} delayed: database connection unavailable")
+                return
+            if state is not None:
+                _append_job_event(log_path, f"progress {state[0]} {state[1]}")
+
+        with _capture_task_output(log_path):
+            yield update
+    except Exception as exc:
+        _append_job_event(log_path, f"{action} failed: {type(exc).__name__}: {exc}")
+        if tracked_job_id is not None:
+            def mark_failed(db):
+                job = db.get(Job, tracked_job_id)
                 if job is None:
                     return
-                try:
-                    job.stage = str(stage)[:64]
-                    job.progress = max(int(job.progress or 0), max(0, min(99, int(progress))))
-                    db.commit()
-                except SQLAlchemyError:
-                    db.rollback()
-                    raise
-                _append_job_event(log_path, f"progress {job.stage} {job.progress}")
-
-            with _capture_task_output(log_path):
-                yield update
-        except Exception as exc:
-            _append_job_event(log_path, f"{action} failed: {type(exc).__name__}: {exc}")
-            if job is not None:
+                project = db.get(Project, job.project_id)
                 job.status = "failed"
                 job.stage = "failed"
                 job.finished_at = datetime.now(timezone.utc)
                 job.error = f"{type(exc).__name__}: {exc}"
                 if project is not None:
                     project.status = "failed"
-                try:
-                    db.commit()
-                except SQLAlchemyError as status_error:
-                    db.rollback()
-                    raise exc from status_error
-            raise
-        else:
-            _append_job_event(log_path, f"{action} done")
-            if job is not None:
+
+            try:
+                _job_transaction(mark_failed)
+            except SQLAlchemyError as status_error:
+                raise exc from status_error
+        raise
+    else:
+        if tracked_job_id is not None:
+            def mark_complete(db):
+                job = db.get(Job, tracked_job_id)
+                if job is None:
+                    return
+                project = db.get(Project, job.project_id)
                 job.status = "done"
                 job.stage = "complete"
                 job.progress = 100
@@ -467,13 +528,9 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                 job.error = None
                 if project is not None:
                     project.status = "ready"
-                try:
-                    db.commit()
-                except SQLAlchemyError:
-                    db.rollback()
-                    raise
-    finally:
-        db.close()
+
+            _job_transaction(mark_complete)
+        _append_job_event(log_path, f"{action} done")
 
 
 @celery_app.task(name="citeaura.bootstrap")

@@ -34,6 +34,49 @@ def _visible_snapshot_text(path: Path):
     return " ".join(geolib.main_text(soup).split())[:20000]
 
 
+def _metadata_text(page: dict):
+    """正文缺失时提取仍可由服务端验证的页面元数据。"""
+    values = [page.get("title"), page.get("meta_description")]
+    values.extend(page.get("h1") or [])
+    values.extend(page.get("h2") or [])
+
+    def collect_jsonld(value):
+        if isinstance(value, dict):
+            for key in ("name", "headline", "description", "alternateName"):
+                item = value.get(key)
+                if isinstance(item, str):
+                    values.append(item)
+                elif isinstance(item, list):
+                    values.extend(entry for entry in item if isinstance(entry, str))
+            for item in value.values():
+                if isinstance(item, (dict, list)):
+                    collect_jsonld(item)
+        elif isinstance(value, list):
+            for item in value:
+                collect_jsonld(item)
+
+    collect_jsonld(page.get("jsonld_raw") or [])
+    unique = []
+    seen = set()
+    for value in values:
+        value = " ".join(str(value or "").split())
+        if value and value not in seen:
+            unique.append(value)
+            seen.add(value)
+    return "\n".join(unique)[:20000]
+
+
+def _set_page_text(page: dict, text: str):
+    text = str(text or "").strip()[:20000]
+    if not text:
+        return False
+    page["text"] = text
+    page["word_count"] = geolib.word_count(text)
+    page["language"] = geolib.page_language(text, page.get("lang", ""))
+    page["cjk_ratio"] = geolib.cjk_ratio(text)
+    return True
+
+
 def _recover_snapshot_text(project_slug: str):
     project_dir = geolib.project_dir(project_slug)
     snapshot_dir = (project_dir / "evidence" / "html").resolve()
@@ -44,22 +87,44 @@ def _recover_snapshot_text(project_slug: str):
         if not isinstance(page, dict) or page.get("status") != 200 or str(page.get("text") or "").strip():
             continue
         snapshot = str(page.get("snapshot") or "").strip()
-        if not snapshot:
-            continue
-        snapshot_path = (project_dir / snapshot).resolve()
-        try:
-            snapshot_path.relative_to(snapshot_dir)
-        except ValueError:
-            continue
-        if snapshot_path.suffix.lower() != ".html":
-            continue
-        text = _visible_snapshot_text(snapshot_path)
-        if text:
-            page["text"] = text
+        text = ""
+        if snapshot:
+            snapshot_path = (project_dir / snapshot).resolve()
+            try:
+                snapshot_path.relative_to(snapshot_dir)
+            except ValueError:
+                snapshot_path = None
+            if snapshot_path is not None and snapshot_path.suffix.lower() == ".html":
+                text = _visible_snapshot_text(snapshot_path)
+        if _set_page_text(page, text or _metadata_text(page)):
             recovered += 1
     if recovered:
         geolib.write_jsonl(path, pages)
     return recovered
+
+
+def _create_identity_evidence(project_slug: str):
+    """纯客户端站点无正文时，以用户确认的项目身份建立最小基线。"""
+    project_dir = geolib.project_dir(project_slug)
+    path = project_dir / "evidence" / "pages.jsonl"
+    pages = geolib.read_jsonl(path)
+    config = geolib.read_json(project_dir / "geo.json", {})
+    brand = config.get("brand") or {}
+    name = str(brand.get("name") or "").strip()
+    site = str(brand.get("site") or "").strip()
+    if not name or not site:
+        return 0
+    text = (
+        f"Brand: {name}\n"
+        f"Official website: {site}\n"
+        "The website returned no server-rendered page text during this crawl."
+    )
+    for page in pages:
+        if isinstance(page, dict) and page.get("status") == 200:
+            if _set_page_text(page, text):
+                geolib.write_jsonl(path, pages)
+                return 1
+    return 0
 
 
 @contextmanager
@@ -99,12 +164,18 @@ def resilient_crawl_evidence(project_slug: str):
                 return result
             recovered = _recover_snapshot_text(project_slug)
             if recovered:
-                geolib.info(f"Recovered extractable text from {recovered} HTML crawl snapshot(s)")
+                geolib.info(f"Recovered extractable text from {recovered} crawl page(s) using snapshots or metadata")
                 return result
             if previous_usable:
                 restore_previous_evidence()
                 geolib.info("Current crawl returned no extractable text; retained previous usable crawl evidence")
                 return previous_site or result
+            if _create_identity_evidence(project_slug):
+                geolib.info(
+                    "Website returned no server-rendered text; continuing with project identity only. "
+                    "The crawl audit will report the missing content."
+                )
+                return result
             raise GeoEngineError(
                 "Crawl completed but no extractable website text was found. "
                 "The site may require JavaScript rendering or block automated crawlers."

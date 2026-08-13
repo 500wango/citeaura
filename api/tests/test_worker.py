@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
 from api.db import Base
@@ -273,6 +274,95 @@ def test_job_status_updates_project_on_success_and_failure(tmp_path, monkeypatch
     assert "engine output" in bootstrap_log
     assert "bootstrap done" in bootstrap_log
     assert "verify failed: RuntimeError: verification failed" in verify_log
+
+
+def test_job_transaction_retries_closed_ssl_connection(monkeypatch):
+    sessions = []
+
+    class FakeSession:
+        def __init__(self, fail_commit=False):
+            self.fail_commit = fail_commit
+            self.closed = False
+            self.rolled_back = False
+
+        def commit(self):
+            if self.fail_commit:
+                raise OperationalError(
+                    "UPDATE jobs SET stage=%(stage)s",
+                    {"stage": "finalizing"},
+                    Exception("SSL connection has been closed unexpectedly"),
+                    connection_invalidated=True,
+                )
+
+        def rollback(self):
+            self.rolled_back = True
+
+        def close(self):
+            self.closed = True
+
+    def session_factory():
+        session = FakeSession(fail_commit=not sessions)
+        sessions.append(session)
+        return session
+
+    calls = []
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+
+    result = tasks._job_transaction(lambda db: calls.append(db) or "saved")
+
+    assert result == "saved"
+    assert len(calls) == 2
+    assert len(sessions) == 2
+    assert sessions[0].rolled_back is True
+    assert all(session.closed for session in sessions)
+
+
+def test_job_status_uses_short_database_sessions(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'short-sessions.sqlite'}")
+    Base.metadata.create_all(engine)
+    real_session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with real_session_factory() as db:
+        tenant = Tenant(name="tenant-a", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="example",
+            url="https://example.com",
+            market="both",
+            status="bootstrapping",
+        )
+        db.add(project)
+        db.flush()
+        job = Job(project_id=project.id, action="autopilot", status="queued")
+        db.add(job)
+        db.commit()
+        job_id = job.id
+
+    sessions = []
+
+    def tracking_session_factory():
+        session = real_session_factory()
+        sessions.append(session)
+        return session
+
+    monkeypatch.setattr(tasks, "SessionLocal", tracking_session_factory)
+    monkeypatch.setattr(
+        tasks,
+        "job_log_path",
+        lambda tenant_id, project_slug, tracked_job_id: tmp_path / "logs" / f"{tracked_job_id}.log",
+    )
+
+    with tasks._job_status("tenant-a", "example", "autopilot", job_id) as update:
+        update("bootstrap", 15)
+        update("finalizing", 90)
+
+    assert len(sessions) == 4
+    with real_session_factory() as db:
+        job = db.get(Job, job_id)
+        assert job.status == "done"
+        assert job.stage == "complete"
+        assert job.progress == 100
 
 
 def test_job_status_marks_failure_when_log_directory_is_not_writable(tmp_path, monkeypatch):
