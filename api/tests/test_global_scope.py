@@ -115,6 +115,19 @@ def test_channel_strategy_is_selected_per_project_profile():
     assert unknown_blueprint["channel_strategy"]["confidence"] == "low"
 
 
+def test_profile_channels_preserve_engine_delivery_contract():
+    required = {"kind", "forms", "volume", "cadence", "owner", "domains", "why", "effect"}
+
+    for profile_id in global_scope.CHANNEL_STRATEGIES:
+        profile = {"id": profile_id, "label": profile_id.title(), "confidence": "high", "evidence": []}
+        blueprint = global_scope.normalize_blueprint_data({}, profile=profile)
+        assert blueprint["channels"]
+        for channel in blueprint["channels"]:
+            assert required <= set(channel)
+            assert isinstance(channel["forms"], list) and channel["forms"]
+            assert isinstance(channel["domains"], list)
+
+
 def test_project_normalization_updates_files(tmp_path, monkeypatch):
     project = tmp_path / "example"
     project.mkdir()

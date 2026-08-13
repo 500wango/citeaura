@@ -105,6 +105,150 @@ PROFILE_RULES = (
     ("publisher", ("publisher", "publication", "newsroom", "magazine", "editorial", "media company", "出版社", "新闻", "杂志", "媒体")),
 )
 
+CHANNEL_FIELD_DEFAULTS = {
+    "official_en": {
+        "kind": "Owned Asset", "forms": ["Native English core pages", "FAQ", "llms.txt", "JSON-LD"],
+        "volume": "8+ core pages", "cadence": "Initial setup + quarterly maintenance",
+        "owner": "Content + Engineering", "domains": [],
+        "why": "The official site is the controlled source of truth for entity and product facts.",
+        "effect": "Aligns factual descriptions across AI retrieval systems",
+    },
+    "linkedin": {
+        "kind": "Professional Network", "forms": ["Company profile", "Expert posts", "Case studies"],
+        "volume": "2-4 posts/month", "cadence": "Monthly", "owner": "Marketing",
+        "domains": ["linkedin.com"], "why": "Provides attributable company and expert identity signals.",
+        "effect": "Supports B2B entity verification",
+    },
+    "youtube": {
+        "kind": "Video", "forms": ["Product demonstrations", "How-to videos", "Complete subtitles"],
+        "volume": "1-2 videos/month", "cadence": "Monthly", "owner": "Content",
+        "domains": ["youtube.com"], "why": "Video transcripts provide accessible product and process evidence.",
+        "effect": "Adds multimodal and transcript-based discovery coverage",
+    },
+    "wikipedia": {
+        "kind": "Encyclopedia", "forms": ["Independent-source review", "Entity entry if notable"],
+        "volume": "Only when independently notable", "cadence": "Evidence review first", "owner": "Marketing",
+        "domains": ["wikipedia.org"], "why": "Entity authority requires substantial independent reliable coverage.",
+        "effect": "May strengthen entity disambiguation when eligibility is established",
+    },
+    "review": {
+        "kind": "Review Platform", "forms": ["Product profile", "Verified customer reviews", "Comparison pages"],
+        "volume": "2-3 relevant platforms", "cadence": "Initial setup + quarterly updates", "owner": "Marketing",
+        "domains": [], "why": "Independent product reviews support commercial comparison queries.",
+        "effect": "Captures recommendation and alternatives intent",
+    },
+    "b2b_marketplaces": {
+        "kind": "B2B Marketplace", "forms": ["Supplier profile", "Product catalog", "Verified capabilities"],
+        "volume": "2-4 relevant marketplaces", "cadence": "Initial setup + monthly updates", "owner": "Sales + Marketing",
+        "domains": ["alibaba.com", "made-in-china.com", "globalsources.com"],
+        "why": "Buyer marketplaces are discovery surfaces for sourcing and supplier queries.",
+        "effect": "Improves qualified B2B supplier discovery",
+    },
+    "trade_media": {
+        "kind": "Trade Media", "forms": ["Technical profile", "Buyer guide", "Verified case study"],
+        "volume": "1-2 placements/quarter", "cadence": "Quarterly", "owner": "Marketing",
+        "domains": [], "why": "Trade publications provide independent context for specialist buyers.",
+        "effect": "Adds category authority and third-party evidence",
+    },
+    "certification": {
+        "kind": "Compliance Registry", "forms": ["Certification record", "Test report", "Compliance statement"],
+        "volume": "Every current certification", "cadence": "At issuance and renewal", "owner": "Quality + Compliance",
+        "domains": [], "why": "Verifiable certifications reduce uncertainty in supplier evaluation.",
+        "effect": "Supports trust, compliance, and risk queries",
+    },
+    "buyer_communities": {
+        "kind": "Industry Community", "forms": ["Expert answers", "Association profile", "Buyer education"],
+        "volume": "Ongoing participation", "cadence": "Monthly", "owner": "Sales + Marketing",
+        "domains": [], "why": "Buyer communities expose practical selection criteria and use cases.",
+        "effect": "Builds trusted peer-discovery signals",
+    },
+    "docs": {
+        "kind": "Owned Documentation", "forms": ["Product documentation", "API reference", "Implementation guides"],
+        "volume": "Complete core documentation", "cadence": "Release-based", "owner": "Engineering + Product",
+        "domains": [], "why": "Documentation is the primary evidence source for software capabilities.",
+        "effect": "Improves technical retrieval and implementation confidence",
+    },
+    "developer_community": {
+        "kind": "Developer Community", "forms": ["Technical articles", "Open examples", "Q&A answers"],
+        "volume": "2-4 technical pieces/month", "cadence": "Monthly", "owner": "Engineering",
+        "domains": ["github.com", "dev.to", "stackoverflow.com"],
+        "why": "Developer communities provide implementation evidence outside the product site.",
+        "effect": "Supports technical recommendation and troubleshooting queries",
+    },
+    "industry_media": {
+        "kind": "Industry Media", "forms": ["Expert article", "Press coverage", "Research citation"],
+        "volume": "1-2 placements/quarter", "cadence": "Quarterly", "owner": "Marketing",
+        "domains": [], "why": "Relevant industry media provides independent category context.",
+        "effect": "Strengthens third-party authority signals",
+    },
+    "industry_directories": {
+        "kind": "Industry Directory", "forms": ["Verified company profile", "Service listing", "Association record"],
+        "volume": "3-5 relevant directories", "cadence": "Quarterly", "owner": "Marketing",
+        "domains": [], "why": "Professional directories help buyers verify providers in the relevant category.",
+        "effect": "Improves category and local/entity discovery",
+    },
+    "customer_communities": {
+        "kind": "Customer Community", "forms": ["Expert answers", "Case discussion", "Community profile"],
+        "volume": "Ongoing participation", "cadence": "Monthly", "owner": "Marketing",
+        "domains": [], "why": "Customer communities surface practical experience and decision criteria.",
+        "effect": "Supports trust and use-case discovery",
+    },
+    "shopping_feeds": {
+        "kind": "Search and Shopping Feed", "forms": ["Product feed", "Merchant profile", "Structured product data"],
+        "volume": "All active products", "cadence": "Daily feed sync", "owner": "Commerce + Engineering",
+        "domains": [], "why": "Product feeds give search systems structured inventory and offer facts.",
+        "effect": "Improves product discovery and availability retrieval",
+    },
+    "marketplaces": {
+        "kind": "Retail Marketplace", "forms": ["Product listings", "Store profile", "Verified reviews"],
+        "volume": "Priority marketplaces", "cadence": "Weekly catalog maintenance", "owner": "Commerce",
+        "domains": [], "why": "Retail marketplaces capture product and buying-intent queries.",
+        "effect": "Expands product discovery beyond the official site",
+    },
+    "review_communities": {
+        "kind": "Review Community", "forms": ["Verified reviews", "Product comparisons", "Customer questions"],
+        "volume": "Ongoing review collection", "cadence": "Monthly", "owner": "Customer Success + Marketing",
+        "domains": [], "why": "Customer evidence improves confidence in product recommendations.",
+        "effect": "Supports comparison and purchase-decision queries",
+    },
+    "social_discovery": {
+        "kind": "Social Discovery", "forms": ["Product demonstrations", "Creator explainers", "Accessible captions"],
+        "volume": "2-4 pieces/month", "cadence": "Monthly", "owner": "Marketing",
+        "domains": [], "why": "Visual discovery channels expose products through demonstrations and use cases.",
+        "effect": "Adds multimodal product discovery signals",
+    },
+    "consumer_media": {
+        "kind": "Consumer Media", "forms": ["Category guide", "Independent review", "Expert comparison"],
+        "volume": "1-2 placements/quarter", "cadence": "Quarterly", "owner": "PR + Marketing",
+        "domains": [], "why": "Consumer publications provide independent category and product context.",
+        "effect": "Supports broad recommendation and alternatives queries",
+    },
+    "news_feeds": {
+        "kind": "News and Publisher Feed", "forms": ["News sitemap", "Publisher profile", "Structured article data"],
+        "volume": "All current publications", "cadence": "Per publication", "owner": "Editorial + Engineering",
+        "domains": [], "why": "Publisher feeds make current and archival content discoverable to retrieval systems.",
+        "effect": "Improves timely source discovery",
+    },
+    "syndication": {
+        "kind": "Content Syndication", "forms": ["Licensed republishing", "Partner feed", "Canonical article"],
+        "volume": "Selected authoritative partners", "cadence": "Per partnership", "owner": "Editorial",
+        "domains": [], "why": "Controlled syndication extends reach while preserving canonical ownership.",
+        "effect": "Expands reliable content retrieval",
+    },
+    "expert_sources": {
+        "kind": "Expert Source Network", "forms": ["Author profile", "Expert commentary", "Primary source links"],
+        "volume": "Core contributors", "cadence": "Quarterly review", "owner": "Editorial",
+        "domains": [], "why": "Clear authorship and primary sources improve editorial trust signals.",
+        "effect": "Strengthens expert and source attribution",
+    },
+    "social_distribution": {
+        "kind": "Social Distribution", "forms": ["Article excerpts", "Author updates", "Discussion prompts"],
+        "volume": "2-4 posts/month", "cadence": "Weekly", "owner": "Editorial + Marketing",
+        "domains": [], "why": "Relevant distribution channels help readers discover authoritative publications.",
+        "effect": "Extends content discovery without replacing primary sources",
+    },
+}
+
 TASK_COPY = {
     "补 sitemap.xml 并提交各搜索引擎": {
         "title": "Add sitemap.xml and submit it to international search engines",
@@ -171,7 +315,14 @@ def _profile_channels(profile, existing):
     rows = []
     for channel_id, name, priority in CHANNEL_STRATEGIES[profile["id"]]:
         previous = existing_by_id.get(channel_id, {})
+        defaults = CHANNEL_FIELD_DEFAULTS.get(channel_id, {
+            "kind": "Configured Channel", "forms": ["Relevant authoritative profile", "Evidence-backed content"],
+            "volume": "As appropriate for the project", "cadence": "Review quarterly", "owner": "Marketing",
+            "domains": [], "why": "Use a relevant authoritative source for this project profile.",
+            "effect": "Supports project-specific discovery and verification",
+        })
         rows.append({
+            **defaults,
             **previous,
             "id": channel_id,
             "name": name,
