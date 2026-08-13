@@ -11,10 +11,10 @@ from api.adapters.network import NetworkTargetError, validate_outbound_url
 
 
 CREDENTIAL_PREFIX = "publisher:"
+INTERNATIONAL_PUBLISHERS = frozenset(("github", "wordpress", "webhook"))
 _REQUIRED_CONFIG = {
     "github": ("repo",),
     "wordpress": ("site_url",),
-    "wechat_draft": ("thumb_media_id",),
     "webhook": (),
 }
 
@@ -27,7 +27,7 @@ def _engine_publish():
 
 def platforms():
     """返回引擎支持的发布渠道代码。"""
-    return tuple(_engine_publish().PUBLISHERS)
+    return tuple(code for code in _engine_publish().PUBLISHERS if code in INTERNATIONAL_PUBLISHERS)
 
 
 def credential_code(platform, env_name):
@@ -46,7 +46,7 @@ def credential_map(platform):
 
 def _publisher(platform):
     publishers = _engine_publish().PUBLISHERS
-    if platform not in publishers:
+    if platform not in INTERNATIONAL_PUBLISHERS or platform not in publishers:
         raise ValueError(f"unsupported publishing platform: {platform}")
     return publishers[platform]
 
@@ -150,14 +150,12 @@ def save_config(project_slug, platform, values):
 PUBLISHER_NAMES_EN = {
     "github": "GitHub Repository",
     "wordpress": "WordPress",
-    "wechat_draft": "WeChat Official Account Drafts",
     "webhook": "Custom Webhook / Zapier / CMS",
 }
 
 PUBLISHER_NOTES_EN = {
     "github": "Submit Markdown to your repository via Contents API (deploys instantly with GitHub Pages or static site generators).",
     "wordpress": "Create draft posts via REST API; review and publish from your WordPress admin console.",
-    "wechat_draft": "Create drafts in WeChat Official Account for editorial review and broadcast; server IP must be whitelisted.",
     "webhook": "POST JSON payload {title, markdown, html, slug, path} to your custom webhook endpoint, Zapier, Make, Ghost, or Webflow.",
 }
 
@@ -175,11 +173,8 @@ def overview(project_slug, configured_codes):
     configured_codes = set(configured_codes)
     items = []
     for platform, spec in engine_publish.PUBLISHERS.items():
-        # Hide WeChat unless project target market is specifically Chinese ('cn') or WeChat credentials are set
-        if platform == "wechat_draft" and market != "cn":
-            has_wechat_env = any(credential_code(platform, env) in configured_codes for env in spec["env"])
-            if not has_wechat_env and not publishing.get(platform):
-                continue
+        if platform not in INTERNATIONAL_PUBLISHERS:
+            continue
 
         current = publishing.get(platform) if isinstance(publishing.get(platform), dict) else {}
         missing = [

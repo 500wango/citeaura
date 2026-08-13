@@ -26,17 +26,13 @@ import geolib  # noqa: E402 - 引擎路径必须先加入 sys.path
 _MISSING = object()
 _CONTEXT_LOCK = threading.RLock()
 ENGINE_KEY_ENV = {
-    "glm": "ZHIPUAI_API_KEY",
-    "doubao": "ARK_API_KEY",
-    "deepseek": "DEEPSEEK_API_KEY",
-    "kimi": "MOONSHOT_API_KEY",
-    "minimax": "MINIMAX_API_KEY",
     "gemini": "GEMINI_API_KEY",
     "openai": "OPENAI_API_KEY",
     "claude": "ANTHROPIC_API_KEY",
     "grok": "XAI_API_KEY",
     "perplexity": "PERPLEXITY_API_KEY",
 }
+GLOBAL_LLM_PREFS = ("openai", "gemini", "claude", "grok", "perplexity")
 
 CUSTOM_PROVIDER_CODE = re.compile(r"^custom_[a-z0-9][a-z0-9_-]{2,55}$")
 
@@ -198,7 +194,7 @@ def load_custom_providers(db, tenant_id):
             "name": row.name,
             "base_url": row.base_url,
             "model_id": row.model_id,
-            "market": row.market,
+            "market": "global",
             "api_key": decrypt_key(row.encrypted_api_key),
         }
         for row in rows
@@ -230,11 +226,9 @@ def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = N
 @contextmanager
 def _custom_provider_context(providers):
     """临时把租户自定义 OpenAI-compatible 供应商注册到引擎采样注册表。"""
-    if not providers:
-        yield
-        return
     import sample
 
+    providers = providers or []
     previous = {}
     previous_preferences = sample.LLM_PREFS
     for provider in providers:
@@ -242,7 +236,7 @@ def _custom_provider_context(providers):
         previous[code] = sample.PROVIDERS.get(code, _MISSING)
         sample.PROVIDERS[code] = {
             "name": provider["name"],
-            "market": provider.get("market", "both"),
+            "market": "global",
             "base": provider["base_url"],
             "model": provider["model_id"],
             "model_env": None,
@@ -250,7 +244,7 @@ def _custom_provider_context(providers):
             "search": False,
             "note": "Custom OpenAI-compatible provider",
         }
-    sample.LLM_PREFS = tuple(previous_preferences) + tuple(provider["code"] for provider in providers)
+    sample.LLM_PREFS = GLOBAL_LLM_PREFS + tuple(provider["code"] for provider in providers)
     try:
         yield
     finally:

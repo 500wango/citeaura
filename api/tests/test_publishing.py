@@ -129,6 +129,22 @@ def test_publisher_config_is_encrypted_tenant_isolated_and_hidden_from_engine_ke
     ).status_code == 404
 
 
+def test_domestic_publisher_cannot_be_configured_through_api(publishing_client):
+    client, session_factory, tmp_path = publishing_client
+    tenant_id, headers = _register(client, "owner@example.com", "tenant-a")
+    project_id, _ = _seed_project(session_factory, tmp_path, tenant_id)
+
+    response = client.put(
+        f"/api/v1/projects/{project_id}/publishing/wechat_draft",
+        headers=headers,
+        json={"credentials": {}},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "publisher_config_invalid"
+    assert "unsupported publishing platform" in response.json()["detail"]
+
+
 def test_publish_requires_confirmation_injects_only_tenant_credentials_and_records_result(
     publishing_client, monkeypatch,
 ):

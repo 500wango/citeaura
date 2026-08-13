@@ -129,7 +129,7 @@ class Project(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     slug = Column(String(128), nullable=False)
     url = Column(String(2048), nullable=False)
-    market = Column(String(16), nullable=False, default="both", server_default="both")
+    market = Column(String(16), nullable=False, default="global", server_default="global")
     status = Column(String(32), nullable=False, default="pending", server_default="pending")
     schedule_interval_days = Column(Integer, nullable=True)
     schedule_next_run_at = Column(DateTime(timezone=True), nullable=True, index=True)
@@ -163,7 +163,7 @@ class CustomProvider(Base):
     __tablename__ = "custom_providers"
     __table_args__ = (
         UniqueConstraint("tenant_id", "code", name="uq_custom_providers_tenant_code"),
-        CheckConstraint("market IN ('cn', 'global')", name="ck_custom_providers_market"),
+        CheckConstraint("market = 'global'", name="ck_custom_providers_market"),
     )
 
     id = Column(Integer, primary_key=True)

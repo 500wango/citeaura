@@ -70,7 +70,7 @@ def _seed_workspace(tmp_path):
         "slug": "example-com",
         "market": "global",
         "brand": {"name": "Example", "site": "https://example.com"},
-        "questions": [{"id": "q001", "group": "推荐", "market": "both", "text": "推荐 Example 吗？"}],
+        "questions": [{"id": "q001", "group": "recommendation", "market": "both", "text": "Is Example recommended?"}],
     }), "utf-8")
     (root / "audit.json").write_text(json.dumps({"avg_score": 72, "page_count": 3, "pages": []}), "utf-8")
     (root / "tasks.json").write_text(json.dumps({
@@ -110,7 +110,7 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
 
     config = client.get(f"/api/v1/projects/{project_id}/config", headers=headers)
     assert config.status_code == 200
-    assert config.json()["market"] == "both"
+    assert config.json()["market"] == "global"
     assert config.json()["questions"][0]["id"] == "q001"
     updated = client.patch(
         f"/api/v1/projects/{project_id}/config",
@@ -121,7 +121,7 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
         },
     )
     assert updated.status_code == 200
-    assert updated.json()["config"]["market"] == "both"
+    assert updated.json()["config"]["market"] == "global"
 
     changed_url = client.patch(
         f"/api/v1/projects/{project_id}/config",
@@ -133,8 +133,8 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
         assert db.get(Project, project_id).url == "https://new.example.com"
     assert changed_url.json()["config"]["brand"]["site"] == "https://new.example.com"
     with session_factory() as db:
-        assert db.get(Project, project_id).market == "both"
-    assert json.loads((root / "geo.json").read_text("utf-8"))["market"] == "both"
+        assert db.get(Project, project_id).market == "global"
+    assert json.loads((root / "geo.json").read_text("utf-8"))["market"] == "global"
     forbidden = client.patch(
         f"/api/v1/projects/{project_id}/config",
         headers=headers,
@@ -149,6 +149,15 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
     )
     assert added.status_code == 200
     assert added.json()["ids"] == ["q101"]
+
+    chinese_question = client.post(
+        f"/api/v1/projects/{project_id}/questions",
+        headers=headers,
+        json={"items": [{"text": "Example 的价格是多少？", "market": "global"}]},
+    )
+    assert chinese_question.status_code == 400
+    assert chinese_question.json()["error"] == "workspace_operation_failed"
+    assert "must not contain Chinese characters" in chinese_question.json()["detail"]
 
     first_offsite = client.post(
         f"/api/v1/projects/{project_id}/tickets",

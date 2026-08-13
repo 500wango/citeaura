@@ -9,10 +9,10 @@ from types import SimpleNamespace
 from fastapi import HTTPException
 from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 
-from api.adapters import measurement, sampling_control, ticket_workflow
+from api.adapters import baseline, global_scope, measurement, sampling_control, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract
 from api.adapters.engine import geolib, job_log_path, load_custom_providers, load_tenant_keys, with_tenant_context
-from api.adapters.workspace import ensure_all_engine_scope, preserve_manual_tickets, resilient_crawl_evidence
+from api.adapters.workspace import ensure_global_engine_scope, preserve_manual_tickets, resilient_crawl_evidence
 from api.billing.limits import check_sample_run
 from api.billing.platform_pool import meter_platform_calls, record_usage, resolve_funding
 from api.db import SessionLocal
@@ -314,7 +314,7 @@ def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_p
     if custom_providers:
         context_options["custom_providers"] = custom_providers
     with with_tenant_context(str(tenant_id), project_slug, **context_options):
-        ensure_all_engine_scope(project_slug)
+        ensure_global_engine_scope(project_slug)
         _sync_custom_provider_scope(project_slug, custom_providers)
         with meter_platform_calls(funding["pool_codes"]) as counts:
             pending_error = None
@@ -550,9 +550,11 @@ def task_bootstrap(
         update = update or (lambda *args: None)
         update("bootstrap", 15)
         with _funded_engine_context(tenant_id, project_slug, job_action, job_id=job_id):
-            with preserve_manual_tickets(project_slug):
-                with resilient_crawl_evidence(project_slug):
-                    geo.cmd_autopilot(args)
+            with global_scope.normalize_generated_outputs(project_slug):
+                with preserve_manual_tickets(project_slug):
+                    with resilient_crawl_evidence(project_slug):
+                        geo.cmd_autopilot(args)
+            baseline.normalize_bootstrap_metadata(project_slug)
             update("finalizing", 90)
             ensure_delivery_contract(project_slug)
             if not no_sample:
@@ -614,7 +616,8 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
         update = update or (lambda *args: None)
         update("crawl", 15)
         with _funded_engine_context(tenant_id, project_slug, "cycle", job_id=job_id):
-            geo.cmd_cycle(args)
+            with global_scope.normalize_generated_outputs(project_slug):
+                geo.cmd_cycle(args)
             funding = _engine_funding(tenant_id, project_slug)
             measurement.record_sampling(
                 project_slug,
@@ -733,6 +736,7 @@ def task_verify(tenant_id: str, project_slug: str, job_id=None):
 
     with _job_status(tenant_id, project_slug, "verify", job_id):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
+            global_scope.normalize_project(project_slug)
             report = verify.run(project_slug)
             return ticket_workflow.record_verification(project_slug, report)
 
@@ -744,6 +748,7 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
 
     with _job_status(tenant_id, project_slug, "deliver", job_id):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
+            global_scope.normalize_project(project_slug)
             delivery_directory = deliver.run(project_slug)
             return str(ensure_delivery_contract(project_slug, delivery_directory))
 
@@ -761,15 +766,18 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
             job_id=job_id,
             allow_pool=action in PLATFORM_FUNDED_ACTIONS,
         ):
-            if action in ("plan", "autopilot", "serve"):
-                with preserve_manual_tickets(project_slug):
-                    if action == "autopilot":
-                        with resilient_crawl_evidence(project_slug):
+            with global_scope.normalize_generated_outputs(project_slug):
+                if action in ("plan", "autopilot", "serve"):
+                    with preserve_manual_tickets(project_slug):
+                        if action == "autopilot":
+                            with resilient_crawl_evidence(project_slug):
+                                result = _run_pipeline_action(action, project_slug, params)
+                        else:
                             result = _run_pipeline_action(action, project_slug, params)
-                    else:
-                        result = _run_pipeline_action(action, project_slug, params)
-            else:
-                result = _run_pipeline_action(action, project_slug, params)
+                else:
+                    result = _run_pipeline_action(action, project_slug, params)
+            if action in ("bootstrap", "autopilot"):
+                baseline.normalize_bootstrap_metadata(project_slug)
             if action in ("sample", "autopilot", "serve") and not (params or {}).get("--no-sample", False):
                 funding = _engine_funding(tenant_id, project_slug)
                 measurement.record_sampling(

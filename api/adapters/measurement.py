@@ -6,6 +6,7 @@ import math
 from datetime import datetime, timezone
 
 from api.adapters.engine import geolib
+from api.adapters.global_scope import is_global_sample
 
 
 SCHEMA_VERSION = "1.0"
@@ -33,7 +34,7 @@ def _mode(provider):
 def _sample_summary(project_slug):
     directory = geolib.project_dir(project_slug)
     sample_files = sorted((directory / "samples").glob("*.jsonl")) if (directory / "samples").exists() else []
-    rows = geolib.read_jsonl(sample_files[-1]) if sample_files else []
+    rows = [row for row in geolib.read_jsonl(sample_files[-1]) if is_global_sample(row)] if sample_files else []
     per_platform = {}
     success = 0
     for row in rows:

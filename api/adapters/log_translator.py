@@ -2,6 +2,8 @@
 
 import re
 
+from api.adapters.baseline import normalize_uncertainties
+
 LOG_TRANSLATIONS = [
     (re.compile(r"跳过（缺 API Key）：(.*)"), r"Skipped (Missing API Key): \1"),
     (re.compile(r"\[(.*?)\] (cn|global|both) 市场 · (\d+) 题 × (\d+) 轮"), r"[\1] \2 market · \3 questions × \4 round(s)"),
@@ -38,6 +40,12 @@ LOG_TRANSLATIONS = [
 ]
 
 
+def _translate_manual_input(match):
+    values = [item.strip() for item in match.group(1).split(",") if item.strip()]
+    normalized = normalize_uncertainties(values)
+    return "Needs manual input: " + "; ".join(normalized)
+
+
 def translate_engine_log(log_text: str) -> str:
     """Translate Chinese engine log output into English."""
     if not log_text:
@@ -45,4 +53,5 @@ def translate_engine_log(log_text: str) -> str:
     result = str(log_text)
     for pattern, replacement in LOG_TRANSLATIONS:
         result = pattern.sub(replacement, result)
+    result = re.sub(r"(?:Needs manual input|需人工(?:输入|补充))\s*[:：]\s*([^\n]+)", _translate_manual_input, result)
     return result

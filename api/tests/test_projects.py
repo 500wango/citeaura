@@ -95,7 +95,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert body["action"] == "bootstrap"
     assert calls[0].url == "https://example.com"
     assert calls[0].name == "Example Brand"
-    assert calls[0].market == "both"
+    assert calls[0].market == "global"
 
     config_path = next((tmp_path / "work").glob("*/example-com/geo.json"))
     legacy_config = json.loads(config_path.read_text("utf-8"))
@@ -105,8 +105,8 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     listed = client.get("/api/v1/projects", headers=headers)
     assert listed.status_code == 200
     assert listed.json()["projects"][0]["slug"] == "example-com"
-    assert listed.json()["projects"][0]["market"] == "both"
-    assert json.loads(config_path.read_text("utf-8"))["market"] == "both"
+    assert listed.json()["projects"][0]["market"] == "global"
+    assert json.loads(config_path.read_text("utf-8"))["market"] == "global"
 
     detail = client.get(f"/api/v1/projects/{body['project_id']}", headers=headers)
     assert detail.status_code == 200
@@ -137,7 +137,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
         {
             "date": "2026-07-31",
             "platforms": {
-                "deepseek": {
+                    "openai": {
                     "market": "global",
                     "mention_rate": 0.5,
                     "top3_rate": 0.5,
@@ -159,8 +159,8 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
         project_dir / "samples" / "2026-07-31.jsonl",
         [
             {
-                "platform": "deepseek",
-                "platform_name": "DeepSeek",
+                "platform": "openai",
+                "platform_name": "OpenAI",
                 "market": "global",
                 "sample_mode": "api",
                 "search_enabled": False,
@@ -200,11 +200,11 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     )
     report = client.get(f"/api/v1/projects/{body['project_id']}/report", headers=headers)
     assert report.status_code == 200
-    assert report.json()["report"]["platforms"]["deepseek"]["mention_rate"] == 0.5
+    assert report.json()["report"]["platforms"]["openai"]["mention_rate"] == 0.5
     engines = client.get(f"/api/v1/projects/{body['project_id']}/engines", headers=headers)
     assert engines.status_code == 200
     modes = {item["platform"]: item["sampling_mode"] for item in engines.json()["engines"]}
-    assert modes == {"deepseek": "API - Parametric knowledge", "chatgpt": "Manual - Product interface"}
+    assert modes == {"openai": "API - Parametric knowledge", "chatgpt": "Manual - Product interface"}
     assert all("market" not in item for item in engines.json()["engines"])
     samples = client.get(f"/api/v1/projects/{body['project_id']}/samples/2026-07-31", headers=headers)
     assert samples.status_code == 200
@@ -218,7 +218,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     sampled = client.post(
         f"/api/v1/projects/{body['project_id']}/sample",
         headers=headers,
-        json={"limit": 2, "platforms": ["deepseek"]},
+        json={"limit": 2, "platforms": ["openai"]},
     )
     assert sampled.status_code == 202
     assert sampled.json()["job_id"] == 2
@@ -456,11 +456,11 @@ def test_sampling_budget_blocks_direct_pipeline_retry_and_schedule(project_clien
 
         geolib.write_json(geolib.project_dir(args.slug) / "geo.json", {
             "brand": {"name": "Budget", "site": args.url},
-            "market": "both",
-            "platforms": ["deepseek"],
+            "market": "global",
+            "platforms": ["openai"],
             "questions": [
-                {"id": "q001", "text": "预算测试一", "market": "cn"},
-                {"id": "q002", "text": "预算测试二", "market": "cn"},
+                {"id": "q101", "text": "What is the best budget option?", "market": "global"},
+                {"id": "q102", "text": "Which tools offer predictable pricing?", "market": "global"},
             ],
         })
 
@@ -469,7 +469,7 @@ def test_sampling_budget_blocks_direct_pipeline_retry_and_schedule(project_clien
     monkeypatch.setattr(project_router.task_sample, "delay", lambda *a, **kw: types.SimpleNamespace(id="sample"))
     monkeypatch.setattr(project_router.task_pipeline, "delay", lambda *a, **kw: types.SimpleNamespace(id="pipeline"))
     monkeypatch.setattr(sampling_control, "resolve_funding", lambda *args, **kwargs: {
-        "keys": {"deepseek": "secret"},
+        "keys": {"openai": "secret"},
         "pool_codes": frozenset(),
         "rates": {},
     })

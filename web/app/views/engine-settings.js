@@ -8,14 +8,9 @@ import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 
 const AVAILABLE_ENGINES = [
-  { code: 'deepseek', name: 'DeepSeek', provider: 'DeepSeek Official API' },
   { code: 'openai', name: 'OpenAI', provider: 'OpenAI Platform' },
   { code: 'claude', name: 'Anthropic', provider: 'Anthropic Console' },
   { code: 'gemini', name: 'Google', provider: 'Google AI Studio' },
-  { code: 'glm', name: 'Zhipu AI', provider: 'Zhipu BigModel Platform' },
-  { code: 'doubao', name: 'ByteDance', provider: 'Volcengine Ark Platform' },
-  { code: 'kimi', name: 'Moonshot AI', provider: 'Moonshot Platform' },
-  { code: 'minimax', name: 'MiniMax', provider: 'MiniMax Platform' },
   { code: 'grok', name: 'xAI', provider: 'xAI Console' },
   { code: 'perplexity', name: 'Perplexity', provider: 'Perplexity API' },
 ];
@@ -31,7 +26,6 @@ function customProviderForm(provider = null) {
   const name = escapeHtml(provider?.name || '');
   const baseUrl = escapeHtml(provider?.base_url || '');
   const modelId = escapeHtml(provider?.model_id || '');
-  const market = provider?.market || 'global';
   return `
     <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
       <div class="field" style="margin:0;">
@@ -48,13 +42,6 @@ function customProviderForm(provider = null) {
         <input type="text" id="custom-provider-model" class="input" placeholder="provider/model-name" maxlength="255" value="${modelId}" required>
       </div>
       <div class="field" style="margin:0;">
-        <label for="custom-provider-market">Question Market *</label>
-        <select id="custom-provider-market" class="input">
-          <option value="global" ${market === 'global' ? 'selected' : ''}>Global / English</option>
-          <option value="cn" ${market === 'cn' ? 'selected' : ''}>Domestic / Chinese</option>
-        </select>
-      </div>
-      <div class="field" style="margin:0;">
         <label for="custom-provider-key">API Key *</label>
         <input type="password" id="custom-provider-key" class="input" placeholder="sk-••••••••••••••••" required>
         <div class="field-hint">The connection is tested before the encrypted configuration is saved.</div>
@@ -69,7 +56,7 @@ function customProviderPayload() {
     name: document.getElementById('custom-provider-name')?.value.trim() || '',
     base_url: document.getElementById('custom-provider-url')?.value.trim() || '',
     model_id: document.getElementById('custom-provider-model')?.value.trim() || '',
-    market: document.getElementById('custom-provider-market')?.value || 'global',
+    market: 'global',
     api_key: document.getElementById('custom-provider-key')?.value.trim() || '',
   };
 }
@@ -98,7 +85,6 @@ async function saveCustomProvider(ctx, successMessage) {
     document.getElementById('custom-provider-name'),
     document.getElementById('custom-provider-url'),
     document.getElementById('custom-provider-model'),
-    document.getElementById('custom-provider-market'),
     document.getElementById('custom-provider-key'),
   ];
   const invalid = inputs.find((input) => input && !input.checkValidity());
@@ -244,8 +230,7 @@ export default {
                         <button type="button" class="btn btn-secondary btn-sm btn-edit-custom"
                           data-name="${escapeHtml(provider.name)}"
                           data-base-url="${escapeHtml(provider.base_url)}"
-                          data-model-id="${escapeHtml(provider.model_id)}"
-                          data-market="${escapeHtml(provider.market)}">Edit</button>
+                          data-model-id="${escapeHtml(provider.model_id)}">Edit</button>
                         <button type="button" class="btn btn-ghost btn-sm btn-del-custom" data-code="${escapeHtml(provider.code)}" style="color:var(--bad);">✕</button>
                       </div>
                     </td>
@@ -275,7 +260,6 @@ export default {
           name: btn.getAttribute('data-name'),
           base_url: btn.getAttribute('data-base-url'),
           model_id: btn.getAttribute('data-model-id'),
-          market: btn.getAttribute('data-market'),
         };
         openModal({
           title: 'Edit Custom Provider',

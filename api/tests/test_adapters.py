@@ -32,14 +32,14 @@ def test_tenant_context_patches_paths_and_die_then_restores():
 def test_key_injection_supports_engine_codes_and_restores_environment(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "old")
     monkeypatch.setenv("GEMINI_API_KEY", "global-fallback")
-    os.environ.pop("DEEPSEEK_API_KEY", None)
+    os.environ.pop("XAI_API_KEY", None)
 
-    with with_tenant_context("tenant", "project", {"deepseek": "new", "OPENAI_API_KEY": "updated"}):
-        assert os.environ["DEEPSEEK_API_KEY"] == "new"
+    with with_tenant_context("tenant", "project", {"grok": "new", "OPENAI_API_KEY": "updated"}):
+        assert os.environ["XAI_API_KEY"] == "new"
         assert os.environ["OPENAI_API_KEY"] == "updated"
         assert "GEMINI_API_KEY" not in os.environ
 
-    assert "DEEPSEEK_API_KEY" not in os.environ
+    assert "XAI_API_KEY" not in os.environ
     assert os.environ["OPENAI_API_KEY"] == "old"
     assert os.environ["GEMINI_API_KEY"] == "global-fallback"
 
@@ -67,8 +67,18 @@ def test_custom_provider_is_registered_only_inside_tenant_context():
         assert sample.model_for(provider["code"]) == provider["model_id"]
         assert sample.available(provider["code"]) is True
         assert sample.LLM_PREFS[-1] == provider["code"]
+        assert sample.LLM_PREFS[:-1] == engine_adapter.GLOBAL_LLM_PREFS
 
     assert provider["code"] not in sample.PROVIDERS
+    assert sample.LLM_PREFS == original_preferences
+
+
+def test_tenant_context_uses_only_global_llm_preferences():
+    import sample
+
+    original_preferences = sample.LLM_PREFS
+    with with_tenant_context("tenant", "project"):
+        assert sample.LLM_PREFS == engine_adapter.GLOBAL_LLM_PREFS
     assert sample.LLM_PREFS == original_preferences
 
 

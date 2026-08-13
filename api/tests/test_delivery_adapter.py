@@ -92,8 +92,8 @@ def seed_delivery_project(tmp_path: Path, *, legacy=True):
     _write_json(project / "metrics" / "2026-07-31.json", {
         "date": "2026-07-31",
         "platforms": {
-            "deepseek": {
-                "label": "DeepSeek 网页版", "market": "global", "samples": 2,
+            "openai": {
+                "label": "OpenAI", "market": "global", "samples": 2,
                 "mention_rate": 0.5, "top3_rate": 0.5, "own_domain_cite_rate": 0,
             },
         },
@@ -101,7 +101,7 @@ def seed_delivery_project(tmp_path: Path, *, legacy=True):
     (project / "samples").mkdir()
     (project / "samples" / "2026-07-31.jsonl").write_text(
         json.dumps({
-            "platform": "deepseek", "sample_mode": "api", "terminal": "api", "search_enabled": False,
+            "platform": "openai", "market": "global", "sample_mode": "api", "terminal": "api", "search_enabled": False,
         }) + "\n",
         "utf-8",
     )
@@ -150,28 +150,31 @@ def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypa
     assert expected <= files
     assert "01-诊断报告.md" not in files
     assert "API - Parametric knowledge" in (output / "01-Audit-Report.md").read_text("utf-8")
-    assert "Add sitemap.xml and submit to search engines" in (output / "03-Ticket-Log.md").read_text("utf-8")
+    assert "Add sitemap.xml and submit it to international search engines" in (output / "03-Ticket-Log.md").read_text("utf-8")
     assert "Current value: 1; target: at most 0." in (output / "04-Acceptance-Checklist.md").read_text("utf-8")
     assert delivery.delivery_language_violations(output) == []
 
 
-def test_delivery_contract_references_domestic_questions_without_changing_source(tmp_path, monkeypatch):
+def test_delivery_contract_removes_domestic_questions_and_channels(tmp_path, monkeypatch):
     project, output = seed_delivery_project(tmp_path)
     config = json.loads((project / "geo.json").read_text("utf-8"))
     config["questions"] = [{"id": "q001", "text": "这个品牌是什么？", "market": "cn"}]
     _write_json(project / "geo.json", config)
     blueprint = json.loads((project / "blueprint.json").read_text("utf-8"))
     blueprint["contents"][0].update({"market": "cn", "question": "这个品牌是什么？"})
+    blueprint["channels"].append({
+        "id": "baike", "name": "Baidu Baike", "priority": "P0", "market": "cn", "covered": False,
+    })
     _write_json(project / "blueprint.json", blueprint)
     _patch_project(monkeypatch, project)
 
     delivery.ensure_delivery_contract("example", output)
 
     build_map = (output / "06-Build-Map.md").read_text("utf-8")
-    outline = (output / "assets" / "outlines" / "q001.md").read_text("utf-8")
-    assert "Configured Domestic target question q001" in build_map
-    assert "Configured Domestic target question q001" in outline
-    assert json.loads((project / "geo.json").read_text("utf-8"))["questions"][0]["text"] == "这个品牌是什么？"
+    assert "这个品牌是什么" not in build_map
+    assert "Baidu" not in build_map
+    assert not (output / "assets" / "outlines" / "q001.md").exists()
+    assert json.loads((project / "geo.json").read_text("utf-8"))["questions"] == []
     assert delivery.delivery_language_violations(output) == []
 
 
@@ -216,7 +219,7 @@ def test_delivery_contract_normalizes_generated_jsonld_values(tmp_path, monkeypa
 
     faq = json.loads((output / "assets" / "jsonld" / "faq-page.json").read_text("utf-8"))
     software = json.loads((output / "assets" / "jsonld" / "software.json").read_text("utf-8"))
-    assert faq["mainEntity"][0]["name"] == "Configured Domestic target question 1"
+    assert faq["mainEntity"][0]["name"] == "Configured Global target question 1"
     assert faq["mainEntity"][0]["acceptedAnswer"]["text"] == "[Add a direct English answer followed by supporting evidence.]"
     assert software["description"] == "[Add the approved English brand description.]"
     assert software["offers"][0]["priceCurrency"] == "USD"

@@ -125,7 +125,7 @@ export default {
             if (!lines.length) return false;
 
             try {
-              const items = lines.map((text) => ({ text, market: 'both', group: 'Recommendation' }));
+              const items = lines.map((text) => ({ text, market: 'global', group: 'Recommendation' }));
               await workspace.addQuestions(projectId, { items });
               toast.success(t('questions.added_success', {}, 'Questions added successfully'));
               ctx.navigate('#/questions');

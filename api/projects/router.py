@@ -24,7 +24,7 @@ from api.adapters.engine import (
     with_tenant_context,
 )
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import delivery, framing, preflight, report_quality, sampling_control, ticket_workflow, workspace
+from api.adapters import delivery, framing, global_scope, preflight, report_quality, sampling_control, ticket_workflow, workspace
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
@@ -294,7 +294,7 @@ def _require_project_questions(tenant: Tenant, project: Project):
     """采样入队前确认项目已有目标问题。"""
     try:
         with with_tenant_context(tenant.name, project.slug):
-            config = workspace.ensure_all_engine_scope(project.slug)
+            config = workspace.ensure_global_engine_scope(project.slug)
     except GeoEngineError:
         config = {}
     if not config.get("questions"):
@@ -382,7 +382,10 @@ def _product_report(project_slug, metrics):
     project_directory = geolib.project_dir(project_slug)
     audit = geolib.read_json(project_directory / "audit.json", {}) or {}
     sample_path = _latest_file(project_directory / "samples", "*.jsonl")
-    rows = geolib.read_jsonl(sample_path) if sample_path else []
+    rows = [
+        row for row in (geolib.read_jsonl(sample_path) if sample_path else [])
+        if global_scope.is_global_sample(row)
+    ]
     engine_rows = analytics.engines(project_slug, rows, metrics)
 
     engines = []
@@ -493,7 +496,7 @@ def _competitor_discovery_payload(config):
         items.append({
             "name": name.strip(),
             "aliases": [alias for alias in aliases if isinstance(alias, str) and alias],
-            "market": competitor.get("market", "both"),
+            "market": "global",
             "discovery_status": discovery_status,
         })
     return {
@@ -553,7 +556,11 @@ def _sample_estimate(db, tenant, project, payload, enforce=False):
 
     platforms = payload.platforms if payload else None
     custom_codes = {provider["code"] for provider in load_custom_providers(db, tenant.id)}
-    if platforms and any(code not in sample.PROVIDERS and code not in custom_codes for code in platforms):
+    if platforms and any(
+        code in global_scope.DOMESTIC_PLATFORM_CODES
+        or (code not in sample.PROVIDERS and code not in custom_codes)
+        for code in platforms
+    ):
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "sample_platform_must_have_api")
     function = sampling_control.ensure_allowed if enforce else sampling_control.estimate
     try:
@@ -606,8 +613,9 @@ def project_preflight(
 
     custom_providers = load_custom_providers(db, tenant.id)
     custom_codes = {provider["code"] for provider in custom_providers}
-    requested = list(dict.fromkeys(payload.platforms or sorted(set(sample.PROVIDERS) | custom_codes)))
-    invalid = sorted(set(requested) - set(sample.PROVIDERS) - custom_codes)
+    available = set(sample.PROVIDERS) - global_scope.DOMESTIC_PLATFORM_CODES
+    requested = list(dict.fromkeys(payload.platforms or sorted(available | custom_codes)))
+    invalid = sorted(set(requested) - available - custom_codes)
     if invalid:
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "unsupported_api_platform")
     byok = set(load_tenant_keys(db, tenant.id))
@@ -623,6 +631,7 @@ def project_preflight(
         "manual_only": [
             {"engine_code": code, "name": name, "sampling_mode": "Manual - Product interface", "market": market}
             for code, (name, market) in sorted(sample.MANUAL_ONLY.items())
+            if market == "global"
         ],
         "requested_platforms": requested,
         "effective_platforms": effective,
@@ -657,7 +666,7 @@ def create_project(
     if existing is not None:
         project = existing
         project.url = payload.url
-        project.market = "both"
+        project.market = "global"
         project.status = "initializing"
         project.archived_at = None
         project.schedule_interval_days = None
@@ -667,7 +676,7 @@ def create_project(
             tenant_id=tenant.id,
             slug=slug,
             url=payload.url,
-            market="both",
+            market="global",
             status="initializing",
         )
         db.add(project)
@@ -696,7 +705,7 @@ def create_project(
                 url=payload.url,
                 name=payload.name.strip() if payload.name else None,
                 slug=slug,
-                market="both",
+                market="global",
                 max_pages=25,
                 force=False,
             )
@@ -768,7 +777,7 @@ def list_projects(current_user: User = Depends(get_current_user), db: Session = 
                 import dashboard
 
                 for project in projects:
-                    workspace.ensure_all_engine_scope(project.slug)
+                    workspace.ensure_global_engine_scope(project.slug)
                 summaries = {item["slug"]: item for item in dashboard.list_projects()}
         except Exception:  # noqa: BLE001 - 损坏的管线摘要不能阻断 DB 项目列表
             summaries = {}
@@ -809,7 +818,7 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
         with with_tenant_context(tenant.name, project.slug):
             import dashboard
 
-            cfg = workspace.ensure_all_engine_scope(project.slug)
+            cfg = workspace.ensure_global_engine_scope(project.slug)
             detail = dashboard.project(project.slug)
             detail["questions"] = cfg.get("questions", [])
             detail["competitor_discovery"] = _competitor_discovery_payload(cfg)
@@ -843,7 +852,7 @@ def project_status(project_id: int, current_user: User = Depends(get_current_use
     with with_tenant_context(tenant.name, project.slug):
         import dashboard
 
-        workspace.ensure_all_engine_scope(project.slug)
+        workspace.ensure_global_engine_scope(project.slug)
         summary = next(
             (item for item in dashboard.list_projects() if item.get("slug") == project.slug),
             {
@@ -1192,6 +1201,7 @@ def project_report(project_id: int, current_user: User = Depends(get_current_use
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     with with_tenant_context(tenant.name, project.slug):
+        global_scope.normalize_project(project.slug)
         path = _latest_file(geolib.project_dir(project.slug) / "metrics", "*.json")
         if path is None:
             _error(status.HTTP_404_NOT_FOUND, "report_not_found")
@@ -1207,6 +1217,7 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     with with_tenant_context(tenant.name, project.slug):
+        global_scope.normalize_project(project.slug)
         pdir = geolib.project_dir(project.slug)
         metrics_path = _latest_file(pdir / "metrics", "*.json")
         sample_path = _latest_file(pdir / "samples", "*.jsonl")
@@ -1253,6 +1264,7 @@ def project_framing(project_id: int, current_user: User = Depends(get_current_us
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     with with_tenant_context(tenant.name, project.slug):
+        global_scope.normalize_project(project.slug)
         result = framing.build(project.slug)
     return {"framing": result}
 
@@ -1273,7 +1285,10 @@ def project_samples(
         path = geolib.project_dir(project.slug) / "samples" / f"{sample_date}.jsonl"
         if not path.is_file():
             _error(status.HTTP_404_NOT_FOUND, "samples_not_found")
-        rows = geolib.read_jsonl(path)
+        rows = [
+            row for row in geolib.read_jsonl(path)
+            if global_scope.is_global_sample(row)
+        ]
     return {"date": sample_date, "samples": rows}
 
 
@@ -1293,6 +1308,7 @@ def project_tickets(
     with with_tenant_context(tenant.name, project.slug):
         import tasks as engine_tasks
 
+        global_scope.normalize_tasks(project.slug)
         data = engine_tasks.load(project.slug)
     tickets = ticket_workflow.filter_tickets(
         data.get("tasks", []), status=ticket_status, owner=owner, priority=priority, query=q,
@@ -1316,6 +1332,7 @@ def project_playbook(
     with with_tenant_context(tenant.name, project.slug):
         import tasks as engine_tasks
 
+        global_scope.normalize_tasks(project.slug)
         data = engine_tasks.load(project.slug)
     filtered = ticket_workflow.filter_tickets(
         data.get("tasks", []), status=ticket_status, owner=owner, priority=priority, query=q,

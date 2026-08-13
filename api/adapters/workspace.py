@@ -11,9 +11,9 @@ from urllib.parse import urlparse
 
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
+from api.adapters import global_scope
 
 
-QUESTION_MARKETS = {"cn", "global", "both"}
 TEXT_SUFFIXES = {".txt", ".json", ".html", ".md"}
 
 
@@ -220,31 +220,28 @@ def _validated_questions(questions):
             raise ValueError("each question must be an object")
         qid = str(item.get("id") or "").strip()
         text = str(item.get("text") or "").strip()
-        market = item.get("market")
+        market = item.get("market", "global")
         group = str(item.get("group") or "Recommendation").strip() or "Recommendation"
         if not re.fullmatch(r"q\d{3,6}", qid) or qid in used_ids:
             raise ValueError("question ids must be unique qNNN values")
         if not text or len(text) > 1000:
             raise ValueError("question text is required and must not exceed 1000 characters")
-        if market not in QUESTION_MARKETS:
-            raise ValueError("question market must be cn, global, or both")
-        validated.append({**item, "id": qid, "text": text, "market": market, "group": group})
+        if global_scope.contains_han(text):
+            raise ValueError("question text must not contain Chinese characters")
+        if market != "global":
+            raise ValueError("question market must be global")
+        validated.append({**item, "id": qid, "text": text, "market": "global", "group": group})
         used_ids.add(qid)
     return validated
 
 
 def read_config(project_slug: str) -> dict:
-    return ensure_all_engine_scope(project_slug)
+    return ensure_global_engine_scope(project_slug)
 
 
-def ensure_all_engine_scope(project_slug: str) -> dict:
-    """把历史项目归一为全引擎范围，保留问题级语言路由。"""
-    with geolib.project_lock(project_slug):
-        current = geolib.load_config(project_slug)
-        if current.get("market") != "both":
-            current["market"] = "both"
-            geolib.save_config(project_slug, current)
-    return current
+def ensure_global_engine_scope(project_slug: str) -> dict:
+    """把历史项目及已有产物归一为国际市场。"""
+    return global_scope.normalize_project(project_slug)
 
 
 def update_config(project_slug: str, updates: dict) -> dict:
@@ -253,16 +250,17 @@ def update_config(project_slug: str, updates: dict) -> dict:
     if "publishing" in updates:
         raise ValueError("publishing config must use the publishing API")
     with geolib.project_lock(project_slug):
-        current = geolib.load_config(project_slug)
+        current = global_scope.normalize_config_data(geolib.load_config(project_slug))
         if updates.get("slug", project_slug) != project_slug:
             raise ValueError("project slug cannot be changed")
         current.update(updates)
         current["slug"] = project_slug
-        current["market"] = "both"
+        current["market"] = "global"
         if "url" in updates:
             current.setdefault("brand", {})["site"] = updates["url"]
         if "questions" in current:
             current["questions"] = _validated_questions(current["questions"])
+        current = global_scope.normalize_config_data(current)
         geolib.save_config(project_slug, current)
     return current
 
@@ -392,10 +390,10 @@ def add_questions(project_slug: str, items: list):
     if not items or len(items) > 200 or any(not isinstance(item, dict) for item in items):
         raise ValueError("question candidates must contain 1 to 200 objects")
     with geolib.project_lock(project_slug):
-        config = geolib.load_config(project_slug)
+        original = geolib.load_config(project_slug)
+        config = global_scope.normalize_config_data(original)
         questions = config.setdefault("questions", [])
         existing = {str(question.get("text") or "").strip() for question in questions}
-        series = {"cn": 1, "global": 101, "both": 901}
         used = {
             int(match.group(1))
             for question in questions
@@ -404,25 +402,31 @@ def add_questions(project_slug: str, items: list):
         added = []
         for item in items:
             text = str(item.get("text") or "").strip()
-            market = item.get("market") if item.get("market") in series else "cn"
+            market = item.get("market", "global")
             group = str(item.get("group") or "Scenario").strip() or "Scenario"
-            if not text or len(text) > 1000 or text in existing:
+            if not text or len(text) > 1000:
+                raise ValueError("question text is required and must not exceed 1000 characters")
+            if global_scope.contains_han(text):
+                raise ValueError("question text must not contain Chinese characters")
+            if market != "global":
+                raise ValueError("question market must be global")
+            if text in existing:
                 continue
-            number = series[market]
+            number = 101
             while number in used:
                 number += 1
             used.add(number)
             question = {
                 "id": f"q{number:03d}",
                 "group": group,
-                "market": market,
+                "market": "global",
                 "text": text,
                 "source": "expand",
             }
             questions.append(question)
             existing.add(text)
             added.append(question)
-        if added:
+        if added or config != original:
             geolib.save_config(project_slug, config)
     return added
 
@@ -569,7 +573,7 @@ def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced
             "id": ticket_id,
             "priority": "P1",
             "package": "External Evidence",
-            "market": config.get("market", "both"),
+            "market": "global",
             "kind": "offsite",
             "source": "manual",
             "title": f"Promote {hostname} page to enrich brand facts",
@@ -595,7 +599,7 @@ def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced
         tickets.append(ticket)
         data.setdefault("slug", project_slug)
         data.setdefault("generated_at", geolib.now_iso())
-        data.setdefault("market", config.get("market", "both"))
+        data["market"] = "global"
         data.setdefault("baseline", {})
         data["tasks"] = tickets
         engine_tasks.save(project_slug, data)

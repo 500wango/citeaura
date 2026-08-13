@@ -41,8 +41,8 @@ def test_framing_uses_latest_samples_and_keeps_source_evidence(tmp_path, monkeyp
             [
                 _row(
                     "CiteAura is described as a reliable GEO analysis tool for marketing teams.",
-                    "deepseek",
-                    "DeepSeek",
+                    "openai",
+                    "OpenAI",
                     sample_mode="api",
                     search_enabled=False,
                 ),
@@ -72,18 +72,17 @@ def test_framing_uses_latest_samples_and_keeps_source_evidence(tmp_path, monkeyp
 
     assert result["status"] == "ready"
     assert result["date"] == "2026-07-31"
-    assert result["sample_count"] == 4
-    assert result["mentioned_samples"] == 3
+    assert result["sample_count"] == 3
+    assert result["mentioned_samples"] == 2
     assert [item["term"] for item in result["terms"]] == [
         "reliable GEO analysis tool for marketing teams",
-        "专业的 AI 可见性分析平台",
     ]
     repeated = result["terms"][0]
     assert repeated["count"] == 2
-    assert repeated["share"] == 0.667
-    assert repeated["engines"] == ["DeepSeek", "Perplexity"]
+    assert repeated["share"] == 1.0
+    assert repeated["engines"] == ["OpenAI", "Perplexity"]
     assert {item["sampling_mode"] for item in repeated["evidence"]} == {"API - Parametric knowledge", "API - Search grounded"}
-    assert result["terms"][1]["evidence"][0]["sampling_mode"] == "Manual - Product interface"
+    assert "专业的 AI" not in str(result)
     assert "old product" not in str(result)
 
 

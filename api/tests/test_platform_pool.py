@@ -18,9 +18,9 @@ from api.settings.crypto import encrypt_key
 def pool_client(tmp_path, monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "test-secret-that-is-long-enough-32")
     monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"0" * 32).decode())
-    monkeypatch.setenv("PLATFORM_POOL_PRICES_CNY_FEN", json.dumps({"deepseek": 1, "openai": 3}))
-    monkeypatch.setenv("PLATFORM_POOL_DEEPSEEK_API_KEY", "platform-deepseek-secret")
+    monkeypatch.setenv("PLATFORM_POOL_PRICES_CNY_FEN", json.dumps({"openai": 3, "gemini": 2}))
     monkeypatch.setenv("PLATFORM_POOL_OPENAI_API_KEY", "platform-openai-secret")
+    monkeypatch.setenv("PLATFORM_POOL_GEMINI_API_KEY", "platform-gemini-secret")
     engine = create_engine(f"sqlite:///{tmp_path / 'pool.sqlite'}")
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -83,7 +83,7 @@ def test_platform_pool_api_is_explicit_byok_first_and_tenant_isolated(pool_clien
     byok = client.put(
         "/api/v1/settings/keys",
         headers=first_headers,
-        json={"engine_code": "deepseek", "key_value": "tenant-deepseek-secret"},
+        json={"engine_code": "openai", "key_value": "tenant-openai-secret"},
     )
     assert byok.status_code == 200
     initial = client.get(
@@ -92,8 +92,8 @@ def test_platform_pool_api_is_explicit_byok_first_and_tenant_isolated(pool_clien
     )
     assert initial.status_code == 200
     assert initial.json()["platform_pool_enabled"] is False
-    assert initial.json()["byok_engines"] == ["deepseek"]
-    assert {item["engine_code"] for item in initial.json()["pool_engines"]} == {"deepseek", "openai"}
+    assert initial.json()["byok_engines"] == ["openai"]
+    assert {item["engine_code"] for item in initial.json()["pool_engines"]} == {"gemini", "openai"}
 
     enabled = client.put(
         f"/api/v1/projects/{first_project_id}/sampling-funding",
@@ -102,12 +102,12 @@ def test_platform_pool_api_is_explicit_byok_first_and_tenant_isolated(pool_clien
     )
     assert enabled.status_code == 200
     sources = {item["engine_code"]: item["source"] for item in enabled.json()["effective_engines"]}
-    assert sources["deepseek"] == "byok"
-    assert sources["openai"] == "platform_pool"
+    assert sources["openai"] == "byok"
+    assert sources["gemini"] == "platform_pool"
     assert enabled.json()["usage"]["calls"] == 0
-    assert "platform-deepseek-secret" not in enabled.text
+    assert "platform-gemini-secret" not in enabled.text
     assert "platform-openai-secret" not in enabled.text
-    assert "tenant-deepseek-secret" not in enabled.text
+    assert "tenant-openai-secret" not in enabled.text
 
     pool_status = client.get("/api/v1/billing/platform-pool", headers=first_headers)
     assert pool_status.status_code == 200
@@ -151,8 +151,8 @@ def test_platform_pool_api_is_explicit_byok_first_and_tenant_isolated(pool_clien
         json={"platform_pool_enabled": False},
     ).status_code == 403
 
-    monkeypatch.delenv("PLATFORM_POOL_DEEPSEEK_API_KEY")
     monkeypatch.delenv("PLATFORM_POOL_OPENAI_API_KEY")
+    monkeypatch.delenv("PLATFORM_POOL_GEMINI_API_KEY")
     assert client.put(
         f"/api/v1/projects/{first_project_id}/sampling-funding",
         headers=first_headers,
@@ -169,8 +169,8 @@ def test_platform_pool_api_is_explicit_byok_first_and_tenant_isolated(pool_clien
 
 def test_pool_meter_records_only_fallback_calls_once_per_job(tmp_path, monkeypatch):
     monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"1" * 32).decode())
-    monkeypatch.setenv("PLATFORM_POOL_PRICES_CNY_FEN", json.dumps({"deepseek": 1, "openai": 3}))
-    monkeypatch.setenv("PLATFORM_POOL_DEEPSEEK_API_KEY", "platform-deepseek")
+    monkeypatch.setenv("PLATFORM_POOL_PRICES_CNY_FEN", json.dumps({"gemini": 2, "openai": 3}))
+    monkeypatch.setenv("PLATFORM_POOL_GEMINI_API_KEY", "platform-gemini")
     monkeypatch.setenv("PLATFORM_POOL_OPENAI_API_KEY", "platform-openai")
     engine = create_engine(f"sqlite:///{tmp_path / 'meter.sqlite'}")
     session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -192,8 +192,8 @@ def test_pool_meter_records_only_fallback_calls_once_per_job(tmp_path, monkeypat
         db.add(job)
         db.add(ApiKey(
             tenant_id=tenant.id,
-            engine_code="deepseek",
-            encrypted_value=encrypt_key("tenant-deepseek"),
+            engine_code="openai",
+            encrypted_value=encrypt_key("tenant-openai"),
         ))
         db.commit()
         tenant_id, project_id, job_id = tenant.id, project.id, job.id
@@ -201,20 +201,20 @@ def test_pool_meter_records_only_fallback_calls_once_per_job(tmp_path, monkeypat
     monkeypatch.setattr(platform_pool, "SessionLocal", session_factory)
     with session_factory() as db:
         funding = platform_pool.resolve_funding(db, tenant_id, "meter-project")
-    assert funding["keys"]["deepseek"] == "tenant-deepseek"
-    assert funding["keys"]["openai"] == "platform-openai"
-    assert funding["pool_codes"] == frozenset(("openai",))
+    assert funding["keys"]["openai"] == "tenant-openai"
+    assert funding["keys"]["gemini"] == "platform-gemini"
+    assert funding["pool_codes"] == frozenset(("gemini",))
 
     import sample
 
     calls = []
     monkeypatch.setattr(sample, "ask", lambda engine_code, prompt: calls.append(engine_code) or {"ok": True})
     with platform_pool.meter_platform_calls(funding["pool_codes"]) as counts:
-        sample.ask("openai", "one")
-        sample.ask("deepseek", "two")
-        sample.ask("openai", "three")
-    assert calls == ["openai", "deepseek", "openai"]
-    assert counts == {"openai": 2}
+        sample.ask("gemini", "one")
+        sample.ask("openai", "two")
+        sample.ask("gemini", "three")
+    assert calls == ["gemini", "openai", "gemini"]
+    assert counts == {"gemini": 2}
 
     assert len(platform_pool.record_usage(funding, counts, "sample", job_id=job_id)) == 1
     assert platform_pool.record_usage(funding, counts, "sample", job_id=job_id) == []
@@ -222,17 +222,17 @@ def test_pool_meter_records_only_fallback_calls_once_per_job(tmp_path, monkeypat
         usage = db.query(PlatformUsage).one()
         assert usage.tenant_id == tenant_id
         assert usage.project_id == project_id
-        assert usage.engine_code == "openai"
+        assert usage.engine_code == "gemini"
         assert usage.calls == 2
-        assert usage.unit_price_cny_fen == 3
-        assert usage.amount_cny_fen == 6
+        assert usage.unit_price_cny_fen == 2
+        assert usage.amount_cny_fen == 4
         counter = db.query(UsageCounter).one()
         assert counter.platform_calls == 2
-        assert counter.platform_cost_cny_fen == 6
+        assert counter.platform_cost_cny_fen == 4
         summary = platform_pool.usage_summary(db, db.get(Tenant, tenant_id))
         assert summary["calls"] == 2
-        assert summary["cost_cny"] == "0.06"
-        assert summary["by_engine"] == [{"engine_code": "openai", "calls": 2, "cost_cny_fen": 6}]
+        assert summary["cost_cny"] == "0.04"
+        assert summary["by_engine"] == [{"engine_code": "gemini", "calls": 2, "cost_cny_fen": 4}]
 
         month = platform_pool._month_start()
         next_year = month.year + (1 if month.month == 12 else 0)
@@ -249,4 +249,4 @@ def test_pool_meter_records_only_fallback_calls_once_per_job(tmp_path, monkeypat
         ))
         db.commit()
         summary = platform_pool.usage_summary(db, db.get(Tenant, tenant_id))
-        assert summary["by_engine"] == [{"engine_code": "openai", "calls": 2, "cost_cny_fen": 6}]
+        assert summary["by_engine"] == [{"engine_code": "gemini", "calls": 2, "cost_cny_fen": 4}]

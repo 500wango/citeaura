@@ -60,6 +60,7 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
     monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
     monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
     monkeypatch.setattr(tasks, "resilient_crawl_evidence", fake_crawl_evidence)
+    monkeypatch.setattr(tasks.baseline, "normalize_bootstrap_metadata", lambda slug: calls.append(("normalize", slug)))
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
@@ -71,6 +72,7 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
         ("preserve", "example"),
         ("crawl-evidence", "example"),
         ("autopilot", "example", True, True, None),
+        ("normalize", "example"),
         ("delivery", "example"),
     ]
 
@@ -138,6 +140,7 @@ def test_pipeline_autopilot_uses_resilient_crawl_evidence(monkeypatch):
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
     monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
     monkeypatch.setattr(tasks, "resilient_crawl_evidence", fake_crawl_evidence)
+    monkeypatch.setattr(tasks.baseline, "normalize_bootstrap_metadata", lambda slug: calls.append(("normalize", slug)))
     monkeypatch.setattr(tasks, "_run_pipeline_action", lambda action, slug, params: calls.append((action, slug)))
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: None)
     monkeypatch.setattr(tasks.measurement, "record_sampling", lambda *args, **kwargs: None)
@@ -148,6 +151,7 @@ def test_pipeline_autopilot_uses_resilient_crawl_evidence(monkeypatch):
         ("preserve", "example"),
         ("crawl-evidence", "example"),
         ("autopilot", "example"),
+        ("normalize", "example"),
     ]
 
 
@@ -173,7 +177,7 @@ def test_funded_context_unifies_historical_project_scope(monkeypatch):
 
     monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: funding)
     monkeypatch.setattr(tasks, "with_tenant_context", fake_tenant_context)
-    monkeypatch.setattr(tasks, "ensure_all_engine_scope", lambda slug: calls.append(("scope", slug)))
+    monkeypatch.setattr(tasks, "ensure_global_engine_scope", lambda slug: calls.append(("scope", slug)))
     monkeypatch.setattr(tasks, "meter_platform_calls", fake_meter)
     monkeypatch.setattr(tasks, "record_usage", lambda *args, **kwargs: calls.append(("usage", args[2])))
 

@@ -3,6 +3,7 @@
 import re
 
 from api.adapters.engine import geolib
+from api.adapters.global_scope import is_global_sample
 
 
 _SENTENCES = re.compile(r"[^。！？!?;；\n]+[。！？!?;；]?")
@@ -97,7 +98,7 @@ def _latest_samples(project_slug):
     if not files:
         return None, []
     path = files[-1]
-    return path, geolib.read_jsonl(path)
+    return path, [row for row in geolib.read_jsonl(path) if is_global_sample(row)]
 
 
 def build(project_slug):

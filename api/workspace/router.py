@@ -117,7 +117,7 @@ def update_project_config(
     config = _call(db, current_user, project_id, workspace.update_config, updates)
     if normalized_url is not None:
         project.url = normalized_url
-    project.market = "both"
+    project.market = "global"
     db.commit()
     return {"ok": True, "config": config}
 

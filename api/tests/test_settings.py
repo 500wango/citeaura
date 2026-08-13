@@ -56,17 +56,17 @@ def test_crypto_round_trip_and_api_key_lifecycle(settings_client):
     saved = client.put(
         "/api/v1/settings/keys",
         headers=headers,
-        json={"engine_code": "deepseek", "key_value": "sk-test-secret"},
+        json={"engine_code": "openai", "key_value": "sk-test-secret"},
     )
     assert saved.status_code == 200
-    assert saved.json() == {"engine_code": "deepseek", "masked": "****cret"}
+    assert saved.json() == {"engine_code": "openai", "masked": "****cret"}
 
     listed = client.get("/api/v1/settings/keys", headers=headers)
     assert listed.status_code == 200
-    assert listed.json() == {"keys": [{"engine_code": "deepseek", "masked": "****cret"}]}
+    assert listed.json() == {"keys": [{"engine_code": "openai", "masked": "****cret"}]}
     assert "sk-test-secret" not in listed.text
 
-    deleted = client.delete("/api/v1/settings/keys/deepseek", headers=headers)
+    deleted = client.delete("/api/v1/settings/keys/openai", headers=headers)
     assert deleted.status_code == 200
     assert client.get("/api/v1/settings/keys", headers=headers).json() == {"keys": []}
 
@@ -127,14 +127,14 @@ def test_custom_provider_lifecycle_is_encrypted_and_tenant_isolated(settings_cli
             "base_url": "https://other-gateway.example.com/api/v1",
             "api_key": "sk-replaced-secret",
             "model_id": "vendor/replacement-model",
-            "market": "cn",
+            "market": "global",
         },
     )
     assert updated.status_code == 200
     provider = updated.json()["provider"]
     assert provider["base_url"] == "https://other-gateway.example.com/api/v1"
     assert provider["model_id"] == "vendor/replacement-model"
-    assert provider["market"] == "cn"
+    assert provider["market"] == "global"
     with client.session_factory() as db:
         assert db.query(CustomProvider).count() == 1
         assert decrypt_key(db.query(CustomProvider).one().encrypted_api_key) == "sk-replaced-secret"
@@ -206,7 +206,7 @@ def test_custom_provider_must_connect_before_save(settings_client, monkeypatch):
             "base_url": "https://gateway.example.com/v1",
             "api_key": "sk-failed",
             "model_id": "vendor/model",
-            "market": "cn",
+            "market": "global",
         },
     )
 

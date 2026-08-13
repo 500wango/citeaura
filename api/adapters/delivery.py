@@ -14,6 +14,7 @@ from api.adapters.branding import apply_delivery_branding
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
 from api.adapters.localization import localize_ticket
+from api.adapters import global_scope
 
 
 REQUIRED_DOCUMENTS = {
@@ -30,9 +31,8 @@ UNICODE_ESCAPE_PATTERN = re.compile(r"\\u([0-9a-fA-F]{4})")
 TEXT_SUFFIXES = frozenset((".md", ".html", ".csv", ".json", ".txt", ".xml", ".js", ".css"))
 
 MARKET_NAMES = {
-    "cn": "Domestic",
     "global": "Global",
-    "both": "Domestic and Global",
+    "both": "Global",
 }
 STATUS_NAMES = {
     "todo": "Todo",
@@ -80,18 +80,7 @@ ISSUE_NAMES = {
     "LOW_RELEVANCE": "Low target-query relevance",
 }
 CHANNEL_NAMES = {
-    "official": "Official Site",
     "official_en": "English Official Site",
-    "baike": "Baidu Baike and Sogou Baike",
-    "ranking": "Ranking and Directory Platforms",
-    "wechat": "WeChat Official Accounts and Tencent News",
-    "toutiao": "Toutiao and Douyin Articles",
-    "zhihu": "Zhihu",
-    "tech": "CSDN, CNBlogs, and Cloud Developer Communities",
-    "quark": "Quark and Shenma Search Indexing",
-    "baijia": "Baijiahao and Baidu Zhidao",
-    "media": "Industry Media and Research Portals",
-    "bilibili": "Bilibili and Video Channels",
     "wikipedia": "Wikipedia",
     "review": "G2, Capterra, and Product Hunt",
     "reddit": "Reddit and Hacker News",
@@ -436,7 +425,7 @@ def _ticket_en(ticket):
         "id": ticket_id,
         "priority": _require_english(ticket.get("priority") or "P2", f"{ticket_id} priority"),
         "package": _require_english(package, f"{ticket_id} package"),
-        "market": MARKET_NAMES.get(ticket.get("market"), _require_english(ticket.get("market") or "both", f"{ticket_id} market")),
+        "market": "Global",
         "title": _require_english(title, f"{ticket_id} title"),
         "rationale": _require_english(rationale or "No additional rationale supplied.", f"{ticket_id} rationale"),
         "action": _require_english(action or "Complete the ticket scope and attach evidence.", f"{ticket_id} action"),
@@ -481,6 +470,8 @@ def _sample_modes(project_directory, metrics):
     rows = geolib.read_jsonl(project_directory / "samples" / f"{date}.jsonl") if date else []
     by_platform = {}
     for row in rows:
+        if not global_scope.is_global_sample(row):
+            continue
         platform = str(row.get("platform") or "")
         if not platform:
             continue
@@ -507,7 +498,7 @@ def _audit_markdown(project_directory, name, site, audit, metrics):
         "",
         f"- Audit date: {audited_at}",
         f"- Official website: {site}",
-        f"- Target market: {MARKET_NAMES.get(audit.get('market'), 'Domestic and Global')}",
+        "- Target market: Global",
         f"- Crawled pages: {audit.get('page_count', 0)}",
         f"- Average site score: **{_format_number(audit.get('avg_score'))}**",
         "",
@@ -520,7 +511,6 @@ def _audit_markdown(project_directory, name, site, audit, metrics):
         f"| AI crawlers blocked | {', '.join(site_data.get('ai_bots_blocked') or []) or 'None'} |",
         f"| Accessible pages | {site_data.get('pages_ok', 0)}/{site_data.get('pages_crawled', 0)} |",
         f"| English pages | {coverage.get('en_pages', 0)} |",
-        f"| Domestic-language pages | {coverage.get('zh_pages', 0)} |",
         "",
         "## Grade Distribution",
         "",
@@ -571,7 +561,7 @@ def _audit_markdown(project_directory, name, site, audit, metrics):
             code = _require_english(code, "sampling platform code")
             label = _safe_display(item.get("label"), code)
             lines.append(
-                f"| {_markdown_cell(label)} | {MARKET_NAMES.get(item.get('market'), 'Domestic')} "
+                f"| {_markdown_cell(label)} | Global "
                 f"| {modes.get(code, 'API - Parametric knowledge')} | {item.get('samples', 0)} "
                 f"| {_format_rate(item.get('mention_rate'))} | {_format_rate(item.get('top3_rate'))} "
                 f"| {_format_rate(item.get('own_domain_cite_rate'))} |"
@@ -765,14 +755,32 @@ def _delivery_question(content, content_id):
     question = str(content.get("question") or "").strip()
     if question and not _contains_han(question):
         return question
-    market = MARKET_NAMES.get(content.get("market"), "Domestic and Global")
+    market = MARKET_NAMES.get(content.get("market"), "Global")
     return f"Configured {market} target question {content_id}"
 
 
 def _build_map_markdown(name, blueprint):
-    coverage = blueprint.get("coverage") or {}
-    channels = blueprint.get("channels") or []
-    contents = blueprint.get("contents") or []
+    channels = [
+        channel for channel in blueprint.get("channels") or []
+        if isinstance(channel, dict) and channel.get("market") == "global"
+    ]
+    contents = [
+        content for content in blueprint.get("contents") or []
+        if isinstance(content, dict)
+        and content.get("market") in ("global", "both", None)
+        and not _contains_han(content.get("question"))
+    ]
+    coverage = {
+        "channel_total": len(channels),
+        "channel_covered": sum(bool(channel.get("covered")) for channel in channels),
+        "p0p1_total": sum(channel.get("priority") in ("P0", "P1") for channel in channels),
+        "p0p1_covered": sum(
+            channel.get("priority") in ("P0", "P1") and bool(channel.get("covered"))
+            for channel in channels
+        ),
+        "content_total": len(contents),
+        "content_done": sum(content.get("status") == "ready" for content in contents),
+    }
     lines = [
         f"# {name} GEO Build Map",
         "",
@@ -797,7 +805,7 @@ def _build_map_markdown(name, blueprint):
             evidence.append(f"observed across {channel['platforms']} platforms")
         lines.append(
             f"| {_require_english(channel.get('priority') or 'P2', 'channel priority')} "
-            f"| {_markdown_cell(_channel_name(channel))} | {MARKET_NAMES.get(channel.get('market'), 'Domestic and Global')} "
+            f"| {_markdown_cell(_channel_name(channel))} | Global "
             f"| {'Covered' if channel.get('covered') else 'Gap'} | {_markdown_cell('; '.join(evidence) or 'No citation evidence yet')} |"
         )
 
@@ -823,7 +831,7 @@ def _build_map_markdown(name, blueprint):
         }.get(content.get("status"), _safe_display(content.get("status"), "Gap"))
         lines.append(
             f"| {content_id} | {_markdown_cell(question)} | {_markdown_cell(intent)} "
-            f"| {MARKET_NAMES.get(content.get('market'), 'Domestic and Global')} "
+            f"| Global "
             f"| {_markdown_cell(form)} | {status_name} |"
         )
 
@@ -873,7 +881,7 @@ def _replace_json_asset(value, field=None, parent_type=None, ordinal=None):
         if not _contains_han(value):
             return value
         if field == "name" and parent_type == "Question":
-            return f"Configured Domestic target question {ordinal or 1}"
+            return f"Configured Global target question {ordinal or 1}"
         if field == "headline":
             return "[Add an approved English headline containing the target query.]"
         if field in ("description", "about"):
@@ -1026,7 +1034,7 @@ def _write_outline_assets(source, destination, blueprint, made):
             f"# Content Outline - {question}",
             "",
             f"- Question ID: `{content_id}`",
-            f"- Market: {MARKET_NAMES.get(content.get('market'), 'Domestic and Global')}",
+            "- Market: Global",
             f"- Recommended format: {form}",
             "",
             "## Required Structure",
@@ -1115,7 +1123,7 @@ def _copy_other_assets(source, destination, blueprint, made):
             continue
         if relative.startswith("drafts/") and path.suffix.lower() == ".md":
             continue
-        if relative.startswith("outlines/") and path.suffix.lower() == ".md" and path.stem in content_ids:
+        if relative.startswith("outlines/") and path.suffix.lower() == ".md":
             continue
         if _contains_han(relative):
             raise GeoEngineError(f"delivery source cannot be represented in English: assets/{relative}")
@@ -1276,6 +1284,7 @@ def _delivery_target(project_directory, delivery_directory):
 
 def ensure_delivery_contract(project_slug: str, delivery_directory: Path | None = None):
     """Rebuild a delivery package and fail closed unless every artifact is English-only."""
+    global_scope.normalize_project(project_slug)
     project_directory = geolib.project_dir(project_slug)
     delivery_directory = Path(delivery_directory) if delivery_directory else _latest_delivery(project_directory)
     if delivery_directory is None or not delivery_directory.is_dir():
