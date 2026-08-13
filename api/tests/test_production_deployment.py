@@ -30,6 +30,7 @@ def test_deploy_script_leaves_tls_to_host_caddy():
     assert "run --rm --user root api" in deploy
     assert "up -d --build api worker beat nginx" not in deploy
     assert 'http://127.0.0.1:${APP_PORT}/api/v1/health/ready' in deploy
+    assert 'curl --silent --show-error' in deploy
 
 
 def test_long_revision_expands_alembic_version_before_schema_changes():

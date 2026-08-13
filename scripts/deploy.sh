@@ -53,6 +53,9 @@ for attempt in $(seq 1 30); do
     fi
     if [[ "$attempt" -eq 30 ]]; then
         printf 'Deployment failed readiness check.\n' >&2
+        curl --silent --show-error \
+            "http://127.0.0.1:${APP_PORT}/api/v1/health/ready" >&2 || true
+        printf '\n' >&2
         docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps >&2
         exit 1
     fi

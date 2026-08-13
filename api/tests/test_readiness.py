@@ -1,4 +1,12 @@
+from pathlib import Path
+
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+
 from api import readiness
+
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class Result:
@@ -41,7 +49,8 @@ def test_readiness_requires_all_production_dependencies(monkeypatch):
 
 
 def test_readiness_requires_latest_migration():
-    assert readiness.EXPECTED_DB_REVISION == "0017_custom_model_providers"
+    migrations = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
+    assert readiness.EXPECTED_DB_REVISION == migrations.get_current_head()
 
 
 def test_readiness_reports_failed_dependency_without_secret_details(monkeypatch):
