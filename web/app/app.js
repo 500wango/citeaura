@@ -96,7 +96,7 @@ const VIEW_LOADERS = {
   'reset-password': () => import('./views/auth-reset.js?v=2.5'),
   invite: () => import('./views/auth-invite.js?v=2.5'),
   onboarding: () => import('./views/onboarding.js?v=2.6'),
-  overview: () => import('./views/overview.js?v=2.6'),
+  overview: () => import('./views/overview.js?v=2.7'),
   engines: () => import('./views/engines.js?v=2.5'),
   channels: () => import('./views/channels.js?v=2.5'),
   competitors: () => import('./views/competitors.js?v=2.5'),

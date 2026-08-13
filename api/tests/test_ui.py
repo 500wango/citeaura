@@ -42,7 +42,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.2' in response.text
+    assert '/app/app.js?v=3.3' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -143,6 +143,11 @@ def test_frontend_contracts_match_backend_request_models():
     assert "isGeneratingQuestions" in overview
     assert "project.project?.status || project.status" in overview
     assert "Generating Questions..." in overview
+    assert 'id="btn-rerun-autopilot"' in overview
+    assert "projects.estimateSample(projectId)" in overview
+    assert "projects.triggerAction(projectId, 'autopilot'" in overview
+    assert "ctx.openTelemetry(res.job_id, 'autopilot'" in overview
+    assert "Manually maintained action tickets are preserved" in overview
     assert "ctx.openTelemetry(res.job_id" in onboarding
     assert "res.action || (skip_llm ? 'bootstrap' : 'autopilot')" in onboarding
     assert "onComplete: async ()" in onboarding
@@ -156,7 +161,7 @@ def test_frontend_contracts_match_backend_request_models():
     assert "citeaura_intent_plan" in app_js
     assert "ENTRY_PLANS" in app_js
     assert "engine-settings.js?v=2.8" in app_js
-    assert "overview.js?v=2.6" in app_js
+    assert "overview.js?v=2.7" in app_js
     assert "onboarding.js?v=2.6" in app_js
     assert "telemetry-modal.js?v=2.6" in app_js
 

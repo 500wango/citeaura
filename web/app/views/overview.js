@@ -4,6 +4,7 @@
 
 import { projects } from '../api.js';
 import { t } from '../i18n.js';
+import { confirmModal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { renderKpis } from '../components/kpi.js';
 import { gradeBadge, samplingModeBadge, statusPill } from '../components/badge.js';
@@ -53,6 +54,7 @@ export default {
     const engines = (report && report.engines) || [];
     const hasQuestions = Array.isArray(project.questions) && project.questions.length > 0;
     const projectStatus = project.project?.status || project.status;
+    const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
     const isGeneratingQuestions = !hasQuestions && (
       ['initializing', 'bootstrapping'].includes(projectStatus)
       || (Array.isArray(jobs) && jobs.some((job) => (
@@ -86,6 +88,12 @@ export default {
             </div>
           </div>
           <div class="view-actions">
+            <button type="button" id="btn-rerun-autopilot" class="btn btn-secondary btn-sm" ${activeJob ? 'disabled aria-busy="true"' : ''}>
+              ${activeJob ? '<span class="spin"></span>' : ''}
+              <span id="rerun-autopilot-label">${activeJob
+                ? t('overview.pipeline_running', {}, 'Pipeline Running')
+                : t('overview.action_rerun_autopilot', {}, 'Rerun Autopilot')}</span>
+            </button>
             ${hasQuestions ? `
               <button type="button" id="btn-run-sample" class="btn btn-secondary btn-sm">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -230,6 +238,56 @@ export default {
   mounted: (ctx) => {
     const projectId = ctx.activeProjectId;
     if (!projectId) return;
+
+    const autopilotBtn = document.getElementById('btn-rerun-autopilot');
+    const autopilotLabel = document.getElementById('rerun-autopilot-label');
+    if (autopilotBtn && !autopilotBtn.disabled) {
+      autopilotBtn.addEventListener('click', async () => {
+        autopilotBtn.disabled = true;
+        if (autopilotLabel) autopilotLabel.textContent = t('overview.autopilot_estimating', {}, 'Checking run estimate...');
+        try {
+          const estimate = await projects.estimateSample(projectId);
+          const calls = Number(estimate?.estimate?.calls || 0);
+          const minutes = Number(estimate?.estimate?.minutes || 0);
+          const poolCostFen = Number(estimate?.estimate?.platform_pool_cost_cny_fen || 0);
+          const estimateText = calls > 0
+            ? `${calls} model call${calls === 1 ? '' : 's'}${minutes ? `, approximately ${minutes} minute${minutes === 1 ? '' : 's'}` : ''}`
+            : 'no billable model calls with the current provider configuration';
+          const poolCostText = poolCostFen > 0 ? ` Estimated CiteAura platform-pool cost: CNY ${(poolCostFen / 100).toFixed(2)}.` : '';
+          const confirmed = await confirmModal(
+            `This will rerun the full 8-stage pipeline and refresh crawl data, AI samples, reports, assets, and the delivery pack. Manually maintained action tickets are preserved. Current estimate: ${estimateText}.${poolCostText} BYOK usage is billed directly by your model provider.`,
+            {
+              title: t('overview.autopilot_confirm_title', {}, 'Rerun Autopilot?'),
+              confirmText: t('overview.autopilot_confirm_action', {}, 'Start Autopilot'),
+            },
+          );
+          if (!confirmed) {
+            autopilotBtn.disabled = false;
+            if (autopilotLabel) autopilotLabel.textContent = t('overview.action_rerun_autopilot', {}, 'Rerun Autopilot');
+            return;
+          }
+
+          if (autopilotLabel) autopilotLabel.textContent = t('overview.autopilot_starting', {}, 'Starting Autopilot...');
+          const res = await projects.triggerAction(projectId, 'autopilot', { params: {} });
+          toast.success(t('overview.autopilot_triggered', {}, 'Autopilot pipeline queued'));
+          if (autopilotLabel) autopilotLabel.textContent = t('overview.pipeline_running', {}, 'Pipeline Running');
+          ctx.pollActiveJobs();
+          if (res?.job_id && typeof ctx.openTelemetry === 'function') {
+            ctx.openTelemetry(res.job_id, 'autopilot', {
+              projectId,
+              onComplete: async () => {
+                await ctx.reloadProjects();
+                await ctx.reloadCurrentView();
+              },
+            });
+          }
+        } catch (err) {
+          toast.error(t(err.error, {}, err.detail || 'Failed to start Autopilot'));
+          autopilotBtn.disabled = false;
+          if (autopilotLabel) autopilotLabel.textContent = t('overview.action_rerun_autopilot', {}, 'Rerun Autopilot');
+        }
+      });
+    }
 
     const sampleBtn = document.getElementById('btn-run-sample');
     if (sampleBtn) {
