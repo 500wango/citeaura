@@ -24,6 +24,17 @@ scripts/acceptance.py --base-url https://your-domain.example --production
 
 `production_preflight.py` 不打印密钥值，会拒绝占位符、HTTP 公网地址和无效 AES Key。`BILLING_ENABLED=true` 时还会拒绝测试 Stripe Key，`PASSWORD_RESET_EMAIL_ENABLED=true` 时会校验认证 SMTP。脚本可重复执行，不会启动仓库内的 Nginx，也不会改动其他 Docker Compose 项目。
 
+## 平台管理员密码恢复
+
+生产管理员密码必须在正在运行的 API 容器内重置，确保命令使用与线上 API 完全相同的 `.env.production` 和数据库。不要在生产宿主机直接运行本地 `reset-admin-password` 目标。
+
+```bash
+cd /opt/citeaura
+make reset-admin-password-prod EMAIL=admin@citeaura.com ENV_FILE=.env.production
+```
+
+命令会要求输入并再次确认新密码；密码至少 12 位。成功后已有后台会话会全部失效，可在 `https://citeaura.com/admin/` 使用新密码登录。
+
 默认生成 `/etc/caddy/sites/citeaura.caddy`：
 
 ```caddy

@@ -12,17 +12,30 @@ from api.models import PlatformAdmin
 ROLES = ("support", "ops", "finance", "superadmin")
 
 
+def _normalized_email(email):
+    email = email.strip().lower()
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise ValueError("invalid admin email")
+    return email
+
+
 def _validated_password(password):
     if len(password) < 12:
         raise ValueError("admin password must be at least 12 characters")
     return password
 
 
+def _new_password():
+    password = getpass.getpass("New admin password: ")
+    confirmation = getpass.getpass("Confirm new admin password: ")
+    if password != confirmation:
+        raise ValueError("admin passwords do not match")
+    return password
+
+
 def create_admin(email, role, password=None):
-    email = email.strip().lower()
-    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
-        raise ValueError("invalid admin email")
-    password = password or getpass.getpass("Admin password: ")
+    email = _normalized_email(email)
+    password = getpass.getpass("Admin password: ") if password is None else password
     _validated_password(password)
     if password and password == email:
         raise ValueError("admin password must not match email")
@@ -40,8 +53,8 @@ def create_admin(email, role, password=None):
 
 def reset_admin_password(email, password=None):
     """重置平台管理员密码，并使已有后台会话失效。"""
-    email = email.strip().lower()
-    password = password or getpass.getpass("New admin password: ")
+    email = _normalized_email(email)
+    password = _new_password() if password is None else password
     _validated_password(password)
     if password == email:
         raise ValueError("admin password must not match email")

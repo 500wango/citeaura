@@ -128,6 +128,18 @@ def test_admin_password_can_be_reset_from_local_cli(admin_client, monkeypatch):
         assert db.query(PlatformAdmin).one().session_version == previous_version + 1
 
 
+def test_admin_password_reset_prompt_requires_confirmation(admin_client, monkeypatch):
+    client = admin_client
+    monkeypatch.setattr(admin_cli, "SessionLocal", client.session_factory)
+    passwords = iter(("first-admin-password", "different-admin-password"))
+    monkeypatch.setattr(admin_cli.getpass, "getpass", lambda _prompt: next(passwords))
+
+    with pytest.raises(ValueError, match="admin passwords do not match"):
+        admin_cli.reset_admin_password("admin@citeaura.com")
+
+    assert _login_admin(client).status_code == 200
+
+
 def test_admin_can_change_password_and_existing_session_is_revoked(admin_client):
     client = admin_client
     assert _login_admin(client).status_code == 200

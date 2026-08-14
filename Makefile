@@ -1,4 +1,4 @@
-.PHONY: dev test migrate worker beat preflight create-admin reset-admin-password
+.PHONY: dev test migrate worker beat preflight create-admin reset-admin-password reset-admin-password-prod
 
 dev:
 	uvicorn api.main:app --reload
@@ -24,3 +24,8 @@ create-admin:
 
 reset-admin-password:
 	python3 -m api.admin.cli reset-password --email "$${EMAIL}"
+
+reset-admin-password-prod:
+	@test -n "$(EMAIL)" || { printf 'EMAIL is required\n' >&2; exit 2; }
+	docker compose --env-file "$(or $(ENV_FILE),.env.production)" -f docker-compose.prod.yml exec api \
+		python3 -m api.admin.cli reset-password --email "$(EMAIL)"
