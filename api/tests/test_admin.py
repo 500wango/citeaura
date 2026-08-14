@@ -10,6 +10,7 @@ from api.auth.security import hash_password
 from api.db import Base, get_db
 from api.main import app
 from api.models import AdminAuditEvent, Job, Membership, PlatformAdmin, ProductEvent, Project, Subscription, Tenant, User
+from api.admin import cli as admin_cli
 
 
 @pytest.fixture()
@@ -103,6 +104,28 @@ def test_admin_password_session_is_separate_from_tenant_session(admin_client):
     )
     client.cookies.set("citeaura_access_token", login.cookies.get("citeaura_access_token"))
     assert client.get("/api/v1/admin/me").status_code == 401
+
+
+def test_admin_password_can_be_reset_from_local_cli(admin_client, monkeypatch):
+    client = admin_client
+    monkeypatch.setattr(admin_cli, "SessionLocal", client.session_factory)
+
+    with client.session_factory() as db:
+        admin = db.query(PlatformAdmin).one()
+        previous_version = admin.session_version
+
+    admin_cli.reset_admin_password(" ADMIN@CITEAURA.COM ", "reset-admin-password")
+
+    assert client.post("/api/v1/admin/auth/login", json={
+        "email": "admin@citeaura.com",
+        "password": "correct-admin-password",
+    }).status_code == 401
+    assert client.post("/api/v1/admin/auth/login", json={
+        "email": "admin@citeaura.com",
+        "password": "reset-admin-password",
+    }).status_code == 200
+    with client.session_factory() as db:
+        assert db.query(PlatformAdmin).one().session_version == previous_version + 1
 
 
 def test_admin_can_change_password_and_existing_session_is_revoked(admin_client):

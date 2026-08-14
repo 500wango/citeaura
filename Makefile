@@ -1,4 +1,4 @@
-.PHONY: dev test migrate worker beat preflight create-admin
+.PHONY: dev test migrate worker beat preflight create-admin reset-admin-password
 
 dev:
 	uvicorn api.main:app --reload
@@ -21,3 +21,6 @@ preflight:
 
 create-admin:
 	python3 -m api.admin.cli create --email "$${EMAIL}" --role "$${ROLE:-superadmin}"
+
+reset-admin-password:
+	python3 -m api.admin.cli reset-password --email "$${EMAIL}"
