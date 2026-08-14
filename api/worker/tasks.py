@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 
 from api.adapters import baseline, global_scope, measurement, sampling_control, site_signals, ticket_workflow
-from api.adapters.delivery import ensure_delivery_contract
+from api.adapters.delivery import ensure_delivery_contract, ensure_legacy_deliverables_contract
 from api.adapters.engine import geolib, job_log_path, load_custom_providers, load_tenant_keys, with_tenant_context
 from api.adapters.workspace import ensure_global_engine_scope, preserve_manual_tickets, resilient_crawl_evidence
 from api.billing.limits import check_sample_run
@@ -568,6 +568,7 @@ def task_bootstrap(
             baseline.normalize_bootstrap_metadata(project_slug)
             update("finalizing", 90)
             ensure_delivery_contract(project_slug)
+            ensure_legacy_deliverables_contract(project_slug)
             if not no_sample:
                 funding = _engine_funding(tenant_id, project_slug)
                 measurement.record_sampling(
@@ -613,6 +614,7 @@ def task_sample(
                 byok_codes=funding.get("keys", {}).keys(),
                 pool_codes=funding.get("pool_codes", ()),
             )
+            global_scope.normalize_project(project_slug)
             update("finalizing", 90)
             return result
 
@@ -817,9 +819,13 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                 )
                 if _should_require_sampling_result(action, params):
                     _require_sampling_output(_latest_metrics(project_slug), project_slug)
+                if action == "sample":
+                    global_scope.normalize_project(project_slug)
             update("finalizing", 90)
             if action in ("deliver", "autopilot", "serve"):
                 ensure_delivery_contract(project_slug)
+            if action in ("deliverables", "autopilot"):
+                ensure_legacy_deliverables_contract(project_slug)
             return result
 
 

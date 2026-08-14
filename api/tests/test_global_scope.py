@@ -212,6 +212,41 @@ def test_profile_channel_coverage_uses_citation_domains_and_marks_manual_channel
     assert "Channels requiring manual confirmation: **3**" in markdown
 
 
+def test_missing_citation_domains_preserve_existing_channel_coverage(tmp_path, monkeypatch):
+    project = tmp_path / "example"
+    metrics_path = project / "metrics" / "2026-08-14.json"
+    metrics_path.parent.mkdir(parents=True)
+    metrics_path.write_text(json.dumps({
+        "platforms": {"openai": {"market": "global", "samples": 2}},
+    }), "utf-8")
+    monkeypatch.setattr(global_scope.geolib, "project_dir", lambda slug: project)
+
+    cited_domains = global_scope._latest_cited_domains("example")
+    assert cited_domains is None
+    blueprint = global_scope.normalize_blueprint_data(
+        {
+            "channels": [{
+                "id": "official_en",
+                "market": "global",
+                "covered": True,
+                "coverage_status": "covered",
+                "coverage_evidence": ["example.com"],
+            }],
+        },
+        profile={"id": "generic", "label": "General business", "confidence": "low", "evidence": []},
+        cited_domains=cited_domains,
+        own_domain="example.com",
+    )
+    official = next(channel for channel in blueprint["channels"] if channel["id"] == "official_en")
+    assert official["coverage_status"] == "covered"
+    assert official["coverage_evidence"] == ["example.com"]
+
+    metrics_path.write_text(json.dumps({
+        "platforms": {"openai": {"market": "global", "top_cited_domains": {}}},
+    }), "utf-8")
+    assert global_scope._latest_cited_domains("example") == set()
+
+
 def test_project_normalization_updates_files(tmp_path, monkeypatch):
     project = tmp_path / "example"
     project.mkdir()

@@ -1,4 +1,7 @@
 import json
+import sys
+import types
+from contextlib import contextmanager
 
 import pytest
 from fastapi.testclient import TestClient
@@ -6,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.adapters import engine as engine_adapter
-from api.adapters import workspace
+from api.adapters import measurement, workspace
 from api.adapters.engine import with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 from api.adapters.workspace import resilient_crawl_evidence
@@ -103,6 +106,55 @@ def _seed_workspace(tmp_path):
         json.dumps({"root": "https://example.com", "pages_ok": 1}), "utf-8",
     )
     return root
+
+
+def test_manual_sample_import_normalizes_after_releasing_project_lock(tmp_path, monkeypatch):
+    project = tmp_path / "example"
+    sample_path = project / "samples" / "2026-08-14-manual.md"
+    sample_path.parent.mkdir(parents=True)
+    sample_path.write_text("# Manual samples\n", "utf-8")
+    calls = []
+
+    @contextmanager
+    def fake_project_lock(project_slug):
+        calls.append(("lock-enter", project_slug))
+        try:
+            yield
+        finally:
+            calls.append(("lock-exit", project_slug))
+
+    def fake_sample_import(project_slug, filename):
+        calls.append(("sample-import", project_slug, filename))
+        return {"sample_count": 1}
+
+    sample_module = types.SimpleNamespace(
+        PROVIDERS={"chatgpt": {}},
+        MANUAL_ONLY={},
+        sample_import=fake_sample_import,
+    )
+    monkeypatch.setitem(sys.modules, "sample", sample_module)
+    monkeypatch.setattr(workspace.geolib, "project_dir", lambda slug: project)
+    monkeypatch.setattr(workspace.geolib, "load_config", lambda slug: {
+        "questions": [{"id": "q001", "text": "What is Example?"}],
+    })
+    monkeypatch.setattr(workspace.geolib, "project_lock", fake_project_lock)
+    monkeypatch.setattr(measurement, "record_sampling", lambda slug, **kwargs: calls.append(("record", slug)))
+    monkeypatch.setattr(workspace.global_scope, "normalize_project", lambda slug: calls.append(("normalize", slug)))
+
+    result = workspace.import_sample_sheet(
+        "example",
+        "2026-08-14-manual.md",
+        "## platform: chatgpt\n\n### q001 · What is Example?\n\n```answer\nExample is visible.\n```\n",
+    )
+
+    assert result == {"sample_count": 1}
+    assert calls == [
+        ("lock-enter", "example"),
+        ("sample-import", "example", str(sample_path)),
+        ("record", "example"),
+        ("lock-exit", "example"),
+        ("normalize", "example"),
+    ]
 
 
 def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeypatch):

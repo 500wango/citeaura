@@ -62,6 +62,7 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
     monkeypatch.setattr(tasks, "resilient_crawl_evidence", fake_crawl_evidence)
     monkeypatch.setattr(tasks.baseline, "normalize_bootstrap_metadata", lambda slug: calls.append(("normalize", slug)))
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
+    monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: calls.append(("legacy-delivery", slug)))
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
     result = tasks.task_bootstrap.run("tenant-a", "example", skip_llm=True, no_sample=True)
@@ -74,6 +75,41 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
         ("autopilot", "example", True, True, None),
         ("normalize", "example"),
         ("delivery", "example"),
+        ("legacy-delivery", "example"),
+    ]
+
+
+def test_sample_task_normalizes_blueprint_after_recording_sampling(monkeypatch):
+    calls = []
+    sample_result = {"sample_count": 1, "platforms": {"openai": {"samples": 1}}}
+
+    @contextmanager
+    def fake_context(*args, **kwargs):
+        calls.append(("context", args[2]))
+        yield
+
+    def fake_sample_run(project_slug, platforms=None, repeat=1, limit=None):
+        calls.append(("sample", project_slug, platforms, repeat, limit))
+        return sample_result
+
+    monkeypatch.setitem(sys.modules, "sample", types.SimpleNamespace(run=fake_sample_run))
+    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
+    monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks, "_require_sampling_output", lambda result, slug: calls.append(("require", slug)) or result)
+    monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {"keys": {}, "pool_codes": ()})
+    monkeypatch.setattr(tasks.measurement, "record_sampling", lambda slug, **kwargs: calls.append(("record", slug)))
+    monkeypatch.setattr(tasks.global_scope, "normalize_project", lambda slug: calls.append(("normalize", slug)))
+
+    result = tasks.task_sample.run("tenant-a", "example", limit=3, platforms=["openai"], repeat=2)
+
+    assert result == sample_result
+    assert calls.index(("record", "example")) < calls.index(("normalize", "example"))
+    assert calls == [
+        ("context", "sample"),
+        ("sample", "example", ["openai"], 2, 3),
+        ("require", "example"),
+        ("record", "example"),
+        ("normalize", "example"),
     ]
 
 
@@ -119,6 +155,38 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
         tasks._action_namespace("sample", {"limit": 0})
 
 
+def test_pipeline_deliverables_rebuilds_coverage_aware_legacy_artifacts(monkeypatch):
+    calls = []
+
+    @contextmanager
+    def fake_context(*args, **kwargs):
+        yield
+
+    @contextmanager
+    def fake_normalized_outputs(project_slug):
+        calls.append(("normalize-outputs", project_slug))
+        yield
+
+    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
+    monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks.global_scope, "normalize_generated_outputs", fake_normalized_outputs)
+    monkeypatch.setattr(tasks.site_signals, "validate_project_signals", lambda slug: calls.append(("validate", slug)))
+    monkeypatch.setattr(tasks, "_run_pipeline_action", lambda action, slug, params: calls.append((action, slug)) or {
+        "status": "done", "action": action, "project_slug": slug,
+    })
+    monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: calls.append(("legacy-delivery", slug)))
+
+    result = tasks.task_pipeline.run("tenant-a", "example", "deliverables")
+
+    assert result == {"status": "done", "action": "deliverables", "project_slug": "example"}
+    assert calls == [
+        ("validate", "example"),
+        ("normalize-outputs", "example"),
+        ("deliverables", "example"),
+        ("legacy-delivery", "example"),
+    ]
+
+
 def test_pipeline_autopilot_uses_resilient_crawl_evidence(monkeypatch):
     calls = []
 
@@ -143,6 +211,7 @@ def test_pipeline_autopilot_uses_resilient_crawl_evidence(monkeypatch):
     monkeypatch.setattr(tasks.baseline, "normalize_bootstrap_metadata", lambda slug: calls.append(("normalize", slug)))
     monkeypatch.setattr(tasks, "_run_pipeline_action", lambda action, slug, params: calls.append((action, slug)))
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: None)
+    monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: calls.append(("legacy-delivery", slug)))
     monkeypatch.setattr(tasks.measurement, "record_sampling", lambda *args, **kwargs: None)
 
     tasks.task_pipeline.run("tenant-a", "example", "autopilot", params={"--no-sample": True})
@@ -152,6 +221,7 @@ def test_pipeline_autopilot_uses_resilient_crawl_evidence(monkeypatch):
         ("crawl-evidence", "example"),
         ("autopilot", "example"),
         ("normalize", "example"),
+        ("legacy-delivery", "example"),
     ]
 
 

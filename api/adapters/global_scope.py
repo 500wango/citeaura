@@ -382,13 +382,17 @@ def _latest_cited_domains(project_slug):
         return None
     metrics = geolib.read_json(files[-1], {}) or {}
     cited = set()
+    citation_domains_available = False
     for item in (metrics.get("platforms") or {}).values():
         if not isinstance(item, dict) or item.get("market") not in ("global", "both", None):
             continue
+        if "top_cited_domains" not in item:
+            continue
+        citation_domains_available = True
         cited.update(
             host for host in (_domain_host(value) for value in (item.get("top_cited_domains") or {})) if host
         )
-    return cited
+    return cited if citation_domains_available else None
 
 
 def _profile_channels(profile, existing, *, cited_domains=None, own_domain=""):

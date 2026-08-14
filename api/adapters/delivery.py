@@ -1487,6 +1487,98 @@ def _delivery_target(project_directory, delivery_directory):
     return target
 
 
+def _legacy_deliverables_target(project_directory, deliverables_directory):
+    root = (project_directory / "deliverables").resolve()
+    target = Path(deliverables_directory).resolve()
+    if target != root:
+        raise GeoEngineError("legacy deliverables directory is outside the project deliverables root")
+    return target
+
+
+def _legacy_blueprint_section(name, blueprint):
+    lines = _build_map_markdown(name, blueprint).splitlines()[2:]
+    nested = ["#" + line if line.startswith(("## ", "### ")) else line for line in lines]
+    return "\n".join(["## 4. Platform & Content Blueprint", "", *nested]).rstrip()
+
+
+def _legacy_optimization_markdown(name, blueprint, original):
+    start_heading = "## 4. Platform & Content Blueprint"
+    end_heading = "## 5. Resource Allocation Recommendations"
+    start = original.find(start_heading)
+    end = original.find(end_heading, start + len(start_heading)) if start >= 0 else -1
+    section = _legacy_blueprint_section(name, blueprint)
+    if start < 0 or end < 0:
+        return f"# {name} GEO Strategy & Optimization Plan\n\n{section}\n"
+    return f"{original[:start].rstrip()}\n\n{section}\n\n{original[end:].lstrip()}"
+
+
+def _write_legacy_document(directory, stem, title, markdown, cards):
+    (directory / f"{stem}.md").write_text(markdown, "utf-8")
+    import report
+
+    (directory / f"{stem}.html").write_text(
+        report.build_html(title, markdown, cards),
+        "utf-8",
+    )
+
+
+def ensure_legacy_deliverables_contract(project_slug: str, deliverables_directory: Path | None = None):
+    """用覆盖状态感知的 SaaS 渲染器替换旧优化报告的蓝图章节。"""
+    global_scope.normalize_project(project_slug)
+    project_directory = geolib.project_dir(project_slug)
+    deliverables_directory = Path(deliverables_directory) if deliverables_directory else project_directory / "deliverables"
+    target = _legacy_deliverables_target(project_directory, deliverables_directory)
+    if not target.is_dir():
+        raise GeoEngineError("legacy deliverables directory was not generated")
+
+    blueprint = geolib.read_json(project_directory / "blueprint.json", {}) or {}
+    if not isinstance(blueprint, dict) or not isinstance(blueprint.get("channels"), list):
+        return target
+    markdown_path = target / "2-GEO优化方案.md"
+    if not markdown_path.is_file():
+        return target
+    config = geolib.read_json(project_directory / "geo.json", {}) or {}
+    audit = geolib.read_json(project_directory / "audit.json", {}) or {}
+    if not isinstance(config, dict):
+        config = {}
+    if not isinstance(audit, dict):
+        audit = {}
+    name, _site = _identity(project_directory, project_slug, config, audit)
+    optimization_markdown = _legacy_optimization_markdown(
+        name,
+        blueprint,
+        markdown_path.read_text("utf-8"),
+    )
+    channels = [
+        channel for channel in blueprint.get("channels") or []
+        if isinstance(channel, dict) and channel.get("market") == "global"
+    ]
+    coverage = global_scope.summarize_channel_coverage(channels)
+
+    with geolib.project_lock(project_slug):
+        staging = Path(tempfile.mkdtemp(prefix=".legacy-deliverables-", dir=target.parent))
+        try:
+            _write_legacy_document(
+                staging,
+                "2-GEO优化方案",
+                f"{name} GEO Strategy & Optimization Plan",
+                optimization_markdown,
+                [
+                    ("Measurable Channels", f"{coverage['channel_covered']}/{coverage['channel_total']}"),
+                    ("Manual Confirmation", str(coverage["channel_manual"])),
+                    (
+                        "Content Complete",
+                        f"{blueprint.get('coverage', {}).get('content_done', 0)}/{blueprint.get('coverage', {}).get('content_total', 0)}",
+                    ),
+                ],
+            )
+            for suffix in ("md", "html"):
+                (staging / f"2-GEO优化方案.{suffix}").replace(target / f"2-GEO优化方案.{suffix}")
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
+    return target
+
+
 def ensure_delivery_contract(project_slug: str, delivery_directory: Path | None = None):
     """Rebuild a delivery package and fail closed unless every artifact is English-only."""
     global_scope.normalize_project(project_slug)

@@ -653,7 +653,8 @@ def import_sample_sheet(project_slug: str, filename: str, text: str):
         _write_text(target, text)
         metrics = sample.sample_import(project_slug, str(target))
         measurement.record_sampling(project_slug, source="manual", requested_platforms=platforms)
-        return metrics
+    global_scope.normalize_project(project_slug)
+    return metrics
 
 
 def project_files(project_slug: str):

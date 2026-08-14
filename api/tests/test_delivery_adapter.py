@@ -155,6 +155,63 @@ def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypa
     assert delivery.delivery_language_violations(output) == []
 
 
+def test_legacy_deliverables_render_manual_channels_without_key_gap_status(tmp_path, monkeypatch):
+    project, _output = seed_delivery_project(tmp_path)
+    legacy = project / "deliverables"
+    legacy.mkdir()
+    (legacy / "1-GEO诊断报告.md").write_text("preserved audit", "utf-8")
+    (legacy / "3-GEO执行方案.md").write_text("preserved execution plan", "utf-8")
+    (legacy / "2-GEO优化方案.md").write_text("\n".join([
+        "# Example GEO Strategy & Optimization Plan",
+        "",
+        "## 3. High-Leverage Opportunities",
+        "",
+        "preserved opportunities",
+        "",
+        "## 4. Platform & Content Blueprint",
+        "",
+        "Key gaps requiring immediate focus:",
+        "",
+        "raw engine output",
+        "",
+        "## 5. Resource Allocation Recommendations",
+        "",
+        "preserved resource guidance",
+        "",
+    ]), "utf-8")
+    config = json.loads((project / "geo.json").read_text("utf-8"))
+    config["brand"]["industry"] = "B2B SaaS software platform"
+    _write_json(project / "geo.json", config)
+    _patch_project(monkeypatch, project)
+
+    result = delivery.ensure_legacy_deliverables_contract("example")
+
+    assert result == legacy
+    optimization = (legacy / "2-GEO优化方案.md").read_text("utf-8")
+    assert "raw engine output" not in optimization
+    assert "Key gaps requiring immediate focus" not in optimization
+    assert "preserved opportunities" in optimization
+    assert "preserved resource guidance" in optimization
+    assert "| P0 | Product Documentation and API Reference | Global | Manual review |" in optimization
+    assert "| P0 | Product Documentation and API Reference | Global | Gap |" not in optimization
+    assert "Manual review" in (legacy / "2-GEO优化方案.html").read_text("utf-8")
+    assert (legacy / "1-GEO诊断报告.md").read_text("utf-8") == "preserved audit"
+    assert (legacy / "3-GEO执行方案.md").read_text("utf-8") == "preserved execution plan"
+
+
+def test_legacy_deliverables_preserve_engine_output_without_blueprint(tmp_path, monkeypatch):
+    project, _output = seed_delivery_project(tmp_path)
+    legacy = project / "deliverables"
+    legacy.mkdir()
+    raw = legacy / "2-GEO优化方案.md"
+    raw.write_text("raw engine output", "utf-8")
+    (project / "blueprint.json").unlink()
+    _patch_project(monkeypatch, project)
+
+    assert delivery.ensure_legacy_deliverables_contract("example") == legacy
+    assert raw.read_text("utf-8") == "raw engine output"
+
+
 def test_delivery_contract_removes_domestic_questions_and_channels(tmp_path, monkeypatch):
     project, output = seed_delivery_project(tmp_path)
     config = json.loads((project / "geo.json").read_text("utf-8"))
