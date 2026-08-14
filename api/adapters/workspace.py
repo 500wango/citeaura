@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import brand_identity, global_scope
+from api.adapters import brand_facts, brand_identity, global_scope
 
 
 TEXT_SUFFIXES = {".txt", ".json", ".html", ".md"}
@@ -287,12 +287,22 @@ def update_config(project_slug: str, updates: dict) -> dict:
 
 def facts_source(project_slug: str) -> dict:
     path = geolib.project_dir(project_slug) / "content" / "facts.md"
-    return {"exists": path.exists(), "text": path.read_text("utf-8") if path.exists() else ""}
+    migration = brand_facts.ensure_english_facts(project_slug)
+    text = path.read_text("utf-8") if path.exists() else ""
+    return {
+        "exists": path.exists(),
+        "text": brand_facts.display_text(text),
+        "language": "non_english" if brand_facts.contains_han(text) else "en",
+        "migration": migration,
+    }
 
 
 def save_facts(project_slug: str, text: str):
     with geolib.project_lock(project_slug):
-        _write_text(geolib.project_dir(project_slug) / "content" / "facts.md", text)
+        _write_text(
+            geolib.project_dir(project_slug) / "content" / "facts.md",
+            brand_facts.reviewed_text(text),
+        )
 
 
 def asset_tree(project_slug: str):

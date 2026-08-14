@@ -42,7 +42,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.5' in response.text
+    assert '/app/app.js?v=3.6' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -66,6 +66,7 @@ def test_spa_static_modules_are_served():
         "/app/views/plan.js",
         "/app/views/report.js",
         "/app/views/siteaudit.js",
+        "/app/views/facts.js",
         "/app/views/onboarding.js",
         "/app/components/toast.js",
         "/app/components/modal.js",
@@ -117,6 +118,7 @@ def test_frontend_contracts_match_backend_request_models():
     onboarding = (root / "web/app/views/onboarding.js").read_text("utf-8")
     telemetry = (root / "web/app/components/telemetry-modal.js").read_text("utf-8")
     siteaudit = (root / "web/app/views/siteaudit.js").read_text("utf-8")
+    facts = (root / "web/app/views/facts.js").read_text("utf-8")
 
     assert "resetPassword({ token, password })" in reset
     assert "preview.tenant?.name" in invite
@@ -129,6 +131,9 @@ def test_frontend_contracts_match_backend_request_models():
     assert "audit.presentation_version" in siteaudit
     assert "p.applicable_score" in siteaudit
     assert "p.issues.map" not in siteaudit
+    assert "escapeHtml(facts.text || '')" in facts
+    assert "manual_translation_required" in facts
+    assert "evidence_rebuilt" in facts
     catalog = (root / "api/i18n/messages/en.json").read_text("utf-8")
     assert '"siteaudit.overall_score": "Applicable Technical Score"' in catalog
     assert '"siteaudit.col_issues": "Applicable Findings"' in catalog
@@ -174,6 +179,7 @@ def test_frontend_contracts_match_backend_request_models():
     assert "workbench.js?v=2.6" in app_js
     assert "overview.js?v=2.7" in app_js
     assert "onboarding.js?v=2.6" in app_js
+    assert "facts.js?v=2.6" in app_js
     assert "telemetry-modal.js?v=2.6" in app_js
     assert "function projectKey(project)" in app_js
     assert "projectKey(p) === state.activeProjectId" in app_js

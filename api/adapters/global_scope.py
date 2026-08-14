@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from urllib.parse import urljoin, urlparse, urlunparse
 
-from api.adapters import brand_identity
+from api.adapters import brand_facts, brand_identity
 from api.adapters.engine import geolib
 
 
@@ -1026,6 +1026,7 @@ def normalize_project(project_slug):
     normalize_metrics(project_slug, question_count=len(config.get("questions") or []), config=config)
     normalize_tasks(project_slug)
     normalize_blueprint(project_slug)
+    brand_facts.ensure_english_facts(project_slug, config=config)
     return config
 
 
@@ -1036,11 +1037,15 @@ def normalize_generated_outputs(project_slug):
     import bootstrap as engine_bootstrap
     import audit as engine_audit
     import crawl as engine_crawl
+    import generate as engine_generate
     import tasks as engine_tasks
 
     original_bootstrap = engine_bootstrap.run
+    original_brand_facts = engine_bootstrap.brand_facts
+    original_render_facts = engine_bootstrap.render_facts
     original_audit = engine_audit.run
     original_crawl = engine_crawl.run
+    original_parse_facts = engine_generate.parse_facts
     original_tasks = engine_tasks.build
     original_blueprint = engine_blueprint.build
 
@@ -1070,8 +1075,20 @@ def normalize_generated_outputs(project_slug):
     def bootstrap_run(slug, *args, **kwargs):
         result = original_bootstrap(slug, *args, **kwargs)
         if slug == project_slug:
+            brand_facts.ensure_english_facts(project_slug, prefer_ai_candidate=True)
             return normalize_config(project_slug)
         return result
+
+    def extract_brand_facts(slug, digest):
+        if slug != project_slug:
+            return original_brand_facts(slug, digest)
+        return brand_facts.extract_brand_facts(engine_bootstrap._ask_json, slug, digest)
+
+    def render_brand_facts(slug, data):
+        return brand_facts.render_facts(slug, data) if slug == project_slug else original_render_facts(slug, data)
+
+    def parse_brand_facts(slug):
+        return brand_facts.parse_facts(slug) if slug == project_slug else original_parse_facts(slug)
 
     def tasks_build(slug, *args, **kwargs):
         result = original_tasks(slug, *args, **kwargs)
@@ -1082,16 +1099,22 @@ def normalize_generated_outputs(project_slug):
         return normalize_blueprint(project_slug) if slug == project_slug else result
 
     engine_bootstrap.run = bootstrap_run
+    engine_bootstrap.brand_facts = extract_brand_facts
+    engine_bootstrap.render_facts = render_brand_facts
     engine_audit.run = audit_run
     engine_crawl.run = crawl_run
+    engine_generate.parse_facts = parse_brand_facts
     engine_tasks.build = tasks_build
     engine_blueprint.build = blueprint_build
     try:
         yield
     finally:
         engine_bootstrap.run = original_bootstrap
+        engine_bootstrap.brand_facts = original_brand_facts
+        engine_bootstrap.render_facts = original_render_facts
         engine_audit.run = original_audit
         engine_crawl.run = original_crawl
+        engine_generate.parse_facts = original_parse_facts
         engine_tasks.build = original_tasks
         engine_blueprint.build = original_blueprint
         normalize_project(project_slug)

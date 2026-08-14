@@ -103,7 +103,7 @@ const VIEW_LOADERS = {
   siteaudit: () => import('./views/siteaudit.js?v=2.6'),
   gaps: () => import('./views/gaps.js?v=2.5'),
   questions: () => import('./views/questions.js?v=2.5'),
-  facts: () => import('./views/facts.js?v=2.5'),
+  facts: () => import('./views/facts.js?v=2.6'),
   plan: () => import('./views/plan.js?v=2.5'),
   workbench: () => import('./views/workbench.js?v=2.6'),
   assets: () => import('./views/assets.js?v=2.5'),
