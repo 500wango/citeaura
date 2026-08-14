@@ -13,24 +13,28 @@ WEB_ROOT = Path(__file__).resolve().parent.parent / "web"
 
 
 @router.get("/")
+@router.head("/")
 def serve_landing_page():
     """返回 CiteAura 公开 Landing Page。"""
     return FileResponse(WEB_ROOT / "index.html", media_type="text/html; charset=utf-8")
 
 
 @router.get("/privacy")
+@router.head("/privacy")
 def serve_privacy_page():
     """返回 CiteAura 隐私政策页面。"""
     return FileResponse(WEB_ROOT / "privacy.html", media_type="text/html; charset=utf-8")
 
 
 @router.get("/terms")
+@router.head("/terms")
 def serve_terms_page():
     """返回 CiteAura 服务条款页面。"""
     return FileResponse(WEB_ROOT / "terms.html", media_type="text/html; charset=utf-8")
 
 
 @router.get("/docs")
+@router.head("/docs")
 def serve_docs_page():
     """返回 CiteAura 文档与新手上手中心页面。"""
     return FileResponse(WEB_ROOT / "docs.html", media_type="text/html; charset=utf-8")
@@ -59,4 +63,3 @@ def serve_i18n_catalog(locale: str):
         raise HTTPException(status_code=404, detail={"error": "locale_not_found"})
     catalogs = load_all_catalogs()
     return JSONResponse(catalogs.get(code) or {}, media_type="application/json; charset=utf-8")
-

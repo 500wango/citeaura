@@ -28,6 +28,13 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'data-i18n="landing.ops_enterprise_dd"' in response.text
 
 
+def test_public_verification_pages_support_head_requests():
+    for path in ("/", "/privacy", "/terms", "/docs"):
+        response = client.head(path)
+        assert response.status_code == 200, path
+        assert response.headers["content-type"].startswith("text/html"), path
+
+
 def test_privacy_policy_discloses_google_api_data_use():
     response = client.get("/privacy")
 
