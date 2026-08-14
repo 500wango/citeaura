@@ -422,7 +422,17 @@ def _product_report(project_slug, metrics):
             if not row.get("ok"):
                 continue
             for domain in (row.get("analysis") or {}).get("cited_domains") or []:
-                citations[domain] = citations.get(domain, 0) + 1
+                evidence = citations.setdefault(domain, {
+                    "count": 0,
+                    "engines": set(),
+                    "questions": set(),
+                })
+                evidence["count"] += 1
+                engine_name = row.get("platform_name") or row.get("platform")
+                if engine_name:
+                    evidence["engines"].add(engine_name)
+                if row.get("question"):
+                    evidence["questions"].add(row["question"])
 
     measured = [item for item in engines if item["mention_rate"] is not None and item["sample_count"]]
     measured_count = sum(item["sample_count"] for item in measured)
@@ -431,8 +441,16 @@ def _product_report(project_slug, metrics):
         if measured_count else None
     )
     channels = [
-        {"domain": domain, "count": count}
-        for domain, count in sorted(citations.items(), key=lambda pair: (-pair[1], pair[0]))
+        {
+            "domain": domain,
+            "count": evidence["count"],
+            "engines": sorted(evidence["engines"]),
+            "question_count": len(evidence["questions"]),
+            "sample_questions": sorted(evidence["questions"])[:3],
+        }
+        for domain, evidence in sorted(
+            citations.items(), key=lambda pair: (-pair[1]["count"], pair[0]),
+        )
     ]
     return {
         **(metrics or {}),

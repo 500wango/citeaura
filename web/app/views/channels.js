@@ -1,23 +1,37 @@
 /**
- * 渠道与信源分析 (Channels & Citation Sources)
+ * AI 联网采样引用信源。
  */
 
-import { projects, integrations } from '../api.js?v=3.4';
+import { projects } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
+import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
 
-function formatNumber(num) {
-  if (num === null || num === undefined || isNaN(num)) return '—';
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-  return Number(num).toLocaleString();
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
-function formatDuration(sec) {
-  if (!sec || isNaN(sec)) return '—';
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}m ${s}s`;
+async function runCitationSample(ctx, button) {
+  const projectId = ctx.activeProjectId;
+  if (!projectId) return;
+  button.disabled = true;
+  try {
+    const result = await projects.triggerSample(projectId);
+    toast.success(t('channels.sample_queued', {}, 'Citation sampling queued across the configured model matrix.'));
+    ctx.pollActiveJobs();
+    if (result?.job_id && typeof ctx.openTelemetry === 'function') {
+      ctx.openTelemetry(result.job_id, 'sample');
+    }
+  } catch (err) {
+    toast.error(t(err.error, {}, err.detail || 'Sampling task failed to start'));
+  } finally {
+    button.disabled = false;
+  }
 }
 
 export default {
@@ -27,193 +41,115 @@ export default {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
     }
 
-    let report = null;
-    let trafficRes = null;
-    try {
-      [report, trafficRes] = await Promise.all([
-        projects.getReport(projectId).catch(() => null),
-        integrations.getProjectTraffic(projectId).catch(() => null),
-      ]);
-    } catch (e) {}
-
-    const channels = (report && report.channels) || [];
-    const traffic = trafficRes?.traffic || null;
-    const isConfigured = Boolean(trafficRes?.configured);
+    const report = await projects.getReport(projectId).catch(() => null);
+    const channels = report?.channels || [];
+    const totalMentions = channels.reduce((sum, channel) => sum + Number(channel.count || 0), 0);
+    const cohort = report?.sample_artifact || report?.date || null;
 
     return `
       <div class="app-view-container">
         <div class="view-header">
           <div class="view-title-group">
-            <h1 class="view-title">${t('channels.title', {}, 'AI Citation Sources & Traffic Channels')}</h1>
+            <h1 class="view-title">${t('channels.title', {}, 'AI Citation Sources')}</h1>
             <p class="view-desc">
-              ${t('channels.desc', {}, 'Track organic search citations, third-party media sources, and live domain traffic intelligence.')}
+              ${t('channels.desc', {}, 'See which third-party domains the latest web-enabled AI samples used as evidence.')}
             </p>
           </div>
           <div class="view-actions">
-            ${isConfigured ? `
-              <button type="button" class="btn btn-secondary btn-sm btn-sync-traffic" data-project="${projectId}">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                <span>${t('integrations.sync_now', {}, 'Sync TabAPI Traffic')}</span>
-              </button>
-            ` : `
-              <a href="#/integrations" class="btn btn-secondary btn-sm">
-                <span>${t('integrations.connect_tabapi', {}, 'Connect TabAPI')}</span>
-              </a>
-            `}
-          </div>
-        </div>
-
-        <!-- TabAPI Traffic Growth Intelligence Card -->
-        <div class="card" style="margin-bottom:var(--sp-6);gap:var(--sp-4);">
-          <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:var(--sp-3);">
-            <div style="display:flex;align-items:center;gap:var(--sp-2);">
-              <strong style="font-size:var(--fs-4);">TabAPI · Domain Traffic Intelligence</strong>
-              ${traffic ? `<span class="tag tag-success" style="font-size:10px;">Synced ${new Date(traffic.synced_at).toLocaleDateString()}</span>` : (isConfigured ? `<span class="tag tag-dim" style="font-size:10px;">Ready to Sync</span>` : `<span class="tag tag-dim" style="font-size:10px;">Not Connected</span>`)}
-            </div>
-            <a href="https://tabapi.com" target="_blank" rel="noopener noreferrer" style="font-size:var(--fs-1);color:var(--muted);text-decoration:none;">
-              Powered by TabAPI / AITDK ↗
+            <a href="#/engines" class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span>${t('channels.review_samples', {}, 'Review Raw Citations')}</span>
             </a>
+            <button type="button" class="btn btn-primary btn-sm btn-run-citation-sample">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>${t('channels.sample_now', {}, 'Run Citation Sampling')}</span>
+            </button>
           </div>
-
-          ${traffic ? `
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:var(--sp-4);">
-              <div style="padding:var(--sp-3);border-radius:var(--r-md);background:var(--page);border:1px solid var(--divider);">
-                <span style="font-size:var(--fs-1);color:var(--muted);display:block;">Monthly Visits</span>
-                <strong class="num" style="font-size:var(--fs-6);color:var(--ink);">${formatNumber(traffic.metrics?.monthly_visits)}</strong>
-              </div>
-              <div style="padding:var(--sp-3);border-radius:var(--r-md);background:var(--page);border:1px solid var(--divider);">
-                <span style="font-size:var(--fs-1);color:var(--muted);display:block;">Global Rank</span>
-                <strong class="num" style="font-size:var(--fs-6);color:var(--ink);">${traffic.metrics?.global_rank ? '#' + Number(traffic.metrics.global_rank).toLocaleString() : '—'}</strong>
-              </div>
-              <div style="padding:var(--sp-3);border-radius:var(--r-md);background:var(--page);border:1px solid var(--divider);">
-                <span style="font-size:var(--fs-1);color:var(--muted);display:block;">Bounce Rate</span>
-                <strong class="num" style="font-size:var(--fs-6);color:var(--ink);">${traffic.metrics?.bounce_rate ? Math.round(traffic.metrics.bounce_rate * 100) + '%' : '—'}</strong>
-              </div>
-              <div style="padding:var(--sp-3);border-radius:var(--r-md);background:var(--page);border:1px solid var(--divider);">
-                <span style="font-size:var(--fs-1);color:var(--muted);display:block;">Avg Duration</span>
-                <strong class="num" style="font-size:var(--fs-6);color:var(--ink);">${formatDuration(traffic.metrics?.dwell_time)}</strong>
-              </div>
-            </div>
-
-            ${traffic.traffic_sources && Object.keys(traffic.traffic_sources).length ? `
-              <div style="margin-top:var(--sp-2);">
-                <span style="font-size:var(--fs-2);font-weight:600;color:var(--ink);display:block;margin-bottom:var(--sp-2);">Traffic Channel Breakdown</span>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:var(--sp-3);">
-                  ${Object.entries(traffic.traffic_sources).map(([source, val]) => `
-                    <div style="font-size:var(--fs-1);">
-                      <div style="display:flex;justify-content:space-between;color:var(--muted);margin-bottom:2px;">
-                        <span style="text-transform:capitalize;">${source.replace('_', ' ')}</span>
-                        <span class="num">${Math.round(val * 100)}%</span>
-                      </div>
-                      <div style="height:4px;border-radius:2px;background:var(--line);overflow:hidden;">
-                        <div style="height:100%;width:${Math.round(val * 100)}%;background:var(--accent);"></div>
-                      </div>
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-            ` : ''}
-          ` : `
-            <div style="padding:var(--sp-4);background:var(--page);border-radius:var(--r-md);display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;">
-              <div>
-                <p style="margin:0;font-size:var(--fs-2);color:var(--ink);font-weight:500;">
-                  ${isConfigured ? 'TabAPI is connected. Click Sync to pull the latest monthly traffic report.' : 'Connect TabAPI to track live monthly domain visits, global rank, and channel traffic.'}
-                </p>
-                <p style="margin:2px 0 0 0;font-size:var(--fs-1);color:var(--muted);">
-                  Get your free/developer API token at <a href="https://tabapi.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">tabapi.com</a>.
-                </p>
-              </div>
-              ${isConfigured ? `
-                <button type="button" class="btn btn-primary btn-sm btn-sync-traffic" data-project="${projectId}">
-                  ${t('integrations.sync_now', {}, 'Sync Traffic Now')}
-                </button>
-              ` : `
-                <a href="#/integrations" class="btn btn-primary btn-sm">
-                  ${t('integrations.connect_tabapi', {}, 'Configure TabAPI Key')}
-                </a>
-              `}
-            </div>
-          `}
         </div>
 
-        <!-- Citation Domains Table -->
-        <div class="card" style="padding:0;overflow:hidden;">
-          <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
-            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('channels.top_domains', {}, 'Top Cited Domain Authorities')}</h3>
-            <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${channels.length} domains</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;padding:0 var(--sp-1);">
+          <div style="display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;">
+            <span class="tag tag-neutral">${t('channels.evidence_badge', {}, 'Web citation evidence')}</span>
+            <span style="font-size:var(--fs-2);color:var(--muted);">
+              ${t('channels.source_note', {}, 'Only source URLs returned by web-enabled model samples are counted.')}
+            </span>
           </div>
+          ${cohort ? `<span class="tag tag-dim num">Cohort ${escapeHtml(cohort)}</span>` : ''}
+        </div>
 
-          ${
-            channels.length
-              ? `
+        ${channels.length ? `
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+              <div>
+                <h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('channels.top_domains', {}, 'Top Cited Domains')}</h2>
+                <p style="font-size:var(--fs-1);color:var(--muted);margin:2px 0 0;">${channels.length} domains · ${totalMentions} citation mentions</p>
+              </div>
+            </div>
             <div class="tbl" style="overflow-x:auto;">
               <table class="table">
                 <thead>
                   <tr>
                     <th>#</th>
                     <th>${t('channels.col_domain', {}, 'Source Domain')}</th>
-                    <th>${t('channels.col_category', {}, 'Channel Type')}</th>
-                    <th style="text-align:right;">${t('channels.col_citations', {}, 'Citation Mentions')}</th>
-                    <th>${t('channels.col_opportunity', {}, 'Outreach Action')}</th>
+                    <th>${t('channels.col_engines', {}, 'Observed In')}</th>
+                    <th>${t('channels.col_questions', {}, 'Question Evidence')}</th>
+                    <th style="text-align:right;">${t('channels.col_citations', {}, 'Mentions')}</th>
+                    <th style="text-align:right;">${t('channels.col_share', {}, 'Share')}</th>
+                    <th>${t('channels.col_opportunity', {}, 'Next Action')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${channels
-                    .map(
-                      (ch, idx) => `
-                    <tr>
-                      <td class="num" style="color:var(--muted);">${idx + 1}</td>
-                      <td>
-                        <span class="num" style="font-weight:600;font-size:var(--fs-3);color:var(--ink);">${ch.domain || ch.name}</span>
-                      </td>
-                      <td>
-                        <span class="tag tag-neutral">Cited domain</span>
-                      </td>
-                      <td data-num style="font-weight:700;">
-                        ${ch.count ?? 0}
-                      </td>
-                      <td>
-                        <a href="#/outreach" class="btn btn-ghost btn-sm">
-                          ${t('channels.create_outreach', {}, 'Draft Outreach')} →
-                        </a>
-                      </td>
-                    </tr>
-                  `
-                    )
-                    .join('')}
+                  ${channels.map((channel, index) => {
+                    const engines = Array.isArray(channel.engines) ? channel.engines : [];
+                    const questions = Array.isArray(channel.sample_questions) ? channel.sample_questions : [];
+                    const questionCount = Number(channel.question_count || questions.length);
+                    const share = totalMentions ? Math.round(Number(channel.count || 0) * 1000 / totalMentions) / 10 : 0;
+                    return `
+                      <tr>
+                        <td class="num" style="color:var(--muted);">${index + 1}</td>
+                        <td><strong class="num" style="font-size:var(--fs-3);color:var(--ink);">${escapeHtml(channel.domain)}</strong></td>
+                        <td>
+                          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                            ${engines.length ? engines.map((engine) => `<span class="tag tag-neutral">${escapeHtml(engine)}</span>`).join('') : '<span class="tag tag-dim">Unknown model</span>'}
+                          </div>
+                        </td>
+                        <td style="max-width:340px;">
+                          ${questions.length ? `
+                            <div style="font-size:var(--fs-2);color:var(--ink);line-height:1.45;overflow-wrap:anywhere;">${escapeHtml(questions[0])}</div>
+                            ${questionCount > 1 ? `<span style="font-size:var(--fs-1);color:var(--muted);">+${questionCount - 1} more question${questionCount === 2 ? '' : 's'}</span>` : ''}
+                          ` : '<span style="color:var(--muted);">Question unavailable</span>'}
+                        </td>
+                        <td data-num style="font-weight:700;text-align:right;">${Number(channel.count || 0)}</td>
+                        <td data-num style="text-align:right;">${share.toFixed(1)}%</td>
+                        <td><a href="#/outreach" class="btn btn-ghost btn-sm">${t('channels.create_outreach', {}, 'Draft Outreach')} →</a></td>
+                      </tr>
+                    `;
+                  }).join('')}
                 </tbody>
               </table>
             </div>
-          `
-              : `
-            <div style="padding:var(--sp-8);text-align:center;color:var(--muted);font-size:var(--fs-2);">
-              <p>${t('channels.no_citations_yet', {}, 'No search-grounded citation domains captured in current sample set. Citation mapping updates automatically with web-retrieval sampling runs.')}</p>
+          </div>
+        ` : `
+          <div class="card" style="padding:var(--sp-8);">
+            <div class="empty">
+              <strong>${t('channels.empty_title', {}, 'No citation sources captured yet')}</strong>
+              <p style="max-width:58ch;margin:0 auto;color:var(--muted);">
+                ${t('channels.no_citations_yet', {}, 'Run the configured model matrix. Citation domains will appear when a web-enabled model returns source URLs; parametric-only answers do not create citation evidence.')}
+              </p>
+              <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;justify-content:center;">
+                <button type="button" class="btn btn-primary btn-sm btn-run-citation-sample">${t('channels.sample_now', {}, 'Run Citation Sampling')}</button>
+                <a href="#/engine-settings" class="btn btn-secondary btn-sm">${t('engines.configure_keys', {}, 'Configure API Keys')}</a>
+              </div>
             </div>
-          `
-          }
-        </div>
+          </div>
+        `}
       </div>
     `;
   },
 
   mounted: (ctx) => {
-    document.querySelectorAll('.btn-sync-traffic').forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        const projectId = e.currentTarget.dataset.project;
-        if (!projectId) return;
-        const target = e.currentTarget;
-        target.disabled = true;
-        try {
-          await integrations.sync(projectId, 'tabapi');
-          const toastModule = await import('../components/toast.js');
-          toastModule.toast.success('TabAPI traffic sync task enqueued');
-        } catch (err) {
-          const toastModule = await import('../components/toast.js');
-          toastModule.toast.error(t(err.error, {}, err.detail || 'Failed to sync traffic'));
-        } finally {
-          target.disabled = false;
-        }
-      });
+    document.querySelectorAll('.btn-run-citation-sample').forEach((button) => {
+      button.addEventListener('click', () => runCitationSample(ctx, button));
     });
   },
 };

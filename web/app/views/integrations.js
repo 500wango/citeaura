@@ -7,17 +7,45 @@ import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function formatNumber(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  if (number >= 1000000) return `${(number / 1000000).toFixed(1)}M`;
+  if (number >= 1000) return `${(number / 1000).toFixed(1)}K`;
+  return number.toLocaleString();
+}
+
+function formatDuration(value) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds < 0) return '—';
+  return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
+}
+
 export default {
   render: async (ctx) => {
     let settings = { providers: {} };
+    let trafficResponse = null;
+    const activeProjectId = ctx.activeProjectId;
     try {
-      settings = await integrations.list().catch(() => ({ providers: {} }));
+      [settings, trafficResponse] = await Promise.all([
+        integrations.list().catch(() => ({ providers: {} })),
+        activeProjectId ? integrations.getProjectTraffic(activeProjectId).catch(() => null) : Promise.resolve(null),
+      ]);
     } catch (e) {}
 
     const tabapiConfig = settings?.providers?.tabapi || {};
     const semrushConfig = settings?.providers?.semrush || {};
     const gscConfig = settings?.providers?.search_console || {};
-    const activeProjectId = ctx.activeProjectId;
+    const traffic = trafficResponse?.traffic || null;
 
     return `
       <div class="app-view-container">
@@ -54,11 +82,6 @@ export default {
               <button type="button" class="btn btn-primary btn-sm btn-connect-tabapi">
                 ${tabapiConfig.configured ? t('integrations.reconfigure', {}, 'Update Key') : t('integrations.connect_tabapi', {}, 'Configure TabAPI Key')}
               </button>
-              ${tabapiConfig.configured && activeProjectId ? `
-                <button type="button" class="btn btn-secondary btn-sm btn-sync-tabapi" data-project="${activeProjectId}">
-                  ${t('integrations.sync_now', {}, 'Sync Traffic Now')}
-                </button>
-              ` : ''}
               ${tabapiConfig.configured ? `
                 <button type="button" class="btn btn-ghost btn-sm btn-disconnect" data-provider="tabapi" style="color:var(--bad);">
                   ${t('common.disconnect', {}, 'Disconnect')}
@@ -119,6 +142,72 @@ export default {
             </div>
           </div>
         </div>
+
+        <section aria-labelledby="traffic-snapshot-title" style="display:flex;flex-direction:column;gap:var(--sp-4);padding-top:var(--sp-2);border-top:1px solid var(--line);">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;">
+            <div>
+              <h2 id="traffic-snapshot-title" style="font-size:var(--fs-5);font-weight:700;margin:0;">${t('integrations.traffic_title', {}, 'Domain Traffic Snapshot')}</h2>
+              <p style="font-size:var(--fs-2);color:var(--muted);margin:2px 0 0;">${t('integrations.traffic_desc', {}, 'Third-party traffic estimates for the active project, provided by TabAPI / AITDK.')}</p>
+            </div>
+            ${tabapiConfig.configured && activeProjectId ? `
+              <button type="button" class="btn btn-secondary btn-sm btn-sync-tabapi" data-project="${activeProjectId}">
+                ${t('integrations.sync_now', {}, 'Sync Traffic Now')}
+              </button>
+            ` : ''}
+          </div>
+
+          ${traffic ? `
+            <div style="display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;">
+              <span class="tag tag-success">TabAPI · Synced</span>
+              <span class="tag tag-dim num">${new Date(traffic.synced_at).toLocaleString()}</span>
+              <span style="font-size:var(--fs-1);color:var(--muted);">Estimates only · not used in AI citation scoring</span>
+            </div>
+            <div class="kpi-grid">
+              <div class="kpi-card">
+                <span class="kpi-label">Monthly Visits</span>
+                <strong class="kpi-val num">${formatNumber(traffic.metrics?.monthly_visits)}</strong>
+              </div>
+              <div class="kpi-card">
+                <span class="kpi-label">Global Rank</span>
+                <strong class="kpi-val num">${traffic.metrics?.global_rank ? `#${Number(traffic.metrics.global_rank).toLocaleString()}` : '—'}</strong>
+              </div>
+              <div class="kpi-card">
+                <span class="kpi-label">Bounce Rate</span>
+                <strong class="kpi-val num">${Number.isFinite(Number(traffic.metrics?.bounce_rate)) ? `${Math.round(Number(traffic.metrics.bounce_rate) * 100)}%` : '—'}</strong>
+              </div>
+              <div class="kpi-card">
+                <span class="kpi-label">Average Visit</span>
+                <strong class="kpi-val num">${formatDuration(traffic.metrics?.dwell_time)}</strong>
+              </div>
+            </div>
+            ${traffic.traffic_sources && Object.keys(traffic.traffic_sources).length ? `
+              <div style="display:flex;flex-direction:column;gap:var(--sp-3);padding-top:var(--sp-2);">
+                <h3 style="font-size:var(--fs-3);font-weight:600;margin:0;">Traffic Channel Mix</h3>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-4);">
+                  ${Object.entries(traffic.traffic_sources).map(([source, value]) => {
+                    const percent = Math.max(0, Math.min(100, Math.round(Number(value || 0) * 100)));
+                    return `
+                      <div style="display:flex;flex-direction:column;gap:6px;">
+                        <div style="display:flex;justify-content:space-between;gap:var(--sp-2);font-size:var(--fs-2);">
+                          <span style="color:var(--muted);text-transform:capitalize;">${escapeHtml(String(source).replaceAll('_', ' '))}</span>
+                          <span class="num">${percent}%</span>
+                        </div>
+                        <div style="height:6px;background:var(--line);overflow:hidden;border-radius:3px;" role="progressbar" aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100">
+                          <div style="height:100%;width:${percent}%;background:var(--accent);"></div>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            ` : ''}
+          ` : `
+            <div class="empty" style="border:1px dashed var(--divider);">
+              <strong>${tabapiConfig.configured ? 'No traffic snapshot yet' : 'TabAPI is not connected'}</strong>
+              <p style="max-width:52ch;margin:0 auto;color:var(--muted);">${tabapiConfig.configured ? 'Sync the active project to load its latest domain traffic estimate.' : 'Configure a TabAPI key above to enable third-party domain traffic estimates.'}</p>
+            </div>
+          `}
+        </section>
       </div>
     `;
   },
@@ -227,4 +316,3 @@ export default {
     });
   },
 };
-

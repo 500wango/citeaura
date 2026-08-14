@@ -42,11 +42,11 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.6' in response.text
+    assert '/app/app.js?v=3.7' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
-    assert "/site-assets/styles/app.css?v=3.2" in response.text
+    assert "/site-assets/styles/app.css?v=3.3" in response.text
     assert '<script src="/site-assets/theme-init.js"></script>' in response.text
     assert re.search(r"<script(?![^>]*\bsrc=)[^>]*>", response.text, re.IGNORECASE) is None
     policy = response.headers["content-security-policy"]
@@ -78,6 +78,20 @@ def test_spa_static_modules_are_served():
         response = client.get(path)
         assert response.status_code == 200, f"Failed to serve {path}"
         assert "javascript" in response.headers["content-type"].lower() or "text/" in response.headers["content-type"].lower()
+
+
+def test_citation_sources_and_traffic_views_have_distinct_responsibilities():
+    client = TestClient(app)
+    channels = client.get("/app/views/channels.js").text
+    integrations = client.get("/app/views/integrations.js").text
+
+    assert "AI Citation Sources" in channels
+    assert "Run Citation Sampling" in channels
+    assert "TabAPI" not in channels
+    assert "getProjectTraffic" not in channels
+    assert "Domain Traffic Snapshot" in integrations
+    assert "getProjectTraffic" in integrations
+    assert "not used in AI citation scoring" in integrations
 
 
 def test_api_js_covers_all_core_endpoints():

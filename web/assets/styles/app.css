@@ -1174,7 +1174,7 @@
     position: fixed;
     top: 0; bottom: 0; left: var(--rail-w);
     box-shadow: var(--sh-lg);
-    transform: translateX(-110%);
+    transform: translateX(calc(-100% - var(--rail-w)));
   }
   .app-subnav.is-open { transform: translateX(0); }
   .matrix-grid { grid-template-columns: 1fr; grid-template-rows: auto; }
@@ -1184,19 +1184,27 @@
 
 @media (max-width: 768px) {
   .app-layout { flex-direction: column-reverse; }
+  .app-subnav {
+    left: 0;
+    transform: translateX(-100%);
+  }
   .app-rail {
     width: 100%; height: 58px; flex: 0 0 58px;
     flex-direction: row; padding: var(--sp-1) var(--sp-4);
     border-right: 0; border-top: 1px solid var(--line);
   }
-  .rail-top, .rail-bottom { flex-direction: row; width: auto; gap: var(--sp-4); }
-  .rail-nav { flex-direction: row; padding-top: 0; gap: var(--sp-2); }
+  .rail-brand, .rail-bottom { display: none; }
+  .rail-top { flex-direction: row; width: 100%; gap: 0; }
+  .rail-nav { flex-direction: row; justify-content: space-around; width: 100%; padding-top: 0; gap: var(--sp-1); }
   .rail-btn { min-height: 44px; width: 52px; }
   .rail-btn.is-active::before {
     left: 12px; right: 12px; top: auto; bottom: 0; height: 3px; width: auto;
     border-radius: var(--r-sm) var(--r-sm) 0 0;
   }
-  .app-header { padding: 0 var(--sp-4); }
+  .app-header { padding: 0 var(--sp-4); gap: var(--sp-2); }
+  .project-selector-btn .domain-hint,
+  .user-menu-btn > span:not(.user-avatar),
+  .user-menu-btn > svg { display: none; }
   .app-view-container { padding: var(--sp-4); }
   .pricing-grid { grid-template-columns: 1fr; }
   .telemetry-backdrop { padding: 0; align-items: stretch; }

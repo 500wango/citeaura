@@ -219,17 +219,18 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
                 "platform_name": "OpenAI",
                 "market": "global",
                     "sample_mode": "api",
-                    "search_enabled": False,
+                    "search_enabled": True,
                     "question_id": "q001",
                     "question": "Which AI visibility platform is reliable?",
                     "ok": True,
                 "answer": "Example is a reliable AI visibility platform.",
+                "citations": [{"url": "https://g2.com/categories/geo", "title": "G2"}],
                 "elapsed_ms": 12,
                 "analysis": {
                     "brand_mentioned": True,
                     "brand_rank": 1,
                     "own_domain_cited": False,
-                    "cited_domains": [],
+                    "cited_domains": ["g2.com"],
                     "competitors_mentioned": [],
                     "candidates": ["Example"],
                     "negative_cues": [],
@@ -261,6 +262,13 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     report = client.get(f"/api/v1/projects/{body['project_id']}/report", headers=headers)
     assert report.status_code == 200
     assert report.json()["report"]["platforms"]["openai"]["mention_rate"] == 1.0
+    assert report.json()["report"]["channels"] == [{
+        "domain": "g2.com",
+        "count": 1,
+        "engines": ["OpenAI"],
+        "question_count": 1,
+        "sample_questions": ["Which AI visibility platform is reliable?"],
+    }]
     audit = report.json()["report"]["audit"]
     assert audit["presentation_version"] == 1
     assert audit["applicable_avg_score"] == 100
@@ -271,7 +279,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert engines.json()["project_id"] == body["project_id"]
     assert engines.json()["project_slug"] == "example-com"
     modes = {item["platform"]: item["sampling_mode"] for item in engines.json()["engines"]}
-    assert modes == {"openai": "API - Parametric knowledge", "chatgpt": "Manual - Product interface"}
+    assert modes == {"openai": "API - Search grounded", "chatgpt": "Manual - Product interface"}
     assert all("market" not in item for item in engines.json()["engines"])
     samples = client.get(f"/api/v1/projects/{body['project_id']}/samples/2026-07-31", headers=headers)
     assert samples.status_code == 200
@@ -281,7 +289,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     framing = client.get(f"/api/v1/projects/{body['project_id']}/framing", headers=headers)
     assert framing.status_code == 200
     assert framing.json()["framing"]["terms"][0]["term"] == "reliable AI visibility platform"
-    assert framing.json()["framing"]["terms"][0]["evidence"][0]["sampling_mode"] == "API - Parametric knowledge"
+    assert framing.json()["framing"]["terms"][0]["evidence"][0]["sampling_mode"] == "API - Search grounded"
 
     monkeypatch.setattr(project_router.task_sample, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-2"))
     sampled = client.post(
