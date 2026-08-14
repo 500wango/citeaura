@@ -11,9 +11,9 @@ def test_landing_page_is_public_and_links_to_application():
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    assert '<h1 id="hero-title" data-i18n="landing.hero_title">CiteAura</h1>' in response.text
-    assert "CiteAura is a web-based Generative Engine Optimization (GEO) platform" in response.text
-    assert "turn findings into trackable optimization work" in response.text
+    assert 'id="hero-title" data-i18n="landing.hero_title"' in response.text
+    assert "Win brand visibility in the" in response.text
+    assert "AI search era" in response.text
     assert "Google Search Console" not in response.text
     assert 'href="/app"' in response.text
     assert 'data-i18n="landing.mode_parametric"' in response.text
@@ -90,6 +90,8 @@ def test_landing_js_is_english_only():
     response = client.get("/site-assets/landing.js")
     assert response.status_code == 200
     assert "localStorage.setItem('ulang'" in response.text
+    assert "initTypewriter()" in response.text
+    assert "Audit citations across ChatGPT, Claude, and Perplexity." in response.text
     assert "fetch('/i18n/en.json')" in response.text
     assert "zh-CN" not in response.text
     assert "ja" not in response.text
