@@ -11,7 +11,10 @@ def test_landing_page_is_public_and_links_to_application():
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    assert 'id="hero-title" data-i18n="landing.hero_title"' in response.text
+    assert '<h1 id="hero-title" data-i18n="landing.hero_title">CiteAura</h1>' in response.text
+    assert "CiteAura is a web-based Generative Engine Optimization (GEO) platform" in response.text
+    assert "read-only Google Search Console" in response.text
+    assert "it never modifies Search Console data or website content" in response.text
     assert 'href="/app"' in response.text
     assert 'data-i18n="landing.mode_parametric"' in response.text
     assert 'data-i18n="landing.mode_search"' in response.text
@@ -23,6 +26,16 @@ def test_landing_page_is_public_and_links_to_application():
     assert "$79" in response.text
     assert 'data-i18n="landing.pricing_note"' in response.text
     assert 'data-i18n="landing.ops_enterprise_dd"' in response.text
+
+
+def test_privacy_policy_discloses_google_api_data_use():
+    response = client.get("/privacy")
+
+    assert response.status_code == 200
+    assert "Google Search Console" in response.text
+    assert "Google API Services User Data Policy" in response.text
+    assert "Limited Use requirements" in response.text
+    assert "Disconnecting Google Search Console deletes the stored OAuth credential" in response.text
 
 
 def test_landing_assets_are_served():
@@ -88,4 +101,3 @@ def test_seo_technical_files_are_served():
     assert "xml" in sitemap_res.headers["content-type"]
     assert "<loc>https://citeaura.com/</loc>" in sitemap_res.text
     assert "<loc>https://citeaura.com/docs</loc>" in sitemap_res.text
-

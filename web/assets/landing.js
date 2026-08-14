@@ -186,57 +186,6 @@ fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', header
   }
 
   /* ================================================================
-     Hero 
-     ================================================================ */
-  var TYPED_SENTENCES = {
-    en: [
-      'Audit citations across ChatGPT, Claude, and Perplexity.',
-      'Turn AI audits into 13 actionable engineering tickets.',
-      'Close knowledge gaps and competitor blind spots.',
-      'Review before and after evidence with repeatable verification runs.',
-      'Export client-ready white-label delivery packs.'
-    ]
-  };
-
-  function initTypewriter() {
-    var el = $('.hero-typed');
-    if (!el) return;
-    var sentences = TYPED_SENTENCES[state.locale] || TYPED_SENTENCES.en;
-    var sentIdx = 0;
-    var charIdx = 0;
-    var isDeleting = false;
-    var speed = 35;
-    var pauseEnd = 2200;
-    var pauseStart = 500;
-
-    function tick() {
-      var current = sentences[sentIdx];
-      if (!isDeleting) {
-        charIdx++;
-        el.textContent = current.substring(0, charIdx);
-        if (charIdx === current.length) {
-          isDeleting = true;
-          setTimeout(tick, pauseEnd);
-          return;
-        }
-        speed = 25 + Math.random() * 20;
-      } else {
-        charIdx--;
-        el.textContent = current.substring(0, charIdx);
-        if (charIdx === 0) {
-          isDeleting = false;
-          sentIdx = (sentIdx + 1) % sentences.length;
-          setTimeout(tick, pauseStart);
-          return;
-        }
-        speed = 15;
-      }
-      setTimeout(tick, speed);
-    }
-    setTimeout(tick, 1000);
-  }
-
-  /* ================================================================
      Hero  (Canvas Particle & Constellation)
      ================================================================ */
   function initParticles() {
@@ -520,7 +469,6 @@ fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', header
     initHeaderScroll();
     initBilling();
     initReveal();
-    initTypewriter();
     initParticles();
     initSimulator();
     initMouseGlow();
