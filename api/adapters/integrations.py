@@ -32,7 +32,8 @@ def google_redirect_uri():
 
 def google_authorization_url(state):
     client_id = config.google_oauth_client_id()
-    if not client_id:
+    client_secret = config.google_oauth_client_secret()
+    if not client_id or not client_secret:
         raise IntegrationError("google_oauth_not_configured")
     return GOOGLE_AUTH_ENDPOINT + "?" + urlencode({
         "client_id": client_id,

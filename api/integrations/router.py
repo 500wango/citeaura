@@ -250,7 +250,7 @@ def search_console_callback(
         row.encrypted_value = encrypt_key(refresh_token)
     row.config_json = json.dumps(settings, sort_keys=True)
     db.commit()
-    return RedirectResponse("/app?integration=search_console#settings", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse("/app#/integrations?integration=search_console", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/projects/{project_id}/integrations")

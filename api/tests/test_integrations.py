@@ -153,7 +153,7 @@ def test_search_console_oauth_binds_verified_project_property(integration_client
         follow_redirects=False,
     )
     assert callback.status_code == 303
-    assert callback.headers["location"] == "/app?integration=search_console#settings"
+    assert callback.headers["location"] == "/app#/integrations?integration=search_console"
     with session_factory() as db:
         row = db.query(IntegrationCredential).one()
         assert row.provider == "search_console"
@@ -165,6 +165,33 @@ def test_search_console_oauth_binds_verified_project_property(integration_client
     assert overview.json()["search_console_property"] == "sc-domain:example.com"
     assert overview.json()["latest"] == {"semrush": None, "search_console": None, "tabapi": None}
     assert "google-refresh-secret" not in overview.text
+
+
+def test_search_console_authorize_requires_complete_google_oauth_config(integration_client, monkeypatch):
+    client, session_factory, _tmp_path = integration_client
+    registered, headers = _register(client)
+    project_id = _project(session_factory, registered["tenant"]["id"])
+
+    monkeypatch.delenv("GOOGLE_OAUTH_CLIENT_ID", raising=False)
+    missing_id = client.get(
+        "/api/v1/integrations/search-console/authorize",
+        params={"project_id": project_id},
+        headers=headers,
+        follow_redirects=False,
+    )
+    assert missing_id.status_code == 503
+    assert missing_id.json()["error"] == "google_oauth_not_configured"
+
+    monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "google-client-id")
+    monkeypatch.delenv("GOOGLE_OAUTH_CLIENT_SECRET", raising=False)
+    missing_secret = client.get(
+        "/api/v1/integrations/search-console/authorize",
+        params={"project_id": project_id},
+        headers=headers,
+        follow_redirects=False,
+    )
+    assert missing_secret.status_code == 503
+    assert missing_secret.json()["error"] == "google_oauth_not_configured"
 
 
 def test_integration_adapters_parse_metrics_and_store_snapshots(tmp_path, monkeypatch):
@@ -343,4 +370,3 @@ def test_tabapi_config_and_traffic_sync(integration_client, monkeypatch):
     assert snapshot["metrics"]["bounce_rate"] == 0.42
     assert snapshot["metrics"]["dwell_time"] == 150.5
     assert snapshot["metrics"]["pages_per_visit"] == 3.1
-

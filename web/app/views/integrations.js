@@ -45,6 +45,8 @@ export default {
     const tabapiConfig = settings?.providers?.tabapi || {};
     const semrushConfig = settings?.providers?.semrush || {};
     const gscConfig = settings?.providers?.search_console || {};
+    const gscOauthAvailable = gscConfig.oauth_available === true;
+    const gscCanAuthorize = Boolean(activeProjectId && gscOauthAvailable);
     const traffic = trafficResponse?.traffic || null;
 
     return `
@@ -105,9 +107,10 @@ export default {
               </p>
             </div>
             <div style="display:flex;align-items:center;gap:var(--sp-2);margin-top:var(--sp-3);">
-              <button type="button" class="btn btn-secondary btn-sm btn-connect-gsc" ${activeProjectId ? '' : 'disabled'}>
+              <button type="button" class="btn btn-secondary btn-sm btn-connect-gsc" ${gscCanAuthorize ? '' : 'disabled'} title="${gscOauthAvailable ? (activeProjectId ? 'Authorize Google Search Console for the active project' : 'Select a project first') : 'Google OAuth is not configured'}">
                 ${t('integrations.connect_gsc', {}, 'Authorize Search Console')}
               </button>
+              ${!gscOauthAvailable ? '<span style="font-size:var(--fs-1);color:var(--muted);">Google OAuth is not configured by the administrator.</span>' : (!activeProjectId ? '<span style="font-size:var(--fs-1);color:var(--muted);">Select a project to authorize.</span>' : '')}
               ${gscConfig.configured ? `
                 <button type="button" class="btn btn-ghost btn-sm btn-disconnect" data-provider="search_console" style="color:var(--bad);">
                   ${t('common.disconnect', {}, 'Disconnect')}
@@ -214,6 +217,27 @@ export default {
 
   mounted: (ctx) => {
     const refresh = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
+
+    // Google Search Console OAuth
+    const gscButton = document.querySelector('.btn-connect-gsc');
+    gscButton?.addEventListener('click', () => {
+      const projectId = ctx.activeProjectId;
+      if (!projectId) {
+        toast.error('Select a project before authorizing Search Console');
+        return;
+      }
+      if (gscButton.disabled) {
+        toast.error('Google OAuth is not configured by the administrator');
+        return;
+      }
+      window.location.assign(
+        `/api/v1/integrations/search-console/authorize?project_id=${encodeURIComponent(projectId)}`
+      );
+    });
+
+    if (ctx.params?.integration === 'search_console') {
+      toast.success('Google Search Console connected');
+    }
 
     // TabAPI Modal
     document.querySelector('.btn-connect-tabapi')?.addEventListener('click', () => {

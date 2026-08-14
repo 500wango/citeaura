@@ -94,6 +94,15 @@ def test_citation_sources_and_traffic_views_have_distinct_responsibilities():
     assert "not used in AI citation scoring" in integrations
 
 
+def test_search_console_authorization_button_has_oauth_action():
+    text = TestClient(app).get("/app/views/integrations.js").text
+
+    assert "btn-connect-gsc" in text
+    assert "search-console/authorize?project_id=" in text
+    assert "window.location.assign" in text
+    assert "oauth_available" in text
+
+
 def test_api_js_covers_all_core_endpoints():
     response = TestClient(app).get("/app/api.js")
     assert response.status_code == 200

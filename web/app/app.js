@@ -115,7 +115,7 @@ const VIEW_LOADERS = {
   'project-settings': () => import('./views/project-settings.js?v=2.5'),
   'engine-settings': () => import('./views/engine-settings.js?v=2.8'),
   automation: () => import('./views/automation.js?v=2.5'),
-  integrations: () => import('./views/integrations.js?v=2.6'),
+  integrations: () => import('./views/integrations.js?v=2.7'),
   team: () => import('./views/team.js?v=2.5'),
   billing: () => import('./views/billing.js?v=2.8'),
   security: () => import('./views/security.js?v=2.5'),
