@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Documentation & Getting Started Guide — CiteAura</title>
-  <meta name="description" content="Official documentation and step-by-step guides for CiteAura Generative Engine Optimization (GEO). Learn how to audit AI search visibility, configure BYOK keys, deploy /llms.txt, and execute 13 engineering action tickets.">
+  <title>Documentation &amp; Getting Started Guide — CiteAura</title>
+  <meta name="description" content="Official CiteAura documentation for setting up a workspace, measuring AI visibility, reviewing evidence, executing action tickets, verifying changes, and exporting delivery packs.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/site-assets/theme-init.js"></script>
@@ -20,13 +20,13 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/docs">
-  <meta property="og:title" content="Documentation & Getting Started Guide — CiteAura">
+  <meta property="og:title" content="Documentation &amp; Getting Started Guide — CiteAura">
   <meta property="og:description" content="Official documentation and step-by-step guides for CiteAura Generative Engine Optimization (GEO).">
   <meta property="og:image" content="https://citeaura.com/site-assets/logo.png">
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="CiteAura GEO Documentation">
-  <meta name="twitter:description" content="Step-by-step guides for auditing AI visibility, configuring BYOK keys, and executing 13 action tickets.">
+  <meta name="twitter:description" content="Set up CiteAura, measure AI visibility, review evidence, execute action tickets, verify changes, and export delivery packs.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/logo.png">
 
   <!-- Schema.org Structured Data -->
@@ -75,6 +75,10 @@
       margin: 0 auto;
       padding: 0 var(--sp-6);
     }
+    .site-header .brand,
+    .site-header .nav-actions {
+      flex: none;
+    }
     .docs-container {
       display: grid;
       grid-template-columns: var(--docs-sidebar-w) minmax(0, 1fr) var(--docs-toc-w);
@@ -122,16 +126,41 @@
       color: var(--faint);
       pointer-events: none;
     }
+    .docs-sidebar-toggle {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--divider);
+      border-radius: var(--r-md);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: var(--fs-2);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .docs-sidebar-toggle svg {
+      transition: transform var(--dur-fast);
+    }
+    .docs-sidebar.is-open .docs-sidebar-toggle svg {
+      transform: rotate(180deg);
+    }
     .docs-nav-section {
       display: flex;
       flex-direction: column;
       gap: var(--sp-1);
     }
+    .docs-section-nav {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-6);
+    }
     .docs-nav-heading {
       font-size: var(--fs-1);
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0;
       color: var(--muted);
       margin: var(--sp-2) 0 var(--sp-1);
     }
@@ -181,14 +210,14 @@
       margin-bottom: var(--sp-3);
     }
     .docs-article h1 {
-      font-size: clamp(var(--fs-7), 3.5vw, var(--fs-9));
-      letter-spacing: -0.03em;
+      font-size: var(--fs-8);
+      letter-spacing: 0;
       margin-bottom: var(--sp-3);
       color: var(--ink);
     }
     .docs-article h2 {
       font-size: var(--fs-6);
-      letter-spacing: -0.02em;
+      letter-spacing: 0;
       margin-top: var(--sp-8);
       margin-bottom: var(--sp-3);
       color: var(--ink);
@@ -345,7 +374,7 @@
       font-size: var(--fs-1);
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0;
       color: var(--muted);
       margin-bottom: var(--sp-1);
     }
@@ -376,8 +405,29 @@
         position: static;
         height: auto;
         border-bottom: 1px solid var(--divider);
-        padding-bottom: var(--sp-6);
-        margin-bottom: var(--sp-6);
+        padding: 0 0 var(--sp-4);
+        margin-bottom: var(--sp-4);
+        gap: var(--sp-3);
+      }
+      .docs-sidebar-toggle {
+        display: flex;
+      }
+      .docs-sidebar .docs-nav-section {
+        display: none;
+      }
+      .docs-sidebar.is-open .docs-nav-section {
+        display: flex;
+      }
+    }
+    @media (max-width: 480px) {
+      .docs-page-shell {
+        padding: 0 var(--sp-4);
+      }
+      .docs-article h1 {
+        font-size: var(--fs-7);
+      }
+      .nav-sign-in {
+        display: none;
       }
     }
   </style>
@@ -404,7 +454,7 @@
       <div class="nav-actions">
         <div class="header-status-badge">
           <span class="status-pulse" aria-hidden="true"></span>
-          <span>10 Engines Active</span>
+          <span>Evidence-led GEO</span>
         </div>
         
         <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme">
@@ -425,52 +475,45 @@
       <aside class="docs-sidebar">
         <div class="docs-search-wrap">
           <svg class="docs-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="docs-search" class="docs-search-input" placeholder="Search guides & tickets..." aria-label="Search documentation">
+          <input type="text" id="docs-search" class="docs-search-input" placeholder="Search documentation..." aria-label="Search documentation">
         </div>
+        <button type="button" class="docs-sidebar-toggle" aria-expanded="false" aria-controls="docs-section-nav">
+          <span>Browse sections</span>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
 
+        <div id="docs-section-nav" class="docs-section-nav">
         <nav class="docs-nav-section" aria-label="Quickstart">
           <div class="docs-nav-heading">Getting Started</div>
-          <a href="#quickstart" class="docs-nav-link is-active">🚀 5-Minute Quickstart</a>
-          <a href="#how-it-works" class="docs-nav-link">🔄 5-Step Continuous GEO Loop</a>
+          <a href="#quickstart" class="docs-nav-link is-active">Quickstart</a>
+          <a href="#workflow" class="docs-nav-link">Workspace Workflow</a>
         </nav>
 
-        <nav class="docs-nav-section" aria-label="Core Concepts">
-          <div class="docs-nav-heading">Core Concepts</div>
-          <a href="#geo-vs-seo" class="docs-nav-link">🧠 GEO vs Traditional SEO</a>
-          <a href="#ai-recommendations" class="docs-nav-link">🤖 How AI Models Recommend Brands</a>
-          <a href="#probe-concept" class="docs-nav-link">💡 API Keys as "Probes", Not Ads</a>
-          <a href="#sampling-modes" class="docs-nav-link">📡 3 Sampling Modes Explained</a>
+        <nav class="docs-nav-section" aria-label="Measurement and configuration">
+          <div class="docs-nav-heading">Measure &amp; Configure</div>
+          <a href="#measurement" class="docs-nav-link">Measurement Concepts</a>
+          <a href="#byok" class="docs-nav-link">Model Keys &amp; Providers</a>
         </nav>
 
-        <nav class="docs-nav-section" aria-label="BYOK Setup">
-          <div class="docs-nav-heading">Model Keys (10 Vendors)</div>
-          <a href="#byok-overview" class="docs-nav-link">🔑 BYOK Architecture</a>
-          <a href="#key-setup-deepseek" class="docs-nav-link">⚡ DeepSeek</a>
-          <a href="#key-setup-openai" class="docs-nav-link">⚡ OpenAI</a>
-          <a href="#key-setup-claude" class="docs-nav-link">⚡ Anthropic</a>
-          <a href="#key-setup-google" class="docs-nav-link">⚡ Google</a>
-          <a href="#key-setup-zhipu" class="docs-nav-link">⚡ Zhipu AI</a>
-          <a href="#key-setup-bytedance" class="docs-nav-link">⚡ ByteDance</a>
-          <a href="#key-setup-moonshot" class="docs-nav-link">⚡ Moonshot AI</a>
-          <a href="#key-setup-minimax" class="docs-nav-link">⚡ MiniMax</a>
-          <a href="#key-setup-xai" class="docs-nav-link">⚡ xAI</a>
-          <a href="#key-setup-perplexity" class="docs-nav-link">⚡ Perplexity</a>
-          <a href="#security-guarantee" class="docs-nav-link">🛡️ Security & Zero Training</a>
+        <nav class="docs-nav-section" aria-label="Monitor and diagnose">
+          <div class="docs-nav-heading">Monitor &amp; Diagnose</div>
+          <a href="#monitor" class="docs-nav-link">Visibility &amp; Citations</a>
+          <a href="#diagnostics" class="docs-nav-link">Audit &amp; Brand Inputs</a>
         </nav>
 
-        <nav class="docs-nav-section" aria-label="Action Tickets">
-          <div class="docs-nav-heading">13 Action Tickets</div>
-          <a href="#tickets-overview" class="docs-nav-link">📋 13 Standard Action Tickets</a>
-          <a href="#llms-txt" class="docs-nav-link">📄 Deploying /llms.txt</a>
-          <a href="#citations-penetration" class="docs-nav-link">🌐 Citation Source Strategy</a>
-          <a href="#closed-loop" class="docs-nav-link">📈 Closed-Loop Verification</a>
+        <nav class="docs-nav-section" aria-label="Execute and deliver">
+          <div class="docs-nav-heading">Execute &amp; Deliver</div>
+          <a href="#execution" class="docs-nav-link">Tickets &amp; Assets</a>
+          <a href="#llms-txt" class="docs-nav-link">Using /llms.txt</a>
+          <a href="#verification-delivery" class="docs-nav-link">Verify &amp; Deliver</a>
         </nav>
 
-        <nav class="docs-nav-section" aria-label="FAQ">
-          <div class="docs-nav-heading">Support & FAQ</div>
-          <a href="#faq-unmeasured" class="docs-nav-link">❓ Why "Unmeasured" Status?</a>
-          <a href="#faq-white-label" class="docs-nav-link">📦 White-Label Client Reports</a>
+        <nav class="docs-nav-section" aria-label="Workspace administration and support">
+          <div class="docs-nav-heading">Manage &amp; Support</div>
+          <a href="#administration" class="docs-nav-link">Workspace Administration</a>
+          <a href="#troubleshooting" class="docs-nav-link">Jobs &amp; Troubleshooting</a>
         </nav>
+        </div>
       </aside>
 
       <!-- Main Article Content -->
@@ -479,158 +522,165 @@
         <!-- Quickstart -->
         <section id="quickstart">
           <span class="docs-badge">Getting Started</span>
-          <h1>5-Minute Quickstart Guide</h1>
-          <p>CiteAura is a Generative Engine Optimization (GEO) platform that audits, measures, and helps improve your brand's citation and visibility across generative AI engines.</p>
+          <h1>CiteAura Workspace Guide</h1>
+          <p>CiteAura turns a brand website into an evidence-based GEO workspace. It crawls the site, prepares measurement inputs, records AI model answers, produces project-specific action tickets, verifies implemented changes, and packages the evidence for delivery.</p>
+          <div class="docs-callout tip">
+            <p><strong>New projects start automatically.</strong> After you submit a website, the initial pipeline is queued. Keep the project open to follow its stages in the job telemetry panel; you do not need to find a separate start button.</p>
+          </div>
           
           <div class="docs-steps">
             <div class="docs-step-card">
               <div class="docs-step-num">1</div>
               <div class="docs-step-content">
-                <h4>Create your workspace & add brand</h4>
-                <p>Register at <a href="/app#/register" style="color:var(--accent);">citeaura.com/app</a> (no credit card required). Enter your official website URL (e.g. <code>https://yourbrand.com</code>) and optional brand display name. CiteAura will automatically crawl your site, extract brand facts, and initialize the diagnostic pipeline.</p>
+                <h4>Create a workspace and add a brand</h4>
+                <p>Register at <a href="/app#/register" style="color:var(--accent);">citeaura.com/app</a>, then enter the canonical HTTPS URL for the brand. CiteAura creates the project and queues the initial crawl and analysis pipeline.</p>
               </div>
             </div>
 
             <div class="docs-step-card">
               <div class="docs-step-num">2</div>
               <div class="docs-step-content">
-                <h4>Connect 1~2 AI Model Probes (BYOK)</h4>
-                <p>Navigate to <strong>Settings → Model Keys (BYOK)</strong>. Paste your official OpenAI, DeepSeek, or Anthropic API key. Your keys are immediately encrypted at rest using AES-256-GCM.</p>
+                <h4>Review the measurement inputs</h4>
+                <p>Open <strong>Diagnostics → Target Questions</strong> and <strong>Diagnostics → Brand Fact Library</strong>. Keep questions representative of real buyer intent and give material facts a source and verification date.</p>
               </div>
             </div>
 
             <div class="docs-step-card">
               <div class="docs-step-num">3</div>
               <div class="docs-step-content">
-                <h4>Run GEO Diagnosis & Sampling</h4>
-                <p>Click <strong>Run Full Diagnosis</strong> in the Overview or Workbench. CiteAura will analyze semantic extractability and simulate multi-turn prompt queries across the configured AI models.</p>
+                <h4>Connect model providers</h4>
+                <p>Open <strong>Settings → Model Keys (BYOK)</strong>. Configure one or more built-in providers, or add an OpenAI-compatible endpoint. Use <strong>Test</strong> to validate each saved key before sampling.</p>
               </div>
             </div>
 
             <div class="docs-step-card">
               <div class="docs-step-num">4</div>
               <div class="docs-step-content">
-                <h4>Implement 13 Action Tickets & /llms.txt</h4>
-                <p>Review detected <strong>Perception Gaps</strong> and download your generated <code>/llms.txt</code> file and structured JSON-LD schemas to deploy onto your web server.</p>
+                <h4>Run and inspect AI sampling</h4>
+                <p>Choose <strong>Run AI Sample</strong> from Overview or <strong>Sample Matrix Now</strong> from Monitor. Review the exact prompt, raw answer, sampling mode, citations, and cohort before interpreting any score.</p>
               </div>
             </div>
 
             <div class="docs-step-card">
               <div class="docs-step-num">5</div>
               <div class="docs-step-content">
-                <h4>Closed-Loop Verification & Trend Tracking</h4>
-                <p>After deploying updates, run a verification sampling task in <strong>Verify</strong> to observe visibility improvements and confirm whether identified perception gaps are resolved.</p>
+                <h4>Execute, verify, and deliver</h4>
+                <p>Prioritize evidence-backed tickets in <strong>Execution → Action Tickets</strong>, deploy the relevant assets, then run <strong>Verify Changes</strong>. Use <strong>Delivery → Client Delivery Packs</strong> to build the current handoff package.</p>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- Continuous Loop -->
-        <section id="how-it-works">
-          <h2>The 5-Step Continuous GEO Loop</h2>
-          <p>GEO is an ongoing optimization cycle rather than a one-time audit:</p>
-          <ol>
-            <li><strong>Audit (诊断):</strong> Crawls domain pages to evaluate semantic extractability, WAF accessibility, and entity clarity.</li>
-            <li><strong>Diagnose (分析):</strong> Multi-model probe sampling measures brand mention rate, sentiment, and perception gaps.</li>
-            <li><strong>Plan (工单):</strong> Compiles 13 standardized engineering tickets prioritized by impact and difficulty.</li>
-            <li><strong>Deploy (落地):</strong> Provides machine-readable <code>/llms.txt</code>, structured metadata, and target citation channels.</li>
-            <li><strong>Verify (复测):</strong> Re-runs calibrated sampling to track visibility score progression over time.</li>
-          </ol>
-        </section>
-
-        <!-- Core Concepts -->
-        <section id="geo-vs-seo">
-          <h2>GEO vs. Traditional Search SEO</h2>
-          <p>Traditional SEO focuses on search engine ranking pages for keyword queries. Generative Engine Optimization (GEO) focuses on ensuring AI synthesis engines understand, cite, and recommend your brand when answering complex user prompts.</p>
-          
+        <!-- Workspace Workflow -->
+        <section id="workflow">
+          <h2>Workspace Workflow</h2>
+          <p>The workspace follows a repeatable measurement and execution loop. Each view has a distinct role; use the evidence from one stage as the input to the next.</p>
           <div class="docs-table-wrap">
             <table class="docs-table">
               <thead>
                 <tr>
-                  <th>Dimension</th>
-                  <th>Traditional SEO</th>
-                  <th>Generative Engine Optimization (GEO)</th>
+                  <th>Stage</th>
+                  <th>What happens</th>
+                  <th>Primary view</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td><strong>Primary Target</strong></td>
-                  <td>Search Engine Result Pages (10 Blue Links)</td>
-                  <td>Direct AI Answer Synthesis & Recommendations</td>
+                  <td><strong>Establish</strong></td>
+                  <td>Crawl the canonical site and derive the initial question bank, facts, and audit evidence.</td>
+                  <td>Overview</td>
                 </tr>
                 <tr>
-                  <td><strong>Evaluation Metric</strong></td>
-                  <td>Keyword Rankings, Organic Clicks, Backlinks</td>
-                  <td>AI Visibility Score, Mention Rate, Citation Share</td>
+                  <td><strong>Measure</strong></td>
+                  <td>Record model answers for a versioned question set and classify each sampling mode.</td>
+                  <td>Monitor</td>
                 </tr>
                 <tr>
-                  <td><strong>Optimization Unit</strong></td>
-                  <td>Webpage URL & Title Tags</td>
-                  <td>Brand Entity, Verifiable Facts, Fact Consistency</td>
+                  <td><strong>Diagnose</strong></td>
+                  <td>Inspect technical extraction issues, observed framing, questions, and official facts.</td>
+                  <td>Diagnostics</td>
                 </tr>
                 <tr>
-                  <td><strong>Crawler Targets</strong></td>
-                  <td>Traditional Search Engine Bots</td>
-                  <td>AI Training Scrapers & Live Retrieval Bots</td>
+                  <td><strong>Execute</strong></td>
+                  <td>Assign action tickets, edit generated assets, and prepare outreach or publishing drafts.</td>
+                  <td>Execution</td>
                 </tr>
                 <tr>
-                  <td><strong>Core Deliverables</strong></td>
-                  <td>Meta descriptions, Keyword Density, Backlinks</td>
-                  <td><code>/llms.txt</code>, Schema JSON-LD, Citation Infiltration</td>
+                  <td><strong>Verify</strong></td>
+                  <td>Re-crawl the site, evaluate acceptance checks, and reopen regressed tickets when required.</td>
+                  <td>Closed-Loop Verify</td>
+                </tr>
+                <tr>
+                  <td><strong>Deliver</strong></td>
+                  <td>Compile the latest audit, ticket, verification, comparison, and asset files into a ZIP package.</td>
+                  <td>Delivery</td>
                 </tr>
               </tbody>
             </table>
           </div>
-        </section>
-
-        <!-- How AI Recommends Brands -->
-        <section id="ai-recommendations">
-          <h2>How AI Models Recommend Brands</h2>
-          <p>When an AI model is asked for product or service recommendations, its response is generated through two primary mechanisms:</p>
-          <ul>
-            <li><strong>Parametric Memory:</strong> Information absorbed during the model's pre-training phase, reflecting long-term entity associations and public documentation.</li>
-            <li><strong>Web-Grounded Retrieval:</strong> For connected models, the model performs web retrieval and synthesizes content from high-authority review sites, discussion forums, and official fact sheets.</li>
-          </ul>
-        </section>
-
-        <!-- Probe Concept -->
-        <section id="probe-concept">
-          <h2>Why API Keys are "Probes", Not "Paid Ads"</h2>
-          <div class="docs-callout warning">
-            <p><strong>Important Clarification:</strong> Configuring an AI model's API key does not alter the model's underlying weights or buy advertising placement.</p>
+          <div class="docs-callout">
+            <p><strong>One active job per project:</strong> while a project job is queued or running, commands that start another job may remain disabled or return a conflict. Wait for completion or open the telemetry panel to inspect a failure.</p>
           </div>
-          <p><strong>The Role of BYOK (Bring Your Own Key):</strong></p>
-          <ul>
-            <li><strong>Calibrated Measurement:</strong> CiteAura uses your provided API key to query the model with representative industry questions, measuring your brand's presence and accuracy.</li>
-            <li><strong>Direct Cost Transparency:</strong> Queries are billed directly by the respective AI vendor at standard API rates, avoiding third-party token markups.</li>
-          </ul>
         </section>
 
-        <!-- Sampling Modes -->
-        <section id="sampling-modes">
-          <h2>3 Sampling Modes Explained</h2>
-          <p>Every visibility measurement in CiteAura clearly states its sampling source:</p>
+        <!-- Measurement Concepts -->
+        <section id="measurement">
+          <h2>Measurement Concepts</h2>
+          <p>CiteAura records observations from a defined question set. Results describe that sample cohort; they are not a guarantee of how every user, model version, region, or future answer will behave.</p>
+
+          <h3>Sampling modes</h3>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Evidence source</th>
+                  <th>Interpretation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>API · Model knowledge</strong></td>
+                  <td>A provider API response without live retrieval.</td>
+                  <td>Measures parametric model knowledge for the submitted question.</td>
+                </tr>
+                <tr>
+                  <td><strong>API · Web-grounded retrieval</strong></td>
+                  <td>A provider API response with web retrieval enabled.</td>
+                  <td>Can produce source URLs used in Citation Sources.</td>
+                </tr>
+                <tr>
+                  <td><strong>Manual · Product surface</strong></td>
+                  <td>A transcript captured from a consumer product interface.</td>
+                  <td>Kept distinct from API observations because the product surface can behave differently.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Core metrics</h3>
           <ul>
-            <li><strong>API · Model Knowledge (Parametric):</strong> Queries the model directly using its internal parameters without live web browsing.</li>
-            <li><strong>API · Web-Grounded Retrieval:</strong> Queries models that use web retrieval capabilities to synthesize answers.</li>
-            <li><strong>Manual · Product Surface:</strong> Incorporates transcripts audited manually from consumer web interfaces.</li>
+            <li><strong>Mention rate:</strong> the share of successful sampled answers in the current cohort that mention the configured brand identity.</li>
+            <li><strong>Average rank:</strong> the observed recommendation position when a usable rank is present. An absent rank is not converted into a fabricated value.</li>
+            <li><strong>Sample count:</strong> the number of observations supporting the displayed metric.</li>
+            <li><strong>Citation share:</strong> the share of captured source URL mentions attributed to a domain within web-grounded samples.</li>
+            <li><strong>Unmeasured:</strong> no qualifying observation is available. It does not mean zero visibility.</li>
           </ul>
+
+          <h3>Question sets and cohorts</h3>
+          <p>Changes to Target Questions create a different measurement input. Compare trends only when question scope, provider configuration, sampling mode, and market are sufficiently consistent. Raw answers and cohort labels are the audit trail behind aggregate metrics.</p>
+
+          <div class="docs-callout warning">
+            <p><strong>Measurement is not placement.</strong> Adding an API key pays the provider for measurement calls. It does not alter model weights, buy recommendations, or guarantee citations.</p>
+          </div>
         </section>
 
         <!-- BYOK Setup Guide -->
-        <section id="byok-overview">
-          <h2>BYOK Model API Key Setup Guides</h2>
-          <p>CiteAura supports 10 major AI engine providers. Connecting your official API keys allows CiteAura to run direct diagnostic sampling with zero token markup. All keys are encrypted at rest with hardware-grade <strong>AES-256-GCM</strong> and are protected under our strict <strong>Zero Model Training Guarantee</strong>.</p>
+        <section id="byok">
+          <h2>Model Keys &amp; Providers</h2>
+          <p>Bring Your Own Key routes measurement requests through your provider account, so provider usage and charges remain visible there. CiteAura currently exposes five built-in providers and supports custom OpenAI-compatible HTTPS endpoints.</p>
 
-          <h3 id="key-setup-deepseek">1. DeepSeek Setup</h3>
-          <ol>
-            <li>Visit the official <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">DeepSeek Open Platform (platform.deepseek.com)</a>.</li>
-            <li>In the left sidebar, click <strong>API Keys</strong>.</li>
-            <li>Click <strong>Create API Key</strong>, assign a name (e.g. <code>CiteAura</code>), and copy the <code>sk-...</code> key.</li>
-            <li>In CiteAura, navigate to <strong>Settings → Model Keys (BYOK) → DeepSeek</strong> and paste the key.</li>
-          </ol>
-
-          <h3 id="key-setup-openai">2. OpenAI Setup</h3>
+          <h3 id="key-setup-openai">1. OpenAI</h3>
           <ol>
             <li>Visit the official <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenAI Developer Platform (platform.openai.com/api-keys)</a>.</li>
             <li>In the dashboard, click <strong>Create new secret key</strong>.</li>
@@ -638,106 +688,248 @@
             <li>In CiteAura, open <strong>Settings → Model Keys (BYOK) → OpenAI</strong> and paste the key.</li>
           </ol>
 
-          <h3 id="key-setup-claude">3. Anthropic Setup</h3>
+          <h3 id="key-setup-claude">2. Anthropic</h3>
           <ol>
             <li>Visit the official <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Anthropic Console (console.anthropic.com)</a>.</li>
             <li>Navigate to <strong>API Keys</strong> and click <strong>Create Key</strong>.</li>
             <li>Name your key, copy the <code>sk-ant-...</code> token, and paste it into CiteAura under <strong>Settings → Model Keys (BYOK) → Anthropic</strong>.</li>
           </ol>
 
-          <h3 id="key-setup-google">4. Google Setup</h3>
+          <h3 id="key-setup-google">3. Google</h3>
           <ol>
             <li>Visit the official <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Google AI Studio (aistudio.google.com/apikey)</a>.</li>
             <li>Click <strong>Create API key</strong> and choose an existing or new Google Cloud Project.</li>
             <li>Copy the generated <code>AIzaSy...</code> key and paste it into CiteAura under <strong>Settings → Model Keys (BYOK) → Google</strong>.</li>
           </ol>
 
-          <h3 id="key-setup-zhipu">5. Zhipu AI Setup</h3>
-          <ol>
-            <li>Visit the official <a href="https://open.bigmodel.cn/usercenter/apikeys" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Zhipu BigModel Platform (open.bigmodel.cn)</a>.</li>
-            <li>Navigate to <strong>User Center (个人中心) → API Keys (API 密钥)</strong>.</li>
-            <li>Click <strong>Add API Key (添加新的 API Key)</strong>, copy the key, and paste into CiteAura under <strong>Settings → Model Keys (BYOK) → Zhipu AI</strong>.</li>
-          </ol>
-
-          <h3 id="key-setup-bytedance">6. ByteDance Setup</h3>
-          <ol>
-            <li>Visit the official <a href="https://console.volcengine.com/ark" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Volcengine Ark Platform (console.volcengine.com/ark)</a>.</li>
-            <li>In the left navigation menu, select <strong>API Key Management (API Key 管理)</strong>.</li>
-            <li>Click <strong>Create API Key (创建 API Key)</strong>, copy the secret key, and paste into CiteAura under <strong>Settings → Model Keys (BYOK) → ByteDance</strong>.</li>
-          </ol>
-
-          <h3 id="key-setup-moonshot">7. Moonshot AI Setup</h3>
-          <ol>
-            <li>Visit the official <a href="https://platform.moonshot.cn/console/api-keys" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Moonshot Open Platform (platform.moonshot.cn)</a>.</li>
-            <li>In the console menu, navigate to <strong>API Key Management (API Key 管理)</strong>.</li>
-            <li>Click <strong>Create API Key (新建 API Key)</strong>, copy the key string, and paste into CiteAura under <strong>Settings → Model Keys (BYOK) → Moonshot AI</strong>.</li>
-          </ol>
-
-          <h3 id="key-setup-minimax">8. MiniMax Setup</h3>
-          <ol>
-            <li>Visit the official <a href="https://platform.minimaxi.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">MiniMax Open Platform (platform.minimaxi.com)</a>.</li>
-            <li>Navigate to <strong>Account Management (账户管理) → Interface Key (接口密钥)</strong>.</li>
-            <li>Create or copy your active API key and paste into CiteAura under <strong>Settings → Model Keys (BYOK) → MiniMax</strong>.</li>
-          </ol>
-
-          <h3 id="key-setup-xai">9. xAI Setup</h3>
+          <h3 id="key-setup-xai">4. xAI</h3>
           <ol>
             <li>Visit the official <a href="https://console.x.ai" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">xAI Console (console.x.ai)</a>.</li>
             <li>Navigate to <strong>API Keys</strong> in your team management console.</li>
             <li>Click <strong>Create API Key</strong>, set access permissions, copy the key, and paste into CiteAura under <strong>Settings → Model Keys (BYOK) → xAI</strong>.</li>
           </ol>
 
-          <h3 id="key-setup-perplexity">10. Perplexity Setup</h3>
+          <h3 id="key-setup-perplexity">5. Perplexity</h3>
           <ol>
             <li>Visit the official <a href="https://www.perplexity.ai/settings/api" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Perplexity API Settings (perplexity.ai/settings/api)</a>.</li>
             <li>Ensure billing is active on your API account, then click <strong>Generate</strong> under API Keys.</li>
             <li>Copy the <code>pplx-...</code> token and paste it into CiteAura under <strong>Settings → Model Keys (BYOK) → Perplexity</strong>.</li>
           </ol>
 
-          <h3 id="security-guarantee">Security & Zero Training Guarantee</h3>
-          <p>All API keys are encrypted at rest with <strong>AES-256-GCM</strong>. CiteAura guarantees that customer data, audit results, and diagnostic queries are never used to train or fine-tune public AI models.</p>
-        </section>
+          <h3>Custom OpenAI-compatible providers</h3>
+          <ol>
+            <li>Click <strong>Add Custom Provider</strong> in Model Keys.</li>
+            <li>Enter a provider name, the HTTPS API base URL, and the exact model ID. Do not append <code>/chat/completions</code> to the base URL.</li>
+            <li>Enter the API key and save. CiteAura tests the endpoint before retaining the configuration.</li>
+          </ol>
 
-        <!-- 13 Action Tickets -->
-        <section id="tickets-overview">
-          <h2>13 Standard Action Tickets Overview</h2>
-          <p>CiteAura provides 13 standardized engineering tickets covering technical site readiness, brand entity clarification, and third-party citation building.</p>
-          
-          <h3 id="llms-txt">Deploying /llms.txt</h3>
-          <p><code>/llms.txt</code> is a clean Markdown standard that helps AI crawlers easily discover your core facts, features, and official links.</p>
-          
-          <div class="code-block">
-# Brand Fact Sheet
-> Summary of core capabilities, official offerings, and verified facts.
-
-## Core Capabilities
-- Site-wide GEO semantic extractability audits
-- Multi-model perception gap diagnosis
-- 13 Standardized engineering tickets
-- Automated /llms.txt and JSON-LD schema generation
-- White-label delivery package compilation
-
-## Official Endpoints
-- Website: https://yourbrand.com
-- Documentation: https://yourbrand.com/docs
+          <h3>Key and data handling</h3>
+          <ul>
+            <li>Saved API keys are encrypted at rest with AES-256-GCM and injected only while a provider call is running.</li>
+            <li>API responses expose masked key identifiers, not the full secret.</li>
+            <li>CiteAura does not use workspace content to train its own models. Provider processing, retention, and training controls remain subject to the selected provider account and policy.</li>
+            <li>Delete a key from Model Keys to stop future calls through that credential.</li>
+          </ul>
+          <div class="docs-callout">
+            <p><strong>Cost control:</strong> provider-side quotas, budgets, and rate limits are the final control for BYOK spend. Configure them in each provider account before enabling scheduled monitoring.</p>
           </div>
-          <p>Deploy this file directly to the root of your web server at <code>https://yourbrand.com/llms.txt</code>.</p>
         </section>
 
-        <!-- Citations Penetration -->
-        <section id="citations-penetration">
-          <h2>Citation Source Strategy</h2>
-          <p>In the <strong>Channels (信源与渠道)</strong> dashboard, CiteAura lists the third-party websites and platforms most frequently referenced by AI search engines in your industry. By contributing quality information to these referenced domains, you increase the likelihood of inclusion during live web synthesis.</p>
+        <!-- Monitor -->
+        <section id="monitor">
+          <h2>Monitor Visibility &amp; Citations</h2>
+          <h3>AI Visibility Matrix</h3>
+          <p>The matrix groups the latest measured cohort by model provider. Use it to compare mention rate, average observed rank, sample count, sampling mode, and measurement status. Select <strong>Sample Matrix Now</strong> to queue a new cohort.</p>
+          <p>Open <strong>Raw AI Sample Answers &amp; Citations</strong> before acting on an aggregate. The replay contains the exact question, answer, provider, mode, detected brand identity, and returned source URLs.</p>
+
+          <h3>Citation Sources</h3>
+          <p>This view counts only source URLs returned by web-enabled model samples. Parametric answers without URLs do not create citation evidence. Domain share is calculated within the captured cohort, not across the whole web.</p>
+          <p>Use <strong>Draft Outreach</strong> when a cited third-party domain is relevant and there is a factual contribution worth proposing. Treat the list as observed evidence, not a directory placement guarantee.</p>
+
+          <h3>Competitor Benchmark</h3>
+          <p>Add direct competitors to compare recommendation frequency in recorded answers. Keep the set small and commercially relevant. A competitor configured by a user is different from a competitor observed in model evidence; CiteAura preserves that distinction.</p>
         </section>
 
-        <!-- FAQ -->
-        <section id="faq-unmeasured">
-          <h2>Frequently Asked Questions</h2>
-          <h3>Why does an AI engine show "Unmeasured"?</h3>
-          <p>If you have not connected an API key for a specific vendor, CiteAura marks that vendor as <em>Unmeasured</em> rather than displaying simulated or estimated values.</p>
+        <!-- Diagnostics -->
+        <section id="diagnostics">
+          <h2>Diagnostics &amp; Brand Inputs</h2>
+          <h3>Site-wide GEO Audit</h3>
+          <p>Review crawlability, page roles, semantic structure, extraction blocks, and structured data. Page grades summarize applicable checks; skipped or non-applicable checks are shown separately. Use <strong>Re-run Audit</strong> after the public site changes.</p>
 
-          <h3 id="faq-white-label">How do I export client delivery packs?</h3>
-          <p>Go to <strong>Delivery → Client Delivery Packs</strong> and click <strong>Generate Delivery Pack</strong> to compile executive summaries, audit reports, and deployment assets for client handoff.</p>
+          <h3>Perception Gaps</h3>
+          <p>Perception Gaps summarizes recurring descriptors found in recorded answers. It reflects sampled phrasing and does not independently decide whether a statement is factually correct. Compare it with the Brand Fact Library and raw answers.</p>
+
+          <h3>Target Questions</h3>
+          <p>The question bank defines what the model matrix measures. Include real discovery, comparison, category, and problem-oriented questions. Avoid near-duplicates and prompts written only to force the brand name into an answer.</p>
+          <div class="docs-callout tip">
+            <p><strong>Trend discipline:</strong> changing the question set changes the measurement basis. Record the question-set version and avoid treating two materially different cohorts as a strict before-and-after comparison.</p>
+          </div>
+
+          <h3>Brand Fact Library</h3>
+          <p>Maintain official claims used by generated content and delivery assets. Prefer a source URL and verification date for material claims. The library is a controlled input; it does not override contrary evidence returned by a model.</p>
+        </section>
+
+        <!-- Execution -->
+        <section id="execution">
+          <h2>Action Tickets &amp; Execution</h2>
+          <p>CiteAura maps audit and sampling evidence to a standard ticket library. The current project total can change when evidence changes, users add project-specific tickets, completed items regress, or a rerun preserves customized work.</p>
+
+          <h3>Action Tickets</h3>
+          <ul>
+            <li>Prioritize by impact and effort, then open a ticket to review its rationale, target page, owner, requested update, and acceptance criteria.</li>
+            <li>Assign an operational status only when it reflects the real implementation state.</li>
+            <li>Attach decisions to the relevant question IDs so later verification remains explainable.</li>
+            <li>Create a manual ticket when project evidence requires work outside the standard library.</li>
+          </ul>
+
+          <h3>Sampling Evidence Workbench</h3>
+          <p>Use the Workbench to compare recorded answers for a selected question and inspect the citations available to each response. It is an evidence review surface, not a second measurement engine.</p>
+
+          <h3>Assets &amp; Templates</h3>
+          <p>Generated project files can include machine-readable discovery content, structured data, deployment notes, and editable text assets. Review every claim and destination before saving or deploying an asset.</p>
+
+          <h3>Media Outreach &amp; Publishing Destinations</h3>
+          <p>Outreach creates factual pitch drafts for relevant editors or authors. Publishing Destinations stores destination configuration and prepares drafts for editorial review. Neither workflow should be treated as automatic approval or guaranteed publication.</p>
+        </section>
+
+        <!-- llms.txt -->
+        <section id="llms-txt">
+          <h2>Using /llms.txt</h2>
+          <p><code>/llms.txt</code> is an emerging machine-readable discovery convention, not a universal indexing standard. It can present official facts and links in a concise Markdown file, but support varies by crawler and provider.</p>
+          <div class="code-block">
+# Brand Name
+> Concise, verifiable description of the organization.
+
+## Official Resources
+- Product documentation: https://example.com/docs
+- Pricing: https://example.com/pricing
+- Contact: https://example.com/contact
+
+## Verified Facts
+- Fact supported by an official source and review date.
+          </div>
+          <ol>
+            <li>Review the generated file in <strong>Execution → Assets &amp; Templates</strong>.</li>
+            <li>Remove unsupported claims and confirm every URL is canonical and public.</li>
+            <li>Deploy it at <code>https://example.com/llms.txt</code> with a successful text response.</li>
+            <li>Re-crawl and verify availability. Do not interpret availability as proof that a model consumed it.</li>
+          </ol>
+        </section>
+
+        <!-- Verification and Delivery -->
+        <section id="verification-delivery">
+          <h2>Verification &amp; Delivery</h2>
+          <h3>Closed-Loop Verify</h3>
+          <p>Run verification after public changes have been deployed. Verification re-crawls the site and evaluates ticket acceptance checks against the latest audit and metrics artifacts. It records pass, fail, and reopened states; it does not convert an implementation claim into a pass without supporting evidence.</p>
+          <ol>
+            <li>Deploy the selected ticket changes to the canonical public site.</li>
+            <li>Open <strong>Execution → Closed-Loop Verify</strong> and choose <strong>Run Verification</strong>.</li>
+            <li>Inspect the verification history and failed acceptance checks.</li>
+            <li>Run a separate AI sample when you also need a fresh model-answer cohort.</li>
+          </ol>
+
+          <h3>Client Delivery Packs</h3>
+          <p>Open <strong>Delivery → Client Delivery Packs</strong> and choose <strong>Build New Delivery Pack</strong>. The job compiles the current audit, action matrix, ticket log, comparison and verification evidence, and implementation assets into a downloadable ZIP.</p>
+          <p>Configure <strong>Delivery → White-Label Branding</strong> before building the pack when it needs an agency name, logo, or confidentiality notice. Rebuild the pack after material workspace changes; an older ZIP is a point-in-time artifact.</p>
+        </section>
+
+        <!-- Administration -->
+        <section id="administration">
+          <h2>Workspace Administration</h2>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Settings view</th>
+                  <th>Use it for</th>
+                  <th>Important behavior</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Brand Settings</strong></td>
+                  <td>Update the canonical website URL used by future crawls.</td>
+                  <td>Confirm redirects and domain ownership before changing it.</td>
+                </tr>
+                <tr>
+                  <td><strong>Automated Schedule</strong></td>
+                  <td>Run monitoring every 7, 14, or 30 days.</td>
+                  <td>Scheduled cycles consume plan allowance and provider quota. Verification remains an explicit step.</td>
+                </tr>
+                <tr>
+                  <td><strong>Team Members</strong></td>
+                  <td>Invite Owners, Editors, and Viewers.</td>
+                  <td>Owners administer the workspace, Editors execute project work, and Viewers have read-only access.</td>
+                </tr>
+                <tr>
+                  <td><strong>Billing &amp; Plans</strong></td>
+                  <td>Review subscription state, usage, limits, and billing interval.</td>
+                  <td>BYOK provider charges are separate from the CiteAura subscription.</td>
+                </tr>
+                <tr>
+                  <td><strong>Enterprise Security</strong></td>
+                  <td>Configure an OIDC identity provider and review access audit events.</td>
+                  <td>CiteAura exposes technical controls but is not currently SOC 2 certified.</td>
+                </tr>
+                <tr>
+                  <td><strong>Backup Snapshots</strong></td>
+                  <td>Create and restore point-in-time project workspace snapshots.</td>
+                  <td>Restoring a snapshot overwrites current workspace files; create a fresh snapshot first.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Troubleshooting -->
+        <section id="troubleshooting">
+          <h2>Jobs &amp; Troubleshooting</h2>
+          <h3>Job states</h3>
+          <ul>
+            <li><strong>Queued:</strong> the command is waiting for a worker.</li>
+            <li><strong>Running:</strong> the worker is executing the displayed pipeline stage.</li>
+            <li><strong>Done:</strong> the task completed and the affected views can be refreshed.</li>
+            <li><strong>Failed:</strong> open telemetry for the recorded error. Use <strong>Retry Job</strong> when the action supports retry.</li>
+          </ul>
+
+          <h3>Common checks</h3>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Symptom</th>
+                  <th>What to check</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Engine is Unmeasured</strong></td>
+                  <td>Confirm a key is configured and tested, the question bank is not empty, and the latest sample completed successfully.</td>
+                </tr>
+                <tr>
+                  <td><strong>No citation sources</strong></td>
+                  <td>Confirm the cohort includes web-grounded samples that actually returned source URLs. Parametric samples do not populate this view.</td>
+                </tr>
+                <tr>
+                  <td><strong>Provider authentication error</strong></td>
+                  <td>Re-test the key, provider account, model permission, custom base URL, and exact model ID.</td>
+                </tr>
+                <tr>
+                  <td><strong>Provider rate or quota error</strong></td>
+                  <td>Review provider-side billing, rate limits, and budgets before retrying.</td>
+                </tr>
+                <tr>
+                  <td><strong>Project command is unavailable</strong></td>
+                  <td>Check for an existing queued or running job and wait for it to finish. Only one active job is allowed per project.</td>
+                </tr>
+                <tr>
+                  <td><strong>Delivery pack looks outdated</strong></td>
+                  <td>Finish the latest audit, ticket, or verification job, then choose <strong>Build New Delivery Pack</strong>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>When reporting a persistent failure, include the project, job ID, action, stage, and telemetry error. Do not include full API keys or access tokens.</p>
         </section>
 
       </main>
@@ -745,18 +937,17 @@
       <!-- Right Table of Contents -->
       <nav class="docs-toc" aria-label="Table of contents">
         <div class="docs-toc-title">On this page</div>
-        <a href="#quickstart">5-Minute Quickstart</a>
-        <a href="#how-it-works">5-Step Continuous Loop</a>
-        <a href="#geo-vs-seo">GEO vs Traditional SEO</a>
-        <a href="#ai-recommendations">How AI Recommends Brands</a>
-        <a href="#probe-concept">API Keys as Probes</a>
-        <a href="#sampling-modes">3 Sampling Modes</a>
-        <a href="#byok-overview">BYOK Setup Guides</a>
-        <a href="#tickets-overview">13 Action Tickets</a>
-        <a href="#llms-txt">Deploying /llms.txt</a>
-        <a href="#citations-penetration">Citation Strategy</a>
-        <a href="#integrations-overview">External Integrations</a>
-        <a href="#faq-unmeasured">FAQ & Troubleshooting</a>
+        <a href="#quickstart">Quickstart</a>
+        <a href="#workflow">Workspace Workflow</a>
+        <a href="#measurement">Measurement Concepts</a>
+        <a href="#byok">Model Keys &amp; Providers</a>
+        <a href="#monitor">Visibility &amp; Citations</a>
+        <a href="#diagnostics">Audit &amp; Brand Inputs</a>
+        <a href="#execution">Tickets &amp; Assets</a>
+        <a href="#llms-txt">Using /llms.txt</a>
+        <a href="#verification-delivery">Verify &amp; Deliver</a>
+        <a href="#administration">Workspace Administration</a>
+        <a href="#troubleshooting">Jobs &amp; Troubleshooting</a>
       </nav>
 
     </div>
@@ -784,17 +975,35 @@
   </footer>
 
   <script>
+    const docsSidebar = document.querySelector('.docs-sidebar');
+    const sidebarToggle = document.querySelector('.docs-sidebar-toggle');
+    const setSidebarOpen = (open) => {
+      docsSidebar?.classList.toggle('is-open', open);
+      sidebarToggle?.setAttribute('aria-expanded', String(open));
+    };
+
+    sidebarToggle?.addEventListener('click', () => {
+      setSidebarOpen(!docsSidebar?.classList.contains('is-open'));
+    });
+
     // Live Search Filter for Docs Navigation
     const searchInput = document.getElementById('docs-search');
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase().trim();
+        if (query) setSidebarOpen(true);
         document.querySelectorAll('.docs-nav-link').forEach((link) => {
           const text = link.textContent.toLowerCase();
           link.style.display = text.includes(query) ? 'flex' : 'none';
         });
       });
     }
+
+    document.querySelectorAll('.docs-nav-link').forEach((link) => {
+      link.addEventListener('click', () => {
+        if (window.matchMedia('(max-width: 768px)').matches) setSidebarOpen(false);
+      });
+    });
 
     // Active TOC link spy
     const observer = new IntersectionObserver((entries) => {
