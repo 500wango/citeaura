@@ -140,6 +140,26 @@ def test_admin_password_reset_prompt_requires_confirmation(admin_client, monkeyp
     assert _login_admin(client).status_code == 200
 
 
+def test_plan_can_be_granted_to_owned_workspace_from_cli(admin_client, monkeypatch):
+    client = admin_client
+    monkeypatch.setattr(admin_cli, "SessionLocal", client.session_factory)
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": "test-plan@example.com", "password": "correct-horse-battery"},
+    )
+    assert registered.status_code == 201
+
+    result = admin_cli.grant_plan(" TEST-PLAN@EXAMPLE.COM ", "PRO")
+
+    assert result["previous"] == "trial"
+    assert result["plan"] == "pro"
+    with client.session_factory() as db:
+        tenant = db.get(Tenant, result["tenant_id"])
+        assert tenant.plan == "pro"
+        assert tenant.trial_ends_at is None
+        assert db.query(Subscription).filter(Subscription.tenant_id == tenant.id).count() == 0
+
+
 def test_admin_can_change_password_and_existing_session_is_revoked(admin_client):
     client = admin_client
     assert _login_admin(client).status_code == 200

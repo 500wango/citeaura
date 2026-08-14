@@ -35,6 +35,14 @@ make reset-admin-password-prod EMAIL=admin@citeaura.com ENV_FILE=.env.production
 
 命令会要求输入并再次确认新密码；密码至少 12 位。成功后已有后台会话会全部失效，可在 `https://citeaura.com/admin/` 使用新密码登录。
 
+测试或客服赠送套餐权益时使用生产容器命令；它只修改工作区权益，不生成 Stripe 订阅或付款记录：
+
+```bash
+make grant-plan-prod EMAIL=user@example.com PLAN=pro ENV_FILE=.env.production
+```
+
+账号拥有多个工作区时，命令会列出工作区 ID 并停止；确认目标后追加 `TENANT_ID=<id>`。
+
 默认生成 `/etc/caddy/sites/citeaura.caddy`：
 
 ```caddy

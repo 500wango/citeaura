@@ -5,8 +5,9 @@ import getpass
 import re
 
 from api.auth.security import hash_password
+from api.billing.plans import SUBSCRIBABLE_PLANS
 from api.db import SessionLocal
-from api.models import PlatformAdmin
+from api.models import Membership, PlatformAdmin, Tenant, User
 
 
 ROLES = ("support", "ops", "finance", "superadmin")
@@ -67,6 +68,36 @@ def reset_admin_password(email, password=None):
         db.commit()
 
 
+def grant_plan(email, plan, tenant_id=None):
+    """按账号所有权授予套餐权益，不生成支付记录。"""
+    email = _normalized_email(email)
+    plan = plan.strip().lower()
+    if plan not in SUBSCRIBABLE_PLANS:
+        raise ValueError("unsupported plan")
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.email == email).one_or_none()
+        if user is None:
+            raise ValueError("user does not exist")
+        query = db.query(Tenant).join(Membership, Membership.tenant_id == Tenant.id).filter(
+            Membership.user_id == user.id,
+            Membership.role == "owner",
+        )
+        if tenant_id is not None:
+            query = query.filter(Tenant.id == tenant_id)
+        tenants = query.all()
+        if not tenants:
+            raise ValueError("owned workspace does not exist")
+        if len(tenants) > 1:
+            choices = ", ".join(f"{tenant.id}:{tenant.name}" for tenant in tenants)
+            raise ValueError(f"multiple owned workspaces; pass --tenant-id ({choices})")
+        tenant = tenants[0]
+        previous = tenant.plan
+        tenant.plan = plan
+        tenant.trial_ends_at = None
+        db.commit()
+        return {"tenant_id": tenant.id, "tenant_name": tenant.name, "previous": previous, "plan": plan}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Manage CiteAura platform administrators")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -75,14 +106,24 @@ def main(argv=None):
     create_parser.add_argument("--role", choices=ROLES, default="superadmin")
     reset_parser = subparsers.add_parser("reset-password")
     reset_parser.add_argument("--email", required=True)
+    grant_parser = subparsers.add_parser("grant-plan")
+    grant_parser.add_argument("--email", required=True)
+    grant_parser.add_argument("--plan", choices=sorted(SUBSCRIBABLE_PLANS), required=True)
+    grant_parser.add_argument("--tenant-id", type=int)
     args = parser.parse_args(argv)
     try:
         if args.command == "create":
             create_admin(args.email, args.role)
             message = "Platform administrator created."
-        else:
+        elif args.command == "reset-password":
             reset_admin_password(args.email)
             message = "Platform administrator password reset."
+        else:
+            result = grant_plan(args.email, args.plan, args.tenant_id)
+            message = (
+                f"Plan granted: {args.email}, workspace={result['tenant_name']} "
+                f"({result['tenant_id']}), {result['previous']} -> {result['plan']}."
+            )
     except ValueError as exc:
         parser.error(str(exc))
     print(message)
