@@ -1046,7 +1046,7 @@ def normalize_project(project_slug):
 
 @contextmanager
 def normalize_generated_outputs(project_slug):
-    """确保引擎生成的问题、工单和蓝图在下游步骤前立即归一。"""
+    """确保引擎生成的问题、工单、蓝图和资产在下游步骤前立即归一。"""
     import blueprint as engine_blueprint
     import bootstrap as engine_bootstrap
     import audit as engine_audit
@@ -1060,6 +1060,7 @@ def normalize_generated_outputs(project_slug):
     original_render_facts = engine_bootstrap.render_facts
     original_audit = engine_audit.run
     original_crawl = engine_crawl.run
+    original_generate = engine_generate.run
     original_parse_facts = engine_generate.parse_facts
     original_tasks = engine_tasks.build
     original_blueprint = engine_blueprint.build
@@ -1111,6 +1112,16 @@ def normalize_generated_outputs(project_slug):
     def parse_brand_facts(slug):
         return brand_facts.parse_facts(slug) if slug == project_slug else original_parse_facts(slug)
 
+    def generate_run(slug, *args, **kwargs):
+        if slug != project_slug:
+            return original_generate(slug, *args, **kwargs)
+        from api.adapters import generated_assets
+
+        with generated_assets.preserve_manual_asset_edits(project_slug):
+            result = original_generate(slug, *args, **kwargs)
+        generated_assets.normalize_project_assets(project_slug, config=normalize_config(project_slug))
+        return result
+
     def tasks_build(slug, *args, **kwargs):
         result = original_tasks(slug, *args, **kwargs)
         return normalize_tasks(project_slug) if slug == project_slug else result
@@ -1125,6 +1136,7 @@ def normalize_generated_outputs(project_slug):
     engine_bootstrap.render_facts = render_brand_facts
     engine_audit.run = audit_run
     engine_crawl.run = crawl_run
+    engine_generate.run = generate_run
     engine_generate.parse_facts = parse_brand_facts
     engine_tasks.build = tasks_build
     engine_blueprint.build = blueprint_build
@@ -1137,7 +1149,11 @@ def normalize_generated_outputs(project_slug):
         engine_bootstrap.render_facts = original_render_facts
         engine_audit.run = original_audit
         engine_crawl.run = original_crawl
+        engine_generate.run = original_generate
         engine_generate.parse_facts = original_parse_facts
         engine_tasks.build = original_tasks
         engine_blueprint.build = original_blueprint
-        normalize_project(project_slug)
+        config = normalize_project(project_slug)
+        from api.adapters import generated_assets
+
+        generated_assets.normalize_project_assets(project_slug, config=config)

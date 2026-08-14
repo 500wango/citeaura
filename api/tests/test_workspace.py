@@ -326,6 +326,14 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
         headers=headers,
         json={"path": "outlines/q001.md", "text": "# Better outline\n"},
     ).status_code == 200
+    non_english_asset = client.put(
+        f"/api/v1/projects/{project_id}/asset",
+        headers=headers,
+        json={"path": "outlines/q001.md", "text": r"# \u4e2d\u6587 outline"},
+    )
+    assert non_english_asset.status_code == 400
+    assert "must be written in English" in non_english_asset.json()["detail"]
+    assert (root / "assets" / "outlines" / "q001.md").read_text("utf-8") == "# Better outline\n"
 
     workbench = client.get(
         f"/api/v1/projects/{project_id}/workbench?qid=q001",

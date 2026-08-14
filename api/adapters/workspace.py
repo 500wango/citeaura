@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import brand_facts, brand_identity, competitor_scope, global_scope
+from api.adapters import brand_facts, brand_identity, competitor_scope, generated_assets, global_scope
 
 
 TEXT_SUFFIXES = {".txt", ".json", ".html", ".md"}
@@ -308,24 +308,37 @@ def save_facts(project_slug: str, text: str):
 
 
 def asset_tree(project_slug: str):
-    import dashboard
-
-    return dashboard.asset_tree(project_slug)
+    config = ensure_global_engine_scope(project_slug)
+    return generated_assets.normalize_project_assets(project_slug, config=config)["tree"]
 
 
 def read_asset(project_slug: str, relative: str):
-    import dashboard
-
-    return dashboard.read_asset(project_slug, relative)
+    relative = generated_assets.validate_asset_path(relative)
+    config = ensure_global_engine_scope(project_slug)
+    state = generated_assets.normalize_project_assets(project_slug, config=config)
+    if relative not in state["visible_paths"]:
+        raise FileNotFoundError(relative)
+    target = _safe_target(geolib.project_dir(project_slug) / "assets", relative, TEXT_SUFFIXES)
+    if not target.is_file():
+        raise FileNotFoundError(relative)
+    return {"path": relative, "text": target.read_text("utf-8")}
 
 
 def save_asset(project_slug: str, relative: str, text: str):
+    relative = generated_assets.validate_asset_path(relative)
+    text = generated_assets.validate_asset_text(text)
+    config = ensure_global_engine_scope(project_slug)
+    state = generated_assets.normalize_project_assets(project_slug, config=config)
+    if relative not in state["visible_paths"]:
+        raise FileNotFoundError(relative)
     base = geolib.project_dir(project_slug) / "assets"
     target = _safe_target(base, relative, TEXT_SUFFIXES)
     if not target.is_file():
         raise FileNotFoundError(relative)
     with geolib.project_lock(project_slug):
         _write_text(target, text)
+    generated_assets.mark_manual_edit(project_slug, relative)
+    generated_assets.normalize_project_assets(project_slug, config=config)
 
 
 def workbench(project_slug: str, question_id: str):

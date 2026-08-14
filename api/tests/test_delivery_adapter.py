@@ -389,7 +389,7 @@ def test_delivery_contract_normalizes_generated_jsonld_values(tmp_path, monkeypa
 
     faq = json.loads((output / "assets" / "templates" / "jsonld" / "faq-page.json").read_text("utf-8"))
     software = json.loads((output / "assets" / "templates" / "jsonld" / "software.json").read_text("utf-8"))
-    assert faq["mainEntity"][0]["name"] == "Configured Global target question 1"
+    assert faq["mainEntity"][0]["name"] == "What is Example?"
     assert faq["mainEntity"][0]["acceptedAnswer"]["text"] == "[Add a direct English answer followed by supporting evidence.]"
     assert software["description"] == "[Add the approved English brand description.]"
     assert software["offers"][0]["priceCurrency"] == "USD"

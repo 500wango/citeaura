@@ -31,6 +31,9 @@ CJK_TYPOGRAPHY_PATTERN = re.compile(
     r"[\u3000-\u303f\ufe10-\ufe1f\ufe30-\ufe4f\uff01-\uff65\uffe0-\uffe6]"
 )
 UNICODE_ESCAPE_PATTERN = re.compile(r"\\u([0-9a-fA-F]{4})")
+LONG_UNICODE_ESCAPE_PATTERN = re.compile(r"\\U([0-9a-fA-F]{8})")
+SURROGATE_PAIR_PATTERN = re.compile(r"[\ud800-\udbff][\udc00-\udfff]")
+SURROGATE_PATTERN = re.compile(r"[\ud800-\udfff]")
 TEXT_SUFFIXES = frozenset((".md", ".html", ".csv", ".json", ".txt", ".xml", ".js", ".css"))
 PLACEHOLDER_PATTERN = re.compile(
     r"(?i)(\[\s*add\b|<\s*add\b|<\s*(?:section|path|column|value|url)\s*>|\b(?:todo|tbd)\b|replace every bracketed placeholder|configured global target question)"
@@ -189,7 +192,21 @@ def _decoded_text(value):
         if decoded == text:
             break
         text = decoded
+    def decode_long_escape(match):
+        codepoint = int(match.group(1), 16)
+        return chr(codepoint) if codepoint <= 0x10FFFF else match.group(0)
+
+    text = LONG_UNICODE_ESCAPE_PATTERN.sub(decode_long_escape, text)
     text = UNICODE_ESCAPE_PATTERN.sub(lambda match: chr(int(match.group(1), 16)), text)
+    text = SURROGATE_PAIR_PATTERN.sub(
+        lambda match: chr(
+            0x10000
+            + (ord(match.group(0)[0]) - 0xD800) * 0x400
+            + ord(match.group(0)[1])
+            - 0xDC00
+        ),
+        text,
+    )
     return text
 
 
@@ -199,7 +216,11 @@ def _contains_han(value):
 
 def _contains_disallowed_english(value):
     text = _decoded_text(value)
-    return bool(HAN_PATTERN.search(text) or CJK_TYPOGRAPHY_PATTERN.search(text))
+    return bool(
+        HAN_PATTERN.search(text)
+        or CJK_TYPOGRAPHY_PATTERN.search(text)
+        or SURROGATE_PATTERN.search(text)
+    )
 
 
 def _json_language_violation(value):
@@ -994,6 +1015,85 @@ def _replace_json_asset(value, field=None, parent_type=None, ordinal=None):
     return value
 
 
+def _generated_placeholder(value):
+    value = str(value or "").strip()
+    return (
+        not value
+        or value.startswith("[Add ")
+        or value.startswith("Configured Global target question ")
+    )
+
+
+def _project_json_asset(value, config, facts=None):
+    """Normalize engine JSON-LD and refill safe fields from the project fact contract."""
+    value = _replace_json_asset(value)
+    facts = facts if isinstance(facts, dict) else {}
+    brand = config.get("brand") if isinstance(config.get("brand"), dict) else {}
+    name = _safe_display(facts.get("name") or brand.get("name"), "")
+    definition = _safe_display(facts.get("definition"), "")
+    aliases = [
+        _safe_display(alias, "") for alias in brand.get("aliases") or []
+        if _safe_display(alias, "")
+    ]
+    questions = [
+        str(question.get("text") or "").strip()
+        for question in config.get("questions") or []
+        if isinstance(question, dict)
+        and question.get("market") in ("global", "both", None)
+        and str(question.get("text") or "").strip()
+        and not _contains_disallowed_english(question.get("text"))
+    ]
+    pricing = [
+        item for item in facts.get("pricing") or []
+        if isinstance(item, dict)
+    ]
+    question_index = 0
+    offer_index = 0
+
+    def project(item):
+        nonlocal question_index, offer_index
+        if isinstance(item, list):
+            return [project(child) for child in item]
+        if not isinstance(item, dict):
+            return item
+
+        result = {key: project(child) for key, child in item.items()}
+        item_types = set(_schema_type_names(result.get("@type")))
+        if item_types & {"Organization", "SoftwareApplication", "Product", "Service"}:
+            if name and "name" in result and _generated_placeholder(result.get("name")):
+                result["name"] = name
+            if definition and "description" in result and _generated_placeholder(result.get("description")):
+                result["description"] = definition
+        if definition and "about" in result and _generated_placeholder(result.get("about")):
+            result["about"] = definition
+        if "Organization" in item_types and "alternateName" in result:
+            current_aliases = result.get("alternateName")
+            current_aliases = current_aliases if isinstance(current_aliases, list) else [current_aliases]
+            current_aliases = [
+                str(alias).strip() for alias in current_aliases
+                if str(alias or "").strip() and not _generated_placeholder(alias)
+            ]
+            result["alternateName"] = list(dict.fromkeys(current_aliases + aliases))
+        if "Question" in item_types:
+            if question_index < len(questions) and _generated_placeholder(result.get("name")):
+                result["name"] = questions[question_index]
+            question_index += 1
+        if "Offer" in item_types:
+            fact = pricing[offer_index] if offer_index < len(pricing) else {}
+            for field in ("name", "description"):
+                source = fact.get("desc") if field == "description" else fact.get(field)
+                source = _safe_display(source, "")
+                if source and field in result and _generated_placeholder(result.get(field)):
+                    result[field] = source
+            currency = _safe_display(fact.get("currency"), "").upper()
+            if currency and re.fullmatch(r"[A-Z]{3}", currency) and _generated_placeholder(result.get("priceCurrency")):
+                result["priceCurrency"] = currency
+            offer_index += 1
+        return result
+
+    return project(value)
+
+
 def _schema_type_names(value):
     values = value if isinstance(value, list) else [value]
     names = []
@@ -1203,21 +1303,42 @@ def _schema_asset_decision(relative, value, evidence):
     }
 
 
-def _write_jsonld_assets(source, destination, made, config, decisions):
+def _write_jsonld_assets(source, destination, made, config, decisions, facts=None, strict=True):
     jsonld = source / "jsonld"
     if not jsonld.exists():
         return
     evidence = _schema_evidence(source.parent, config)
     for path in sorted(jsonld.glob("*.json")):
         if _contains_han(path.name):
-            raise GeoEngineError(f"delivery source cannot be represented in English: assets/jsonld/{path.name}")
+            if strict:
+                raise GeoEngineError(f"delivery source cannot be represented in English: assets/jsonld/{path.name}")
+            decisions.append({
+                "path": f"jsonld/{path.name}", "status": "omitted", "types": [],
+                "reason": "Asset filename violates the English workspace contract",
+                "evidence": [], "requires_review": False,
+            })
+            continue
         try:
             value = json.loads(path.read_text("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise GeoEngineError(f"invalid delivery JSON asset: assets/jsonld/{path.name}") from exc
-        value = _replace_json_asset(value)
+            if strict:
+                raise GeoEngineError(f"invalid delivery JSON asset: assets/jsonld/{path.name}") from exc
+            decisions.append({
+                "path": f"jsonld/{path.name}", "status": "omitted", "types": [],
+                "reason": "Invalid JSON asset",
+                "evidence": [], "requires_review": False,
+            })
+            continue
+        value = _project_json_asset(value, config, facts=facts)
         if _json_language_violation(value):
-            raise GeoEngineError(f"delivery source cannot be represented in English: assets/jsonld/{path.name}")
+            if strict:
+                raise GeoEngineError(f"delivery source cannot be represented in English: assets/jsonld/{path.name}")
+            decisions.append({
+                "path": f"jsonld/{path.name}", "status": "omitted", "types": [],
+                "reason": "Asset content violates the English workspace contract",
+                "evidence": [], "requires_review": False,
+            })
+            continue
         relative = f"jsonld/{path.name}"
         decision = _schema_asset_decision(relative, value, evidence)
         decisions.append(decision)
@@ -1263,10 +1384,16 @@ def _write_llms_asset(project_slug, source, destination, config, audit, facts, m
         "（待补：一句话定义，必须与官网首屏和 JSON-LD description 逐字一致）",
         "[Add the one-sentence definition used verbatim in the homepage hero and JSON-LD description.]",
     )
-    needs_rebuild = not text or _contains_han(text) or bool(PLACEHOLDER_PATTERN.search(text))
+    needs_rebuild = not text or _contains_disallowed_english(text) or bool(PLACEHOLDER_PATTERN.search(text))
     if not needs_rebuild:
         destination.mkdir(parents=True, exist_ok=True)
-        target = destination / "llms.en.txt"
+        relative = (
+            Path("drafts/llms.en.txt")
+            if "Draft generated from the Brand Fact Library; factual review is required before deployment." in text
+            else Path("llms.en.txt")
+        )
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, "utf-8")
         made.append(target.relative_to(destination.parent).as_posix())
         return
@@ -1286,14 +1413,14 @@ def _write_llms_asset(project_slug, source, destination, config, audit, facts, m
     ]
     aliases = [
         str(alias).strip() for alias in brand.get("aliases") or []
-        if str(alias).strip() and not _contains_han(alias)
+        if str(alias).strip() and not _contains_disallowed_english(alias)
     ]
     pages = []
     for page in audit.get("pages") or []:
         url = str(page.get("url") or "").strip()
         title = str(page.get("title") or "").strip()
-        if url and not _contains_han(url):
-            pages.append((title if title and not _contains_han(title) else "Official page", url))
+        if url and not _contains_disallowed_english(url):
+            pages.append((title if title and not _contains_disallowed_english(title) else "Official page", url))
 
     complete = bool(definition and industry and audience and products and not PLACEHOLDER_PATTERN.search(definition))
     lines = [f"# {name}", ""]
@@ -1335,21 +1462,37 @@ def _write_llms_asset(project_slug, source, destination, config, audit, facts, m
     made.append(target.relative_to(destination.parent).as_posix())
 
 
-def _write_snippet_assets(source, destination, config, project_slug, made):
+def _write_snippet_assets(source, destination, config, project_slug, made, facts=None):
     snippets = source / "snippets"
     if not snippets.exists():
         return
+    facts = facts if isinstance(facts, dict) else {}
     brand = config.get("brand") if isinstance(config.get("brand"), dict) else {}
-    name = _safe_display(brand.get("name"), project_slug)
+    name = _safe_display(facts.get("name") or brand.get("name"), project_slug)
+    definition = _safe_display(facts.get("definition"), "")
+    definition = definition or "[Add the approved one-sentence definition.]"
+    verified_facts = [
+        (_safe_display(item.get("fact"), ""), _safe_display(item.get("value"), ""))
+        for item in facts.get("numbers") or []
+        if isinstance(item, dict)
+    ]
+    verified_facts = [(fact, value) for fact, value in verified_facts if fact and value]
     target_dir = destination / "snippets"
     if (snippets / "definition.en.html").is_file():
         target_dir.mkdir(parents=True, exist_ok=True)
         target = target_dir / "definition.en.html"
+        fact_items = "".join(
+            f"\n    <li><strong>{html.escape(value)}</strong> - {html.escape(fact)}</li>"
+            for fact, value in verified_facts[:4]
+        )
+        fact_list = f"\n  <ul>{fact_items}\n  </ul>" if fact_items else ""
         target.write_text(
             '<!-- Place this static definition block below the primary page heading. -->\n'
             '<section class="geo-definition">\n'
             f"  <h2>{html.escape(name)}: what it is</h2>\n"
-            "  <p>[Add the approved one-sentence definition.]</p>\n"
+            f"  <p>{html.escape(definition)}</p>"
+            + fact_list
+            + "\n"
             "</section>\n",
             "utf-8",
         )
@@ -1358,7 +1501,7 @@ def _write_snippet_assets(source, destination, config, project_slug, made):
         questions = []
         for question in config.get("questions") or []:
             text = str(question.get("text") or "").strip()
-            if text and not _contains_han(text) and question.get("market") in ("global", "both", None):
+            if text and not _contains_disallowed_english(text) and question.get("market") in ("global", "both", None):
                 questions.append(text)
         body = "\n".join(
             "  <details open>\n"
@@ -1478,6 +1621,51 @@ def _write_outline_assets(source, destination, blueprint, made):
         made.append(target.relative_to(destination.parent).as_posix())
 
 
+def render_english_generated_assets(
+    project_slug,
+    project_directory,
+    source,
+    destination,
+    config,
+    audit,
+    blueprint,
+    *,
+    strict=True,
+    only_existing=False,
+):
+    """Render the engine-managed asset families through one English project contract."""
+    source = Path(source)
+    destination = Path(destination)
+    made = []
+    decisions = []
+    facts, _facts_text = _facts_delivery_data(project_slug, Path(project_directory), config)
+    asset_config = {
+        **config,
+        "brand": {
+            **(config.get("brand") if isinstance(config.get("brand"), dict) else {}),
+        },
+    }
+    for field in ("name", "site", "industry", "target_users", "business_goal", "products"):
+        if facts.get(field):
+            asset_config["brand"][field] = facts[field]
+    if not only_existing or (source / "llms.en.txt").is_file() or (source / "llms.txt").is_file():
+        _write_llms_asset(project_slug, source, destination, asset_config, audit, facts, made)
+    _write_jsonld_assets(
+        source, destination, made, asset_config, decisions, facts=facts, strict=strict,
+    )
+    _write_snippet_assets(source, destination, asset_config, project_slug, made, facts=facts)
+    _write_outline_assets(source, destination, blueprint, made)
+    return {"paths": made, "schema_decisions": decisions, "facts": facts}
+
+
+def normalize_generated_draft_text(text):
+    return re.sub(
+        r"\A<!--\s*初稿，需人工核实所有事实后再发布\s*[·・]\s*\d{4}-\d{2}-\d{2}\s*-->\s*",
+        "<!-- Draft: verify every factual claim before publication. -->\n\n",
+        str(text or ""),
+    )
+
+
 def _copy_drafts(source, destination, blueprint, made):
     drafts = source / "drafts"
     if not drafts.exists():
@@ -1491,11 +1679,7 @@ def _copy_drafts(source, destination, blueprint, made):
         if markets.get(path.stem) == "cn":
             continue
         text = path.read_text("utf-8")
-        text = re.sub(
-            r"\A<!--\s*初稿，需人工核实所有事实后再发布\s*[·・]\s*\d{4}-\d{2}-\d{2}\s*-->\s*",
-            "<!-- Draft: verify every factual claim before publication. -->\n\n",
-            text,
-        )
+        text = normalize_generated_draft_text(text)
         if _contains_han(path.name) or _contains_han(text):
             raise GeoEngineError(f"delivery source cannot be represented in English: assets/drafts/{path.name}")
         target = destination / "drafts" / path.name
@@ -1511,10 +1695,12 @@ def _copy_other_assets(source, destination, blueprint, made):
         if content.get("id")
     }
     handled = {
+        ".citeaura-manual-edits.json",
         "index.json",
         "llms.txt",
         "llms.en.txt",
         "outlines/_index.json",
+        "outlines/index.json",
         "drafts/_lint.json",
         "snippets/definition.en.html",
         "snippets/definition.zh.html",
@@ -1642,13 +1828,19 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
     destination = directory / "assets"
     destination.mkdir(parents=True, exist_ok=True)
     made = []
-    schema_decisions = []
     facts, facts_text = _facts_delivery_data(project_slug, project_directory, config)
     _write_facts_asset(destination, facts, facts_text, made)
-    _write_llms_asset(project_slug, source, destination, config, audit, facts, made)
-    _write_jsonld_assets(source, destination, made, config, schema_decisions)
-    _write_snippet_assets(source, destination, config, project_slug, made)
-    _write_outline_assets(source, destination, blueprint, made)
+    generated = render_english_generated_assets(
+        project_slug,
+        project_directory,
+        source,
+        destination,
+        config,
+        audit,
+        blueprint,
+    )
+    made.extend(generated["paths"])
+    schema_decisions = generated["schema_decisions"]
     _copy_drafts(source, destination, blueprint, made)
     _copy_other_assets(source, destination, blueprint, made)
     records = [_asset_record(destination, path) for path in sorted(set(made))]
@@ -1961,7 +2153,10 @@ def ensure_legacy_deliverables_contract(project_slug: str, deliverables_director
 
 def ensure_delivery_contract(project_slug: str, delivery_directory: Path | None = None):
     """Rebuild a delivery package and fail closed unless every artifact is English-only."""
-    global_scope.normalize_project(project_slug)
+    config = global_scope.normalize_project(project_slug)
+    from api.adapters import generated_assets
+
+    generated_assets.normalize_project_assets(project_slug, config=config)
     project_directory = geolib.project_dir(project_slug)
     delivery_directory = Path(delivery_directory) if delivery_directory else _latest_delivery(project_directory)
     if delivery_directory is None or not delivery_directory.is_dir():

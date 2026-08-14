@@ -3,7 +3,7 @@ from contextlib import nullcontext
 
 import pytest
 
-from api.adapters import brand_facts, global_scope
+from api.adapters import brand_facts, generated_assets, global_scope
 
 
 def _project(tmp_path, monkeypatch, config):
@@ -255,7 +255,16 @@ def test_engine_runtime_patches_are_scoped_and_restored(tmp_path, monkeypatch):
     original_competitors = engine_bootstrap.competitors
     original_render = engine_bootstrap.render_facts
     original_parse = engine_generate.parse_facts
+    monkeypatch.setattr(engine_generate, "run", lambda slug, *args, **kwargs: {"slug": slug})
+    original_generate = engine_generate.run
+    normalized_assets = []
     monkeypatch.setattr(global_scope, "normalize_project", lambda slug: config)
+    monkeypatch.setattr(global_scope, "normalize_config", lambda slug: config)
+    monkeypatch.setattr(
+        generated_assets,
+        "normalize_project_assets",
+        lambda slug, config=None: normalized_assets.append((slug, config)) or {"tree": []},
+    )
     monkeypatch.setattr(engine_bootstrap, "_ask_json", lambda prompt: {
         "name": "Example",
         "industry": "Field service software",
@@ -269,10 +278,15 @@ def test_engine_runtime_patches_are_scoped_and_restored(tmp_path, monkeypatch):
         rendered = engine_bootstrap.render_facts("example-com", extracted)
         (project / "content" / "facts.md").write_text(rendered, "utf-8")
         parsed = engine_generate.parse_facts("example-com")
+        generated = engine_generate.run("example-com")
         assert extracted["industry"] == "Field service software"
         assert parsed["definition"].startswith("Example coordinates")
+        assert generated == {"slug": "example-com"}
+        assert normalized_assets == [("example-com", config)]
 
     assert engine_bootstrap.brand_facts is original_extract
     assert engine_bootstrap.competitors is original_competitors
     assert engine_bootstrap.render_facts is original_render
     assert engine_generate.parse_facts is original_parse
+    assert engine_generate.run is original_generate
+    assert normalized_assets == [("example-com", config), ("example-com", config)]
