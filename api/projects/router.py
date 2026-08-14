@@ -502,6 +502,11 @@ def _competitor_discovery_payload(config):
             "aliases": [alias for alias in aliases if isinstance(alias, str) and alias],
             "alias_review": [item for item in alias_review if isinstance(item, dict)],
             "market": "global",
+            "relationship": competitor.get("relationship") or "direct_competitor",
+            "relationship_confidence": competitor.get("relationship_confidence") or "needs_review",
+            "relationship_review_required": competitor.get("relationship_review_required") is not False,
+            "benchmark_eligible": competitor.get("benchmark_eligible") is not False,
+            "domain": competitor.get("domain") or competitor.get("official_url") or competitor.get("url"),
             "discovery_status": discovery_status,
         })
     return {
@@ -1346,8 +1351,7 @@ def project_tickets(
     with with_tenant_context(tenant.name, project.slug):
         import tasks as engine_tasks
 
-        global_scope.normalize_tasks(project.slug)
-        data = engine_tasks.load(project.slug)
+        data = global_scope.normalize_tasks(project.slug) or engine_tasks.load(project.slug)
     tickets = ticket_workflow.filter_tickets(
         data.get("tasks", []), status=ticket_status, owner=owner, priority=priority, query=q,
     )
@@ -1370,8 +1374,7 @@ def project_playbook(
     with with_tenant_context(tenant.name, project.slug):
         import tasks as engine_tasks
 
-        global_scope.normalize_tasks(project.slug)
-        data = engine_tasks.load(project.slug)
+        data = global_scope.normalize_tasks(project.slug) or engine_tasks.load(project.slug)
     filtered = ticket_workflow.filter_tickets(
         data.get("tasks", []), status=ticket_status, owner=owner, priority=priority, query=q,
     )
@@ -1464,7 +1467,8 @@ def ticket_timeline(
     with with_tenant_context(tenant.name, project.slug):
         import tasks as engine_tasks
 
-        ticket = next((item for item in engine_tasks.load(project.slug).get("tasks", []) if item.get("id") == ticket_id), None)
+        data = global_scope.normalize_tasks(project.slug) or engine_tasks.load(project.slug)
+        ticket = next((item for item in data.get("tasks", []) if item.get("id") == ticket_id), None)
     if ticket is None:
         _error(status.HTTP_404_NOT_FOUND, "ticket_not_found")
     enriched = ticket_workflow.enrich([ticket])[0]

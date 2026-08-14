@@ -208,6 +208,34 @@ def test_new_ai_candidate_replaces_only_managed_fallback(tmp_path, monkeypatch):
     assert (path.parent / result["backup"]).read_text("utf-8") == current
 
 
+def test_managed_library_syncs_only_benchmark_eligible_competitors(tmp_path, monkeypatch):
+    config = {
+        "brand": {"name": "Example", "site": "https://example.com"},
+        "competitors": [{
+            "name": "Peer One",
+            "relationship": "direct_competitor",
+            "benchmark_eligible": True,
+            "confirmed": False,
+        }],
+    }
+    project = _project(tmp_path, monkeypatch, config)
+    text = brand_facts.render_facts_data("example-com", {
+        "name": "Example",
+        "industry": "Operations software",
+        "definition": "Example coordinates operations work for distributed teams.",
+    }).replace("Peer One", "ChatGPT")
+    path = project / "content" / "facts.md"
+    path.write_text(text, "utf-8")
+
+    result = brand_facts.ensure_english_facts("example-com", config=config)
+    synced = path.read_text("utf-8")
+
+    assert result["status"] == "current"
+    assert "Peer One" in synced
+    assert "ChatGPT" not in synced
+    assert "Direct competitor" in synced
+
+
 def test_reviewed_text_rejects_han_and_hides_internal_marker():
     with pytest.raises(ValueError, match="must be written in English"):
         brand_facts.reviewed_text("# \u4e8b\u5b9e")
@@ -224,6 +252,7 @@ def test_engine_runtime_patches_are_scoped_and_restored(tmp_path, monkeypatch):
     config = {"brand": {"name": "Example", "site": "https://example.com"}, "competitors": []}
     project = _project(tmp_path, monkeypatch, config)
     original_extract = engine_bootstrap.brand_facts
+    original_competitors = engine_bootstrap.competitors
     original_render = engine_bootstrap.render_facts
     original_parse = engine_generate.parse_facts
     monkeypatch.setattr(global_scope, "normalize_project", lambda slug: config)
@@ -235,6 +264,7 @@ def test_engine_runtime_patches_are_scoped_and_restored(tmp_path, monkeypatch):
 
     with global_scope.normalize_generated_outputs("example-com"):
         assert engine_bootstrap.brand_facts is not original_extract
+        assert engine_bootstrap.competitors is not original_competitors
         extracted = engine_bootstrap.brand_facts("example-com", "Official evidence")
         rendered = engine_bootstrap.render_facts("example-com", extracted)
         (project / "content" / "facts.md").write_text(rendered, "utf-8")
@@ -243,5 +273,6 @@ def test_engine_runtime_patches_are_scoped_and_restored(tmp_path, monkeypatch):
         assert parsed["definition"].startswith("Example coordinates")
 
     assert engine_bootstrap.brand_facts is original_extract
+    assert engine_bootstrap.competitors is original_competitors
     assert engine_bootstrap.render_facts is original_render
     assert engine_generate.parse_facts is original_parse

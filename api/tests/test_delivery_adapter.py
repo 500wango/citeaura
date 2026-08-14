@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from api.adapters import delivery
+from api.adapters import brand_facts, delivery
 from api.adapters.exceptions import GeoEngineError
 
 
@@ -196,11 +196,67 @@ def test_delivery_audit_uses_page_role_applicability(tmp_path, monkeypatch):
     delivery.ensure_delivery_contract("example", output)
 
     report = (output / "01-Audit-Report.md").read_text("utf-8")
+    execution = (output / "02-Execution-Plan.md").read_text("utf-8")
+    tickets = (output / "03-Ticket-Log.md").read_text("utf-8")
+    verification = (output / "04-Acceptance-Checklist.md").read_text("utf-8")
     assert "Applicable site score: **100**" in report
     assert "only evidence-backed checks applicable to each page role" in report
     assert "Missing definition block" not in report
     assert "Missing FAQ block" not in report
     assert "| 100 | 44 | A |" in report
+    assert "Baseline site score: 100" in execution
+    assert "Add clear definitions to applicable pages" not in tickets
+    assert "Re-audit applicable score: 100" in verification
+    assert "T-002" not in verification
+    assert delivery.delivery_language_violations(output) == []
+
+
+def test_delivery_allows_a_fully_compliant_project_with_no_action_tickets(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    audit = json.loads((project / "audit.json").read_text("utf-8"))
+    audit.update({"avg_score": 100, "grade_distribution": {"A": 1, "B": 0, "C": 0, "D": 0}})
+    audit["site"].update({"has_sitemap": True, "has_llms_txt": True, "ai_bots_blocked": []})
+    audit["pages"][0].update({
+        "url": "https://example.com/contact",
+        "title": "Contact",
+        "score": 100,
+        "grade": "A",
+        "issue_codes": [],
+        "blocks": {},
+    })
+    _write_json(project / "audit.json", audit)
+    _write_json(project / "tasks.json", {
+        "generated_at": "2026-07-31T12:00:00+00:00",
+        "baseline": {"avg_score": 100, "pages": 1},
+        "tasks": [],
+    })
+    _write_jsonl(project / "evidence" / "pages.jsonl", [{
+        "url": "https://example.com/contact",
+        "final_url": "https://example.com/contact",
+        "status": 200,
+        "title": "Contact",
+        "meta_robots": "index,follow",
+        "canonical": "https://example.com/contact",
+        "h1": ["Contact"],
+        "h2": [],
+        "para_count": 2,
+        "word_count": 40,
+        "external_links": 0,
+        "jsonld_types": [],
+        "text": "Contact the Example team for product and account enquiries.",
+    }])
+    monkeypatch.setattr(delivery.measurement, "sampling_quality", lambda slug: {
+        "current": {"effective_visibility_samples": 40, "platform_count": 2},
+        "confidence": {"sufficient": True, "label": "Representative baseline"},
+    })
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    execution = (output / "02-Execution-Plan.md").read_text("utf-8")
+    tickets = (output / "03-Ticket-Log.md").read_text("utf-8")
+    assert "Total tickets: 0" in execution
+    assert "No unresolved action tickets for the current evidence" in tickets
     assert delivery.delivery_language_violations(output) == []
 
 
@@ -338,6 +394,76 @@ def test_delivery_contract_normalizes_generated_jsonld_values(tmp_path, monkeypa
     assert software["description"] == "[Add the approved English brand description.]"
     assert software["offers"][0]["priceCurrency"] == "USD"
     assert delivery.delivery_language_violations(output) == []
+
+
+def test_delivery_rejects_ambiguous_offer_values_from_ready_assets(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    config = json.loads((project / "geo.json").read_text("utf-8"))
+    config["brand"]["industry"] = "B2B SaaS software platform"
+    _write_json(project / "geo.json", config)
+    _write_jsonl(project / "evidence" / "pages.jsonl", [{
+        "url": "https://example.com", "status": 200,
+        "text": "Example is a web software application for business teams.",
+        "jsonld_types": ["SoftwareApplication"],
+    }])
+    _write_json(project / "assets" / "jsonld" / "software-application.json", {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Example",
+        "url": "https://example.com",
+        "description": "Example is a business application.",
+        "offers": [{"@type": "Offer", "price": "$79 / month", "priceCurrency": "$"}],
+    })
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    record = next(item for item in index["assets"] if item["path"].endswith("software-application.json"))
+    decision = next(item for item in index["schema_selection"]["included"] if item["path"].endswith("software-application.json"))
+    assert record["status"] == "template"
+    assert record["path"] == "templates/jsonld/software-application.json"
+    assert "Offer price must be a non-negative machine-readable number" in record["issues"]
+    assert "Offer priceCurrency must be an ISO 4217 code" in record["issues"]
+    assert decision["path"] == record["path"]
+    assert not (output / "assets" / "jsonld" / "software-application.json").exists()
+
+
+def test_delivery_reuses_unreviewed_brand_facts_as_review_drafts(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    config = json.loads((project / "geo.json").read_text("utf-8"))
+    config["brand"].update({
+        "industry": "Industrial operations software",
+        "target_users": "Distributed field operations teams",
+        "products": ["Work order coordination", "Operational reporting"],
+    })
+    config["competitors"] = []
+    _write_json(project / "geo.json", config)
+    (project / "content").mkdir()
+    _patch_project(monkeypatch, project)
+    facts = brand_facts.render_facts_data("example", {
+        "name": "Example",
+        "industry": "Industrial operations software",
+        "definition": "Example coordinates field operations for distributed industrial teams.",
+        "products": ["Work order coordination", "Operational reporting"],
+        "target_users": "Distributed field operations teams",
+        "business_goal": "Qualified product enquiries (inferred)",
+        "key_numbers": [{"fact": "Supported regions", "value": "18", "source": "Official website"}],
+        "suitable": ["Multi-site field operations"],
+        "unsuitable": ["Unverified medical workflows"],
+    })
+    (project / "content" / "facts.md").write_text(facts, "utf-8")
+
+    delivery.ensure_delivery_contract("example", output)
+
+    index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    records = {item["path"]: item for item in index["assets"]}
+    assert records["drafts/brand-facts.md"]["status"] == "needs_review"
+    assert records["drafts/llms.en.txt"]["status"] == "needs_review"
+    llms = (output / "assets" / "drafts" / "llms.en.txt").read_text("utf-8")
+    assert "Example coordinates field operations" in llms
+    assert "[Add" not in llms
+    assert "Industrial operations software" in llms
 
 
 def test_delivery_omits_specialized_schema_without_project_evidence(tmp_path, monkeypatch):
@@ -523,6 +649,9 @@ def test_language_validator_detects_paths_entities_and_json_escapes(tmp_path):
 
 def test_delivery_normalizes_dynamic_cjk_punctuation_in_english_documents(tmp_path, monkeypatch):
     project, output = seed_delivery_project(tmp_path)
+    audit = json.loads((project / "audit.json").read_text("utf-8"))
+    audit["site"]["ai_bots_blocked"] = ["GPTBot", "ClaudeBot", "Bytespider", "Google-Extended"]
+    _write_json(project / "audit.json", audit)
     tasks = json.loads((project / "tasks.json").read_text("utf-8"))
     tasks["tasks"][0].update({
         "title": "解除 robots.txt 对 AI 抓取器的封禁",

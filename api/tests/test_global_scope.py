@@ -37,8 +37,14 @@ def test_mixed_historical_config_is_normalized_to_global():
         ],
         "competitors": [
             {"name": "Domestic Rival", "market": "cn"},
-            {"name": "Global Rival", "market": "global"},
-            {"name": "Universal Rival", "market": "both"},
+            {
+                "name": "Global Rival", "market": "global",
+                "relationship": "direct_competitor", "relationship_source": "user",
+            },
+            {
+                "name": "Universal Rival", "market": "both",
+                "relationship": "direct_competitor", "relationship_source": "user",
+            },
         ],
     }
 

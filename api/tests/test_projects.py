@@ -67,9 +67,24 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
                 "market": args.market,
                 "questions": [{"id": "q001", "text": "Which AI visibility platform is reliable?", "market": "global"}],
                 "competitors": [
-                    {"name": "Confirmed Rival", "aliases": ["CR"], "market": "global", "confirmed": True},
-                    {"name": "Candidate Rival", "aliases": [], "market": "global", "confirmed": False},
-                    {"name": "Configured Rival", "aliases": [], "market": "both"},
+                    {
+                        "name": "Confirmed Rival", "aliases": ["CR"], "market": "global", "confirmed": True,
+                        "domain": "https://confirmed.example", "relationship": "direct_competitor",
+                        "relationship_source": "ai_site_profile", "relationship_confidence": "high",
+                        "category_overlap": "Same category", "buyer_overlap": "Same buyer", "job_overlap": "Same job",
+                    },
+                    {
+                        "name": "Candidate Rival", "aliases": [], "market": "global", "confirmed": False,
+                        "domain": "https://candidate.example", "relationship": "direct_competitor",
+                        "relationship_source": "ai_site_profile", "relationship_confidence": "high",
+                        "category_overlap": "Same category", "buyer_overlap": "Same buyer", "job_overlap": "Same job",
+                    },
+                    {
+                        "name": "Configured Rival", "aliases": [], "market": "both",
+                        "domain": "https://configured.example", "relationship": "direct_competitor",
+                        "relationship_source": "ai_site_profile", "relationship_confidence": "high",
+                        "category_overlap": "Same category", "buyer_overlap": "Same buyer", "job_overlap": "Same job",
+                    },
                 ],
             }),
             "utf-8",
@@ -310,7 +325,9 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     playbook = client.get(f"/api/v1/projects/{body['project_id']}/playbook", headers=headers)
     assert any(item["package_en"] == "Content matrix" for item in playbook.json()["playbook"])
     assert playbook.status_code == 200
-    assert [item["id"] for item in playbook.json()["playbook"]] == ["T-002", "T-001", "T-003"]
+    assert [item["id"] for item in playbook.json()["playbook"]] == [
+        "T-002", "T-001", "T-MEASUREMENT-BASELINE", "T-003",
+    ]
     assert playbook.json()["generated_at"] == "2026-07-31T12:00:00+08:00"
     updated = client.patch(
         f"/api/v1/projects/{body['project_id']}/tickets/T-001",

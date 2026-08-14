@@ -474,13 +474,14 @@ def render_facts_data(project_slug, brand, marker=AI_MARKER):
     competitors = [item for item in config.get("competitors") or [] if isinstance(item, dict)]
     competitors = [item for item in competitors if _text(item.get("name"))]
     if competitors:
-        lines += ["## Competitor candidates", "", "| Name | Status |", "|---|---|"]
+        lines += ["## Competitor candidates", "", "| Name | Relationship | Evidence status |", "|---|---|---|"]
         for item in competitors:
             status = "Sample confirmed" if item.get("confirmed") is True else "Candidate - not sample confirmed"
-            lines.append(f"| {_cell(item.get('name'))} | {status} |")
+            relationship = "Direct competitor" if item.get("relationship") == "direct_competitor" else "Needs review"
+            lines.append(f"| {_cell(item.get('name'))} | {relationship} | {status} |")
         lines += [
             "",
-            "> Do not publish candidate names as established competitors until sampling or independent evidence confirms them.",
+            "> Review the commercial relationship before publication; sampling confirms answer presence, not competitor status.",
             "",
         ]
 
@@ -517,11 +518,35 @@ def _section(text, heading):
 def parse_facts_text(text):
     """Parse the English fact contract consumed by runtime-patched engine generators."""
     text = str(text or "")
-    output = {"definition": "", "numbers": [], "suitable": [], "unsuitable": [], "raw": text}
+    output = {
+        "name": "", "site": "", "industry": "", "definition": "", "products": [],
+        "target_users": "", "business_goal": "", "numbers": [], "pricing": [],
+        "suitable": [], "unsuitable": [], "reviewed": REVIEWED_MARKER in text, "raw": text,
+    }
+    entity = _section(text, "Entity")
+    entity_fields = {
+        "canonical name": "name",
+        "official website": "site",
+        "industry or category": "industry",
+    }
+    for line in entity.splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) >= 2 and cells[0].casefold() in entity_fields:
+            value = cells[1]
+            if value.casefold() != "needs verification":
+                output[entity_fields[cells[0].casefold()]] = value
     definition = _section(text, "Definition")
     quoted = [line.lstrip()[1:].strip() for line in definition.splitlines() if line.lstrip().startswith(">")]
     if quoted:
         output["definition"] = re.sub(r"\s+", " ", quoted[0]).strip()
+
+    products = _section(text, "Products and services")
+    output["products"] = [
+        line[2:].strip() for line in products.splitlines()
+        if line.startswith("- ") and line[2:].strip().casefold() != "needs verification"
+    ]
 
     facts = _section(text, "Verified facts")
     for line in facts.splitlines():
@@ -536,6 +561,15 @@ def parse_facts_text(text):
         output["numbers"].append({"fact": cells[0], "value": cells[1], "source": source})
 
     scope = _section(text, "Audience and fit")
+    for line in scope.splitlines():
+        if line.startswith("- Target audience:"):
+            value = line.split(":", 1)[1].strip()
+            if value.casefold() != "needs verification":
+                output["target_users"] = value
+        elif line.startswith("- Business goal:"):
+            value = line.split(":", 1)[1].strip()
+            if value.casefold() != "needs verification":
+                output["business_goal"] = value
     good = re.search(r"\*\*Good fit\*\*\s*(.*?)(?=\*\*Not a fit\*\*|\Z)", scope, re.S | re.I)
     bad = re.search(r"\*\*Not a fit\*\*\s*(.*?)(?=\Z)", scope, re.S | re.I)
     if good:
@@ -548,7 +582,46 @@ def parse_facts_text(text):
             line[2:].strip() for line in bad.group(1).splitlines()
             if line.startswith("- ") and line[2:].strip().casefold() != "needs verification"
         ]
+
+    pricing = _section(text, "Pricing")
+    for line in pricing.splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) < 3 or cells[0].casefold() in ("offer", "---") or set(cells[0]) <= {"-", ":"}:
+            continue
+        if cells[1].casefold() != "needs verification":
+            output["pricing"].append({"name": cells[0], "price": cells[1], "desc": cells[2]})
     return output
+
+
+def _sync_managed_competitors(text, config):
+    if not any(marker in text for marker in GENERATED_MARKERS):
+        return text
+    competitors = [
+        item for item in (config.get("competitors") or [])
+        if isinstance(item, dict) and _text(item.get("name")) and item.get("benchmark_eligible") is not False
+    ]
+    lines = []
+    if competitors:
+        lines = ["## Competitor candidates", "", "| Name | Relationship | Evidence status |", "|---|---|---|"]
+        for item in competitors:
+            status = "Sample confirmed" if item.get("confirmed") is True else "Candidate - not sample confirmed"
+            lines.append(f"| {_cell(item.get('name'))} | Direct competitor | {status} |")
+        lines += [
+            "",
+            "> Review the commercial relationship before publication; sampling confirms answer presence, not competitor status.",
+            "",
+        ]
+    replacement = "\n".join(lines)
+    pattern = re.compile(r"^##\s+Competitor candidates\s*$\n.*?(?=^##\s+|\Z)", re.M | re.S | re.I)
+    if pattern.search(text):
+        text = pattern.sub(replacement, text).rstrip() + "\n"
+    elif replacement:
+        marker = re.search(r"^##\s+Claims requiring verification\s*$", text, re.M | re.I)
+        offset = marker.start() if marker else len(text)
+        text = text[:offset].rstrip() + "\n\n" + replacement + "\n" + text[offset:].lstrip()
+    return text
 
 
 def parse_facts(project_slug):
@@ -606,6 +679,10 @@ def ensure_english_facts(project_slug, config=None, prefer_ai_candidate=True):
                 "source": candidate_path.name,
             }
         if not contains_han(current):
+            synced = _sync_managed_competitors(current, config or geolib.load_config(project_slug))
+            if synced != current:
+                _atomic_write(path, synced)
+                current = synced
             status = "evidence_rebuilt" if EVIDENCE_MARKER in current else "current"
             return {"status": status, "migrated": False, "backup": None}
         if not _legacy_generated(current):

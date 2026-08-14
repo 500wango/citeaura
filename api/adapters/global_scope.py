@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from urllib.parse import urljoin, urlparse, urlunparse
 
-from api.adapters import brand_facts, brand_identity
+from api.adapters import action_scope, brand_facts, brand_identity, competitor_scope
 from api.adapters.engine import geolib
 
 
@@ -726,6 +726,7 @@ def normalize_config_data(config):
     current["questions"] = normalize_questions(current.get("questions"))
     current["competitors"] = _normalize_competitors(current.get("competitors"))
     current["platforms"] = _normalize_platforms(current.get("platforms"))
+    current = competitor_scope.normalize_config(current)
     return brand_identity.normalize_config_identity(current)
 
 
@@ -885,6 +886,19 @@ def normalize_tasks(project_slug):
     with geolib.project_lock(project_slug):
         current = geolib.read_json(path, {}) or {}
         normalized = normalize_tasks_data(current)
+        from api.adapters import audit_presentation, measurement
+
+        project_directory = geolib.project_dir(project_slug)
+        audit = audit_presentation.present_audit_data(
+            geolib.read_json(project_directory / "audit.json", {}) or {},
+            geolib.read_jsonl(project_directory / "evidence" / "pages.jsonl"),
+            geolib.read_json(project_directory / "evidence" / "site.json", {}) or {},
+        )
+        normalized = action_scope.scope_task_data(
+            normalized,
+            audit,
+            measurement.sampling_quality(project_slug),
+        )
         if normalized != current:
             geolib.write_json(path, normalized)
         return normalized
@@ -1042,6 +1056,7 @@ def normalize_generated_outputs(project_slug):
 
     original_bootstrap = engine_bootstrap.run
     original_brand_facts = engine_bootstrap.brand_facts
+    original_competitors = engine_bootstrap.competitors
     original_render_facts = engine_bootstrap.render_facts
     original_audit = engine_audit.run
     original_crawl = engine_crawl.run
@@ -1084,6 +1099,12 @@ def normalize_generated_outputs(project_slug):
             return original_brand_facts(slug, digest)
         return brand_facts.extract_brand_facts(engine_bootstrap._ask_json, slug, digest)
 
+    def discover_competitors(brand, market):
+        configured = geolib.load_config(project_slug)
+        configured_brand = configured.get("brand") if isinstance(configured.get("brand"), dict) else {}
+        profile = {**configured_brand, **(brand if isinstance(brand, dict) else {})}
+        return competitor_scope.discover_competitors(engine_bootstrap._ask_json, profile, "global")
+
     def render_brand_facts(slug, data):
         return brand_facts.render_facts(slug, data) if slug == project_slug else original_render_facts(slug, data)
 
@@ -1100,6 +1121,7 @@ def normalize_generated_outputs(project_slug):
 
     engine_bootstrap.run = bootstrap_run
     engine_bootstrap.brand_facts = extract_brand_facts
+    engine_bootstrap.competitors = discover_competitors
     engine_bootstrap.render_facts = render_brand_facts
     engine_audit.run = audit_run
     engine_crawl.run = crawl_run
@@ -1111,6 +1133,7 @@ def normalize_generated_outputs(project_slug):
     finally:
         engine_bootstrap.run = original_bootstrap
         engine_bootstrap.brand_facts = original_brand_facts
+        engine_bootstrap.competitors = original_competitors
         engine_bootstrap.render_facts = original_render_facts
         engine_audit.run = original_audit
         engine_crawl.run = original_crawl

@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import brand_facts, brand_identity, global_scope
+from api.adapters import brand_facts, brand_identity, competitor_scope, global_scope
 
 
 TEXT_SUFFIXES = {".txt", ".json", ".html", ".md"}
@@ -265,6 +265,8 @@ def update_config(project_slug: str, updates: dict) -> dict:
         raise ValueError("config body must be an object")
     if "publishing" in updates:
         raise ValueError("publishing config must use the publishing API")
+    if "competitors" in updates:
+        updates = {**updates, "competitors": competitor_scope.normalize_user_competitors(updates["competitors"])}
     with geolib.project_lock(project_slug):
         current = global_scope.normalize_config_data(geolib.load_config(project_slug))
         previous_site = str((current.get("brand") or {}).get("site") or "").rstrip("/")

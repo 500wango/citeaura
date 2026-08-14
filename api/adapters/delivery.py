@@ -14,7 +14,7 @@ from api.adapters.branding import apply_delivery_branding
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
 from api.adapters.localization import localize_ticket, normalize_english_typography
-from api.adapters import audit_presentation, brand_identity, global_scope, measurement
+from api.adapters import action_scope, audit_presentation, brand_facts, brand_identity, global_scope, measurement
 
 
 REQUIRED_DOCUMENTS = {
@@ -484,10 +484,11 @@ def _load_sources(project_directory):
     audit = _read_required(project_directory / "audit.json", "audit.json")
     validated_site = geolib.read_json(project_directory / "evidence" / "site.json", None)
     if isinstance(validated_site, dict) and validated_site:
-        audit = {**audit, "site": validated_site}
+        audit_site = audit.get("site") if isinstance(audit.get("site"), dict) else {}
+        audit = {**audit, "site": {**audit_site, **validated_site}}
     tasks = _read_required(project_directory / "tasks.json", "tasks.json")
     blueprint = _read_required(project_directory / "blueprint.json", "blueprint.json")
-    if not isinstance(tasks.get("tasks"), list) or not tasks["tasks"]:
+    if not isinstance(tasks.get("tasks"), list):
         raise GeoEngineError("delivery source is missing or invalid: tasks.json tasks")
     if not isinstance(blueprint.get("coverage"), dict) or not isinstance(blueprint.get("channels"), list):
         raise GeoEngineError("delivery source is missing or invalid: blueprint.json structure")
@@ -694,6 +695,8 @@ def _tickets_markdown(name, tickets):
             f"| {_markdown_cell(ticket['title'])} | {_markdown_cell(ticket['owner'])} "
             f"| {ticket['effort']} | {ticket['window']} | {ticket['verification_mode']} | {ticket['status']} |"
         )
+    if not tickets:
+        lines.append("| - | - | - | No unresolved action tickets for the current evidence | - | - | - | - | Complete |")
     lines += ["", "## Ticket Details", ""]
     for ticket in tickets:
         lines += [
@@ -732,6 +735,9 @@ def _verification_note(result, verdict):
         target = _format_rate(progress.get("target")) if progress.get("pct") else _format_number(progress.get("target"))
         relation = "at least" if progress.get("op") == "gte" else "at most"
         return f"Current value: {current}; target: {relation} {target}."
+    note = _safe_display(result.get("note_en") or result.get("note"), "")
+    if note:
+        return note
     return {
         "Passed": "The configured acceptance check passed.",
         "Unmet": "The configured acceptance check has not passed yet.",
@@ -757,7 +763,7 @@ def _verification_markdown(name, audit, verification, tickets):
 
     lines += [
         f"- Verification date: {verify_date or 'Not recorded'}",
-        f"- Re-audit average score: {_format_number(verification.get('audit_avg_score'))}",
+        f"- Re-audit applicable score: {_format_number(verification.get('audit_avg_score'))}",
         f"- Ticket status changes: {verification.get('changed', 0)}",
         "",
         "| ID | Task | Priority | Verdict | Evidence Summary |",
@@ -970,6 +976,8 @@ def _replace_json_asset(value, field=None, parent_type=None, ordinal=None):
         ]
     if isinstance(value, str):
         value = JSON_ASSET_REPLACEMENTS.get(value, value)
+        if field == "priceCurrency" and re.fullmatch(r"[A-Za-z]{3}", value.strip()):
+            return value.strip().upper()
         if not _contains_han(value):
             return normalize_english_typography(value)
         if field == "name" and parent_type == "Question":
@@ -1221,60 +1229,108 @@ def _write_jsonld_assets(source, destination, made, config, decisions):
         made.append(target.relative_to(destination.parent).as_posix())
 
 
-def _write_llms_asset(project_slug, source, destination, config, audit, made):
-    path = source / "llms.en.txt"
+def _facts_delivery_data(project_slug, project_directory, config):
+    path = project_directory / "content" / "facts.md"
     if not path.is_file():
-        return
+        return {}, ""
     text = path.read_text("utf-8")
+    if _contains_han(text):
+        return {}, ""
+    return brand_facts.parse_facts_text(text), text
+
+
+def _write_facts_asset(destination, facts, facts_text, made):
+    if not facts_text:
+        return
+    reviewed = bool(facts.get("reviewed"))
+    relative = Path("facts/brand-facts.md") if reviewed else Path("drafts/brand-facts.md")
+    target = destination / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    text = brand_facts.display_text(facts_text)
+    if reviewed:
+        text = text.replace(
+            "Generated from official website evidence on ",
+            "Reviewed from official website evidence originally collected on ",
+        ).replace(" Every material claim requires human review.", "")
+    target.write_text(text, "utf-8")
+    made.append(target.relative_to(destination.parent).as_posix())
+
+
+def _write_llms_asset(project_slug, source, destination, config, audit, facts, made):
+    path = source / "llms.en.txt"
+    text = path.read_text("utf-8") if path.is_file() else ""
     text = text.replace(
         "（待补：一句话定义，必须与官网首屏和 JSON-LD description 逐字一致）",
         "[Add the one-sentence definition used verbatim in the homepage hero and JSON-LD description.]",
     )
-    if _contains_han(text):
-        brand = config.get("brand") if isinstance(config.get("brand"), dict) else {}
-        name = _safe_display(brand.get("name"), project_slug)
-        site = _safe_display(brand.get("site"), (audit.get("site") or {}).get("root") or "Website not configured")
-        aliases = [
-            str(alias).strip() for alias in brand.get("aliases") or []
-            if str(alias).strip() and not _contains_han(alias)
-        ]
-        pages = []
-        for page in audit.get("pages") or []:
-            url = str(page.get("url") or "").strip()
-            title = str(page.get("title") or "").strip()
-            if url and not _contains_han(url):
-                pages.append((title if title and not _contains_han(title) else "Official page", url))
-        lines = [
-            f"# {name}",
-            "",
-            "> [Add the approved one-sentence English brand definition used verbatim on the website and in JSON-LD.]",
-            "",
-            "## Key facts",
-            "",
-            f"- Website: {site}",
-        ]
+    needs_rebuild = not text or _contains_han(text) or bool(PLACEHOLDER_PATTERN.search(text))
+    if not needs_rebuild:
+        destination.mkdir(parents=True, exist_ok=True)
+        target = destination / "llms.en.txt"
+        target.write_text(text, "utf-8")
+        made.append(target.relative_to(destination.parent).as_posix())
+        return
+
+    brand = config.get("brand") if isinstance(config.get("brand"), dict) else {}
+    name = _safe_display(facts.get("name") or brand.get("name"), project_slug)
+    site = _safe_display(
+        facts.get("site") or brand.get("site"),
+        (audit.get("site") or {}).get("root") or "Website not configured",
+    )
+    definition = _safe_display(facts.get("definition"), "")
+    industry = _safe_display(facts.get("industry") or brand.get("industry"), "")
+    audience = _safe_display(facts.get("target_users") or brand.get("target_users"), "")
+    products = [
+        _safe_display(item, "") for item in (facts.get("products") or brand.get("products") or [])
+        if _safe_display(item, "")
+    ]
+    aliases = [
+        str(alias).strip() for alias in brand.get("aliases") or []
+        if str(alias).strip() and not _contains_han(alias)
+    ]
+    pages = []
+    for page in audit.get("pages") or []:
+        url = str(page.get("url") or "").strip()
+        title = str(page.get("title") or "").strip()
+        if url and not _contains_han(url):
+            pages.append((title if title and not _contains_han(title) else "Official page", url))
+
+    complete = bool(definition and industry and audience and products and not PLACEHOLDER_PATTERN.search(definition))
+    lines = [f"# {name}", ""]
+    if complete:
+        lines += [f"> {definition}", "", "## Key facts", "", f"- Website: {site}"]
         if aliases:
             lines.append(f"- Also known as: {', '.join(dict.fromkeys(aliases))}")
+        lines += [f"- Industry: {industry}", f"- Audience: {audience}", "", "## Products and services", ""]
+        lines += [f"- {item}" for item in products]
+    else:
         lines += [
+            "> [Add the approved one-sentence English brand definition used verbatim on the website and in JSON-LD.]",
+            "", "## Key facts", "", f"- Website: {site}",
             "- Industry: [Add the approved English industry category.]",
             "- Audience: [Add the approved English target-audience statement.]",
-            "",
-            "## Important pages",
-            "",
         ]
-        lines += [f"- [{title}]({url})" for title, url in pages[:12]] or [f"- [Official website]({site})"]
+    lines += ["", "## Important pages", ""]
+    lines += [f"- [{title}]({url})" for title, url in pages[:12]] or [f"- [Official website]({site})"]
+    lines += ["", "## Scope", ""]
+    if complete:
+        lines += [f"- {item}" for item in products]
+        lines += [f"- Good fit: {item}" for item in facts.get("suitable") or []]
+        lines += [f"- Verified fact: {item['fact']} - {item['value']}" for item in facts.get("numbers") or []]
+        if not facts.get("reviewed"):
+            lines += ["", "<!-- Draft generated from the Brand Fact Library; factual review is required before deployment. -->"]
+    else:
         lines += [
-            "",
-            "## Scope",
-            "",
             "- [Add verified English product, pricing, use-case, and limitation statements.]",
-            "",
-            "<!-- Review and replace every bracketed placeholder before deployment. -->",
-            "",
+            "", "<!-- Review and replace every bracketed placeholder before deployment. -->",
         ]
-        text = "\n".join(lines)
-    destination.mkdir(parents=True, exist_ok=True)
-    target = destination / "llms.en.txt"
+    lines.append("")
+    text = "\n".join(lines)
+    relative = Path("llms.en.txt") if complete and facts.get("reviewed") else (
+        Path("drafts/llms.en.txt") if complete else Path("llms.en.txt")
+    )
+    target = destination / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, "utf-8")
     made.append(target.relative_to(destination.parent).as_posix())
 
@@ -1491,6 +1547,24 @@ def _copy_other_assets(source, destination, blueprint, made):
         made.append(target.relative_to(destination.parent).as_posix())
 
 
+def _json_nodes(value):
+    if isinstance(value, dict):
+        yield value
+        for item in value.values():
+            yield from _json_nodes(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _json_nodes(item)
+
+
+def _machine_price(value):
+    if isinstance(value, bool) or value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return value >= 0
+    return bool(re.fullmatch(r"\d+(?:\.\d+)?", str(value).strip()))
+
+
 def _json_asset_issues(value):
     issues = []
     if not isinstance(value, dict):
@@ -1515,16 +1589,18 @@ def _json_asset_issues(value):
             issues.append(f"{item_type} is missing canonical URL")
     if item_type in ("SoftwareApplication", "Product") and not value.get("description"):
         issues.append(f"{item_type} is missing description")
-    offers = value.get("offers")
-    if offers:
-        offers = offers if isinstance(offers, list) else [offers]
-        if any(
-            not isinstance(offer, dict)
-            or offer.get("price") in (None, "")
-            or not offer.get("priceCurrency")
-            for offer in offers
-        ):
+    offers = [
+        node for node in _json_nodes(value)
+        if isinstance(node, dict) and "Offer" in _schema_type_names(node.get("@type"))
+    ]
+    for offer in offers:
+        if offer.get("price") in (None, "") or not offer.get("priceCurrency"):
             issues.append("Offer is missing price or ISO currency")
+            continue
+        if not _machine_price(offer.get("price")):
+            issues.append("Offer price must be a non-negative machine-readable number")
+        if not re.fullmatch(r"[A-Z]{3}", str(offer.get("priceCurrency") or "")):
+            issues.append("Offer priceCurrency must be an ISO 4217 code")
     return issues
 
 
@@ -1567,7 +1643,9 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
     destination.mkdir(parents=True, exist_ok=True)
     made = []
     schema_decisions = []
-    _write_llms_asset(project_slug, source, destination, config, audit, made)
+    facts, facts_text = _facts_delivery_data(project_slug, project_directory, config)
+    _write_facts_asset(destination, facts, facts_text, made)
+    _write_llms_asset(project_slug, source, destination, config, audit, facts, made)
     _write_jsonld_assets(source, destination, made, config, schema_decisions)
     _write_snippet_assets(source, destination, config, project_slug, made)
     _write_outline_assets(source, destination, blueprint, made)
@@ -1578,11 +1656,13 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
     for record in records:
         decision_path = record["path"].removeprefix("templates/")
         decision = decisions_by_path.get(decision_path)
-        if not decision or not decision.get("requires_review"):
+        if not decision:
             continue
-        record["issues"].append("Schema applicability is inferred and requires confirmation")
-        if record["status"] == "ready":
-            record["status"] = "needs_review"
+        decision["path"] = record["path"]
+        if decision.get("requires_review"):
+            record["issues"].append("Schema applicability is inferred and requires confirmation")
+            if record["status"] == "ready":
+                record["status"] = "needs_review"
     records.sort(key=lambda item: (item["status"], item["path"]))
     summary = {
         status: sum(item["status"] == status for item in records)
@@ -1723,9 +1803,15 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
         geolib.read_jsonl(project_directory / "evidence" / "pages.jsonl"),
         audit.get("site") or {},
     )
+    sampling_quality = measurement.sampling_quality(project_slug)
+    task_data = action_scope.scope_task_data(task_data, display_audit, sampling_quality)
+    verification = action_scope.scope_verification(
+        verification,
+        task_data,
+        display_audit,
+        sampling_quality,
+    )
     tickets = [_ticket_en(ticket) for ticket in task_data["tasks"] if isinstance(ticket, dict)]
-    if not tickets:
-        raise GeoEngineError("delivery source is missing or invalid: no usable tickets")
     tickets.sort(key=lambda ticket: (ticket["priority"], ticket["id"]))
 
     audit_markdown = _audit_markdown(project_slug, project_directory, name, site, display_audit, metrics)

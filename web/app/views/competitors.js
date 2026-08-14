@@ -28,7 +28,7 @@ export default {
           <div class="view-title-group">
             <h1 class="view-title">${t('competitors.title', {}, 'Competitor Benchmark')}</h1>
             <p class="view-desc">
-              ${t('competitors.desc', {}, 'Track competitor recommendation frequency in generative AI search and discover emergent rivals cited in sample answers.')}
+              ${t('competitors.desc', {}, 'Track evidence-classified direct competitors and their recommendation frequency in generative AI search.')}
             </p>
           </div>
           <div class="view-actions">
@@ -55,6 +55,8 @@ export default {
                     <th>#</th>
                     <th>${t('competitors.col_name', {}, 'Competitor Name')}</th>
                     <th>${t('competitors.col_domain', {}, 'Domain URL')}</th>
+                    <th>${t('competitors.col_relationship', {}, 'Relationship')}</th>
+                    <th>${t('competitors.col_evidence', {}, 'Evidence')}</th>
                     <th style="text-align:right;">${t('common.action', {}, 'Actions')}</th>
                   </tr>
                 </thead>
@@ -63,11 +65,15 @@ export default {
                     .map((comp, idx) => {
                       const name = typeof comp === 'string' ? comp : comp.name;
                       const domain = typeof comp === 'object' ? comp.domain || comp.url : '—';
+                      const relationship = typeof comp === 'object' ? comp.relationship || 'direct_competitor' : 'direct_competitor';
+                      const evidence = typeof comp === 'object' && comp.relationship_review_required !== false ? 'Review required' : 'Confirmed';
                       return `
                       <tr>
                         <td class="num" style="color:var(--muted);">${idx + 1}</td>
                         <td><strong style="font-size:var(--fs-3);">${name}</strong></td>
                         <td class="num" style="color:var(--muted);">${domain || '—'}</td>
+                        <td>${relationship === 'direct_competitor' ? 'Direct competitor' : relationship}</td>
+                        <td>${evidence}</td>
                         <td style="text-align:right;">
                           <button type="button" class="btn btn-ghost btn-sm btn-del-comp" data-comp="${name}" style="color:var(--bad);">
                             ${t('common.remove', {}, 'Remove')}
@@ -127,7 +133,15 @@ export default {
             try {
               const currentConfig = await workspace.getConfig(projectId).catch(() => ({}));
               const currentList = currentConfig.competitors || [];
-              const updated = [...currentList, { name, domain }];
+              const updated = [...currentList, {
+                name,
+                domain,
+                relationship: 'direct_competitor',
+                relationship_source: 'user',
+                relationship_confidence: 'confirmed',
+                relationship_review_required: false,
+                benchmark_eligible: true,
+              }];
               await workspace.patchConfig(projectId, { competitors: updated });
               toast.success(t('competitors.added_success', {}, 'Competitor added'));
               ctx.navigate('#/competitors');

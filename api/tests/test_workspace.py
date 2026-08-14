@@ -249,7 +249,8 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
     assert second_offsite.status_code == 201
     assert second_offsite.json()["ticket"]["id"] == "M-002"
     stored_tickets = json.loads((root / "tasks.json").read_text("utf-8"))
-    assert stored_tickets["summary"]["total"] == 3
+    assert stored_tickets["summary"]["total"] == len(stored_tickets["tasks"])
+    assert {"T-001", "M-001", "M-002"} <= {item["id"] for item in stored_tickets["tasks"]}
 
     sample_text = (
         "# Manual samples\n\n## platform: chatgpt\n\n### q001 · Best Example tools?\n\n"
@@ -360,7 +361,7 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
     projects = client.get("/api/v1/projects", headers=headers).json()["projects"]
     assert projects[0]["name"] == "Example"
     assert projects[0]["avg_score"] == 72
-    assert projects[0]["tasks_total"] == 3
+    assert projects[0]["tasks_total"] == stored_tickets["summary"]["total"]
     assert (root / "assets" / "outlines" / "q001.md").read_text("utf-8") == "# Better outline\n"
 
 
