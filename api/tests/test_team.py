@@ -128,6 +128,13 @@ def test_existing_user_accepts_invitation_switches_tenants_and_role_changes_appl
     assert current.json()["tenant"]["id"] == tenant_id
     assert current.json()["role"] == "viewer"
     assert {item["id"] for item in current.json()["workspaces"]} == {tenant_id, personal_tenant_id}
+    replayed = client.post(
+        "/api/v1/team/invitations/accept",
+        headers=personal_headers,
+        json={"token": invitation["token"]},
+    )
+    assert replayed.status_code == 409
+    assert replayed.json()["error"] == "invitation_already_accepted"
 
     assert client.get("/api/v1/projects", headers=team_headers).status_code == 200
     assert client.post(

@@ -37,20 +37,23 @@ function fieldRequest(promise, key, fallback) {
 
 async function request(endpoint, options = {}) {
   const url = endpoint.startsWith('http') ? endpoint : endpoint.startsWith('/') ? endpoint : `/api/v1/${endpoint}`;
+  const authRetried = options._authRetried === true;
+  const requestOptions = { ...options };
+  delete requestOptions._authRetried;
   const headers = {
     Accept: 'application/json',
     'X-CiteAura-Session': 'cookie',
-    ...(options.headers || {}),
+    ...(requestOptions.headers || {}),
   };
 
-  if (options.body && !(options.body instanceof FormData) && typeof options.body === 'object') {
+  if (requestOptions.body && !(requestOptions.body instanceof FormData) && typeof requestOptions.body === 'object') {
     headers['Content-Type'] = 'application/json';
-    options.body = JSON.stringify(options.body);
+    requestOptions.body = JSON.stringify(requestOptions.body);
   }
 
   const fetchOptions = {
     credentials: 'include',
-    ...options,
+    ...requestOptions,
     headers,
   };
 
@@ -64,8 +67,8 @@ async function request(endpoint, options = {}) {
 
   //  401 
   if (res.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/refresh') && !url.includes('/auth/register')) {
-    if (await refreshSession()) {
-      return request(endpoint, options);
+    if (!authRetried && await refreshSession()) {
+      return request(endpoint, { ...options, _authRetried: true });
     }
     if (onAuthFailureCallback) onAuthFailureCallback();
     throw { status: 401, error: 'session_expired', detail: 'Session expired' };

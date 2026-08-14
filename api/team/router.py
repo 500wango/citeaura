@@ -278,6 +278,7 @@ def accept_invitation(
     if invitation.accepted_at is not None:
         if membership is None:
             _error(status.HTTP_404_NOT_FOUND, "invitation_not_found")
+        _error(status.HTTP_409_CONFLICT, "invitation_already_accepted")
     if membership is None:
         membership = Membership(
             tenant_id=invitation.tenant_id,
@@ -285,8 +286,7 @@ def accept_invitation(
             role=invitation.role,
         )
         db.add(membership)
-    if invitation.accepted_at is None:
-        invitation.accepted_at = datetime.now(timezone.utc)
+    invitation.accepted_at = datetime.now(timezone.utc)
     db.commit()
     return token_response(
         response, current_user.id, invitation.tenant_id, db,

@@ -1,5 +1,6 @@
 import base64
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import pytest
@@ -250,3 +251,24 @@ def test_pool_meter_records_only_fallback_calls_once_per_job(tmp_path, monkeypat
         db.commit()
         summary = platform_pool.usage_summary(db, db.get(Tenant, tenant_id))
         assert summary["by_engine"] == [{"engine_code": "gemini", "calls": 2, "cost_cny_fen": 4}]
+
+
+def test_pool_meter_propagates_isolated_context_to_sampling_threads(monkeypatch):
+    import sample
+
+    monkeypatch.setattr(sample, "ask", lambda engine_code, prompt: {"ok": True})
+
+    def measure(engine_code):
+        with platform_pool.meter_platform_calls((engine_code,)) as counts:
+            with sample.ThreadPoolExecutor(max_workers=4) as executor:
+                futures = [executor.submit(sample.ask, engine_code, str(index)) for index in range(100)]
+                for future in futures:
+                    assert future.result() == {"ok": True}
+        return counts
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        openai = executor.submit(measure, "openai")
+        gemini = executor.submit(measure, "gemini")
+
+    assert openai.result() == {"openai": 100}
+    assert gemini.result() == {"gemini": 100}

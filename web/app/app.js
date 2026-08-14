@@ -236,6 +236,7 @@ async function renderApp() {
   if (!appRoot) return;
 
   if (isPublic) {
+    stopJobPolling();
     // 
     const loader = VIEW_LOADERS[route];
     if (loader) {
@@ -490,6 +491,7 @@ function bindAppShellEvents() {
       await auth.logout();
     } catch (e) {}
     state.user = null;
+    stopJobPolling();
     toast.success('Signed out');
     location.hash = '#/login';
   });
@@ -507,6 +509,7 @@ function bindAppShellEvents() {
 
 /* ----------  ---------- */
 let lastJobStatus = null;
+let jobPollingTimer = null;
 
 async function checkJobs() {
   if (!state.activeProjectId || !state.user) return;
@@ -557,9 +560,19 @@ async function checkJobs() {
 }
 
 function startJobPolling() {
-  if (state.isJobPolling) return;
+  if (jobPollingTimer !== null) return;
   state.isJobPolling = true;
-  setInterval(checkJobs, 2500);
+  jobPollingTimer = window.setInterval(checkJobs, 2500);
+}
+
+function stopJobPolling() {
+  if (jobPollingTimer !== null) {
+    window.clearInterval(jobPollingTimer);
+    jobPollingTimer = null;
+  }
+  state.isJobPolling = false;
+  state.activeJob = null;
+  lastJobStatus = null;
 }
 
 /* ----------  ---------- */

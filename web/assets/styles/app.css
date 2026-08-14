@@ -1160,6 +1160,12 @@
 }
 .price-card .btn { margin-top: auto; }
 
+.sample-answer {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 /* ==========================================================================
    3.  (Responsive Rules)
    ========================================================================== */

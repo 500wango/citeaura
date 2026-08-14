@@ -348,15 +348,19 @@ def _next_scheduled_run(scheduled_for, interval_days, now):
 
 
 def _reclaim_stale_jobs(db, now):
-    """回收超过 Celery 最大执行窗口仍 running 的任务，避免项目永久占用。"""
+    """回收超过 Celery 最大执行窗口仍活跃的任务，避免项目永久占用。"""
     cutoff = now - timedelta(hours=2)
-    stale = db.query(Job).filter(
+    stale_running = db.query(Job).filter(
         Job.status == "running",
         Job.started_at.isnot(None),
         Job.started_at < cutoff,
     ).all()
+    stale_queued = db.query(Job).filter(
+        Job.status == "queued",
+        Job.created_at < cutoff,
+    ).all()
     reclaimed = 0
-    for job in stale:
+    for job in stale_running + stale_queued:
         project = db.get(Project, job.project_id)
         job.status = "failed"
         job.stage = "failed"

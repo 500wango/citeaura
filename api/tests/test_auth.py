@@ -9,7 +9,7 @@ from api.auth import password_reset
 from api.adapters.engine import tenant_slug
 from api.db import Base, get_db
 from api.main import app
-from api.models import PasswordResetToken
+from api.models import PasswordResetToken, User
 
 
 @pytest.fixture()
@@ -181,7 +181,9 @@ def test_browser_session_responses_do_not_expose_jwt_tokens(client):
 def test_logout_clears_both_session_cookies(client):
     payload = {"email": "logout@example.com", "password": "correct-horse-battery"}
     assert client.post("/api/v1/auth/register", json=payload).status_code == 201
-    assert client.post("/api/v1/auth/login", json=payload).status_code == 200
+    login = client.post("/api/v1/auth/login", json=payload)
+    assert login.status_code == 200
+    stolen_refresh_token = login.json()["refresh_token"]
 
     logged_out = client.post("/api/v1/auth/logout")
 
@@ -191,6 +193,10 @@ def test_logout_clears_both_session_cookies(client):
     assert any("citeaura_access_token=" in item and "Max-Age=0" in item for item in cookies)
     assert any("citeaura_refresh_token=" in item and "Max-Age=0" in item for item in cookies)
     assert client.post("/api/v1/auth/refresh").status_code == 401
+    rejected = client.post("/api/v1/auth/refresh", json={"refresh_token": stolen_refresh_token})
+    assert rejected.status_code == 401
+    with client.session_factory() as db:
+        assert db.query(User).filter(User.email == payload["email"]).one().session_version == 1
 
 
 def test_password_reset_is_non_enumerating_single_use_and_hashed(client, monkeypatch):

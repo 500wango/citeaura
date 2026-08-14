@@ -273,8 +273,29 @@ def refresh(
 
 
 @router.post("/auth/logout")
-def logout(response: Response):
-    """清除浏览器中的 access 和 refresh 会话 Cookie。"""
+def logout(request: Request, response: Response, db: Session = Depends(get_db)):
+    """失效当前用户的历史 Token，并清除浏览器会话 Cookie。"""
+    authorization = request.headers.get("authorization", "")
+    scheme, separator, bearer_token = authorization.partition(" ")
+    candidates = []
+    if separator and scheme.lower() == "bearer":
+        candidates.append((bearer_token.strip(), "access"))
+    candidates.extend((
+        (request.cookies.get(ACCESS_TOKEN_COOKIE), "access"),
+        (request.cookies.get(REFRESH_TOKEN_COOKIE), "refresh"),
+    ))
+    for token, token_type in candidates:
+        if not token:
+            continue
+        try:
+            claims = decode_token(token, expected_type=token_type)
+            user = db.get(User, int(claims["sub"]))
+        except (KeyError, TypeError, ValueError, jwt.PyJWTError, RuntimeError):
+            continue
+        if user is not None and int(claims.get("sv", -1)) == int(user.session_version):
+            user.session_version += 1
+            db.commit()
+        break
     response.delete_cookie(ACCESS_TOKEN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
     response.delete_cookie(REFRESH_TOKEN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
     response.headers["Cache-Control"] = "no-store"

@@ -3,8 +3,9 @@
 import json
 import threading
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from contextvars import ContextVar
+from contextvars import ContextVar, copy_context
 from datetime import date, datetime, timezone
 
 from sqlalchemy import func
@@ -21,8 +22,16 @@ PAID_PLANS = frozenset(("starter", "pro", "agency", "enterprise"))
 
 _METER_CONTEXT = ContextVar("citeaura_platform_meter", default=None)
 _METER_HOOK_LOCK = threading.Lock()
-_ACTIVE_METER_LOCK = threading.RLock()
-_ACTIVE_METER = None
+
+
+class _ContextThreadPoolExecutor(ThreadPoolExecutor):
+    """把提交线程的计量上下文传播到引擎采样线程。"""
+
+    _citeaura_context_hook = True
+
+    def submit(self, fn, /, *args, **kwargs):
+        context = copy_context()
+        return super().submit(context.run, fn, *args, **kwargs)
 
 
 def _ensure_meter_hook():
@@ -30,17 +39,17 @@ def _ensure_meter_hook():
     import sample
 
     with _METER_HOOK_LOCK:
+        if not getattr(sample.ThreadPoolExecutor, "_citeaura_context_hook", False):
+            sample.ThreadPoolExecutor = _ContextThreadPoolExecutor
         if getattr(sample.ask, "_citeaura_meter_hook", False):
             return
         original = sample.ask
 
         def metered(platform, *args, **kwargs):
             meter = _METER_CONTEXT.get()
-            if meter is None:
-                with _ACTIVE_METER_LOCK:
-                    meter = _ACTIVE_METER
-            if meter is not None and platform in meter[0]:
-                meter[1][platform] += 1
+            if meter is not None and platform in meter["codes"]:
+                with meter["lock"]:
+                    meter["counts"][platform] += 1
             return original(platform, *args, **kwargs)
 
         metered._citeaura_meter_hook = True
@@ -139,18 +148,12 @@ def meter_platform_calls(engine_codes):
     if not codes:
         yield counts
         return
-    global _ACTIVE_METER
     _ensure_meter_hook()
-    with _ACTIVE_METER_LOCK:
-        previous = _ACTIVE_METER
-        _ACTIVE_METER = (codes, counts)
-    token = _METER_CONTEXT.set((codes, counts))
+    token = _METER_CONTEXT.set({"codes": codes, "counts": counts, "lock": threading.Lock()})
     try:
         yield counts
     finally:
         _METER_CONTEXT.reset(token)
-        with _ACTIVE_METER_LOCK:
-            _ACTIVE_METER = previous
 
 
 def _month_start(value=None):

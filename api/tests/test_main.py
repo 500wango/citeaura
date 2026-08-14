@@ -4,6 +4,7 @@ from api.main import app
 from api import config, main
 from api.adapters import locking
 from api.db import get_db
+from api.rate_limit import AUTH_PATHS
 
 
 client = TestClient(app)
@@ -51,6 +52,14 @@ def test_api_rate_limit_returns_standard_headers_and_429(monkeypatch):
     assert blocked.status_code == 429
     assert blocked.json() == {"error": "rate_limit_exceeded", "detail": "request limit exceeded"}
     assert int(blocked.headers["retry-after"]) >= 1
+
+
+def test_sensitive_session_endpoints_use_auth_rate_limit():
+    assert {
+        "/api/v1/admin/auth/password",
+        "/api/v1/team/invitations/accept",
+        "/api/v1/sso/callback",
+    } <= AUTH_PATHS
 
 
 def test_health_is_exempt_and_redis_failure_is_retryable(monkeypatch):

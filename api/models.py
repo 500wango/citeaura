@@ -219,6 +219,7 @@ class Job(Base):
     finished_at = Column(DateTime(timezone=True), nullable=True)
     error = Column(Text, nullable=True)
     log_path = Column(String(2048), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     project = relationship("Project", back_populates="jobs")
     platform_usage = relationship("PlatformUsage", back_populates="job")

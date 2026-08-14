@@ -21,6 +21,9 @@ AUTH_PATHS = frozenset((
     "/api/v1/auth/password/forgot",
     "/api/v1/auth/password/reset",
     "/api/v1/admin/auth/login",
+    "/api/v1/admin/auth/password",
+    "/api/v1/team/invitations/accept",
+    "/api/v1/sso/callback",
 ))
 EXEMPT_PATHS = frozenset(("/api/v1/health", "/api/v1/health/ready"))
 INCREMENT_SCRIPT = """
