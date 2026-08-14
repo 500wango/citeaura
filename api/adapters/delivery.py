@@ -790,13 +790,7 @@ def _build_map_markdown(name, blueprint):
         and not _contains_han(content.get("question"))
     ]
     coverage = {
-        "channel_total": len(channels),
-        "channel_covered": sum(bool(channel.get("covered")) for channel in channels),
-        "p0p1_total": sum(channel.get("priority") in ("P0", "P1") for channel in channels),
-        "p0p1_covered": sum(
-            channel.get("priority") in ("P0", "P1") and bool(channel.get("covered"))
-            for channel in channels
-        ),
+        **global_scope.summarize_channel_coverage(channels),
         "content_total": len(contents),
         "content_done": sum(content.get("status") == "ready" for content in contents),
     }
@@ -808,8 +802,10 @@ def _build_map_markdown(name, blueprint):
         f"- Channel coverage: **{coverage.get('channel_covered', 0)}/{coverage.get('channel_total', 0)}**",
         f"- P0/P1 channel coverage: **{coverage.get('p0p1_covered', 0)}/{coverage.get('p0p1_total', 0)}**",
         f"- Content completed: **{coverage.get('content_done', 0)}/{coverage.get('content_total', 0)}**",
-        "",
     ]
+    if coverage.get("channel_manual"):
+        lines.append(f"- Channels requiring manual confirmation: **{coverage['channel_manual']}**")
+    lines.append("")
     strategy = blueprint.get("channel_strategy") or {}
     if strategy:
         lines += [
@@ -829,17 +825,26 @@ def _build_map_markdown(name, blueprint):
         "|---|---|---|---|---|",
     ]
     for channel in sorted(channels, key=lambda item: (item.get("priority", "P9"), str(item.get("id", "")))):
+        coverage_status = global_scope.channel_coverage_status(channel)
         evidence = []
+        evidence.extend(f"observed citation on {domain}" for domain in channel.get("coverage_evidence") or [])
         if channel.get("national") is not None:
             evidence.append(f"{channel['national']:,} observed citations")
         if channel.get("position") is not None:
             evidence.append(f"average placement #{channel['position']}")
         if channel.get("platforms") is not None:
             evidence.append(f"observed across {channel['platforms']} platforms")
+        status = {
+            "covered": "Covered",
+            "gap": "Gap",
+            "manual": "Manual review",
+        }[coverage_status]
+        if coverage_status == "manual" and not evidence:
+            evidence.append("Requires confirmation against project-specific channels")
         lines.append(
             f"| {_require_english(channel.get('priority') or 'P2', 'channel priority')} "
             f"| {_markdown_cell(_channel_name(channel))} | Global "
-            f"| {'Covered' if channel.get('covered') else 'Gap'} | {_markdown_cell('; '.join(evidence) or 'No citation evidence yet')} |"
+            f"| {status} | {_markdown_cell('; '.join(evidence) or 'No citation evidence yet')} |"
         )
 
     lines += [
@@ -1339,8 +1344,10 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         f"- Average site score: {_format_number(audit.get('avg_score'))}",
         f"- Action tickets: {len(tickets)}",
         f"- Channel coverage: {coverage.get('channel_covered', 0)}/{coverage.get('channel_total', 0)}",
-        "",
     ]
+    if coverage.get("channel_manual"):
+        lines.append(f"- Channels requiring manual confirmation: {coverage['channel_manual']}")
+    lines.append("")
     strategy = blueprint.get("channel_strategy") or {}
     if strategy:
         lines += [
@@ -1455,10 +1462,13 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
         ("High Risk", str((lint or {}).get("high", 0))),
     ])
     coverage = blueprint.get("coverage") or {}
-    _write_document(directory, "06", build_map_markdown, [
+    channel_stats = [
         ("Channel Coverage", f"{coverage.get('channel_covered', 0)}/{coverage.get('channel_total', 0)}"),
         ("Content Complete", f"{coverage.get('content_done', 0)}/{coverage.get('content_total', 0)}"),
-    ])
+    ]
+    if coverage.get("channel_manual"):
+        channel_stats.append(("Manual Confirmation", str(coverage["channel_manual"])))
+    _write_document(directory, "06", build_map_markdown, channel_stats)
     asset_index = _write_assets(project_slug, project_directory, directory, config, audit, blueprint)
     _write_index(directory, name, site, delivery_date, audit, tickets, blueprint, asset_index)
     apply_delivery_branding(directory)

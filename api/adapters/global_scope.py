@@ -3,6 +3,7 @@
 import re
 from contextlib import contextmanager
 from copy import deepcopy
+from urllib.parse import urlparse
 
 from api.adapters.engine import geolib
 
@@ -31,8 +32,6 @@ GLOBAL_CHANNEL_NAMES = {
     "review": "G2 / Capterra / Product Hunt",
     "reddit": "Reddit / Hacker News",
     "youtube": "YouTube",
-    "devsite": "GitHub / Docs / dev.to",
-    "media_en": "English Industry Media (TechCrunch / VentureBeat)",
     "linkedin": "LinkedIn",
 }
 
@@ -45,6 +44,7 @@ CHANNEL_STRATEGIES = {
         ("certification", "Certification and Compliance Registries", "P1"),
         ("linkedin", "LinkedIn", "P1"),
         ("youtube", "YouTube", "P1"),
+        ("reddit", "Relevant Reddit and Hacker News Communities", "P2"),
         ("buyer_communities", "Buyer Communities and Industry Associations", "P2"),
         ("wikipedia", "Wikipedia (only if independently notable)", "P2"),
     ],
@@ -53,6 +53,7 @@ CHANNEL_STRATEGIES = {
         ("docs", "Product Documentation and API Reference", "P0"),
         ("review", "Software Review Platforms", "P1"),
         ("developer_community", "Developer Communities and Technical Media", "P1"),
+        ("reddit", "Relevant Reddit and Hacker News Communities", "P1"),
         ("youtube", "YouTube", "P1"),
         ("linkedin", "LinkedIn", "P1"),
         ("industry_media", "Software Industry Media", "P2"),
@@ -64,6 +65,7 @@ CHANNEL_STRATEGIES = {
         ("industry_directories", "Industry Directories and Professional Associations", "P1"),
         ("trade_media", "Trade Media and Expert Publications", "P1"),
         ("youtube", "YouTube", "P1"),
+        ("reddit", "Relevant Reddit and Hacker News Communities", "P2"),
         ("customer_communities", "Customer Communities and Q&A Sources", "P2"),
         ("industry_media", "Industry Media", "P2"),
         ("wikipedia", "Wikipedia (only if independently notable)", "P2"),
@@ -73,6 +75,7 @@ CHANNEL_STRATEGIES = {
         ("shopping_feeds", "Search and Shopping Product Feeds", "P0"),
         ("marketplaces", "Relevant Retail Marketplaces", "P1"),
         ("review_communities", "Product Review and Customer Communities", "P1"),
+        ("reddit", "Relevant Reddit and Hacker News Communities", "P1"),
         ("youtube", "YouTube", "P1"),
         ("social_discovery", "Visual and Social Discovery Channels", "P1"),
         ("consumer_media", "Consumer and Category Media", "P2"),
@@ -83,6 +86,7 @@ CHANNEL_STRATEGIES = {
         ("syndication", "Relevant Content Syndication Partners", "P1"),
         ("expert_sources", "Expert Profiles and Primary Source Networks", "P1"),
         ("youtube", "YouTube", "P1"),
+        ("reddit", "Relevant Reddit and Hacker News Communities", "P2"),
         ("social_distribution", "Relevant Social Distribution Channels", "P2"),
         ("industry_media", "Peer Publications and Industry Media", "P2"),
     ],
@@ -92,6 +96,7 @@ CHANNEL_STRATEGIES = {
         ("industry_directories", "Relevant Industry Directories", "P1"),
         ("industry_media", "Relevant Industry Media", "P1"),
         ("youtube", "YouTube", "P2"),
+        ("reddit", "Relevant Reddit and Hacker News Communities", "P2"),
         ("customer_communities", "Relevant Customer Communities", "P2"),
         ("wikipedia", "Wikipedia (only if independently notable)", "P2"),
     ],
@@ -115,13 +120,13 @@ CHANNEL_FIELD_DEFAULTS = {
     },
     "linkedin": {
         "kind": "Professional Network", "forms": ["Company profile", "Expert posts", "Case studies"],
-        "volume": "2-4 posts/month", "cadence": "Monthly", "owner": "Marketing",
+        "volume": "2–4 posts/month", "cadence": "Monthly", "owner": "Marketing",
         "domains": ["linkedin.com"], "why": "Provides attributable company and expert identity signals.",
         "effect": "Supports B2B entity verification",
     },
     "youtube": {
         "kind": "Video", "forms": ["Product demonstrations", "How-to videos", "Complete subtitles"],
-        "volume": "1-2 videos/month", "cadence": "Monthly", "owner": "Content",
+        "volume": "1–2 videos/month", "cadence": "Monthly", "owner": "Content",
         "domains": ["youtube.com"], "why": "Video transcripts provide accessible product and process evidence.",
         "effect": "Adds multimodal and transcript-based discovery coverage",
     },
@@ -133,20 +138,28 @@ CHANNEL_FIELD_DEFAULTS = {
     },
     "review": {
         "kind": "Review Platform", "forms": ["Product profile", "Verified customer reviews", "Comparison pages"],
-        "volume": "2-3 relevant platforms", "cadence": "Initial setup + quarterly updates", "owner": "Marketing",
-        "domains": [], "why": "Independent product reviews support commercial comparison queries.",
+        "volume": "2–3 relevant platforms", "cadence": "Initial setup + quarterly updates", "owner": "Marketing",
+        "domains": ["g2.com", "capterra.com", "producthunt.com"],
+        "why": "Independent product reviews support commercial comparison queries.",
         "effect": "Captures recommendation and alternatives intent",
+    },
+    "reddit": {
+        "kind": "Community", "forms": ["Authentic community participation", "Expert answers", "AMA sessions"],
+        "volume": "Ongoing participation", "cadence": "Weekly", "owner": "Product + Marketing",
+        "domains": ["reddit.com", "news.ycombinator.com"],
+        "why": "Independent peer discussions are frequently retrieved for recommendations, alternatives, and risk queries.",
+        "effect": "Adds peer evidence and high-intent community citations",
     },
     "b2b_marketplaces": {
         "kind": "B2B Marketplace", "forms": ["Supplier profile", "Product catalog", "Verified capabilities"],
-        "volume": "2-4 relevant marketplaces", "cadence": "Initial setup + monthly updates", "owner": "Sales + Marketing",
+        "volume": "2–4 relevant marketplaces", "cadence": "Initial setup + monthly updates", "owner": "Sales + Marketing",
         "domains": ["alibaba.com", "made-in-china.com", "globalsources.com"],
         "why": "Buyer marketplaces are discovery surfaces for sourcing and supplier queries.",
         "effect": "Improves qualified B2B supplier discovery",
     },
     "trade_media": {
         "kind": "Trade Media", "forms": ["Technical profile", "Buyer guide", "Verified case study"],
-        "volume": "1-2 placements/quarter", "cadence": "Quarterly", "owner": "Marketing",
+        "volume": "1–2 placements/quarter", "cadence": "Quarterly", "owner": "Marketing",
         "domains": [], "why": "Trade publications provide independent context for specialist buyers.",
         "effect": "Adds category authority and third-party evidence",
     },
@@ -170,20 +183,20 @@ CHANNEL_FIELD_DEFAULTS = {
     },
     "developer_community": {
         "kind": "Developer Community", "forms": ["Technical articles", "Open examples", "Q&A answers"],
-        "volume": "2-4 technical pieces/month", "cadence": "Monthly", "owner": "Engineering",
+        "volume": "2–4 technical pieces/month", "cadence": "Monthly", "owner": "Engineering",
         "domains": ["github.com", "dev.to", "stackoverflow.com"],
         "why": "Developer communities provide implementation evidence outside the product site.",
         "effect": "Supports technical recommendation and troubleshooting queries",
     },
     "industry_media": {
         "kind": "Industry Media", "forms": ["Expert article", "Press coverage", "Research citation"],
-        "volume": "1-2 placements/quarter", "cadence": "Quarterly", "owner": "Marketing",
+        "volume": "1–2 placements/quarter", "cadence": "Quarterly", "owner": "Marketing",
         "domains": [], "why": "Relevant industry media provides independent category context.",
         "effect": "Strengthens third-party authority signals",
     },
     "industry_directories": {
         "kind": "Industry Directory", "forms": ["Verified company profile", "Service listing", "Association record"],
-        "volume": "3-5 relevant directories", "cadence": "Quarterly", "owner": "Marketing",
+        "volume": "3–5 relevant directories", "cadence": "Quarterly", "owner": "Marketing",
         "domains": [], "why": "Professional directories help buyers verify providers in the relevant category.",
         "effect": "Improves category and local/entity discovery",
     },
@@ -213,13 +226,13 @@ CHANNEL_FIELD_DEFAULTS = {
     },
     "social_discovery": {
         "kind": "Social Discovery", "forms": ["Product demonstrations", "Creator explainers", "Accessible captions"],
-        "volume": "2-4 pieces/month", "cadence": "Monthly", "owner": "Marketing",
+        "volume": "2–4 pieces/month", "cadence": "Monthly", "owner": "Marketing",
         "domains": [], "why": "Visual discovery channels expose products through demonstrations and use cases.",
         "effect": "Adds multimodal product discovery signals",
     },
     "consumer_media": {
         "kind": "Consumer Media", "forms": ["Category guide", "Independent review", "Expert comparison"],
-        "volume": "1-2 placements/quarter", "cadence": "Quarterly", "owner": "PR + Marketing",
+        "volume": "1–2 placements/quarter", "cadence": "Quarterly", "owner": "PR + Marketing",
         "domains": [], "why": "Consumer publications provide independent category and product context.",
         "effect": "Supports broad recommendation and alternatives queries",
     },
@@ -243,7 +256,7 @@ CHANNEL_FIELD_DEFAULTS = {
     },
     "social_distribution": {
         "kind": "Social Distribution", "forms": ["Article excerpts", "Author updates", "Discussion prompts"],
-        "volume": "2-4 posts/month", "cadence": "Weekly", "owner": "Editorial + Marketing",
+        "volume": "2–4 posts/month", "cadence": "Weekly", "owner": "Editorial + Marketing",
         "domains": [], "why": "Relevant distribution channels help readers discover authoritative publications.",
         "effect": "Extends content discovery without replacing primary sources",
     },
@@ -306,7 +319,79 @@ def infer_business_profile(config):
     }
 
 
-def _profile_channels(profile, existing):
+def _domain_host(value):
+    value = str(value or "").strip().lower()
+    if not value:
+        return ""
+    parsed = urlparse(value if "://" in value else f"//{value}")
+    return (parsed.hostname or "").removeprefix("www.").rstrip(".")
+
+
+def _same_domain(left, right):
+    left = _domain_host(left)
+    right = _domain_host(right)
+    return bool(left and right and geolib.same_site(f"https://{left}", f"https://{right}"))
+
+
+def _channel_coverage(channel_id, defaults, previous, cited_domains, own_domain):
+    targets = [own_domain] if channel_id == "official_en" else defaults.get("domains", [])
+    targets = [host for host in (_domain_host(value) for value in targets) if host]
+    if not targets:
+        return "manual", []
+    if cited_domains is None:
+        previous_status = previous.get("coverage_status")
+        if previous_status in ("covered", "gap"):
+            return previous_status, deepcopy(previous.get("coverage_evidence") or [])
+        if isinstance(previous.get("covered"), bool):
+            return ("covered" if previous["covered"] else "gap"), []
+        return "gap", []
+    matches = sorted({
+        cited
+        for cited in (_domain_host(value) for value in cited_domains)
+        if cited and any(_same_domain(cited, target) for target in targets)
+    })
+    return ("covered" if matches else "gap"), matches
+
+
+def channel_coverage_status(channel):
+    status = channel.get("coverage_status")
+    if status in ("covered", "gap", "manual"):
+        return status
+    return "covered" if channel.get("covered") else "gap"
+
+
+def summarize_channel_coverage(channels):
+    measurable = [channel for channel in channels if channel_coverage_status(channel) != "manual"]
+    p0p1 = [channel for channel in measurable if channel.get("priority") in ("P0", "P1")]
+    manual = [channel for channel in channels if channel_coverage_status(channel) == "manual"]
+    return {
+        "channel_all_total": len(channels),
+        "channel_total": len(measurable),
+        "channel_covered": sum(channel_coverage_status(channel) == "covered" for channel in measurable),
+        "channel_manual": len(manual),
+        "p0p1_total": len(p0p1),
+        "p0p1_covered": sum(channel_coverage_status(channel) == "covered" for channel in p0p1),
+        "p0p1_manual": sum(channel.get("priority") in ("P0", "P1") for channel in manual),
+    }
+
+
+def _latest_cited_domains(project_slug):
+    directory = geolib.project_dir(project_slug) / "metrics"
+    files = sorted(directory.glob("*.json")) if directory.is_dir() else []
+    if not files:
+        return None
+    metrics = geolib.read_json(files[-1], {}) or {}
+    cited = set()
+    for item in (metrics.get("platforms") or {}).values():
+        if not isinstance(item, dict) or item.get("market") not in ("global", "both", None):
+            continue
+        cited.update(
+            host for host in (_domain_host(value) for value in (item.get("top_cited_domains") or {})) if host
+        )
+    return cited
+
+
+def _profile_channels(profile, existing, *, cited_domains=None, own_domain=""):
     existing_by_id = {
         str(channel.get("id")): channel
         for channel in existing
@@ -315,20 +400,24 @@ def _profile_channels(profile, existing):
     rows = []
     for channel_id, name, priority in CHANNEL_STRATEGIES[profile["id"]]:
         previous = existing_by_id.get(channel_id, {})
-        defaults = CHANNEL_FIELD_DEFAULTS.get(channel_id, {
+        defaults = deepcopy(CHANNEL_FIELD_DEFAULTS.get(channel_id, {
             "kind": "Configured Channel", "forms": ["Relevant authoritative profile", "Evidence-backed content"],
             "volume": "As appropriate for the project", "cadence": "Review quarterly", "owner": "Marketing",
             "domains": [], "why": "Use a relevant authoritative source for this project profile.",
             "effect": "Supports project-specific discovery and verification",
-        })
+        }))
+        coverage_status, coverage_evidence = _channel_coverage(
+            channel_id, defaults, previous, cited_domains, own_domain,
+        )
         rows.append({
             **defaults,
-            **previous,
             "id": channel_id,
             "name": name,
             "priority": priority,
             "market": "global",
-            "covered": bool(previous.get("covered")),
+            "covered": coverage_status == "covered",
+            "coverage_status": coverage_status,
+            "coverage_evidence": coverage_evidence,
             "strategy_profile": profile["id"],
         })
     return rows
@@ -423,7 +512,7 @@ def _rate(items, predicate):
     return round(sum(1 for item in items if predicate(item)) / len(items), 3) if items else 0
 
 
-def normalize_blueprint_data(blueprint, *, profile=None):
+def normalize_blueprint_data(blueprint, *, profile=None, cited_domains=None, own_domain=""):
     current = deepcopy(blueprint) if isinstance(blueprint, dict) else {}
     existing_channels = [
         {
@@ -435,7 +524,9 @@ def normalize_blueprint_data(blueprint, *, profile=None):
         if isinstance(channel, dict) and channel.get("market") == "global"
     ]
     profile = profile if isinstance(profile, dict) and profile.get("id") in CHANNEL_STRATEGIES else None
-    channels = _profile_channels(profile, existing_channels) if profile else existing_channels
+    channels = _profile_channels(
+        profile, existing_channels, cited_domains=cited_domains, own_domain=own_domain,
+    ) if profile else existing_channels
     contents = normalize_questions([
         {
             **content,
@@ -450,13 +541,10 @@ def normalize_blueprint_data(blueprint, *, profile=None):
         for content in contents
     ]
     coverage = {
-        "channel_total": len(channels),
-        "channel_covered": sum(bool(channel.get("covered")) for channel in channels),
-        "channel_rate": _rate(channels, lambda channel: bool(channel.get("covered"))),
-        "p0p1_total": sum(channel.get("priority") in ("P0", "P1") for channel in channels),
-        "p0p1_covered": sum(
-            channel.get("priority") in ("P0", "P1") and bool(channel.get("covered"))
-            for channel in channels
+        **summarize_channel_coverage(channels),
+        "channel_rate": _rate(
+            [channel for channel in channels if channel_coverage_status(channel) != "manual"],
+            lambda channel: channel_coverage_status(channel) == "covered",
         ),
         "content_total": len(contents),
         "content_done": sum(content.get("status") in ("ready", "done", "已成稿") for content in contents),
@@ -465,19 +553,19 @@ def normalize_blueprint_data(blueprint, *, profile=None):
     }
     roadmap = [
         {
-            "window": "0-30 Days",
+            "window": "0–30 Days",
             "focus": "Foundational Baseline",
             "items": [channel.get("name") for channel in channels if channel.get("priority") == "P0"]
             + ["Brand verification and pricing guide pages"],
         },
         {
-            "window": "30-60 Days",
+            "window": "30–60 Days",
             "focus": "High-Leverage Channels & Content Matrix",
             "items": [channel.get("name") for channel in channels if channel.get("priority") == "P1"][:6]
-            + ["1-2 articles each for recommendations, comparisons, and alternatives"],
+            + ["1–2 articles each for recommendations, comparisons, and alternatives"],
         },
         {
-            "window": "60-90 Days",
+            "window": "60–90 Days",
             "focus": "Scale & Closed-Loop Verification",
             "items": [channel.get("name") for channel in channels if channel.get("priority") == "P2"][:5]
             + ["Complete scenario tutorials and risk explanations", "Run 6 consecutive verification cycles"],
@@ -502,7 +590,12 @@ def normalize_blueprint(project_slug):
         current = geolib.read_json(path, {}) or {}
         config = geolib.load_config(project_slug)
         profile = infer_business_profile(config)
-        normalized = normalize_blueprint_data(current, profile=profile)
+        normalized = normalize_blueprint_data(
+            current,
+            profile=profile,
+            cited_domains=_latest_cited_domains(project_slug),
+            own_domain=_domain_host((config.get("brand") or {}).get("site")),
+        )
         if normalized != current:
             geolib.write_json(path, normalized)
         return normalized

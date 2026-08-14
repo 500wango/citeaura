@@ -1,6 +1,28 @@
 import json
+from copy import deepcopy
 
-from api.adapters import global_scope
+from api.adapters import delivery, global_scope
+
+import blueprint as engine_blueprint  # noqa: E402 - global_scope registers the engine scripts path first
+
+
+def _engine_global_blueprint():
+    channels = []
+    for channel in deepcopy(engine_blueprint.CHANNELS_GLOBAL):
+        channel.update({
+            "market": "global",
+            "covered": channel["id"] in ("official_en", "youtube"),
+            "fits": deepcopy(engine_blueprint.CHANNEL_FITS.get(channel["id"], [])),
+        })
+        channels.append(channel)
+    return {
+        "market": "global",
+        "channels": channels,
+        "contents": [{
+            "id": "q101", "market": "global", "question": "Which tool is best?",
+            "group": "recommendation", "form": "Category Page", "status": "gap", "note": "",
+        }],
+    }
 
 
 def test_mixed_historical_config_is_normalized_to_global():
@@ -62,11 +84,14 @@ def test_blueprint_and_tasks_remove_domestic_recommendations():
 
     assert [channel["id"] for channel in blueprint["channels"]] == ["wikipedia", "review", "reddit", "youtube"]
     assert blueprint["coverage"] == {
+        "channel_all_total": 4,
         "channel_total": 4,
         "channel_covered": 1,
+        "channel_manual": 0,
         "channel_rate": 0.25,
         "p0p1_total": 4,
         "p0p1_covered": 1,
+        "p0p1_manual": 0,
         "content_total": 1,
         "content_done": 1,
         "content_rate": 1.0,
@@ -110,22 +135,81 @@ def test_channel_strategy_is_selected_per_project_profile():
     assert {"b2b_marketplaces", "certification", "trade_media"} <= manufacturer_ids
     assert "review" not in manufacturer_ids
     assert {"docs", "review", "developer_community"} <= software_ids
+    assert "reddit" in manufacturer_ids & software_ids & unknown_ids
     assert "b2b_marketplaces" not in software_ids
     assert "industry_directories" in unknown_ids
     assert unknown_blueprint["channel_strategy"]["confidence"] == "low"
 
 
 def test_profile_channels_preserve_engine_delivery_contract():
-    required = {"kind", "forms", "volume", "cadence", "owner", "domains", "why", "effect"}
+    required = {
+        "kind", "forms", "volume", "cadence", "owner", "domains", "why", "effect",
+        "coverage_status", "coverage_evidence",
+    }
+    engine_data = _engine_global_blueprint()
 
     for profile_id in global_scope.CHANNEL_STRATEGIES:
         profile = {"id": profile_id, "label": profile_id.title(), "confidence": "high", "evidence": []}
-        blueprint = global_scope.normalize_blueprint_data({}, profile=profile)
+        blueprint = global_scope.normalize_blueprint_data(
+            engine_data,
+            profile=profile,
+            cited_domains={"example.com", "docs.github.com", "g2.com", "youtube.com"},
+            own_domain="example.com",
+        )
         assert blueprint["channels"]
         for channel in blueprint["channels"]:
             assert required <= set(channel)
             assert isinstance(channel["forms"], list) and channel["forms"]
             assert isinstance(channel["domains"], list)
+            assert not ({"fits", "national", "position", "platforms"} & set(channel))
+        assert "# Example GEO Build Map" in delivery._build_map_markdown("Example", blueprint)
+
+
+def test_profile_channel_defaults_override_engine_fields_and_are_isolated():
+    profile = {"id": "publisher", "label": "Publisher", "confidence": "high", "evidence": []}
+    first = global_scope.normalize_blueprint_data(
+        _engine_global_blueprint(), profile=profile, cited_domains=set(), own_domain="example.com",
+    )
+    official = next(channel for channel in first["channels"] if channel["id"] == "official_en")
+
+    assert official["forms"] == global_scope.CHANNEL_FIELD_DEFAULTS["official_en"]["forms"]
+    assert official["forms"] != engine_blueprint.CHANNELS_GLOBAL[0]["forms"]
+    official["forms"].append("Process-local mutation")
+    official["domains"].append("mutated.example")
+
+    second = global_scope.normalize_blueprint_data(
+        _engine_global_blueprint(), profile=profile, cited_domains=set(), own_domain="example.com",
+    )
+    next_official = next(channel for channel in second["channels"] if channel["id"] == "official_en")
+    assert "Process-local mutation" not in next_official["forms"]
+    assert "Process-local mutation" not in global_scope.CHANNEL_FIELD_DEFAULTS["official_en"]["forms"]
+    assert "mutated.example" not in global_scope.CHANNEL_FIELD_DEFAULTS["official_en"]["domains"]
+
+
+def test_profile_channel_coverage_uses_citation_domains_and_marks_manual_channels():
+    profile = {"id": "manufacturer", "label": "Manufacturer", "confidence": "high", "evidence": []}
+    blueprint = global_scope.normalize_blueprint_data(
+        _engine_global_blueprint(),
+        profile=profile,
+        cited_domains={"www.example.com", "supplier.alibaba.com", "youtube.com", "news.ycombinator.com"},
+        own_domain="example.com",
+    )
+    channels = {channel["id"]: channel for channel in blueprint["channels"]}
+
+    assert channels["official_en"]["coverage_status"] == "covered"
+    assert channels["b2b_marketplaces"]["coverage_status"] == "covered"
+    assert channels["b2b_marketplaces"]["coverage_evidence"] == ["supplier.alibaba.com"]
+    assert channels["reddit"]["coverage_status"] == "covered"
+    assert channels["linkedin"]["coverage_status"] == "gap"
+    assert channels["certification"]["coverage_status"] == "manual"
+    assert channels["certification"]["covered"] is False
+    assert blueprint["coverage"]["channel_manual"] == 3
+    assert blueprint["coverage"]["channel_total"] == 6
+    assert blueprint["coverage"]["channel_covered"] == 4
+
+    markdown = delivery._build_map_markdown("Example", blueprint)
+    assert "| Manual review | Requires confirmation against project-specific channels |" in markdown
+    assert "Channels requiring manual confirmation: **3**" in markdown
 
 
 def test_project_normalization_updates_files(tmp_path, monkeypatch):
@@ -133,6 +217,7 @@ def test_project_normalization_updates_files(tmp_path, monkeypatch):
     project.mkdir()
     (project / "geo.json").write_text(json.dumps({
         "market": "both",
+        "brand": {"site": "https://example.com", "industry": "B2B SaaS software platform"},
         "questions": [{"id": "q001", "market": "cn", "text": "中文问题"}],
         "competitors": [],
         "platforms": ["deepseek", "openai"],
@@ -153,15 +238,20 @@ def test_project_normalization_updates_files(tmp_path, monkeypatch):
         },
         "platforms": {
             "deepseek": {"market": "cn", "samples": 1},
-            "openai": {"market": "global", "samples": 2},
+            "openai": {
+                "market": "global", "samples": 2,
+                "top_cited_domains": {"example.com": 2, "g2.com": 1, "github.com": 1},
+            },
         },
     }), "utf-8")
+    (project / "blueprint.json").write_text(json.dumps(_engine_global_blueprint()), "utf-8")
     monkeypatch.setattr(global_scope.geolib, "WORK", tmp_path)
 
     global_scope.normalize_project("example")
 
     config = json.loads((project / "geo.json").read_text("utf-8"))
     metrics = json.loads((project / "metrics" / "2026-08-13.json").read_text("utf-8"))
+    blueprint = json.loads((project / "blueprint.json").read_text("utf-8"))
     assert config["questions"] == []
     assert config["platforms"] == ["openai"]
     assert list(metrics["platforms"]) == ["openai"]
@@ -171,3 +261,9 @@ def test_project_normalization_updates_files(tmp_path, monkeypatch):
     assert metrics["provenance"]["requested_platforms"] == ["openai"]
     assert metrics["provenance"]["platforms"] == [{"engine_code": "openai"}]
     assert metrics["provenance"]["question_set"]["count"] == 0
+    channels = {channel["id"]: channel for channel in blueprint["channels"]}
+    assert channels["official_en"]["coverage_status"] == "covered"
+    assert channels["review"]["coverage_status"] == "covered"
+    assert channels["developer_community"]["coverage_status"] == "covered"
+    assert channels["docs"]["coverage_status"] == "manual"
+    assert blueprint["coverage"]["channel_covered"] == 3
