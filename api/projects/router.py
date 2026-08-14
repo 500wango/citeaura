@@ -24,7 +24,7 @@ from api.adapters.engine import (
     with_tenant_context,
 )
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import brand_identity, delivery, framing, global_scope, preflight, report_quality, sampling_control, ticket_workflow, workspace
+from api.adapters import audit_presentation, brand_identity, delivery, framing, global_scope, preflight, report_quality, sampling_control, ticket_workflow, workspace
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
@@ -382,7 +382,7 @@ def _product_report(project_slug, metrics):
 
     project_directory = geolib.project_dir(project_slug)
     config = geolib.load_config(project_slug)
-    audit = geolib.read_json(project_directory / "audit.json", {}) or {}
+    audit = audit_presentation.present_audit(project_slug)
     sample_path = _latest_file(project_directory / "samples", "*.jsonl")
     rows = [
         row for row in (geolib.read_jsonl(sample_path) if sample_path else [])
@@ -437,7 +437,7 @@ def _product_report(project_slug, metrics):
     return {
         **(metrics or {}),
         "mention_rate": round(mention_rate, 4) if mention_rate is not None else None,
-        "grade": _grade_for_score(audit.get("avg_score")),
+        "grade": audit.get("applicable_grade") or _grade_for_score(audit.get("avg_score")),
         "engines": engines,
         "channels": channels,
         "audit": audit,

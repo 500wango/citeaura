@@ -100,7 +100,7 @@ const VIEW_LOADERS = {
   engines: () => import('./views/engines.js?v=2.6'),
   channels: () => import('./views/channels.js?v=2.5'),
   competitors: () => import('./views/competitors.js?v=2.5'),
-  siteaudit: () => import('./views/siteaudit.js?v=2.5'),
+  siteaudit: () => import('./views/siteaudit.js?v=2.6'),
   gaps: () => import('./views/gaps.js?v=2.5'),
   questions: () => import('./views/questions.js?v=2.5'),
   facts: () => import('./views/facts.js?v=2.5'),

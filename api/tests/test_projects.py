@@ -158,6 +158,44 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
             },
         },
     )
+    contact_url = "https://example.com/en/contact"
+    geolib.write_json(project_dir / "audit.json", {
+        "slug": "example-com",
+        "market": "global",
+        "page_count": 1,
+        "avg_score": 12,
+        "grade_distribution": {"A": 0, "B": 0, "C": 0, "D": 1},
+        "site": {
+            "root": "https://example.com", "pages_crawled": 1, "pages_ok": 1,
+            "has_sitemap": True, "has_llms_txt": True, "ai_bots_blocked": [],
+        },
+        "language_coverage": {"distribution": {"en": 1}, "en_pages": 1},
+        "site_issues": ["\u4e0d\u5e94\u8fdb\u5165\u4ea7\u54c1\u5c55\u793a\u7684\u5f15\u64ce\u6587\u6848"],
+        "pages": [{
+            "url": contact_url, "title": "Contact", "word_count": 44,
+            "score": 12, "grade": "D", "jsonld_types": [],
+            "blocks": {
+                "\u5b9a\u4e49": False, "\u6570\u5b57\u4e8b\u5b9e": False, "\u5bf9\u6bd4": False,
+                "\u64cd\u4f5c\u6b65\u9aa4": False, "FAQ": False,
+            },
+            "issues": ["\u6240\u6709\u9875\u9762\u5171\u7528\u7684\u4e2d\u6587\u7ed3\u8bba"],
+            "issue_codes": [
+                "SHORT_CONTENT", "FEW_H2", "NO_DEFINITION", "NO_NUMBERS",
+                "NO_COMPARISON", "NO_HOWTO", "NO_FAQ", "NO_DATE",
+                "FEW_EXTERNAL_LINKS", "NO_JSONLD", "LOW_RELEVANCE",
+            ],
+        }],
+    })
+    geolib.write_jsonl(project_dir / "evidence" / "pages.jsonl", [{
+        "url": contact_url, "final_url": contact_url, "status": 200,
+        "title": "Contact", "meta_robots": "", "canonical": contact_url,
+        "h1": ["Contact"], "h2": [], "para_count": 3, "word_count": 44,
+        "external_links": 0, "jsonld_types": [], "text": "Contact our sales and support teams.",
+    }])
+    geolib.write_json(project_dir / "evidence" / "site.json", {
+        "root": "https://example.com", "pages_crawled": 1, "pages_ok": 1,
+        "has_sitemap": True, "has_llms_txt": True, "ai_bots_blocked": [],
+    })
     geolib.write_jsonl(
         project_dir / "samples" / "2026-07-31.jsonl",
         [
@@ -208,6 +246,11 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     report = client.get(f"/api/v1/projects/{body['project_id']}/report", headers=headers)
     assert report.status_code == 200
     assert report.json()["report"]["platforms"]["openai"]["mention_rate"] == 1.0
+    audit = report.json()["report"]["audit"]
+    assert audit["presentation_version"] == 1
+    assert audit["applicable_avg_score"] == 100
+    assert audit["pages"][0]["role"]["id"] == "contact"
+    assert audit["pages"][0]["issues"] == []
     engines = client.get(f"/api/v1/projects/{body['project_id']}/engines", headers=headers)
     assert engines.status_code == 200
     assert engines.json()["project_id"] == body["project_id"]

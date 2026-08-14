@@ -162,6 +162,48 @@ def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypa
     assert delivery.delivery_language_violations(output) == []
 
 
+def test_delivery_audit_uses_page_role_applicability(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    audit = json.loads((project / "audit.json").read_text("utf-8"))
+    contact_url = "https://example.com/contact"
+    audit["pages"][0].update({
+        "url": contact_url,
+        "title": "Contact",
+        "word_count": 44,
+        "issue_codes": [
+            "SHORT_CONTENT", "FEW_H2", "NO_DEFINITION", "NO_NUMBERS",
+            "NO_COMPARISON", "NO_HOWTO", "NO_FAQ", "NO_DATE",
+            "FEW_EXTERNAL_LINKS", "NO_JSONLD", "LOW_RELEVANCE",
+        ],
+    })
+    _write_json(project / "audit.json", audit)
+    _write_jsonl(project / "evidence" / "pages.jsonl", [{
+        "url": contact_url,
+        "status": 200,
+        "title": "Contact",
+        "meta_robots": "",
+        "canonical": contact_url,
+        "h1": ["Contact"],
+        "h2": [],
+        "para_count": 3,
+        "word_count": 44,
+        "external_links": 0,
+        "jsonld_types": [],
+        "text": "Contact our sales and support teams.",
+    }])
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    report = (output / "01-Audit-Report.md").read_text("utf-8")
+    assert "Applicable site score: **100**" in report
+    assert "only evidence-backed checks applicable to each page role" in report
+    assert "Missing definition block" not in report
+    assert "Missing FAQ block" not in report
+    assert "| 100 | 44 | A |" in report
+    assert delivery.delivery_language_violations(output) == []
+
+
 def test_legacy_deliverables_render_manual_channels_without_key_gap_status(tmp_path, monkeypatch):
     project, _output = seed_delivery_project(tmp_path)
     legacy = project / "deliverables"

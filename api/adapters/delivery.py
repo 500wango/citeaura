@@ -14,7 +14,7 @@ from api.adapters.branding import apply_delivery_branding
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
 from api.adapters.localization import localize_ticket, normalize_english_typography
-from api.adapters import brand_identity, global_scope, measurement
+from api.adapters import audit_presentation, brand_identity, global_scope, measurement
 
 
 REQUIRED_DOCUMENTS = {
@@ -533,7 +533,10 @@ def _sample_modes(project_directory, metrics):
 def _audit_markdown(project_slug, project_directory, name, site, audit, metrics):
     site_data = audit.get("site") or {}
     coverage = audit.get("language_coverage") or {}
-    grades = audit.get("grade_distribution") or {}
+    grades = audit.get("applicable_grade_distribution") or audit.get("grade_distribution") or {}
+    site_score = audit.get("applicable_avg_score")
+    if site_score is None:
+        site_score = audit.get("avg_score")
     audited_at = str(audit.get("audited_at") or geolib.today())[:10]
     lines = [
         f"# {name} GEO Audit Report",
@@ -542,7 +545,8 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
         f"- Official website: {site}",
         "- Target market: Global",
         f"- Crawled pages: {audit.get('page_count', 0)}",
-        f"- Average site score: **{_format_number(audit.get('avg_score'))}**",
+        f"- Applicable site score: **{_format_number(site_score)}**",
+        "- Scoring method: only evidence-backed checks applicable to each page role are counted.",
         "",
         "## Technical Baseline",
         "",
@@ -567,13 +571,24 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
         "| Score | Words | Grade | Page | Primary Gaps |",
         "|---:|---:|---|---|---|",
     ]
-    pages = sorted(audit.get("pages") or [], key=lambda page: page.get("score", 0))[:20]
+    pages = sorted(
+        audit.get("pages") or [],
+        key=lambda page: (
+            page.get("applicable_score") is None,
+            page.get("applicable_score") if page.get("applicable_score") is not None else 101,
+        ),
+    )[:20]
     for page in pages:
         url = _require_english(page.get("url") or "Unknown URL", "audit page URL")
-        codes = page.get("issue_codes") or []
-        issues = ", ".join(ISSUE_NAMES.get(str(code), str(code).replace("_", " ").title()) for code in codes[:5]) or "None"
+        findings = page.get("findings") or []
+        issues = ", ".join(
+            _require_english(item.get("title") or item.get("code") or "Review required", "audit finding")
+            for item in findings[:5] if isinstance(item, dict)
+        ) or ("Not scored" if page.get("evaluation_status") == "excluded" else "None")
+        score = page.get("applicable_score")
+        grade = page.get("applicable_grade") or "-"
         lines.append(
-            f"| {_format_number(page.get('score'))} | {page.get('word_count', 0)} | {page.get('grade', '')} "
+            f"| {_format_number(score) if score is not None else 'Not scored'} | {page.get('word_count', 0)} | {grade} "
             f"| [{_markdown_cell(url)}]({_markdown_cell(url)}) | {_markdown_cell(issues)} |"
         )
     lines += [
@@ -1606,12 +1621,15 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     asset_summary = asset_index.get("summary") or {}
     schema_selection = asset_index.get("schema_selection") or {}
     documents = [f"{number}-{title}.html" for number, title in REQUIRED_DOCUMENTS.items()]
+    site_score = audit.get("applicable_avg_score")
+    if site_score is None:
+        site_score = audit.get("avg_score")
     lines = [
         f"# {name} GEO Delivery Pack",
         "",
         f"- Official website: {site}",
         f"- Delivery date: {delivery_date}",
-        f"- Average site score: {_format_number(audit.get('avg_score'))}",
+        f"- Applicable site score: {_format_number(site_score)}",
         f"- Action tickets: {len(tickets)}",
         f"- Channel coverage: {coverage.get('channel_covered', 0)}/{coverage.get('channel_total', 0)}",
     ]
@@ -1668,7 +1686,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
             f"{name} GEO Delivery Pack",
             markdown,
             [
-                ("Site Score", _format_number(audit.get("avg_score"))),
+                ("Applicable Site Score", _format_number(site_score)),
                 ("Tickets", str(len(tickets))),
                 ("Documents", str(len(documents))),
                 ("Ready Assets", str(asset_summary.get("ready", 0))),
@@ -1700,21 +1718,26 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
 def _build_delivery(project_slug, project_directory, directory, delivery_date):
     config, audit, task_data, blueprint, metrics, verification, lint = _load_sources(project_directory)
     name, site = _identity(project_directory, project_slug, config, audit)
+    display_audit = audit_presentation.present_audit_data(
+        audit,
+        geolib.read_jsonl(project_directory / "evidence" / "pages.jsonl"),
+        audit.get("site") or {},
+    )
     tickets = [_ticket_en(ticket) for ticket in task_data["tasks"] if isinstance(ticket, dict)]
     if not tickets:
         raise GeoEngineError("delivery source is missing or invalid: no usable tickets")
     tickets.sort(key=lambda ticket: (ticket["priority"], ticket["id"]))
 
-    audit_markdown = _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
+    audit_markdown = _audit_markdown(project_slug, project_directory, name, site, display_audit, metrics)
     execution_markdown = _execution_markdown(name, tickets, task_data)
     tickets_markdown = _tickets_markdown(name, tickets)
-    verification_markdown = _verification_markdown(name, audit, verification, tickets)
+    verification_markdown = _verification_markdown(name, display_audit, verification, tickets)
     risk_markdown = _risk_markdown(name, lint)
     build_map_markdown = _build_map_markdown(name, blueprint)
 
     _write_document(directory, "01", audit_markdown, [
-        ("Site Score", _format_number(audit.get("avg_score"))),
-        ("Crawled Pages", str(audit.get("page_count", 0))),
+        ("Applicable Site Score", _format_number(display_audit.get("applicable_avg_score"))),
+        ("Crawled Pages", str(display_audit.get("page_count", 0))),
     ])
     _write_document(directory, "02", execution_markdown, [
         ("Total Tickets", str(len(tickets))),
@@ -1741,7 +1764,7 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
         channel_stats.append(("Manual Confirmation", str(coverage["channel_manual"])))
     _write_document(directory, "06", build_map_markdown, channel_stats)
     asset_index = _write_assets(project_slug, project_directory, directory, config, audit, blueprint)
-    _write_index(directory, name, site, delivery_date, audit, tickets, blueprint, asset_index)
+    _write_index(directory, name, site, delivery_date, display_audit, tickets, blueprint, asset_index)
     apply_delivery_branding(directory)
     validate_delivery_language(directory)
 

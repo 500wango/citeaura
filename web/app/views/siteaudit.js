@@ -7,6 +7,34 @@ import { t } from '../i18n.js';
 import { gradeBadge } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function renderFindings(page) {
+  const findings = Array.isArray(page.findings) ? page.findings : [];
+  if (findings.length) {
+    return findings.map((finding) => `
+      <span class="tag pill-warn" title="${escapeHtml(finding.detail || finding.title)}">
+        <span class="num">${escapeHtml(finding.severity || 'P2')}</span>
+        ${escapeHtml(finding.title || finding.code)}
+      </span>
+    `).join('');
+  }
+  if (page.evaluation_status === 'excluded') {
+    return `<span class="tag tag-dim">${escapeHtml(page.evaluation_note || 'Excluded from public-content scoring')}</span>`;
+  }
+  if (page.evaluation_status === 'not_evaluated') {
+    return '<span class="tag tag-dim">Insufficient crawl evidence</span>';
+  }
+  return '<span class="tag tag-dim">No applicable gaps detected</span>';
+}
+
 export default {
   render: async (ctx) => {
     const projectId = ctx.activeProjectId;
@@ -21,8 +49,14 @@ export default {
 
     const audit = (report && report.audit) || {};
     const pages = (audit && audit.pages) || [];
-    const avgScore = audit.avg_score ?? audit.score ?? null;
-    const grade = report && report.grade;
+    const usesApplicableScore = Number(audit.presentation_version || 0) >= 1;
+    const avgScore = usesApplicableScore
+      ? (audit.applicable_avg_score ?? null)
+      : (audit.avg_score ?? audit.score ?? null);
+    const grade = usesApplicableScore ? audit.applicable_grade : (report && report.grade);
+    const scoreUnavailableLabel = usesApplicableScore ? 'Not scored' : 'Unmeasured';
+    const summary = audit.check_summary || {};
+    const siteFindings = Array.isArray(audit.site_findings) ? audit.site_findings : [];
 
     return `
       <div class="app-view-container">
@@ -44,29 +78,46 @@ export default {
         <!-- Score Overview Card -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:var(--sp-4);">
           <div class="card" style="gap:var(--sp-2);">
-            <span class="kicker">${t('siteaudit.overall_score', {}, 'Technical Score')}</span>
+            <span class="kicker">${t('siteaudit.overall_score', {}, 'Applicable Technical Score')}</span>
             <div style="display:flex;align-items:center;gap:var(--sp-3);">
-              ${grade ? gradeBadge(grade) : '<span class="tag tag-dim">Unmeasured</span>'}
-              <span class="num" style="font-size:var(--fs-7);font-weight:700;">${avgScore ?? 'Unmeasured'}</span>
+              ${grade ? gradeBadge(grade) : `<span class="tag tag-dim">${scoreUnavailableLabel}</span>`}
+              <span class="num" style="font-size:var(--fs-7);font-weight:700;">${avgScore ?? scoreUnavailableLabel}</span>
               ${avgScore === null ? '' : '<span style="color:var(--muted);font-size:var(--fs-2);">/ 100</span>'}
             </div>
           </div>
           <div class="card" style="gap:var(--sp-2);">
             <span class="kicker">${t('siteaudit.crawled_pages', {}, 'Audited Pages')}</span>
             <span class="num" style="font-size:var(--fs-7);font-weight:700;">${pages.length}</span>
-            <span style="color:var(--muted);font-size:11px;">Pages included in the latest audit</span>
+            <span style="color:var(--muted);font-size:11px;">${summary.excluded_pages || 0} utility pages excluded from content scoring</span>
           </div>
           <div class="card" style="gap:var(--sp-2);">
-            <span class="kicker">LLMs.txt Status</span>
-            <span style="font-weight:600;font-size:var(--fs-4);">${audit.site?.has_llms_txt ? 'Detected on site' : 'Not detected on site'}</span>
-            <a href="#/assets" style="font-size:11px;">Review generated assets →</a>
+            <span class="kicker">Applicable Checks</span>
+            <span class="num" style="font-size:var(--fs-7);font-weight:700;">${summary.passed || 0} / ${summary.evaluated || 0}</span>
+            <span style="color:var(--muted);font-size:11px;">${summary.not_evaluated || 0} not evaluated / ${summary.not_applicable || 0} not applicable</span>
           </div>
         </div>
+
+        ${siteFindings.length ? `
+          <div class="card" style="gap:var(--sp-3);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);">
+              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Site-level Findings</h3>
+              <span class="tag tag-dim">${siteFindings.length} detected</span>
+            </div>
+            <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">
+              ${siteFindings.map((finding) => `
+                <span class="tag pill-warn" title="${escapeHtml(finding.detail || finding.title)}">
+                  <span class="num">${escapeHtml(finding.severity || 'P2')}</span>
+                  ${escapeHtml(finding.title || finding.code)}
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
 
         <!-- Page Audit Detailed Breakdown -->
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
-            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('siteaudit.pages_table_title', {}, 'Page Level Extraction Audit')}</h3>
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('siteaudit.pages_table_title', {}, 'Page-level Applicable Audit')}</h3>
             <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${pages.length} pages</span>
           </div>
 
@@ -74,13 +125,13 @@ export default {
             pages.length
               ? `
             <div class="tbl" style="overflow-x:auto;">
-              <table class="table">
+              <table class="table" style="min-width:920px;table-layout:fixed;">
                 <thead>
                   <tr>
-                    <th>${t('siteaudit.col_url', {}, 'Page URL')}</th>
-                    <th>${t('siteaudit.col_grade', {}, 'Grade')}</th>
-                    <th style="text-align:right;">${t('siteaudit.col_score', {}, 'Score')}</th>
-                    <th>${t('siteaudit.col_issues', {}, 'Detected Extraction Gaps')}</th>
+                    <th style="width:31%;">${t('siteaudit.col_url', {}, 'Page URL')}</th>
+                    <th style="width:10%;">${t('siteaudit.col_grade', {}, 'Grade')}</th>
+                    <th style="width:10%;text-align:right;">${t('siteaudit.col_score', {}, 'Score')}</th>
+                    <th>${t('siteaudit.col_issues', {}, 'Applicable Findings')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -89,17 +140,17 @@ export default {
                       (p) => `
                     <tr>
                       <td>
-                        <span class="num" style="font-weight:600;color:var(--ink);">${p.url || p.path || '/'}</span>
+                        <div class="num" style="font-weight:600;color:var(--ink);overflow-wrap:anywhere;">${escapeHtml(p.url || p.path || '/')}</div>
+                        <div style="display:flex;align-items:center;gap:var(--sp-2);margin-top:6px;flex-wrap:wrap;">
+                          <span class="tag tag-dim">${escapeHtml(p.role?.label || 'General content page')}</span>
+                          <span style="font-size:11px;color:var(--muted);">${p.check_summary?.evaluated || 0} checks / ${(p.check_summary?.not_applicable || 0) + (p.check_summary?.not_evaluated || 0)} skipped</span>
+                        </div>
                       </td>
-                      <td>${p.grade ? gradeBadge(p.grade) : '<span class="tag tag-dim">Unmeasured</span>'}</td>
-                      <td data-num style="font-weight:700;color:var(--ink);">${p.score ?? 'Unmeasured'}</td>
+                      <td>${p.applicable_grade ? gradeBadge(p.applicable_grade) : '<span class="tag tag-dim">Not scored</span>'}</td>
+                      <td data-num style="font-weight:700;color:var(--ink);">${p.applicable_score ?? 'Not scored'}</td>
                       <td>
                         <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                          ${
-                            p.issues && p.issues.length
-                              ? p.issues.map((iss) => `<span class="tag pill-warn">${iss}</span>`).join('')
-                              : '<span class="tag tag-dim">No issue labels recorded</span>'
-                          }
+                          ${renderFindings(p)}
                         </div>
                       </td>
                     </tr>

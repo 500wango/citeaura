@@ -42,7 +42,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.4' in response.text
+    assert '/app/app.js?v=3.5' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -65,6 +65,7 @@ def test_spa_static_modules_are_served():
         "/app/views/engines.js",
         "/app/views/plan.js",
         "/app/views/report.js",
+        "/app/views/siteaudit.js",
         "/app/views/onboarding.js",
         "/app/components/toast.js",
         "/app/components/modal.js",
@@ -115,6 +116,7 @@ def test_frontend_contracts_match_backend_request_models():
     overview = (root / "web/app/views/overview.js").read_text("utf-8")
     onboarding = (root / "web/app/views/onboarding.js").read_text("utf-8")
     telemetry = (root / "web/app/components/telemetry-modal.js").read_text("utf-8")
+    siteaudit = (root / "web/app/views/siteaudit.js").read_text("utf-8")
 
     assert "resetPassword({ token, password })" in reset
     assert "preview.tenant?.name" in invite
@@ -123,6 +125,13 @@ def test_frontend_contracts_match_backend_request_models():
     assert "{ code: 'openai'" in engines
     assert "Testing endpoint, API Key, and Model ID..." in engines
     assert "provider_http_401" in engines
+    assert "audit.applicable_avg_score" in siteaudit
+    assert "audit.presentation_version" in siteaudit
+    assert "p.applicable_score" in siteaudit
+    assert "p.issues.map" not in siteaudit
+    catalog = (root / "api/i18n/messages/en.json").read_text("utf-8")
+    assert '"siteaudit.overall_score": "Applicable Technical Score"' in catalog
+    assert '"siteaudit.col_issues": "Applicable Findings"' in catalog
     assert "await ctx.reloadCurrentView()" in engines
     assert "ctx.navigate('#/engine-settings')" not in engines
     assert 'id="supported-model-endpoints"' in engines
