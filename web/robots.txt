@@ -1,0 +1,73 @@
+# CiteAura Search Engine Crawling Policy
+# https://citeaura.com/
+
+User-agent: *
+Allow: /
+Allow: /docs
+Allow: /privacy
+Allow: /terms
+Allow: /site-assets/
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+# Search Engine Specific Directives
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: Baiduspider
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: YandexBot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: Applebot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: Sogou web spider
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: 360Spider
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+# XML Sitemap
+Sitemap: https://citeaura.com/sitemap.xml

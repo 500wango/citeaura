@@ -74,3 +74,18 @@ def test_landing_js_is_english_only():
     assert "fetch('/i18n/en.json')" in response.text
     assert "zh-CN" not in response.text
     assert "ja" not in response.text
+
+
+def test_seo_technical_files_are_served():
+    robots_res = client.get("/robots.txt")
+    assert robots_res.status_code == 200
+    assert robots_res.headers["content-type"].startswith("text/plain")
+    assert "User-agent: Googlebot" in robots_res.text
+    assert "Sitemap: https://citeaura.com/sitemap.xml" in robots_res.text
+
+    sitemap_res = client.get("/sitemap.xml")
+    assert sitemap_res.status_code == 200
+    assert "xml" in sitemap_res.headers["content-type"]
+    assert "<loc>https://citeaura.com/</loc>" in sitemap_res.text
+    assert "<loc>https://citeaura.com/docs</loc>" in sitemap_res.text
+

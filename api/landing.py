@@ -36,6 +36,18 @@ def serve_docs_page():
     return FileResponse(WEB_ROOT / "docs.html", media_type="text/html; charset=utf-8")
 
 
+@router.get("/robots.txt")
+def serve_robots_txt():
+    """返回搜索引擎抓取策略文件 robots.txt。"""
+    return FileResponse(WEB_ROOT / "robots.txt", media_type="text/plain; charset=utf-8")
+
+
+@router.get("/sitemap.xml")
+def serve_sitemap_xml():
+    """返回网站索引地图 sitemap.xml。"""
+    return FileResponse(WEB_ROOT / "sitemap.xml", media_type="application/xml; charset=utf-8")
+
+
 @router.get("/i18n/{locale}.json")
 def serve_i18n_catalog(locale: str):
     """Serve the English landing-page catalog."""
@@ -47,3 +59,4 @@ def serve_i18n_catalog(locale: str):
         raise HTTPException(status_code=404, detail={"error": "locale_not_found"})
     catalogs = load_all_catalogs()
     return JSONResponse(catalogs.get(code) or {}, media_type="application/json; charset=utf-8")
+
