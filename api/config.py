@@ -66,6 +66,11 @@ def rate_limit_trust_proxy_headers():
     return _enabled("RATE_LIMIT_TRUST_PROXY_HEADERS")
 
 
+def integration_sync_cooldown_seconds():
+    """限制同一项目重复同步外部数据源的最短间隔。"""
+    return _seconds("INTEGRATION_SYNC_COOLDOWN_SECONDS", 900, 0)
+
+
 def trust_cloudflare_country_header():
     """仅在源站限制为可信 Cloudflare 流量后启用国家头。"""
     return _enabled("TRUST_CLOUDFLARE_COUNTRY_HEADER")

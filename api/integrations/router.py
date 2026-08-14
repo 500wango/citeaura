@@ -1,7 +1,7 @@
 """Semrush 与 Google Search Console 集成 API。"""
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -61,6 +61,37 @@ def _error(status_code, message, detail=None):
     if detail:
         body["detail"] = detail
     raise HTTPException(status_code=status_code, detail=body)
+
+
+def _reject_recent_sync(db, project, provider):
+    """在任务完成后保留冷却窗口，避免重复点击消耗外部 API 配额。"""
+    cooldown = config.integration_sync_cooldown_seconds()
+    if cooldown <= 0:
+        return
+    action = f"integration_{provider}"
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(seconds=cooldown)
+    recent = db.query(Job).filter(
+        Job.project_id == project.id,
+        Job.action == action,
+        Job.status == "done",
+        Job.finished_at >= cutoff,
+    ).order_by(Job.finished_at.desc()).first()
+    if recent is None:
+        return
+    finished_at = recent.finished_at
+    if finished_at.tzinfo is None:
+        finished_at = finished_at.replace(tzinfo=timezone.utc)
+    retry_after = max(1, int((finished_at + timedelta(seconds=cooldown) - now).total_seconds()))
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail={
+            "error": "integration_sync_cooldown",
+            "detail": f"Sync is available again in {retry_after} seconds.",
+            "retry_after_seconds": retry_after,
+        },
+        headers={"Retry-After": str(retry_after)},
+    )
 
 
 def _tenant(db, user):
@@ -299,6 +330,7 @@ def sync_project_integration(
     ).first()
     if active is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    _reject_recent_sync(db, project, provider)
     action = f"integration_{provider}"
     job = Job(project_id=project.id, action=action, status="queued", request_json=json.dumps({"provider": provider}))
     db.add(job)

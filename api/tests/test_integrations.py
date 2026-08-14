@@ -1,5 +1,6 @@
 import base64
 import json
+from datetime import datetime, timezone
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -109,6 +110,19 @@ def test_semrush_config_is_encrypted_and_sync_is_tenant_isolated(integration_cli
     assert sync.status_code == 202
     assert sync.json()["provider"] == "semrush"
     assert queued[0][0] == ("tenant-a", "example-com", "semrush")
+
+    with session_factory() as db:
+        job = db.query(Job).filter(Job.project_id == project_id).one()
+        job.status = "done"
+        job.finished_at = datetime.now(timezone.utc)
+        db.commit()
+    limited = client.post(
+        f"/api/v1/projects/{project_id}/integrations/semrush/sync",
+        headers=headers,
+    )
+    assert limited.status_code == 429
+    assert limited.json()["error"] == "integration_sync_cooldown"
+    assert int(limited.headers["retry-after"]) > 0
 
     _other, other_headers = _register(client, "other@example.net", "tenant-b")
     assert client.get(f"/api/v1/projects/{project_id}/integrations", headers=other_headers).status_code == 404

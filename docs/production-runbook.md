@@ -8,6 +8,7 @@
 2. 在 Neon 创建生产项目，复制连接串并将协议改为 `postgresql+psycopg2://`，保留 `?sslmode=require`。生产 Compose 不启动本地 Postgres，迁移会直接写入 Neon。
 3. 将 `PUBLIC_BASE_URL` 设置为 `https://DOMAIN`，并将 `SESSION_COOKIE_SECURE=true`。
 4. 保持 `RATE_LIMIT_ENABLED=true` 和 `RATE_LIMIT_TRUST_PROXY_HEADERS=true`。默认每个用户或来源 IP 每分钟 120 个 API 请求，注册、登录和刷新每分钟 20 个；可通过 `RATE_LIMIT_*` 调整。
+   外部集合同一项目默认每 15 分钟最多同步一次，可通过 `INTEGRATION_SYNC_COOLDOWN_SECONDS` 调整；设为 `0` 可关闭该冷却。
 5. 暂不开放支付时保持 `BILLING_ENABLED=false`，Stripe 配置可以留空。开放支付时改为 `true`，并在 Stripe Dashboard 创建订阅 Checkout Webhook；事件至少包括 `checkout.session.completed`、`checkout.session.async_payment_succeeded`、`customer.subscription.updated`、`customer.subscription.deleted`、`invoice.paid` 和 `invoice.payment_failed`，地址为 `https://DOMAIN/api/v1/billing/webhook`。
 6. 宿主机 Caddy 独占 `80/443` 并自动管理证书。CiteAura 默认仅监听 `127.0.0.1:18000`，可用 `APP_PORT` 调整。
 7. 暂不开放密码重置邮件时保持 `PASSWORD_RESET_EMAIL_ENABLED=false`，认证 SMTP 可以留空。开放时改为 `true` 并配置 `AUTH_SMTP_*` 全局发件账号。外链联络 SMTP 仍由各租户在工作台单独配置。
