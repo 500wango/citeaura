@@ -42,7 +42,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.7' in response.text
+    assert '/app/app.js?v=3.8' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -80,27 +80,31 @@ def test_spa_static_modules_are_served():
         assert "javascript" in response.headers["content-type"].lower() or "text/" in response.headers["content-type"].lower()
 
 
-def test_citation_sources_and_traffic_views_have_distinct_responsibilities():
+def test_citation_sources_view_has_no_legacy_seo_integrations():
     client = TestClient(app)
     channels = client.get("/app/views/channels.js").text
-    integrations = client.get("/app/views/integrations.js").text
+    app_js = client.get("/app/app.js").text
+    api_js = client.get("/app/api.js").text
 
     assert "AI Citation Sources" in channels
     assert "Run Citation Sampling" in channels
     assert "TabAPI" not in channels
     assert "getProjectTraffic" not in channels
-    assert "Domain Traffic Snapshot" in integrations
-    assert "getProjectTraffic" in integrations
-    assert "not used in AI citation scoring" in integrations
+    assert "SEO Integrations" not in app_js
+    assert "views/integrations.js" not in app_js
+    assert "getProjectTraffic" not in api_js
+    assert client.get("/app/views/integrations.js").status_code == 404
 
 
-def test_search_console_authorization_button_has_oauth_action():
-    text = TestClient(app).get("/app/views/integrations.js").text
+def test_legacy_seo_integration_api_is_not_exposed():
+    client = TestClient(app)
 
-    assert "btn-connect-gsc" in text
-    assert "search-console/authorize?project_id=" in text
-    assert "window.location.assign" in text
-    assert "oauth_available" in text
+    assert client.get("/api/v1/integrations").status_code == 404
+    assert client.get(
+        "/api/v1/integrations/search-console/authorize",
+        params={"project_id": 1},
+    ).status_code == 404
+    assert client.post("/api/v1/projects/1/integrations/tabapi/sync").status_code == 404
 
 
 def test_api_js_covers_all_core_endpoints():

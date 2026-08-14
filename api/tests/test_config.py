@@ -14,7 +14,6 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     monkeypatch.setenv("RATE_LIMIT_AUTH_REQUESTS", "12")
     monkeypatch.setenv("RATE_LIMIT_WINDOW_SECONDS", "90")
     monkeypatch.setenv("RATE_LIMIT_TRUST_PROXY_HEADERS", "true")
-    monkeypatch.setenv("INTEGRATION_SYNC_COOLDOWN_SECONDS", "300")
     monkeypatch.setenv("CELERY_RESULT_BACKEND", "redis://example.test:6379/5")
     monkeypatch.setenv("JWT_SECRET", "runtime-secret")
     monkeypatch.setenv("AES_KEY", "runtime-aes-key")
@@ -41,7 +40,6 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     assert config.rate_limit_auth_requests() == 12
     assert config.rate_limit_window_seconds() == 90
     assert config.rate_limit_trust_proxy_headers() is True
-    assert config.integration_sync_cooldown_seconds() == 300
     assert config.celery_result_backend() == "redis://example.test:6379/5"
     assert config.jwt_secret() == "runtime-secret"
     assert config.aes_key() == "runtime-aes-key"
@@ -72,13 +70,6 @@ def test_rate_limit_config_rejects_invalid_ranges(monkeypatch):
     assert config.rate_limit_requests() == 120
     assert config.rate_limit_auth_requests() == 20
     assert config.rate_limit_window_seconds() == 60
-
-
-def test_integration_sync_cooldown_rejects_invalid_ranges(monkeypatch):
-    monkeypatch.setenv("INTEGRATION_SYNC_COOLDOWN_SECONDS", "-1")
-    assert config.integration_sync_cooldown_seconds() == 900
-    monkeypatch.setenv("INTEGRATION_SYNC_COOLDOWN_SECONDS", "0")
-    assert config.integration_sync_cooldown_seconds() == 0
 
 
 def test_annual_discount_config_rejects_invalid_ranges(monkeypatch):

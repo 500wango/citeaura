@@ -160,11 +160,6 @@ def validate_environment(values):
             errors.append("STRIPE_CURRENCY must be usd")
     else:
         warnings.append("Billing is disabled by BILLING_ENABLED=false")
-    google_values = (values.get("GOOGLE_OAUTH_CLIENT_ID"), values.get("GOOGLE_OAUTH_CLIENT_SECRET"))
-    if any(google_values) and not all(google_values):
-        errors.append("GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET must be configured together")
-    if not all(google_values):
-        warnings.append("Search Console OAuth is disabled until Google credentials are configured")
     bucket = values.get("OBJECT_STORAGE_BUCKET", "")
     endpoint = values.get("OBJECT_STORAGE_ENDPOINT_URL", "")
     if endpoint and not bucket:
@@ -175,7 +170,10 @@ def validate_environment(values):
         warnings.append("Object storage archive is disabled until a bucket is configured")
     if not any(values.get(f"PLATFORM_POOL_{key}") for key in PLATFORM_KEYS):
         warnings.append("Platform-funded sampling is disabled until at least one platform key is configured")
-    warnings.append("Semrush, outreach SMTP, and OIDC credentials are tenant-managed and require in-app connection tests")
+    for key in ("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET", "INTEGRATION_SYNC_COOLDOWN_SECONDS"):
+        if values.get(key):
+            warnings.append(f"{key} is no longer used and should be removed")
+    warnings.append("Outreach SMTP and OIDC credentials are tenant-managed and require in-app connection tests")
     return errors, warnings
 
 

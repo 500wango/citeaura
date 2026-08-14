@@ -13,8 +13,8 @@ def test_landing_page_is_public_and_links_to_application():
     assert response.headers["content-type"].startswith("text/html")
     assert '<h1 id="hero-title" data-i18n="landing.hero_title">CiteAura</h1>' in response.text
     assert "CiteAura is a web-based Generative Engine Optimization (GEO) platform" in response.text
-    assert "read-only Google Search Console" in response.text
-    assert "it never modifies Search Console data or website content" in response.text
+    assert "turn findings into trackable optimization work" in response.text
+    assert "Google Search Console" not in response.text
     assert 'href="/app"' in response.text
     assert 'data-i18n="landing.mode_parametric"' in response.text
     assert 'data-i18n="landing.mode_search"' in response.text
@@ -35,14 +35,13 @@ def test_public_verification_pages_support_head_requests():
         assert response.headers["content-type"].startswith("text/html"), path
 
 
-def test_privacy_policy_discloses_google_api_data_use():
+def test_privacy_policy_has_no_removed_seo_integration_claims():
     response = client.get("/privacy")
 
     assert response.status_code == 200
-    assert "Google Search Console" in response.text
-    assert "Google API Services User Data Policy" in response.text
-    assert "Limited Use requirements" in response.text
-    assert "Disconnecting Google Search Console deletes the stored OAuth credential" in response.text
+    assert "Google Search Console" not in response.text
+    assert "Semrush" not in response.text
+    assert "TabAPI" not in response.text
 
 
 def test_landing_assets_are_served():

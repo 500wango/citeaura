@@ -262,19 +262,6 @@ export const outreach = {
 };
 
 /* ==========================================================================
-   Integrations 
-   ========================================================================== */
-export const integrations = {
-  list: () => request('/api/v1/integrations'),
-  saveSemrush: (body) => request('/api/v1/integrations/semrush', { method: 'PUT', body }),
-  saveTabapi: (body) => request('/api/v1/integrations/tabapi', { method: 'PUT', body }),
-  delete: (provider) => request(`/api/v1/integrations/${encodeURIComponent(provider)}`, { method: 'DELETE' }),
-  getProjectIntegrations: (id) => request(`/api/v1/integrations/projects/${encodeURIComponent(id)}/integrations`),
-  getProjectTraffic: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/traffic`),
-  sync: (id, provider) => request(`/api/v1/projects/${encodeURIComponent(id)}/integrations/${encodeURIComponent(provider)}/sync`, { method: 'POST' }),
-};
-
-/* ==========================================================================
    Team 
    ========================================================================== */
 export const team = {

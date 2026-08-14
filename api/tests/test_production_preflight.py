@@ -30,8 +30,6 @@ def _valid_environment():
         "STRIPE_SECRET_KEY": "sk_live_valid",
         "STRIPE_WEBHOOK_SECRET": "whsec_valid",
         "STRIPE_CURRENCY": "usd",
-        "GOOGLE_OAUTH_CLIENT_ID": "google-client",
-        "GOOGLE_OAUTH_CLIENT_SECRET": "google-secret",
         "OBJECT_STORAGE_BUCKET": "archives",
     }
 
@@ -92,6 +90,20 @@ def test_preflight_allows_disabled_billing_and_password_reset_email():
     assert errors == []
     assert "Billing is disabled by BILLING_ENABLED=false" in warnings
     assert "Password reset email is disabled by PASSWORD_RESET_EMAIL_ENABLED=false" in warnings
+
+
+def test_preflight_warns_about_removed_seo_integration_settings():
+    values = _valid_environment()
+    values["GOOGLE_OAUTH_CLIENT_ID"] = "unused-client"
+    values["GOOGLE_OAUTH_CLIENT_SECRET"] = "unused-secret"
+    values["INTEGRATION_SYNC_COOLDOWN_SECONDS"] = "900"
+
+    errors, warnings = validate_environment(values)
+
+    assert errors == []
+    assert "GOOGLE_OAUTH_CLIENT_ID is no longer used and should be removed" in warnings
+    assert "GOOGLE_OAUTH_CLIENT_SECRET is no longer used and should be removed" in warnings
+    assert "INTEGRATION_SYNC_COOLDOWN_SECONDS is no longer used and should be removed" in warnings
 
 
 def test_preflight_requires_explicit_valid_feature_flags():

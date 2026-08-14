@@ -117,6 +117,7 @@
 - WordPress 发布集成（P1）  
 - 词云 framing（P1，非核心路径）  
 - 竞品自动发现可视化（P1，逻辑已有）
+- 传统 SEO 数据集成（Google Search Console、Semrush、TabAPI）；不纳入 GEO 核心评分与工作流
 
 ---
 
@@ -287,7 +288,6 @@ App
 ### 5.3 P2 — Later
 
 - SSO / SOC2  
-- 与 Semrush/Search Console 集成  
 - 自动外链 outreach 发送（高风险，需人工）  
 - 移动 App  
 - 年付折扣  

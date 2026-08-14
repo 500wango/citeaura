@@ -51,7 +51,6 @@ RETRYABLE_ACTIONS = frozenset((
     "bootstrap", "autopilot", "sample", "cycle", "verify", "deliver",
     "crawl", "audit", "deliverables", "plan", "expand", "blueprint", "generate", "lint", "report",
     "sample-sheet", "serve", "archive", "archive_restore", "outreach_send",
-    "integration_semrush", "integration_search_console", "integration_tabapi",
 ))
 
 
@@ -357,10 +356,6 @@ def _dispatch_retry(task_name, tenant_name, project_slug, request, job_id, sourc
         if not draft_id:
             raise ValueError("outreach_send request is missing draft_id")
         return task_send_outreach.delay(tenant_name, project_slug, draft_id, job_id=job_id)
-    if source_action.startswith("integration_"):
-        from api.integrations.router import task_sync_integration
-        provider = request.get("provider") or source_action.removeprefix("integration_")
-        return task_sync_integration.delay(tenant_name, project_slug, provider, job_id=job_id)
     return task_pipeline.delay(tenant_name, project_slug, source_action, params=request, job_id=job_id)
 
 
