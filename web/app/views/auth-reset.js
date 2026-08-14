@@ -2,7 +2,7 @@
  * 
  */
 
-import { auth } from '../api.js';
+import { auth } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 

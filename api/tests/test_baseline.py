@@ -50,3 +50,6 @@ def test_bootstrap_metadata_removes_domestic_questions(tmp_path, monkeypatch):
     saved = json.loads((project / "geo.json").read_text("utf-8"))
     assert saved["questions"] == []
     assert saved["market"] == "global"
+    assert saved["business_profile"]["id"] == "generic"
+    assert saved["business_profile"]["confirmed"] is False
+    assert saved["business_profile"]["review_required"] is True

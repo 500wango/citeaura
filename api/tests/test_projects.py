@@ -65,7 +65,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
             json.dumps({
                 "brand": {"name": "Example", "site": args.url},
                 "market": args.market,
-                "questions": [{"id": "q001", "text": "What is Example?", "market": "global"}],
+                "questions": [{"id": "q001", "text": "Which AI visibility platform is reliable?", "market": "global"}],
                 "competitors": [
                     {"name": "Confirmed Rival", "aliases": ["CR"], "market": "global", "confirmed": True},
                     {"name": "Candidate Rival", "aliases": [], "market": "global", "confirmed": False},
@@ -117,7 +117,10 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert [item["discovery_status"] for item in discovery["items"]] == [
         "sample_confirmed", "candidate", "configured",
     ]
-    assert discovery["items"][0]["aliases"] == ["CR"]
+    assert discovery["items"][0]["aliases"] == []
+    assert discovery["items"][0]["alias_review"] == [{
+        "value": "CR", "status": "pending", "reason": "identity_evidence_required",
+    }]
     current_status = client.get(f"/api/v1/projects/{body['project_id']}/status", headers=headers)
     assert current_status.status_code == 200
     assert current_status.json()["status"] == "bootstrapping"
@@ -162,9 +165,11 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
                 "platform": "openai",
                 "platform_name": "OpenAI",
                 "market": "global",
-                "sample_mode": "api",
-                "search_enabled": False,
-                "question": "What is Example?",
+                    "sample_mode": "api",
+                    "search_enabled": False,
+                    "question_id": "q001",
+                    "question": "Which AI visibility platform is reliable?",
+                    "ok": True,
                 "answer": "Example is a reliable AI visibility platform.",
                 "elapsed_ms": 12,
                 "analysis": {
@@ -182,9 +187,11 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
                 "platform_name": "ChatGPT 网页版",
                 "market": "global",
                 "terminal": "web",
-                "sample_mode": "manual",
-                "search_enabled": True,
-                "question": "What is Example?",
+                    "sample_mode": "manual",
+                    "search_enabled": True,
+                    "question_id": "q001",
+                    "question": "Which AI visibility platform is reliable?",
+                    "ok": True,
                 "answer": "No result.",
                 "analysis": {
                     "brand_mentioned": False,
@@ -200,14 +207,18 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     )
     report = client.get(f"/api/v1/projects/{body['project_id']}/report", headers=headers)
     assert report.status_code == 200
-    assert report.json()["report"]["platforms"]["openai"]["mention_rate"] == 0.5
+    assert report.json()["report"]["platforms"]["openai"]["mention_rate"] == 1.0
     engines = client.get(f"/api/v1/projects/{body['project_id']}/engines", headers=headers)
     assert engines.status_code == 200
+    assert engines.json()["project_id"] == body["project_id"]
+    assert engines.json()["project_slug"] == "example-com"
     modes = {item["platform"]: item["sampling_mode"] for item in engines.json()["engines"]}
     assert modes == {"openai": "API - Parametric knowledge", "chatgpt": "Manual - Product interface"}
     assert all("market" not in item for item in engines.json()["engines"])
     samples = client.get(f"/api/v1/projects/{body['project_id']}/samples/2026-07-31", headers=headers)
     assert samples.status_code == 200
+    assert samples.json()["project_id"] == body["project_id"]
+    assert samples.json()["project_slug"] == "example-com"
     assert samples.json()["samples"][0]["answer"] == "Example is a reliable AI visibility platform."
     framing = client.get(f"/api/v1/projects/{body['project_id']}/framing", headers=headers)
     assert framing.status_code == 200

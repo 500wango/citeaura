@@ -102,6 +102,8 @@ def seed_delivery_project(tmp_path: Path, *, legacy=True):
     (project / "samples" / "2026-07-31.jsonl").write_text(
         json.dumps({
             "platform": "openai", "market": "global", "sample_mode": "api", "terminal": "api", "search_enabled": False,
+            "question_id": "q001", "question": "What is Example?", "ok": True,
+            "answer": "Example is an AI visibility platform.", "citations": [],
         }) + "\n",
         "utf-8",
     )
@@ -126,6 +128,11 @@ def seed_delivery_project(tmp_path: Path, *, legacy=True):
 def _write_json(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2), "utf-8")
+
+
+def _write_jsonl(path, values):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(json.dumps(value, ensure_ascii=False) + "\n" for value in values), "utf-8")
 
 
 def _patch_project(monkeypatch, project):
@@ -254,6 +261,14 @@ def test_delivery_contract_rebuilds_mixed_language_llms_asset(tmp_path, monkeypa
 
 def test_delivery_contract_normalizes_generated_jsonld_values(tmp_path, monkeypatch):
     project, output = seed_delivery_project(tmp_path)
+    config = json.loads((project / "geo.json").read_text("utf-8"))
+    config["brand"]["industry"] = "B2B SaaS software platform"
+    _write_json(project / "geo.json", config)
+    _write_jsonl(project / "evidence" / "pages.jsonl", [{
+        "url": "https://example.com", "status": 200,
+        "text": "Example is a web software application for business teams.",
+        "jsonld_types": ["SoftwareApplication"],
+    }])
     _write_json(project / "assets" / "jsonld" / "faq-page.json", {
         "@context": "https://schema.org",
         "@type": "FAQPage",
@@ -281,6 +296,89 @@ def test_delivery_contract_normalizes_generated_jsonld_values(tmp_path, monkeypa
     assert software["description"] == "[Add the approved English brand description.]"
     assert software["offers"][0]["priceCurrency"] == "USD"
     assert delivery.delivery_language_violations(output) == []
+
+
+def test_delivery_omits_specialized_schema_without_project_evidence(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    _write_json(project / "assets" / "jsonld" / "unsupported-software.json", {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Example",
+        "url": "https://example.com",
+        "description": "A business application.",
+    })
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    assert not any(path.name == "unsupported-software.json" for path in output.rglob("*.json"))
+    index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    omitted = index["schema_selection"]["omitted"]
+    assert omitted == [{
+        "path": "jsonld/unsupported-software.json",
+        "status": "omitted",
+        "types": ["SoftwareApplication"],
+        "reason": "No project evidence supports specialized Schema.org type(s): SoftwareApplication",
+        "evidence": [],
+        "requires_review": False,
+    }]
+
+
+def test_delivery_accepts_any_confirmed_specialized_schema_type(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    config = json.loads((project / "geo.json").read_text("utf-8"))
+    config["schema_types"] = [{"type": "MedicalDevice", "confirmed": True}]
+    _write_json(project / "geo.json", config)
+    _write_json(project / "assets" / "jsonld" / "medical-device.json", {
+        "@context": "https://schema.org",
+        "@type": "MedicalDevice",
+        "name": "Example Monitor",
+    })
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    assert (output / "assets" / "jsonld" / "medical-device.json").is_file()
+    index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    decision = next(
+        item for item in index["schema_selection"]["included"]
+        if item["path"] == "jsonld/medical-device.json"
+    )
+    assert decision["evidence"][0]["source"] == "project_config"
+    assert decision["requires_review"] is False
+
+
+def test_delivery_marks_high_confidence_inferred_schema_for_confirmation(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    config = json.loads((project / "geo.json").read_text("utf-8"))
+    config["brand"]["industry"] = "B2B SaaS software platform"
+    _write_json(project / "geo.json", config)
+    _write_jsonl(project / "evidence" / "pages.jsonl", [{
+        "url": "https://example.com/product", "status": 200,
+        "text": "Example is a cloud software platform and web application for operations teams.",
+    }])
+    _write_json(project / "assets" / "jsonld" / "inferred-software.json", {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Example",
+        "url": "https://example.com",
+        "description": "Cloud operations software.",
+    })
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    records = {item["path"]: item for item in index["assets"]}
+    record = records["jsonld/inferred-software.json"]
+    assert record["status"] == "needs_review"
+    assert "Schema applicability is inferred and requires confirmation" in record["issues"]
+    decision = next(
+        item for item in index["schema_selection"]["included"]
+        if item["path"] == "jsonld/inferred-software.json"
+    )
+    assert decision["requires_review"] is True
+    assert decision["evidence"][0]["source"] == "business_profile"
 
 
 def test_delivery_manifest_separates_ready_review_and_template_assets(tmp_path, monkeypatch):
@@ -370,12 +468,39 @@ def test_language_validator_detects_paths_entities_and_json_escapes(tmp_path):
     (output / "entity.html").write_text("&#x4e2d;&#x6587;", "utf-8")
     (output / "double-entity.html").write_text("&amp;#x4e2d;&amp;#x6587;", "utf-8")
     (output / "escaped.json").write_text(r'{"message": "\u4e2d\u6587"}', "utf-8")
+    (output / "cjk-punctuation.txt").write_text("GPTBot、ClaudeBot", "utf-8")
+    (output / "fullwidth.json").write_text(r'{"message": "Review\uff1arequired"}', "utf-8")
+    (output / "legitimate.txt").write_text("Coverage ≥ 95%; USD $10–20; API - Search grounded.", "utf-8")
 
     assert delivery.delivery_language_violations(output) == [
-        "double-entity.html", "entity.html", "escaped.json", "中文.md",
+        "cjk-punctuation.txt", "double-entity.html", "entity.html", "escaped.json", "fullwidth.json", "中文.md",
     ]
     with pytest.raises(GeoEngineError, match="entity.html"):
         delivery.validate_delivery_language(output)
+
+
+def test_delivery_normalizes_dynamic_cjk_punctuation_in_english_documents(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    tasks = json.loads((project / "tasks.json").read_text("utf-8"))
+    tasks["tasks"][0].update({
+        "title": "解除 robots.txt 对 AI 抓取器的封禁",
+        "why": "robots 封禁 GPTBot、ClaudeBot、Bytespider、Google-Extended，这些引擎永远抓不到你（method.md 可抓取性）",
+        "action": "移除对应 Disallow，或改为仅屏蔽后台路径",
+        "acceptance": {
+            "type": "auto", "check": "site.no_ai_bot_block",
+            "desc": "重抓后 robots 不再整站封禁任何 AI 抓取器",
+        },
+    })
+    _write_json(project / "tasks.json", tasks)
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    for name in ("02-Execution-Plan.md", "03-Ticket-Log.md", "03-Ticket-Log.csv"):
+        text = (output / name).read_text("utf-8")
+        assert "GPTBot, ClaudeBot, Bytespider, Google-Extended" in text
+        assert "、" not in text
+    assert delivery.delivery_language_violations(output) == []
 
 
 def test_delivery_contract_fails_closed_for_custom_chinese_asset(tmp_path, monkeypatch):

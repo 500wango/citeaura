@@ -52,6 +52,8 @@ def normalize_bootstrap_metadata(project_slug):
     with geolib.project_lock(project_slug):
         original = geolib.load_config(project_slug)
         config = global_scope.normalize_config_data(original)
+        pages = geolib.read_jsonl(geolib.project_dir(project_slug) / "evidence" / "pages.jsonl")
+        config["business_profile"] = global_scope.infer_business_profile(config, pages=pages)
         bootstrap = config.get("bootstrap")
         if not isinstance(bootstrap, dict) or not isinstance(bootstrap.get("uncertain"), list):
             if config != original:

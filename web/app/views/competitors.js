@@ -2,7 +2,7 @@
  *  (Competitors)
  */
 
-import { workspace } from '../api.js';
+import { workspace } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';

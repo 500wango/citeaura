@@ -117,13 +117,37 @@ def test_channel_strategy_is_selected_per_project_profile():
         "brand": {"industry": "Professional consulting services"},
     })
     unknown = global_scope.infer_business_profile({"brand": {"industry": ""}})
+    evidenced_software = global_scope.infer_business_profile(
+        {"brand": {"industry": "B2B SaaS software platform"}},
+        pages=[{
+            "url": "https://example.com/product", "status": 200,
+            "text": "Example is a cloud software platform and web application for operations teams.",
+        }],
+    )
+    incidental_keyword = global_scope.infer_business_profile(
+        {"brand": {"industry": ""}},
+        pages=[{
+            "url": "https://example.com/news", "status": 200,
+            "text": "Visit our newsroom for company announcements and press enquiries.",
+        }],
+    )
 
     assert manufacturer["id"] == "manufacturer"
     assert software["id"] == "software"
     assert service["id"] == "service"
-    assert unknown == {
-        "id": "generic", "label": "General business", "confidence": "low", "evidence": [],
-    }
+    assert unknown["id"] == "generic"
+    assert unknown["confidence"] == "low"
+    assert unknown["review_required"] is True
+    assert unknown["candidates"] == []
+    assert evidenced_software["id"] == "software"
+    assert evidenced_software["confidence"] == "high"
+    assert evidenced_software["confirmed"] is False
+    assert evidenced_software["review_required"] is True
+    assert evidenced_software["evidence_details"][0]["url"] == "https://example.com/product"
+    assert "software platform" in evidenced_software["evidence_details"][0]["excerpt"].lower()
+    assert incidental_keyword["id"] == "generic"
+    assert incidental_keyword["candidates"][0]["id"] == "publisher"
+    assert incidental_keyword["candidates"][0]["evidence"][0]["url"] == "https://example.com/news"
 
     manufacturer_blueprint = global_scope.normalize_blueprint_data({}, profile=manufacturer)
     software_blueprint = global_scope.normalize_blueprint_data({}, profile=software)
@@ -139,6 +163,95 @@ def test_channel_strategy_is_selected_per_project_profile():
     assert "b2b_marketplaces" not in software_ids
     assert "industry_directories" in unknown_ids
     assert unknown_blueprint["channel_strategy"]["confidence"] == "low"
+
+
+def test_crawl_deduplication_preserves_query_pages_with_different_content():
+    shared = "Contact the sales team for a general request."
+    pages = [
+        {
+            "url": "https://example.com/contact", "final_url": "https://example.com/contact",
+            "canonical": "/contact", "status": 200, "text": shared, "word_count": 9,
+        },
+        {
+            "url": "https://example.com/contact?source=%2Fen&interest=General+RFQ",
+            "final_url": "https://example.com/contact?source=%2Fen&interest=General+RFQ",
+            "canonical": "https://example.com/contact", "status": 200,
+            "text": "  Contact the sales team for a general request.  ", "word_count": 9,
+        },
+        {
+            "url": "https://example.com/contact?department=support",
+            "final_url": "https://example.com/contact?department=support",
+            "canonical": "https://example.com/contact", "status": 200,
+            "text": "Open a technical support case with diagnostic details.", "word_count": 9,
+        },
+    ]
+
+    deduplicated = global_scope.deduplicate_crawl_pages(pages)
+
+    assert [page["url"] for page in deduplicated] == [
+        "https://example.com/contact",
+        "https://example.com/contact?department=support",
+    ]
+    assert deduplicated[0]["duplicate_urls"] == [
+        "https://example.com/contact?source=%2Fen&interest=General+RFQ",
+    ]
+
+
+def test_audit_is_recomputed_from_deduplicated_evidence(tmp_path, monkeypatch):
+    project = tmp_path / "example"
+    evidence = project / "evidence"
+    evidence.mkdir(parents=True)
+    (project / "geo.json").write_text(json.dumps({
+        "slug": "example",
+        "market": "global",
+        "brand": {"name": "Example", "site": "https://example.com", "aliases": [], "products": []},
+        "questions": [],
+    }), "utf-8")
+    repeated = " ".join(["verified contact information"] * 45)
+    pages = [
+        {
+            "url": "https://example.com/contact", "final_url": "https://example.com/contact",
+            "canonical": "https://example.com/contact", "status": 200, "text": repeated,
+            "word_count": 135, "title": "Contact", "h1": ["Contact"], "h2": [],
+        },
+        {
+            "url": "https://example.com/contact?source=home", "final_url": "https://example.com/contact?source=home",
+            "canonical": "https://example.com/contact", "status": 200, "text": repeated,
+            "word_count": 135, "title": "Contact", "h1": ["Contact"], "h2": [],
+        },
+        {
+            "url": "https://example.com/about", "final_url": "https://example.com/about",
+            "canonical": "https://example.com/about", "status": 200,
+            "text": " ".join(["verified company information"] * 45),
+            "word_count": 135, "title": "About", "h1": ["About"], "h2": [],
+        },
+    ]
+    global_scope.geolib.write_jsonl(evidence / "pages.jsonl", pages)
+    global_scope.geolib.write_json(evidence / "site.json", {
+        "root": "https://example.com", "pages_crawled": 3, "pages_ok": 3,
+        "has_sitemap": True, "has_llms_txt": True, "ai_bots_blocked": [],
+    })
+    global_scope.geolib.write_json(project / "audit.json", {
+        "market": "global", "page_count": 3,
+        "pages": [{"url": page["url"], "score": 1} for page in pages],
+    })
+    monkeypatch.setattr(global_scope.geolib, "WORK", tmp_path)
+
+    audit = global_scope.normalize_audit("example")
+
+    normalized_pages = global_scope.geolib.read_jsonl(evidence / "pages.jsonl")
+    site = global_scope.geolib.read_json(evidence / "site.json", {})
+    assert audit["page_count"] == 2
+    assert sum(audit["grade_distribution"].values()) == 2
+    assert all(item["total"] == 2 for item in audit["block_gap"])
+    assert audit["language_coverage"]["en_pages"] == 2
+    assert audit["avg_score"] == round(sum(page["score"] for page in audit["pages"]) / 2, 1)
+    assert site["pages_crawled"] == 2
+    assert site["pages_ok"] == 2
+    assert site["pages_crawled_raw"] == 3
+    assert site["duplicate_pages_removed"] == 1
+    assert normalized_pages[0]["url"] == "https://example.com/contact"
+    assert normalized_pages[0]["duplicate_urls"] == ["https://example.com/contact?source=home"]
 
 
 def test_profile_channels_preserve_engine_delivery_contract():

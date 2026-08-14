@@ -1,7 +1,37 @@
 """Attach English display fields to engine artifacts without rewriting tasks.json."""
 
 import re
+import unicodedata
 from api.i18n import resolve
+
+
+_CJK_PUNCTUATION = str.maketrans({
+    "、": ", ",
+    "。": ". ",
+    "，": ", ",
+    "：": ": ",
+    "；": "; ",
+    "！": "! ",
+    "？": "? ",
+    "（": "(",
+    "）": ")",
+    "【": "[",
+    "】": "]",
+    "《": '"',
+    "》": '"',
+    "〈": '"',
+    "〉": '"',
+})
+
+
+def normalize_english_typography(value):
+    """Normalize fullwidth and CJK punctuation in English display text."""
+    if not isinstance(value, str):
+        return value
+    text = unicodedata.normalize("NFKC", value.translate(_CJK_PUNCTUATION))
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    return text.strip()
 
 # Exact English mappings for standard ticket titles
 EXACT_TITLES_EN = {
@@ -45,7 +75,7 @@ EXACT_DESCS_EN = {
     "静态 HTML 无正文，多数 AI 抓取器看到的是空白页——国内官网最常见致命伤（method.md 可抓取性）": "Static HTML contains no body text; AI crawlers see an empty page (use SSR or prerendering).",
     "对受影响路由启用 SSR 或预渲染，确保 curl 拿到的 HTML 含完整正文": "Enable SSR or static prerendering for affected routes so curl requests return full body text.",
     "无结构化数据，机器读不懂这页在讲什么实体（method.md 权威信号）": "No structured data found; machine crawlers cannot extract core entities.",
-    "用 `geo.py generate --asset jsonld` 产出补丁，按页面类型挂 Organization / SoftwareApplication / Article / FAQPage / BreadcrumbList": "Generate and deploy JSON-LD Schema.org patches (Organization, SoftwareApplication, FAQPage, BreadcrumbList).",
+    "用 `geo.py generate --asset jsonld` 产出补丁，按页面类型挂 Organization / SoftwareApplication / Article / FAQPage / BreadcrumbList": "Generate and deploy page-appropriate JSON-LD types supported by verified entity and page evidence.",
     "高影响力页面平均 1,943 词，Bottom 四分位仅 170 词（method.md 内容长度）": "High-impact pages average 1,943 words; expand depth to improve information extractability.",
     "优先扩产品页、案例页、对比页；加定义、数字表、步骤、边界说明，不是灌水": "Expand product, case study, and comparison pages with definitions, data tables, and step-by-step guides.",
     "均分低于 70 说明整体处于「需要改造」区间（method.md 评分口径）": "Average site score is below 70, indicating critical extractability and SEO issues.",
@@ -89,30 +119,30 @@ def _localize_text(text, locale):
     # 1. Direct i18n catalog lookup
     resolved = resolve(text, locale)
     if resolved != text:
-        return resolved
+        return normalize_english_typography(resolved)
     
     # 2. English fallbacks
     if locale == "en" or locale != "zh":
         # Exact title
         if text in EXACT_TITLES_EN:
-            return EXACT_TITLES_EN[text]
+            return normalize_english_typography(EXACT_TITLES_EN[text])
         # Dynamic title patterns
         for pat, repl in DYNAMIC_TITLE_PATTERNS_EN:
             if pat.search(text):
-                return pat.sub(repl, text)
+                return normalize_english_typography(pat.sub(repl, text))
         # Exact descriptions
         if text in EXACT_DESCS_EN:
-            return EXACT_DESCS_EN[text]
+            return normalize_english_typography(EXACT_DESCS_EN[text])
         # Dynamic descriptions
         for pat, repl in DYNAMIC_DESC_PATTERNS_EN:
             if pat.search(text):
-                return pat.sub(repl, text)
+                return normalize_english_typography(pat.sub(repl, text))
         # Dynamic acceptance checks
         for pat, repl in DYNAMIC_ACCEPTANCE_PATTERNS_EN:
             if pat.search(text):
-                return pat.sub(repl, text)
+                return normalize_english_typography(pat.sub(repl, text))
 
-    return text
+    return normalize_english_typography(text)
 
 
 def localize_ticket(ticket):

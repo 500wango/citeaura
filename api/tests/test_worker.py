@@ -103,9 +103,11 @@ def test_sample_task_normalizes_blueprint_after_recording_sampling(monkeypatch):
     result = tasks.task_sample.run("tenant-a", "example", limit=3, platforms=["openai"], repeat=2)
 
     assert result == sample_result
-    assert calls.index(("record", "example")) < calls.index(("normalize", "example"))
+    assert calls[1] == ("normalize", "example")
+    assert calls.index(("record", "example")) < len(calls) - 1
     assert calls == [
         ("context", "sample"),
+        ("normalize", "example"),
         ("sample", "example", ["openai"], 2, 3),
         ("require", "example"),
         ("record", "example"),

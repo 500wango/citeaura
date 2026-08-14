@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import global_scope
+from api.adapters import brand_identity, global_scope
 
 
 TEXT_SUFFIXES = {".txt", ".json", ".html", ".md"}
@@ -134,7 +134,7 @@ def resilient_crawl_evidence(project_slug: str):
 
     project_dir = geolib.project_dir(project_slug)
     evidence_dir = project_dir / "evidence"
-    previous_pages, previous_usable = _usable_crawl_pages(project_slug)
+    _, previous_usable = _usable_crawl_pages(project_slug)
     site_path = evidence_dir / "site.json"
     previous_site = geolib.read_json(site_path, None)
     config = geolib.read_json(project_dir / "geo.json", {}) or {}
@@ -142,7 +142,7 @@ def resilient_crawl_evidence(project_slug: str):
     evidence_site = str((previous_site or {}).get("root") or "").rstrip("/")
     same_site_evidence = not configured_site or not evidence_site or configured_site == evidence_site
     if not same_site_evidence:
-        previous_pages, previous_usable, previous_site = [], [], None
+        previous_usable, previous_site = [], None
     original_run = engine_crawl.run
 
     with tempfile.TemporaryDirectory(prefix=f"citeaura-crawl-{project_slug}-") as temporary:
@@ -157,6 +157,16 @@ def resilient_crawl_evidence(project_slug: str):
                 shutil.rmtree(evidence_dir)
             shutil.copytree(backup_dir, evidence_dir)
 
+        def normalized_result(result):
+            normalized = global_scope.deduplicate_crawl_evidence(project_slug)
+            if isinstance(result, dict) and normalized.get("site"):
+                fields = {
+                    key: value for key, value in normalized["site"].items()
+                    if key in ("pages_crawled", "pages_ok", "pages_crawled_raw", "duplicate_pages_removed")
+                }
+                return {**result, **fields}
+            return result
+
         def run_with_recovery(slug, *args, **kwargs):
             if slug != project_slug:
                 return original_run(slug, *args, **kwargs)
@@ -167,21 +177,21 @@ def resilient_crawl_evidence(project_slug: str):
                 raise
             _, current_usable = _usable_crawl_pages(project_slug)
             if current_usable:
-                return result
+                return normalized_result(result)
             recovered = _recover_snapshot_text(project_slug)
             if recovered:
                 geolib.info(f"Recovered extractable text from {recovered} crawl page(s) using snapshots or metadata")
-                return result
+                return normalized_result(result)
             if previous_usable:
                 restore_previous_evidence()
                 geolib.info("Current crawl returned no extractable text; retained previous usable crawl evidence")
-                return previous_site or result
+                return normalized_result(previous_site or result)
             if _create_identity_evidence(project_slug):
                 geolib.info(
                     "Website returned no server-rendered text; continuing with project identity only. "
                     "The crawl audit will report the missing content."
                 )
-                return result
+                return normalized_result(result)
             raise GeoEngineError(
                 "Crawl completed but no extractable website text was found. "
                 "The site may require JavaScript rendering or block automated crawlers."
@@ -272,7 +282,7 @@ def update_config(project_slug: str, updates: dict) -> dict:
         current_site = str((current.get("brand") or {}).get("site") or "").rstrip("/")
         if previous_site and current_site and previous_site != current_site:
             shutil.rmtree(geolib.project_dir(project_slug) / "evidence", ignore_errors=True)
-    return current
+    return global_scope.normalize_project(project_slug)
 
 
 def facts_source(project_slug: str) -> dict:
@@ -311,6 +321,7 @@ def workbench(project_slug: str, question_id: str):
 
     if question_id and not re.fullmatch(r"q\d{3,6}", question_id):
         raise ValueError("invalid question id")
+    config = ensure_global_engine_scope(project_slug)
     result = dashboard.workbench(project_slug, question_id)
     sample_directory = geolib.project_dir(project_slug) / "samples"
     files = sorted(sample_directory.glob("*.jsonl")) if sample_directory.exists() else []
@@ -326,6 +337,7 @@ def workbench(project_slug: str, question_id: str):
             "error": row.get("error"),
             "mentioned": bool((row.get("analysis") or {}).get("brand_mentioned")),
             "rank": (row.get("analysis") or {}).get("brand_rank"),
+            "matched_identity": (row.get("analysis") or {}).get("matched_identity"),
             "citations": row.get("citations") or [],
             "sampling_mode": "Manual - Product interface" if row.get("sample_mode") == "manual" or row.get("terminal") == "web" else (
                 "API - Search grounded" if row.get("search_enabled") else "API - Parametric knowledge"
@@ -333,6 +345,7 @@ def workbench(project_slug: str, question_id: str):
             "sampled_at": row.get("ts"),
         }
         for row in rows
+        if global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
         if not question_id or row.get("question_id") == question_id
     ]
     result["sample_date"] = files[-1].stem if files else None
@@ -438,6 +451,8 @@ def add_questions(project_slug: str, items: list):
             added.append(question)
         if added or config != original:
             geolib.save_config(project_slug, config)
+    if added or config != original:
+        global_scope.normalize_project(project_slug)
     return added
 
 
@@ -543,7 +558,7 @@ def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced
     if not isinstance(influenced_questions, list) or not 1 <= len(influenced_questions) <= 200:
         raise ValueError("influenced_questions must contain 1 to 200 question ids")
 
-    config = geolib.load_config(project_slug)
+    config = global_scope.normalize_project(project_slug)
     question_by_id = {
         str(question.get("id") or ""): question
         for question in config.get("questions", [])

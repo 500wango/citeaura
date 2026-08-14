@@ -24,7 +24,7 @@ from api.adapters.engine import (
     with_tenant_context,
 )
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import delivery, framing, global_scope, preflight, report_quality, sampling_control, ticket_workflow, workspace
+from api.adapters import brand_identity, delivery, framing, global_scope, preflight, report_quality, sampling_control, ticket_workflow, workspace
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
@@ -381,11 +381,12 @@ def _product_report(project_slug, metrics):
     import analytics
 
     project_directory = geolib.project_dir(project_slug)
+    config = geolib.load_config(project_slug)
     audit = geolib.read_json(project_directory / "audit.json", {}) or {}
     sample_path = _latest_file(project_directory / "samples", "*.jsonl")
     rows = [
         row for row in (geolib.read_jsonl(sample_path) if sample_path else [])
-        if global_scope.is_global_sample(row)
+        if global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
     ]
     engine_rows = analytics.engines(project_slug, rows, metrics)
 
@@ -487,6 +488,8 @@ def _competitor_discovery_payload(config):
             continue
         aliases = competitor.get("aliases", [])
         aliases = aliases if isinstance(aliases, list) else []
+        alias_review = competitor.get("alias_review", [])
+        alias_review = alias_review if isinstance(alias_review, list) else []
         confirmed = competitor.get("confirmed")
         if confirmed is True:
             discovery_status = "sample_confirmed"
@@ -497,6 +500,7 @@ def _competitor_discovery_payload(config):
         items.append({
             "name": name.strip(),
             "aliases": [alias for alias in aliases if isinstance(alias, str) and alias],
+            "alias_review": [item for item in alias_review if isinstance(item, dict)],
             "market": "global",
             "discovery_status": discovery_status,
         })
@@ -1237,14 +1241,14 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
         global_scope.normalize_project(project.slug)
         pdir = geolib.project_dir(project.slug)
         metrics_path = _latest_file(pdir / "metrics", "*.json")
-        sample_path = _latest_file(pdir / "samples", "*.jsonl")
         metrics = geolib.read_json(metrics_path, None) if metrics_path else None
-        rows = geolib.read_jsonl(sample_path) if sample_path else []
         engines = _product_report(project.slug, metrics)["engines"]
         measurement_quality = report_quality.assess(
             project.slug, _has_sampling_access(db, tenant, project),
         )["measurement_quality"]
     return {
+        "project_id": project.id,
+        "project_slug": project.slug,
         "date": metrics.get("date") if metrics else None,
         "engines": [
             {
@@ -1299,14 +1303,31 @@ def project_samples(
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     with with_tenant_context(tenant.name, project.slug):
+        config = global_scope.normalize_project(project.slug)
         path = geolib.project_dir(project.slug) / "samples" / f"{sample_date}.jsonl"
         if not path.is_file():
             _error(status.HTTP_404_NOT_FOUND, "samples_not_found")
+        all_rows = geolib.read_jsonl(path)
         rows = [
-            row for row in geolib.read_jsonl(path)
-            if global_scope.is_global_sample(row)
+            row for row in all_rows
+            if global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
         ]
-    return {"date": sample_date, "samples": rows}
+        excluded = [row for row in all_rows if row not in rows]
+        exclusion_reasons = {}
+        for row in excluded:
+            reason = row.get("sample_exclusion_reason") or (
+                "market_or_language_mismatch" if not global_scope.is_global_sample(row)
+                else brand_identity.sample_exclusion_reason(row, config) or "not_in_current_cohort"
+            )
+            exclusion_reasons[reason] = exclusion_reasons.get(reason, 0) + 1
+    return {
+        "project_id": project.id,
+        "project_slug": project.slug,
+        "date": sample_date,
+        "samples": rows,
+        "excluded_sample_count": len(excluded),
+        "exclusion_reasons": exclusion_reasons,
+    }
 
 
 @router.get("/{project_id}/tickets")

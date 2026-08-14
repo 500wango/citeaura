@@ -42,7 +42,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.3' in response.text
+    assert '/app/app.js?v=3.4' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -161,9 +161,20 @@ def test_frontend_contracts_match_backend_request_models():
     assert "citeaura_intent_plan" in app_js
     assert "ENTRY_PLANS" in app_js
     assert "engine-settings.js?v=2.8" in app_js
+    assert "engines.js?v=2.6" in app_js
+    assert "workbench.js?v=2.6" in app_js
     assert "overview.js?v=2.7" in app_js
     assert "onboarding.js?v=2.6" in app_js
     assert "telemetry-modal.js?v=2.6" in app_js
+    assert "function projectKey(project)" in app_js
+    assert "projectKey(p) === state.activeProjectId" in app_js
+    assert "const renderId = ++renderSequence" in app_js
+    assert "renderId !== renderSequence" in app_js
+    assert "|| state.projectsList[0]" not in app_js
+
+    engines = (root / "web/app/views/engines.js").read_text("utf-8")
+    assert "Project response mismatch" in engines
+    assert "Sample response project mismatch" in engines
 
 
 def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():

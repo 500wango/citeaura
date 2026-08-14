@@ -2,6 +2,7 @@
 
 import re
 
+from api.adapters import brand_identity
 from api.adapters.engine import geolib
 from api.adapters.global_scope import is_global_sample
 
@@ -92,13 +93,16 @@ def _sampling_mode(row):
     return "API - Search grounded" if row.get("search_enabled") else "API - Parametric knowledge"
 
 
-def _latest_samples(project_slug):
+def _latest_samples(project_slug, config):
     directory = geolib.project_dir(project_slug) / "samples"
     files = sorted(directory.glob("*.jsonl")) if directory.exists() else []
     if not files:
         return None, []
     path = files[-1]
-    return path, [row for row in geolib.read_jsonl(path) if is_global_sample(row)]
+    return path, [
+        row for row in geolib.read_jsonl(path)
+        if is_global_sample(row) and brand_identity.is_current_sample(row, config)
+    ]
 
 
 def build(project_slug):
@@ -107,7 +111,7 @@ def build(project_slug):
     brand = cfg.get("brand", {})
     aliases = [brand.get("name", "")] + list(brand.get("aliases", []) or [])
     aliases = sorted({item.strip() for item in aliases if item and item.strip()}, key=len, reverse=True)
-    path, rows = _latest_samples(project_slug)
+    path, rows = _latest_samples(project_slug, cfg)
     buckets = {}
     mentioned_samples = 0
     for row in rows:

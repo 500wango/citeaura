@@ -13,8 +13,8 @@ from urllib.parse import urlparse
 from api.adapters.branding import apply_delivery_branding
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
-from api.adapters.localization import localize_ticket
-from api.adapters import global_scope, measurement
+from api.adapters.localization import localize_ticket, normalize_english_typography
+from api.adapters import brand_identity, global_scope, measurement
 
 
 REQUIRED_DOCUMENTS = {
@@ -27,6 +27,9 @@ REQUIRED_DOCUMENTS = {
 }
 
 HAN_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\U00020000-\U0002fa1f]")
+CJK_TYPOGRAPHY_PATTERN = re.compile(
+    r"[\u3000-\u303f\ufe10-\ufe1f\ufe30-\ufe4f\uff01-\uff65\uffe0-\uffe6]"
+)
 UNICODE_ESCAPE_PATTERN = re.compile(r"\\u([0-9a-fA-F]{4})")
 TEXT_SUFFIXES = frozenset((".md", ".html", ".csv", ".json", ".txt", ".xml", ".js", ".css"))
 PLACEHOLDER_PATTERN = re.compile(
@@ -161,8 +164,25 @@ JSON_ASSET_REPLACEMENTS = {
     "港币": "HKD",
 }
 
+GENERIC_SCHEMA_TYPES = frozenset((
+    "Thing", "Organization", "WebSite", "WebPage", "AboutPage", "ContactPage",
+    "CollectionPage", "ProfilePage", "Article", "BlogPosting", "NewsArticle",
+    "FAQPage", "BreadcrumbList", "ItemList",
+))
+PROFILE_SCHEMA_TYPES = {
+    "software": frozenset(("SoftwareApplication",)),
+}
+EXPLICIT_SCHEMA_FIELD_GROUPS = {
+    "SoftwareApplication": (
+        ("application_category",),
+        ("operating_system", "software_version", "download_url"),
+    ),
+    "Product": (("sku", "mpn", "gtin", "gtin8", "gtin12", "gtin13", "gtin14"),),
+    "Service": (("service_type",),),
+}
 
-def _contains_han(value):
+
+def _decoded_text(value):
     text = str(value or "")
     for _ in range(3):
         decoded = html.unescape(text)
@@ -170,24 +190,36 @@ def _contains_han(value):
             break
         text = decoded
     text = UNICODE_ESCAPE_PATTERN.sub(lambda match: chr(int(match.group(1), 16)), text)
-    return bool(HAN_PATTERN.search(text))
+    return text
 
 
-def _json_han(value):
+def _contains_han(value):
+    return bool(HAN_PATTERN.search(_decoded_text(value)))
+
+
+def _contains_disallowed_english(value):
+    text = _decoded_text(value)
+    return bool(HAN_PATTERN.search(text) or CJK_TYPOGRAPHY_PATTERN.search(text))
+
+
+def _json_language_violation(value):
     if isinstance(value, dict):
-        return any(_contains_han(key) or _json_han(item) for key, item in value.items())
+        return any(
+            _contains_disallowed_english(key) or _json_language_violation(item)
+            for key, item in value.items()
+        )
     if isinstance(value, list):
-        return any(_json_han(item) for item in value)
-    return isinstance(value, str) and _contains_han(value)
+        return any(_json_language_violation(item) for item in value)
+    return isinstance(value, str) and _contains_disallowed_english(value)
 
 
 def delivery_language_violations(delivery_directory):
-    """Return relative paths containing literal or encoded Han characters."""
+    """Return paths containing Han text or unnormalized CJK/fullwidth typography."""
     directory = Path(delivery_directory)
     violations = set()
     for path in sorted(directory.rglob("*")):
         relative = path.relative_to(directory)
-        if any(_contains_han(part) for part in relative.parts):
+        if any(_contains_disallowed_english(part) for part in relative.parts):
             violations.add(relative.as_posix())
         if not path.is_file():
             continue
@@ -197,7 +229,7 @@ def delivery_language_violations(delivery_directory):
             if path.suffix.lower() in TEXT_SUFFIXES:
                 violations.add(relative.as_posix())
             continue
-        if _contains_han(text):
+        if _contains_disallowed_english(text):
             violations.add(relative.as_posix())
             continue
         if path.suffix.lower() == ".json":
@@ -206,13 +238,13 @@ def delivery_language_violations(delivery_directory):
             except json.JSONDecodeError:
                 violations.add(relative.as_posix())
                 continue
-            if _json_han(value):
+            if _json_language_violation(value):
                 violations.add(relative.as_posix())
     return sorted(violations)
 
 
 def validate_delivery_language(delivery_directory):
-    """Reject a package if any path or decoded text contains Han characters."""
+    """Reject a package if any path or decoded text violates the English contract."""
     violations = delivery_language_violations(delivery_directory)
     if violations:
         raise GeoEngineError("delivery contains non-English content: " + ", ".join(violations))
@@ -250,8 +282,11 @@ def _latest_verification(directory):
 
 
 def _safe_display(value, fallback):
-    value = str(value or "").strip()
-    return value if value and not _contains_han(value) else fallback
+    value = normalize_english_typography(str(value or "").strip())
+    return (
+        value if value and not _contains_disallowed_english(value)
+        else normalize_english_typography(str(fallback or ""))
+    )
 
 
 def _markdown_cell(value):
@@ -269,12 +304,12 @@ def _format_rate(value):
 
 
 def _window_name(value, priority):
-    value = str(value or "").strip()
+    value = normalize_english_typography(str(value or "").strip())
     if match := re.fullmatch(r"(\d+)\s*天", value):
         return f"{match.group(1)} days"
     if match := re.fullmatch(r"(\d+)d", value, re.IGNORECASE):
         return f"{match.group(1)} days"
-    if value and not _contains_han(value):
+    if value and not _contains_disallowed_english(value):
         return value
     return {"P0": "30 days", "P1": "60 days", "P2": "90 days"}.get(priority, "90 days")
 
@@ -383,8 +418,8 @@ def _check_copy(check):
 
 
 def _require_english(value, field):
-    value = str(value or "").strip()
-    if _contains_han(value):
+    value = normalize_english_typography(str(value or "").strip())
+    if _contains_disallowed_english(value):
         raise GeoEngineError(f"delivery source cannot be represented in English: {field}")
     return value
 
@@ -473,10 +508,11 @@ def _identity(project_directory, project_slug, config, audit):
 
 def _sample_modes(project_directory, metrics):
     date = str((metrics or {}).get("date") or "")
+    config = geolib.read_json(project_directory / "geo.json", {}) or {}
     rows = geolib.read_jsonl(project_directory / "samples" / f"{date}.jsonl") if date else []
     by_platform = {}
     for row in rows:
-        if not global_scope.is_global_sample(row):
+        if not global_scope.is_global_sample(row) or not brand_identity.is_current_sample(row, config):
             continue
         platform = str(row.get("platform") or "")
         if not platform:
@@ -815,8 +851,11 @@ def _build_map_markdown(name, blueprint):
         evidence = strategy.get("evidence") or []
         if evidence:
             lines.append(f"- Profile evidence: {', '.join(str(item) for item in evidence)}")
-        if strategy.get("confidence") == "low":
-            lines.append("- Review required: project metadata was insufficient, so neutral cross-industry channels were used.")
+        if strategy.get("review_required"):
+            if strategy.get("id") == "generic":
+                lines.append("- Review required: project metadata was insufficient, so neutral cross-industry channels were used.")
+            else:
+                lines.append("- Review required: confirm or correct the inferred business profile before executing profile-specific channels.")
         lines.append("")
     lines += [
         "## Channel Map",
@@ -917,7 +956,7 @@ def _replace_json_asset(value, field=None, parent_type=None, ordinal=None):
     if isinstance(value, str):
         value = JSON_ASSET_REPLACEMENTS.get(value, value)
         if not _contains_han(value):
-            return value
+            return normalize_english_typography(value)
         if field == "name" and parent_type == "Question":
             return f"Configured Global target question {ordinal or 1}"
         if field == "headline":
@@ -932,10 +971,220 @@ def _replace_json_asset(value, field=None, parent_type=None, ordinal=None):
     return value
 
 
-def _write_jsonld_assets(source, destination, made):
+def _schema_type_names(value):
+    values = value if isinstance(value, list) else [value]
+    names = []
+    for item in values:
+        item = str(item or "").strip()
+        if not item:
+            continue
+        name = item.rstrip("/").rsplit("/", 1)[-1].rsplit("#", 1)[-1]
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def _root_schema_types(value):
+    if not isinstance(value, dict):
+        return []
+    types = _schema_type_names(value.get("@type"))
+    graph = value.get("@graph")
+    if isinstance(graph, list):
+        for item in graph:
+            for item_type in _root_schema_types(item):
+                if item_type not in types:
+                    types.append(item_type)
+    return types
+
+
+def _all_schema_types(value):
+    types = []
+    if isinstance(value, dict):
+        for item_type in _schema_type_names(value.get("@type")):
+            if item_type not in types:
+                types.append(item_type)
+        for item in value.values():
+            for item_type in _all_schema_types(item):
+                if item_type not in types:
+                    types.append(item_type)
+    elif isinstance(value, list):
+        for item in value:
+            for item_type in _all_schema_types(item):
+                if item_type not in types:
+                    types.append(item_type)
+    return types
+
+
+def _page_schema_types(page):
+    types = []
+    for item_type in page.get("jsonld_types") or []:
+        for name in _schema_type_names(item_type):
+            if name not in types:
+                types.append(name)
+    for item_type in _all_schema_types(page.get("jsonld_raw") or []):
+        if item_type not in types:
+            types.append(item_type)
+    return types
+
+
+def _page_lookup(pages):
+    lookup = {}
+    for page in pages:
+        aliases = page.get("duplicate_urls") or []
+        if not isinstance(aliases, list):
+            aliases = [aliases]
+        urls = [page.get("url"), page.get("final_url"), *aliases]
+        for value in urls:
+            normalized = global_scope.normalize_evidence_url(value)
+            if normalized:
+                lookup[normalized] = page
+    return lookup
+
+
+def _claim_has_page_evidence(claim, pages):
+    lookup = _page_lookup(pages)
+    for evidence in claim.get("evidence") or []:
+        if isinstance(evidence, str):
+            url = evidence
+            quote = ""
+        elif isinstance(evidence, dict):
+            url = evidence.get("url")
+            quote = str(evidence.get("quote") or evidence.get("excerpt") or "").strip()
+        else:
+            continue
+        page = lookup.get(global_scope.normalize_evidence_url(url))
+        if not page:
+            continue
+        if quote:
+            surface = " ".join(str(page.get("text") or "").split()).casefold()
+            if " ".join(quote.split()).casefold() not in surface:
+                continue
+        return True
+    return False
+
+
+def _schema_claims(container, pages, source):
+    if not isinstance(container, dict):
+        return []
+    raw_claims = container.get("schema_types") or []
+    if isinstance(raw_claims, (str, dict)):
+        raw_claims = [raw_claims]
+    container_confirmed = container.get("schema_types_confirmed") is True or container.get("confirmed") is True
+    claims = []
+    for raw in raw_claims if isinstance(raw_claims, list) else []:
+        if isinstance(raw, str):
+            item_type = raw
+            confirmed = container_confirmed
+            inferred = False
+        elif isinstance(raw, dict):
+            item_type = raw.get("type") or raw.get("schema_type") or raw.get("@type")
+            confirmed = raw.get("confirmed") is True or container_confirmed
+            confidence = raw.get("confidence")
+            inferred = confidence == "high" or (
+                isinstance(confidence, (int, float)) and confidence >= 0.85
+            )
+            inferred = inferred and _claim_has_page_evidence(raw, pages)
+        else:
+            continue
+        for name in _schema_type_names(item_type):
+            if confirmed:
+                claims.append({
+                    "type": name,
+                    "source": source,
+                    "detail": "Confirmed in project configuration",
+                    "requires_review": False,
+                })
+            elif inferred:
+                claims.append({
+                    "type": name,
+                    "source": source,
+                    "detail": "High-confidence claim with matching crawl evidence",
+                    "requires_review": True,
+                })
+    return claims
+
+
+def _schema_evidence(project_directory, config):
+    pages = geolib.read_jsonl(project_directory / "evidence" / "pages.jsonl")
+    evidence = {}
+
+    def add(item_type, item):
+        rows = evidence.setdefault(item_type, [])
+        if item not in rows:
+            rows.append(item)
+
+    for page in pages:
+        if not isinstance(page, dict):
+            continue
+        for item_type in _page_schema_types(page):
+            add(item_type, {
+                "source": "website_jsonld",
+                "detail": str(page.get("url") or "Crawled website"),
+                "requires_review": False,
+            })
+
+    brand = config.get("brand") if isinstance(config.get("brand"), dict) else {}
+    profile_config = config.get("business_profile") if isinstance(config.get("business_profile"), dict) else {}
+    for claim in (
+        _schema_claims(config, pages, "project_config"),
+        _schema_claims(brand, pages, "brand_config"),
+        _schema_claims(profile_config, pages, "business_profile"),
+    ):
+        for item in claim:
+            add(item["type"], {key: value for key, value in item.items() if key != "type"})
+
+    for item_type, groups in EXPLICIT_SCHEMA_FIELD_GROUPS.items():
+        if all(any(brand.get(field) not in (None, "", []) for field in group) for group in groups):
+            add(item_type, {
+                "source": "brand_config",
+                "detail": "Required type-specific metadata is configured",
+                "requires_review": False,
+            })
+
+    profile = global_scope.infer_business_profile(config, pages=pages)
+    if profile.get("confidence") == "high" and profile.get("evidence_details"):
+        for item_type in PROFILE_SCHEMA_TYPES.get(profile.get("id"), ()):
+            add(item_type, {
+                "source": "business_profile",
+                "detail": f"{profile.get('label')} profile supported by crawled website evidence",
+                "requires_review": not profile.get("confirmed", False),
+            })
+    return evidence
+
+
+def _schema_asset_decision(relative, value, evidence):
+    item_types = _root_schema_types(value)
+    specialized = [item_type for item_type in item_types if item_type not in GENERIC_SCHEMA_TYPES]
+    unsupported = [item_type for item_type in specialized if not evidence.get(item_type)]
+    if unsupported:
+        return {
+            "path": relative,
+            "status": "omitted",
+            "types": item_types,
+            "reason": "No project evidence supports specialized Schema.org type(s): " + ", ".join(unsupported),
+            "evidence": [],
+            "requires_review": False,
+        }
+    supporting = [item for item_type in specialized for item in evidence.get(item_type, [])]
+    requires_review = any(
+        all(item.get("requires_review") for item in evidence[item_type])
+        for item_type in specialized
+    )
+    return {
+        "path": relative,
+        "status": "included",
+        "types": item_types,
+        "reason": "Generic type" if not specialized else "Specialized type supported by project evidence",
+        "evidence": supporting,
+        "requires_review": requires_review,
+    }
+
+
+def _write_jsonld_assets(source, destination, made, config, decisions):
     jsonld = source / "jsonld"
     if not jsonld.exists():
         return
+    evidence = _schema_evidence(source.parent, config)
     for path in sorted(jsonld.glob("*.json")):
         if _contains_han(path.name):
             raise GeoEngineError(f"delivery source cannot be represented in English: assets/jsonld/{path.name}")
@@ -944,8 +1193,13 @@ def _write_jsonld_assets(source, destination, made):
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise GeoEngineError(f"invalid delivery JSON asset: assets/jsonld/{path.name}") from exc
         value = _replace_json_asset(value)
-        if _json_han(value):
+        if _json_language_violation(value):
             raise GeoEngineError(f"delivery source cannot be represented in English: assets/jsonld/{path.name}")
+        relative = f"jsonld/{path.name}"
+        decision = _schema_asset_decision(relative, value, evidence)
+        decisions.append(decision)
+        if decision["status"] == "omitted":
+            continue
         target = destination / "jsonld" / path.name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", "utf-8")
@@ -1297,13 +1551,23 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
     destination = directory / "assets"
     destination.mkdir(parents=True, exist_ok=True)
     made = []
+    schema_decisions = []
     _write_llms_asset(project_slug, source, destination, config, audit, made)
-    _write_jsonld_assets(source, destination, made)
+    _write_jsonld_assets(source, destination, made, config, schema_decisions)
     _write_snippet_assets(source, destination, config, project_slug, made)
     _write_outline_assets(source, destination, blueprint, made)
     _copy_drafts(source, destination, blueprint, made)
     _copy_other_assets(source, destination, blueprint, made)
     records = [_asset_record(destination, path) for path in sorted(set(made))]
+    decisions_by_path = {item["path"]: item for item in schema_decisions}
+    for record in records:
+        decision_path = record["path"].removeprefix("templates/")
+        decision = decisions_by_path.get(decision_path)
+        if not decision or not decision.get("requires_review"):
+            continue
+        record["issues"].append("Schema applicability is inferred and requires confirmation")
+        if record["status"] == "ready":
+            record["status"] = "needs_review"
     records.sort(key=lambda item: (item["status"], item["path"]))
     summary = {
         status: sum(item["status"] == status for item in records)
@@ -1324,6 +1588,11 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
         "readiness": "customer_ready" if records and not readiness_issues else "review_required",
         "readiness_issues": readiness_issues,
         "report_confidence": confidence,
+        "schema_selection": {
+            "policy": "Specialized Schema.org types require project evidence",
+            "included": [item for item in schema_decisions if item["status"] == "included"],
+            "omitted": [item for item in schema_decisions if item["status"] == "omitted"],
+        },
         "summary": summary,
         "assets": records,
     }
@@ -1335,6 +1604,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     coverage = blueprint.get("coverage") or {}
     assets = asset_index.get("assets") or []
     asset_summary = asset_index.get("summary") or {}
+    schema_selection = asset_index.get("schema_selection") or {}
     documents = [f"{number}-{title}.html" for number, title in REQUIRED_DOCUMENTS.items()]
     lines = [
         f"# {name} GEO Delivery Pack",
@@ -1352,7 +1622,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     if strategy:
         lines += [
             f"- Channel strategy: {strategy.get('label', 'Configured profile')} (confidence: {strategy.get('confidence', 'unknown')})",
-            "- Channel recommendations are selected from the project business profile; review low-confidence profiles before execution.",
+            "- Channel recommendations are selected from the project business profile; confirm inferred profiles before execution.",
             "",
         ]
     lines += [
@@ -1366,6 +1636,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         f"- Ready to deploy: {asset_summary.get('ready', 0)}",
         f"- Needs factual or editorial review: {asset_summary.get('needs_review', 0)}",
         f"- Templates requiring completion: {asset_summary.get('template', 0)}",
+        f"- Specialized JSON-LD assets omitted for lack of supporting evidence: {len(schema_selection.get('omitted') or [])}",
         "",
     ]
     for status, heading in (

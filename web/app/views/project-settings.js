@@ -1,4 +1,4 @@
-import { projects, workspace } from '../api.js';
+import { projects, workspace } from '../api.js?v=3.4';
 import { toast } from '../components/toast.js';
 import { confirmModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';

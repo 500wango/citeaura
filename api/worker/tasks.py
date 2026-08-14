@@ -16,7 +16,7 @@ from api.adapters.workspace import ensure_global_engine_scope, preserve_manual_t
 from api.billing.limits import check_sample_run
 from api.billing.platform_pool import meter_platform_calls, record_usage, resolve_funding
 from api.db import SessionLocal
-from api.models import IntegrationCredential, Job, ProductEvent, Project, Tenant
+from api.models import IntegrationCredential, Job, Project, Tenant
 from api.product_events import record_product_event
 from api.settings.crypto import decrypt_key
 from api.worker.celery_app import celery_app
@@ -496,7 +496,8 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
         with _capture_task_output(log_path):
             yield update
     except Exception as exc:
-        _append_job_event(log_path, f"{action} failed: {type(exc).__name__}: {exc}")
+        error_message = f"{type(exc).__name__}: {exc}"
+        _append_job_event(log_path, f"{action} failed: {error_message}")
         if tracked_job_id is not None:
             def mark_failed(db):
                 job = db.get(Job, tracked_job_id)
@@ -506,7 +507,7 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                 job.status = "failed"
                 job.stage = "failed"
                 job.finished_at = datetime.now(timezone.utc)
-                job.error = f"{type(exc).__name__}: {exc}"
+                job.error = error_message
                 if project is not None:
                     project.status = "failed"
 
@@ -601,6 +602,7 @@ def task_sample(
         update = update or (lambda *args: None)
         update("sampling", 15)
         with _funded_engine_context(tenant_id, project_slug, "sample", job_id=job_id):
+            global_scope.normalize_project(project_slug)
             result = sample.run(project_slug, platforms=platforms, repeat=repeat, limit=limit)
             _require_sampling_output(result, project_slug)
             funding = _engine_funding(tenant_id, project_slug)
@@ -629,6 +631,7 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
         update = update or (lambda *args: None)
         update("crawl", 15)
         with _funded_engine_context(tenant_id, project_slug, "cycle", job_id=job_id):
+            global_scope.normalize_project(project_slug)
             with site_signals.semantic_site_signals(project_slug):
                 with global_scope.normalize_generated_outputs(project_slug):
                     geo.cmd_cycle(args)
@@ -782,6 +785,7 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
             job_id=job_id,
             allow_pool=action in PLATFORM_FUNDED_ACTIONS,
         ):
+            global_scope.normalize_project(project_slug)
             if action in ("audit", "deliverables", "plan", "report", "deliver"):
                 site_signals.validate_project_signals(project_slug)
             with global_scope.normalize_generated_outputs(project_slug):

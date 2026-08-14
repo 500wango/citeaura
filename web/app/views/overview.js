@@ -2,7 +2,7 @@
  *  (Overview)
  */
 
-import { projects } from '../api.js';
+import { projects } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { confirmModal } from '../components/modal.js';
 import { toast } from '../components/toast.js';

@@ -16,6 +16,13 @@ def _row(answer, platform, platform_name, market="global", **extra):
     }
 
 
+def _questions():
+    return [
+        {"id": f"q-{platform}", "text": "How is the brand described?", "market": "global"}
+        for platform in ("openai", "perplexity", "chatgpt", "gemini")
+    ]
+
+
 def test_framing_uses_latest_samples_and_keeps_source_evidence(tmp_path, monkeypatch):
     monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
     with with_tenant_context("tenant-a", "example"):
@@ -30,6 +37,7 @@ def test_framing_uses_latest_samples_and_keeps_source_evidence(tmp_path, monkeyp
                     "aliases": ["Cite Aura"],
                     "site": "https://example.com",
                 },
+                "questions": _questions(),
             },
         )
         geolib.write_jsonl(
@@ -96,6 +104,7 @@ def test_framing_returns_explicit_empty_states(tmp_path, monkeypatch):
                 "slug": "empty",
                 "market": "global",
                 "brand": {"name": "CiteAura", "site": "https://example.com"},
+                "questions": _questions(),
             },
         )
         assert framing.build("empty")["status"] == "no_samples"

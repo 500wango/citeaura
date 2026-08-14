@@ -2,7 +2,7 @@
  * CiteAura 
  */
 
-import { auth, projects, onAuthFailure } from './api.js';
+import { auth, projects, onAuthFailure } from './api.js?v=3.4';
 import { t, loadCatalogs, getLocale, setLocale } from './i18n.js';
 import { toast } from './components/toast.js';
 import { setSafeHtml } from './safe-html.js';
@@ -97,7 +97,7 @@ const VIEW_LOADERS = {
   invite: () => import('./views/auth-invite.js?v=2.5'),
   onboarding: () => import('./views/onboarding.js?v=2.6'),
   overview: () => import('./views/overview.js?v=2.7'),
-  engines: () => import('./views/engines.js?v=2.5'),
+  engines: () => import('./views/engines.js?v=2.6'),
   channels: () => import('./views/channels.js?v=2.5'),
   competitors: () => import('./views/competitors.js?v=2.5'),
   siteaudit: () => import('./views/siteaudit.js?v=2.5'),
@@ -105,7 +105,7 @@ const VIEW_LOADERS = {
   questions: () => import('./views/questions.js?v=2.5'),
   facts: () => import('./views/facts.js?v=2.5'),
   plan: () => import('./views/plan.js?v=2.5'),
-  workbench: () => import('./views/workbench.js?v=2.5'),
+  workbench: () => import('./views/workbench.js?v=2.6'),
   assets: () => import('./views/assets.js?v=2.5'),
   outreach: () => import('./views/outreach.js?v=2.5'),
   publishing: () => import('./views/publishing.js?v=2.5'),
@@ -123,6 +123,17 @@ const VIEW_LOADERS = {
 };
 
 const PUBLIC_ROUTES = ['login', 'register', 'forgot-password', 'reset-password', 'invite'];
+let renderSequence = 0;
+
+function projectKey(project) {
+  if (!project) return '';
+  return String(project.id ?? project.slug ?? '');
+}
+
+function findProject(projects, id) {
+  const key = String(id ?? '');
+  return projects.find((project) => projectKey(project) === key || String(project.slug ?? '') === key) || null;
+}
 
 /* ----------  ---------- */
 class AppState {
@@ -158,8 +169,10 @@ class AppState {
       this.projectsList = Array.isArray(list) ? list : (list && list.projects) || [];
       if (!this.activeProjectId && this.projectsList.length > 0) {
         const savedId = localStorage.getItem('citeaura_active_project');
-        const found = this.projectsList.find((p) => p.id === savedId || p.slug === savedId);
-        this.activeProjectId = found ? (found.id || found.slug) : (this.projectsList[0].id || this.projectsList[0].slug);
+        const found = findProject(this.projectsList, savedId);
+        this.activeProjectId = projectKey(found || this.projectsList[0]);
+      } else if (this.activeProjectId && !findProject(this.projectsList, this.activeProjectId)) {
+        this.activeProjectId = this.projectsList.length ? projectKey(this.projectsList[0]) : null;
       }
     } catch (e) {
       this.projectsList = [];
@@ -167,9 +180,11 @@ class AppState {
   }
 
   setActiveProject(id) {
-    this.activeProjectId = id;
+    const project = findProject(this.projectsList, id);
+    this.activeProjectId = project ? projectKey(project) : null;
     try {
-      localStorage.setItem('citeaura_active_project', id);
+      if (this.activeProjectId) localStorage.setItem('citeaura_active_project', this.activeProjectId);
+      else localStorage.removeItem('citeaura_active_project');
     } catch (e) {}
   }
 }
@@ -201,6 +216,7 @@ function findTrackForView(viewId) {
 
 /* ----------  ---------- */
 async function renderApp() {
+  const renderId = ++renderSequence;
   const { route, params } = parseHash();
   state.currentRoute = route;
   state.currentParams = params;
@@ -209,6 +225,7 @@ async function renderApp() {
   const isPublic = PUBLIC_ROUTES.includes(route);
   if (!isPublic && !state.user) {
     const ok = await state.initSession();
+    if (renderId !== renderSequence) return;
     if (!ok) {
       location.hash = '#/login';
       return;
@@ -223,8 +240,11 @@ async function renderApp() {
     const loader = VIEW_LOADERS[route];
     if (loader) {
       const module = await loader();
+      if (renderId !== renderSequence) return;
       const view = module.default;
-      setSafeHtml(appRoot, typeof view.render === 'function' ? await view.render(createContext()) : '');
+      const html = typeof view.render === 'function' ? await view.render(createContext()) : '';
+      if (renderId !== renderSequence) return;
+      setSafeHtml(appRoot, html);
       if (typeof view.mounted === 'function') view.mounted(createContext());
     }
     return;
@@ -241,10 +261,15 @@ async function renderApp() {
     const loader = VIEW_LOADERS[route] || VIEW_LOADERS.overview;
     try {
       const module = await loader();
+      if (renderId !== renderSequence) return;
       const view = module.default;
-      setSafeHtml(viewContainer, typeof view.render === 'function' ? await view.render(createContext()) : '');
+      const context = createContext();
+      const html = typeof view.render === 'function' ? await view.render(context) : '';
+      if (renderId !== renderSequence || context.activeProjectId !== state.activeProjectId) return;
+      setSafeHtml(viewContainer, html);
       if (typeof view.mounted === 'function') view.mounted(createContext());
     } catch (err) {
+      if (renderId !== renderSequence) return;
       console.error('Failed to mount view:', err);
       setSafeHtml(viewContainer, `<div class="app-view-container"><div class="banner bad">Error loading view: ${err.message}</div></div>`);
     }
@@ -293,7 +318,7 @@ function createContext() {
 
 function renderAppShell() {
   const currentTrackObj = TRACKS.find((t) => t.id === state.currentTrack) || TRACKS[0];
-  const activeProj = state.projectsList.find((p) => p.id === state.activeProjectId || p.slug === state.activeProjectId) || state.projectsList[0];
+  const activeProj = findProject(state.projectsList, state.activeProjectId);
 
   return `
     <div class="app-layout">
@@ -362,9 +387,9 @@ function renderAppShell() {
 
               <div class="project-dropdown" id="project-dropdown-menu" style="display:none;">
                 ${state.projectsList.map((p) => {
-                  const isCurrent = (p.id || p.slug) === (state.activeProjectId);
+                  const isCurrent = projectKey(p) === state.activeProjectId;
                   return `
-                    <div class="project-opt ${isCurrent ? 'is-active' : ''}" data-project-id="${p.id || p.slug}">
+                    <div class="project-opt ${isCurrent ? 'is-active' : ''}" data-project-id="${projectKey(p)}">
                       <div class="project-opt-meta">
                         <span class="project-opt-name">${p.name || p.slug}</span>
                         <span class="project-opt-url">${p.url || ''}</span>

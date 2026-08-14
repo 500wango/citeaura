@@ -1,10 +1,9 @@
 """采样口径、问题集版本和证据来源的文件系统适配。"""
 
-import hashlib
-import json
 import math
 from datetime import datetime, timezone
 
+from api.adapters import brand_identity
 from api.adapters.engine import geolib
 from api.adapters.global_scope import is_global_sample
 
@@ -18,14 +17,7 @@ MIN_REPRESENTATIVE_PLATFORMS = 2
 
 
 def question_set_version(config):
-    questions = []
-    for item in config.get("questions", []) or []:
-        if not isinstance(item, dict):
-            continue
-        questions.append({key: item.get(key) for key in ("id", "text", "market", "group")})
-    canonical = json.dumps(sorted(questions, key=lambda item: (item.get("id") or "", item.get("text") or "")),
-                           ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-    return {"version": hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16], "count": len(questions)}
+    return brand_identity.question_set_version(config)
 
 
 def _mode(provider):
@@ -35,7 +27,11 @@ def _mode(provider):
 def _sample_summary(project_slug):
     directory = geolib.project_dir(project_slug)
     sample_files = sorted((directory / "samples").glob("*.jsonl")) if (directory / "samples").exists() else []
-    rows = [row for row in geolib.read_jsonl(sample_files[-1]) if is_global_sample(row)] if sample_files else []
+    config = geolib.load_config(project_slug)
+    rows = [
+        row for row in geolib.read_jsonl(sample_files[-1])
+        if is_global_sample(row) and brand_identity.is_current_sample(row, config)
+    ] if sample_files else []
     per_platform = {}
     success = 0
     for row in rows:

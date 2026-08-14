@@ -2,7 +2,7 @@
  * Live Pipeline Execution & Real-Time Telemetry Monitor
  */
 
-import { projects } from '../api.js';
+import { projects } from '../api.js?v=3.4';
 import { setSafeHtml } from '../safe-html.js';
 import { toast } from './toast.js';
 

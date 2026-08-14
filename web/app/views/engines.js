@@ -2,7 +2,7 @@
  * AI  (Engines & Sample Replay)
  */
 
-import { projects } from '../api.js';
+import { projects } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { samplingModeBadge, statusPill } from '../components/badge.js';
@@ -18,12 +18,26 @@ export default {
 
     let enginesData = null;
     let samples = [];
+    let sampleCohort = null;
 
     try {
       enginesData = await projects.getEngines(projectId).catch(() => null);
-      if (enginesData?.date) samples = await projects.getSamples(projectId, enginesData.date).catch(() => []);
+      if (enginesData && String(enginesData.project_id) !== String(projectId)) {
+        throw new Error('Project response mismatch');
+      }
+      if (enginesData?.date) {
+        const samplesData = await projects.getSamples(projectId, enginesData.date).catch(() => null);
+        if (samplesData && String(samplesData.project_id) !== String(projectId)) {
+          throw new Error('Sample response project mismatch');
+        }
+        sampleCohort = samplesData;
+        samples = samplesData?.samples || [];
+      }
     } catch (err) {
       console.error('Failed to load engines data:', err);
+      enginesData = null;
+      samples = [];
+      sampleCohort = null;
     }
 
     const engines = (enginesData && enginesData.engines) || [];
@@ -116,6 +130,10 @@ export default {
                 ${t('engines.replay_desc', {}, 'Inspect exact prompt inputs, generated model responses, and cited source URLs.')}
               </p>
             </div>
+            <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">
+              ${enginesData?.question_set_version ? `<span class="tag tag-neutral">Question set ${enginesData.question_set_version}</span>` : ''}
+              ${sampleCohort?.excluded_sample_count ? `<span class="tag tag-dim">${sampleCohort.excluded_sample_count} historical sample${sampleCohort.excluded_sample_count === 1 ? '' : 's'} excluded</span>` : ''}
+            </div>
           </div>
 
           ${
@@ -124,13 +142,18 @@ export default {
             <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
               ${samples
                 .map(
-                  (s, idx) => `
+                  (s, idx) => {
+                    const matchedIdentity = s.analysis?.matched_identity?.text || s.analysis?.matched_identity?.value;
+                    const mentionBadge = s.analysis?.brand_mentioned
+                      ? `<span class="tag pill-good">Mentioned${matchedIdentity ? ` via "${matchedIdentity}"` : ''}</span>`
+                      : '<span class="tag tag-dim">Not Mentioned</span>';
+                    return `
                 <div class="sample-replay-card">
                   <div class="sample-head">
                     <div style="display:flex;align-items:center;gap:var(--sp-2);">
                       <strong class="sample-model-tag">${s.platform_name || s.platform || 'AI Model'}</strong>
                       ${samplingModeBadge(s.sample_mode === 'manual' || s.terminal === 'web' ? 'Manual - Product interface' : (s.search_enabled ? 'API - Search grounded' : 'API - Parametric knowledge'))}
-                      ${s.analysis?.brand_mentioned ? '<span class="tag pill-good">Mentioned</span>' : '<span class="tag tag-dim">Not Mentioned</span>'}
+                      ${mentionBadge}
                     </div>
                     <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${s.date || ''}</span>
                   </div>
@@ -159,7 +182,7 @@ export default {
                       : ''
                   }
                 </div>
-              `
+              `; }
                 )
                 .join('')}
             </div>

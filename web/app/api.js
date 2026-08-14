@@ -164,7 +164,7 @@ export const projects = {
   )),
   getEngines: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/engines`),
   getFraming: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/framing`), 'framing', null),
-  getSamples: (id, date) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/samples/${encodeURIComponent(date)}`), 'samples', []),
+  getSamples: (id, date) => request(`/api/v1/projects/${encodeURIComponent(id)}/samples/${encodeURIComponent(date)}`),
 
   getTickets: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/tickets`), 'tickets', []),
   getPlaybook: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/playbook`),

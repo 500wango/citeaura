@@ -2,7 +2,7 @@
 
 from api.i18n import DEFAULT_LOCALE, SUPPORTED_LOCALES, detect_locale, normalize_locale, resolve
 from api.i18n.catalog import load_all_catalogs
-from api.adapters.localization import localize_ticket
+from api.adapters.localization import localize_ticket, normalize_english_typography
 
 
 def test_supported_locales_and_default():
@@ -56,7 +56,8 @@ def test_localize_ticket_dynamic_titles():
     }
     loc_robots = localize_ticket(t_robots)
     assert loc_robots["title_en"] == "Unblock AI crawlers in robots.txt"
-    assert "robots.txt blocks GPTBot" in loc_robots["desc_en"]
+    assert "robots.txt blocks GPTBot, ClaudeBot" in loc_robots["desc_en"]
+    assert "、" not in loc_robots["desc_en"]
     assert "Remove Disallow" in loc_robots["action_en"]
 
     # sitemap ticket
@@ -78,3 +79,11 @@ def test_localize_ticket_dynamic_titles():
     loc_score = localize_ticket(t_score)
     assert loc_score["title_en"] == "Raise average site audit score from 28.6 to 70"
     assert "Average site score is below 70" in loc_score["desc_en"]
+
+
+def test_english_typography_normalization_preserves_measurement_symbols_and_urls():
+    value = "Review：GPTBot、ClaudeBot；coverage ≥ 95％；https://example.com/a?x=1"
+
+    assert normalize_english_typography(value) == (
+        "Review: GPTBot, ClaudeBot; coverage ≥ 95%; https://example.com/a?x=1"
+    )

@@ -2,7 +2,7 @@
  *  (Delivery Branding & White-Label)
  */
 
-import { branding } from '../api.js';
+import { branding } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 

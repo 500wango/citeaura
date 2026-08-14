@@ -2,7 +2,7 @@
  * 渠道与信源分析 (Channels & Citation Sources)
  */
 
-import { projects, integrations } from '../api.js';
+import { projects, integrations } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { renderEmpty } from '../components/empty.js';
 

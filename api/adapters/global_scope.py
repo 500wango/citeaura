@@ -1,10 +1,13 @@
 """把引擎产物约束为 CiteAura 的国际市场范围。"""
 
+import hashlib
 import re
+import unicodedata
 from contextlib import contextmanager
 from copy import deepcopy
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 
+from api.adapters import brand_identity
 from api.adapters.engine import geolib
 
 
@@ -284,9 +287,190 @@ def contains_han(value):
     return bool(HAN.search(str(value or "")))
 
 
-def infer_business_profile(config):
-    """从项目画像推断渠道策略；信息不足时返回通用策略并降低置信度。"""
+def normalize_evidence_url(value, base=""):
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    try:
+        parsed = urlparse(urljoin(base, value))
+        if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
+            return ""
+        port = parsed.port
+    except ValueError:
+        return ""
+    host = parsed.hostname.lower().rstrip(".")
+    if port and not (parsed.scheme.lower() == "http" and port == 80) and not (
+        parsed.scheme.lower() == "https" and port == 443
+    ):
+        host = f"{host}:{port}"
+    path = re.sub(r"/{2,}", "/", parsed.path or "/")
+    if path != "/":
+        path = path.rstrip("/")
+    return urlunparse((parsed.scheme.lower(), host, path, "", parsed.query, ""))
+
+
+def _page_text_fingerprint(page):
+    text = unicodedata.normalize("NFKC", str(page.get("text") or ""))
+    text = " ".join(text.split()).casefold()
+    return hashlib.sha256(text.encode("utf-8")).hexdigest() if text else ""
+
+
+def _page_canonical(page):
+    page_url = normalize_evidence_url(page.get("final_url") or page.get("url"))
+    canonical = normalize_evidence_url(page.get("canonical"), page_url)
+    if not canonical or not page_url or not geolib.same_site(page_url, canonical):
+        return ""
+    return canonical
+
+
+def _page_path_family(page):
+    url = normalize_evidence_url(page.get("final_url") or page.get("url"))
+    if not url:
+        return ""
+    parsed = urlparse(url)
+    return f"{parsed.netloc}{parsed.path}"
+
+
+def _duplicate_page(left, right):
+    left_fingerprint = _page_text_fingerprint(left)
+    right_fingerprint = _page_text_fingerprint(right)
+    same_content = bool(left_fingerprint and left_fingerprint == right_fingerprint)
+    left_canonical = _page_canonical(left)
+    right_canonical = _page_canonical(right)
+    if left_canonical and left_canonical == right_canonical:
+        if left_fingerprint and right_fingerprint and not same_content:
+            return False
+        return True
+    return bool(
+        same_content
+        and _page_path_family(left)
+        and _page_path_family(left) == _page_path_family(right)
+    )
+
+
+def _page_preference(page):
+    url = normalize_evidence_url(page.get("url"))
+    parsed = urlparse(url) if url else None
+    text = str(page.get("text") or "").strip()
+    return (
+        int(page.get("status") == 200),
+        int(bool(text)),
+        int(bool(parsed) and not parsed.query),
+        int(bool(url) and url == _page_canonical(page)),
+        int(page.get("word_count") or 0),
+        len(text),
+        -len(url),
+    )
+
+
+def deduplicate_crawl_pages(pages):
+    """只合并 canonical/正文等价的抓取记录，并保留原 URL 别名。"""
+    groups = []
+    for page in pages if isinstance(pages, list) else []:
+        if not isinstance(page, dict):
+            continue
+        for group in groups:
+            if all(_duplicate_page(page, member) for member in group):
+                group.append(page)
+                break
+        else:
+            groups.append([page])
+
+    deduplicated = []
+    for group in groups:
+        representative = max(group, key=_page_preference)
+        item = deepcopy(representative)
+        aliases = []
+        for member in group:
+            existing_aliases = member.get("duplicate_urls") or []
+            if not isinstance(existing_aliases, list):
+                existing_aliases = [existing_aliases]
+            values = [member.get("url"), *existing_aliases]
+            for value in values:
+                value = str(value or "").strip()
+                if value and value != item.get("url") and value not in aliases:
+                    aliases.append(value)
+        if aliases:
+            item["duplicate_urls"] = aliases
+        else:
+            item.pop("duplicate_urls", None)
+        deduplicated.append(item)
+    return deduplicated
+
+
+def deduplicate_crawl_evidence(project_slug):
+    """审计前去重抓取证据，确保所有聚合都使用同一页面口径。"""
+    project_directory = geolib.project_dir(project_slug)
+    pages_path = project_directory / "evidence" / "pages.jsonl"
+    pages = geolib.read_jsonl(pages_path)
+    if not pages:
+        return {"removed": 0, "pages": [], "site": {}}
+    deduplicated = deduplicate_crawl_pages(pages)
+    removed = len(pages) - len(deduplicated)
+    if deduplicated != pages:
+        geolib.write_jsonl(pages_path, deduplicated)
+
+    site_path = project_directory / "evidence" / "site.json"
+    site = geolib.read_json(site_path, {}) or {}
+    normalized_site = {
+        **site,
+        "pages_crawled": len(deduplicated),
+        "pages_ok": sum(page.get("status") == 200 for page in deduplicated),
+    }
+    if removed:
+        normalized_site["pages_crawled_raw"] = max(
+            int(site.get("pages_crawled_raw") or site.get("pages_crawled") or 0),
+            len(pages),
+        )
+        normalized_site["duplicate_pages_removed"] = (
+            normalized_site["pages_crawled_raw"] - len(deduplicated)
+        )
+    if normalized_site != site:
+        geolib.write_json(site_path, normalized_site)
+    return {"removed": removed, "pages": deduplicated, "site": normalized_site}
+
+
+def _profile_page_evidence(pages, keywords):
+    evidence = []
+    for page in pages if isinstance(pages, list) else []:
+        if not isinstance(page, dict) or page.get("status") != 200:
+            continue
+        surface = " ".join([
+            str(page.get("title") or ""),
+            str(page.get("meta_description") or ""),
+            *(str(value) for value in page.get("h1") or []),
+            *(str(value) for value in page.get("h2") or []),
+            str(page.get("text") or ""),
+        ])
+        lowered = surface.lower()
+        hits = [keyword for keyword in keywords if keyword in lowered]
+        if hits:
+            first = lowered.find(hits[0])
+            evidence.append({
+                "source": "website",
+                "url": str(page.get("url") or ""),
+                "signals": list(dict.fromkeys(hits))[:8],
+                "excerpt": " ".join(surface[max(0, first - 80):first + len(hits[0]) + 120].split()),
+            })
+    return evidence[:8]
+
+
+def infer_business_profile(config, pages=None):
+    """从项目画像推断渠道策略；模型结论必须与网站证据分开记录。"""
     brand = config.get("brand") if isinstance(config, dict) and isinstance(config.get("brand"), dict) else {}
+    declared = config.get("business_profile") if isinstance(config, dict) else None
+    if isinstance(declared, dict) and declared.get("confirmed") is True:
+        profile = str(declared.get("id") or "")
+        if profile in CHANNEL_STRATEGIES:
+            return {
+                **declared,
+                "id": profile,
+                "label": declared.get("label") or profile.replace("_", " ").title(),
+                "confidence": "high",
+                "confirmed": True,
+                "review_required": False,
+                "evidence": list(declared.get("evidence") or ["Business profile confirmed in project configuration"]),
+            }
     industry = str(brand.get("industry") or "").lower()
     fields = [brand.get("target_users"), brand.get("business_goal")]
     fields += brand.get("products") if isinstance(brand.get("products"), list) else []
@@ -295,27 +479,69 @@ def infer_business_profile(config):
     for profile, keywords in PROFILE_RULES:
         industry_hits = [keyword for keyword in keywords if keyword in industry]
         support_hits = [keyword for keyword in keywords if keyword in supporting]
-        hits = list(dict.fromkeys(industry_hits + support_hits))
+        page_evidence = _profile_page_evidence(pages, keywords)
+        page_hits = list(dict.fromkeys(
+            signal for item in page_evidence for signal in item.get("signals") or []
+        ))
+        hits = list(dict.fromkeys(industry_hits + support_hits + page_hits))
         if hits:
-            matches.append((len(industry_hits) * 3 + len(support_hits), profile, industry_hits, hits))
+            score = len(industry_hits) * 3 + len(support_hits) + min(len(page_hits), 3) * 2
+            matches.append((score, profile, industry_hits, support_hits, page_evidence, hits))
     if matches:
-        _score, profile, industry_hits, hits = max(matches, key=lambda item: item[0])
+        matches.sort(key=lambda item: (-item[0], item[1]))
+        candidates = [
+            {
+                "id": item[1],
+                "label": item[1].replace("_", " ").title(),
+                "score": item[0],
+                "signals": item[5],
+                "evidence": item[4],
+            }
+            for item in matches
+        ]
+        eligible = [item for item in matches if item[2] or item[3]]
+        if not eligible:
+            return {
+                "id": "generic",
+                "label": "General business",
+                "industry": str(brand.get("industry") or ""),
+                "confidence": "low",
+                "confirmed": False,
+                "review_required": True,
+                "evidence": [],
+                "evidence_details": [],
+                "candidates": candidates,
+            }
+        _score, profile, industry_hits, support_hits, page_evidence, hits = eligible[0]
         evidence = []
         if industry_hits:
-            evidence.append(f"brand.industry matched the {profile} profile")
-        if len(hits) > len(industry_hits):
+            evidence.append(f"Model or project industry metadata matched the {profile} profile")
+        if support_hits:
             evidence.append(f"brand products, audience, or business goal matched the {profile} profile")
+        if page_evidence:
+            evidence.append(f"Crawled website content matched the {profile} profile")
+        confidence = "high" if industry_hits and page_evidence else "medium"
         return {
             "id": profile,
             "label": profile.replace("_", " ").title(),
-            "confidence": "high" if industry_hits else "medium",
+            "industry": str(brand.get("industry") or ""),
+            "confidence": confidence,
+            "confirmed": False,
+            "review_required": True,
             "evidence": evidence,
+            "evidence_details": page_evidence,
+            "candidates": candidates,
         }
     return {
         "id": "generic",
         "label": "General business",
+        "industry": str(brand.get("industry") or ""),
         "confidence": "low",
+        "confirmed": False,
+        "review_required": True,
         "evidence": [],
+        "evidence_details": [],
+        "candidates": [],
     }
 
 
@@ -500,7 +726,7 @@ def normalize_config_data(config):
     current["questions"] = normalize_questions(current.get("questions"))
     current["competitors"] = _normalize_competitors(current.get("competitors"))
     current["platforms"] = _normalize_platforms(current.get("platforms"))
-    return current
+    return brand_identity.normalize_config_identity(current)
 
 
 def normalize_config(project_slug):
@@ -593,7 +819,8 @@ def normalize_blueprint(project_slug):
     with geolib.project_lock(project_slug):
         current = geolib.read_json(path, {}) or {}
         config = geolib.load_config(project_slug)
-        profile = infer_business_profile(config)
+        pages = geolib.read_jsonl(geolib.project_dir(project_slug) / "evidence" / "pages.jsonl")
+        profile = infer_business_profile(config, pages=pages)
         normalized = normalize_blueprint_data(
             current,
             profile=profile,
@@ -668,7 +895,23 @@ def normalize_audit(project_slug):
     if not path.is_file():
         return None
     with geolib.project_lock(project_slug):
+        deduplication = deduplicate_crawl_evidence(project_slug)
         current = geolib.read_json(path, {}) or {}
+        evidence_pages = deduplication.get("pages") or []
+        audit_urls = {
+            str(page.get("url") or "")
+            for page in current.get("pages") or []
+            if isinstance(page, dict)
+        }
+        duplicate_urls = {
+            str(url)
+            for page in evidence_pages
+            for url in (page.get("duplicate_urls") or [])
+        }
+        if deduplication.get("removed") or audit_urls & duplicate_urls:
+            import audit as engine_audit
+
+            current = engine_audit.run(project_slug)
         if current.get("market") != "global":
             current["market"] = "global"
             geolib.write_json(path, current)
@@ -695,13 +938,17 @@ def _sample_summary(rows):
     }
 
 
-def normalize_metrics(project_slug, question_count=None):
+def normalize_metrics(project_slug, question_count=None, config=None):
     directory = geolib.project_dir(project_slug) / "metrics"
     if not directory.is_dir():
         return []
+    config = brand_identity.normalize_config_identity(config or geolib.load_config(project_slug))
+    current_question_version = brand_identity.question_set_version(config)["version"]
+    metrics_paths = sorted(directory.glob("*.json"))
+    latest_path = metrics_paths[-1] if metrics_paths else None
     normalized_files = []
     with geolib.project_lock(project_slug):
-        for path in sorted(directory.glob("*.json")):
+        for path in metrics_paths:
             current = geolib.read_json(path, {}) or {}
             platforms = {
                 code: {**item, "market": "global"}
@@ -714,9 +961,20 @@ def normalize_metrics(project_slug, question_count=None):
             date = str(current.get("date") or "")
             sample_path = geolib.project_dir(project_slug) / "samples" / f"{date}.jsonl"
             if sample_path.is_file():
-                rows = [row for row in geolib.read_jsonl(sample_path) if is_global_sample(row)]
-                normalized["sample_count"] = len(rows)
-                normalized["sample_summary"] = _sample_summary(rows)
+                import sample as engine_sample
+
+                rows = [
+                    row for row in geolib.read_jsonl(sample_path)
+                    if is_global_sample(row) and brand_identity.is_current_sample(row, config)
+                ]
+                rows = engine_sample.dedup_rows(rows)
+                successful = [row for row in rows if row.get("ok")]
+                if rows or path == latest_path:
+                    normalized["platforms"] = engine_sample.aggregate(successful, config) if successful else {}
+                    normalized["sample_count"] = len(successful)
+                    normalized["sample_summary"] = _sample_summary(rows)
+                    normalized["question_set_version"] = current_question_version
+                    normalized["cohort_status"] = "current" if rows else "no_current_samples"
             elif isinstance(current.get("sample_summary"), dict):
                 successful = sum(int(item.get("samples") or 0) for item in platforms.values())
                 normalized["sample_count"] = successful
@@ -747,7 +1005,11 @@ def normalize_metrics(project_slug, question_count=None):
                     if isinstance(item, dict) and item.get("engine_code") not in DOMESTIC_PLATFORM_CODES
                 ]
                 if isinstance(provenance.get("question_set"), dict) and question_count is not None:
-                    provenance["question_set"] = {**provenance["question_set"], "count": question_count}
+                    provenance["question_set"] = {
+                        **provenance["question_set"],
+                        "version": normalized.get("question_set_version", provenance["question_set"].get("version")),
+                        "count": question_count,
+                    }
                 normalized["provenance"] = provenance
             if normalized != current:
                 geolib.write_json(path, normalized)
@@ -759,8 +1021,9 @@ def normalize_project(project_slug):
     if not (geolib.project_dir(project_slug) / "geo.json").is_file():
         return {}
     config = normalize_config(project_slug)
+    brand_identity.reanalyze_samples(project_slug, config)
     normalize_audit(project_slug)
-    normalize_metrics(project_slug, question_count=len(config.get("questions") or []))
+    normalize_metrics(project_slug, question_count=len(config.get("questions") or []), config=config)
     normalize_tasks(project_slug)
     normalize_blueprint(project_slug)
     return config
@@ -771,11 +1034,38 @@ def normalize_generated_outputs(project_slug):
     """确保引擎生成的问题、工单和蓝图在下游步骤前立即归一。"""
     import blueprint as engine_blueprint
     import bootstrap as engine_bootstrap
+    import audit as engine_audit
+    import crawl as engine_crawl
     import tasks as engine_tasks
 
     original_bootstrap = engine_bootstrap.run
+    original_audit = engine_audit.run
+    original_crawl = engine_crawl.run
     original_tasks = engine_tasks.build
     original_blueprint = engine_blueprint.build
+
+    def crawl_run(slug, *args, **kwargs):
+        result = original_crawl(slug, *args, **kwargs)
+        if slug != project_slug:
+            return result
+        normalized = deduplicate_crawl_evidence(project_slug)
+        if isinstance(result, dict) and normalized.get("site"):
+            return {**result, **{
+                key: value for key, value in normalized["site"].items()
+                if key in ("pages_crawled", "pages_ok", "pages_crawled_raw", "duplicate_pages_removed")
+            }}
+        return result
+
+    def audit_run(slug, *args, **kwargs):
+        if slug == project_slug:
+            deduplicate_crawl_evidence(project_slug)
+        result = original_audit(slug, *args, **kwargs)
+        if slug != project_slug or not isinstance(result, dict):
+            return result
+        normalized = {**result, "market": "global"}
+        if normalized != result:
+            geolib.write_json(geolib.project_dir(project_slug) / "audit.json", normalized)
+        return normalized
 
     def bootstrap_run(slug, *args, **kwargs):
         result = original_bootstrap(slug, *args, **kwargs)
@@ -792,12 +1082,16 @@ def normalize_generated_outputs(project_slug):
         return normalize_blueprint(project_slug) if slug == project_slug else result
 
     engine_bootstrap.run = bootstrap_run
+    engine_audit.run = audit_run
+    engine_crawl.run = crawl_run
     engine_tasks.build = tasks_build
     engine_blueprint.build = blueprint_build
     try:
         yield
     finally:
         engine_bootstrap.run = original_bootstrap
+        engine_audit.run = original_audit
+        engine_crawl.run = original_crawl
         engine_tasks.build = original_tasks
         engine_blueprint.build = original_blueprint
         normalize_project(project_slug)
