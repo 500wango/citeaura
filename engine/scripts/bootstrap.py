@@ -26,7 +26,13 @@ def _site_digest(slug: str, limit: int = 14000) -> str:
     audit = G.read_json(G.project_dir(slug) / "audit.json", {})
     score = {p["url"]: p["score"] for p in audit.get("pages", [])}
     root = pages[0]["url"]
-    ordered = sorted(pages, key=lambda p: (p["url"] != root, -score.get(p["url"], 0)))
+
+    def page_rank(page):
+        value = score.get(page["url"])
+        measured = isinstance(value, (int, float)) and not isinstance(value, bool)
+        return page["url"] != root, not measured, -value if measured else 0
+
+    ordered = sorted(pages, key=page_rank)
 
     parts, used = [], 0
     for p in ordered:

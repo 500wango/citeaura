@@ -60,6 +60,24 @@ class TestHomepageFirst(WorkDirCase):
         self.assertIn(home, blocks[0], "摘要首块必须是首页（pages.jsonl 第一条），而不是高分页")
         self.assertNotIn(deep, blocks[0])
 
+    def test_unscored_pages_sort_after_measured_pages(self):
+        home = "https://t.example.com/"
+        deep = "https://t.example.com/features"
+        contact = "https://t.example.com/contact"
+        G.write_jsonl(self.pdir / "evidence" / "pages.jsonl", [
+            {"url": home, "title": "Home", "text": "Home body", "word_count": 2},
+            {"url": contact, "title": "Contact", "text": "Contact body", "word_count": 2},
+            {"url": deep, "title": "Features", "text": "Feature body", "word_count": 2},
+        ])
+        G.write_json(self.pdir / "audit.json", {"pages": [
+            {"url": home, "score": 10},
+            {"url": contact, "score": None},
+            {"url": deep, "score": 90},
+        ]})
+        digest = B._site_digest(self.slug)
+        self.assertLess(digest.index(home), digest.index(deep))
+        self.assertLess(digest.index(deep), digest.index(contact))
+
 
 class TestCompetitorConfirmation(WorkDirCase):
     def _manual_file(self, answer):

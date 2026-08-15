@@ -95,6 +95,15 @@ class GenerateTest(unittest.TestCase):
         self.assertEqual(set(GEN._asset_issues("TODO 中文", "en")),
                          {"contains_placeholder", "contains_untranslated_text"})
 
+    def test_llms_txt_places_unscored_pages_after_measured_pages(self):
+        G.write_json(self.pdir / "audit.json", {"pages": [
+            {"url": "https://acme.example/contact", "title": "Contact", "score": None},
+            {"url": "https://acme.example/features", "title": "Features", "score": 90},
+        ]})
+        text = GEN.gen_llms_txt("demo", "en")
+        self.assertLess(text.index("https://acme.example/features"),
+                        text.index("https://acme.example/contact"))
+
 
 if __name__ == "__main__":
     unittest.main()

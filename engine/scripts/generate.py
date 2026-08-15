@@ -158,6 +158,12 @@ def _answer_for(question: dict, lang: str) -> str:
     return _language_text(value or question.get("answer"), lang)
 
 
+def _audit_page_rank(page: dict) -> tuple:
+    score = page.get("score")
+    measured = isinstance(score, (int, float)) and not isinstance(score, bool)
+    return not measured, -score if measured else 0
+
+
 # ---------------------------------------------------------------- llms.txt
 
 def gen_llms_txt(slug: str, lang: str = "zh") -> str:
@@ -165,7 +171,7 @@ def gen_llms_txt(slug: str, lang: str = "zh") -> str:
     f = parse_facts(slug)
     b = cfg["brand"]
     audit = G.read_json(G.project_dir(slug) / "audit.json", {})
-    pages = sorted(audit.get("pages", []), key=lambda p: -p["score"])[:12]
+    pages = sorted(audit.get("pages", []), key=_audit_page_rank)[:12]
 
     strings = _locale(lang)["llms"]
     definition = _definition(cfg, f, lang)
