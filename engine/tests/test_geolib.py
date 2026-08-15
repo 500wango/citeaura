@@ -97,6 +97,11 @@ class TestJsonIO(unittest.TestCase):
         self.assertFalse(G.same_site("", ""))
         self.assertTrue(G.same_site("https://www.example.com", "docs.example.com"))
 
+    def test_fetch_target_rejects_private_resolution(self):
+        with mock.patch.object(G.socket, "getaddrinfo", return_value=[(None, None, None, None, ("127.0.0.1", 80))]):
+            with self.assertRaises(ValueError):
+                G._validate_fetch_target("http://internal.example/")
+
     def test_normalize_url_rejects_non_http_and_malformed_links(self):
         self.assertIsNone(G.normalize_url("https://example.com", "javascript:alert(1)"))
         self.assertIsNone(G.normalize_url("https://example.com", "ftp://example.com/file"))
@@ -116,7 +121,8 @@ class TestJsonIO(unittest.TestCase):
             encoding="utf-8",
         )
         response.iter_content.return_value = [b"a" * G.MAX_BYTES, b"overflow"]
-        with mock.patch.object(G.requests, "get", return_value=response):
+        with mock.patch.object(G.requests, "get", return_value=response), \
+             mock.patch.object(G, "_validate_fetch_target"):
             result = G.fetch("https://example.com", retries=0)
         self.assertEqual(len(result["html"]), G.MAX_BYTES)
         response.close.assert_called_once()
@@ -129,7 +135,8 @@ class TestJsonIO(unittest.TestCase):
             encoding="utf-8",
         )
         response.iter_content.side_effect = OSError("stream failed")
-        with mock.patch.object(G.requests, "get", return_value=response):
+        with mock.patch.object(G.requests, "get", return_value=response), \
+             mock.patch.object(G, "_validate_fetch_target"):
             result = G.fetch("https://example.com", retries=0)
         self.assertEqual(result["status"], 0)
         response.close.assert_called_once()

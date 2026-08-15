@@ -7,7 +7,8 @@ from sqlalchemy import func
 from api.adapters.engine import geolib, load_custom_providers, with_tenant_context
 from api.adapters import sampling_modes
 from api.billing.platform_pool import resolve_funding
-from api.models import PlatformUsage
+from api.models import Job, PlatformUsage, Project, Tenant
+from api.billing.limits import check_sample_run
 
 
 class SamplingBudgetExceeded(ValueError):
@@ -40,14 +41,25 @@ def _project_pool_spend(db, project_id):
     return {"month": start.date().isoformat(), "calls": int(calls or 0), "cost_cny_fen": int(amount or 0)}
 
 
-def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1):
+def _project_pool_reservations(db, project_id):
+    calls, amount = db.query(
+        func.coalesce(func.sum(Job.reserved_platform_calls), 0),
+        func.coalesce(func.sum(Job.reserved_platform_cost_cny_fen), 0),
+    ).filter(
+        Job.project_id == project_id,
+        Job.budget_reservation_status.in_(("reserved", "review")),
+    ).one()
+    return {"calls": int(calls or 0), "cost_cny_fen": int(amount or 0)}
+
+
+def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, allow_pool=True):
     """按当前问题集和资金来源估算一次采样，不返回密钥。"""
     import sample
 
     requested = platforms
     if isinstance(requested, str):
         requested = [item.strip() for item in requested.split(",") if item.strip()]
-    funding = resolve_funding(db, tenant.id, project.slug)
+    funding = resolve_funding(db, tenant.id, project.slug, allow_pool=allow_pool)
     custom_providers = load_custom_providers(db, tenant.id)
     with with_tenant_context(tenant.name, project.slug, custom_providers=custom_providers):
         config_path = geolib.project_dir(project.slug) / "geo.json"
@@ -97,8 +109,9 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1):
             })
 
     usage = _project_pool_spend(db, project.id)
+    reservations = _project_pool_reservations(db, project.id)
     budget = project.monthly_budget_cny_fen
-    projected = usage["cost_cny_fen"] + pool_cost
+    projected = usage["cost_cny_fen"] + reservations["cost_cny_fen"] + pool_cost
     call_limit_exceeded = project.sample_call_limit is not None and total_calls > project.sample_call_limit
     budget_exceeded = budget is not None and pool_calls > 0 and projected > budget
     paused = bool(project.pause_on_budget_exceeded and (call_limit_exceeded or budget_exceeded))
@@ -121,8 +134,12 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1):
             "month": usage["month"],
             "used_platform_pool_calls": usage["calls"],
             "used_platform_pool_cost_cny_fen": usage["cost_cny_fen"],
+            "reserved_platform_pool_calls": reservations["calls"],
+            "reserved_platform_pool_cost_cny_fen": reservations["cost_cny_fen"],
             "projected_platform_pool_cost_cny_fen": projected,
-            "remaining_cny_fen": None if budget is None else max(0, budget - usage["cost_cny_fen"]),
+            "remaining_cny_fen": None if budget is None else max(
+                0, budget - usage["cost_cny_fen"] - reservations["cost_cny_fen"],
+            ),
             "call_limit_exceeded": call_limit_exceeded,
             "budget_exceeded": budget_exceeded,
             "paused": paused,
@@ -136,4 +153,19 @@ def ensure_allowed(db, tenant, project, **kwargs):
     if budget["paused"]:
         code = "sample_call_limit_exceeded" if budget["call_limit_exceeded"] else "monthly_budget_exceeded"
         raise SamplingBudgetExceeded(code, result)
+    return result
+
+
+def reserve(db, tenant, project, job, **kwargs):
+    """Lock the project budget row and reserve an estimated platform-pool amount."""
+    locked_tenant = db.query(Tenant).filter(Tenant.id == tenant.id).with_for_update().one()
+    locked_project = db.query(Project).filter(Project.id == project.id).with_for_update().one()
+    check_sample_run(db, locked_tenant, locked_project)
+    result = ensure_allowed(db, locked_tenant, locked_project, **kwargs)
+    estimate_data = result["estimate"]
+    calls = int(estimate_data["platform_pool_calls"] or 0)
+    cost = int(estimate_data["platform_pool_cost_cny_fen"] or 0)
+    job.reserved_platform_calls = calls
+    job.reserved_platform_cost_cny_fen = cost
+    job.budget_reservation_status = "reserved" if calls or cost else None
     return result

@@ -171,8 +171,8 @@ def _robots_groups(text: str) -> list[tuple[list[str], list[tuple[str, str]]]]:
     return groups
 
 
-def robots_disallows_root(text: str, bot: str) -> bool:
-    """Evaluate root access using longest user-agent and path matches."""
+def robots_disallows(text: str, bot: str, path: str = "/") -> bool:
+    """Evaluate access using the longest user-agent and path matches."""
     name = bot.lower()
     matches = []
     for agents, rules in _robots_groups(text):
@@ -192,12 +192,17 @@ def robots_disallows_root(text: str, bot: str) -> bool:
             regex = re.escape(pattern).replace(r"\*", ".*")
             if regex.endswith(r"\$"):
                 regex = regex[:-2] + "$"
-            if re.match(regex, "/"):
+            if re.match(regex, path or "/"):
                 decisions.append((len(pattern), kind == "allow"))
     if not decisions:
         return False
     longest = max(length for length, _allow in decisions)
     return not any(allow for length, allow in decisions if length == longest)
+
+
+def robots_disallows_root(text: str, bot: str) -> bool:
+    """Evaluate root access using the robots policy."""
+    return robots_disallows(text, bot, "/")
 
 
 def analyze_page(url: str, res: dict) -> dict:
@@ -282,13 +287,23 @@ def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
     llms_txt = G.fetch_text(G.normalize_url(root, "/llms.txt"))
     sitemap_urls = discover_sitemap(root)
 
-    home = G.fetch(root)
+    home = (
+        {"url": root, "final_url": root, "status": 0, "html": "", "error": "Blocked by robots.txt"}
+        if robots_disallows(robots_txt, "*", urlparse(root).path or "/")
+        else G.fetch(root)
+    )
     link_urls = discover_links(root, home["html"]) if home["html"] else []
 
     seeds = [u for u in cfg.get("pages", {}).get("seed", []) if u]
     candidates = select_candidates(seeds + sitemap_urls + link_urls, root, limit, cfg.get("market", "cn"))
 
     def crawl_one(i: int, u: str) -> dict:
+        if robots_disallows(robots_txt, "*", urlparse(u).path or "/"):
+            res = {"url": u, "final_url": u, "status": 0, "html": "", "error": "Blocked by robots.txt"}
+            page = analyze_page(u, res)
+            page["snapshot"] = f"evidence/html/{run_id}/{i:03d}.html"
+            page["crawl_run_id"] = run_id
+            return page
         res = home if u.rstrip("/") == root else G.fetch(u)
         if res.get("final_url") and not G.same_site(root, res["final_url"]):
             res = {**res, "status": 0, "html": "",

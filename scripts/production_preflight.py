@@ -5,11 +5,10 @@ import argparse
 import base64
 import json
 import re
-import ssl
 import subprocess
 import sys
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 
 PLACEHOLDERS = ("replace-with", "example.com", "changeme")
@@ -62,7 +61,7 @@ def validate_environment(values):
     warnings = []
     required = (
         "DOMAIN", "DATABASE_URL",
-        "PUBLIC_BASE_URL", "REDIS_URL", "JWT_SECRET", "AES_KEY", "SESSION_COOKIE_SECURE",
+        "PUBLIC_BASE_URL", "REDIS_URL", "REDIS_PASSWORD", "JWT_SECRET", "AES_KEY", "SESSION_COOKIE_SECURE",
         "RATE_LIMIT_ENABLED", "RATE_LIMIT_REQUESTS", "RATE_LIMIT_AUTH_REQUESTS",
         "RATE_LIMIT_WINDOW_SECONDS", "RATE_LIMIT_TRUST_PROXY_HEADERS",
         "TRUST_CLOUDFLARE_COUNTRY_HEADER",
@@ -72,6 +71,7 @@ def validate_environment(values):
             errors.append(f"{key} is required")
     billing_enabled = _feature_flag(values, "BILLING_ENABLED", errors)
     password_reset_email_enabled = _feature_flag(values, "PASSWORD_RESET_EMAIL_ENABLED", errors)
+    _feature_flag(values, "TRUST_CLOUDFLARE_COUNTRY_HEADER", errors)
     domain = values.get("DOMAIN", "")
     if domain and (not re.fullmatch(r"[A-Za-z0-9.-]+", domain) or "." not in domain or _placeholder(domain)):
         errors.append("DOMAIN must be a real hostname")
@@ -89,6 +89,12 @@ def validate_environment(values):
         query = {key.lower(): value.lower() for key, value in (item.split("=", 1) for item in parsed_database.query.split("&") if "=" in item)}
         if query.get("sslmode") != "require":
             errors.append("DATABASE_URL must set sslmode=require for Neon TLS")
+    redis_url = urlparse(values.get("REDIS_URL", ""))
+    redis_password = values.get("REDIS_PASSWORD", "")
+    if not redis_password or len(redis_password) < 24 or _placeholder(redis_password):
+        errors.append("REDIS_PASSWORD must be a non-placeholder value of at least 24 characters")
+    if values.get("REDIS_URL") and (redis_url.scheme not in ("redis", "rediss") or unquote(redis_url.password or "") != redis_password):
+        errors.append("REDIS_URL must include REDIS_PASSWORD")
     jwt_secret = values.get("JWT_SECRET", "")
     if jwt_secret and (len(jwt_secret) < 32 or _placeholder(jwt_secret)):
         errors.append("JWT_SECRET must be a non-placeholder value of at least 32 characters")
@@ -106,8 +112,6 @@ def validate_environment(values):
         errors.append("RATE_LIMIT_ENABLED must be true")
     if values.get("RATE_LIMIT_TRUST_PROXY_HEADERS", "").lower() not in ("1", "true", "yes"):
         errors.append("RATE_LIMIT_TRUST_PROXY_HEADERS must be true behind the production proxy")
-    if values.get("TRUST_CLOUDFLARE_COUNTRY_HEADER", "").lower() not in ("1", "true", "yes"):
-        errors.append("TRUST_CLOUDFLARE_COUNTRY_HEADER must be true after restricting the origin to Cloudflare traffic")
     for key, maximum in (("RATE_LIMIT_REQUESTS", 1_000_000), ("RATE_LIMIT_AUTH_REQUESTS", 1_000_000), ("RATE_LIMIT_WINDOW_SECONDS", 3600)):
         try:
             number = int(values.get(key, ""))
@@ -193,9 +197,13 @@ def validate_certificate(cert_dir, domain):
     except (OSError, subprocess.CalledProcessError):
         errors.append("TLS certificate is invalid or expires within 7 days")
     try:
-        decoded = ssl._ssl._test_decode_cert(str(certificate))  # noqa: SLF001 - 标准库无公开 PEM 解析入口
-        ssl.match_hostname(decoded, domain)
-    except (ValueError, ssl.CertificateError, ssl.SSLError):
+        subprocess.run(
+            ["openssl", "x509", "-checkhost", domain, "-noout", "-in", str(certificate)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
         errors.append("TLS certificate does not cover DOMAIN")
     try:
         cert_public = subprocess.run(
@@ -219,7 +227,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--env-file", type=Path, default=Path(".env.production"))
     parser.add_argument("--cert-dir", type=Path, default=Path("deploy/certs"))
-    parser.add_argument("--skip-certificate", action="store_true")
+    parser.add_argument("--tls-mode", choices=("local", "external"), default="local")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     try:
@@ -228,8 +236,10 @@ def main(argv=None):
         result = {"ready": False, "errors": [str(exc)], "warnings": []}
     else:
         errors, warnings = validate_environment(values)
-        if not args.skip_certificate:
+        if args.tls_mode == "local":
             errors.extend(validate_certificate(args.cert_dir, values.get("DOMAIN", "")))
+        else:
+            warnings.append("TLS certificate validation is delegated to the external Caddy or CDN endpoint")
         result = {"ready": not errors, "errors": errors, "warnings": warnings}
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))

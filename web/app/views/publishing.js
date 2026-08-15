@@ -53,7 +53,7 @@ export default {
                 <button type="button" class="btn btn-secondary btn-sm btn-config-publisher" data-code="${publisher.code}">
                   ${t('publishing.config_btn', {}, 'Configure Destination')}
                 </button>
-                <span title="${t('publishing.tip_body', {}, 'If your endpoint requires secret authentication, append tokens directly to the URL query string (e.g. https://your-cms.com/api/publish?secret=YOUR_TOKEN).')}" style="cursor:help;color:var(--muted);display:inline-flex;align-items:center;">
+                <span title="${t('publishing.tip_body', {}, 'Keep credentials in the encrypted settings fields. Never append secrets to a URL query string.')}" style="cursor:help;color:var(--muted);display:inline-flex;align-items:center;">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                 </span>
               </div>
@@ -102,7 +102,7 @@ function showPublisherModal(projectId, publisher, ctx) {
         <div>
           <strong style="color:var(--ink);">${t('publishing.tip_title', {}, 'Authentication & Security Tip')}</strong>
           <div style="margin-top:2px;line-height:1.4;">
-            ${t('publishing.tip_body', {}, 'If your endpoint requires secret authentication, append tokens directly to the URL query string (e.g. https://your-cms.com/api/publish?secret=YOUR_TOKEN). Requests are transmitted over encrypted TLS/HTTPS.')}
+            ${t('publishing.tip_body', {}, 'Keep credentials in the encrypted settings fields. Never append secrets to a URL query string; query strings can be stored in browser and proxy logs.')}
           </div>
         </div>
       </div>

@@ -17,7 +17,7 @@ beat:
 	celery -A api.worker.celery_app beat --loglevel=INFO --schedule=/tmp/citeaura-celerybeat-schedule
 
 preflight:
-	python3 scripts/production_preflight.py --env-file $${ENV_FILE:-.env.production} --skip-certificate
+	python3 scripts/production_preflight.py --env-file $${ENV_FILE:-.env.production} --tls-mode external
 
 create-admin:
 	python3 -m api.admin.cli create --email "$${EMAIL}" --role "$${ROLE:-superadmin}"

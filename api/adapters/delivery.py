@@ -2165,14 +2165,24 @@ def ensure_delivery_contract(project_slug: str, delivery_directory: Path | None 
     target.parent.mkdir(parents=True, exist_ok=True)
     with geolib.project_lock(project_slug):
         staging = Path(tempfile.mkdtemp(prefix=".delivery-english-", dir=target.parent))
+        backup = target.with_name(f".{target.name}.backup")
         try:
+            if backup.exists() and not target.exists():
+                backup.rename(target)
             _build_delivery(project_slug, project_directory, staging, target.name)
+            shutil.rmtree(backup, ignore_errors=True)
             if target.exists():
-                shutil.rmtree(target)
-            staging.rename(target)
+                target.rename(backup)
+            try:
+                staging.rename(target)
+            except Exception:
+                if backup.exists() and not target.exists():
+                    backup.rename(target)
+                raise
+            shutil.rmtree(backup, ignore_errors=True)
         except Exception:
             shutil.rmtree(staging, ignore_errors=True)
-            if target.exists():
-                shutil.rmtree(target, ignore_errors=True)
+            if backup.exists() and not target.exists():
+                backup.rename(target)
             raise
     return target

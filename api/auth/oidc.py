@@ -153,6 +153,6 @@ def complete_login(configuration, redirect_uri, code, context):
     if claims.get("nonce") != context.get("nonce"):
         raise OidcError("oidc_nonce_invalid")
     email = str(claims.get("email") or "").strip().lower()
-    if not email or "@" not in email or claims.get("email_verified") is False:
+    if not email or "@" not in email or claims.get("email_verified") is not True:
         raise OidcError("oidc_email_unverified")
     return {"email": email, "subject": str(claims["sub"]), "claims": claims}

@@ -2,6 +2,7 @@
 
 import re
 import uuid
+import hashlib
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -19,6 +20,7 @@ from api.auth.security import (
     ACCESS_TOKEN_COOKIE,
     REFRESH_TOKEN_COOKIE,
     REFRESH_TOKEN_EXPIRE_DAYS,
+    DUMMY_PASSWORD_HASH,
     create_access_token,
     create_refresh_token,
     decode_token,
@@ -28,7 +30,7 @@ from api.auth.security import (
 from api.country import request_country_code
 from api.analytics.router import request_visitor
 from api.db import get_db
-from api.models import Membership, PasswordResetToken, Tenant, User
+from api.models import Membership, PasswordResetToken, RefreshToken, Tenant, User
 from api.product_events import record_product_event
 from api.team.invitations import invitation_for_token, is_expired
 
@@ -98,13 +100,37 @@ def _tenant_name(db: Session, requested: str | None, email: str) -> str:
     return candidate
 
 
-def token_response(response: Response, user_id: int, tenant_id: int, db: Session, expose_tokens=True):
+def _token_hash(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def token_response(
+    response: Response,
+    user_id: int,
+    tenant_id: int,
+    db: Session,
+    expose_tokens=True,
+    refresh_family_id=None,
+):
     """签发令牌并设置同站 HttpOnly 会话 Cookie。"""
     # 令牌绑定到当前会话版本，密码重置后旧令牌立即失效。
     user = db.get(User, user_id)
     session_version = user.session_version if user is not None else 0
     access_token = create_access_token(user_id, tenant_id, session_version)
-    refresh_token = create_refresh_token(user_id, tenant_id, session_version)
+    family_id = refresh_family_id or str(uuid.uuid4())
+    token_id = str(uuid.uuid4())
+    refresh_token = create_refresh_token(
+        user_id, tenant_id, session_version,
+        family_id=family_id, token_id=token_id,
+    )
+    db.add(RefreshToken(
+        family_id=family_id,
+        token_hash=_token_hash(refresh_token),
+        user_id=user_id,
+        tenant_id=tenant_id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+    ))
+    db.commit()
     cookie_secure = config.session_cookie_secure()
     response.set_cookie(
         ACCESS_TOKEN_COOKIE,
@@ -209,7 +235,10 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
 def login(request: Request, payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
     """验证密码并返回 access/refresh JWT。"""
     user = db.query(User).filter(User.email == payload.email).first()
-    if user is None or not verify_password(payload.password, user.password_hash):
+    if user is None:
+        verify_password(payload.password, DUMMY_PASSWORD_HASH)
+        _error(status.HTTP_401_UNAUTHORIZED, "invalid_credentials")
+    if not verify_password(payload.password, user.password_hash):
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_credentials")
 
     membership_query = db.query(Membership).filter(Membership.user_id == user.id)
@@ -263,12 +292,39 @@ def refresh(
         or int(claims.get("sv", -1)) != int(user.session_version)
     ):
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
+    now = datetime.now(timezone.utc)
+    stored = db.query(RefreshToken).filter(
+        RefreshToken.token_hash == _token_hash(token),
+    ).with_for_update().first()
+    if (
+        stored is None
+        or stored.user_id != user_id
+        or stored.tenant_id != tenant_id
+        or stored.family_id != claims.get("fid")
+    ):
+        _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
+    expires_at = stored.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if stored.used_at is not None or stored.revoked_at is not None:
+        db.query(RefreshToken).filter(
+            RefreshToken.family_id == stored.family_id,
+        ).update({RefreshToken.revoked_at: now}, synchronize_session=False)
+        user.session_version += 1
+        db.commit()
+        _error(status.HTTP_401_UNAUTHORIZED, "refresh_token_reused")
+    if expires_at <= now:
+        stored.revoked_at = now
+        db.commit()
+        _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
+    stored.used_at = now
     return token_response(
         response,
         user_id,
         tenant_id,
         db,
         expose_tokens=request.headers.get("X-CiteAura-Session") != "cookie",
+        refresh_family_id=stored.family_id,
     )
 
 
@@ -294,6 +350,10 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
             continue
         if user is not None and int(claims.get("sv", -1)) == int(user.session_version):
             user.session_version += 1
+            db.query(RefreshToken).filter(
+                RefreshToken.user_id == user.id,
+                RefreshToken.revoked_at.is_(None),
+            ).update({RefreshToken.revoked_at: datetime.now(timezone.utc)}, synchronize_session=False)
             db.commit()
         break
     response.delete_cookie(ACCESS_TOKEN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
@@ -314,6 +374,12 @@ def forgot_password(
     user = db.query(User).filter(User.email == payload.email).first()
     if user is not None:
         now = datetime.now(timezone.utc)
+        recent = db.query(PasswordResetToken.id).filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.created_at >= now - timedelta(seconds=60),
+        ).first()
+        if recent is not None:
+            return {"accepted": True}
         db.query(PasswordResetToken).filter(
             PasswordResetToken.user_id == user.id,
             PasswordResetToken.used_at.is_(None),

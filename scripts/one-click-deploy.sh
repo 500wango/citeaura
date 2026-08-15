@@ -88,7 +88,7 @@ if ! docker compose version >/dev/null 2>&1; then
     exit 1
 fi
 
-python3 scripts/production_preflight.py --env-file "$ENV_FILE" --skip-certificate
+python3 scripts/production_preflight.py --env-file "$ENV_FILE" --tls-mode external
 
 set -a
 # shellcheck disable=SC1090

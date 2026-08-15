@@ -9,7 +9,7 @@ from api.settings.crypto import _master_key
 from api.worker.celery_app import celery_app
 
 
-EXPECTED_DB_REVISION = "0021_remove_seo_integrations"
+EXPECTED_DB_REVISION = "0023_platform_usage_outbox"
 
 
 def _worker_available():
@@ -43,7 +43,7 @@ def readiness_checks(db):
         checks["encryption"] = len(_master_key()) == 32
     except (RuntimeError, ValueError):
         checks["encryption"] = False
-    checks["jwt"] = len(config.jwt_secret() or "") >= 32
+    checks["jwt"] = config.jwt_secret_valid()
     checks["https"] = config.session_cookie_secure() and config.public_base_url().startswith("https://")
     checks["stripe"] = not config.billing_enabled() or stripe_adapter.configured()
     checks["password_reset_email"] = not config.password_reset_email_enabled() or config.auth_smtp_configured()

@@ -1,12 +1,13 @@
 """采样口径、问题集版本和证据来源的文件系统适配。"""
 
 import math
+from collections import Counter
 from datetime import datetime, timezone
 
 from api.adapters import brand_identity
 from api.adapters.engine import geolib
 from api.adapters.global_scope import is_global_sample
-from api.adapters.sampling_modes import MODE_API, MODE_MANUAL, MODE_SEARCH, for_provider
+from api.adapters.sampling_modes import MODE_API, MODE_MANUAL, MODE_SEARCH, for_provider, for_row
 
 
 SCHEMA_VERSION = "1.0"
@@ -262,15 +263,24 @@ def record_sampling(
         requested = [item.strip() for item in requested.split(",") if item.strip()]
     byok = set(byok_codes or ())
     pool = set(pool_codes or ())
+    sample_files = sorted((geolib.project_dir(project_slug) / "samples").glob("*.jsonl"))
+    actual_mode_counts = {}
+    if sample_files:
+        for row in geolib.read_jsonl(sample_files[-1]):
+            code = row.get("platform")
+            if code and row.get("ok"):
+                actual_mode_counts.setdefault(code, Counter())[for_row(row)] += 1
     platforms = []
     for code in requested:
         if code in sample.PROVIDERS:
             provider = sample.PROVIDERS[code]
             provider_source = "byok" if code in byok else ("platform_pool" if code in pool else "unavailable")
+            actual_modes = actual_mode_counts.get(code)
             platforms.append({
                 "engine_code": code,
                 "engine_name": provider.get("name", code),
-                "sampling_mode": _mode(provider),
+                "sampling_mode": actual_modes.most_common(1)[0][0] if actual_modes else _mode(provider),
+                "sampling_mode_source": "sample_evidence" if actual_modes else "provider_configuration",
                 "model": sample.model_for(code),
                 "source": provider_source,
             })
@@ -280,6 +290,7 @@ def record_sampling(
                 "engine_code": code,
                 "engine_name": name,
                 "sampling_mode": MODE_MANUAL,
+                "sampling_mode_source": "provider_configuration",
                 "model": None,
                 "source": "manual",
             })

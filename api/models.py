@@ -73,6 +73,7 @@ class User(Base):
     password_reset_tokens = relationship(
         "PasswordResetToken", back_populates="user", cascade="all, delete-orphan",
     )
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
 
 
 class PasswordResetToken(Base):
@@ -86,6 +87,22 @@ class PasswordResetToken(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     user = relationship("User", back_populates="password_reset_tokens")
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True)
+    family_id = Column(String(36), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    user = relationship("User", back_populates="refresh_tokens")
 
 
 class Membership(Base):
@@ -211,6 +228,9 @@ class Job(Base):
     status = Column(String(32), nullable=False, default="queued", server_default="queued")
     stage = Column(String(64), nullable=False, default="queued", server_default="queued")
     progress = Column(Integer, nullable=False, default=0, server_default="0")
+    reserved_platform_calls = Column(Integer, nullable=False, default=0, server_default="0")
+    reserved_platform_cost_cny_fen = Column(Integer, nullable=False, default=0, server_default="0")
+    budget_reservation_status = Column(String(32), nullable=True, index=True)
     attempt = Column(Integer, nullable=False, default=1, server_default="1")
     request_json = Column(Text, nullable=True)
     celery_task_id = Column(String(255), nullable=True)
@@ -369,6 +389,34 @@ class PlatformUsage(Base):
     tenant = relationship("Tenant", back_populates="platform_usage")
     project = relationship("Project", back_populates="platform_usage")
     job = relationship("Job", back_populates="platform_usage")
+
+
+class PlatformUsageOutbox(Base):
+    """平台代付计量的持久化补偿事件。"""
+
+    __tablename__ = "platform_usage_outbox"
+    __table_args__ = (
+        UniqueConstraint("event_key", name="uq_platform_usage_outbox_event_key"),
+        CheckConstraint("calls > 0", name="ck_platform_usage_outbox_calls_positive"),
+        CheckConstraint("status IN ('pending', 'processed')", name="ck_platform_usage_outbox_status"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    event_key = Column(String(255), nullable=False)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True)
+    action = Column(String(64), nullable=False)
+    engine_code = Column(String(64), nullable=False)
+    calls = Column(Integer, nullable=False)
+    unit_price_cny_fen = Column(Integer, nullable=False)
+    amount_cny_fen = Column(Integer, nullable=False)
+    status = Column(String(32), nullable=False, default="pending", server_default="pending", index=True)
+    attempts = Column(Integer, nullable=False, default=0, server_default="0")
+    next_attempt_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    processed_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class SsoConfiguration(Base):

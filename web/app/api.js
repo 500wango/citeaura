@@ -316,7 +316,6 @@ export default {
   branding,
   publishing,
   outreach,
-  integrations,
   team,
   billing,
   sso,

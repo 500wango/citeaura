@@ -684,7 +684,7 @@ def test_delivery_contract_fails_closed_for_custom_chinese_asset(tmp_path, monke
     with pytest.raises(GeoEngineError, match="assets/custom/notes.txt"):
         delivery.ensure_delivery_contract("example", output)
 
-    assert not output.exists()
+    assert output.exists()
 
 
 def test_delivery_contract_preserves_custom_english_asset(tmp_path, monkeypatch):
@@ -708,4 +708,4 @@ def test_delivery_contract_rejects_missing_structured_source(tmp_path, monkeypat
     with pytest.raises(GeoEngineError, match="blueprint.json"):
         delivery.ensure_delivery_contract("example", output)
 
-    assert not output.exists()
+    assert output.exists()

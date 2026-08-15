@@ -81,7 +81,7 @@ export function t(key, params = {}, fallback = '') {
   let text = String(val);
   if (params && typeof params === 'object') {
     Object.entries(params).forEach(([k, v]) => {
-      text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+      text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), () => String(v));
     });
   }
   return text;

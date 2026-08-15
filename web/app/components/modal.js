@@ -70,6 +70,7 @@ export function openModal({
   root.appendChild(backdrop);
 
   const cleanup = () => {
+    document.removeEventListener('keydown', handleKeydown);
     if (backdrop.parentNode) {
       backdrop.parentNode.removeChild(backdrop);
     }
@@ -102,7 +103,6 @@ export function openModal({
   const handleKeydown = (e) => {
     if (e.key === 'Escape') {
       cleanup();
-      document.removeEventListener('keydown', handleKeydown);
     }
   };
   document.addEventListener('keydown', handleKeydown);

@@ -1,10 +1,12 @@
 """FastAPI 应用入口。"""
 
 import time
+from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy.exc import IntegrityError
 
 from api import config
@@ -26,10 +28,15 @@ from api.team.router import router as team_router
 from api.ui import router as ui_router
 from api.workspace.router import router as workspace_router
 from api.readiness import readiness_checks
-from api.rate_limit import RateLimitUnavailable, check_request
+from api.rate_limit import AUTH_PATHS, RateLimitUnavailable, check_request
 
 
 app = FastAPI(title="CiteAura API", version="1.0.0", docs_url="/api/docs", redoc_url="/api/redoc")
+_public_host = urlparse(config.public_base_url()).hostname or "localhost"
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=sorted({"localhost", "127.0.0.1", "testserver", _public_host, f"*.{_public_host}"}),
+)
 app.mount("/site-assets", StaticFiles(directory=WEB_ROOT / "assets"), name="site-assets")
 app.mount("/app", StaticFiles(directory=WEB_ROOT / "app", html=True), name="app")
 app.mount("/admin", StaticFiles(directory=WEB_ROOT / "admin", html=True), name="admin")
@@ -56,11 +63,13 @@ async def api_rate_limiter(request: Request, call_next):
     try:
         decision = check_request(request)
     except RateLimitUnavailable as exc:
-        return JSONResponse(
-            status_code=503,
-            content={"error": str(exc)},
-            headers={"Retry-After": "1"},
-        )
+        if request.url.path in AUTH_PATHS:
+            return JSONResponse(
+                status_code=503,
+                content={"error": str(exc)},
+                headers={"Retry-After": "1"},
+            )
+        decision = None
     if decision is not None and not decision.allowed:
         retry_after = max(1, decision.reset_at - int(time.time()))
         return JSONResponse(

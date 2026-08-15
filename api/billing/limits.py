@@ -118,7 +118,7 @@ def check_project_creation(db: Session, tenant: Tenant):
 
 
 def check_sample_run(db: Session, tenant: Tenant, project: Project):
-    """检查单项目 trial sample 次数。"""
+    """检查单项目和整个试用生命周期的采样次数。"""
     if not _trial_active(tenant):
         return
     count = (
@@ -129,6 +129,20 @@ def check_sample_run(db: Session, tenant: Tenant, project: Project):
     )
     if count >= TRIAL_SAMPLE_LIMIT_PER_PROJECT:
         _raise_limit(f"trial sample limit is {TRIAL_SAMPLE_LIMIT_PER_PROJECT} per project")
+    tenant_count = (
+        db.query(func.count(Job.id))
+        .join(Project, Project.id == Job.project_id)
+        .filter(
+            Project.tenant_id == tenant.id,
+            Job.action.in_(SAMPLE_JOB_ACTIONS),
+            Job.status != "failed",
+        )
+        .scalar()
+        or 0
+    )
+    lifetime_limit = TRIAL_PROJECT_LIMIT * TRIAL_SAMPLE_LIMIT_PER_PROJECT
+    if tenant_count >= lifetime_limit:
+        _raise_limit(f"trial sample lifetime limit is {lifetime_limit} per workspace")
 
 
 def usage(db: Session, tenant: Tenant) -> dict:

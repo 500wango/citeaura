@@ -20,7 +20,7 @@ def test_production_compose_binds_api_to_loopback_and_profiles_nginx():
 def test_deploy_script_leaves_tls_to_host_caddy():
     deploy = (ROOT / "scripts/deploy.sh").read_text("utf-8")
 
-    assert "--skip-certificate" in deploy
+    assert "--tls-mode external" in deploy
     assert 'APP_PORT="${APP_PORT:-18000}"' in deploy
     build = deploy.index("build api worker beat")
     repair_permissions = deploy.index("chown -R citeaura:citeaura /app/work")
@@ -74,6 +74,8 @@ def test_github_main_push_deploys_with_strict_ssh_host_verification():
     assert "git pull --ff-only origin main" in workflow
     assert "git merge-base --is-ancestor" in workflow
     assert "scripts/one-click-deploy.sh" in workflow
+    assert "needs: test" in workflow
+    assert "make test" in workflow
     assert "--env-file \"$PROJECT_DIR/.env.production\"" in workflow
     assert "DATABASE_URL" not in workflow
     assert "JWT_SECRET" not in workflow

@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import fcntl
 import hashlib
+import ipaddress
 import json
 import os
 import re
+import socket
 import sys
 import time
 import uuid
@@ -228,6 +230,22 @@ def is_fetchable(url: str) -> bool:
     return tail not in {"download", "dl"}
 
 
+def _validate_fetch_target(url: str):
+    """Reject credentials, non-HTTP schemes, and non-public resolved addresses."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError("unsafe fetch target")
+    try:
+        addresses = {
+            item[4][0].split("%", 1)[0]
+            for item in socket.getaddrinfo(parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80))
+        }
+    except (OSError, UnicodeError) as exc:
+        raise ValueError("fetch target could not be resolved") from exc
+    if not addresses or any(not ipaddress.ip_address(address).is_global for address in addresses):
+        raise ValueError("fetch target resolves to a non-public address")
+
+
 
 def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
     """Fetch a bounded web document and return normalized response metadata."""
@@ -239,13 +257,25 @@ def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
         r = None
         try:
             t0 = time.time()
-            r = requests.get(
-                url,
-                timeout=timeout,
-                headers={"User-Agent": UA, "Accept-Language": os.environ.get("GEO_ACCEPT_LANGUAGE", "en")},
-                allow_redirects=True,
-                stream=True,
-            )
+            current_url = url
+            for redirect_count in range(6):
+                _validate_fetch_target(current_url)
+                r = requests.get(
+                    current_url,
+                    timeout=timeout,
+                    headers={"User-Agent": UA, "Accept-Language": os.environ.get("GEO_ACCEPT_LANGUAGE", "en")},
+                    allow_redirects=False,
+                    stream=True,
+                )
+                location = r.headers.get("Location")
+                if r.status_code not in (301, 302, 303, 307, 308) or not location:
+                    break
+                redirected = urljoin(current_url, location)
+                r.close()
+                r = None
+                if redirect_count >= 5:
+                    raise ValueError("fetch redirect limit exceeded")
+                current_url = redirected
             # Server errors and rate limits are usually transient and follow the retry policy.
             if (r.status_code >= 500 or r.status_code == 429) and attempt < retries:
                 r.close()

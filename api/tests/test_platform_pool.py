@@ -11,7 +11,16 @@ from sqlalchemy.orm import sessionmaker
 from api.billing import platform_pool
 from api.db import Base, get_db
 from api.main import app
-from api.models import ApiKey, Job, Membership, PlatformUsage, Project, Tenant, UsageCounter
+from api.models import (
+    ApiKey,
+    Job,
+    Membership,
+    PlatformUsage,
+    PlatformUsageOutbox,
+    Project,
+    Tenant,
+    UsageCounter,
+)
 from api.settings.crypto import encrypt_key
 
 
@@ -272,3 +281,50 @@ def test_pool_meter_propagates_isolated_context_to_sampling_threads(monkeypatch)
 
     assert openai.result() == {"openai": 100}
     assert gemini.result() == {"gemini": 100}
+
+
+def test_usage_outbox_replays_failed_accounting_once(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'outbox.sqlite'}")
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    Base.metadata.create_all(engine)
+    with session_factory() as db:
+        tenant = Tenant(name="outbox", plan="pro")
+        db.add(tenant)
+        db.flush()
+        project = Project(tenant_id=tenant.id, slug="outbox", url="https://outbox.example")
+        db.add(project)
+        db.flush()
+        job = Job(
+            project_id=project.id,
+            action="sample",
+            status="done",
+            reserved_platform_calls=3,
+            reserved_platform_cost_cny_fen=15,
+            budget_reservation_status="reserved",
+        )
+        db.add(job)
+        db.commit()
+        tenant_id, project_id, job_id = tenant.id, project.id, job.id
+
+    monkeypatch.setattr(platform_pool, "SessionLocal", session_factory)
+    funding = {
+        "tenant_id": tenant_id,
+        "project_id": project_id,
+        "pool_codes": frozenset(("openai",)),
+        "rates": {"openai": 5},
+    }
+    assert platform_pool.persist_usage_outbox(funding, {"openai": 3}, "sample", job_id) == 1
+    assert platform_pool.persist_usage_outbox(funding, {"openai": 3}, "sample", job_id) == 0
+    with session_factory() as db:
+        assert db.get(Job, job_id).budget_reservation_status == "review"
+    assert platform_pool.reconcile_usage_outbox() == 1
+    assert platform_pool.reconcile_usage_outbox() == 0
+
+    with session_factory() as db:
+        event = db.query(PlatformUsageOutbox).one()
+        usage = db.query(PlatformUsage).one()
+        assert event.status == "processed"
+        assert usage.job_id == job_id
+        assert usage.calls == 3
+        assert db.get(Job, job_id).budget_reservation_status == "settled"
+        assert db.query(UsageCounter).one().platform_cost_cny_fen == 15

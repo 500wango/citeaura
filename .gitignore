@@ -11,3 +11,4 @@ dump.rdb
 .commandcode/
 .reasonix/
 work/
+deploy/certs/

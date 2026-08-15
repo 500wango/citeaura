@@ -122,6 +122,12 @@ const VIEW_LOADERS = {
 
 const PUBLIC_ROUTES = ['login', 'register', 'forgot-password', 'reset-password', 'invite'];
 let renderSequence = 0;
+let currentView = null;
+
+function cleanupCurrentView() {
+  if (currentView && typeof currentView.cleanup === 'function') currentView.cleanup();
+  currentView = null;
+}
 
 function projectKey(project) {
   if (!project) return '';
@@ -215,6 +221,7 @@ function findTrackForView(viewId) {
 /* ----------  ---------- */
 async function renderApp() {
   const renderId = ++renderSequence;
+  cleanupCurrentView();
   const { route, params } = parseHash();
   state.currentRoute = route;
   state.currentParams = params;
@@ -241,6 +248,7 @@ async function renderApp() {
       const module = await loader();
       if (renderId !== renderSequence) return;
       const view = module.default;
+      currentView = view;
       const html = typeof view.render === 'function' ? await view.render(createContext()) : '';
       if (renderId !== renderSequence) return;
       setSafeHtml(appRoot, html);
@@ -262,6 +270,7 @@ async function renderApp() {
       const module = await loader();
       if (renderId !== renderSequence) return;
       const view = module.default;
+      currentView = view;
       const context = createContext();
       const html = typeof view.render === 'function' ? await view.render(context) : '';
       if (renderId !== renderSequence || context.activeProjectId !== state.activeProjectId) return;
@@ -478,11 +487,6 @@ function bindAppShellEvents() {
     });
   }
 
-  document.addEventListener('click', () => {
-    if (projMenu) projMenu.style.display = 'none';
-    if (userMenu) userMenu.style.display = 'none';
-  });
-
   // 
   document.getElementById('btn-app-logout')?.addEventListener('click', async () => {
     try {
@@ -507,6 +511,7 @@ function bindAppShellEvents() {
 
 /* ----------  ---------- */
 let lastJobStatus = null;
+let lastJobId = null;
 let jobPollingTimer = null;
 
 async function checkJobs() {
@@ -545,13 +550,17 @@ async function checkJobs() {
         });
       }
       lastJobStatus = active.status;
+      lastJobId = active.id;
     } else {
       if (state.activeJob && (lastJobStatus === 'running' || lastJobStatus === 'queued')) {
-        toast.success(`Pipeline task completed successfully!`);
+        const finished = jobs.find((job) => job.id === lastJobId);
+        if (finished?.status === 'done') toast.success('Pipeline task completed successfully!');
+        else if (finished?.status === 'failed') toast.error(finished.error || 'Pipeline task failed');
         renderApp();
       }
       state.activeJob = null;
       lastJobStatus = null;
+      lastJobId = null;
       if (indicator) indicator.style.display = 'none';
     }
   } catch (e) {}
@@ -571,7 +580,13 @@ function stopJobPolling() {
   state.isJobPolling = false;
   state.activeJob = null;
   lastJobStatus = null;
+  lastJobId = null;
 }
+
+document.addEventListener('click', () => {
+  document.getElementById('project-dropdown-menu')?.style.setProperty('display', 'none');
+  document.getElementById('user-dropdown-menu')?.style.setProperty('display', 'none');
+});
 
 /* ----------  ---------- */
 async function init() {

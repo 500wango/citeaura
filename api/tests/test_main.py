@@ -62,7 +62,7 @@ def test_sensitive_session_endpoints_use_auth_rate_limit():
     } <= AUTH_PATHS
 
 
-def test_health_is_exempt_and_redis_failure_is_retryable(monkeypatch):
+def test_health_is_exempt_and_redis_failure_only_closes_auth_endpoints(monkeypatch):
     monkeypatch.setattr(config, "rate_limit_requests", lambda: 1)
     assert client.get("/api/v1/health").status_code == 200
     assert client.get("/api/v1/health").status_code == 200
@@ -71,7 +71,11 @@ def test_health_is_exempt_and_redis_failure_is_retryable(monkeypatch):
         raise __import__("redis").exceptions.ConnectionError("offline")
 
     monkeypatch.setattr(locking, "redis_client", unavailable)
-    response = client.get("/api/v1/billing/plans")
+    assert client.get("/api/v1/billing/plans").status_code == 200
+    response = client.post("/api/v1/auth/login", json={
+        "email": "nobody@example.com",
+        "password": "not-a-real-password",
+    })
     assert response.status_code == 503
     assert response.json() == {"error": "rate_limit_unavailable"}
     assert response.headers["retry-after"] == "1"

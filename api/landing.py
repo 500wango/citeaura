@@ -40,6 +40,12 @@ def serve_docs_page():
     return FileResponse(WEB_ROOT / "docs.html", media_type="text/html; charset=utf-8")
 
 
+@router.get("/docs.js")
+def serve_docs_script():
+    """Return the CSP-compatible documentation behavior module."""
+    return FileResponse(WEB_ROOT / "docs.js", media_type="application/javascript; charset=utf-8")
+
+
 @router.get("/robots.txt")
 def serve_robots_txt():
     """返回搜索引擎抓取策略文件 robots.txt。"""

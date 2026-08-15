@@ -568,7 +568,7 @@ def _has_sampling_access(db, tenant, project):
     )
 
 
-def _sample_estimate(db, tenant, project, payload, enforce=False):
+def _sample_estimate(db, tenant, project, payload, enforce=False, allow_pool=True):
     import sample
 
     platforms = payload.platforms if payload else None
@@ -584,6 +584,22 @@ def _sample_estimate(db, tenant, project, payload, enforce=False):
         return function(
             db, tenant, project,
             platforms=platforms,
+            limit=payload.limit if payload else None,
+            repeat=payload.repeat if payload else 1,
+            allow_pool=allow_pool,
+        )
+    except sampling_control.SamplingBudgetExceeded as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": exc.code, "estimate": exc.estimate},
+        ) from exc
+
+
+def _reserve_sample_estimate(db, tenant, project, job, payload):
+    try:
+        return sampling_control.reserve(
+            db, tenant, project, job,
+            platforms=payload.platforms if payload else None,
             limit=payload.limit if payload else None,
             repeat=payload.repeat if payload else 1,
         )
@@ -706,6 +722,8 @@ def create_project(
     skip_llm = payload.skip_llm or not has_engine_keys
     no_sample = payload.no_sample or not has_engine_keys
     job_action = "bootstrap" if no_sample else "autopilot"
+    if job_action == "autopilot":
+        check_sample_run(db, tenant, project)
     job = Job(
         project_id=project.id,
         action=job_action,
@@ -1128,10 +1146,10 @@ def sample_project(
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     _require_project_questions(tenant, project)
     payload = payload or SampleRequest()
-    estimate = _sample_estimate(db, tenant, project, payload, enforce=True)
     request_values = {"limit": payload.limit, "platforms": payload.platforms, "repeat": payload.repeat}
     job = Job(project_id=project.id, action="sample", status="queued", stage="queued",
               request_json=_safe_request_json("sample", request_values))
+    estimate = _reserve_sample_estimate(db, tenant, project, job, payload)
     db.add(job)
     record_product_event(
         db,
@@ -1188,18 +1206,20 @@ def run_pipeline_action(
         _require_project_questions(tenant, project)
     no_sample = _pipeline_flag(params, "no-sample") or _pipeline_flag(params, "no_sample")
     estimate = None
+    sample_payload = None
     if action in ("sample", "autopilot", "serve") and not no_sample:
         check_sample_run(db, tenant, project)
-        estimate = _sample_estimate(
-            db,
-            tenant,
-            project,
-            _pipeline_sample_payload(params),
-            enforce=True,
-        )
+        sample_payload = _pipeline_sample_payload(params)
+        if action != "sample":
+            estimate = _sample_estimate(
+                db, tenant, project, sample_payload,
+                enforce=True, allow_pool=False,
+            )
 
     job = Job(project_id=project.id, action=action, status="queued", stage="queued",
               request_json=_safe_request_json(action, params))
+    if action == "sample" and sample_payload is not None:
+        estimate = _reserve_sample_estimate(db, tenant, project, job, sample_payload)
     db.add(job)
     project.status = {
         "sample": "sampling",

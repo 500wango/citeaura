@@ -3,7 +3,7 @@
  */
 
 const BLOCKED_TAGS = new Set([
-  'script', 'style', 'iframe', 'object', 'embed', 'base', 'meta', 'link',
+  'script', 'style', 'iframe', 'object', 'embed', 'base', 'meta', 'link', 'form',
   'foreignobject', 'animate', 'animatemotion', 'animatetransform', 'set', 'math',
 ]);
 const URL_ATTRIBUTES = new Set(['href', 'src', 'action', 'formaction', 'poster', 'xlink:href']);
@@ -35,7 +35,7 @@ export function sanitizeHtml(value) {
     }
     Array.from(element.attributes).forEach((attribute) => {
       const name = attribute.name.toLowerCase();
-      if (name.startsWith('on') || name === 'srcdoc' || name === 'srcset') {
+      if (name.startsWith('on') || name === 'srcdoc' || name === 'srcset' || name === 'ping') {
         element.removeAttribute(attribute.name);
         return;
       }

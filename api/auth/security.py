@@ -13,13 +13,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 ACCESS_TOKEN_COOKIE = "citeaura_access_token"
 REFRESH_TOKEN_COOKIE = "citeaura_refresh_token"
+DUMMY_PASSWORD_HASH = "$2b$12$H1jR9wXl1wZzZzuUggIWKOCY0KKHBi0Rh.AyIyGIltOPbbIf5wm4."
 
 
 def _jwt_secret():
     """读取 JWT 密钥；生产环境必须显式配置。"""
     secret = config.jwt_secret()
-    if not secret:
-        raise RuntimeError("JWT_SECRET is not configured")
+    if not config.jwt_secret_valid(secret):
+        raise RuntimeError("JWT_SECRET must be a non-placeholder value of at least 32 characters")
     return secret
 
 
@@ -61,9 +62,20 @@ def create_access_token(user_id: int, tenant_id: int, session_version: int = 0) 
     return create_token(user_id, tenant_id, "access", timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES), {"sv": int(session_version)})
 
 
-def create_refresh_token(user_id: int, tenant_id: int, session_version: int = 0) -> str:
+def create_refresh_token(
+    user_id: int,
+    tenant_id: int,
+    session_version: int = 0,
+    family_id: str | None = None,
+    token_id: str | None = None,
+) -> str:
     """签发 refresh token。"""
-    return create_token(user_id, tenant_id, "refresh", timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS), {"sv": int(session_version)})
+    claims = {"sv": int(session_version)}
+    if family_id:
+        claims["fid"] = family_id
+    if token_id:
+        claims["jti"] = token_id
+    return create_token(user_id, tenant_id, "refresh", timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS), claims)
 
 
 def create_sso_state(tenant_id: int) -> str:

@@ -29,5 +29,9 @@ celery_app.conf.update(
             "task": "citeaura.dispatch_schedules",
             "schedule": 60.0,
         },
+        "reconcile-platform-usage": {
+            "task": "citeaura.reconcile_platform_usage",
+            "schedule": 60.0,
+        },
     },
 )

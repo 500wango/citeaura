@@ -96,6 +96,8 @@ def test_initial_schema_contains_all_tables():
         "subscriptions",
         "team_invitations",
         "usage_counters",
+        "refresh_tokens",
+        "platform_usage_outbox",
     }
     project_columns = {item["name"] for item in inspect(engine).get_columns("projects")}
     assert {"monthly_budget_cny_fen", "sample_call_limit", "pause_on_budget_exceeded"} <= project_columns

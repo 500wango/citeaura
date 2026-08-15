@@ -10,7 +10,7 @@
 citeaura/
 ├── engine/                  # 允许修复 `engine/` 的通用缺陷，但不得引入租户、计费、认证等 SaaS 专属逻辑
 │   ├── scripts/             # 核心 Python 模块（20 个 .py）
-│   ├── tests/               # 200+ 个测试（必须保持全绿）
+│   ├── tests/               # 109 个测试（必须保持全绿）
 │   └── references/          # 方法论数据
 ├── api/                     # FastAPI 后端（新建）
 │   ├── main.py              # 应用入口
@@ -72,9 +72,7 @@ citeaura/
 
 ## 编码规范
 
-- Python：代码、注释、docstring、日志、异常与默认 Prompt 统一使用英文；不强制 type hints，`# noqa` 注释需说明原因
-- 引擎核心使用语言无关的英文枚举和字段 ID；用户可见文本必须通过 locale 或 SaaS 适配层生成
-- 中文仅允许存在于 `locales/zh-CN`、中文 NLP 规则、方法论引用和测试夹具中
+- Python：遵循 engine/ 风格——无 type hints 强制、docstring 中文、`# noqa` 注释解释原因
 - 文件头：不写 copyright，不写 author
 - 命名：snake_case 函数/变量，PascalCase 类
 - API 路由：`/api/v1/` 前缀

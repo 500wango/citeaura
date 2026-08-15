@@ -22,6 +22,10 @@ def redis_url():
     return os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 
+def redis_socket_timeout_seconds():
+    return _seconds("REDIS_SOCKET_TIMEOUT_SECONDS", 0.5, 0.1)
+
+
 def _seconds(name, default, minimum):
     try:
         value = float(os.getenv(name, str(default)))
@@ -77,6 +81,15 @@ def celery_result_backend():
 
 def jwt_secret():
     return os.getenv("JWT_SECRET")
+
+
+def jwt_secret_valid(secret=None):
+    """Reject missing, short, or documented placeholder JWT secrets."""
+    value = (jwt_secret() if secret is None else secret) or ""
+    lowered = value.lower()
+    return len(value) >= 32 and not any(marker in lowered for marker in (
+        "replace-with", "changeme", "example-secret",
+    ))
 
 
 def aes_key():

@@ -65,15 +65,10 @@ def test_register_login_and_me(client):
     assert cookie_refreshed.status_code == 200
     assert cookie_refreshed.json()["access_token"]
 
-    refreshed = client.post(
-        "/api/v1/auth/refresh",
-        json={"refresh_token": tokens["refresh_token"]},
-    )
-    assert refreshed.status_code == 200
-    refreshed_tokens = refreshed.json()
+    refreshed_tokens = cookie_refreshed.json()
     assert refreshed_tokens["access_token"]
     assert refreshed_tokens["refresh_token"]
-    assert refreshed.headers["cache-control"] == "no-store"
+    assert cookie_refreshed.headers["cache-control"] == "no-store"
 
     current = client.get(
         "/api/v1/me",
@@ -86,6 +81,22 @@ def test_register_login_and_me(client):
     cookie_current = client.get("/api/v1/me")
     assert cookie_current.status_code == 200
     assert cookie_current.json()["user"]["email"] == "owner@example.com"
+
+
+def test_refresh_token_rotation_detects_reuse(client):
+    payload = {"email": "rotation@example.com", "password": "correct-horse-battery"}
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    login = client.post("/api/v1/auth/login", json=payload)
+    first = login.json()["refresh_token"]
+
+    rotated = client.post("/api/v1/auth/refresh", json={"refresh_token": first})
+    assert rotated.status_code == 200
+    second = rotated.json()["refresh_token"]
+
+    reused = client.post("/api/v1/auth/refresh", json={"refresh_token": first})
+    assert reused.status_code == 401
+    assert reused.json() == {"error": "refresh_token_reused"}
+    assert client.post("/api/v1/auth/refresh", json={"refresh_token": second}).status_code == 401
 
 
 def test_auth_rejects_duplicate_and_invalid_credentials(client):

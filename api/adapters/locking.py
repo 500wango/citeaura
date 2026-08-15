@@ -2,6 +2,7 @@
 
 import threading
 from contextlib import contextmanager
+from contextvars import ContextVar
 from functools import lru_cache
 
 from redis import Redis
@@ -12,11 +13,19 @@ from api.adapters.exceptions import DistributedLockError
 
 
 LOCK_PREFIX = "citeaura:project-lock"
+_HELD_LOCKS = ContextVar("citeaura_held_project_locks", default=frozenset())
+_REENTRANT_LOCKS = ContextVar("citeaura_reentrant_project_locks", default=frozenset())
 
 
 @lru_cache(maxsize=8)
 def _client_for_url(url):
-    return Redis.from_url(url)
+    timeout = config.redis_socket_timeout_seconds()
+    return Redis.from_url(
+        url,
+        socket_connect_timeout=timeout,
+        socket_timeout=timeout,
+        health_check_interval=30,
+    )
 
 
 def redis_client():
@@ -35,12 +44,17 @@ def _lock_settings():
 
 
 @contextmanager
-def project_lock(tenant_slug, project_slug):
+def project_lock(tenant_slug, project_slug, allow_reentrant=False):
     """获取带自动续期的 Redis 锁；失败时不降级到单机文件锁。"""
+    key = lock_key(tenant_slug, project_slug)
+    held = _HELD_LOCKS.get()
+    if key in held and key in _REENTRANT_LOCKS.get():
+        yield
+        return
     ttl, wait, renew_interval = _lock_settings()
     try:
         lock = redis_client().lock(
-            lock_key(tenant_slug, project_slug),
+            key,
             timeout=ttl,
             blocking_timeout=wait,
             thread_local=False,
@@ -73,6 +87,8 @@ def project_lock(tenant_slug, project_slug):
         daemon=True,
     )
     renewer.start()
+    context_token = _HELD_LOCKS.set(held | {key})
+    reentrant_token = _REENTRANT_LOCKS.set(_REENTRANT_LOCKS.get() | ({key} if allow_reentrant else set()))
     body_failed = False
     try:
         yield
@@ -80,6 +96,8 @@ def project_lock(tenant_slug, project_slug):
         body_failed = True
         raise
     finally:
+        _HELD_LOCKS.reset(context_token)
+        _REENTRANT_LOCKS.reset(reentrant_token)
         stop.set()
         renewer.join(timeout=max(1, renew_interval + 0.25))
         release_error = None

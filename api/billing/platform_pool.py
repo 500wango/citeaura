@@ -6,7 +6,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from contextvars import ContextVar, copy_context
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
@@ -16,7 +16,7 @@ from api import config
 from api.adapters.engine import ENGINE_KEY_ENV, load_tenant_keys
 from api.adapters import sampling_modes
 from api.db import SessionLocal
-from api.models import Job, PlatformUsage, Project, Tenant, UsageCounter
+from api.models import Job, PlatformUsage, PlatformUsageOutbox, Project, Tenant, UsageCounter
 
 
 PAID_PLANS = frozenset(("starter", "pro", "agency", "enterprise"))
@@ -258,9 +258,106 @@ def record_usage(funding, counts, action, job_id=None):
                 else:
                     counter.platform_calls += total_calls
                     counter.platform_cost_cny_fen += total_cost
+        if valid_job_id is not None:
+            reservation_job = db.get(Job, valid_job_id)
+            if (
+                reservation_job is not None
+                and reservation_job.budget_reservation_status in ("reserved", "review")
+            ):
+                reservation_job.budget_reservation_status = "settled" if accepted else "released"
         db.commit()
         rows = [PlatformUsage(**values) for values in accepted]
         return rows
+    finally:
+        db.close()
+
+
+def persist_usage_outbox(funding, counts, action, job_id=None, error=None):
+    """在主计量失败后保存幂等补偿事件，避免成功业务永久漏计。"""
+    if not funding.get("tenant_id") or not funding.get("project_id"):
+        return 0
+    db = SessionLocal()
+    created = 0
+    try:
+        for code, count in sorted(counts.items()):
+            count = int(count)
+            if count <= 0 or code not in funding.get("pool_codes", ()):
+                continue
+            unit_price = int(funding["rates"][code])
+            if job_id is not None:
+                event_key = f"job:{int(job_id)}:{code}"
+            else:
+                event_key = f"direct:{funding['tenant_id']}:{funding['project_id']}:{action}:{code}:{datetime.now(timezone.utc).timestamp()}"
+            existing = db.query(PlatformUsageOutbox).filter(
+                PlatformUsageOutbox.event_key == event_key,
+            ).first()
+            if existing is not None:
+                if existing.status == "pending":
+                    existing.calls = count
+                    existing.unit_price_cny_fen = unit_price
+                    existing.amount_cny_fen = count * unit_price
+                    existing.last_error = str(error)[:2000] if error else existing.last_error
+                continue
+            db.add(PlatformUsageOutbox(
+                event_key=event_key,
+                tenant_id=funding["tenant_id"],
+                project_id=funding["project_id"],
+                job_id=int(job_id) if job_id is not None else None,
+                action=str(action),
+                engine_code=code,
+                calls=count,
+                unit_price_cny_fen=unit_price,
+                amount_cny_fen=count * unit_price,
+                last_error=str(error)[:2000] if error else None,
+            ))
+            created += 1
+        if job_id is not None:
+            reservation_job = db.get(Job, int(job_id))
+            if reservation_job is not None and reservation_job.budget_reservation_status == "reserved":
+                reservation_job.budget_reservation_status = "review"
+        db.commit()
+        return created
+    except Exception:
+        db.rollback()
+        return 0
+    finally:
+        db.close()
+
+
+def reconcile_usage_outbox(limit=100):
+    """重放持久化计量事件；PlatformUsage 的唯一键保证重试幂等。"""
+    db = SessionLocal()
+    processed = 0
+    now = datetime.now(timezone.utc)
+    try:
+        rows = db.query(PlatformUsageOutbox).filter(
+            PlatformUsageOutbox.status == "pending",
+            (PlatformUsageOutbox.next_attempt_at.is_(None) | (PlatformUsageOutbox.next_attempt_at <= now)),
+        ).order_by(PlatformUsageOutbox.id).limit(int(limit)).all()
+        for row in rows:
+            funding = {
+                "tenant_id": row.tenant_id,
+                "project_id": row.project_id,
+                "pool_codes": frozenset((row.engine_code,)),
+                "rates": {row.engine_code: row.unit_price_cny_fen},
+            }
+            try:
+                record_usage(
+                    funding,
+                    Counter({row.engine_code: row.calls}),
+                    row.action,
+                    job_id=row.job_id,
+                )
+                row.status = "processed"
+                row.processed_at = now
+                row.last_error = None
+                processed += 1
+            except Exception as exc:  # noqa: BLE001 - 保留事件等待下一轮补偿
+                row.attempts += 1
+                row.next_attempt_at = now + timedelta(seconds=min(3600, 2 ** min(row.attempts, 10)))
+                row.last_error = str(exc)[:2000]
+            db.commit()
+        return processed
     finally:
         db.close()
 

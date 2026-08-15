@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -9,12 +10,18 @@ from types import SimpleNamespace
 from fastapi import HTTPException
 from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 
-from api.adapters import baseline, global_scope, measurement, sampling_control, site_signals, ticket_workflow
+from api.adapters import baseline, global_scope, locking, measurement, sampling_control, site_signals, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract, ensure_legacy_deliverables_contract
-from api.adapters.engine import geolib, job_log_path, load_custom_providers, load_tenant_keys, with_tenant_context
+from api.adapters.engine import geolib, job_log_path, load_custom_providers, load_tenant_keys, tenant_slug, with_tenant_context
 from api.adapters.workspace import ensure_global_engine_scope, preserve_manual_tickets, resilient_crawl_evidence
 from api.billing.limits import check_sample_run
-from api.billing.platform_pool import meter_platform_calls, record_usage, resolve_funding
+from api.billing.platform_pool import (
+    meter_platform_calls,
+    persist_usage_outbox,
+    record_usage,
+    reconcile_usage_outbox,
+    resolve_funding,
+)
 from api.db import SessionLocal
 from api.models import IntegrationCredential, Job, Project, Tenant
 from api.product_events import record_product_event
@@ -47,9 +54,8 @@ PIPELINE_ACTIONS = {
     },
 }
 
-PLATFORM_FUNDED_ACTIONS = frozenset((
-    "bootstrap", "sample", "cycle", "expand", "generate", "autopilot", "serve",
-))
+PLATFORM_FUNDED_ACTIONS = frozenset(("sample",))
+_JOB_NOT_CLAIMED = object()
 
 _ACTION_METHODS = {
     "crawl": "cmd_crawl",
@@ -105,7 +111,7 @@ def _latest_metrics(project_slug):
     return geolib.read_json(files[-1], {}) if files else {}
 
 
-def _sampling_succeeded(result, project_slug):
+def _sampling_succeeded(result, project_slug, job_id=None):
     if isinstance(result, dict):
         sample_count = int(result.get("sample_count") or 0)
         if sample_count > 0:
@@ -114,7 +120,9 @@ def _sampling_succeeded(result, project_slug):
                 isinstance(item, dict) and int(item.get("samples") or 0) > 0
                 for item in platforms.values()
             )
-    metrics = _latest_metrics(project_slug)
+    metrics = result if isinstance(result, dict) and result.get("sample_summary") is not None else _latest_metrics(project_slug)
+    if job_id is not None and str(((metrics or {}).get("provenance") or {}).get("job_id")) != str(job_id):
+        return False
     sample_summary = (metrics or {}).get("sample_summary") or {}
     successful = int(sample_summary.get("successful") or 0)
     if successful > 0:
@@ -125,8 +133,8 @@ def _sampling_succeeded(result, project_slug):
     )
 
 
-def _require_sampling_output(result, project_slug):
-    if not _sampling_succeeded(result, project_slug):
+def _require_sampling_output(result, project_slug, job_id=None):
+    if not _sampling_succeeded(result, project_slug, job_id=job_id):
         raise RuntimeError("sampling produced no measurable successful samples")
     return result
 
@@ -276,36 +284,6 @@ def _sync_custom_provider_scope(project_slug, providers):
         geolib.save_config(project_slug, config)
 
 
-def _latest_metrics(project_slug):
-    directory = geolib.project_dir(project_slug) / "metrics"
-    files = sorted(directory.glob("*.json")) if directory.exists() else []
-    return geolib.read_json(files[-1], {}) if files else {}
-
-
-def _sampling_succeeded(result, project_slug):
-    if isinstance(result, dict):
-        sample_count = int(result.get("sample_count") or 0)
-        if sample_count > 0:
-            return any(
-                isinstance(item, dict) and int(item.get("samples") or 0) > 0
-                for item in (result.get("platforms") or {}).values()
-            )
-    metrics = _latest_metrics(project_slug)
-    sample_summary = (metrics or {}).get("sample_summary") or {}
-    if int(sample_summary.get("successful") or 0) > 0:
-        return True
-    return any(
-        isinstance(item, dict) and int(item.get("samples") or 0) > 0
-        for item in ((metrics or {}).get("platforms") or {}).values()
-    )
-
-
-def _require_sampling_output(result, project_slug):
-    if not _sampling_succeeded(result, project_slug):
-        raise RuntimeError("sampling produced no measurable successful samples")
-    return result
-
-
 @contextmanager
 def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_pool=True):
     """注入 BYOK/平台池密钥，并在退出时持久化平台代付逻辑调用。"""
@@ -318,19 +296,38 @@ def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_p
         ensure_global_engine_scope(project_slug)
         _sync_custom_provider_scope(project_slug, custom_providers)
         with meter_platform_calls(funding["pool_codes"]) as counts:
-            pending_error = None
             try:
                 yield
-            except BaseException as exc:
-                pending_error = exc
+            except BaseException:
                 raise
             finally:
-                try:
-                    record_usage(funding, counts, action, job_id=job_id)
-                except Exception:
-                    logger.exception("platform usage accounting failed", extra={"action": action, "job_id": job_id})
-                    if pending_error is None:
-                        raise
+                accounted = False
+                for attempt in range(3):
+                    try:
+                        record_usage(funding, counts, action, job_id=job_id)
+                        accounted = True
+                        break
+                    except Exception:
+                        logger.warning(
+                            "Platform usage accounting attempt %s failed",
+                            attempt + 1,
+                            exc_info=True,
+                            extra={"action": action, "job_id": job_id},
+                        )
+                        if attempt < 2:
+                            time.sleep(0.2 * (attempt + 1))
+                if not accounted:
+                    persist_usage_outbox(
+                        funding,
+                        counts,
+                        action,
+                        job_id=job_id,
+                        error="platform usage accounting failed after retries",
+                    )
+                    logger.error(
+                        "Platform usage accounting requires reconciliation",
+                        extra={"action": action, "job_id": job_id, "calls": dict(counts)},
+                    )
 
 
 def _as_utc(value):
@@ -455,20 +452,34 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
         nonlocal tracked_job_id, log_path
         job = _find_job(db, tenant_id, project_slug, action, job_id)
         if job is None:
-            return
+            return job_id is None
+        if job.status != "queued":
+            return False
         project = db.get(Project, job.project_id)
         tenant = db.get(Tenant, project.tenant_id) if project is not None else None
         if tenant is not None:
             log_path = job_log_path(tenant.name, project.slug, job.id)
             job.log_path = str(log_path)
+        claimed = db.query(Job).filter(
+            Job.id == job.id,
+            Job.status == "queued",
+        ).update({
+            Job.status: "running",
+            Job.stage: "preparing",
+            Job.progress: max(int(job.progress or 0), 5),
+            Job.started_at: datetime.now(timezone.utc),
+            Job.error: None,
+        }, synchronize_session=False)
+        if claimed != 1:
+            return False
         tracked_job_id = job.id
-        job.status = "running"
-        job.stage = "preparing"
-        job.progress = max(int(job.progress or 0), 5)
-        job.started_at = datetime.now(timezone.utc)
-        job.error = None
+        return True
 
-    _job_transaction(prepare)
+    claimed = _job_transaction(prepare)
+    if not claimed:
+        logger.info("Ignoring duplicate delivery for job %s", job_id)
+        yield _JOB_NOT_CLAIMED
+        return
 
     try:
         _append_job_event(log_path, f"{action} started")
@@ -497,9 +508,10 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
             if state is not None:
                 _append_job_event(log_path, f"progress {state[0]} {state[1]}")
 
-        with _capture_task_output(log_path):
-            yield update
-    except Exception as exc:
+        with locking.project_lock(tenant_slug(str(tenant_id)), project_slug, allow_reentrant=True):
+            with _capture_task_output(log_path):
+                yield update
+    except BaseException as exc:
         error_message = f"{type(exc).__name__}: {exc}"
         _append_job_event(log_path, f"{action} failed: {error_message}")
         if tracked_job_id is not None:
@@ -562,9 +574,14 @@ def task_bootstrap(
 
     args = SimpleNamespace(slug=project_slug, skip_llm=skip_llm, no_sample=no_sample, limit=None)
     with _job_status(tenant_id, project_slug, job_action, job_id) as update:
+        if update is _JOB_NOT_CLAIMED:
+            return {"status": "ignored", "reason": "job_not_queued"}
         update = update or (lambda *args: None)
         update("bootstrap", 15)
-        with _funded_engine_context(tenant_id, project_slug, job_action, job_id=job_id):
+        with _funded_engine_context(
+            tenant_id, project_slug, job_action, job_id=job_id,
+            allow_pool=job_action in PLATFORM_FUNDED_ACTIONS,
+        ):
             with global_scope.normalize_generated_outputs(project_slug):
                 with preserve_manual_tickets(project_slug):
                     with resilient_crawl_evidence(project_slug):
@@ -575,7 +592,9 @@ def task_bootstrap(
             ensure_delivery_contract(project_slug)
             ensure_legacy_deliverables_contract(project_slug)
             if not no_sample:
-                funding = _engine_funding(tenant_id, project_slug)
+                funding = _engine_funding(
+                    tenant_id, project_slug, allow_pool=job_action in PLATFORM_FUNDED_ACTIONS,
+                )
                 measurement.record_sampling(
                     project_slug,
                     source="api",
@@ -586,7 +605,10 @@ def task_bootstrap(
                     byok_codes=funding.get("keys", {}).keys(),
                     pool_codes=funding.get("pool_codes", ()),
                 )
-                _require_sampling_output(_latest_metrics(project_slug), project_slug)
+                if job_id is None:
+                    _require_sampling_output(_latest_metrics(project_slug), project_slug)
+                else:
+                    _require_sampling_output(_latest_metrics(project_slug), project_slug, job_id=job_id)
             return {"status": "done", "action": job_action, "project_slug": project_slug}
 
 
@@ -603,12 +625,17 @@ def task_sample(
     import sample
 
     with _job_status(tenant_id, project_slug, "sample", job_id) as update:
+        if update is _JOB_NOT_CLAIMED:
+            return {"status": "ignored", "reason": "job_not_queued"}
         update = update or (lambda *args: None)
         update("sampling", 15)
         with _funded_engine_context(tenant_id, project_slug, "sample", job_id=job_id):
             global_scope.normalize_project(project_slug)
             result = sample.run(project_slug, platforms=platforms, repeat=repeat, limit=limit)
-            _require_sampling_output(result, project_slug)
+            if job_id is None:
+                _require_sampling_output(result, project_slug)
+            else:
+                _require_sampling_output(result, project_slug, job_id=job_id)
             funding = _engine_funding(tenant_id, project_slug)
             measurement.record_sampling(
                 project_slug,
@@ -632,14 +659,16 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
 
     args = SimpleNamespace(slug=project_slug, max_pages=None, limit=None)
     with _job_status(tenant_id, project_slug, "cycle", job_id) as update:
+        if update is _JOB_NOT_CLAIMED:
+            return {"status": "ignored", "reason": "job_not_queued"}
         update = update or (lambda *args: None)
         update("crawl", 15)
-        with _funded_engine_context(tenant_id, project_slug, "cycle", job_id=job_id):
+        with _funded_engine_context(tenant_id, project_slug, "cycle", job_id=job_id, allow_pool=False):
             global_scope.normalize_project(project_slug)
             with site_signals.semantic_site_signals(project_slug):
                 with global_scope.normalize_generated_outputs(project_slug):
                     geo.cmd_cycle(args)
-            funding = _engine_funding(tenant_id, project_slug)
+            funding = _engine_funding(tenant_id, project_slug, allow_pool=False)
             measurement.record_sampling(
                 project_slug,
                 source="api",
@@ -647,7 +676,10 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
                 byok_codes=funding.get("keys", {}).keys(),
                 pool_codes=funding.get("pool_codes", ()),
             )
-            _require_sampling_output(_latest_metrics(project_slug), project_slug)
+            if job_id is None:
+                _require_sampling_output(_latest_metrics(project_slug), project_slug)
+            else:
+                _require_sampling_output(_latest_metrics(project_slug), project_slug, job_id=job_id)
             update("finalizing", 90)
             return {"status": "done", "project_slug": project_slug}
 
@@ -704,7 +736,7 @@ def task_dispatch_schedules(now_iso=None):
             try:
                 check_sample_run(db, tenant, project)
                 if project.monthly_budget_cny_fen is not None or project.sample_call_limit is not None:
-                    sampling_control.ensure_allowed(db, tenant, project)
+                    sampling_control.ensure_allowed(db, tenant, project, allow_pool=False)
             except (HTTPException, sampling_control.SamplingBudgetExceeded):
                 result["quota_blocked"] += 1
                 db.rollback()
@@ -750,12 +782,20 @@ def task_dispatch_schedules(now_iso=None):
         db.close()
 
 
+@celery_app.task(name="citeaura.reconcile_platform_usage")
+def task_reconcile_platform_usage(limit=100):
+    """补偿因数据库瞬时故障未完成的平台代付计量。"""
+    return {"processed": reconcile_usage_outbox(limit=limit)}
+
+
 @celery_app.task(name="citeaura.verify")
 def task_verify(tenant_id: str, project_slug: str, job_id=None):
     """执行工单自动验收。"""
     import verify
 
-    with _job_status(tenant_id, project_slug, "verify", job_id):
+    with _job_status(tenant_id, project_slug, "verify", job_id) as claim:
+        if claim is _JOB_NOT_CLAIMED:
+            return {"status": "ignored", "reason": "job_not_queued"}
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             global_scope.normalize_project(project_slug)
             with site_signals.semantic_site_signals(project_slug):
@@ -768,7 +808,9 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
     """生成客户交付包。"""
     import deliver
 
-    with _job_status(tenant_id, project_slug, "deliver", job_id):
+    with _job_status(tenant_id, project_slug, "deliver", job_id) as claim:
+        if claim is _JOB_NOT_CLAIMED:
+            return {"status": "ignored", "reason": "job_not_queued"}
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             global_scope.normalize_project(project_slug)
             site_signals.validate_project_signals(project_slug)
@@ -780,6 +822,8 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
 def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, job_id=None):
     """执行经过白名单校验的完整引擎动作。"""
     with _job_status(tenant_id, project_slug, action, job_id) as update:
+        if update is _JOB_NOT_CLAIMED:
+            return {"status": "ignored", "reason": "job_not_queued"}
         update = update or (lambda *args: None)
         update(action, 15)
         with _funded_engine_context(
@@ -814,7 +858,9 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
             if action in ("bootstrap", "autopilot"):
                 baseline.normalize_bootstrap_metadata(project_slug)
             if action in ("sample", "autopilot", "serve") and not (params or {}).get("--no-sample", False):
-                funding = _engine_funding(tenant_id, project_slug)
+                funding = _engine_funding(
+                    tenant_id, project_slug, allow_pool=action in PLATFORM_FUNDED_ACTIONS,
+                )
                 measurement.record_sampling(
                     project_slug,
                     source="api",
@@ -826,7 +872,10 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                     pool_codes=funding.get("pool_codes", ()),
                 )
                 if _should_require_sampling_result(action, params):
-                    _require_sampling_output(_latest_metrics(project_slug), project_slug)
+                    if job_id is None:
+                        _require_sampling_output(_latest_metrics(project_slug), project_slug)
+                    else:
+                        _require_sampling_output(_latest_metrics(project_slug), project_slug, job_id=job_id)
                 if action == "sample":
                     global_scope.normalize_project(project_slug)
             update("finalizing", 90)
@@ -853,7 +902,9 @@ def task_send_outreach(tenant_id: str, project_slug: str, draft_id: str, job_id=
     finally:
         db.close()
 
-    with _job_status(tenant_name, project_slug, action, job_id):
+    with _job_status(tenant_name, project_slug, action, job_id) as claim:
+        if claim is _JOB_NOT_CLAIMED:
+            return {"status": "ignored", "reason": "job_not_queued"}
         try:
             credential_db = SessionLocal()
             try:
@@ -888,7 +939,9 @@ def task_archive_project(tenant_id: str, project_slug: str, job_id=None):
     """将本地活动项目写成经校验的对象存储快照。"""
     from api.adapters import archive
 
-    with _job_status(tenant_id, project_slug, "archive", job_id):
+    with _job_status(tenant_id, project_slug, "archive", job_id) as claim:
+        if claim is _JOB_NOT_CLAIMED:
+            return {"status": "ignored", "reason": "job_not_queued"}
         result = archive.create_archive(tenant_id, project_slug)
         return {"status": "done", "project_slug": project_slug, "archive": result}
 
@@ -904,7 +957,9 @@ def task_restore_project(
     """校验对象快照并恢复到本地活动项目。"""
     from api.adapters import archive
 
-    with _job_status(tenant_id, project_slug, "archive_restore", job_id):
+    with _job_status(tenant_id, project_slug, "archive_restore", job_id) as claim:
+        if claim is _JOB_NOT_CLAIMED:
+            return {"status": "ignored", "reason": "job_not_queued"}
         result = archive.restore_archive(
             tenant_id,
             project_slug,

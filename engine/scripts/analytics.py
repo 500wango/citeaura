@@ -30,7 +30,14 @@ def _sample_files(pdir: Path):
 
 
 def _rows(path: Path):
-    return [r for r in G.read_jsonl(path) if r.get("ok")]
+    return _usable_rows(G.read_jsonl(path))
+
+
+def _usable_rows(rows):
+    return [
+        row for row in rows
+        if isinstance(row, dict) and row.get("ok") and isinstance(row.get("analysis"), dict)
+    ]
 
 
 def _unprompted(rows):
@@ -62,6 +69,7 @@ def _median(vals):
 # ---------------------------------------------------------------- Health score
 
 def health(slug: str, bp: dict | None, factcheck: list, rows_latest) -> dict:
+    rows_latest = _usable_rows(rows_latest)
     cfg = G.load_config(slug)
     own = _own_host(cfg)
     up = _unprompted(rows_latest)
@@ -124,6 +132,7 @@ def _brand_dist(rows) -> list[dict]:
 
 
 def engines(slug: str, rows_latest, metrics: dict | None) -> list[dict]:
+    rows_latest = _usable_rows(rows_latest)
     cfg = G.load_config(slug)
     own = _own_host(cfg)
     by: dict[str, list] = {}
@@ -180,6 +189,7 @@ def engines(slug: str, rows_latest, metrics: dict | None) -> list[dict]:
 # ---------------------------------------------------------------- Competitors
 
 def competitors(slug: str, rows_latest) -> dict:
+    rows_latest = _usable_rows(rows_latest)
     cfg = G.load_config(slug)
     comps = cfg.get("competitors", [])
     up = _unprompted(rows_latest)
@@ -275,6 +285,7 @@ def _diagnose(m, rank_med, rival, rival_rate, neg_n, samples=0):
 
 
 def questions(slug: str, rows_latest, bp: dict | None) -> list[dict]:
+    rows_latest = _usable_rows(rows_latest)
     cfg = G.load_config(slug)
     status = {c["id"]: c["status"] for c in (bp or {}).get("contents", [])}
     byq: dict[str, list] = {}
