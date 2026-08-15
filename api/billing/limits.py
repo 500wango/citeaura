@@ -1,18 +1,79 @@
 """试用额度检查和用量汇总。"""
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from api.models import Job, Project, Tenant
+from api.models import Job, Project, Tenant, UsageCounter
 from api.billing.plans import PLANS
 
 
 TRIAL_PROJECT_LIMIT = 3
 TRIAL_SAMPLE_LIMIT_PER_PROJECT = 2
 SAMPLE_JOB_ACTIONS = ("sample", "sample-import", "cycle", "autopilot", "serve")
+
+
+def reconcile_usage_counter(db: Session, tenant: Tenant, now=None):
+    """按当前项目快照和当月 Job 权威数据刷新用量计数器。"""
+    now = now or datetime.now(timezone.utc)
+    month = date(now.year, now.month, 1)
+    month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    if now.month == 12:
+        next_month = datetime(now.year + 1, 1, 1, tzinfo=timezone.utc)
+    else:
+        next_month = datetime(now.year, now.month + 1, 1, tzinfo=timezone.utc)
+    projects_active = db.query(func.count(Project.id)).filter(
+        Project.tenant_id == tenant.id,
+        Project.archived_at.is_(None),
+        Project.status != "archived",
+    ).scalar() or 0
+    sample_runs = (
+        db.query(func.count(Job.id))
+        .join(Project, Project.id == Job.project_id)
+        .filter(
+            Project.tenant_id == tenant.id,
+            Job.action.in_(SAMPLE_JOB_ACTIONS),
+            Job.status != "failed",
+            Job.created_at >= month_start,
+            Job.created_at < next_month,
+        )
+        .scalar()
+        or 0
+    )
+    values = {
+        "tenant_id": tenant.id,
+        "month": month,
+        "sample_runs": sample_runs,
+        "projects_active": projects_active,
+        "platform_calls": 0,
+        "platform_cost_cny_fen": 0,
+    }
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        statement = postgres_insert(UsageCounter).values(**values).on_conflict_do_update(
+            index_elements=["tenant_id", "month"],
+            set_={"sample_runs": sample_runs, "projects_active": projects_active},
+        )
+        db.execute(statement)
+    elif dialect == "sqlite":
+        statement = sqlite_insert(UsageCounter).values(**values).on_conflict_do_update(
+            index_elements=["tenant_id", "month"],
+            set_={"sample_runs": sample_runs, "projects_active": projects_active},
+        )
+        db.execute(statement)
+    else:
+        counter = db.get(UsageCounter, {"tenant_id": tenant.id, "month": month})
+        if counter is None:
+            db.add(UsageCounter(**values))
+        else:
+            counter.sample_runs = sample_runs
+            counter.projects_active = projects_active
+    db.flush()
+    return {"sample_runs": sample_runs, "projects_active": projects_active}
 
 
 def _trial_active(tenant: Tenant) -> bool:
@@ -72,25 +133,15 @@ def check_sample_run(db: Session, tenant: Tenant, project: Project):
 
 def usage(db: Session, tenant: Tenant) -> dict:
     """返回当前租户用量和额度。"""
-    project_count = db.query(func.count(Project.id)).filter(
-        Project.tenant_id == tenant.id,
-        Project.archived_at.is_(None),
-        Project.status != "archived",
-    ).scalar() or 0
+    reconciled = reconcile_usage_counter(db, tenant)
+    project_count = reconciled["projects_active"]
     projects = db.query(Project.id).filter(
         Project.tenant_id == tenant.id,
         Project.archived_at.is_(None),
         Project.status != "archived",
     ).all()
     project_ids = [row[0] for row in projects]
-    sample_count = 0
-    if project_ids:
-        sample_count = (
-            db.query(func.count(Job.id))
-            .filter(Job.project_id.in_(project_ids), Job.action.in_(SAMPLE_JOB_ACTIONS), Job.status != "failed")
-            .scalar()
-            or 0
-        )
+    sample_count = reconciled["sample_runs"]
     per_project = {}
     for project_id in project_ids:
         per_project[str(project_id)] = (

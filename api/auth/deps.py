@@ -1,7 +1,7 @@
 """认证依赖。"""
 
 import jwt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
@@ -15,6 +15,35 @@ from api.auth.security import ACCESS_TOKEN_COOKIE, decode_token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
+def _write_request_audit(bind, tenant_id, action, target, outcome, user_id, ip_address):
+    audit_session = sessionmaker(bind=bind, autocommit=False, autoflush=False)
+    with audit_session() as audit_db:
+        record_event(
+            audit_db,
+            tenant_id,
+            action,
+            target,
+            outcome=outcome,
+            user_id=user_id,
+            ip_address=ip_address,
+        )
+        audit_db.commit()
+
+
+def _write_scheduled_request_audit(payload):
+    if payload.get("skip"):
+        return
+    _write_request_audit(
+        payload["bind"],
+        payload["tenant_id"],
+        payload["action"],
+        payload["target"],
+        payload["outcome"],
+        payload["user_id"],
+        payload["ip_address"],
+    )
+
+
 def _unauthorized(error: str):
     """构造统一的 401 错误。"""
     raise HTTPException(
@@ -26,6 +55,7 @@ def _unauthorized(error: str):
 
 def get_current_user(
     request: Request,
+    background_tasks: BackgroundTasks,
     token: str | None = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ):
@@ -63,29 +93,38 @@ def get_current_user(
     # 后续租户路由统一从 current_user.tenant_id 读取当前 token 的租户。
     user.tenant_id = tenant_id
     user.tenant_role = membership.role
-    outcome = "succeeded"
+    audit_payload = None
+    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        audit_payload = {
+            "bind": db.get_bind(),
+            "tenant_id": tenant_id,
+            "action": f"api.{request.method.lower()}",
+            "target": request.url.path,
+            "outcome": "succeeded",
+            "user_id": user.id,
+            "ip_address": request.client.host if request.client else None,
+            "skip": False,
+        }
+        background_tasks.add_task(_write_scheduled_request_audit, audit_payload)
     try:
         yield user
     except Exception:
-        outcome = "failed"
-        raise
-    finally:
-        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        if audit_payload is not None:
+            audit_payload["outcome"] = "failed"
+            audit_payload["skip"] = True
             try:
-                audit_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
-                with audit_session() as audit_db:
-                    record_event(
-                        audit_db,
-                        tenant_id,
-                        f"api.{request.method.lower()}",
-                        request.url.path,
-                        outcome=outcome,
-                        user_id=user.id,
-                        ip_address=request.client.host if request.client else None,
-                    )
-                    audit_db.commit()
+                _write_request_audit(
+                    audit_payload["bind"],
+                    audit_payload["tenant_id"],
+                    audit_payload["action"],
+                    audit_payload["target"],
+                    audit_payload["outcome"],
+                    audit_payload["user_id"],
+                    audit_payload["ip_address"],
+                )
             except Exception:  # noqa: BLE001 - 审计写入失败不能覆盖业务响应
                 pass
+        raise
 
 
 def require_roles(*allowed_roles):

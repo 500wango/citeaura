@@ -73,7 +73,8 @@ export default {
     const activeProjects = usage.projects_active || 0;
     const maxProjects = usage.projects_limit || 3;
     const paymentAvailable = Boolean(plansData.payment?.enabled && plansData.payment?.configured);
-    const canUpgrade = usage.can_upgrade !== false && !['active', 'trialing', 'past_due'].includes(subscription?.status);
+    const activeSubscription = ['active', 'trialing', 'past_due'].includes(subscription?.status);
+    const canUpgrade = usage.can_upgrade !== false;
     const paymentDisabled = paymentAvailable && canUpgrade ? '' : 'disabled aria-disabled="true"';
     const paymentUnavailable = t('billing.payment_unavailable', {}, 'Payments unavailable');
     const starter = planByCode(plansData.plans, 'starter');
@@ -88,7 +89,8 @@ export default {
     const subscribeLabel = (code, label) => {
       if (currentPlan === code) return 'Current Plan';
       if (!paymentAvailable) return paymentUnavailable;
-      if (!canUpgrade) return 'Cancel current plan to switch';
+      if (!canUpgrade) return 'Plan change unavailable';
+      if (activeSubscription) return `Switch to ${label.replace(/^(?:Subscribe|Upgrade to)\s+/, '')}`;
       return label;
     };
 

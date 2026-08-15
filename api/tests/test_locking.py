@@ -64,9 +64,12 @@ def test_project_lock_renews_lease_and_reports_lost_lock(project_lock_redis, mon
             return LostLock()
 
     monkeypatch.setattr(locking, "redis_client", lambda: LostRedis())
+    critical_section_completed = False
     with pytest.raises(DistributedLockError, match="project_lock_lost"):
         with locking.project_lock("tenant-a", "lost"):
             time.sleep(0.025)
+            critical_section_completed = True
+    assert critical_section_completed is True
 
 
 def test_project_lock_connection_failure_is_retryable(monkeypatch):

@@ -186,8 +186,6 @@ def _activate_checkout(db, value):
     row.started_at = started_at
     row.expires_at = _add_billing_period(started_at, billing_interval)
     tenant.plan = plan_code
-    # 付费开通后立即离开试用态，不要求等 trial_ends_at。
-    tenant.trial_ends_at = None
     record_product_event(
         db,
         "payment_succeeded",
@@ -211,7 +209,22 @@ def _sync_tenant_plan(db, tenant_id):
         .order_by(Subscription.started_at.desc(), Subscription.id.desc())
         .first()
     )
-    tenant.plan = active.plan if active is not None else "trial"
+    if active is not None:
+        tenant.plan = active.plan
+        return
+    latest = (
+        db.query(Subscription)
+        .filter(Subscription.tenant_id == tenant_id)
+        .order_by(Subscription.started_at.desc(), Subscription.id.desc())
+        .first()
+    )
+    tenant.plan = "trial"
+    if tenant.trial_ends_at is None:
+        tenant.trial_ends_at = (
+            latest.expires_at if latest is not None and latest.expires_at is not None
+            else latest.started_at if latest is not None
+            else datetime.now(timezone.utc)
+        )
 
 
 def _update_subscription(db, value, deleted=False):
@@ -249,6 +262,15 @@ def _update_subscription(db, value, deleted=False):
     row.provider = "stripe"
     row.provider_customer_id = _stripe_id(value.get("customer")) or row.provider_customer_id
     row.expires_at = _timestamp(value.get("current_period_end"), row.expires_at)
+    metadata = _metadata(value.get("metadata"))
+    if metadata:
+        tenant_id, plan_code, billing_interval, plan = _validated_selection(value)
+        if tenant_id != row.tenant_id:
+            raise stripe_adapter.StripeError("stripe_tenant_invalid")
+        row.plan = plan_code
+        row.billing_interval = billing_interval
+        row.amount_cny_fen = plan["prices"][billing_interval]["cny"] * 100
+        row.amount_usd_cents = plan["prices"][billing_interval]["usd"] * 100
     db.flush()
     _sync_tenant_plan(db, row.tenant_id)
     return True
@@ -413,8 +435,13 @@ def billing_usage(current_user: User = Depends(get_current_user), db: Session = 
         latest is not None
         and latest.status in ("active", "trialing", "past_due")
     )
-    # 无活跃付费订阅时（含试用中/试用过期）均可发起升级结账。
-    result["can_upgrade"] = not active_paid
+    can_change_plan = bool(
+        active_paid
+        and latest.provider == "stripe"
+        and latest.provider_subscription_id
+    )
+    result["can_upgrade"] = not active_paid or can_change_plan
+    result["can_change_plan"] = can_change_plan
     result["subscription"] = None if latest is None else {
         "id": latest.id,
         "plan": latest.plan,
@@ -427,6 +454,7 @@ def billing_usage(current_user: User = Depends(get_current_user), db: Session = 
         "started_at": latest.started_at,
         "expires_at": latest.expires_at,
     }
+    db.commit()
     return result
 
 
@@ -469,22 +497,68 @@ def subscribe(
     tenant = db.get(Tenant, current_user.tenant_id)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
-    # 仅阻止已有付费订阅的二次开通；plan=trial（含未过期/已过期）均可升级。
-    active = db.query(Subscription).filter(
-        Subscription.tenant_id == tenant.id,
-        Subscription.status.in_(("active", "trialing", "past_due")),
-    ).first()
-    if active is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"error": "subscription_already_active", "detail": "cancel the current subscription before starting another one"},
-        )
     if payload.plan == "enterprise":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={"error": "enterprise_contact_required"},
         )
     plan = _plan(payload.plan)
+    active = db.query(Subscription).filter(
+        Subscription.tenant_id == tenant.id,
+        Subscription.status.in_(("active", "trialing", "past_due")),
+    ).first()
+    if active is not None:
+        previous_plan = active.plan
+        if active.plan == payload.plan and active.billing_interval == payload.billing_interval and not active.cancel_at_period_end:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": "subscription_already_active"},
+            )
+        if active.provider != "stripe" or not active.provider_subscription_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": "subscription_change_unavailable"},
+            )
+        try:
+            updated = stripe_adapter.update_subscription(
+                active.provider_subscription_id,
+                tenant,
+                plan,
+                payload.billing_interval,
+                _payment_amount(plan, payload.billing_interval),
+            )
+        except stripe_adapter.StripeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={"error": str(exc)},
+            ) from exc
+        active.plan = payload.plan
+        active.billing_interval = payload.billing_interval
+        active.amount_cny_fen = plan["prices"][payload.billing_interval]["cny"] * 100
+        active.amount_usd_cents = plan["prices"][payload.billing_interval]["usd"] * 100
+        active.cancel_at_period_end = False
+        updated_status = str(updated.get("status") or active.status)
+        if updated_status in ("active", "trialing", "past_due", "canceled", "unpaid", "incomplete"):
+            active.status = updated_status
+        active.expires_at = _timestamp(updated.get("current_period_end"), active.expires_at)
+        tenant.plan = payload.plan
+        record_product_event(
+            db,
+            "subscription_changed",
+            tenant_id=tenant.id,
+            user_id=current_user.id,
+            country_code=tenant.acquisition_country_code,
+            properties={"from_plan": previous_plan, "plan": payload.plan, "billing_interval": payload.billing_interval},
+        )
+        db.commit()
+        return {
+            "plan": payload.plan,
+            "billing_interval": payload.billing_interval,
+            "payment": "stripe_subscription_update",
+            "subscription_id": active.id,
+            "proration": "always_invoice",
+            "from_plan": previous_plan,
+        }
     try:
         session = stripe_adapter.create_checkout_session(
             tenant,

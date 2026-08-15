@@ -25,6 +25,7 @@ from api.adapters.engine import (
 )
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import audit_presentation, brand_identity, delivery, framing, global_scope, preflight, report_quality, sampling_control, sampling_modes, ticket_workflow, workspace
+from api.adapters.network import NetworkTargetError, validate_outbound_url
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
@@ -671,6 +672,10 @@ def create_project(
     db: Session = Depends(get_db),
 ):
     """创建项目、初始化引擎目录并投递 Bootstrap 任务。"""
+    try:
+        validate_outbound_url(payload.url, require_https=False)
+    except NetworkTargetError as exc:
+        _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc))
     tenant = _tenant_for_user(db, current_user, for_update=True)
     check_project_creation(db, tenant)
     slug = geolib.slugify(payload.url)

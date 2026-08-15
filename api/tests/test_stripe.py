@@ -49,6 +49,55 @@ def test_checkout_sends_server_owned_price_and_metadata(monkeypatch):
     assert "#settings" not in captured["data"]["success_url"]
 
 
+def test_subscription_update_creates_price_and_immediately_invoices_proration(monkeypatch):
+    monkeypatch.setenv("BILLING_ENABLED", "true")
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_secret")
+    monkeypatch.setenv("STRIPE_CURRENCY", "usd")
+    calls = []
+
+    class Response:
+        status_code = 200
+
+        def __init__(self, payload):
+            self.payload = payload
+
+        def json(self):
+            return self.payload
+
+    monkeypatch.setattr(
+        stripe.requests,
+        "get",
+        lambda url, **kwargs: Response({
+            "id": "sub_existing",
+            "items": {"data": [{"id": "si_existing", "price": {"product": "prod_citeaura"}}]},
+        }),
+    )
+
+    def post(url, **kwargs):
+        calls.append((url, kwargs))
+        if url.endswith("/prices"):
+            return Response({"id": "price_upgrade"})
+        return Response({"id": "sub_existing", "status": "active"})
+
+    monkeypatch.setattr(stripe.requests, "post", post)
+    result = stripe.update_subscription(
+        "sub_existing",
+        SimpleNamespace(id=17),
+        {"code": "pro", "name": "Pro"},
+        "annual",
+        199000,
+    )
+
+    assert result["id"] == "sub_existing"
+    assert calls[0][1]["data"]["recurring[interval]"] == "year"
+    update_data = calls[1][1]["data"]
+    assert update_data["items[0][id]"] == "si_existing"
+    assert update_data["items[0][price]"] == "price_upgrade"
+    assert update_data["proration_behavior"] == "always_invoice"
+    assert update_data["payment_behavior"] == "error_if_incomplete"
+    assert update_data["metadata[tenant_id]"] == "17"
+
+
 def test_webhook_signature_checks_age_and_payload(monkeypatch):
     monkeypatch.setenv("BILLING_ENABLED", "true")
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_secret")

@@ -14,12 +14,14 @@ from api.main import app
 from api.models import Job
 from api.projects import router as project_router
 from api.adapters import engine as engine_adapter, sampling_control
+from api.adapters.network import validate_outbound_url as real_validate_outbound_url
 
 
 @pytest.fixture()
 def project_client(tmp_path, monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "test-secret-that-is-long-enough-32")
     monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    monkeypatch.setattr(project_router, "validate_outbound_url", lambda value, **kwargs: value)
     engine = create_engine(f"sqlite:///{tmp_path / 'projects.sqlite'}")
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -122,7 +124,6 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert listed.json()["projects"][0]["slug"] == "example-com"
     assert listed.json()["projects"][0]["market"] == "global"
     assert json.loads(config_path.read_text("utf-8"))["market"] == "global"
-
     detail = client.get(f"/api/v1/projects/{body['project_id']}", headers=headers)
     assert detail.status_code == 200
     assert detail.json()["brand"]["name"] == "Example"
@@ -402,6 +403,23 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert incremental.status_code == 200
     assert incremental.json()["job"]["log"] == "second\n"
     assert incremental.json()["job"]["log_offset"] == 13
+
+
+def test_project_create_rejects_private_target_before_persisting(project_client, monkeypatch):
+    client, session_factory = project_client
+    headers = _register(client, "private-target@example.com")
+    monkeypatch.setattr(project_router, "validate_outbound_url", real_validate_outbound_url)
+    response = client.post(
+        "/api/v1/projects",
+        headers=headers,
+        json={"url": "http://127.0.0.1/internal"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {"error": "network_private_address_blocked"}
+    with session_factory() as db:
+        assert db.query(project_router.Project).count() == 0
+        assert db.query(Job).count() == 0
 
 
 def test_delivery_download_rejects_noncompliant_legacy_package(project_client, monkeypatch, tmp_path):

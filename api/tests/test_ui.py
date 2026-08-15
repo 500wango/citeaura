@@ -177,6 +177,8 @@ def test_frontend_contracts_match_backend_request_models():
     assert "{ plan, billing_interval: currentInterval }" in billing
     assert "plansData.payment?.enabled" in billing
     assert "can_upgrade" in billing
+    assert "activeSubscription" in billing
+    assert "Switch to ${label" in billing
     assert "Upgrade to Pro" in billing
     assert "no need to wait" in billing
     assert "project.questions" in overview

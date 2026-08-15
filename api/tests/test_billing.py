@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import BillingEvent, Job, PaymentTransaction, Project, Subscription, Tenant
+from api.models import BillingEvent, Job, PaymentTransaction, Project, Subscription, Tenant, UsageCounter
 from api.billing import stripe as stripe_adapter
 from api.projects import router as project_router
 
@@ -25,6 +25,7 @@ def billing_client(tmp_path, monkeypatch):
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_citeaura")
     monkeypatch.setenv("STRIPE_CURRENCY", "usd")
     monkeypatch.setattr("api.adapters.engine.WORK_ROOT", tmp_path / "work")
+    monkeypatch.setattr(project_router, "validate_outbound_url", lambda value, **kwargs: value)
     engine = create_engine(f"sqlite:///{tmp_path / 'billing.sqlite'}")
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -102,6 +103,31 @@ def test_trial_project_limit_and_usage(billing_client, monkeypatch):
     assert usage.status_code == 200
     assert usage.json()["projects_active"] == 3
     assert usage.json()["projects_limit"] == 3
+    with session_factory() as db:
+        counter = db.query(UsageCounter).one()
+        assert counter.projects_active == 3
+        assert counter.sample_runs == 0
+        counter.platform_calls = 7
+        counter.platform_cost_cny_fen = 21
+        project_id = db.query(Project.id).first()[0]
+        db.add_all([
+            Job(project_id=project_id, action="sample", status="done"),
+            Job(
+                project_id=project_id,
+                action="sample",
+                status="done",
+                created_at=datetime(2020, 1, 1, tzinfo=timezone.utc),
+            ),
+        ])
+        db.commit()
+
+    refreshed = client.get("/api/v1/billing/usage", headers=headers)
+    assert refreshed.json()["sample_runs"] == 1
+    with session_factory() as db:
+        counter = db.query(UsageCounter).one()
+        assert counter.sample_runs == 1
+        assert counter.platform_calls == 7
+        assert counter.platform_cost_cny_fen == 21
 
 
 def test_paid_project_limits_are_enforced_and_reported(billing_client):
@@ -402,8 +428,69 @@ def test_subscription_deleted_webhook_revokes_paid_plan(billing_client):
     assert stale_invoice.status_code == 200
     assert stale_invoice.json()["processed"] is False
     with session_factory() as db:
-        assert db.get(Tenant, tenant_id).plan == "trial"
+        tenant = db.get(Tenant, tenant_id)
+        assert tenant.plan == "trial"
+        assert tenant.trial_ends_at is not None
         assert db.query(Subscription).one().status == "canceled"
+
+
+def test_active_subscription_can_change_plan_with_proration(billing_client, monkeypatch):
+    client, session_factory = billing_client
+    headers = _register(client, "switch-plan@example.com")
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "switch-plan").one()
+        original_trial_end = tenant.trial_ends_at
+        tenant.plan = "starter"
+        db.add(Subscription(
+            tenant_id=tenant.id,
+            plan="starter",
+            billing_interval="monthly",
+            status="active",
+            provider="stripe",
+            provider_subscription_id="sub_switch",
+        ))
+        db.commit()
+    captured = {}
+    monkeypatch.setattr(
+        stripe_adapter,
+        "update_subscription",
+        lambda subscription_id, tenant, plan, billing_interval, amount: captured.update({
+            "subscription_id": subscription_id,
+            "tenant_id": tenant.id,
+            "plan": plan["code"],
+            "billing_interval": billing_interval,
+            "amount": amount,
+        }) or {"id": subscription_id, "status": "active", "current_period_end": int(time.time()) + 3600},
+    )
+
+    usage = client.get("/api/v1/billing/usage", headers=headers).json()
+    assert usage["can_upgrade"] is True
+    assert usage["can_change_plan"] is True
+    changed = client.post(
+        "/api/v1/billing/subscribe",
+        headers=headers,
+        json={"plan": "pro", "billing_interval": "annual"},
+    )
+    assert changed.status_code == 200
+    assert changed.json()["payment"] == "stripe_subscription_update"
+    assert changed.json()["proration"] == "always_invoice"
+    assert changed.json()["from_plan"] == "starter"
+    assert captured["amount"] == 199000
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "switch-plan").one()
+        subscription = db.query(Subscription).one()
+        assert tenant.plan == "pro"
+        assert tenant.trial_ends_at == original_trial_end
+        assert subscription.plan == "pro"
+        assert subscription.billing_interval == "annual"
+
+    duplicate = client.post(
+        "/api/v1/billing/subscribe",
+        headers=headers,
+        json={"plan": "pro", "billing_interval": "annual"},
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["error"] == "subscription_already_active"
 
 
 def test_cancel_subscription_requests_period_end_and_persists_flag(billing_client, monkeypatch):
@@ -594,9 +681,10 @@ def test_active_and_expired_trial_can_upgrade_to_pro_without_waiting(billing_cli
     with session_factory() as db:
         tenant = db.get(Tenant, tenant_id)
         assert tenant.plan == "agency"
-        assert tenant.trial_ends_at is None
+        assert tenant.trial_ends_at is not None
     after = client.get("/api/v1/billing/usage", headers=expired_headers).json()
     assert after["plan"] == "agency"
-    assert after["can_upgrade"] is False
+    assert after["can_upgrade"] is True
+    assert after["can_change_plan"] is True
     assert after["projects_limit"] == 30
     assert [item["plan"] for item in captured] == ["pro", "agency"]
