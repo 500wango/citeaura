@@ -37,6 +37,11 @@ set +a
 : "${JWT_SECRET:?JWT_SECRET is required in .env.production}"
 : "${AES_KEY:?AES_KEY is required in .env.production}"
 APP_PORT="${APP_PORT:-18000}"
+if [[ -z "${CITEAURA_SOURCE_REVISION:-}" || "${CITEAURA_SOURCE_REVISION:-}" == "unknown" ]]; then
+    CITEAURA_SOURCE_REVISION="$(git rev-parse --short=12 HEAD 2>/dev/null || true)"
+    CITEAURA_SOURCE_REVISION="${CITEAURA_SOURCE_REVISION:-unknown}"
+fi
+export CITEAURA_SOURCE_REVISION
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config --quiet
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d redis

@@ -79,8 +79,10 @@ def test_scope_uses_applicable_pages_and_defers_global_metric_targets():
     assert tasks["T-009"]["affected"] == ["https://example.com/docs"]
     assert tasks["T-010"]["affected"] == ["https://example.com"]
     assert "sitewide" not in tasks["T-008"]["title"].lower()
-    assert tasks["T-007"]["affected"] == []
-    assert tasks["T-007"]["verification_cohort"] == ["https://example.com/app"]
+    assert "T-007" not in tasks
+    excluded = {task["id"]: task for task in scoped["scope_excluded_tasks"]}
+    assert excluded["T-007"]["scope_exclusion_reason"] == "no_applicable_failure"
+    assert tasks["T-008"]["verification_cohort"] == ["https://example.com/docs"]
     assert "T-011" not in tasks
     assert "T-014" not in tasks
     assert "T-015" not in tasks
@@ -92,10 +94,21 @@ def test_scope_uses_applicable_pages_and_defers_global_metric_targets():
     assert tasks["T-AUDIT-DATE"]["affected"] == ["https://example.com/privacy"]
     assert {task["id"] for task in scoped["scope_deferred_tasks"]} == {"T-015", "T-016"}
 
-    verification = action_scope.scope_verification({}, scoped, _audit(), _limited_quality())
-    results = {result["id"]: result for result in verification["results"]}
-    assert results["T-007"]["verdict"] == "manual"
-    assert results["T-007"]["progress"]["missing"] == 1
+
+
+def test_scope_retains_workflow_tasks_without_current_failures():
+    audit = _audit()
+    retained = _task("T-RETAINED", "pages.static_text", ["https://example.com/terms"])
+    retained["status"] = "doing"
+    todo = _task("T-TODO", "pages.static_text", ["https://example.com/terms"])
+
+    scoped = action_scope.scope_task_data({"tasks": [retained, todo]}, audit, _limited_quality())
+    tasks = {task["id"]: task for task in scoped["tasks"]}
+    excluded = {task["id"]: task for task in scoped["scope_excluded_tasks"]}
+
+    assert tasks["T-RETAINED"]["affected"] == []
+    assert tasks["T-RETAINED"]["verification_cohort"] == ["https://example.com/terms"]
+    assert excluded["T-TODO"]["scope_exclusion_reason"] == "no_applicable_failure"
 
 
 def test_scope_restores_metric_targets_after_representative_sampling():
@@ -121,6 +134,8 @@ def test_scope_restores_metric_targets_after_representative_sampling():
 def test_score_task_replaces_raw_scope_and_progress_with_applicable_evidence():
     audit = _audit()
     audit["applicable_avg_score"] = 64.2
+    audit["pages"].append(_page("https://example.com/sitemap.xml", {"structured_data": "failed"}, excluded=False))
+    audit["pages"][-1]["evaluation_status"] = "insufficient_evidence"
     score_task = _task("T-SCORE", "site.avg_score_gte:70", ["https://example.com/app"])
     score_task.update({
         "action": "Apply the same content checklist sitewide.",
@@ -136,7 +151,9 @@ def test_score_task_replaces_raw_scope_and_progress_with_applicable_evidence():
     task = next(item for item in scoped["tasks"] if item["id"] == "T-SCORE")
 
     assert "https://example.com/app" not in task["affected"]
+    assert "https://example.com/sitemap.xml" not in task["affected"]
     assert task["progress"]["cur"] == 64.2
+    assert scoped["baseline"]["applicable_pages"] == 4
     assert "progress_first" not in task
     assert "role-aware" in task["action"]
 

@@ -139,6 +139,7 @@ def _patch_project(monkeypatch, project):
     monkeypatch.setattr(delivery.geolib, "project_dir", lambda slug: project)
     monkeypatch.setattr(delivery.geolib, "today", lambda: "2026-07-31")
     monkeypatch.setattr(delivery.geolib, "now_iso", lambda: "2026-07-31T12:00:00+00:00")
+    monkeypatch.setattr(delivery.app_config, "source_revision", lambda: "abcdef123456")
 
 
 def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypatch):
@@ -157,6 +158,9 @@ def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypa
     assert expected <= files
     assert "01-诊断报告.md" not in files
     assert "API - Parametric knowledge" in (output / "01-Audit-Report.md").read_text("utf-8")
+    assert "abcdef123456" in (output / "README.md").read_text("utf-8")
+    assert "abcdef123456" in (output / "index.md").read_text("utf-8")
+    assert json.loads((output / "assets" / "index.json").read_text("utf-8"))["source_revision"] == "abcdef123456"
     assert "Add sitemap.xml and submit it to international search engines" in (output / "03-Ticket-Log.md").read_text("utf-8")
     assert "Current value: 1; target: at most 0." in (output / "04-Acceptance-Checklist.md").read_text("utf-8")
     assert delivery.delivery_language_violations(output) == []
@@ -453,14 +457,29 @@ def test_delivery_reuses_unreviewed_brand_facts_as_review_drafts(tmp_path, monke
         "unsuitable": ["Unverified medical workflows"],
     })
     (project / "content" / "facts.md").write_text(facts, "utf-8")
+    (project / "assets" / "llms.en.txt").write_text(
+        "# Example\n\n> Example coordinates field operations for distributed industrial teams.\n\n- Industry: Industrial operations software\n",
+        "utf-8",
+    )
+    _write_json(project / "assets" / "jsonld" / "organization.json", {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Example",
+        "url": "https://example.com",
+    })
 
     delivery.ensure_delivery_contract("example", output)
 
     index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
     records = {item["path"]: item for item in index["assets"]}
     assert records["drafts/brand-facts.md"]["status"] == "needs_review"
-    assert records["drafts/llms.en.txt"]["status"] == "needs_review"
-    llms = (output / "assets" / "drafts" / "llms.en.txt").read_text("utf-8")
+    assert records["llms.en.txt"]["status"] == "needs_review"
+    assert records["jsonld/organization.json"]["status"] == "needs_review"
+    assert records["snippets/definition.en.html"]["status"] == "needs_review"
+    assert "Derived from an unreviewed brand facts library" in records["llms.en.txt"]["issues"]
+    assert "Derived from an unreviewed brand facts library" in records["jsonld/organization.json"]["issues"]
+    assert "Derived from an unreviewed brand facts library" in records["snippets/definition.en.html"]["issues"]
+    llms = (output / "assets" / "llms.en.txt").read_text("utf-8")
     assert "Example coordinates field operations" in llms
     assert "[Add" not in llms
     assert "Industrial operations software" in llms

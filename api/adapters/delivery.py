@@ -10,6 +10,7 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
+from api import config as app_config
 from api.adapters.branding import apply_delivery_branding
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
@@ -1791,7 +1792,7 @@ def _json_asset_issues(value):
     return issues
 
 
-def _asset_record(destination, delivery_path):
+def _asset_record(destination, delivery_path, *, facts_review_pending=False):
     relative = Path(delivery_path).relative_to("assets")
     path = destination / relative
     issues = []
@@ -1809,7 +1810,16 @@ def _asset_record(destination, delivery_path):
     if relative.parts and relative.parts[0] == "outlines" and path.suffix.lower() in (".md", ".json"):
         issues.append("Editorial outline collection requires research and drafting")
     status = "template" if issues else ("needs_review" if relative.parts and relative.parts[0] == "drafts" else "ready")
-    if status == "needs_review":
+    derived_fact_paths = (
+        relative == Path("llms.txt")
+        or relative == Path("llms.en.txt")
+        or (relative.parts and relative.parts[0] == "jsonld")
+        or relative == Path("snippets/definition.en.html")
+    )
+    if facts_review_pending and derived_fact_paths and status != "template":
+        status = "needs_review"
+        issues.append("Derived from an unreviewed brand facts library")
+    if status == "needs_review" and relative.parts and relative.parts[0] == "drafts":
         issues.append("Draft requires factual and editorial review")
     if status == "template":
         template_relative = Path("llms.en.txt") if relative == Path("drafts/llms.en.txt") else relative
@@ -1845,7 +1855,11 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
     schema_decisions = generated["schema_decisions"]
     _copy_drafts(source, destination, blueprint, made)
     _copy_other_assets(source, destination, blueprint, made)
-    records = [_asset_record(destination, path) for path in sorted(set(made))]
+    facts_review_pending = bool(facts_text) and not bool(facts.get("reviewed"))
+    records = [
+        _asset_record(destination, path, facts_review_pending=facts_review_pending)
+        for path in sorted(set(made))
+    ]
     decisions_by_path = {item["path"]: item for item in schema_decisions}
     for record in records:
         decision_path = record["path"].removeprefix("templates/")
@@ -1873,6 +1887,7 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
         readiness_issues.append(f"Sampling confidence is {confidence.get('label', 'unavailable')}")
     index = {
         "generated_at": geolib.now_iso(),
+        "source_revision": app_config.source_revision(),
         "language": "English",
         "readiness": "customer_ready" if records and not readiness_issues else "review_required",
         "readiness_issues": readiness_issues,
@@ -1896,11 +1911,13 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     schema_selection = asset_index.get("schema_selection") or {}
     documents = [f"{number}-{title}.html" for number, title in REQUIRED_DOCUMENTS.items()]
     site_score = audit.get("applicable_avg_score")
+    source_revision = asset_index.get("source_revision") or app_config.source_revision()
     lines = [
         f"# {name} GEO Delivery Pack",
         "",
         f"- Official website: {site}",
         f"- Delivery date: {delivery_date}",
+        f"- Source revision: {source_revision}",
         f"- Applicable site score: {_format_number(site_score)}",
         f"- Action tickets: {len(tickets)}",
         f"- Channel coverage: {coverage.get('channel_covered', 0)}/{coverage.get('channel_total', 0)}",
@@ -1968,6 +1985,8 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     )
     readme = "\n".join([
         f"# {name} GEO Delivery Pack",
+        "",
+        f"Source revision: `{source_revision}`",
         "",
         "Start with `index.html` for the delivery overview.",
         "",

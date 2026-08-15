@@ -2,6 +2,7 @@
 
 import math
 import os
+import subprocess
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -107,6 +108,25 @@ def oidc_allow_insecure_localhost():
 
 def public_base_url():
     return os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
+
+
+def source_revision():
+    """返回部署源码版本，本地运行时回退读取 Git。"""
+    configured = os.getenv("CITEAURA_SOURCE_REVISION", "").strip()
+    if configured and configured.lower() != "unknown":
+        return configured
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short=12", "HEAD"],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return configured or "unknown"
+    revision = result.stdout.strip()
+    return revision or configured or "unknown"
 
 
 def work_root(default: Path):

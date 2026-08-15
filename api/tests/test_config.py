@@ -54,6 +54,11 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     assert config.auth_smtp_settings()["security_mode"] == "ssl"
 
 
+def test_source_revision_prefers_deployment_environment(monkeypatch):
+    monkeypatch.setenv("CITEAURA_SOURCE_REVISION", "abcdef123456")
+    assert config.source_revision() == "abcdef123456"
+
+
 def test_project_lock_config_rejects_invalid_ranges(monkeypatch):
     monkeypatch.setenv("PROJECT_LOCK_TTL_SECONDS", "inf")
     monkeypatch.setenv("PROJECT_LOCK_WAIT_SECONDS", "-1")

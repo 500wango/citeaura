@@ -215,7 +215,9 @@ def _source_tasks(data):
 
 def _scope_page_task(task, audit, check_id):
     affected, total = _failed_pages(audit, check_id)
-    cohort = list(task.get("verification_cohort") or task.get("affected") or affected)
+    # A current crawl is authoritative when it has applicable failures. Historical
+    # cohorts remain useful only for manually retained workflow items.
+    cohort = list(affected or task.get("verification_cohort") or task.get("affected") or [])
     title, action, package, priority = CHECK_COPY[check_id]
     acceptance = task.get("acceptance") if isinstance(task.get("acceptance"), dict) else {}
     scoped = {
@@ -347,8 +349,8 @@ def scope_task_data(data, audit, sampling_quality=None):
         page_check = _page_check(check)
         if page_check:
             scoped, affected = _scope_page_task(task, audit, page_check)
-            if (affected or scoped.get("verification_cohort") or task.get("status") in ("done", "wontfix")
-                    or task.get("workflow_customized")):
+            retained = task.get("status") in ("doing", "blocked", "done", "wontfix")
+            if affected or retained or task.get("workflow_customized"):
                 active.append(scoped)
                 covered_page_checks.add(page_check)
             else:
@@ -371,7 +373,7 @@ def scope_task_data(data, audit, sampling_quality=None):
                 str(page.get("url") or "")
                 for page in audit.get("pages") or []
                 if isinstance(page, dict)
-                and page.get("evaluation_status") != "excluded"
+                and page.get("evaluation_status") == "evaluated"
                 and any(item.get("status") == "failed" for item in page.get("checks") or [])
             ]
             scoped = {
@@ -452,7 +454,7 @@ def scope_task_data(data, audit, sampling_quality=None):
         baseline["score_method"] = "applicable_page_role_v1"
     baseline["pages"] = audit.get("page_count", baseline.get("pages"))
     baseline["applicable_pages"] = sum(
-        page.get("evaluation_status") != "excluded" for page in audit.get("pages") or [] if isinstance(page, dict)
+        page.get("evaluation_status") == "evaluated" for page in audit.get("pages") or [] if isinstance(page, dict)
     )
 
     deduplicated = []
