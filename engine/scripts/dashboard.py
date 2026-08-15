@@ -657,6 +657,8 @@ def _monitor_tick():
 def _monitor_loop():
     while True:
         try:
+            J.reap_orphans()
+            J.prune_history()
             _monitor_tick()
         except Exception as e:  # noqa: BLE001 - scheduler loop must stay alive
             G.info(f"Scheduled run error: {type(e).__name__}: {e}")
@@ -665,6 +667,7 @@ def _monitor_loop():
 
 def run(port: int = 8765, open_browser: bool = True):
     J.reap_orphans()
+    J.prune_history()
     threading.Thread(target=_monitor_loop, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"

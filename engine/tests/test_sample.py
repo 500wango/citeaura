@@ -150,6 +150,25 @@ class TestProbeNoFallback(unittest.TestCase):
         self.assertTrue(S.brand_in_question("Is AI useful?", cfg))
 
 
+class TestProviderObservability(unittest.TestCase):
+    def test_summarizes_usage_retries_models_and_search_evidence(self):
+        rows = [
+            {"platform": "openai", "ok": True, "retry_count": 1,
+             "raw_model": "model-b", "usage": {"total_tokens": 9},
+             "search_evidence": "not_searched"},
+            {"platform": "openai", "ok": False, "retry_count": 2,
+             "raw_model": "model-a", "usage": {}, "search_evidence": "request_failed"},
+        ]
+        summary = S._provider_observability(rows)
+        self.assertEqual(summary["requests"], 2)
+        self.assertEqual(summary["successful"], 1)
+        self.assertEqual(summary["failed"], 1)
+        self.assertEqual(summary["retries"], 3)
+        self.assertEqual(summary["usage"]["total_tokens"], 9)
+        self.assertEqual(summary["platforms"]["openai"]["models"], ["model-a", "model-b"])
+        self.assertEqual(summary["platforms"]["openai"]["search_evidence"]["request_failed"], 1)
+
+
 class TestMarketOf(unittest.TestCase):
     def test_unknown_platform_code(self):
         self.assertEqual(S.market_of("deepssek"), "unknown")
@@ -161,16 +180,21 @@ class TestMarketOf(unittest.TestCase):
 
 
 class _Resp:
-    def __init__(self, status, payload=None, text=""):
+    def __init__(self, status, payload=None, text="", headers=None):
         self.status_code = status
         self._payload = payload or {}
         self.text = text
+        self.headers = headers or {}
 
     def json(self):
         return self._payload
 
 
-OK_PAYLOAD = {"choices": [{"message": {"content": "你好"}}], "model": "deepseek-v4-flash"}
+OK_PAYLOAD = {
+    "choices": [{"message": {"content": "你好"}, "finish_reason": "stop"}],
+    "model": "deepseek-v4-flash",
+    "usage": {"prompt_tokens": 7, "completion_tokens": 2, "total_tokens": 9},
+}
 
 
 class TestAskRetry(unittest.TestCase):
@@ -178,7 +202,7 @@ class TestAskRetry(unittest.TestCase):
         self._env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key"})
         self._env.start()
         self._sleep = mock.patch.object(S.time, "sleep")
-        self._sleep.start()
+        self.sleep = self._sleep.start()
 
     def tearDown(self):
         self._env.stop()
@@ -195,7 +219,19 @@ class TestAskRetry(unittest.TestCase):
                                _Resp(200, OK_PAYLOAD)])
         self.assertTrue(res["ok"])
         self.assertFalse(res["searched"])
+        self.assertEqual(res["retry_count"], 2)
+        self.assertEqual(res["usage"]["total_tokens"], 9)
+        self.assertEqual(res["stop_reason"], "stop")
         self.assertEqual(post.call_count, 3)
+
+    def test_retry_after_header_controls_wait(self):
+        res, _ = self._ask([
+            _Resp(429, text="rate limited", headers={"Retry-After": "7"}),
+            _Resp(200, OK_PAYLOAD, headers={"x-request-id": "req-123"}),
+        ])
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["request_id"], "req-123")
+        self.sleep.assert_called_once_with(7.0)
 
     def test_retry_exhausted_returns_error(self):
         res, post = self._ask([_Resp(500, text="err")] * 5)
@@ -264,6 +300,33 @@ class TestRunValidation(unittest.TestCase):
             with mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test"}):
                 self.assertEqual(S.run("demo", platforms=["deepseek"]), {})
             self.assertFalse((pdir / "samples").exists())
+
+    def test_run_persists_provider_and_search_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(G, "WORK", Path(tmp)):
+            pdir = G.project_dir("demo")
+            pdir.mkdir()
+            (pdir / "geo.json").write_text(json.dumps({
+                "brand": {"name": "Acme", "site": "https://acme.example", "aliases": []},
+                "market": "global", "platforms": ["perplexity"],
+                "questions": [{"id": "q001", "market": "global", "text": "Best tool?"}],
+            }), "utf-8")
+            response = {
+                "ok": True, "answer": "Acme is useful.", "citations": [], "searched": True,
+                "raw_model": "sonar-exact", "usage": {"total_tokens": 11},
+                "request_id": "req-1", "retry_count": 1, "stop_reason": "stop",
+            }
+            with mock.patch.dict(os.environ, {"PERPLEXITY_API_KEY": "test"}), \
+                 mock.patch.object(S, "ask", return_value=response), \
+                 mock.patch.object(S.time, "sleep"):
+                metrics = S.run("demo")
+            row = G.read_jsonl(next((pdir / "samples").glob("*.jsonl")))[0]
+        self.assertEqual(row["raw_model"], "sonar-exact")
+        self.assertEqual(row["usage"]["total_tokens"], 11)
+        self.assertEqual(row["request_id"], "req-1")
+        self.assertEqual(row["retry_count"], 1)
+        self.assertEqual(row["search_evidence"], "provider_search_without_citations")
+        self.assertEqual(metrics["provider_observability"]["usage"]["total_tokens"], 11)
+        self.assertEqual(metrics["provider_observability"]["retries"], 1)
 
 
 class TestSamplingConcurrency(unittest.TestCase):

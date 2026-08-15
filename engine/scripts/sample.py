@@ -17,6 +17,8 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -174,6 +176,48 @@ def model_for(platform: str) -> str:
     return _p_model(PROVIDERS[platform])
 
 
+RETRY_DELAYS = (1.0, 3.0)
+MAX_RETRY_DELAY = 60.0
+
+
+def _retry_delay(response, attempt: int, delays=RETRY_DELAYS) -> float:
+    """Honor Retry-After when present, otherwise use the bounded retry schedule."""
+    fallback = float(delays[min(attempt, len(delays) - 1)])
+    headers = getattr(response, "headers", None)
+    raw = headers.get("Retry-After") if hasattr(headers, "get") else None
+    if not isinstance(raw, str) or not raw.strip():
+        return fallback
+    try:
+        delay = float(raw)
+    except ValueError:
+        try:
+            retry_at = parsedate_to_datetime(raw)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            delay = (retry_at - datetime.now(timezone.utc)).total_seconds()
+        except (TypeError, ValueError, OverflowError):
+            return fallback
+    return min(MAX_RETRY_DELAY, max(0.0, delay))
+
+
+def _call_meta(response, payload: dict, model: str, retry_count: int) -> dict:
+    """Extract reproducibility metadata shared by provider response formats."""
+    headers = getattr(response, "headers", None)
+    request_id = ""
+    if hasattr(headers, "get"):
+        request_id = headers.get("x-request-id") or headers.get("request-id") or ""
+    usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
+    choices = payload.get("choices") or []
+    finish_reason = choices[0].get("finish_reason") if choices and isinstance(choices[0], dict) else None
+    return {
+        "raw_model": payload.get("model") or model,
+        "usage": usage,
+        "request_id": str(request_id),
+        "retry_count": retry_count,
+        "stop_reason": payload.get("stop_reason") or finish_reason,
+    }
+
+
 def available(platform: str) -> bool:
     p = PROVIDERS.get(platform)
     return bool(p and os.environ.get(p["key_env"]))
@@ -213,9 +257,10 @@ def ask_ark(p: dict, key: str, question: str, timeout: int) -> dict:
                 seen = set()
                 refs = [c for c in refs if not (c["url"] in seen or seen.add(c["url"]))]
                 return {"ok": True, "answer": answer, "citations": refs,
-                        "raw_model": _p_model(p), "searched": True}
+                        "searched": True, **_call_meta(r, d, _p_model(p), 0)}
         elif "ToolNotOpen" not in r.text:
-            return {"ok": False, "answer": "", "error": f"HTTP {r.status_code}: {r.text[:300]}"}
+            return {"ok": False, "answer": "", "retry_count": 0,
+                    "error": f"HTTP {r.status_code}: {r.text[:300]}"}
     except Exception:  # noqa: BLE001
         pass  # Fall through to the non-search endpoint.
 
@@ -224,20 +269,23 @@ def ask_ark(p: dict, key: str, question: str, timeout: int) -> dict:
                           json={"model": _p_model(p),
                                 "messages": [{"role": "user", "content": question}]}, timeout=timeout)
         if r.status_code != 200:
-            return {"ok": False, "answer": "", "error": f"HTTP {r.status_code}: {r.text[:300]}"}
+            return {"ok": False, "answer": "", "retry_count": 0,
+                    "error": f"HTTP {r.status_code}: {r.text[:300]}"}
         d = r.json()
         answer = d["choices"][0]["message"].get("content") or ""
         if not answer.strip():
-            return {"ok": False, "answer": "", "error": "Provider returned an empty answer"}
+            return {"ok": False, "answer": "", "retry_count": 0,
+                    "error": "Provider returned an empty answer"}
         return {"ok": True, "answer": answer,
-                "citations": [], "raw_model": _p_model(p), "searched": False}
+                "citations": [], "searched": False, **_call_meta(r, d, _p_model(p), 0)}
     except Exception as e:  # noqa: BLE001
-        return {"ok": False, "answer": "", "error": f"{type(e).__name__}: {e}"}
+        return {"ok": False, "answer": "", "retry_count": 0,
+                "error": f"{type(e).__name__}: {e}"}
 
 
 def ask_anthropic(p: dict, key: str, question: str, timeout: int) -> dict:
     """Call the native Anthropic Messages API and parse content blocks."""
-    delays = (1, 3)
+    delays = RETRY_DELAYS
     for attempt in range(len(delays) + 1):
         try:
             r = requests.post(
@@ -251,32 +299,38 @@ def ask_anthropic(p: dict, key: str, question: str, timeout: int) -> dict:
             )
             if r.status_code != 200:
                 if (r.status_code == 429 or r.status_code >= 500) and attempt < len(delays):
-                    time.sleep(delays[attempt])
+                    time.sleep(_retry_delay(r, attempt, delays))
                     continue
-                return {"ok": False, "answer": "", "error": f"HTTP {r.status_code}: {r.text[:300]}"}
+                return {"ok": False, "answer": "", "retry_count": attempt,
+                        "error": f"HTTP {r.status_code}: {r.text[:300]}"}
             d = r.json()
             if d.get("stop_reason") == "refusal":
-                return {"ok": False, "answer": "", "error": "Model refusal (stop_reason=refusal)"}
+                return {"ok": False, "answer": "", "retry_count": attempt,
+                        "error": "Model refusal (stop_reason=refusal)"}
             answer = "".join(b.get("text", "") for b in d.get("content", [])
                              if b.get("type") == "text")
             if not answer.strip():
-                return {"ok": False, "answer": "", "error": "Provider returned an empty answer"}
+                return {"ok": False, "answer": "", "retry_count": attempt,
+                        "error": "Provider returned an empty answer"}
             return {"ok": True, "answer": answer, "citations": [],
-                    "raw_model": d.get("model", _p_model(p)), "searched": False}
+                    "searched": False, **_call_meta(r, d, _p_model(p), attempt)}
         except requests.exceptions.Timeout as e:
             if attempt < len(delays):
-                time.sleep(delays[attempt])
+                time.sleep(float(delays[attempt]))
                 continue
-            return {"ok": False, "answer": "", "error": f"{type(e).__name__}: {e}"}
+            return {"ok": False, "answer": "", "retry_count": attempt,
+                    "error": f"{type(e).__name__}: {e}"}
         except Exception as e:  # noqa: BLE001
-            return {"ok": False, "answer": "", "error": f"{type(e).__name__}: {e}"}
+            return {"ok": False, "answer": "", "retry_count": attempt,
+                    "error": f"{type(e).__name__}: {e}"}
 
 
 def ask(platform: str, question: str, timeout: int = 120) -> dict:
     p = PROVIDERS[platform]
     key = os.environ.get(p["key_env"])
     if not key:
-        return {"ok": False, "answer": "", "error": f"Missing environment variable {p['key_env']}"}
+        return {"ok": False, "answer": "", "retry_count": 0,
+                "error": f"Missing environment variable {p['key_env']}"}
     if p.get("protocol") == "ark":
         return ask_ark(p, key, question, timeout)
     if p.get("protocol") == "anthropic":
@@ -287,7 +341,7 @@ def ask(platform: str, question: str, timeout: int = 120) -> dict:
         "temperature": 0.7,
     }
     body.update(p.get("extra", {}))
-    delays = (1, 3)  # Retry timeouts, rate limits, and server errors twice.
+    delays = RETRY_DELAYS  # Retry timeouts, rate limits, and server errors twice.
     for attempt in range(len(delays) + 1):
         try:
             r = requests.post(
@@ -297,16 +351,18 @@ def ask(platform: str, question: str, timeout: int = 120) -> dict:
                 timeout=timeout,
             )
             if r.status_code != 200:
-                err = {"ok": False, "answer": "", "error": f"HTTP {r.status_code}: {r.text[:300]}"}
+                err = {"ok": False, "answer": "", "retry_count": attempt,
+                       "error": f"HTTP {r.status_code}: {r.text[:300]}"}
                 if (r.status_code == 429 or r.status_code >= 500) and attempt < len(delays):
-                    time.sleep(delays[attempt])
+                    time.sleep(_retry_delay(r, attempt, delays))
                     continue
                 return err
             data = r.json()
             msg = data["choices"][0]["message"]
             answer = msg.get("content") or ""
             if not answer.strip():
-                return {"ok": False, "answer": "", "error": "Provider returned an empty answer"}
+                return {"ok": False, "answer": "", "retry_count": attempt,
+                        "error": "Provider returned an empty answer"}
             # Providers expose search sources through different response fields.
             refs = []
             for item in (data.get("search_info") or {}).get("search_results", []) or []:
@@ -321,15 +377,17 @@ def ask(platform: str, question: str, timeout: int = 120) -> dict:
             seen = set()
             refs = [c for c in refs if not (c["url"] in seen or seen.add(c["url"]))]
             return {"ok": True, "answer": answer, "citations": refs,
-                    "raw_model": data.get("model", _p_model(p)),
-                    "searched": bool(p.get("search", False))}
+                    "searched": bool(p.get("search", False)),
+                    **_call_meta(r, data, _p_model(p), attempt)}
         except requests.exceptions.Timeout as e:
             if attempt < len(delays):
-                time.sleep(delays[attempt])
+                time.sleep(float(delays[attempt]))
                 continue
-            return {"ok": False, "answer": "", "error": f"{type(e).__name__}: {e}"}
+            return {"ok": False, "answer": "", "retry_count": attempt,
+                    "error": f"{type(e).__name__}: {e}"}
         except Exception as e:  # noqa: BLE001
-            return {"ok": False, "answer": "", "error": f"{type(e).__name__}: {e}"}
+            return {"ok": False, "answer": "", "retry_count": attempt,
+                    "error": f"{type(e).__name__}: {e}"}
 
 
 # ------------------------------------------------------------ Answer analysis
@@ -552,6 +610,36 @@ def aggregate(rows: list[dict], cfg: dict) -> dict:
     return out
 
 
+def _provider_observability(rows: list[dict]) -> dict:
+    """Summarize provider cost and reproducibility metadata for one API run."""
+    summary = {"requests": len(rows), "successful": 0, "failed": 0,
+               "retries": 0, "usage": {}, "platforms": {}}
+    for row in rows:
+        plat = row.get("platform") or "unknown"
+        item = summary["platforms"].setdefault(plat, {
+            "requests": 0, "successful": 0, "failed": 0, "retries": 0,
+            "models": set(), "usage": {}, "search_evidence": {},
+        })
+        item["requests"] += 1
+        state = "successful" if row.get("ok") else "failed"
+        summary[state] += 1
+        item[state] += 1
+        retries = max(0, int(row.get("retry_count") or 0))
+        summary["retries"] += retries
+        item["retries"] += retries
+        if row.get("raw_model"):
+            item["models"].add(str(row["raw_model"]))
+        evidence = row.get("search_evidence") or "unknown"
+        item["search_evidence"][evidence] = item["search_evidence"].get(evidence, 0) + 1
+        for key, value in (row.get("usage") or {}).items():
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                summary["usage"][key] = summary["usage"].get(key, 0) + value
+                item["usage"][key] = item["usage"].get(key, 0) + value
+    for item in summary["platforms"].values():
+        item["models"] = sorted(item["models"])
+    return summary
+
+
 def confirm_competitors(slug: str, rows: list[dict]):
     evidence: dict[str, list[dict]] = {}
     for row in rows:
@@ -689,18 +777,32 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
         t0 = time.monotonic()
         res = ask(plat, q["text"])
         elapsed_ms = int((time.monotonic() - t0) * 1000)
+        citations = res.get("citations", [])
+        searched = bool(res.get("searched", PROVIDERS[plat].get("search", False)))
+        if not res["ok"]:
+            search_evidence = "request_failed"
+        elif searched and citations:
+            search_evidence = "citations_returned"
+        elif searched:
+            search_evidence = "provider_search_without_citations"
+        else:
+            search_evidence = "not_searched"
         rec = {
             "date": G.today(), "ts": G.now_iso(),
             **identity,
             "platform": plat, "platform_name": PROVIDERS[plat]["name"],
             "market": market_of(plat), "terminal": "api", "sample_mode": "api",
             "evidence_level": "B_reproducible_api",
-            "search_enabled": res.get("searched", PROVIDERS[plat].get("search", False)),
+            "search_enabled": searched, "search_evidence": search_evidence,
             "question_id": q.get("id"), "question": q["text"], "round": rnd,
             "brand_in_question": brand_in_question(q["text"], cfg),
             "ok": res["ok"], "error": res.get("error"),
             "elapsed_ms": elapsed_ms,
-            "answer": res.get("answer", ""), "citations": res.get("citations", []),
+            "raw_model": res.get("raw_model") or model_for(plat),
+            "usage": res.get("usage") or {}, "request_id": res.get("request_id") or "",
+            "retry_count": int(res.get("retry_count") or 0),
+            "stop_reason": res.get("stop_reason"),
+            "answer": res.get("answer", ""), "citations": citations,
         }
         rec["sampling_label"] = ("api_search_grounded" if rec["search_enabled"] else "api_parametric_knowledge")
         rec["analysis"] = analyze_answer(rec["answer"], cfg, rec["citations"]) if res["ok"] else {
@@ -749,6 +851,7 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
         "slug": slug, "date": G.today(), "generated_at": G.now_iso(), **identity,
         "question_count": len(cfg.get("questions", [])), "sample_count": len(all_rows),
         "successful_sample_count": len(ok_rows), "platforms": aggregated,
+        "provider_observability": _provider_observability(all_rows),
         "measurement": _measurement(aggregated),
         "history_snapshot": _history_snapshot(slug, ok_rows),
     }

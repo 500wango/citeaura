@@ -7,6 +7,7 @@ Each job owns one log file. A cross-process claim allows only one active job per
 
 from __future__ import annotations
 
+import codecs
 import json
 import os
 import re
@@ -58,7 +59,12 @@ _running: dict[str, str] = {}   # slug -> job_id
 _procs: dict[str, subprocess.Popen] = {}
 STOP_GRACE_SECONDS = 5.0
 STOP_KILL_SECONDS = 2.0
+MAX_TAIL_BYTES = 256 * 1024
+JOB_RETENTION_DAYS = 30
+MAX_JOB_RECORDS = 200
+STALE_TEMP_SECONDS = 24 * 60 * 60
 JOB_ID_OK = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+TERMINAL_STATUSES = {"done", "failed", "stopped", "interrupted"}
 
 
 def _job_path(job_id: str) -> Path:
@@ -139,9 +145,17 @@ def tail(job_id: str, offset: int = 0) -> tuple[str, int]:
     p = _log_path(job_id)
     if not p.exists():
         return "", offset
-    data = p.read_bytes()
-    chunk = data[offset:]
-    return chunk.decode("utf-8", "replace"), len(data)
+    size = p.stat().st_size
+    if offset >= size:
+        return "", size
+    with p.open("rb") as handle:
+        handle.seek(offset)
+        chunk = handle.read(MAX_TAIL_BYTES)
+    decoder = codecs.getincrementaldecoder("utf-8")("replace")
+    text = decoder.decode(chunk, final=False)
+    pending, _ = decoder.getstate()
+    consumed = len(chunk) - len(pending)
+    return text, offset + consumed
 
 
 def running_for(slug: str) -> str | None:
@@ -163,8 +177,14 @@ def running_for(slug: str) -> str | None:
 def recent(slug: str | None = None, limit: int = 12) -> list[dict]:
     if not JOBS_DIR.exists():
         return []
+    entries = []
+    for f in JOBS_DIR.glob("*.json"):
+        try:
+            entries.append((f.stat().st_mtime, f))
+        except OSError:
+            continue
     out = []
-    for f in sorted(JOBS_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+    for _, f in sorted(entries, key=lambda item: item[0], reverse=True):
         try:
             j = json.loads(f.read_text("utf-8"))
         except Exception:  # noqa: BLE001
@@ -176,6 +196,61 @@ def recent(slug: str | None = None, limit: int = 12) -> list[dict]:
         if len(out) >= limit:
             break
     return out
+
+
+def _env_positive_int(name: str, default: int) -> int:
+    try:
+        value = int(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+def prune_history(retention_days: int | None = None, keep: int | None = None,
+                  now: float | None = None) -> int:
+    """Remove old terminal job records, paired logs, and stale temporary files."""
+    if not JOBS_DIR.exists():
+        return 0
+    if retention_days is None:
+        retention_days = _env_positive_int("GEO_JOB_RETENTION_DAYS", JOB_RETENTION_DAYS)
+    if keep is None:
+        keep = _env_positive_int("GEO_MAX_JOB_RECORDS", MAX_JOB_RECORDS)
+    if retention_days < 1 or keep < 1:
+        raise ValueError("retention_days and keep must be positive integers")
+    now = time.time() if now is None else now
+    cutoff = now - retention_days * 24 * 60 * 60
+    terminal = []
+    for path in JOBS_DIR.glob("*.json"):
+        try:
+            job = json.loads(path.read_text("utf-8"))
+            mtime = path.stat().st_mtime
+        except (OSError, json.JSONDecodeError):
+            continue
+        if job.get("status") in TERMINAL_STATUSES:
+            terminal.append((mtime, path))
+
+    terminal.sort(key=lambda item: item[0], reverse=True)
+    remove = {path for index, (mtime, path) in enumerate(terminal)
+              if mtime < cutoff or index >= keep}
+    removed = 0
+    for path in remove:
+        try:
+            path.unlink(missing_ok=True)
+            path.with_suffix(".log").unlink(missing_ok=True)
+            removed += 1
+        except OSError:
+            continue
+
+    for path in JOBS_DIR.glob("*.tmp"):
+        try:
+            if now - path.stat().st_mtime >= STALE_TEMP_SECONDS:
+                path.unlink()
+                removed += 1
+        except OSError:
+            continue
+    if removed:
+        G.info(f"Pruned {removed} expired task artifacts")
+    return removed
 
 
 def start(slug: str, action: str, params: dict | None = None) -> dict:

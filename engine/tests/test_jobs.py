@@ -201,6 +201,63 @@ class JobsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             J.tail("valid-job", -1)
 
+    def test_tail_reads_bounded_utf8_chunks(self):
+        J.JOBS_DIR.mkdir(parents=True, exist_ok=True)
+        (J.JOBS_DIR / "chunked.log").write_bytes("abc中def".encode())
+        parts, offset = [], 0
+        with mock.patch.object(J, "MAX_TAIL_BYTES", 5):
+            while True:
+                text, new_offset = J.tail("chunked", offset)
+                parts.append(text)
+                if new_offset == offset:
+                    break
+                offset = new_offset
+        self.assertEqual("".join(parts), "abc中def")
+        self.assertEqual(offset, len("abc中def".encode()))
+
+    def test_tail_resets_offset_after_log_truncation(self):
+        J.JOBS_DIR.mkdir(parents=True, exist_ok=True)
+        (J.JOBS_DIR / "short.log").write_text("abc", "utf-8")
+        self.assertEqual(J.tail("short", 99), ("", 3))
+
+    def test_prune_history_preserves_running_and_recent_jobs(self):
+        now = 2_000_000_000
+        old = now - 31 * 24 * 60 * 60
+        self._write_job("oldfinished", status="done")
+        self._write_job("oldrunning", status="running")
+        self._write_job("newfinished", status="done")
+        (J.JOBS_DIR / "oldfinished.log").write_text("old", "utf-8")
+        stale_tmp = J.JOBS_DIR / "abandoned.json.1.tmp"
+        stale_tmp.write_text("partial", "utf-8")
+        for name in ("oldfinished.json", "oldfinished.log", "oldrunning.json", stale_tmp.name):
+            os.utime(J.JOBS_DIR / name, (old, old))
+        os.utime(J.JOBS_DIR / "newfinished.json", (now, now))
+
+        removed = J.prune_history(retention_days=30, keep=10, now=now)
+
+        self.assertEqual(removed, 2)
+        self.assertFalse((J.JOBS_DIR / "oldfinished.json").exists())
+        self.assertFalse((J.JOBS_DIR / "oldfinished.log").exists())
+        self.assertFalse(stale_tmp.exists())
+        self.assertTrue((J.JOBS_DIR / "oldrunning.json").exists())
+        self.assertTrue((J.JOBS_DIR / "newfinished.json").exists())
+
+    def test_prune_history_enforces_record_cap(self):
+        now = 2_000_000_000
+        for index in range(3):
+            job_id = f"finished{index}"
+            self._write_job(job_id, status="done")
+            os.utime(J.JOBS_DIR / f"{job_id}.json", (now + index, now + index))
+        self.assertEqual(J.prune_history(retention_days=30, keep=2, now=now + 3), 1)
+        self.assertFalse((J.JOBS_DIR / "finished0.json").exists())
+
+    def test_prune_history_rejects_destructive_limits(self):
+        J.JOBS_DIR.mkdir(parents=True)
+        with self.assertRaisesRegex(ValueError, "positive integers"):
+            J.prune_history(retention_days=0, keep=1)
+        with self.assertRaisesRegex(ValueError, "positive integers"):
+            J.prune_history(retention_days=1, keep=0)
+
 
 if __name__ == "__main__":
     unittest.main()
