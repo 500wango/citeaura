@@ -89,8 +89,8 @@ export const TRACKS = [
 
 /* ----------  ---------- */
 const VIEW_LOADERS = {
-  login: () => import('./views/auth-login.js?v=2.9'),
-  register: () => import('./views/auth-register.js?v=2.9'),
+  login: () => import('./views/auth-login.js?v=2.10'),
+  register: () => import('./views/auth-register.js?v=2.10'),
   'forgot-password': () => import('./views/auth-forgot.js?v=2.5'),
   'reset-password': () => import('./views/auth-reset.js?v=2.5'),
   invite: () => import('./views/auth-invite.js?v=2.5'),
@@ -632,6 +632,7 @@ function normalizeLegacyAuthLink() {
   const params = new URLSearchParams(location.search);
   const resetToken = params.get('reset_token');
   const inviteToken = params.get('invite');
+  const authRoute = String(params.get('auth') || '').toLowerCase();
   const plan = String(params.get('plan') || '').toLowerCase();
   const billing = String(params.get('billing') || '').toLowerCase();
 
@@ -639,6 +640,12 @@ function normalizeLegacyAuthLink() {
     const route = resetToken ? 'reset-password' : 'invite';
     const token = resetToken || inviteToken;
     history.replaceState(null, '', `${location.pathname}#/${route}?token=${encodeURIComponent(token)}`);
+    return;
+  }
+
+  // 认证入口使用 query 作为 fragment 的兼容路径，避免外部重定向或分享工具丢失 hash。
+  if (authRoute === 'login' || authRoute === 'register') {
+    history.replaceState(null, '', `${location.pathname}#/${authRoute}`);
     return;
   }
 

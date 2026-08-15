@@ -1072,6 +1072,9 @@
   .nav-links { display: none; }
   .nav-menu-toggle { display: inline-flex; }
   .header-status-badge { display: none; }
+  .nav-actions { gap: 4px; flex-shrink: 0; }
+  .nav-sign-in { min-width: 58px; padding: 8px 6px; text-align: center; white-space: nowrap; }
+  .nav-actions .nav-cta { padding-left: 10px; padding-right: 10px; white-space: nowrap; }
   
   .site-header.nav-open .nav-links {
     display: flex; flex-direction: column; align-items: stretch;
