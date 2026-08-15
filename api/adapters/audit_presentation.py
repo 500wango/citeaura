@@ -135,6 +135,7 @@ CHECK_WEIGHTS = {
     "date": 6,
     "external_evidence": 5,
 }
+MIN_EVALUATED_CHECKS = 6
 
 KNOWN_ISSUE_CODES = frozenset((
     "BAD_H1", "FEW_EXTERNAL_LINKS", "FEW_H2", "LOW_CONTENT_PAGE",
@@ -583,7 +584,8 @@ def _present_page(raw_page, evidence):
     evaluated = [item for item in checks.values() if item["status"] in ("passed", "failed")]
     earned = sum(item["weight"] for item in evaluated if item["status"] == "passed")
     possible = sum(item["weight"] for item in evaluated)
-    applicable_score = round(earned / possible * 100, 1) if possible else None
+    enough_evidence = len(evaluated) >= MIN_EVALUATED_CHECKS
+    applicable_score = round(earned / possible * 100, 1) if possible and enough_evidence else None
     status_counts = {status: sum(item["status"] == status for item in checks.values()) for status in (
         "passed", "failed", "not_applicable", "not_evaluated",
     )}
@@ -591,12 +593,16 @@ def _present_page(raw_page, evidence):
         **base,
         "applicable_score": applicable_score,
         "applicable_grade": _grade(applicable_score),
-        "evaluation_status": "evaluated" if possible else "not_evaluated",
-        "evaluation_note": "Score uses only checks applicable to the inferred page role.",
+        "evaluation_status": ("evaluated" if enough_evidence else
+                              "insufficient_evidence" if possible else "not_evaluated"),
+        "evaluation_note": ("Score uses only checks applicable to the inferred page role."
+                            if enough_evidence else
+                            f"Not scored: {len(evaluated)} evidence-backed checks; at least {MIN_EVALUATED_CHECKS} required."),
         "findings": findings,
         "issues": [item["title"] for item in findings],
         "checks": list(checks.values()),
-        "check_summary": {"evaluated": len(evaluated), **status_counts},
+        "check_summary": {"evaluated": len(evaluated), "minimum_required": MIN_EVALUATED_CHECKS,
+                          **status_counts},
     }
 
 
@@ -650,13 +656,15 @@ def present_audit_data(audit, evidence_pages=None, site_data=None):
 
     evaluated_checks = [
         check for page in pages for check in page.get("checks") or []
-        if check.get("status") in ("passed", "failed")
+        if page.get("evaluation_status") == "evaluated" and check.get("status") in ("passed", "failed")
     ]
     possible = sum(check["weight"] for check in evaluated_checks)
     earned = sum(check["weight"] for check in evaluated_checks if check["status"] == "passed")
     applicable_avg = round(earned / possible * 100, 1) if possible else None
     distribution = {grade: sum(page.get("applicable_grade") == grade for page in pages) for grade in "ABCD"}
     distribution["excluded"] = sum(page.get("evaluation_status") == "excluded" for page in pages)
+    distribution["not_scored"] = sum(page.get("evaluation_status") in ("insufficient_evidence", "not_evaluated")
+                                     for page in pages)
 
     block_gap = []
     for name in ("definition", "numeric_facts", "comparison", "steps", "faq"):

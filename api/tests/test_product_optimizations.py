@@ -158,7 +158,7 @@ def test_ticket_workflow_tracks_bulk_changes_notes_and_verification(tmp_path, mo
 
         report = ticket_workflow.record_verification("project", {
             "verified_at": "2026-08-05T10:00:00+00:00",
-            "results": [{"id": "T-001", "verdict": "未达标", "note": "GPTBot still receives 403",
+            "results": [{"id": "T-001", "verdict": "fail", "note": "GPTBot still receives 403",
                          "was": "blocked", "now": "blocked"}],
         })
         assert report["results"][0]["failure_evidence"] == "GPTBot still receives 403"

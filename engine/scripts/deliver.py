@@ -25,8 +25,8 @@ import geolib as G
 import report as R
 import tasks as T
 
-STATUS_CN = {"todo": "Todo", "doing": "In Progress", "done": "Done",
-             "blocked": "Blocked", "wontfix": "Won't Fix"}
+STATUS_LABEL = {"todo": "Todo", "doing": "In Progress", "done": "Done",
+                "blocked": "Blocked", "wontfix": "Won't Fix"}
 PRI_NOTE = {"P0": "Critical blocker, foundational requirement", "P1": "Primary visibility gains", "P2": "Long-tail and scale"}
 
 
@@ -39,7 +39,7 @@ def _tasks_table_md(data: dict, market: str | None = None) -> str:
     for t in sorted(rows, key=lambda x: (x["priority"], x["package"])):
         L.append(f"| {t['id']} | {t['priority']} | {t['package']} | {R.cell(t['title'])} | "
                  f"{t['owner']} | {T.EFFORT.get(t['effort'], t['effort'])} | {t['window']} | "
-                 f"{R.cell(t['acceptance'].get('desc',''))} | {STATUS_CN.get(t['status'], t['status'])} |")
+                 f"{R.cell(t['acceptance'].get('desc',''))} | {STATUS_LABEL.get(t['status'], t['status'])} |")
     return "\n".join(L)
 
 
@@ -53,7 +53,7 @@ def _tasks_csv(data: dict, path: Path):
                         t["action"], t["owner"], T.EFFORT.get(t["effort"], t["effort"]), t["window"],
                         t["acceptance"].get("desc", ""),
                         "Auto" if t["acceptance"].get("type") == "auto" else "Manual",
-                        STATUS_CN.get(t["status"], t["status"]), len(t.get("affected", []))])
+                        STATUS_LABEL.get(t["status"], t["status"]), len(t.get("affected", []))])
 
 
 def _overview_md(cfg, audit, metrics, data, verify_report, notes=None) -> str:
@@ -82,16 +82,16 @@ def _overview_md(cfg, audit, metrics, data, verify_report, notes=None) -> str:
           f"- Priority: P0 {s.get('by_priority', {}).get('P0', 0)} ({PRI_NOTE['P0']}) / "
           f"P1 {s.get('by_priority', {}).get('P1', 0)} ({PRI_NOTE['P1']}) / "
           f"P2 {s.get('by_priority', {}).get('P2', 0)} ({PRI_NOTE['P2']})",
-          f"- Progress: " + ", ".join(f"{STATUS_CN.get(k, k)} {v}" for k, v in s.get("by_status", {}).items() if v),
+          f"- Progress: " + ", ".join(f"{STATUS_LABEL.get(k, k)} {v}" for k, v in s.get("by_status", {}).items() if v),
           ""]
     if s.get("by_package"):
         L += ["Distribution by Work Package:", ""]
         L += [f"- {k}: {v} tickets" for k, v in s["by_package"].items()]
         L.append("")
     if verify_report:
-        p = sum(1 for r in verify_report["results"] if r["verdict"] == "通过" or r["verdict"] == "pass")
-        f_ = sum(1 for r in verify_report["results"] if r["verdict"] == "未达标" or r["verdict"] == "fail")
-        m_ = sum(1 for r in verify_report["results"] if r["verdict"] == "待人工" or r["verdict"] == "manual")
+        p = sum(1 for r in verify_report["results"] if r["verdict"] == "pass")
+        f_ = sum(1 for r in verify_report["results"] if r["verdict"] == "fail")
+        m_ = sum(1 for r in verify_report["results"] if r["verdict"] == "manual")
         L += ["## Previous Cycle Verification", "",
               f"Automated Verification: **Passed {p}** / Unmet {f_} / Manual Review {m_}", ""]
     if notes:
@@ -174,11 +174,11 @@ def run(slug: str) -> Path:
         if (pdir / "verify").exists() else []
     vrep = G.read_json(vfiles[-1], None) if vfiles else None
 
-    # 本期体检日期：报告与验收的日期口径都以它为准
+    # Report and verification freshness are both anchored to the current audit date.
     audit_date = str(audit.get("audited_at", ""))[:10]
-    notes = []  # 交付包口径说明：日期不一致必须显式标注，不能静默混入
+    notes = []
 
-    # 验收日期早于本期体检日期（或没有验收记录）视为「本期未验收」
+    # Older or missing verification records do not apply to the current cycle.
     vrep_date = str(vrep.get("verified_at", ""))[:10] if vrep else ""
     unverified = not vrep or bool(audit_date and vrep_date < audit_date)
     if unverified:
@@ -186,12 +186,11 @@ def run(slug: str) -> Path:
                      f"Latest verification date {vrep_date} is older than current audit date {audit_date}"))
 
     out = pdir / "delivery" / G.today()
-    # 当日目录整体重建：04/05/06 是条件生成的，只增量写会让上次生成的旧文件残留
+    # Rebuild the dated directory so optional files from earlier runs cannot linger.
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True, exist_ok=True)
 
-    # 01 诊断报告：报告目录日期必须与本期体检日期一致。
-    # 今天有体检但报告是旧的，先补跑一次报告；仍不一致则在 README/总览里标注。
+    # The diagnostic report must match the current audit date.
     reports = sorted((pdir / "reports").glob("2*")) if (pdir / "reports").exists() else []
     if audit_date and audit_date == G.today() and (not reports or reports[-1].name != audit_date):
         try:
@@ -209,12 +208,12 @@ def run(slug: str) -> Path:
             if src.exists():
                 shutil.copy2(src, out / dst)
 
-    # 02 执行方案
+    # 02 Strategy
     plan = pdir / "plan.md"
     if plan.exists():
         shutil.copy2(plan, out / "02-Strategy.md")
 
-    # 03 工单表
+    # 03 Tickets
     mk = cfg.get("market", "global")
     md = [f"# {cfg['brand']['name']} · GEO Action Tickets · {G.today()}", "",
           "Each ticket has an assigned owner and acceptance criteria. Auto-verifiable tickets are evaluated deterministically.", ""]
@@ -231,7 +230,7 @@ def run(slug: str) -> Path:
                f"- **Rationale**: {t['why']}",
                f"- **Action**: {t['action']}",
                f"- **Acceptance** ({'Auto' if t['acceptance'].get('type')=='auto' else 'Manual'}): {t['acceptance'].get('desc','')}",
-               f"- Current Status: {STATUS_CN.get(t['status'], t['status'])}"]
+               f"- Current Status: {STATUS_LABEL.get(t['status'], t['status'])}"]
         if t.get("affected"):
             md.append(f"- Affects {len(t['affected'])} pages, first 3: "
                       + ", ".join(t["affected"][:3]))
@@ -246,7 +245,7 @@ def run(slug: str) -> Path:
                       ("Completed", str(data["summary"]["by_status"].get("done", 0)))]), "utf-8")
     _tasks_csv(data, out / "03-Tickets.csv")
 
-    # 04 验收表
+    # 04 Verification
     if vrep and not unverified:
         vm = [f"# Action Ticket Verification Matrix · {vrep['verified_at'][:10]}", "",
               f"Re-crawl site average score **{vrep.get('audit_avg_score')}**; status updated for {vrep.get('changed')} tickets.", "",
@@ -259,9 +258,9 @@ def run(slug: str) -> Path:
         (out / "04-Verification.md").write_text(vmd, "utf-8")
         (out / "04-Verification.html").write_text(
             R.build_html(f"{cfg['brand']['name']} Verification Matrix", vmd,
-                         [("Passed", str(sum(1 for r in vrep["results"] if r["verdict"] in ("通过", "pass")))),
-                          ("Unmet", str(sum(1 for r in vrep["results"] if r["verdict"] in ("未达标", "fail")))),
-                          ("Manual Review", str(sum(1 for r in vrep["results"] if r["verdict"] in ("待人工", "manual"))))]), "utf-8")
+                         [("Passed", str(sum(1 for r in vrep["results"] if r["verdict"] == "pass"))),
+                          ("Unmet", str(sum(1 for r in vrep["results"] if r["verdict"] == "fail"))),
+                          ("Manual Review", str(sum(1 for r in vrep["results"] if r["verdict"] == "manual")))]), "utf-8")
     else:
         reason = "No verification records found yet" if not vrep else \
             f"Latest verification date {vrep_date} is older than current audit date {audit_date or 'unknown'}"
@@ -274,7 +273,7 @@ def run(slug: str) -> Path:
             R.build_html(f"{cfg['brand']['name']} Verification Matrix", vmd,
                          [("Status", "Unverified for this cycle")]), "utf-8")
 
-    # 05 初稿风险清单
+    # 05 Draft risk list
     lint = G.read_json(pdir / "assets" / "drafts" / "_lint.json", None)
     if lint and lint.get("total_issues"):
         lm = [f"# AI Draft Risk Inspection · {G.today()}", "",
@@ -297,7 +296,7 @@ def run(slug: str) -> Path:
                           ("Items to Verify", str(lint["total_issues"])),
                           ("High Risk", str(lint["high"]))]), "utf-8")
 
-    # 06 建设地图
+    # 06 Blueprint
     bp = G.read_json(pdir / "blueprint.json", None)
     if bp:
         cov = bp["coverage"]
@@ -332,7 +331,7 @@ def run(slug: str) -> Path:
         for c in bp["contents"]:
             by_form.setdefault(c["form"], []).append(c)
         for form, lst in by_form.items():
-            done = sum(1 for x in lst if x["status"] in ("已成稿", "done", "ready"))
+            done = sum(1 for x in lst if x["status"] == "ready")
             bm += [f"### {form} · {len(lst)} questions (Drafts completed: {done})", "",
                    f"_{lst[0]['note']}_", "",
                    "| Target Question | Group | Market | Status |", "|---|---|---|---|"]
@@ -347,14 +346,14 @@ def run(slug: str) -> Path:
                "**Golden Rule**: Official brand sites account for only **1.37%** of citations across generative models.",
                "The official site is the **source of truth**, not the primary citation link. External authority drives AI recommendations.", ""]
         bmd = "\n".join(bm)
-        (out / "06-建设地图.md").write_text(bmd, "utf-8")
-        (out / "06-建设地图.html").write_text(
+        (out / "06-Blueprint.md").write_text(bmd, "utf-8")
+        (out / "06-Blueprint.html").write_text(
             R.build_html(f"{cfg['brand']['name']} GEO Blueprint", bmd,
                          [("Channel Coverage", f"{cov['channel_covered']}/{cov['channel_total']}"),
                           ("Critical Channels", f"{cov['p0p1_covered']}/{cov['p0p1_total']}"),
                           ("Content Fulfillment", f"{cov['content_done']}/{cov['content_total']}"),
                           ("Content Gaps", str(cov["content_gap"] + sum(
-                              1 for c in bp["contents"] if c["status"] in ("仅大纲", "outline_only"))))]), "utf-8")
+                              1 for c in bp["contents"] if c["status"] == "outline_only")))]), "utf-8")
 
     # assets
     adir = pdir / "assets"
@@ -373,12 +372,16 @@ def run(slug: str) -> Path:
              ("P0 Blockers", str(sum(1 for t in data["tasks"]
                                  if t["priority"] == "P0" and t["status"] != "done")))]
     if metrics:
-        rates = [m["mention_rate"] for m in metrics["platforms"].values()
-                 if m.get("mention_rate") is not None]
-        if rates:
-            cards.append(("平均提及率", f"{sum(rates)/len(rates):.0%}"))
+        measured = [
+            item for item in metrics["platforms"].values()
+            if item.get("mention_rate") is not None and int(item.get("samples") or 0) > 0
+        ]
+        sample_count = sum(int(item["samples"]) for item in measured)
+        if sample_count:
+            rate = sum(float(item["mention_rate"]) * int(item["samples"]) for item in measured) / sample_count
+            cards.append(("Average mention rate", f"{rate:.0%}"))
     (out / "index.html").write_text(
-        R.build_html(f"{cfg['brand']['name']} · GEO 服务交付 {G.today()}", ov, cards), "utf-8")
+        R.build_html(f"{cfg['brand']['name']} · GEO Client Delivery {G.today()}", ov, cards), "utf-8")
     (out / "README.md").write_text(_readme(cfg, data, notes), "utf-8")
 
     G.info(f"Delivery package compiled → {out}")

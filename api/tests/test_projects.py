@@ -271,7 +271,8 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     }]
     audit = report.json()["report"]["audit"]
     assert audit["presentation_version"] == 1
-    assert audit["applicable_avg_score"] == 100
+    assert audit["applicable_avg_score"] is None
+    assert audit["pages"][0]["evaluation_status"] == "insufficient_evidence"
     assert audit["pages"][0]["role"]["id"] == "contact"
     assert audit["pages"][0]["issues"] == []
     engines = client.get(f"/api/v1/projects/{body['project_id']}/engines", headers=headers)
@@ -279,7 +280,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert engines.json()["project_id"] == body["project_id"]
     assert engines.json()["project_slug"] == "example-com"
     modes = {item["platform"]: item["sampling_mode"] for item in engines.json()["engines"]}
-    assert modes == {"openai": "API - Search grounded", "chatgpt": "Manual - Product interface"}
+    assert modes == {"openai": "API·联网检索", "chatgpt": "人工·产品端"}
     assert all("market" not in item for item in engines.json()["engines"])
     samples = client.get(f"/api/v1/projects/{body['project_id']}/samples/2026-07-31", headers=headers)
     assert samples.status_code == 200
@@ -289,7 +290,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     framing = client.get(f"/api/v1/projects/{body['project_id']}/framing", headers=headers)
     assert framing.status_code == 200
     assert framing.json()["framing"]["terms"][0]["term"] == "reliable AI visibility platform"
-    assert framing.json()["framing"]["terms"][0]["evidence"][0]["sampling_mode"] == "API - Search grounded"
+    assert framing.json()["framing"]["terms"][0]["evidence"][0]["sampling_mode"] == "API·联网检索"
 
     monkeypatch.setattr(project_router.task_sample, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-2"))
     sampled = client.post(

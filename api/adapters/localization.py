@@ -91,7 +91,7 @@ EXACT_DESCS_EN = {
 
 DYNAMIC_DESC_PATTERNS_EN = [
     (re.compile(r"^robots 封禁 (.+)，这些引擎永远抓不到你.*"), r"robots.txt blocks \1, preventing these AI engines from indexing your site."),
-    (re.compile(r"^([\d/]+)\s*页缺失[；;]\s*实测影响力增益\s*([^\s（]+).*"), r"Missing on \1 pages (estimated impact gain: \2)."),
+    (re.compile(r"^([\d/]+)\s*页缺失[；;]\s*实测影响力增益\s*([^\s（]+).*"), r"Missing on \1 pages (reference-data association: \2; validate on this project)."),
     (re.compile(r"^参照 content-patterns\.md，在核心页补(.+)块.*"), r"Add extractable \1 blocks across core pages."),
     (re.compile(r"^把「(.+)」的定义句同步到：.*"), r"Synchronize the one-sentence definition for '\1' across homepage hero, about page, JSON-LD, and /llms.txt verbatim."),
     (re.compile(r"^填 content/facts\.md：.*"), r"Populate brand facts sheet: entities, aliases, products, key metrics, and evidence confidence levels A-E."),

@@ -79,7 +79,8 @@ def test_scope_uses_applicable_pages_and_defers_global_metric_targets():
     assert tasks["T-009"]["affected"] == ["https://example.com/docs"]
     assert tasks["T-010"]["affected"] == ["https://example.com"]
     assert "sitewide" not in tasks["T-008"]["title"].lower()
-    assert "T-007" not in tasks
+    assert tasks["T-007"]["affected"] == []
+    assert tasks["T-007"]["verification_cohort"] == ["https://example.com/app"]
     assert "T-011" not in tasks
     assert "T-014" not in tasks
     assert "T-015" not in tasks
@@ -90,6 +91,11 @@ def test_scope_uses_applicable_pages_and_defers_global_metric_targets():
     ]
     assert tasks["T-AUDIT-DATE"]["affected"] == ["https://example.com/privacy"]
     assert {task["id"] for task in scoped["scope_deferred_tasks"]} == {"T-015", "T-016"}
+
+    verification = action_scope.scope_verification({}, scoped, _audit(), _limited_quality())
+    results = {result["id"]: result for result in verification["results"]}
+    assert results["T-007"]["verdict"] == "manual"
+    assert results["T-007"]["progress"]["missing"] == 1
 
 
 def test_scope_restores_metric_targets_after_representative_sampling():

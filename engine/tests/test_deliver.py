@@ -41,7 +41,7 @@ def _project(d, slug="x", audit_date=None, verify_date=None, report_dirs=()):
                      {"verified_at": f"{verify_date}T09:00:00", "audit_avg_score": 60,
                       "changed": 0,
                       "results": [{"id": "T-001", "title": "修标题", "priority": "P0",
-                                   "verdict": "通过", "note": "ok"}]})
+                                   "verdict": "pass", "note": "ok"}]})
     for rd in report_dirs:
         rdir = pdir / "reports" / rd
         rdir.mkdir(parents=True, exist_ok=True)
@@ -60,6 +60,24 @@ class TestRebuild(unittest.TestCase):
             with mock.patch.object(G, "WORK", Path(d)):
                 DL.run("x")
             self.assertFalse((out / "假文件.txt").exists())
+
+    def test_summary_mention_rate_is_weighted_by_sample_count(self):
+        with tempfile.TemporaryDirectory() as d:
+            pdir = _project(d)
+            (pdir / "metrics").mkdir()
+            G.write_json(pdir / "metrics" / f"{G.today()}.json", {
+                "date": G.today(),
+                "sample_count": 10,
+                "platforms": {
+                    "large": {"samples": 9, "mention_rate": 1.0},
+                    "small": {"samples": 1, "mention_rate": 0.0},
+                },
+            })
+            with mock.patch.object(G, "WORK", Path(d)):
+                out = DL.run("x")
+            html = (out / "index.html").read_text("utf-8")
+            self.assertIn("90%", html)
+            self.assertNotIn("50%", html)
 
 
 class TestUnverified(unittest.TestCase):

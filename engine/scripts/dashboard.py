@@ -1,11 +1,7 @@
-"""可观测看板：GEO 是周期性工作，关键信息是「这一期相对上一期变了什么」。
+"""Serve the standalone GEO monitoring dashboard and its local JSON API.
 
-  python3 scripts/geo.py ui            # 起服务并打开浏览器
-
-服务本身只用标准库 http.server，但顶层 import geolib 需要第三方依赖
-（requests / beautifulsoup4 / lxml），缺失时会给出安装提示。
-前端是 scripts/ui.html 单页应用，数据走 /api，
-工单状态可以直接在界面上改（写回 tasks.json）。
+Run with ``python3 scripts/geo.py ui``. The frontend is ``scripts/ui.html``;
+ticket status changes are persisted to tasks.json.
 """
 
 from __future__ import annotations
@@ -32,7 +28,7 @@ import tasks as T
 UI = Path(__file__).resolve().parent / "ui.html"
 
 
-# ---------------------------------------------------------------- 数据聚合
+# ---------------------------------------------------------------- Data aggregation
 
 def list_projects() -> list[dict]:
     out = []
@@ -75,9 +71,9 @@ def project(slug: str) -> dict:
         rs = v.get("results", [])
         verify_hist.append({
             "date": (v.get("verified_at") or f.stem)[:10],
-            "pass": sum(1 for r in rs if r["verdict"] == "通过"),
-            "fail": sum(1 for r in rs if r["verdict"] == "未达标"),
-            "manual": sum(1 for r in rs if r["verdict"] == "待人工"),
+            "pass": sum(1 for r in rs if r["verdict"] == "pass"),
+            "fail": sum(1 for r in rs if r["verdict"] == "fail"),
+            "manual": sum(1 for r in rs if r["verdict"] == "manual"),
             "avg_score": v.get("audit_avg_score"),
         })
 
@@ -95,7 +91,8 @@ def project(slug: str) -> dict:
                   "language_coverage": audit.get("language_coverage", {}),
                   "site": audit.get("site", {}), "site_issues": audit.get("site_issues", []),
                   "block_gap": audit.get("block_gap", []),
-                  "pages": sorted(audit.get("pages", []), key=lambda p: p["score"])[:40]},
+                  "pages": sorted(audit.get("pages", []),
+                                  key=lambda p: (p.get("score") is None, p.get("score") or 0))[:40]},
         "tasks": td.get("tasks", []),
         "verify_history": verify_hist,
         "deliveries": deliveries,
@@ -121,7 +118,7 @@ def _facts_struct(slug: str):
 
 
 def workbench(slug: str, qid: str) -> dict:
-    """内容工作台：定位某个问题现有的内容/草稿/大纲文件。"""
+    """Locate content, draft, and outline files for a question."""
     pdir = G.project_dir(slug)
     cfg = G.load_config(slug)
     q = next((x for x in cfg.get("questions", []) if x.get("id") == qid), None)
@@ -149,7 +146,7 @@ def _analytics(slug: str):
 # ---------------------------------------------------------------- HTTP
 
 def asset_tree(slug: str) -> list[dict]:
-    """资产目录，供界面预览。只列文本类文件。"""
+    """List text assets available for dashboard preview."""
     adir = G.project_dir(slug) / "assets"
     out = []
     if not adir.exists():
@@ -158,7 +155,7 @@ def asset_tree(slug: str) -> list[dict]:
         if f.is_file() and f.suffix in (".txt", ".json", ".html", ".md"):
             rel = f.relative_to(adir).as_posix()
             out.append({"path": rel, "size": f.stat().st_size,
-                        "group": rel.split("/")[0] if "/" in rel else "根目录"})
+                        "group": rel.split("/")[0] if "/" in rel else "root"})
     return out
 
 
@@ -175,8 +172,7 @@ def read_asset(slug: str, rel: str) -> dict:
 
 
 def write_env(updates: dict[str, str]):
-    """更新项目根目录 .env：值为空表示删除该行。同步进当前进程环境，让界面立即生效；
-    任务子进程每次启动都重读 .env，天然生效。"""
+    """Update the project .env file and synchronize the current process."""
     path = G.ROOT / ".env"
     lines = path.read_text("utf-8").splitlines() if path.exists() else []
     for k, v in updates.items():
@@ -189,7 +185,7 @@ def write_env(updates: dict[str, str]):
             os.environ.pop(k, None)
     path.write_text("\n".join(lines) + ("\n" if lines else ""), "utf-8")
     try:
-        path.chmod(0o600)  # 密钥文件不给同机其他用户读
+        path.chmod(0o600)
     except OSError:
         pass
 
@@ -197,18 +193,18 @@ def write_env(updates: dict[str, str]):
 def create_project(url: str, name: str, slug: str, market: str, max_pages: int) -> dict:
     import geo as CLI
 
-    class A:  # 复用 CLI 的 init 逻辑，避免两份实现漂移
+    class A:
         pass
     a = A()
     a.url, a.name, a.slug, a.market, a.max_pages = url, name or None, slug or None, market, max_pages
-    a.force = False          # 界面永不覆盖已有项目
+    a.force = False
     return CLI.cmd_init(a)
 
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
-    def log_message(self, *a):  # 静音访问日志
+    def log_message(self, *a):
         pass
 
     def _send(self, code, body: bytes, ctype="application/json; charset=utf-8"):
@@ -299,9 +295,9 @@ class Handler(BaseHTTPRequestHandler):
                     try:
                         target.relative_to(base)
                     except ValueError:
-                        return self._json({"error": "非法路径"}, 403)
+                        return self._json({"error": "invalid_path"}, 403)
                     if not target.is_file():
-                        return self._json({"error": "文件不存在"}, 404)
+                        return self._json({"error": "file_not_found"}, 404)
                     return self._json({"path": rel, "text": target.read_text("utf-8", "replace")})
                 files = sorted(f.name for f in base.glob("*.md")) if base.exists() else []
                 return self._json({"files": files})
@@ -317,7 +313,7 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     off = int(q.get("offset", ["0"])[0])
                 except ValueError:
-                    return self._json({"error": "offset 必须是整数"}, 400)
+                    return self._json({"error": "offset_must_be_integer"}, 400)
                 text, new_off = J.tail(jid, off)
                 return self._json({"job": job, "log": text, "offset": new_off})
             if p.startswith("/api/files/"):
@@ -350,11 +346,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, target.read_bytes(), ctype)
             return self._send(404, b"not found", "text/plain")
         except FileNotFoundError:
-            return self._json({"error": "文件不存在"}, 404)
+            return self._json({"error": "file_not_found"}, 404)
         except PermissionError:
-            return self._json({"error": "非法路径"}, 403)
+            return self._json({"error": "invalid_path"}, 403)
         except SystemExit:
-            return self._json({"error": "项目不存在"}, 404)
+            return self._json({"error": "project_not_found"}, 404)
         except Exception as e:  # noqa: BLE001
             return self._json({"error": f"{type(e).__name__}: {e}"}, 500)
 
@@ -367,10 +363,10 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/task":
                 missing = [k for k in ("slug", "id", "status") if k not in body]
                 if missing:
-                    return self._json({"error": f"缺参数：{', '.join(missing)}"}, 400)
-                valid = ("todo", "doing", "done", "blocked", "wontfix")  # 与 tasks.py 汇总口径一致
+                    return self._json({"error": f"missing_parameters: {', '.join(missing)}"}, 400)
+                valid = ("todo", "doing", "done", "blocked", "wontfix")
                 if body["status"] not in valid:
-                    return self._json({"ok": False, "error": f"非法状态：{body['status']}",
+                    return self._json({"ok": False, "error": f"invalid_status: {body['status']}",
                                        "valid": list(valid)}, 400)
                 try:
                     t = T.set_status(body["slug"], body["id"], body["status"], body.get("note", ""))
@@ -381,7 +377,7 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/init":
                 url = (body.get("url") or "").strip()
                 if not url:
-                    return self._json({"ok": False, "error": "请填写官网地址"}, 400)
+                    return self._json({"ok": False, "error": "site_url_required"}, 400)
                 cfg = create_project(url, body.get("name", ""), body.get("slug", ""),
                                      body.get("market", "cn"), int(body.get("max_pages", 25)))
                 return self._json({"ok": True, "slug": cfg["slug"]})
@@ -397,7 +393,7 @@ class Handler(BaseHTTPRequestHandler):
             if p.startswith("/api/config/"):
                 slug = p[len("/api/config/"):]
                 cur = G.read_json(G.project_dir(slug) / "geo.json", {})
-                cur.update(body)          # 整体覆盖字段，前端传完整对象
+                cur.update(body)
                 G.save_config(slug, cur)
                 return self._json({"ok": True})
 
@@ -415,7 +411,7 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     target.relative_to(base)
                 except ValueError:
-                    return self._json({"ok": False, "error": "非法路径"}, 403)
+                    return self._json({"ok": False, "error": "invalid_path"}, 403)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(body.get("text", ""), "utf-8")
                 return self._json({"ok": True})
@@ -428,7 +424,7 @@ class Handler(BaseHTTPRequestHandler):
                 slug = p[len("/api/factcheck/"):]
                 items = body.get("items")
                 if not isinstance(items, list):
-                    return self._json({"ok": False, "error": "items 必须是数组"}, 400)
+                    return self._json({"ok": False, "error": "items_must_be_array"}, 400)
                 G.write_json(G.project_dir(slug) / "factcheck.json", items)
                 return self._json({"ok": True, "count": len(items)})
 
@@ -436,11 +432,10 @@ class Handler(BaseHTTPRequestHandler):
                 slug = p[len("/api/content/"):]
                 base = (G.project_dir(slug) / "content").resolve()
                 rel = (body.get("path") or "").strip()
-                # 文件名允许中文（现有成稿即中文名），只挡路径分隔符和隐藏文件；
-                # 问题归属靠文件头的 qid 注释识别，不靠文件名
+                # Accept plain Markdown filenames while blocking traversal and hidden files.
                 if ("/" in rel or "\\" in rel or ".." in rel or rel.startswith(".")
                         or not rel.endswith(".md") or len(rel) <= 3):
-                    return self._json({"ok": False, "error": "文件名须是 .md，不能包含路径"}, 400)
+                    return self._json({"ok": False, "error": "invalid_markdown_filename"}, 400)
                 base.mkdir(parents=True, exist_ok=True)
                 (base / rel).write_text(body.get("text", ""), "utf-8")
                 return self._json({"ok": True})
@@ -457,14 +452,14 @@ class Handler(BaseHTTPRequestHandler):
                     allowed.update(spec["env"])
                 updates = body.get("updates")
                 if not isinstance(updates, dict) or not updates:
-                    return self._json({"ok": False, "error": "updates 必须是非空对象"}, 400)
+                    return self._json({"ok": False, "error": "updates_must_be_nonempty_object"}, 400)
                 bad = [k for k in updates if k not in allowed]
                 if bad:
                     return self._json({"ok": False,
-                                       "error": f"不允许的变量：{', '.join(bad)}"}, 400)
+                                       "error": f"environment_variables_not_allowed: {', '.join(bad)}"}, 400)
                 clean = {k: str(v or "").strip() for k, v in updates.items()}
                 if any("\n" in v or "\r" in v for v in clean.values()):
-                    return self._json({"ok": False, "error": "值不能包含换行"}, 400)
+                    return self._json({"ok": False, "error": "environment_value_cannot_contain_newline"}, 400)
                 write_env(clean)
                 return self._json({"ok": True})
 
@@ -473,7 +468,7 @@ class Handler(BaseHTTPRequestHandler):
                 slug = p[len("/api/publishcfg/"):]
                 code = body.get("platform")
                 if code not in P.PUBLISHERS:
-                    return self._json({"ok": False, "error": f"未知渠道 {code}"}, 400)
+                    return self._json({"ok": False, "error": f"unknown_channel: {code}"}, 400)
                 keys = {k for k, _ in P.PUBLISHERS[code]["cfg"]}
                 cfg = G.read_json(G.project_dir(slug) / "geo.json", {})
                 pub = cfg.setdefault("publishing", {})
@@ -483,7 +478,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True})
 
             if p.startswith("/api/publish/"):
-                # 发布 = 外发动作：只响应界面上用户的明确点击，服务端绝不自行调用
+                # Publishing runs only after an explicit user request.
                 import publish as P
                 slug = p[len("/api/publish/"):]
                 r = P.publish(slug, body.get("platform", ""), body.get("path", ""),
@@ -491,11 +486,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(r, 200 if r.get("ok") else 400)
 
             if p.startswith("/api/distribution/"):
-                # 分发打勾：记录某问题的内容已铺到某阵地（人工确认口径，非自动判定）
+                # Distribution records are explicit human confirmations.
                 slug = p[len("/api/distribution/"):]
                 qid, ch = (body.get("qid") or "").strip(), (body.get("channel") or "").strip()
                 if not qid or not ch:
-                    return self._json({"ok": False, "error": "缺 qid / channel"}, 400)
+                    return self._json({"ok": False, "error": "qid_and_channel_required"}, 400)
                 path = G.project_dir(slug) / "distribution.json"
                 dist = G.read_json(path, {})
                 if body.get("on"):
@@ -511,7 +506,7 @@ class Handler(BaseHTTPRequestHandler):
                 slug = body.get("slug") or ""
                 items = body.get("items")
                 if not slug or not isinstance(items, list) or not items:
-                    return self._json({"ok": False, "error": "缺 slug / items"}, 400)
+                    return self._json({"ok": False, "error": "slug_and_items_required"}, 400)
                 cfg = G.read_json(G.project_dir(slug) / "geo.json", {})
                 qs = cfg.setdefault("questions", [])
                 existing = {q.get("text", "").strip() for q in qs}
@@ -522,7 +517,7 @@ class Handler(BaseHTTPRequestHandler):
                 for it in items:
                     text = str(it.get("text") or "").strip()
                     mk = it.get("market") if it.get("market") in series else "cn"
-                    grp = str(it.get("group") or "场景").strip() or "场景"
+                    grp = str(it.get("group") or "scenario").strip() or "scenario"
                     if not text or text in existing:
                         continue
                     n = series[mk]
@@ -549,7 +544,7 @@ class Handler(BaseHTTPRequestHandler):
 
             return self._send(404, b"not found", "text/plain")
         except SystemExit:  # G.die triggers sys.exit
-            return self._json({"ok": False, "error": "操作失败（常见原因：项目标识已被占用）"}, 400)
+            return self._json({"ok": False, "error": "operation_failed_or_slug_conflict"}, 400)
         except (ValueError, RuntimeError) as e:
             return self._json({"ok": False, "error": str(e)}, 400)
         except Exception as e:  # noqa: BLE001
@@ -557,10 +552,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def _monitor_tick():
-    """周期复跑：geo.json 的 monitor.next_run 到期就自动跑完整一期。
-
-    GEO 是周期性工作——只在看板服务运行时触发（单机自托管，没有独立守护进程），
-    服务停着的那几天不补跑，到期后下次启动时跑一次。"""
+    """Trigger a scheduled cycle when monitor.next_run is due."""
     for d in (G.WORK.iterdir() if G.WORK.exists() else []):
         cfg_path = d / "geo.json"
         if not cfg_path.exists():
@@ -571,7 +563,7 @@ def _monitor_tick():
         if not every or (mon.get("next_run") or "") > G.today():
             continue
         if J.running_for(d.name):
-            continue  # 有任务在跑，下个 tick 再看
+            continue
         try:
             J.start(d.name, "serve", {})
             mon["next_run"] = (date.today() + timedelta(days=int(every))).isoformat()
@@ -586,13 +578,13 @@ def _monitor_loop():
     while True:
         try:
             _monitor_tick()
-        except Exception as e:  # noqa: BLE001  调度线程绝不能死
+        except Exception as e:  # noqa: BLE001 - scheduler loop must stay alive
             G.info(f"Scheduled run error: {type(e).__name__}: {e}")
         time.sleep(1800)
 
 
 def run(port: int = 8765, open_browser: bool = True):
-    J.reap_orphans()  # 回收上次服务留下的 running 僵尸记录，恢复并发保护
+    J.reap_orphans()
     threading.Thread(target=_monitor_loop, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"

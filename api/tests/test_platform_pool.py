@@ -115,7 +115,7 @@ def test_platform_pool_api_is_explicit_byok_first_and_tenant_isolated(pool_clien
     assert pool_status.json()["eligible"] is True
     assert pool_status.json()["engines"][1]["unit_price_cny_fen"] == 3
     assert pool_status.json()["engines"][0]["engine_name"]
-    assert pool_status.json()["engines"][0]["sampling_mode"] == "API - Parametric knowledge"
+    assert pool_status.json()["engines"][0]["sampling_mode"] == "API·参数化知识"
     billing = client.get("/api/v1/billing/usage", headers=first_headers)
     assert billing.json()["platform_pool"]["cost_cny"] == "0.00"
 

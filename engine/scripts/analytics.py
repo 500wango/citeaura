@@ -1,16 +1,7 @@
-"""派生指标层：把原始采样数据算成设计稿里的那套统一口径。
+"""Derive normalized product metrics from raw sampling evidence.
 
-统一命名（全站唯一叫法，UI 与报告都用这套）：
-  问题       真实用户会向 AI 提的一句问题，是所有采样的单位
-  阵地       一个能被 AI 引用的站点
-  提及率     不含品牌名的问题中，AI 主动提到品牌的样本比例
-  引用份额   AI 列出的来源域名里属于品牌自有域名的比例
-  GEO 健康分 五项加权：提及率30 引用份额25 阵地覆盖20 内容承接15 事实一致性10
-  任务       一条可分派、可验收的动作（原「工单」）
-  内容       为某个问题写的可被抽取的答案段落（原「资产/成稿」）
-
-诚实纪律：算不出来的指标显示「未测」并把权重重新归一，绝不编数。
-事实一致性需要人工比对样本后记录在 factcheck.json，没有记录就是未测。
+Unmeasured inputs remain ``None`` and health-score weights are renormalized.
+Fact consistency is measured only from explicit records in factcheck.json.
 """
 
 from __future__ import annotations
@@ -35,7 +26,7 @@ def _is_own(domain: str, own: str) -> bool:
 
 def _sample_files(pdir: Path):
     d = pdir / "samples"
-    return sorted(d.glob("2*.jsonl")) if d.exists() else []
+    return sorted(d.glob("*.jsonl")) if d.exists() else []
 
 
 def _rows(path: Path):
@@ -47,7 +38,7 @@ def _unprompted(rows):
 
 
 def _cite_share(rows, own) -> tuple[float | None, int, int]:
-    """own 域名条数 / 全部引用域名条数。没有任何引用时返回 None。"""
+    """Return own-domain share and counts, or None when no citations exist."""
     total = mine = 0
     for r in rows:
         for d in (r.get("analysis") or {}).get("cited_domains") or []:
@@ -68,7 +59,7 @@ def _median(vals):
     return vals[len(vals) // 2] if vals else None
 
 
-# ---------------------------------------------------------------- 健康分
+# ---------------------------------------------------------------- Health score
 
 def health(slug: str, bp: dict | None, factcheck: list, rows_latest) -> dict:
     cfg = G.load_config(slug)
@@ -83,10 +74,10 @@ def health(slug: str, bp: dict | None, factcheck: list, rows_latest) -> dict:
         cov = bp["coverage"]
         subs["channel"] = cov["channel_covered"] / cov["channel_total"] if cov["channel_total"] else None
         subs["content"] = cov["content_done"] / cov["content_total"] if cov["content_total"] else None
-    # 事实一致性：只有人工比对记录了才可测
-    checked = [f for f in factcheck if f.get("state") in ("一致", "被说错", "缺失")]
+    # Fact consistency is measurable only after explicit human review.
+    checked = [f for f in factcheck if f.get("state") in ("consistent", "incorrect", "missing")]
     if checked:
-        subs["fact"] = sum(1 for f in checked if f["state"] == "一致") / len(checked)
+        subs["fact"] = sum(1 for f in checked if f["state"] == "consistent") / len(checked)
 
     wsum = sum(WEIGHTS[k] for k, v in subs.items() if v is not None)
     score = (sum(WEIGHTS[k] * v for k, v in subs.items() if v is not None) / wsum * 100) if wsum else None
@@ -96,32 +87,31 @@ def health(slug: str, bp: dict | None, factcheck: list, rows_latest) -> dict:
             "measured": [k for k, v in subs.items() if v is not None]}
 
 
-# ---------------------------------------------------------------- 各引擎
+# ---------------------------------------------------------------- Engines
 
-def _verdict(m, own_cited, peers) -> str:
-    """peers：本期同市场其他平台的提及率。「最好」只在可比较且严格领先时说。"""
+def _verdict(m, own_cited, peers, samples=0) -> str:
+    """Describe platform performance only when peer sample sizes are comparable."""
     if m is None:
-        return "本期无样本"
+        return "No samples this cycle"
+    if samples < 5:
+        return f"Insufficient samples ({samples}/5); observation only"
     if m == 0:
-        return "完全不可见——先看该引擎偏好的阵地缺什么"
-    vals = [m] + [p for p in peers if p is not None]
+        return "No observed visibility; inspect the sources preferred by this engine"
+    vals = [m] + [p for p, n in peers if p is not None and n >= 5]
     if len(vals) < 2 or len(set(vals)) < 2:
-        rel = "样本不足，不下结论"
+        rel = "Insufficient comparable samples"
     elif m >= max(vals):
-        rel = "表现最好的引擎，值得优先加固"
+        rel = "Highest-performing measured engine; prioritize reinforcement"
     else:
-        rel = "有存在感但不稳定" if m >= 0.05 else "偶发提及，尚未进入候选集"
+        rel = "Visible but unstable" if m >= 0.05 else "Occasional mentions; not yet a stable candidate"
     parts = [rel]
     if not own_cited:
-        parts.append("从未引用你的域名")
-    return "；".join(parts)
+        parts.append("Never cited the official domain")
+    return "; ".join(parts)
 
 
 def _brand_dist(rows) -> list[dict]:
-    """回答里出现的实体（你 + 已配置竞品，别名并入）的提及分布。
-
-    分母 = 样本数，分子 = 出现该实体的样本数——同一样本提多次只算一次。
-    口径：candidates 只含配置过的实体，未配置的品牌不计入；竞品清单越全，分布越真实。"""
+    """Return per-sample mention distribution for configured entities."""
     n = len(rows)
     if not n:
         return []
@@ -149,7 +139,7 @@ def engines(slug: str, rows_latest, metrics: dict | None) -> list[dict]:
                  if r["analysis"]["brand_mentioned"] and r["analysis"]["brand_rank"]]
         share, mine, total = _cite_share(up, own)
         meta = (metrics or {}).get("platforms", {}).get(plat, {})
-        # 样本回放：优先取「无提示且被提及」的一条真实样本
+        # Prefer an unprompted positive sample for replay.
         ex = next((r for r in up if r["analysis"]["brand_mentioned"]), up[0] if up else (rs[0] if rs else None))
         example = None
         if ex:
@@ -174,19 +164,20 @@ def engines(slug: str, rows_latest, metrics: dict | None) -> list[dict]:
             "cite_share": round(share, 3) if share is not None else None,
             "cite_counts": [mine, total],
             "top_sources": list((meta.get("top_cited_domains") or {}).keys())[:4],
-            "avg_ms": lat[len(lat) // 2] if lat else None,  # 中位耗时，抗超时长尾
+            "avg_ms": lat[len(lat) // 2] if lat else None,
             "neg_n": sum(1 for r in up if r["analysis"].get("negative_cues")),
             "brand_dist": _brand_dist(up)[:8],
             "verdict": _verdict(m,
                                 any(r["analysis"].get("own_domain_cited") for r in rs),
-                                [ment[p] for p in by if p != plat and mkt[p] == mkt[plat]]),
+                                [(ment[p], len(_unprompted(by[p]))) for p in by
+                                 if p != plat and mkt[p] == mkt[plat]], len(up)),
             "example": example,
         })
     out.sort(key=lambda x: -(x["mention"] or 0))
     return out
 
 
-# ---------------------------------------------------------------- 竞品
+# ---------------------------------------------------------------- Competitors
 
 def competitors(slug: str, rows_latest) -> dict:
     cfg = G.load_config(slug)
@@ -199,7 +190,7 @@ def competitors(slug: str, rows_latest) -> dict:
         m = c.get("market")
         return [m] if m in ("cn", "global") else ["cn", "global"]
 
-    # 国内/海外各一张表：竞品只在自己市场（market 缺失时两边都算）的样本上算，分母各用各的
+    # Compute market-specific competitor tables with separate denominators.
     tables: dict[str, list] = {}
     for market, rows in bym.items():
         n = len(rows)
@@ -211,7 +202,7 @@ def competitors(slug: str, rows_latest) -> dict:
             if market not in comp_markets(c):
                 continue
             hit = sum(1 for r in rows if c["name"] in (r["analysis"].get("competitors_mentioned") or []))
-            # 该竞品在各引擎的出现率——它最强的引擎就是最该去研究信源的地方
+            # Strongest engine presence identifies the best source-research target.
             tops = []
             for plat, rs in byp.items():
                 h = sum(1 for r in rs if c["name"] in (r["analysis"].get("competitors_mentioned") or []))
@@ -222,17 +213,18 @@ def competitors(slug: str, rows_latest) -> dict:
             tops.sort(key=lambda x: -x["rate"])
             t.append({"name": c["name"], "market": c.get("market", "both"),
                       "presence": round(hit / n, 3) if n else None, "hits": hit,
-                      "top_engines": tops[:3]})
+                      "top_engines": tops[:3], "conclusion_ready": n >= 5,
+                      "minimum_samples": 5})
         t.sort(key=lambda x: -(x["presence"] or 0))
         tables[market] = t
-    # 兼容旧前端：合并平铺（同名取最高 presence）
+    # Flatten by competitor name while preserving the strongest market presence.
     flat: dict[str, dict] = {}
     for x in sorted((x for t in tables.values() for x in t),
                     key=lambda x: -(x["presence"] or 0)):
         flat.setdefault(x["name"], x)
     table = list(flat.values())
 
-    # 按问题聚合：失守（你 0、竞品在）与独占（你在、竞品不在）
+    # Aggregate questions into competitor-led and brand-only opportunities.
     byq: dict[str, list] = {}
     for r in up:
         byq.setdefault(r.get("question_id") or r.get("question", ""), []).append(r)
@@ -249,9 +241,9 @@ def competitors(slug: str, rows_latest) -> dict:
                "mine": round(me, 2),
                "rival": top_rival[0] if top_rival else None,
                "rival_rate": round(top_rival[1] / len(rs), 2) if top_rival else 0}
-        if me == 0 and top_rival:
+        if len(rs) >= 3 and me == 0 and top_rival:
             lost.append(row)
-        elif me > 0 and not rivals:
+        elif len(rs) >= 3 and me > 0 and not rivals:
             won.append(row)
     lost.sort(key=lambda x: -x["rival_rate"])
     won.sort(key=lambda x: -x["mine"])
@@ -259,28 +251,27 @@ def competitors(slug: str, rows_latest) -> dict:
             "sample_n": len(up), "sample_ns": {m: len(rs) for m, rs in bym.items()}}
 
 
-# ---------------------------------------------------------------- 问题层
+# ---------------------------------------------------------------- Questions
 
-def _diagnose(m, rank_med, rival, rival_rate, neg_n):
-    """问题级诊断分型（参考 GEO 诊断引擎的四类问题，规则固定可复现）。
-
-    优先级：疑似负面 > 竞品主导 > 完全缺席 > 排名靠后 > 表现正常。
-    「疑似负面」只是线索词命中，定性要人工复核——见样本回放。
-    """
+def _diagnose(m, rank_med, rival, rival_rate, neg_n, samples=0):
+    """Return a deterministic question-level diagnostic classification."""
     if m is None:
         return None
+    if samples < 3:
+        return {"type": "sample_insufficient", "sev": "review",
+                "detail": f"Only {samples} samples; at least 3 are required"}
     if neg_n:
-        return {"type": "疑似负面", "sev": "P0",
-                "detail": f"{neg_n} 条样本在品牌附近出现负面语境，到样本回放人工复核"}
+        return {"type": "suspected_negative", "sev": "P0",
+                "detail": f"{neg_n} samples contain negative context near the brand; review sample replay"}
     if m == 0 and rival and rival_rate >= 0.5:
-        return {"type": "竞品主导", "sev": "P0",
-                "detail": f"你 0%，{rival} 出现率 {round(rival_rate * 100)}%——看它被谁引用"}
+        return {"type": "competitor_dominant", "sev": "P0",
+                "detail": f"Brand 0%; {rival} presence {round(rival_rate * 100)}%; inspect its cited sources"}
     if m == 0:
-        return {"type": "完全缺席", "sev": "P1", "detail": "无提示样本中从未被提及"}
+        return {"type": "absent", "sev": "P1", "detail": "Never mentioned in unprompted samples"}
     if rank_med and rank_med > 3:
-        return {"type": "排名靠后", "sev": "P2",
-                "detail": f"被提及但位次中位 {rank_med}——内容要争首推理由"}
-    return {"type": "表现正常", "sev": "ok", "detail": ""}
+        return {"type": "low_rank", "sev": "P2",
+                "detail": f"Mentioned at median position {rank_med}; strengthen the primary recommendation case"}
+    return {"type": "normal", "sev": "ok", "detail": ""}
 
 
 def questions(slug: str, rows_latest, bp: dict | None) -> list[dict]:
@@ -319,51 +310,69 @@ def questions(slug: str, rows_latest, bp: dict | None) -> list[dict]:
                     "diagnosis": None if probe else _diagnose(
                         m, _median(ranks),
                         top[0] if top else None,
-                        (top[1] / len(rs)) if top and rs else 0, neg_n),
-                    "content": status.get(q.get("id"), "缺口")})
-    # 未提及 + 无内容的排最前——这就是选题池；probe 题单独归「品牌认知」，不参与缺口排序
-    out.sort(key=lambda x: (x["brand_probe"], (x["mention"] or 0), x["content"] == "已成稿"))
+                        (top[1] / len(rs)) if top and rs else 0, neg_n, len(rs)),
+                    "content": status.get(q.get("id"), "gap")})
+    # Missing visibility and content sort first; brand probes remain separate.
+    out.sort(key=lambda x: (x["brand_probe"], (x["mention"] or 0), x["content"] == "ready"))
     return out
 
 
-# ---------------------------------------------------------------- 趋势
+# ---------------------------------------------------------------- Trends
 
 def trend(slug: str) -> list[dict]:
     cfg = G.load_config(slug)
     own = _own_host(cfg)
     pdir = G.project_dir(slug)
-    bp = G.read_json(pdir / "blueprint.json", None)
-    fc = G.read_json(pdir / "factcheck.json", []) or []
+    metric_files = sorted((pdir / "metrics").glob("*.json")) if (pdir / "metrics").exists() else []
+    metrics_by_run = {}
+    for path in metric_files:
+        metric = G.read_json(path, {}) or {}
+        if metric.get("run_id"):
+            metrics_by_run[metric["run_id"]] = metric
     pts = []
     for f in _sample_files(pdir):
         rows = _rows(f)
         if not rows:
             continue
-        h = health(slug, bp, fc, rows)   # 阵地/内容用当前值近似——历史蓝图未存档
+        run_id = rows[0].get("run_id")
+        metric = metrics_by_run.get(run_id, {})
+        snapshot = metric.get("history_snapshot") or {}
+        h = snapshot.get("health") or {}
         up = _unprompted(rows)
         mention = _mention(up)
         share = _cite_share(up, own)[0]
-        pts.append({"date": f.stem, "health": h["score"],
+        pts.append({"date": rows[0].get("date") or f.stem, "run_id": run_id,
+                    "health": h.get("score"),
                     "mention": round(mention, 3) if mention is not None else None,
                     "cite": round(share, 3) if share is not None else None,
-                    "samples": len(rows)})
+                    "samples": len(rows),
+                    "historical_context": "snapshot" if snapshot else "unavailable"})
     return pts
 
 
 def question_delta(slug: str) -> list[dict]:
-    """最近两期采样里，每个问题的提及率变化——效果验收的依据。"""
+    """Compare per-question mention rates across the two latest comparable runs."""
     files = _sample_files(G.project_dir(slug))
     if len(files) < 2:
         return []
     def per_q(path):
+        rows = _unprompted(_rows(path))
         out = {}
-        for r in _unprompted(_rows(path)):
+        for r in rows:
             out.setdefault(r.get("question_id"), []).append(r)
-        return {k: _mention(v) for k, v in out.items() if k}
-    before, after = per_q(files[-2]), per_q(files[-1])
-    cfg = G.load_config(slug)
-    qtext = {q["id"]: q["text"] for q in cfg.get("questions", [])}
-    qmkt = {q["id"]: q.get("market", cfg.get("market", "cn")) for q in cfg.get("questions", [])}
+        return rows, {k: _mention(v) for k, v in out.items() if k}
+    before_rows, before = per_q(files[-2])
+    after_rows, after = per_q(files[-1])
+    before_identity = ((before_rows[0].get("question_set_id"), before_rows[0].get("cohort_id"))
+                       if before_rows else (None, None))
+    after_identity = ((after_rows[0].get("question_set_id"), after_rows[0].get("cohort_id"))
+                      if after_rows else (None, None))
+    if any(before_identity) or any(after_identity):
+        if before_identity != after_identity:
+            return []
+    evidence_rows = before_rows + after_rows
+    qtext = {r.get("question_id"): r.get("question", "") for r in evidence_rows if r.get("question_id")}
+    qmkt = {r.get("question_id"): r.get("market", "cn") for r in evidence_rows if r.get("question_id")}
     rows = []
     for qid in sorted(set(before) | set(after)):
         b, a = before.get(qid), after.get(qid)
@@ -371,14 +380,15 @@ def question_delta(slug: str) -> list[dict]:
                      "market": qmkt.get(qid, "cn"),
                      "before": round(b, 2) if b is not None else None,
                      "after": round(a, 2) if a is not None else None,
-                     "note": "本期未测" if a is None else "",
-                     "dates": [files[-2].stem, files[-1].stem]})
-    # 本期未测（after=None）不参与升降序，列在最后
+                     "note": "Unmeasured this cycle" if a is None else "",
+                     "dates": [before_rows[0].get("date") if before_rows else files[-2].stem,
+                               after_rows[0].get("date") if after_rows else files[-1].stem]})
+    # Unmeasured current-cycle rows sort last.
     rows.sort(key=lambda x: (x["after"] is None, -(((x["after"] or 0) - (x["before"] or 0)))))
     return rows
 
 
-# ---------------------------------------------------------------- 汇总入口
+# ---------------------------------------------------------------- Aggregate entry point
 
 def build(slug: str) -> dict:
     pdir = G.project_dir(slug)
@@ -404,30 +414,31 @@ def build(slug: str) -> dict:
     }
 
 
-# ---------------------------------------------------------------- 内容预检
+# ---------------------------------------------------------------- Content precheck
 
-BLOCK_LIFT = {"定义": "+57.3%", "数字事实": "+61.6%", "对比": "+55.3%", "操作步骤": "+41.2%", "FAQ": "利于召回"}
+BLOCK_LIFT = {key: "Reference association, not causal; validate per project"
+              for key in ("definition", "numeric_facts", "comparison", "steps", "faq")}
 
 
 def precheck(text: str) -> dict:
-    """内容工作台的可被引用度预检——与 audit.py 同一套判据。"""
+    """Precheck content using the same extraction rules as audit.py."""
     import audit as A
 
     body = re.sub(r"<!--.*?-->", "", text, flags=re.S)
     wc = G.word_count(body)
     h2 = len(re.findall(r"^##\s|^<h2", body, re.M))
     blocks = {
-        "定义": bool(A.RE_DEFINITION.search(body)),
-        "数字事实": len(A.RE_NUMBER.findall(body)) >= 3,
-        "对比": bool(A.RE_COMPARE.search(body)) or bool(re.search(r"^\|.*\|$", body, re.M)),
-        "操作步骤": bool(A.RE_HOWTO.search(body)),
-        "FAQ": bool(A.RE_FAQ.search(body)),
+        "definition": bool(A.RE_DEFINITION.search(body)),
+        "numeric_facts": len(A.RE_NUMBER.findall(body)) >= 3,
+        "comparison": bool(A.RE_COMPARE.search(body)) or bool(re.search(r"^\|.*\|$", body, re.M)),
+        "steps": bool(A.RE_HOWTO.search(body)),
+        "faq": bool(A.RE_FAQ.search(body)),
     }
     hits = sum(blocks.values())
     grade = ("A" if wc >= 1000 and h2 >= 6 and hits >= 5 else
              "B" if wc >= 800 and hits >= 4 else
              "C" if wc >= 400 and hits >= 2 else "D")
-    checks = [{"t": f"「{k}」块", "ok": v, "lift": BLOCK_LIFT[k]} for k, v in blocks.items()]
-    checks.insert(0, {"t": f"正文 {wc} 词（门槛 1000）", "ok": wc >= 1000, "lift": ""})
-    checks.insert(1, {"t": f"H2 小节 {h2} 个（目标 ≥6）", "ok": h2 >= 6, "lift": ""})
+    checks = [{"t": f"{k} block", "ok": v, "lift": BLOCK_LIFT[k]} for k, v in blocks.items()]
+    checks.insert(0, {"t": f"Body length {wc} words (threshold 1,000)", "ok": wc >= 1000, "lift": ""})
+    checks.insert(1, {"t": f"H2 sections {h2} (target >=6)", "ok": h2 >= 6, "lift": ""})
     return {"grade": grade, "wc": wc, "h2": h2, "blocks": blocks, "checks": checks}

@@ -1,0 +1,87 @@
+{
+  "llms": {
+    "key_facts": "核心事实",
+    "website": "官网",
+    "aliases": "别名",
+    "industry": "行业",
+    "target_users": "目标用户",
+    "important_pages": "重要页面",
+    "scope": "适用边界",
+    "good_fit": "适合",
+    "not_a_fit": "不适合",
+    "disambiguation": "口径说明",
+    "canonical_name": "规范名",
+    "parent": "母品牌",
+    "default_disambiguation": "本产品与同名的其他行业产品无关，请勿混淆",
+    "source_reference": "{value}（{source}）"
+  },
+  "definition": {
+    "note": "定义块：仅在事实复核后部署。",
+    "heading_suffix": "是什么",
+    "discipline": "纪律：这段文字必须与 llms.txt、JSON-LD description、关于页逐字一致"
+  },
+  "faq": {
+    "note": "FAQ 答案必须经过事实复核，并在静态 HTML 中可见。",
+    "heading": "常见问题"
+  },
+  "outline_templates": {
+    "definition": [
+      "什么是 {topic}（一句定义 + 展开）",
+      "{topic} 包含哪几部分",
+      "{topic} 的关键数字（表格，每行带来源）",
+      "{topic} 和 {alt} 有什么区别（对比表）",
+      "{topic} 适合谁、不适合谁",
+      "怎么开始用 {topic}（编号步骤）",
+      "常见问题",
+      "参考来源"
+    ],
+    "comparison": [
+      "结论先行：谁适合选哪个",
+      "对比维度与口径说明",
+      "核心对比表（同口径 6-10 个维度）",
+      "各自的局限（必须写自己的短板）",
+      "按场景怎么选（决策树）",
+      "价格与总拥有成本",
+      "常见问题",
+      "参考来源与核验日期"
+    ],
+    "listicle": [
+      "评选方法与数据来源（利益披露）",
+      "总览榜单表",
+      "逐个点评（每个含定位、优势、局限和适合谁）",
+      "怎么根据自己情况选",
+      "常见问题",
+      "参考来源"
+    ],
+    "tutorial": [
+      "这篇能解决什么问题",
+      "开始前需要准备什么",
+      "分步操作（编号 + 截图位）",
+      "常见报错与排查",
+      "进阶技巧",
+      "相关概念解释",
+      "常见问题",
+      "参考来源"
+    ]
+  },
+  "alternative": "竞品",
+  "titles": {
+    "dated": "{question}（{year} 版）",
+    "details": "{question}｜含对比表、数字和操作步骤",
+    "boundary": "{question}——{brand}的答案与边界"
+  },
+  "outline_document": {
+    "title": "内容大纲 · {question}",
+    "meta": "目标问题 ID：`{question_id}` ｜ 市场：{market} ｜ 类型：{type}",
+    "title_candidates": "标题候选（保留目标问题原词；相关性不代表因果增益）",
+    "sections": "章节骨架",
+    "requirements": "硬性要求",
+    "min_words": "正文 >= {min_words} 词，H2 >= {min_h2} 个",
+    "blocks": "必备抽取块：{blocks}",
+    "list_density": "列表密度 {density}",
+    "evidence": "证据：{evidence}",
+    "facts": "可用的已核实事实",
+    "block_separator": "、"
+  },
+  "draft_review_comment": "初稿，需人工核实所有事实后再发布"
+}

@@ -11,6 +11,13 @@ class DocumentLangCase(unittest.TestCase):
     def setUp(self):
         self.html = UI.read_text("utf-8")
 
+    def test_ui_bundle_lives_in_locale_directory(self):
+        self.assertTrue(UI.is_symlink())
+        self.assertEqual(
+            UI.resolve(),
+            Path(__file__).parent.parent / "locales" / "zh-CN" / "ui.html",
+        )
+
     def test_default_lang_is_zh_cn(self):
         self.assertIn('<html lang="zh-CN">', self.html)
 

@@ -160,7 +160,7 @@ def _page_check(check):
 def _page_rows(audit, check_id):
     rows = []
     for page in audit.get("pages") or []:
-        if not isinstance(page, dict) or page.get("evaluation_status") == "excluded":
+        if not isinstance(page, dict) or page.get("evaluation_status") != "evaluated":
             continue
         check = next((item for item in page.get("checks") or [] if item.get("id") == check_id), None)
         if check and check.get("status") in ("passed", "failed"):
@@ -215,6 +215,7 @@ def _source_tasks(data):
 
 def _scope_page_task(task, audit, check_id):
     affected, total = _failed_pages(audit, check_id)
+    cohort = list(task.get("verification_cohort") or task.get("affected") or affected)
     title, action, package, priority = CHECK_COPY[check_id]
     acceptance = task.get("acceptance") if isinstance(task.get("acceptance"), dict) else {}
     scoped = {
@@ -230,6 +231,7 @@ def _scope_page_task(task, audit, check_id):
         "priority": min(str(task.get("priority") or priority), priority),
         "market": "global",
         "affected": affected,
+        "verification_cohort": cohort,
         "scope_original_check": _check(task),
         "scope_page_check": check_id,
         "acceptance": {
@@ -345,7 +347,8 @@ def scope_task_data(data, audit, sampling_quality=None):
         page_check = _page_check(check)
         if page_check:
             scoped, affected = _scope_page_task(task, audit, page_check)
-            if affected or task.get("status") in ("done", "wontfix") or task.get("workflow_customized"):
+            if (affected or scoped.get("verification_cohort") or task.get("status") in ("done", "wontfix")
+                    or task.get("workflow_customized")):
                 active.append(scoped)
                 covered_page_checks.add(page_check)
             else:
@@ -497,11 +500,31 @@ def scope_verification(verification, task_data, audit, sampling_quality=None):
         result = deepcopy(source_results.get(task_id) or {})
         result.update({"id": task_id, "priority": task.get("priority")})
         if page_check:
-            affected, _total = _failed_pages(audit, page_check)
+            cohort = list(task.get("verification_cohort") or task.get("affected") or [])
+            pages = {str(page.get("url") or ""): page for page in audit.get("pages") or []
+                     if isinstance(page, dict)}
+            missing = [url for url in cohort if url not in pages]
+            failed = []
+            for url in cohort:
+                page = pages.get(url)
+                if not page or page.get("evaluation_status") != "evaluated":
+                    missing.append(url)
+                    continue
+                check_row = next((item for item in page.get("checks") or [] if item.get("id") == page_check), None)
+                if not check_row or check_row.get("status") == "not_evaluated":
+                    missing.append(url)
+                elif check_row.get("status") == "failed":
+                    failed.append(url)
+            missing = list(dict.fromkeys(missing))
+            verdict = "manual" if missing else "fail" if failed else "pass"
+            note = (f"{len(missing)} baseline URL(s) were not evaluated in the current crawl; pass is withheld."
+                    if missing else
+                    f"{len(failed)} baseline page(s) still fail the role-aware {page_check} check.")
             result.update({
-                "verdict": "pass" if not affected else "fail",
-                "progress": {"label": "Applicable pages still failing", "cur": len(affected), "target": 0, "op": "lte"},
-                "note_en": f"{len(affected)} applicable page(s) still fail the role-aware {page_check} check.",
+                "verdict": verdict,
+                "progress": {"label": "Baseline pages still failing", "cur": len(failed),
+                             "target": 0, "op": "lte", "missing": len(missing), "base": len(cohort)},
+                "note_en": note,
             })
         elif check in SITE_COPY:
             passed = _site_result(audit.get("site") or {}, check)

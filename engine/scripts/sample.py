@@ -1,14 +1,11 @@
-"""AI 答案采样：把问题库打到各个引擎上，量化「品牌在 AI 答案里的可见性」。
+"""Sample AI answers and measure brand visibility across engines.
 
-三种采样模式，证据等级从高到低：
-  api      有 API 的引擎直接跑（DeepSeek / 千问 / Kimi / 任意 OpenAI 兼容端点）
-  browser  网页端/App 端由 Claude 用浏览器工具逐条采，结果 import 回来
-  manual   导出问题清单，人工粘贴答案后 import
+API and product-interface results are separate observation cohorts because
+their source sets can differ. Each platform and terminal is recorded
+independently.
 
-重要口径：API 结果 ≠ 网页端结果。同一产品 Web 与 App 的信源集合都有系统性差异
-（CN-GEO 论文结论），所以每个平台+终端单独记录，绝不混算。
-
-产物：work/<slug>/samples/<日期>.jsonl + work/<slug>/metrics/<日期>.json
+Outputs: work/<slug>/samples/<run-id>.jsonl and
+work/<slug>/metrics/<run-id>.json.
 """
 
 from __future__ import annotations
@@ -27,32 +24,29 @@ import requests
 
 import geolib as G
 
-# 平台注册表：code -> 配置。market 决定这个平台该问哪一套问题库。
-# 观测集合（2026-07 定）：国内 = 智谱GLM/豆包/DeepSeek/Kimi/MiniMax/纳米AI/百度AI；
-# 海外 = Gemini/ChatGPT/Claude/Grok/Perplexity。纳米AI、百度AI 无公开 API，走人工采样。
+# Provider registry. Market determines which question set a provider receives.
 PROVIDERS = {
-    # ---------------- 国内 ----------------
+    # ---------------- China ----------------
     "glm": {
-        "name": "智谱GLM", "market": "cn",
+        "name": "Zhipu GLM", "market": "cn",
         "base": "https://open.bigmodel.cn/api/paas/v4",
-        # 采样默认用各家的轻量档：测的是「模型认不认识这个品牌」，不是推理质量，口径一致优先。
+        # Lightweight defaults prioritize comparable brand recognition measurements.
         "model": "glm-4-flash",
         "model_env": "GLM_MODEL",
         "key_env": "ZHIPUAI_API_KEY",
         "search": False,
-        "note": "OpenAI 兼容端点，不联网；智谱清言网页版联网行为需人工采",
+        "note": "OpenAI-compatible endpoint without web search; sample the product interface separately.",
     },
     "doubao": {
-        # 火山方舟。联网要在控制台开通「内容插件」（console.volcengine.com/common-buy/CC_content_plugin）。
-        # 没开通时自动降级成不联网采样，不会中断整期。
-        "name": "豆包(方舟API)", "market": "cn",
+        # Ark web search requires the optional content plugin.
+        "name": "Doubao (Ark API)", "market": "cn",
         "protocol": "ark",
         "base": "https://ark.cn-beijing.volces.com/api/v3",
         "model": "doubao-seed-1-6-250615",
         "model_env": "ARK_MODEL",
         "key_env": "ARK_API_KEY",
         "search": True,
-        "note": "开通内容插件后走 responses+web_search 并返回引用；否则退回参数化知识采样",
+        "note": "Uses Responses with web_search when enabled, otherwise falls back to parametric knowledge.",
     },
     "deepseek": {
         "name": "DeepSeek", "market": "cn",
@@ -61,7 +55,7 @@ PROVIDERS = {
         "model_env": "DEEPSEEK_MODEL",
         "key_env": "DEEPSEEK_API_KEY",
         "search": False,
-        "note": "官方 API 不联网，测的是模型参数化知识里的品牌认知",
+        "note": "The official API does not search the web; it measures parametric brand knowledge.",
     },
     "kimi": {
         "name": "Kimi", "market": "cn",
@@ -70,7 +64,7 @@ PROVIDERS = {
         "model_env": "MOONSHOT_MODEL",
         "key_env": "MOONSHOT_API_KEY",
         "search": False,
-        "note": "默认不联网；需要联网请在网页端采样",
+        "note": "Web search is disabled; sample the product interface separately for search behavior.",
     },
     "minimax": {
         "name": "MiniMax", "market": "cn",
@@ -79,9 +73,9 @@ PROVIDERS = {
         "model_env": "MINIMAX_MODEL",
         "key_env": "MINIMAX_API_KEY",
         "search": False,
-        "note": "OpenAI 兼容端点，不联网；海螺 AI 网页版需人工采",
+        "note": "OpenAI-compatible endpoint without web search; sample Hailuo AI separately.",
     },
-    # ---------------- 海外 ----------------
+    # ---------------- Global ----------------
     "gemini": {
         "name": "Gemini", "market": "global",
         "base": "https://generativelanguage.googleapis.com/v1beta/openai",
@@ -89,7 +83,7 @@ PROVIDERS = {
         "model_env": "GEMINI_MODEL",
         "key_env": "GEMINI_API_KEY",
         "search": False,
-        "note": "OpenAI 兼容端点不带 grounding；Google AI Overview 要在网页端采",
+        "note": "The OpenAI-compatible endpoint has no grounding; sample AI Overviews separately.",
     },
     "openai": {
         "name": "OpenAI(ChatGPT)", "market": "global",
@@ -98,10 +92,10 @@ PROVIDERS = {
         "model_env": "OPENAI_MODEL",
         "key_env": "OPENAI_API_KEY",
         "search": False,
-        "note": "Chat Completions 默认不联网；ChatGPT 网页版的搜索行为要另外采",
+        "note": "Chat Completions does not search by default; sample ChatGPT Search separately.",
     },
     "claude": {
-        # Anthropic 原生 Messages API：响应是 content 块列表，不是 OpenAI 的 choices，走专用协议。
+        # Anthropic Messages returns content blocks instead of OpenAI choices.
         "name": "Claude", "market": "global",
         "protocol": "anthropic",
         "base": "https://api.anthropic.com/v1",
@@ -109,7 +103,7 @@ PROVIDERS = {
         "model_env": "ANTHROPIC_MODEL",
         "key_env": "ANTHROPIC_API_KEY",
         "search": False,
-        "note": "API 不联网；Claude 网页版（开 Web Search）需人工采",
+        "note": "The API does not search the web; sample Claude Web Search separately.",
     },
     "grok": {
         "name": "Grok", "market": "global",
@@ -118,7 +112,7 @@ PROVIDERS = {
         "model_env": "GROK_MODEL",
         "key_env": "XAI_API_KEY",
         "search": False,
-        "note": "xAI API，不联网；X 内嵌的 Grok 联网行为需在网页端采",
+        "note": "The xAI API does not search the web; sample the X product interface separately.",
     },
     "perplexity": {
         "name": "Perplexity", "market": "global",
@@ -127,17 +121,17 @@ PROVIDERS = {
         "model_env": "PERPLEXITY_MODEL",
         "key_env": "PERPLEXITY_API_KEY",
         "search": True,
-        "note": "原生联网并返回 citations，海外采样里证据质量最好的一个",
+        "note": "Native web search with citations.",
     },
 }
 
-# 没有公开联网问答 API 的平台，只能浏览器/人工采
+# Providers without a public search API require product-interface sampling.
 MANUAL_ONLY = {
-    "nano_ai": ("纳米AI搜索（360）", "cn"),
-    "baidu": ("百度 AI 搜索", "cn"),
-    "doubao_app": ("豆包 App / 网页版（与方舟 API 结果不同，需分开采）", "cn"),
-    "chatgpt": ("ChatGPT 网页版（开 Search）", "global"),
-    "claude_web": ("Claude 网页版（开 Web Search）", "global"),
+    "nano_ai": ("Nano AI Search (360)", "cn"),
+    "baidu": ("Baidu AI Search", "cn"),
+    "doubao_app": ("Doubao App / Web", "cn"),
+    "chatgpt": ("ChatGPT Search", "global"),
+    "claude_web": ("Claude Web Search", "global"),
 }
 
 
@@ -146,7 +140,7 @@ def market_of(platform: str) -> str:
         return PROVIDERS[platform]["market"]
     if platform in MANUAL_ONLY:
         return MANUAL_ONLY[platform][1]
-    # 未识别的平台代码（多半是笔误）：绝不默认并入国内，标记 unknown 不进任何市场统计
+    # Unknown codes remain outside market aggregates.
     G.info(f"Unrecognized platform code {platform!r}, market tagged as unknown")
     return "unknown"
 
@@ -160,13 +154,10 @@ def label_of(platform: str) -> str:
 
 
 def questions_for(cfg: dict, platform: str) -> list[dict]:
-    """问题按市场路由：中文问题不打海外平台，英文问题不打国内平台。
-
-    问题没写 market 的，按项目 market 处理；项目是 both 时视为通用问题，两边都问。
-    """
+    """Route questions by market without mixing regional cohorts."""
     m = market_of(platform)
     out = []
-    for q in cfg.get("questions", []):
+    for q in G.normalize_question_ids(cfg.get("questions", [])):
         qm = q.get("market") or cfg.get("market", "cn")
         if qm in ("both", m):
             out.append(q)
@@ -174,10 +165,7 @@ def questions_for(cfg: dict, platform: str) -> list[dict]:
 
 
 def _p_model(p: dict) -> str:
-    """调用时解析模型：环境变量覆盖优先，否则用注册表默认。
-
-    必须在调用时而不是 import 时解析——界面改完模型要立即生效，
-    清掉覆盖也要能回落到出厂默认。"""
+    """Resolve model overrides at call time so configuration changes apply immediately."""
     menv = p.get("model_env")
     return (os.environ.get(menv) if menv else None) or p["model"]
 
@@ -191,19 +179,18 @@ def available(platform: str) -> bool:
     return bool(p and os.environ.get(p["key_env"]))
 
 
-# 所有「挑一个可用 LLM 干活」的模块（bootstrap/expand/generate）共用这一条候选链，
-# 避免各写一份后悄悄漂移。顺序：便宜的国内引擎优先。
+# Shared fallback order for modules that need one configured LLM.
 LLM_PREFS = ("deepseek", "glm", "doubao", "openai", "gemini")
 
 
 def pick_llm(prefer: str | None = None):
-    """按候选链返回第一个配了 Key 的平台；都没配返回 None。"""
+    """Return the first configured provider in the preference chain."""
     cands = [prefer] if prefer else list(LLM_PREFS)
     return next((c for c in cands if c and available(c)), None)
 
 
 def ask_ark(p: dict, key: str, question: str, timeout: int) -> dict:
-    """火山方舟。优先用 Responses API + web_search；账号没开通内容插件就降级成普通对话。"""
+    """Use Ark Responses with web search, then fall back to chat completions."""
     H = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     try:
         r = requests.post(f"{p['base']}/responses", headers=H,
@@ -230,9 +217,9 @@ def ask_ark(p: dict, key: str, question: str, timeout: int) -> dict:
         elif "ToolNotOpen" not in r.text:
             return {"ok": False, "answer": "", "error": f"HTTP {r.status_code}: {r.text[:300]}"}
     except Exception:  # noqa: BLE001
-        pass  # 降级重试
+        pass  # Fall through to the non-search endpoint.
 
-    try:  # 降级：不联网的普通对话
+    try:
         r = requests.post(f"{p['base']}/chat/completions", headers=H,
                           json={"model": _p_model(p),
                                 "messages": [{"role": "user", "content": question}]}, timeout=timeout)
@@ -246,7 +233,7 @@ def ask_ark(p: dict, key: str, question: str, timeout: int) -> dict:
 
 
 def ask_anthropic(p: dict, key: str, question: str, timeout: int) -> dict:
-    """Anthropic 原生 Messages API：响应是 content 块列表；安全分类器拒答走 stop_reason。"""
+    """Call the native Anthropic Messages API and parse content blocks."""
     delays = (1, 3)
     for attempt in range(len(delays) + 1):
         try:
@@ -254,7 +241,7 @@ def ask_anthropic(p: dict, key: str, question: str, timeout: int) -> dict:
                 f"{p['base']}/messages",
                 headers={"x-api-key": key, "anthropic-version": "2023-06-01",
                          "content-type": "application/json"},
-                # max_tokens 4096：品牌认知问答的自然长度以内，同时护住 120s 请求超时
+                # Bound output length to keep requests within the default timeout.
                 json={"model": _p_model(p), "max_tokens": 4096,
                       "messages": [{"role": "user", "content": question}]},
                 timeout=timeout,
@@ -266,7 +253,7 @@ def ask_anthropic(p: dict, key: str, question: str, timeout: int) -> dict:
                 return {"ok": False, "answer": "", "error": f"HTTP {r.status_code}: {r.text[:300]}"}
             d = r.json()
             if d.get("stop_reason") == "refusal":
-                return {"ok": False, "answer": "", "error": "安全分类器拒答（stop_reason=refusal）"}
+                return {"ok": False, "answer": "", "error": "Model refusal (stop_reason=refusal)"}
             answer = "".join(b.get("text", "") for b in d.get("content", [])
                              if b.get("type") == "text")
             return {"ok": True, "answer": answer, "citations": [],
@@ -284,7 +271,7 @@ def ask(platform: str, question: str, timeout: int = 120) -> dict:
     p = PROVIDERS[platform]
     key = os.environ.get(p["key_env"])
     if not key:
-        return {"ok": False, "answer": "", "error": f"缺少环境变量 {p['key_env']}"}
+        return {"ok": False, "answer": "", "error": f"Missing environment variable {p['key_env']}"}
     if p.get("protocol") == "ark":
         return ask_ark(p, key, question, timeout)
     if p.get("protocol") == "anthropic":
@@ -295,7 +282,7 @@ def ask(platform: str, question: str, timeout: int = 120) -> dict:
         "temperature": 0.7,
     }
     body.update(p.get("extra", {}))
-    delays = (1, 3)  # 超时/429/5xx 指数退避重试 2 次；其他错误（4xx 等）不重试
+    delays = (1, 3)  # Retry timeouts, rate limits, and server errors twice.
     for attempt in range(len(delays) + 1):
         try:
             r = requests.post(
@@ -313,7 +300,7 @@ def ask(platform: str, question: str, timeout: int = 120) -> dict:
             data = r.json()
             msg = data["choices"][0]["message"]
             answer = msg.get("content") or ""
-            # 各家把联网来源放在不同字段：千问 search_info、Perplexity citations/search_results
+            # Providers expose search sources through different response fields.
             refs = []
             for item in (data.get("search_info") or {}).get("search_results", []) or []:
                 if item.get("url"):
@@ -336,13 +323,16 @@ def ask(platform: str, question: str, timeout: int = 120) -> dict:
             return {"ok": False, "answer": "", "error": f"{type(e).__name__}: {e}"}
 
 
-# ------------------------------------------------------------ 答案解析
+# ------------------------------------------------------------ Answer analysis
 
-URL_RE = re.compile(r"https?://[^\s\)\]\"'，。；]+")
+URL_RE = re.compile(r"https?://[^\s\)\]\"'\u3002\uff0c\uff1b]+")
+MIN_PLATFORM_SAMPLES = 5
+MIN_TOTAL_SAMPLES = 20
+MIN_REPRESENTATIVE_PLATFORMS = 2
 
 
 def entities_of(cfg: dict) -> tuple[list[str], dict[str, list[str]]]:
-    """返回 (全部候选实体名, {规范名: 别名列表})"""
+    """Return all candidate names and aliases keyed by canonical name."""
     alias = {}
     b = cfg["brand"]
     alias[b["name"]] = [b["name"]] + list(b.get("aliases", []) or [])
@@ -352,28 +342,22 @@ def entities_of(cfg: dict) -> tuple[list[str], dict[str, list[str]]]:
 
 
 _LATIN = re.compile(r"[A-Za-z0-9]")
-_NEG_RE = re.compile(r"不是|并非|不属于|不同于|not |isn't|aren't", re.IGNORECASE)
-_SENT_END = "。！？!?\n"
+_NEG_RE = re.compile(
+    r"\u4e0d\u662f|\u5e76\u975e|\u4e0d\u5c5e\u4e8e|\u4e0d\u540c\u4e8e|not |isn't|aren't",
+    re.IGNORECASE,
+)
+_SENT_END = "\u3002\uff01\uff1f!?\n"
 
-# 负面语境线索：只在品牌名附近窗口内找，命中≠负面定性，只标「疑似负面」进人工复核。
-# 词表故意保守——误报会浪费复核时间，漏报还有样本回放兜底。
+# Conservative multilingual cues only flag nearby text for human review.
 NEG_CUES = re.compile(
-    r"不推荐|避雷|缺点|劣势|投诉|差评|跑路|骗局|割韭菜|不靠谱|慎用|翻车|已倒闭|停止运营|维权|退款难"
+    r"\u4e0d\u63a8\u8350|\u907f\u96f7|\u7f3a\u70b9|\u52a3\u52bf|\u6295\u8bc9|\u5dee\u8bc4|\u8dd1\u8def|\u9a97\u5c40|"
+    r"\u5272\u97ed\u83dc|\u4e0d\u9760\u8c31|\u614e\u7528|\u7ffb\u8f66|\u5df2\u5012\u95ed|\u505c\u6b62\u8fd0\u8425|\u7ef4\u6743|\u9000\u6b3e\u96be"
     r"|not recommended|avoid|scam|complaints?|lawsuit|shut ?down|worse than|downsides?",
     re.IGNORECASE)
 
 
 def _alias_spans(text: str, alias: str) -> list[tuple[int, int]]:
-    """别名命中区间。
-
-    边界策略（权衡）：跨文种相邻（CJK↔拉丁）是天然分词边界，不算词延续；
-    只有「拉丁接拉丁」才是真延续。所以：
-    - 别名的拉丁侧边缘加 lookaround 排除 [A-Za-z0-9]，防 "AIGC" 命中 "AIGCLINK"；
-      CJK 侧边缘不查——「推荐AIGC」「AIGCLINK定制家很好用」都是正常命中。
-    - 纯 CJK 别名保持子串匹配：中文没有空格分词，右侧是 CJK 不代表另一个词。
-      残留风险：「定制家居」里的「定制家」仍会命中——靠否定语境检查挡住
-      「不是定制家居」这类，其余靠 needs_review 人工兜底。
-    """
+    """Return alias spans with Latin-token boundaries at Latin edges."""
     left = r"(?<![A-Za-z0-9])" if _LATIN.match(alias[0]) else ""
     right = r"(?![A-Za-z0-9])" if _LATIN.match(alias[-1]) else ""
     if left or right:
@@ -388,12 +372,12 @@ def _sentence_at(text: str, pos: int) -> str:
 
 
 def _entity_hit(text: str, aliases: list[str]) -> tuple[int, bool]:
-    """返回 (首个有效命中位置, 是否有命中因否定语境被丢弃待人工确认)。"""
+    """Return the first valid hit and whether a negated hit needs review."""
     hits = sorted((s, e) for a in aliases if a for s, e in _alias_spans(text, a))
     valid, negated = [], False
     for s, e in hits:
         if _NEG_RE.search(_sentence_at(text, s)):
-            negated = True  # 「不是 X」里的命中不算提及，但要人工确认
+            negated = True
         else:
             valid.append(s)
     return (min(valid) if valid else -1), negated
@@ -403,12 +387,44 @@ def first_pos(text: str, names: list[str]) -> int:
     return _entity_hit(text, names)[0]
 
 
-def brand_in_question(question: str, cfg: dict) -> bool:
-    """问题本身是否点名了品牌。
+def _recommendation_order(text: str, aliases: dict[str, list[str]]) -> tuple[list[str], dict[str, int], str | None]:
+    """Extract rank only from explicit numbered, bulleted, or tabular lists."""
+    ranked: list[tuple[int, int, str]] = []
+    sequence = 0
+    for line_no, line in enumerate((text or "").splitlines()):
+        number = re.match(r"^\s*(\d{1,2})[.)、:]\s+", line)
+        bullet = re.match(r"^\s*[-*•]\s+", line)
+        table = line.strip().startswith("|") and line.count("|") >= 2 and not re.search(r"\|\s*:?-{2,}", line)
+        if not (number or bullet or table):
+            continue
+        sequence += 1
+        rank = int(number.group(1)) if number else sequence
+        for name, names in aliases.items():
+            if any(alias and _alias_spans(line, alias) for alias in names):
+                ranked.append((rank, line_no, name))
+    ordered = []
+    for _rank, _line, name in sorted(ranked):
+        if name not in ordered:
+            ordered.append(name)
+    ranks = {}
+    for rank, _line, name in sorted(ranked):
+        ranks.setdefault(name, rank)
+    return ordered, ranks, ("explicit_list" if ordered else None)
 
-    点名了的话，答案必然复述品牌名，「提及率」会变成 100% 的假阳性。
-    这类问题要单独归到品牌认知，不能混进可见性指标。
-    """
+
+def _citation_supports_brand(citation: dict, aliases: list[str]) -> bool:
+    if citation.get("supports_brand") is True:
+        return True
+    evidence = " ".join(str(citation.get(key) or "") for key in ("title", "snippet", "text", "name"))
+    try:
+        evidence += " " + urlparse(str(citation.get("url") or "")).path.replace("-", " ").replace("_", " ")
+    except ValueError:
+        pass
+    return any(alias and _alias_spans(evidence, alias) for alias in aliases)
+
+
+def brand_in_question(question: str, cfg: dict) -> bool:
+    """Return whether the prompt names the brand and would bias mention rate."""
     b = cfg["brand"]
     names = [b["name"]] + list(b.get("aliases", []) or [])
     host = urlparse(b.get("site", "")).netloc.lower().removeprefix("www.")
@@ -427,11 +443,19 @@ def analyze_answer(answer: str, cfg: dict, citations: list | None = None) -> dic
         needs_review = needs_review or negated
     present = {n: p >= 0 for n, p in positions.items()}
     ordered = [n for n, p in sorted(positions.items(), key=lambda x: x[1]) if p >= 0]
+    ranked, recommendation_ranks, rank_basis = _recommendation_order(answer, alias)
 
     urls = [u for u in URL_RE.findall(answer)]
+    brand_cited_domains = []
     for c in citations or []:
         if c.get("url"):
             urls.append(c["url"])
+            try:
+                host = urlparse(c["url"]).netloc.lower().removeprefix("www.")
+            except ValueError:
+                host = ""
+            if host and _citation_supports_brand(c, alias[brand]):
+                brand_cited_domains.append(host)
     domains = []
     for u in urls:
         try:
@@ -443,7 +467,7 @@ def analyze_answer(answer: str, cfg: dict, citations: list | None = None) -> dic
 
     own = urlparse(cfg["brand"]["site"]).netloc.lower().removeprefix("www.")
 
-    # 疑似负面：品牌每个命中点前 80 / 后 160 字符窗口内的负面线索词
+    # Negative cues are evaluated only near brand mentions.
     neg = set()
     if present.get(brand):
         for a in alias[brand]:
@@ -453,10 +477,13 @@ def analyze_answer(answer: str, cfg: dict, citations: list | None = None) -> dic
 
     return {
         "brand_mentioned": present.get(brand, False),
-        "brand_rank": (ordered.index(brand) + 1) if brand in ordered else 0,
+        "brand_rank": recommendation_ranks.get(brand, 0),
+        "rank_basis": rank_basis,
+        "first_mention_order": (ordered.index(brand) + 1) if brand in ordered else 0,
         "candidates": ordered,
         "competitors_mentioned": [n for n in names if n != brand and present.get(n)],
         "cited_domains": sorted(set(domains)),
+        "brand_cited_domains": sorted(set(brand_cited_domains)),
         "own_domain_cited": any(d == own or d.endswith("." + own) for d in domains),
         "answer_chars": len(answer),
         "needs_review": needs_review or bool(neg),
@@ -467,7 +494,8 @@ def analyze_answer(answer: str, cfg: dict, citations: list | None = None) -> dic
 def dedup_rows(rows: list[dict]) -> list[dict]:
     seen: dict[tuple, dict] = {}
     for r in rows:
-        seen[(r.get("platform"), r.get("question_id"), r.get("round"), r.get("sample_mode"))] = r
+        seen[(r.get("run_id") or "legacy", r.get("platform"), r.get("question_id"),
+              r.get("round"), r.get("sample_mode"))] = r
     return list(seen.values())
 
 
@@ -487,11 +515,14 @@ def aggregate(rows: list[dict], cfg: dict) -> dict:
         ranks = [r["analysis"]["brand_rank"] for r in mentioned if r["analysis"]["brand_rank"]]
         comp = {}
         dom = {}
+        brand_dom = {}
         for r in rs:
             for c in r["analysis"]["competitors_mentioned"]:
                 comp[c] = comp.get(c, 0) + 1
             for d in r["analysis"]["cited_domains"]:
                 dom[d] = dom.get(d, 0) + 1
+            for d in r["analysis"].get("brand_cited_domains") or []:
+                brand_dom[d] = brand_dom.get(d, 0) + 1
         out[plat] = {
             "market": market,
             "label": label_of(plat),
@@ -503,6 +534,13 @@ def aggregate(rows: list[dict], cfg: dict) -> dict:
             "own_domain_cite_rate": round(sum(1 for r in rs if r["analysis"]["own_domain_cited"]) / n, 3) if n else None,
             "competitor_mentions": dict(sorted(comp.items(), key=lambda x: -x[1])),
             "top_cited_domains": dict(sorted(dom.items(), key=lambda x: -x[1])[:15]),
+            "top_brand_cited_domains": dict(sorted(brand_dom.items(), key=lambda x: -x[1])[:15]),
+            "confidence": {
+                "sufficient": n >= MIN_PLATFORM_SAMPLES,
+                "minimum_samples": MIN_PLATFORM_SAMPLES,
+                "limitations": [] if n >= MIN_PLATFORM_SAMPLES else
+                    [f"Only {n} valid unprompted samples; {MIN_PLATFORM_SAMPLES} required for platform conclusions"],
+            },
             "probe": {
                 "samples": len(probe),
                 "recognized_rate": round(sum(1 for r in probe if r["analysis"]["brand_mentioned"]) / len(probe), 3) if probe else None,
@@ -513,25 +551,96 @@ def aggregate(rows: list[dict], cfg: dict) -> dict:
 
 
 def confirm_competitors(slug: str, rows: list[dict]):
-    seen = {c for r in rows for c in (r.get("analysis", {}).get("competitors_mentioned") or [])}
-    if not seen:
+    evidence: dict[str, list[dict]] = {}
+    for row in rows:
+        if row.get("brand_in_question") or row.get("needs_review") or not row.get("ok"):
+            continue
+        for name in row.get("analysis", {}).get("competitors_mentioned") or []:
+            evidence.setdefault(name, []).append(row)
+    eligible = set()
+    for name, hits in evidence.items():
+        questions = {row.get("question_id") or row.get("question") for row in hits}
+        platforms = {row.get("platform") for row in hits}
+        if len(hits) >= 2 and (len(questions) >= 2 or len(platforms) >= 2):
+            eligible.add(name)
+    if not eligible:
         return
     cfg = G.load_config(slug)
     confirmed = []
     for c in cfg.get("competitors", []) or []:
-        if c.get("confirmed") is False and c.get("name") in seen:
+        if c.get("confirmed") is False and c.get("name") in eligible:
             c["confirmed"] = True
+            c["confirmation"] = {
+                "method": "repeated_unprompted_samples",
+                "samples": len(evidence[c["name"]]),
+                "questions": len({r.get("question_id") or r.get("question") for r in evidence[c["name"]]}),
+                "platforms": len({r.get("platform") for r in evidence[c["name"]]}),
+                "confirmed_at": G.now_iso(),
+            }
             confirmed.append(c["name"])
     if confirmed:
         G.save_config(slug, cfg)
         G.info("  Competitors confirmed by sampling: " + ", ".join(confirmed))
 
 
-# ------------------------------------------------------------ 命令
+def _run_identity(cfg: dict, platforms: list[str], repeat: int, source: str) -> dict:
+    questions = G.normalize_question_ids(cfg.get("questions", []))
+    question_set_id = G.stable_hash([
+        {"id": q["id"], "text": q.get("text", ""), "market": q.get("market")}
+        for q in questions
+    ])
+    return {
+        "run_id": G.new_run_id("sample"),
+        "question_set_id": question_set_id,
+        "cohort_id": G.stable_hash({"question_set_id": question_set_id,
+                                     "platforms": sorted(platforms), "repeat": repeat, "source": source}),
+    }
+
+
+def _measurement(platforms: dict) -> dict:
+    measured = [item for item in platforms.values() if item.get("mention_rate") is not None
+                and int(item.get("samples") or 0) > 0]
+    samples = sum(int(item.get("samples") or 0) for item in measured)
+    platform_count = len(measured)
+    limitations = []
+    if samples < MIN_TOTAL_SAMPLES:
+        limitations.append(f"Only {samples} valid unprompted samples; {MIN_TOTAL_SAMPLES} required")
+    if platform_count < MIN_REPRESENTATIVE_PLATFORMS:
+        limitations.append(f"Only {platform_count} measured platform(s); {MIN_REPRESENTATIVE_PLATFORMS} required")
+    weighted = (sum(float(item["mention_rate"]) * int(item["samples"]) for item in measured) / samples
+                if samples else None)
+    return {
+        "effective_samples": samples, "platform_count": platform_count,
+        "minimum_samples": MIN_TOTAL_SAMPLES, "minimum_platforms": MIN_REPRESENTATIVE_PLATFORMS,
+        "sufficient": not limitations, "limitations": limitations,
+        "weighted_mention_rate": round(weighted, 4) if weighted is not None else None,
+    }
+
+
+def _history_snapshot(slug: str, rows: list[dict]) -> dict:
+    """Freeze mutable health inputs so historical trends remain reproducible."""
+    import analytics as A
+
+    pdir = G.project_dir(slug)
+    blueprint = G.read_json(pdir / "blueprint.json", None)
+    factcheck = G.read_json(pdir / "factcheck.json", []) or []
+    return {
+        "captured_at": G.now_iso(),
+        "health": A.health(slug, blueprint, factcheck, rows),
+        "blueprint_coverage": (blueprint or {}).get("coverage"),
+        "factcheck": {
+            "checked": sum(item.get("state") in ("consistent", "incorrect", "missing") for item in factcheck),
+            "consistent": sum(item.get("state") == "consistent" for item in factcheck),
+        },
+    }
+
+
+# ------------------------------------------------------------ Commands
 
 
 def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: int | None = None) -> dict:
     cfg = G.load_config(slug)
+    cfg = {**cfg, "questions": G.normalize_question_ids(cfg.get("questions", []))}
     if not cfg.get("questions"):
         G.die("geo.json is missing questions. Please populate questions first.")
 
@@ -557,8 +666,9 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
             for k in range(repeat):
                 jobs.append((plat, q, k + 1))
 
+    identity = _run_identity(cfg, runnable, repeat, "api")
     pdir = G.project_dir(slug)
-    path = pdir / "samples" / f"{G.today()}.jsonl"
+    path = pdir / "samples" / f"{identity['run_id']}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
 
     def one(job):
@@ -568,9 +678,10 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
         elapsed_ms = int((time.monotonic() - t0) * 1000)
         rec = {
             "date": G.today(), "ts": G.now_iso(),
+            **identity,
             "platform": plat, "platform_name": PROVIDERS[plat]["name"],
             "market": market_of(plat), "terminal": "api", "sample_mode": "api",
-            "evidence_level": "B_api_可复现",
+            "evidence_level": "B_reproducible_api",
             "search_enabled": res.get("searched", PROVIDERS[plat].get("search", False)),
             "question_id": q.get("id"), "question": q["text"], "round": rnd,
             "brand_in_question": brand_in_question(q["text"], cfg),
@@ -578,19 +689,20 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
             "elapsed_ms": elapsed_ms,
             "answer": res.get("answer", ""), "citations": res.get("citations", []),
         }
+        rec["sampling_label"] = ("api_search_grounded" if rec["search_enabled"] else "api_parametric_knowledge")
         rec["analysis"] = analyze_answer(rec["answer"], cfg, rec["citations"]) if res["ok"] else {
             "brand_mentioned": False, "brand_rank": 0, "candidates": [],
             "competitors_mentioned": [], "cited_domains": [], "own_domain_cited": False,
-            "answer_chars": 0, "needs_review": False, "negative_cues": [],
+            "brand_cited_domains": [], "answer_chars": 0, "needs_review": False,
+            "negative_cues": [], "first_mention_order": 0, "rank_basis": None,
         }
         rec["needs_review"] = bool(rec["analysis"].get("needs_review"))
         return rec
 
-    # 平台之间互不相干，并发跑；单个平台内部串行以免触发限流。
-    # 推理型模型单次可达 90s，串行跑几十题会拖到一小时以上。
+    # Providers run concurrently while requests within one provider stay serial.
     rows, done, total = [], 0, len(jobs)
     lock = threading.Lock()
-    fh = path.open("a", encoding="utf-8")  # 增量落盘：中途挂掉也不丢已采样本
+    fh = path.open("a", encoding="utf-8")  # Preserve completed samples on interruption.
 
     def worker(plat_jobs):
         nonlocal done
@@ -621,36 +733,40 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
 
     all_rows = dedup_rows(G.read_jsonl(path))
     ok_rows = [r for r in all_rows if r.get("ok")]
+    aggregated = aggregate(ok_rows, cfg)
     metrics = {
-        "slug": slug, "date": G.today(), "generated_at": G.now_iso(),
+        "slug": slug, "date": G.today(), "generated_at": G.now_iso(), **identity,
         "question_count": len(cfg.get("questions", [])), "sample_count": len(all_rows),
-        "platforms": aggregate(ok_rows, cfg),
+        "successful_sample_count": len(ok_rows), "platforms": aggregated,
+        "measurement": _measurement(aggregated),
+        "history_snapshot": _history_snapshot(slug, ok_rows),
     }
-    G.write_json(pdir / "metrics" / f"{G.today()}.json", metrics)
+    G.write_json(pdir / "metrics" / f"{identity['run_id']}.json", metrics)
     confirm_competitors(slug, ok_rows)
     G.info(f"Sampling complete: {len(rows)} answers collected → {path}")
     return metrics
 
 
 def sheet(slug: str) -> Path:
-    """导出人工/浏览器采样清单（Markdown），采完把答案粘回同一文件再 import。"""
+    """Export a Markdown sheet for product-interface sampling."""
     cfg = G.load_config(slug)
     plats = [p for p in cfg.get("platforms", []) if p in MANUAL_ONLY or not available(p)]
     lines = [
-        f"# {cfg['brand']['name']} · AI 答案人工采样表 · {G.today()}",
+        f"# {cfg['brand']['name']} - Manual AI answer sampling - {G.today()}",
         "",
-        "用法：每个平台逐题提问，把**完整答案原文**（含引用链接）粘到对应的 ```answer 代码块里，",
-        "然后运行 `python3 scripts/geo.py sample-import --slug " + slug + " --file <本文件>`。",
+        "Ask every question on each platform and paste the complete answer, including citations,",
+        "into its ```answer block. Then run `python3 scripts/geo.py sample-import --slug "
+        + slug + " --file <sheet>`.",
         "",
-        "留空的题目会被跳过，不会被当成「品牌未被提及」。",
+        "Blank answers are skipped and never counted as missing brand mentions.",
         "",
     ]
     for plat in plats:
         qs = questions_for(cfg, plat)
         if not qs:
             continue
-        mk = "国内" if market_of(plat) == "cn" else "海外"
-        lines += [f"## platform: {plat}", f"> {label_of(plat)}（{mk}市场 · {len(qs)} 题）", ""]
+        mk = "China" if market_of(plat) == "cn" else "Global"
+        lines += [f"## platform: {plat}", f"> {label_of(plat)} ({mk} market - {len(qs)} questions)", ""]
         for q in qs:
             lines += [f"### {q.get('id')} · {q['text']}", "", "```answer", "", "```", ""]
     path = G.project_dir(slug) / "samples" / f"{G.today()}-manual.md"
@@ -662,26 +778,32 @@ def sheet(slug: str) -> Path:
 
 def sample_import(slug: str, file: str) -> dict:
     cfg = G.load_config(slug)
+    cfg = {**cfg, "questions": G.normalize_question_ids(cfg.get("questions", []))}
     text = Path(file).read_text("utf-8")
     qmap = {q.get("id"): q["text"] for q in cfg.get("questions", [])}
 
     rows, platform = [], "manual"
     blocks = re.split(r"(?m)^##\s+platform:\s*(\S+)\s*$", text)
-    # blocks = [前言, plat1, body1, plat2, body2, ...]
+    manual_platforms = [blocks[i].strip() for i in range(1, len(blocks), 2)]
+    identity = _run_identity(cfg, manual_platforms, 1, "manual")
+    # Blocks alternate between platform identifiers and platform bodies.
     for i in range(1, len(blocks), 2):
         platform = blocks[i].strip()
         body = blocks[i + 1]
         for m in re.finditer(r"(?ms)^###\s+(\S+)\s*·\s*(.+?)\n(.*?)```answer\n(.*?)```", body):
             qid, qtext, _, answer = m.group(1), m.group(2).strip(), m.group(3), m.group(4).strip()
-            if not answer:
+            if not answer or qid not in qmap:
                 continue
             rec = {
                 "date": G.today(), "ts": G.now_iso(),
+                **identity,
                 "platform": platform,
                 "platform_name": label_of(platform),
                 "market": market_of(platform),
-                "terminal": "web", "sample_mode": "manual",
-                "evidence_level": "A_人工真实样本", "search_enabled": True,
+                "terminal": "manual", "sample_mode": "manual",
+                "sampling_label": "manual_product_interface",
+                "evidence_level": "A_manual_product_sample", "search_enabled": None,
+                "search_evidence": "not_recorded",
                 "question_id": qid, "question": qmap.get(qid, qtext), "round": 1,
                 "ok": True, "error": None, "answer": answer, "citations": [],
             }
@@ -692,15 +814,18 @@ def sample_import(slug: str, file: str) -> dict:
     if not rows:
         G.die("No answers parsed, please check if ```answer blocks are filled")
     pdir = G.project_dir(slug)
-    path = pdir / "samples" / f"{G.today()}.jsonl"
-    G.write_jsonl(path, G.read_jsonl(path) + rows)
-    all_rows = [r for r in dedup_rows(G.read_jsonl(path)) if r.get("ok")]
+    path = pdir / "samples" / f"{identity['run_id']}.jsonl"
+    G.write_jsonl(path, rows)
+    all_rows = [r for r in dedup_rows(rows) if r.get("ok")]
+    aggregated = aggregate(all_rows, cfg)
     metrics = {
-        "slug": slug, "date": G.today(), "generated_at": G.now_iso(),
+        "slug": slug, "date": G.today(), "generated_at": G.now_iso(), **identity,
         "question_count": len(qmap), "sample_count": len(all_rows),
-        "platforms": aggregate(all_rows, cfg),
+        "successful_sample_count": len(all_rows), "platforms": aggregated,
+        "measurement": _measurement(aggregated),
+        "history_snapshot": _history_snapshot(slug, all_rows),
     }
-    G.write_json(pdir / "metrics" / f"{G.today()}.json", metrics)
+    G.write_json(pdir / "metrics" / f"{identity['run_id']}.json", metrics)
     confirm_competitors(slug, all_rows)
     G.info(f"Imported {len(rows)} manual sample(s) → {path}")
     return metrics

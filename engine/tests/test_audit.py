@@ -51,17 +51,17 @@ class TestHowto(unittest.TestCase):
     def test_ruhe_without_steps_not_howto(self):
         text = "如何选择合适的方案？这是很多用户关心的问题。" * 10
         r = A.score_page(make_page(text=text, li_count=0), [])
-        self.assertFalse(r["blocks"]["操作步骤"])
+        self.assertFalse(r["blocks"]["steps"])
 
     def test_numbered_steps_is_howto(self):
         text = "第一步：注册账号。第二步：填写资料。第三步：提交审核。" * 5
         r = A.score_page(make_page(text=text, li_count=0), [])
-        self.assertTrue(r["blocks"]["操作步骤"])
+        self.assertTrue(r["blocks"]["steps"])
 
     def test_ruhe_with_list_is_howto(self):
         text = "怎么配置环境？请按下面的要点操作。" * 10
         r = A.score_page(make_page(text=text, li_count=6), [])
-        self.assertTrue(r["blocks"]["操作步骤"])
+        self.assertTrue(r["blocks"]["steps"])
 
 
 class TestLanguage(unittest.TestCase):
@@ -76,6 +76,26 @@ class TestLanguage(unittest.TestCase):
     def test_english_still_english(self):
         text = "This is an English page about our product and services for testing." * 3
         self.assertEqual(G.page_language(text), "en")
+
+    def test_additional_scripts_detected_and_counted(self):
+        samples = {
+            "ko": "이 페이지는 국제 송금 서비스와 고객 지원 기능을 자세히 설명합니다. " * 5,
+            "th": "หน้านี้อธิบายบริการโอนเงินระหว่างประเทศและการช่วยเหลือลูกค้าอย่างละเอียด" * 5,
+            "ar": "تشرح هذه الصفحة خدمة التحويلات الدولية ودعم العملاء بالتفصيل " * 5,
+            "hi": "यह पृष्ठ अंतरराष्ट्रीय भुगतान सेवा और ग्राहक सहायता का विस्तृत वर्णन करता है " * 5,
+        }
+        for expected, text in samples.items():
+            with self.subTest(expected=expected):
+                self.assertEqual(G.page_language(text), expected)
+                self.assertGreater(G.word_count(text), 0)
+
+
+class TestRoleAwareScoring(unittest.TestCase):
+    def test_contact_page_is_not_scored_from_sparse_checks(self):
+        result = A.score_page(make_page(url="https://example.com/contact", text="Contact us"), [])
+        self.assertFalse(result["scored"])
+        self.assertIsNone(result["score"])
+        self.assertEqual(result["grade"], "N/A")
 
 
 class TestNormalizeUrl(unittest.TestCase):
@@ -100,8 +120,8 @@ class TestKeywords(unittest.TestCase):
         self.assertNotIn("甲工智能", kws)
         self.assertNotIn("甲工", kws)
         self.assertNotIn("甲工云", kws)
-        self.assertIn("智能体平台怎么选", kws)
-        self.assertIn("有哪些好用的替代品", kws)
+        self.assertIn("智能体平台", kws)
+        self.assertIn("替代品", kws)
 
 
 class TestBaselineCount(unittest.TestCase):
@@ -111,14 +131,14 @@ class TestBaselineCount(unittest.TestCase):
             pages.append({"url": f"https://example.com/p{i}", "score": 50,
                           "word_count": 500, "jsonld_types": ["Article"],
                           "issue_codes": [], "issues": [],
-                          "blocks": {"定义": False, "数字事实": False, "对比": False,
-                                     "操作步骤": False, "FAQ": False}})
+                          "blocks": {"definition": False, "numeric_facts": False,
+                                     "comparison": False, "steps": False, "faq": False}})
         audit = {"site": {"has_sitemap": True, "has_llms_txt": True},
                  "pages": pages, "avg_score": 50,
-                 "block_gap": [{"block": "定义", "missing_pages": 35, "total": 35}]}
+                 "block_gap": [{"block": "definition", "missing_pages": 35, "total": 35}]}
         cfg = {"market": "cn", "brand": {"name": "X", "site": "https://example.com"}}
         out = T.from_audit(audit, cfg, iter(f"T-{i:03d}" for i in range(1, 99)))
-        blk = [t for t in out if t["acceptance"].get("check") == "pages.block:定义"]
+        blk = [t for t in out if t["acceptance"].get("check") == "pages.block:definition"]
         self.assertEqual(len(blk), 1)
         self.assertEqual(len(blk[0]["affected"]), 30)
         self.assertEqual(blk[0]["baseline_count"], 35)

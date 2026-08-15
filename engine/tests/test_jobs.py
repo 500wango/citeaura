@@ -2,6 +2,8 @@ import json
 import os
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -75,6 +77,26 @@ class JobsTest(unittest.TestCase):
             job = J.start("x", "audit")
         j = J.get(job["id"])
         self.assertEqual(j["pid"], 424242)
+
+    def test_concurrent_start_uses_atomic_project_claim(self):
+        release = threading.Event()
+        proc = mock.Mock()
+        proc.pid = 424243
+
+        def wait():
+            release.wait(2)
+            return 0
+
+        proc.wait.side_effect = wait
+        with mock.patch.object(J.subprocess, "Popen", return_value=proc):
+            first = J.start("x", "audit")
+            with self.assertRaises(RuntimeError):
+                J.start("x", "audit")
+            release.set()
+            for _ in range(50):
+                if J.get(first["id"])["status"] != "running":
+                    break
+                time.sleep(0.01)
 
     def test_stop_fallback_by_pid(self):
         self._write_job("orphan1234567", pid=31337)

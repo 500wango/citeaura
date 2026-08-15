@@ -14,6 +14,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from api import config
 from api.adapters.engine import ENGINE_KEY_ENV, load_tenant_keys
+from api.adapters import sampling_modes
 from api.db import SessionLocal
 from api.models import Job, PlatformUsage, Project, Tenant, UsageCounter
 
@@ -97,7 +98,7 @@ def public_catalog():
         catalog.append({
             "engine_code": code,
             "engine_name": provider.get("name", code),
-            "sampling_mode": "API - Search grounded" if provider.get("search") else "API - Parametric knowledge",
+            "sampling_mode": sampling_modes.for_provider(provider),
             "unit_price_cny_fen": item["unit_price_cny_fen"],
         })
     return catalog

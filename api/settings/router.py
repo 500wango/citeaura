@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from api.adapters.engine import CUSTOM_PROVIDER_CODE, ENGINE_KEY_ENV, with_tenant_context
 from api.adapters.network import NetworkTargetError, validate_outbound_url
+from api.adapters import sampling_modes
 from api.auth.deps import get_current_user, require_owner
 from api.db import get_db
 from api.models import ApiKey, CustomProvider, Tenant, User
@@ -99,7 +100,7 @@ def _provider_response(row: CustomProvider, include_key=False):
         "model_id": row.model_id,
         "market": "global",
         "masked": mask_key(decrypt_key(row.encrypted_api_key)),
-        "sampling_mode": "API - Parametric knowledge",
+        "sampling_mode": sampling_modes.MODE_API,
     }
     if include_key:
         result["api_key"] = decrypt_key(row.encrypted_api_key)
@@ -174,7 +175,7 @@ def test_custom_provider(payload: CustomProviderPayload, current_user: User = De
             "ok": bool(result.get("ok")),
             "code": provider["code"],
             "model": provider["model_id"],
-            "sampling_mode": "API - Parametric knowledge",
+            "sampling_mode": sampling_modes.MODE_API,
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": None if result.get("ok") else _safe_provider_error(result.get("error")),
         }
@@ -183,7 +184,7 @@ def test_custom_provider(payload: CustomProviderPayload, current_user: User = De
             "ok": False,
             "code": provider["code"],
             "model": provider["model_id"],
-            "sampling_mode": "API - Parametric knowledge",
+            "sampling_mode": sampling_modes.MODE_API,
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": _safe_provider_error(exc),
         }
@@ -292,7 +293,7 @@ def test_key(engine_code: str, current_user: User = Depends(require_owner), db: 
             "ok": ok,
             "engine": engine_code,
             "model": sample.model_for(engine_code),
-            "sampling_mode": "API - Search grounded" if sample.PROVIDERS[engine_code].get("search") else "API - Parametric knowledge",
+            "sampling_mode": sampling_modes.for_provider(sample.PROVIDERS[engine_code]),
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": error,
         }
@@ -301,7 +302,7 @@ def test_key(engine_code: str, current_user: User = Depends(require_owner), db: 
             "ok": False,
             "engine": engine_code,
             "model": None,
-            "sampling_mode": "API - Parametric knowledge",
+            "sampling_mode": sampling_modes.MODE_API,
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": _safe_provider_error(exc),
         }

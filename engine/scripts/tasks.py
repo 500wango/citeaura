@@ -1,12 +1,7 @@
-"""工单系统：把诊断结果变成可分派、可验收、可追踪的执行任务。
+"""Convert audit findings into assignable, verifiable, trackable tickets.
 
-这是执行层的骨架。`tasks.json` 是项目执行状态的**单一真相源**：
-  plan      → 从 audit + metrics + benchmark 生成工单
-  generate  → 按工单产出资产，回写 asset 路径
-  verify    → 重抓后自动判定 acceptance，回写 status
-
-每条工单都必须有：依据（追到 method.md 的哪一条）、负责角色、验收标准、市场。
-没有验收标准的不叫工单，叫愿望。
+``tasks.json`` is the execution-layer source of truth. Every ticket includes
+its rationale, owner, acceptance criteria, and market.
 """
 
 from __future__ import annotations
@@ -17,13 +12,14 @@ from pathlib import Path
 
 import geolib as G
 
-PACKAGES = ["实体消歧", "页面技术", "内容矩阵", "标题体系", "知识库", "外部证据", "监测闭环"]
-OWNERS = ["开发", "内容", "市场", "GEO顾问", "法务", "设计"]
-EFFORT = {"S": "≤0.5 人日", "M": "1–3 人日", "L": "≥5 人日"}
+PACKAGES = ["Entity disambiguation", "Page technology", "Content matrix", "Heading system",
+            "Knowledge base", "External evidence", "Measurement loop"]
+OWNERS = ["Engineering", "Content", "Marketing", "GEO consultant", "Legal", "Design"]
+EFFORT = {"S": "<=0.5 person-day", "M": "1-3 person-days", "L": ">=5 person-days"}
 
 
 def _t(tid, priority, package, title, why, action, owner, effort, acceptance,
-       market="both", affected=None, window="30天", assets=None):
+       market="both", affected=None, window="30_days", assets=None):
     return {
         "id": tid, "priority": priority, "package": package, "market": market,
         "title": title, "why": why, "action": action,
@@ -33,10 +29,10 @@ def _t(tid, priority, package, title, why, action, owner, effort, acceptance,
     }
 
 
-# ---------------------------------------------------------------- 生成规则
+# ---------------------------------------------------------------- Generation rules
 
 def _has_issue(page: dict, code: str, text_fallback: str) -> bool:
-    """优先按 issue_codes 结构化匹配；旧 audit.json 没有该字段时退回文案子串。"""
+    """Match structured issue codes, falling back to message text when needed."""
     codes = page.get("issue_codes")
     if codes is not None:
         return code in codes
@@ -44,148 +40,165 @@ def _has_issue(page: dict, code: str, text_fallback: str) -> bool:
 
 
 def from_audit(audit: dict, cfg: dict, seq) -> list[dict]:
-    """站点技术层与页面层工单。"""
+    """Build site-technology and page-level tickets."""
     out = []
     site = audit.get("site", {})
     market = cfg.get("market", "cn")
     pages = audit.get("pages", [])
-    weak = [p["url"] for p in pages if p["score"] < 65]
+    scored_pages = [p for p in pages if p.get("scored", True) and p.get("score") is not None]
+    weak = [p["url"] for p in scored_pages if p["score"] < 65]
 
-    # —— 站点级 ——
+    # Site-level findings
     if site.get("ai_bots_blocked"):
-        out.append(_t(next(seq), "P0", "页面技术",
-                      "解除 robots.txt 对 AI 抓取器的封禁",
-                      f"robots 封禁 {'、'.join(site['ai_bots_blocked'])}，这些引擎永远抓不到你（method.md 可抓取性）",
-                      "移除对应 Disallow，或改为仅屏蔽后台路径", "开发", "S",
+        out.append(_t(next(seq), "P0", "Page technology",
+                      "Unblock AI crawlers in robots.txt",
+                      f"robots.txt blocks {', '.join(site['ai_bots_blocked'])}, preventing those crawlers from indexing the site",
+                      "Remove the matching Disallow directives or restrict them to private application paths", "Engineering", "S",
                       {"type": "auto", "check": "site.no_ai_bot_block",
-                       "desc": "重抓后 robots 不再整站封禁任何 AI 抓取器"}))
+                       "desc": "Re-crawl confirms robots.txt no longer blocks AI crawlers sitewide"}))
     if not site.get("has_sitemap"):
-        out.append(_t(next(seq), "P0", "页面技术", "补 sitemap.xml 并提交各搜索引擎",
-                      "无 sitemap，收录效率和覆盖面打折（method.md 可抓取性）",
-                      "生成 sitemap.xml，robots.txt 里声明，提交百度/必应/Google/夸克",
-                      "开发", "S",
-                      {"type": "auto", "check": "site.has_sitemap", "desc": "重抓能取到 sitemap.xml"}))
+        out.append(_t(next(seq), "P0", "Page technology", "Add and submit sitemap.xml",
+                      "Missing sitemap.xml reduces discovery efficiency and coverage",
+                      "Generate sitemap.xml, declare it in robots.txt, and submit it to the target search engines",
+                      "Engineering", "S",
+                      {"type": "auto", "check": "site.has_sitemap", "desc": "Re-crawl can fetch sitemap.xml"}))
     if not site.get("has_llms_txt"):
-        out.append(_t(next(seq), "P1", "知识库", "上线 /llms.txt 官方事实索引",
-                      "低成本给 AI 一份人工整理的官方索引，国内很多站没做（content-patterns.md 第 7 节）",
-                      "用 `geo.py generate --asset llms` 产出后部署到网站根目录", "开发", "S",
-                      {"type": "auto", "check": "site.has_llms_txt", "desc": "重抓能取到 /llms.txt"}))
+        out.append(_t(next(seq), "P1", "Knowledge base", "Deploy the official /llms.txt facts index",
+                      "A curated official index gives AI systems a low-cost machine-readable facts source",
+                      "Generate the asset with `geo.py generate --asset llms` and deploy it at the site root", "Engineering", "S",
+                      {"type": "auto", "check": "site.has_llms_txt", "desc": "Re-crawl can fetch /llms.txt"}))
 
-    # 语言覆盖（双市场必查）
+    # Language coverage for multi-market projects
     lc = audit.get("language_coverage") or {}
     if market in ("global", "both") and lc.get("en_pages", 0) == 0:
-        out.append(_t(next(seq), "P0", "内容矩阵", "建英文原生内容区",
-                      "海外 AI 引用的可识别语言里英文占 82.90%–95.07%，机翻页进不了候选池（global-platforms.md）",
-                      "至少 8 个英文原生页面：首页、产品、定价、对比、FAQ、案例 ×3。不是翻译中文页",
-                      "内容", "L", {"type": "auto", "check": "site.en_pages_gte:8",
-                                    "desc": "英文有效内容页 ≥ 8"}, market="global"))
+        out.append(_t(next(seq), "P0", "Content matrix", "Build a native English content section",
+                      "The project has no native English pages and needs a measurable global-market baseline",
+                      "Publish at least eight native English pages covering home, product, pricing, comparison, FAQ, and three case studies",
+                      "Content", "L", {"type": "auto", "check": "site.en_pages_gte:8",
+                                      "desc": "At least eight valid English content pages"}, market="global"))
     elif market == "both" and lc.get("en_pages", 0) and lc.get("zh_pages", 0):
         en, zh = lc["en_pages"], lc["zh_pages"]
         if abs(en - zh) > max(en, zh) * 0.7:
-            thin = "英文" if en < zh else "中文"
-            out.append(_t(next(seq), "P1", "内容矩阵", f"补齐{thin}侧内容，中英对等",
-                          f"中文 {zh} 页 / 英文 {en} 页严重不对等，{thin}侧是短板",
-                          f"把{thin}侧页面数补到与另一侧相差 30% 以内", "内容", "L",
-                          {"type": "auto", "check": f"site.lang_balance:0.7",
-                           "desc": "中英页面数差距 ≤ 70%"}))
+            thin = "English" if en < zh else "Chinese"
+            out.append(_t(next(seq), "P1", "Content matrix", f"Balance {thin} content coverage",
+                          f"Chinese {zh} pages / English {en} pages; {thin} coverage is materially weaker",
+                          f"Bring {thin} page coverage within 30% of the other language", "Content", "L",
+                          {"type": "auto", "check": "site.lang_balance:0.7",
+                           "desc": "Chinese and English page-count difference is at most 70%"}))
 
-    # —— 页面级：按缺口类型聚合成一条工单，而不是一页一条 ——
-    spa = [p["url"] for p in pages if _has_issue(p, "SPA_SHELL", "静态 HTML 里几乎没有正文")]
+    # Aggregate page findings by gap type instead of creating one ticket per page.
+    spa = [p["url"] for p in pages if _has_issue(p, "SPA_SHELL", "Static HTML contains almost no body text")]
     if spa:
-        t = _t(next(seq), "P0", "页面技术", "修复前端渲染空壳页（SSR / 预渲染）",
-               "静态 HTML 无正文，多数 AI 抓取器看到的是空白页——国内官网最常见致命伤（method.md 可抓取性）",
-               "对受影响路由启用 SSR 或预渲染，确保 curl 拿到的 HTML 含完整正文",
-               "开发", "M", {"type": "auto", "check": "pages.static_text",
-                             "desc": "受影响页面重抓后正文词数 ≥ 120"},
+        t = _t(next(seq), "P0", "Page technology", "Fix client-rendered empty-shell pages with SSR or prerendering",
+               "Static HTML has no meaningful body text, so non-rendering crawlers receive an empty page",
+               "Enable SSR or prerendering for affected routes so raw HTML contains the complete body text",
+               "Engineering", "M", {"type": "auto", "check": "pages.static_text",
+                                    "desc": "Affected pages contain at least 120 words after re-crawl"},
                affected=spa)
         t["baseline_count"] = len(spa)
+        t["verification_cohort"] = list(spa)
         out.append(t)
 
-    no_schema = [p["url"] for p in pages if not p.get("jsonld_types")]
+    no_schema = [p["url"] for p in scored_pages if not p.get("jsonld_types")]
     if no_schema:
-        t = _t(next(seq), "P0", "页面技术", "全站补 JSON-LD 结构化数据",
-               "无结构化数据，机器读不懂这页在讲什么实体（method.md 权威信号）",
-               "用 `geo.py generate --asset jsonld` 产出补丁，按页面类型挂 "
-               "Organization / SoftwareApplication / Article / FAQPage / BreadcrumbList",
-               "开发", "M", {"type": "auto", "check": "pages.has_jsonld",
-                             "desc": "受影响页面重抓后含 JSON-LD"},
+        t = _t(next(seq), "P0", "Page technology", "Add sitewide JSON-LD structured data",
+               "Missing structured data weakens machine-readable entity context",
+               "Select Schema.org types supported by visible page content and verified facts; do not deploy placeholder or unsupported fields",
+               "Engineering", "M", {"type": "auto", "check": "pages.has_jsonld",
+                                    "desc": "Affected pages contain JSON-LD after re-crawl"},
                affected=no_schema)
         t["baseline_count"] = len(no_schema)
+        t["verification_cohort"] = list(no_schema)
         out.append(t)
 
-    # 抽取块缺口 → 每种一条，附实测增益
-    gain = {"数字事实": "+61.6%", "定义": "+57.3%", "对比": "+55.3%", "操作步骤": "+41.2%",
-            "FAQ": "利于问答召回（格式本身无增益）"}
+    # Reference associations prioritize extraction gaps but do not imply causal lift.
+    association = {"numeric_facts": "stronger association", "definition": "stronger association",
+                   "comparison": "positive association", "steps": "positive association",
+                   "faq": "potential retrieval association requiring validation"}
     for g in audit.get("block_gap", []):
         if g["missing_pages"] >= max(3, g["total"] * 0.3):
             blk = g["block"]
-            miss = [p["url"] for p in pages if not p["blocks"].get(blk)]
-            t = _t(next(seq), "P1", "内容矩阵", f"全站补「{blk}」抽取块",
-                   f"{g['missing_pages']}/{g['total']} 页缺失；实测影响力增益 {gain.get(blk, '—')}（method.md 可抽取块）",
-                   f"参照 content-patterns.md，在核心页补{blk}块；定义句需与事实卡逐字一致",
-                   "内容", "M", {"type": "auto", "check": f"pages.block:{blk}",
-                                 "desc": f"缺「{blk}」的页面数下降 ≥ 50%"},
+            miss = [p["url"] for p in scored_pages if p.get("blocks", {}).get(blk) is False]
+            t = _t(next(seq), "P1", "Content matrix", f"Add {blk} extraction blocks sitewide",
+                   f"Missing on {g['missing_pages']}/{g['total']} pages; reference data shows a {association.get(blk, 'positive association')}, not causal lift",
+                   f"Add {blk} blocks to core pages following content-patterns.md; keep definition text consistent with verified brand facts",
+                   "Content", "M", {"type": "auto", "check": f"pages.block:{blk}",
+                                    "desc": f"Pages missing {blk} blocks decrease by at least 50%"},
                    affected=miss[:30])
-            # affected 截断到 30 条只是展示用，验收基线必须是真实缺口数
+            # Affected examples are capped for display; verification uses the full cohort.
             t["baseline_count"] = len(miss)
+            t["verification_cohort"] = list(miss)
             out.append(t)
 
-    short = [p["url"] for p in pages if p["word_count"] < 1000 and p["word_count"] >= 100]
+    short = [p["url"] for p in scored_pages if p["word_count"] < 1000 and p["word_count"] >= 100]
     if len(short) >= 3:
-        t = _t(next(seq), "P1", "内容矩阵", "核心页正文扩到 1000+ 词",
-               "高影响力页面平均 1,943 词，Bottom 四分位仅 170 词（method.md 内容长度）",
-               "优先扩产品页、案例页、对比页；加定义、数字表、步骤、边界说明，不是灌水",
-               "内容", "L", {"type": "auto", "check": "pages.wordcount_gte:1000",
-                             "desc": "正文 <1000 词的页面数下降 ≥ 40%"},
+        t = _t(next(seq), "P1", "Content matrix", "Expand core pages to 1,000+ words where justified",
+               "Longer reference content is associated with visibility, but expansion must serve page intent and be validated through sampling",
+               "Prioritize product, case-study, and comparison pages with definitions, sourced numeric tables, steps, and limitations",
+               "Content", "L", {"type": "auto", "check": "pages.wordcount_gte:1000",
+                                "desc": "Pages below 1,000 words decrease by at least 40%"},
                affected=short[:30])
         t["baseline_count"] = len(short)
+        t["verification_cohort"] = list(short)
         out.append(t)
 
-    thin_h2 = [p["url"] for p in pages if len(p.get("dimensions", {})) and p["score"] < 70]
-    if audit.get("avg_score", 0) < 70:
-        out.append(_t(next(seq), "P1", "页面技术", f"站点均分从 {audit.get('avg_score')} 提到 70",
-                      "均分低于 70 说明整体处于「需要改造」区间（method.md 评分口径）",
-                      "按 audit.json 里分数最低的 10 页逐页改：H1 唯一、H2 拆到 6–10 节、列表密度 ≥0.35、加更新日期",
-                      "内容", "L", {"type": "auto", "check": "site.avg_score_gte:70",
-                                    "desc": "重跑 audit 均分 ≥ 70"},
+    thin_h2 = [p["url"] for p in scored_pages if len(p.get("dimensions", {})) and p["score"] < 70]
+    if audit.get("avg_score") is not None and audit["avg_score"] < 70:
+        out.append(_t(next(seq), "P1", "Page technology", f"Raise average site score from {audit.get('avg_score')} to 70",
+                      "An average score below 70 indicates broad crawlability, structure, or evidence gaps",
+                      "Improve the ten lowest-scoring pages according to their specific audit findings",
+                      "Content", "L", {"type": "auto", "check": "site.avg_score_gte:70",
+                                      "desc": "Re-audit average score is at least 70"},
                       affected=thin_h2[:10]))
     return out
 
 
 def from_metrics(metrics: dict, cfg: dict, seq) -> list[dict]:
-    """AI 答案可见性层工单，按市场分开。"""
+    """Build AI-answer visibility tickets separately by market."""
     out = []
     if not metrics or not metrics.get("platforms"):
         return out
-    for mk, mk_name in (("cn", "国内"), ("global", "海外")):
+    measurement = metrics.get("measurement") or {}
+    if measurement and not measurement.get("sufficient"):
+        out.append(_t(
+            next(seq), "P0", "Measurement loop", "Establish a representative AI visibility baseline",
+            "Current sample volume or platform coverage supports observations only, not performance conclusions",
+            f"Collect at least {measurement.get('minimum_samples', 20)} valid unprompted samples across at least "
+            f"{measurement.get('minimum_platforms', 2)} platforms using a stable question set and sampling mode",
+            "GEO consultant", "M", {"type": "auto", "check": "metrics.representative_baseline",
+                                     "desc": "Sample volume and platform coverage meet the minimum conclusion threshold"}))
+        return out
+    for mk, mk_name in (("cn", "Domestic"), ("global", "Global")):
         rows = {p: m for p, m in metrics["platforms"].items() if m.get("market", "cn") == mk}
         if not rows:
             continue
-        # mention_rate / own_domain_cite_rate 为 None = 该平台只采了点名题（未测），
-        # 不参与平均；全 None 时该指标「未测」，不下结论工单，不编数。
-        rates = [m["mention_rate"] for m in rows.values() if m.get("mention_rate") is not None]
+        # Probe-only platforms have None rates and do not participate in averages.
+        rates = [(m["mention_rate"], int(m.get("samples") or 0)) for m in rows.values()
+                 if m.get("mention_rate") is not None and int(m.get("samples") or 0) > 0]
         target = cfg.get("targets", {}).get("mention_rate", 0.3)
         if rates:
-            avg = sum(rates) / len(rates)
+            total = sum(count for _rate, count in rates)
+            avg = sum(rate * count for rate, count in rates) / total
             if avg < target:
-                out.append(_t(next(seq), "P1", "监测闭环",
-                              f"{mk_name}无提示提及率 {avg:.0%} → {target:.0%}",
-                              f"{mk_name}市场 {len(rates)} 个已测平台的无提示提及率均值仅 {avg:.0%}，"
-                              "说明还没进入候选集（method.md 三段漏斗 ①②）",
-                              "这是内容矩阵 + 外部信源两个包的综合结果指标，不单独派工，用于季度验收",
-                              "GEO顾问", "L",
+                out.append(_t(next(seq), "P1", "Measurement loop",
+                              f"Raise {mk_name} unprompted mention rate from {avg:.0%} to {target:.0%}",
+                              f"The sample-weighted unprompted mention rate across {len(rates)} measured {mk_name} platforms is {avg:.0%}",
+                              "Treat this as a combined content-matrix and external-source outcome metric for quarterly verification",
+                              "GEO consultant", "L",
                               {"type": "auto", "check": f"metrics.mention_rate_gte:{mk}:{target}",
-                               "desc": f"{mk_name}平均无提示提及率 ≥ {target:.0%}"}, market=mk))
-        own = [m["own_domain_cite_rate"] for m in rows.values() if m.get("own_domain_cite_rate") is not None]
-        if own and sum(own) / len(own) < 0.1:
-            out.append(_t(next(seq), "P1", "外部证据",
-                          f"{mk_name}让官网进得了 AI 的检索结果",
-                          f"{mk_name}引用官网率 {sum(own)/len(own):.0%}。官网内容再对，检索不到等于不存在",
-                          "提交各引擎收录；在高频被引域名上发带官网链接的内容；"
-                          "母品牌/关联站挂子产品入口", "市场", "M",
+                               "desc": f"{mk_name} average unprompted mention rate is at least {target:.0%}"}, market=mk))
+        own = [(m["own_domain_cite_rate"], int(m.get("samples") or 0)) for m in rows.values()
+               if m.get("own_domain_cite_rate") is not None and int(m.get("samples") or 0) > 0]
+        own_total = sum(count for _rate, count in own)
+        own_avg = sum(rate * count for rate, count in own) / own_total if own_total else None
+        if own_avg is not None and own_avg < 0.1:
+            out.append(_t(next(seq), "P1", "External evidence",
+                          f"Improve official-site retrieval in {mk_name} AI search",
+                          f"The {mk_name} sample-weighted official-domain citation rate is {own_avg:.0%}; correct content has no impact when it is not retrieved",
+                          "Submit the site for indexing, publish sourced content on frequently cited domains, and link relevant products from verified related sites",
+                          "Marketing", "M",
                           {"type": "auto", "check": f"metrics.own_cite_gte:{mk}:0.1",
-                           "desc": f"{mk_name}引用官网率 ≥ 10%"}, market=mk))
-        # 品牌认知错误 → P0
+                           "desc": f"{mk_name} official-domain citation rate is at least 10%"}, market=mk))
         for plat, m in rows.items():
             pr = m.get("probe") or {}
             if pr.get("samples") and (pr.get("own_domain_cite_rate") or 0) == 0:
@@ -194,58 +207,56 @@ def from_metrics(metrics: dict, cfg: dict, seq) -> list[dict]:
 
 
 def from_benchmark(bench: dict, cfg: dict, seq) -> list[dict]:
-    """外部信源层工单——依据 CN-GEO 实测榜，不靠主观印象。"""
+    """Build external-evidence tickets from the reference ranking."""
     out = []
     if not bench:
         return out
     missing = bench.get("cross_platform_missing", [])
-    rank = [m for m in missing if "榜单" in m["category"]]
+    rank = [m for m in missing if "ranking" in m["category"].lower()]
     if rank:
-        out.append(_t(next(seq), "P1", "外部证据", "拿下榜单/品牌库站词条",
-                      "仅 28 个榜单站域名占全库引用 9.1%，且引用位置全库最靠前；"
-                      "AI 回答「有哪些/哪个好/怎么选」时最省事就是抄现成榜单（cn-source-ranking.md）",
-                      "提交词条：" + "、".join(f"`{m['domain']}`" for m in rank),
-                      "市场", "M",
-                      {"type": "auto", "check": "external.any:" + ",".join(m["domain"] for m in rank),
-                       "desc": "采样中出现任一榜单站引用"}, market="cn"))
-    plat = [m for m in missing if m["category"] == "内容平台"]
+        out.append(_t(next(seq), "P1", "External evidence", "Establish presence on ranking and brand directories",
+                      "Ranking domains represent a high-leverage citation category for recommendation queries",
+                      "Publish verified brand listings on: " + ", ".join(f"`{m['domain']}`" for m in rank),
+                      "Marketing", "M",
+                      {"type": "auto", "check": "external.brand_any:" + ",".join(m["domain"] for m in rank),
+                       "desc": "Sampling confirms a direct brand citation on at least one ranking domain"}, market="cn"))
+    plat = [m for m in missing if m["category"].lower() == "content platform"]
     if plat:
-        out.append(_t(next(seq), "P1", "外部证据", "进内容平台生态",
-                      "内容平台四家占全库引用 16.4%；qq.com 是元宝 20.5% 的来源，"
-                      "toutiao.com 是豆包系入口（cn-source-ranking.md）",
-                      "开设并持续运营：" + "、".join(f"`{m['domain']}`" for m in plat),
-                      "内容", "L",
-                      {"type": "auto", "check": "external.any:" + ",".join(m["domain"] for m in plat),
-                       "desc": "采样中出现任一内容平台引用"}, market="cn"))
+        out.append(_t(next(seq), "P1", "External evidence", "Publish on authoritative content platforms",
+                      "Content platforms represent a material share of reference citations across AI search engines",
+                      "Establish and maintain verified content presence on: " + ", ".join(f"`{m['domain']}`" for m in plat),
+                      "Content", "L",
+                      {"type": "auto", "check": "external.brand_any:" + ",".join(m["domain"] for m in plat),
+                       "desc": "Sampling confirms a direct brand citation on at least one content platform"}, market="cn"))
     for gap in bench.get("ecosystem_gaps", []):
-        out.append(_t(next(seq), "P2", "外部证据", f"跨过平台生态门槛：{gap['domain']}",
-                      f"{gap['why']}——不进这个站，对应平台基本进不去（cn-source-ranking.md 第三节）",
-                      f"在 `{gap['domain']}` 建立内容存在（收录/账号/词条）", "市场", "M",
-                      {"type": "auto", "check": f"external.any:{gap['domain']}",
-                       "desc": f"采样中出现 {gap['domain']} 引用"}, market="cn"))
+        out.append(_t(next(seq), "P2", "External evidence", f"Overcome the {gap['domain']} ecosystem gateway",
+                      f"{gap['why']}; the domain is a known gateway for platform retrieval",
+                      f"Establish verified content presence on `{gap['domain']}`", "Marketing", "M",
+                      {"type": "auto", "check": f"external.brand_any:{gap['domain']}",
+                       "desc": f"Sampling confirms a direct brand citation from {gap['domain']}"}, market="cn"))
     return out
 
 
 def entity_tasks(cfg: dict, seq) -> list[dict]:
-    """实体消歧与事实底座——永远存在的基础包。"""
+    """Build the always-on entity and verified-facts foundation tickets."""
     b = cfg["brand"]
     return [
-        _t(next(seq), "P0", "实体消歧", "统一一句话定义，四处逐字一致",
-           "口径不一致是 AI 描述品牌漂移的头号原因（content-patterns.md 第 6 节）",
-           f"把「{b['name']}」的定义句同步到：首页首屏、关于页、JSON-LD description、llms.txt。逐字相同",
-           "内容", "S", {"type": "manual", "desc": "四处定义句文本完全一致（人工核对）"}),
-        _t(next(seq), "P0", "知识库", "建品牌事实卡并标注证据等级",
-           "所有内容生产的事实底座；无来源的事实一律标待确认（method.md 采样纪律）",
-           "填 content/facts.md：实体、别名、产品、关键数字、适用与不适用、禁用表达；每条标 A–E",
-           "GEO顾问", "M", {"type": "manual", "desc": "facts.md 存在且每条事实有证据等级"}),
-        _t(next(seq), "P1", "知识库", "百科词条（实体消歧地基）",
-           "百科是品牌实体消歧的地基；baidu.com 同时是百度AI 37.7%、文心 29.0% 的引用来源",
-           "提交百度百科；海外市场同步争取 Wikipedia（需第三方来源支撑）", "市场", "M",
-           {"type": "manual", "desc": "词条通过审核并上线"}),
+        _t(next(seq), "P0", "Entity disambiguation", "Standardize one-sentence brand definition across four surfaces",
+           "Inconsistent messaging causes entity drift in AI-generated descriptions",
+           f"Synchronize the definition for {b['name']} across homepage hero, about page, JSON-LD description, and /llms.txt",
+           "Content", "S", {"type": "manual", "desc": "Definition text is verbatim identical across all four surfaces"}),
+        _t(next(seq), "P0", "Knowledge base", "Build a sourced brand facts library",
+           "All content production needs a single source of truth with evidence confidence",
+           "Populate content/facts.md with entities, aliases, products, key metrics, applicability, exclusions, and prohibited claims; assign grades A-E",
+           "GEO consultant", "M", {"type": "manual", "desc": "facts.md exists and every fact has an evidence grade"}),
+        _t(next(seq), "P1", "Knowledge base", "Establish encyclopedia and knowledge-graph entries",
+           "Independent entity references strengthen disambiguation and retrieval confidence",
+           "Submit a verified encyclopedia entry and pursue Wikipedia for global markets when third-party sources support it",
+           "Marketing", "M", {"type": "manual", "desc": "Entry is approved and publicly available"}),
     ]
 
 
-# ---------------------------------------------------------------- 主流程
+# ---------------------------------------------------------------- Main flow
 
 def build(slug: str) -> dict:
     cfg = G.load_config(slug)
@@ -272,12 +283,12 @@ def build(slug: str) -> dict:
     tasks = (entity_tasks(cfg, counter) + from_audit(audit, cfg, counter)
              + from_metrics(metrics, cfg, counter) + from_benchmark(bench, cfg, counter))
 
-    # 排期窗口：P0 → 30 天，P1 → 60 天，P2 → 90 天
-    win = {"P0": "30天", "P1": "60天", "P2": "90天"}
+    # P0, P1, and P2 tickets map to 30-, 60-, and 90-day windows.
+    win = {"P0": "30_days", "P1": "60_days", "P2": "90_days"}
     for t in tasks:
-        t["window"] = win.get(t["priority"], "90天")
+        t["window"] = win.get(t["priority"], "90_days")
 
-    # 保留已有工单的状态与证据（重跑 plan 不该清空进度）
+    # Preserve status and evidence when the plan is regenerated.
     old = {t["id"]: t for t in (G.read_json(pdir / "tasks.json", {}) or {}).get("tasks", [])}
     old_by_title = {t["title"]: t for t in old.values()}
     for t in tasks:
@@ -317,8 +328,7 @@ def load(slug: str) -> dict:
 
 
 def save(slug: str, data: dict):
-    """写前先备份到 .geo.bak/（保留最近 10 份），写入走原子写。
-    tasks.json 是执行状态单一真相源，被误覆盖的代价远大于留几个备份文件。"""
+    """Back up the current task file before an atomic write, retaining ten copies."""
     data["summary"] = summarize(data.get("tasks", []))
     p = G.project_dir(slug) / "tasks.json"
     if p.exists():

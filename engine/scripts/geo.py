@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""GEO 自动化管线 CLI。
+"""GEO automation pipeline CLI.
 
-  python3 scripts/geo.py init --url https://example.com --name 品牌名
+  python3 scripts/geo.py init --url https://example.com --name BrandName
   python3 scripts/geo.py crawl        --slug example
   python3 scripts/geo.py audit        --slug example
   python3 scripts/geo.py sample       --slug example
   python3 scripts/geo.py sample-sheet --slug example
   python3 scripts/geo.py sample-import --slug example --file work/example/samples/2026-07-26-manual.md
   python3 scripts/geo.py report       --slug example
-  python3 scripts/geo.py cycle        --slug example      # 一条命令跑完整期
+  python3 scripts/geo.py cycle        --slug example
   python3 scripts/geo.py list
 """
 
@@ -43,14 +43,18 @@ def cmd_init(a):
     host = urlparse(url).netloc.removeprefix("www.")
     slug = a.slug or G.slugify(host.split(".")[0])
 
-    # 已存在的项目绝不覆盖：geo.json 里有问题库、竞品、事实口径，
-    # 覆盖等于把一期的人工投入清零。要重建必须显式加 --force。
+    # Existing projects require an explicit force reset.
     existing = G.project_dir(slug) / "geo.json"
     if existing.exists() and not getattr(a, "force", False):
         cur = G.read_json(existing, {})
         G.die(f"Project `{slug}` already exists ({len(cur.get('questions', []))} questions, "
-              f"竞品 {len(cur.get('competitors', []))} 个）。换一个 --slug，"
-              f"或确认要清空后加 --force")
+              f"{len(cur.get('competitors', []))} competitors). Choose another --slug or use --force to reset it")
+    if getattr(a, "force", False) and existing.parent.exists():
+        archive = G.WORK / ".archive"
+        archive.mkdir(parents=True, exist_ok=True)
+        destination = archive / f"{slug}-{G.new_run_id('reset')}"
+        existing.parent.replace(destination)
+        G.info(f"Previous project archived before force initialization: {destination}")
 
     name = a.name
     if not name:
@@ -81,7 +85,7 @@ def cmd_init(a):
         "questions": [],
         "materials": [],
         "targets": {"mention_rate": 0.5, "top3_rate": 0.3, "avg_page_score": 75},
-        "notes": "questions / competitors / aliases 由 Claude 按 SKILL.md 步骤 2 填充",
+        "notes": "Populate questions, competitors, and aliases during bootstrap",
     }
     G.save_config(slug, cfg)
     for sub in ("evidence", "samples", "metrics", "reports", "history", "content"):
@@ -104,7 +108,7 @@ def cmd_deliverables(a):
 
 
 def cmd_new(a):
-    """只给一个网址，跑完全流程出三份交付物。"""
+    """Run the complete pipeline from a single site URL."""
     import audit as A
     import blueprint as BP
     import bootstrap
@@ -157,7 +161,7 @@ def cmd_new(a):
 
 
 def cmd_autopilot(a):
-    """对已建好的项目跑完整引导：推导底座 → 采样 → 工单 → 资产 → 三份交付物。"""
+    """Run the complete onboarding pipeline for an existing project."""
     import audit as A
     import blueprint as BP
     import bootstrap
@@ -254,7 +258,7 @@ def cmd_cycle(a):
     G.info("=== 2/4 Site Audit ===")
     audit.run(a.slug)
     G.info("=== 3/4 Sampling ===")
-    # 采样失败不能把整期带崩：报告和待办比采样更重要
+    # Sampling failure must not prevent the remaining cycle outputs.
     if not G.load_config(a.slug).get("questions"):
         G.info("Skipped sampling: question library is empty")
     else:
@@ -356,7 +360,7 @@ def cmd_status(a):
     s = data.get("summary", {})
     print(f"\n{cfg['brand']['name']}  ({cfg.get('market')})  {cfg['brand']['site']}")
     print(f"  Site average score {audit.get('avg_score', '—')}  Pages {audit.get('page_count', '—')}"
-          f"  工单 {s.get('total', 0)} 条（可自动验收 {s.get('auto_verifiable', 0)}）")
+          f"  Tickets {s.get('total', 0)} (auto-verifiable {s.get('auto_verifiable', 0)})")
     if not data.get("tasks"):
         print("  No tickets found. Run plan to generate.\n")
         return
@@ -374,7 +378,7 @@ def cmd_status(a):
 
 
 def cmd_serve(a):
-    """一条命令跑完整个服务周期：诊断 → 方案 → 资产 → 验收 → 交付。"""
+    """Run the complete service cycle in one command."""
     import audit as A
     import crawl as C
     import deliver
@@ -437,151 +441,151 @@ def cmd_list(a):
 
 
 def main():
-    p = argparse.ArgumentParser(prog="geo", description="GEO 自动化管线")
+    p = argparse.ArgumentParser(prog="geo", description="GEO automation pipeline")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    s = sub.add_parser("init", help="新建项目")
+    s = sub.add_parser("init", help="Create a project")
     s.add_argument("--url", required=True)
     s.add_argument("--name")
     s.add_argument("--slug")
     s.add_argument("--market", choices=["cn", "global", "both"], default="cn")
     s.add_argument("--max-pages", type=int, default=25, dest="max_pages")
-    s.add_argument("--force", action="store_true", help="项目已存在时清空重建（危险）")
+    s.add_argument("--force", action="store_true", help="Archive and rebuild an existing project")
     s.set_defaults(func=cmd_init)
 
-    s = sub.add_parser("new", help="★ 只给一个网址，全自动出三份交付物")
+    s = sub.add_parser("new", help="Run the complete pipeline from a site URL")
     s.add_argument("--url", required=True)
     s.add_argument("--name")
     s.add_argument("--slug")
     s.add_argument("--market", choices=["cn", "global", "both"], default="both")
     s.add_argument("--max-pages", type=int, default=25, dest="max_pages")
-    s.add_argument("--limit", type=int, default=None, help="采样只跑前 N 题")
+    s.add_argument("--limit", type=int, default=None, help="Sample only the first N questions")
     s.add_argument("--no-sample", action="store_true", dest="no_sample")
-    s.add_argument("--skip-llm", action="store_true", dest="skip_llm", help="不用 LLM 推导底座")
+    s.add_argument("--skip-llm", action="store_true", dest="skip_llm", help="Skip LLM-assisted bootstrap")
     s.add_argument("--draft", action="store_true")
     s.add_argument("--draft-limit", type=int, default=3, dest="draft_limit")
     s.add_argument("--force", action="store_true")
     s.set_defaults(func=cmd_new)
 
-    s = sub.add_parser("autopilot", help="对已有项目跑完整引导流程")
+    s = sub.add_parser("autopilot", help="Run complete onboarding for an existing project")
     s.add_argument("--slug", required=True)
     s.add_argument("--limit", type=int, default=None)
     s.add_argument("--no-sample", action="store_true", dest="no_sample")
     s.add_argument("--skip-llm", action="store_true", dest="skip_llm")
     s.set_defaults(func=cmd_autopilot)
 
-    s = sub.add_parser("bootstrap", help="从官网正文自动推导品牌事实、竞品与问题库")
+    s = sub.add_parser("bootstrap", help="Derive brand facts, competitors, and questions")
     s.add_argument("--slug", required=True)
     s.add_argument("--skip-llm", action="store_true", dest="skip_llm")
     s.set_defaults(func=cmd_bootstrap)
 
-    s = sub.add_parser("deliverables", help="出三份正式交付物（诊断/优化/执行）")
+    s = sub.add_parser("deliverables", help="Compile diagnostic, optimization, and execution deliverables")
     s.add_argument("--slug", required=True)
     s.set_defaults(func=cmd_deliverables)
 
-    s = sub.add_parser("crawl", help="抓取官网")
+    s = sub.add_parser("crawl", help="Crawl the official site")
     s.add_argument("--slug", required=True)
     s.add_argument("--max-pages", type=int, default=None, dest="max_pages")
     s.set_defaults(func=cmd_crawl)
 
-    s = sub.add_parser("audit", help="页面 GEO 体检")
+    s = sub.add_parser("audit", help="Run the page-level GEO audit")
     s.add_argument("--slug", required=True)
     s.set_defaults(func=cmd_audit)
 
-    s = sub.add_parser("sample", help="API 平台答案采样")
+    s = sub.add_parser("sample", help="Sample answers through configured APIs")
     s.add_argument("--slug", required=True)
-    s.add_argument("--platforms", help="逗号分隔，默认取 geo.json 里有 Key 的")
-    s.add_argument("--repeat", type=int, default=1, help="每题重复采样次数")
-    s.add_argument("--limit", type=int, default=None, help="只跑前 N 个问题")
+    s.add_argument("--platforms", help="Comma-separated platform IDs")
+    s.add_argument("--repeat", type=int, default=1, help="Samples per question")
+    s.add_argument("--limit", type=int, default=None, help="Sample only the first N questions")
     s.set_defaults(func=cmd_sample)
 
-    s = sub.add_parser("sample-sheet", help="导出人工/浏览器采样表")
+    s = sub.add_parser("sample-sheet", help="Export a manual sampling sheet")
     s.add_argument("--slug", required=True)
     s.set_defaults(func=cmd_sheet)
 
-    s = sub.add_parser("sample-import", help="导入人工采样表")
+    s = sub.add_parser("sample-import", help="Import a manual sampling sheet")
     s.add_argument("--slug", required=True)
     s.add_argument("--file", required=True)
     s.set_defaults(func=cmd_import)
 
-    s = sub.add_parser("report", help="生成报告")
+    s = sub.add_parser("report", help="Generate the diagnostic report")
     s.add_argument("--slug", required=True)
     s.set_defaults(func=cmd_report)
 
-    s = sub.add_parser("cycle", help="抓取→体检→采样→报告 一次跑完")
+    s = sub.add_parser("cycle", help="Run crawl, audit, sampling, and report")
     s.add_argument("--slug", required=True)
     s.add_argument("--max-pages", type=int, default=None, dest="max_pages")
     s.add_argument("--limit", type=int, default=None)
     s.set_defaults(func=cmd_cycle)
 
-    s = sub.add_parser("expand", help="拓词：百度下拉/Google suggest 扩出真实需求候选题")
+    s = sub.add_parser("expand", help="Expand candidate questions from search suggestions")
     s.add_argument("--slug", required=True)
     s.add_argument("--no-llm", action="store_true", dest="no_llm",
-                   help="不调 LLM 转写问句，用模板兜底")
+                   help="Use templates instead of LLM question rewriting")
     s.set_defaults(func=cmd_expand)
 
-    s = sub.add_parser("plan", help="诊断结果 → 结构化工单（含验收标准）")
+    s = sub.add_parser("plan", help="Convert findings into structured tickets")
     s.add_argument("--slug", required=True)
     s.set_defaults(func=cmd_plan)
 
-    s = sub.add_parser("blueprint", help="GEO 建设蓝图：在哪些平台建、建什么内容、覆盖度多少")
+    s = sub.add_parser("blueprint", help="Build the GEO channel and content blueprint")
     s.add_argument("--slug", required=True)
     s.set_defaults(func=cmd_blueprint)
 
-    s = sub.add_parser("generate", help="产出可直接部署的资产（llms.txt/JSON-LD/片段/大纲）")
+    s = sub.add_parser("generate", help="Generate deployable GEO assets")
     s.add_argument("--slug", required=True)
-    s.add_argument("--asset", help="逗号分隔：llms,jsonld,snippets,outlines")
-    s.add_argument("--draft", action="store_true", help="额外调用 LLM 出文章初稿")
+    s.add_argument("--asset", help="Comma-separated: llms,jsonld,snippets,outlines")
+    s.add_argument("--draft", action="store_true", help="Generate additional LLM article drafts")
     s.add_argument("--draft-limit", type=int, default=3, dest="draft_limit")
     s.set_defaults(func=cmd_generate)
 
-    s = sub.add_parser("lint", help="检查 AI 初稿的编造风险（发布/交付前必跑）")
+    s = sub.add_parser("lint", help="Inspect AI drafts for unsupported claims")
     s.add_argument("--slug", required=True)
     s.set_defaults(func=cmd_lint)
 
-    s = sub.add_parser("verify", help="重抓并自动验收工单")
+    s = sub.add_parser("verify", help="Re-crawl and verify ticket acceptance criteria")
     s.add_argument("--slug", required=True)
     s.add_argument("--no-recrawl", action="store_true", dest="no_recrawl",
-                   help="用现有 audit 结果验收，不重新抓站")
+                   help="Use the current audit without re-crawling")
     s.set_defaults(func=cmd_verify)
 
-    s = sub.add_parser("deliver", help="打包客户交付物")
+    s = sub.add_parser("deliver", help="Compile the client delivery package")
     s.add_argument("--slug", required=True)
     s.set_defaults(func=cmd_deliver)
 
-    s = sub.add_parser("publish", help="把成稿/资产发布到已配置的渠道（永远手动触发）")
+    s = sub.add_parser("publish", help="Publish approved content to a configured destination")
     s.add_argument("--slug", required=True)
-    s.add_argument("--path", required=True, help="content/ 或 assets/ 下的相对路径")
+    s.add_argument("--path", required=True, help="Relative path under content/ or assets/")
     s.add_argument("--platform", required=True, choices=["github", "wordpress", "wechat_draft", "webhook"])
     s.add_argument("--title")
     s.set_defaults(func=cmd_publish)
 
-    s = sub.add_parser("task", help="查看或更新单条工单状态")
+    s = sub.add_parser("task", help="View or update a ticket")
     s.add_argument("--slug", required=True)
     s.add_argument("--id", required=True)
     s.add_argument("--status", choices=["todo", "doing", "done", "blocked", "wontfix"])
     s.add_argument("--note")
     s.set_defaults(func=cmd_task)
 
-    s = sub.add_parser("status", help="项目进度看板")
+    s = sub.add_parser("status", help="Show project progress")
     s.add_argument("--slug", required=True)
     s.set_defaults(func=cmd_status)
 
-    s = sub.add_parser("serve", help="完整服务周期：抓取→体检→采样→工单→资产→报告→验收→交付")
+    s = sub.add_parser("serve", help="Run the complete service cycle")
     s.add_argument("--slug", required=True)
     s.add_argument("--max-pages", type=int, default=None, dest="max_pages")
-    s.add_argument("--limit", type=int, default=None, help="采样只跑前 N 个问题")
+    s.add_argument("--limit", type=int, default=None, help="Sample only the first N questions")
     s.add_argument("--no-sample", action="store_true", dest="no_sample")
-    s.add_argument("--draft", action="store_true", help="额外生成文章初稿")
+    s.add_argument("--draft", action="store_true", help="Generate additional article drafts")
     s.add_argument("--draft-limit", type=int, default=3, dest="draft_limit")
     s.set_defaults(func=cmd_serve)
 
-    s = sub.add_parser("ui", help="启动可观测看板（趋势、工单、信源、验收历史）")
+    s = sub.add_parser("ui", help="Start the monitoring dashboard")
     s.add_argument("--port", type=int, default=8765)
     s.add_argument("--no-open", action="store_true", dest="no_open")
     s.set_defaults(func=cmd_ui)
 
-    s = sub.add_parser("list", help="列出所有项目")
+    s = sub.add_parser("list", help="List projects")
     s.set_defaults(func=cmd_list)
 
     a = p.parse_args()

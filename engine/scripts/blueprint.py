@@ -1,13 +1,7 @@
-"""GEO 建设蓝图：回答客户最关心的两个问题——**在哪些平台建、建什么内容**。
+"""Build the GEO channel and content blueprint.
 
-渠道优先级不是拍脑袋排的，是 CN-GEO 数据集 187,818 条去重引用实算出来的：
-每个渠道带着全国引用量、平均引用位置、覆盖平台端数，以及"不做会怎样"。
-
-产出 `blueprint.json`：
-  channels   渠道矩阵：建什么形态的内容、多少量、什么节奏、谁做、现在覆盖了没
-  contents   内容矩阵：每个目标问题需要什么类型的内容承接、现在有没有
-  coverage   覆盖度：渠道覆盖率、问题承接率
-  roadmap    30/60/90 分批
+Channel priorities use the CN-GEO reference ranking. ``blueprint.json`` stores
+the channel matrix, content matrix, coverage metrics, and phased roadmap.
 """
 
 from __future__ import annotations
@@ -17,11 +11,8 @@ from pathlib import Path
 
 import geolib as G
 
-# ---------------------------------------------------------------- 渠道库
-# national / position / platforms 均来自 references/cn-source-ranking.md 的实算值。
-# position 越小 = 在 AI 答案里出现得越靠前。None 表示该数据集中样本不足。
-
-# ---------------------------------------------------------------- 渠道库
+# ---------------------------------------------------------------- Channel catalog
+# national, position, and platforms come from references/cn-source-ranking.md.
 
 CHANNELS_CN = [
     dict(id="official", name="Official Site", kind="Owned Asset", domains=[], national=2569, position=None,
@@ -43,7 +34,7 @@ CHANNELS_CN = [
          why="28 domains capture 9.1% of national citations with the highest placement ranks (#6.10–#6.36). AI frequently synthesizes listicles from directory databases.",
          forms=["Brand profile (long/medium/short)", "Category rankings inclusion", "Spec comparison tables"],
          volume="4–5 directory profiles", cadence="Initial submission + quarterly updates", owner="Marketing",
-         effect="Highest leverage external authority channels"),
+         effect="High-frequency external authority channels in the reference dataset; project impact requires measurement"),
     dict(id="wechat", name="WeChat Official Accounts / Tencent News", kind="Media", domains=["qq.com", "mp.weixin.qq.com"],
          national=11017, position=None, platforms=11, priority="P1",
          why="qq.com spans 11 platforms and contributes 20.5% of Tencent Yuanbao citations.",
@@ -148,31 +139,29 @@ CHANNELS_GLOBAL = [
 
 
 CHANNEL_FITS = {
-    "official": ["recommendation", "comparison", "alternative", "pricing", "risk", "brand_verification", "scenario",
-                 "推荐", "比较", "替代", "价格", "风险", "品牌验证", "场景"],
-    "baike": ["brand_verification", "品牌验证"],
-    "ranking": ["recommendation", "comparison", "alternative", "推荐", "比较", "替代"],
-    "wechat": ["scenario", "recommendation", "risk", "场景", "推荐", "风险"],
-    "toutiao": ["scenario", "recommendation", "场景", "推荐"],
-    "zhihu": ["recommendation", "comparison", "alternative", "risk", "推荐", "比较", "替代", "风险"],
-    "tech": ["scenario", "comparison", "risk", "场景", "比较", "风险"],
+    "official": ["recommendation", "comparison", "alternative", "pricing", "risk", "brand_verification", "scenario"],
+    "baike": ["brand_verification"],
+    "ranking": ["recommendation", "comparison", "alternative"],
+    "wechat": ["scenario", "recommendation", "risk"],
+    "toutiao": ["scenario", "recommendation"],
+    "zhihu": ["recommendation", "comparison", "alternative", "risk"],
+    "tech": ["scenario", "comparison", "risk"],
     "quark": [],
-    "baijia": ["recommendation", "scenario", "brand_verification", "推荐", "场景", "品牌验证"],
-    "media": ["recommendation", "brand_verification", "推荐", "品牌验证"],
-    "bilibili": ["scenario", "场景"],
-    "official_en": ["recommendation", "comparison", "alternative", "pricing", "risk", "brand_verification", "scenario",
-                    "推荐", "比较", "替代", "价格", "风险", "品牌验证", "场景"],
-    "wikipedia": ["brand_verification", "品牌验证"],
-    "review": ["recommendation", "comparison", "alternative", "推荐", "比较", "替代"],
-    "reddit": ["recommendation", "alternative", "risk", "推荐", "替代", "风险"],
-    "youtube": ["scenario", "comparison", "场景", "比较"],
-    "devsite": ["scenario", "risk", "场景", "风险"],
-    "media_en": ["recommendation", "brand_verification", "推荐", "品牌验证"],
-    "linkedin": ["brand_verification", "scenario", "品牌验证", "场景"],
+    "baijia": ["recommendation", "scenario", "brand_verification"],
+    "media": ["recommendation", "brand_verification"],
+    "bilibili": ["scenario"],
+    "official_en": ["recommendation", "comparison", "alternative", "pricing", "risk", "brand_verification", "scenario"],
+    "wikipedia": ["brand_verification"],
+    "review": ["recommendation", "comparison", "alternative"],
+    "reddit": ["recommendation", "alternative", "risk"],
+    "youtube": ["scenario", "comparison"],
+    "devsite": ["scenario", "risk"],
+    "media_en": ["recommendation", "brand_verification"],
+    "linkedin": ["brand_verification", "scenario"],
 }
 
 
-# ---------------------------------------------------------------- 内容矩阵
+# ---------------------------------------------------------------- Content matrix
 
 GROUP_PLAN = {
     "recommendation": ("Listicle / Category Page", "Addresses 'best / top' queries — provide evaluation criteria first"),
@@ -181,14 +170,7 @@ GROUP_PLAN = {
     "pricing": ("Transparent Pricing Page", "Pricing clarity directly influences model confidence scores"),
     "risk": ("Security & Reliability Page", "Addresses data safety and compliance proactively"),
     "brand_verification": ("About Us & Knowledge Graph", "Primary factual source for entity recognition queries"),
-    "scenario": ("How-To Tutorial Page", "Step-by-step instructions with numeric facts (+61.6% impact)"),
-    "推荐": ("Listicle / Category Page", "Addresses 'best / top' queries — provide evaluation criteria first"),
-    "比较": ("Comparison Matrix Page", "6–10 standardized dimensions, acknowledge trade-offs for credibility"),
-    "替代": ("Alternative Guide Page", "Directly addresses migration considerations and key differentiators"),
-    "价格": ("Transparent Pricing Page", "Pricing clarity directly influences model confidence scores"),
-    "风险": ("Security & Reliability Page", "Addresses data safety and compliance proactively"),
-    "品牌验证": ("About Us & Knowledge Graph", "Primary factual source for entity recognition queries"),
-    "场景": ("How-To Tutorial Page", "Step-by-step instructions with numeric facts (+61.6% impact)"),
+    "scenario": ("How-To Tutorial Page", "Step-by-step instructions with verified numeric facts; validate impact through sampling"),
 }
 
 
@@ -214,27 +196,37 @@ def build(slug: str) -> dict:
     files = sorted((pdir / "metrics").glob("*.json")) if (pdir / "metrics").exists() else []
     metrics = G.read_json(files[-1], {}) if files else {}
     cited: dict[str, set] = {"cn": set(), "global": set()}
+    brand_cited: dict[str, set] = {"cn": set(), "global": set()}
     for m in (metrics.get("platforms") or {}).values():
         mk = m.get("market", "cn")
         for d in (m.get("top_cited_domains") or {}):
             cited[mk].add(d.lower())
+        for d in (m.get("top_brand_cited_domains") or {}):
+            brand_cited[mk].add(d.lower())
 
-    def covered(ch, mk):
+    def matches(ch, mk, source):
         if ch["id"] in ("official", "official_en"):
             own = cfg["brand"]["site"].split("//")[-1].split("/")[0].removeprefix("www.")
-            return any(d == own or d.endswith("." + own) for d in cited[mk])
-        return any(any(c == dom or c.endswith("." + dom) for c in cited[mk])
+            return sorted(d for d in source[mk] if d == own or d.endswith("." + own))
+        return sorted(c for c in source[mk] if any(c == dom or c.endswith("." + dom)
                    for dom in ch["domains"])
+        )
 
     channels = []
     for mk, lst in (("cn", CHANNELS_CN), ("global", CHANNELS_GLOBAL)):
         if market not in (mk, "both"):
             continue
         for ch in lst:
-            channels.append({**ch, "market": mk, "covered": covered(ch, mk),
+            observed = matches(ch, mk, cited)
+            verified = matches(ch, mk, brand_cited)
+            status = "brand_cited" if verified else "observed_source" if observed else "gap"
+            channels.append({**ch, "market": mk, "covered": bool(verified),
+                             "coverage_status": status,
+                             "coverage_evidence": verified,
+                             "observed_source_evidence": observed,
                              "fits": CHANNEL_FITS.get(ch["id"], [])})
 
-    # 内容矩阵
+    # Content matrix
     hits = _existing_content(slug)
     contents = []
     for q in cfg.get("questions", []):

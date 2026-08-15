@@ -6,12 +6,10 @@ from datetime import datetime, timezone
 from api.adapters import brand_identity
 from api.adapters.engine import geolib
 from api.adapters.global_scope import is_global_sample
+from api.adapters.sampling_modes import MODE_API, MODE_MANUAL, MODE_SEARCH, for_provider
 
 
 SCHEMA_VERSION = "1.0"
-MODE_API = "API - Parametric knowledge"
-MODE_SEARCH = "API - Search grounded"
-MODE_MANUAL = "Manual - Product interface"
 MIN_COMPARABLE_SAMPLES = 20
 MIN_REPRESENTATIVE_PLATFORMS = 2
 
@@ -21,7 +19,7 @@ def question_set_version(config):
 
 
 def _mode(provider):
-    return MODE_SEARCH if provider.get("search") else MODE_API
+    return for_provider(provider)
 
 
 def _sample_summary(project_slug):
@@ -186,6 +184,8 @@ def sampling_quality(project_slug):
         comparable, reason = False, "Historical data missing question set version, methodology consistency unconfirmed"
     elif current_version != previous_version:
         comparable, reason = False, "Question set version changed; periods cannot be directly compared"
+    elif current.get("cohort_id") and previous.get("cohort_id") and current["cohort_id"] != previous["cohort_id"]:
+        comparable, reason = False, "Sampling cohort changed; periods cannot be directly compared"
     elif _cohort_signature(current) != _cohort_signature(previous):
         comparable, reason = False, "Sampling platforms, modes, or models changed; periods cannot be directly compared"
     elif current_rate is None or previous_rate is None:
@@ -304,6 +304,10 @@ def record_sampling(
     metrics_files = sorted((geolib.project_dir(project_slug) / "metrics").glob("*.json"))
     if metrics_files:
         metrics = geolib.read_json(metrics_files[-1], {}) or {}
+        manifest["run_id"] = metrics.get("run_id")
+        manifest["cohort_id"] = metrics.get("cohort_id")
+        manifest["engine_question_set_id"] = metrics.get("question_set_id")
+        geolib.write_json(manifest_path, manifest)
         metrics["provenance"] = manifest
         metrics["question_set_version"] = qset["version"]
         metrics["sample_summary"] = _sample_summary(project_slug)

@@ -163,7 +163,8 @@ export const projects = {
   triggerSample: (id, body = {}) => request(`/api/v1/projects/${encodeURIComponent(id)}/sample`, { method: 'POST', body }),
 
   getReport: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/report`).then((data) => (
-    data && data.report ? { ...data.report, report_quality: data.report_quality, date: data.date } : null
+    data && data.report ? { ...data.report, report_quality: data.report_quality, date: data.date,
+      sample_artifact: data.sample_artifact } : null
   )),
   getEngines: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/engines`),
   getFraming: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/framing`), 'framing', null),

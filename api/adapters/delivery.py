@@ -529,7 +529,7 @@ def _identity(project_directory, project_slug, config, audit):
 
 
 def _sample_modes(project_directory, metrics):
-    date = str((metrics or {}).get("date") or "")
+    date = str((metrics or {}).get("run_id") or (metrics or {}).get("date") or "")
     config = geolib.read_json(project_directory / "geo.json", {}) or {}
     rows = geolib.read_jsonl(project_directory / "samples" / f"{date}.jsonl") if date else []
     by_platform = {}
@@ -557,8 +557,6 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
     coverage = audit.get("language_coverage") or {}
     grades = audit.get("applicable_grade_distribution") or audit.get("grade_distribution") or {}
     site_score = audit.get("applicable_avg_score")
-    if site_score is None:
-        site_score = audit.get("avg_score")
     audited_at = str(audit.get("audited_at") or geolib.today())[:10]
     lines = [
         f"# {name} GEO Audit Report",
@@ -667,7 +665,7 @@ def _execution_markdown(name, tickets, tasks):
         "",
         "This plan converts the current audit and visibility baseline into assigned, verifiable work.",
         "",
-        f"- Baseline site score: {_format_number(baseline.get('avg_score'))}",
+        f"- Baseline site score: {_format_number(baseline.get('applicable_avg_score'))}",
         f"- Baseline pages: {_format_number(baseline.get('pages'))}",
         f"- Total tickets: {len(tickets)}",
         "",
@@ -908,7 +906,10 @@ def _build_map_markdown(name, blueprint):
     for channel in sorted(channels, key=lambda item: (item.get("priority", "P9"), str(item.get("id", "")))):
         coverage_status = global_scope.channel_coverage_status(channel)
         evidence = []
-        evidence.extend(f"observed citation on {domain}" for domain in channel.get("coverage_evidence") or [])
+        evidence.extend(f"brand-linked citation on {domain}" for domain in channel.get("coverage_evidence") or [])
+        evidence.extend(
+            f"source observed on {domain}" for domain in channel.get("observed_source_evidence") or []
+        )
         if channel.get("national") is not None:
             evidence.append(f"{channel['national']:,} observed citations")
         if channel.get("position") is not None:
@@ -916,7 +917,9 @@ def _build_map_markdown(name, blueprint):
         if channel.get("platforms") is not None:
             evidence.append(f"observed across {channel['platforms']} platforms")
         status = {
-            "covered": "Covered",
+            "brand_cited": "Brand cited",
+            "covered": "Covered (legacy)",
+            "observed_source": "Observed source",
             "gap": "Gap",
             "manual": "Manual review",
         }[coverage_status]
@@ -1453,9 +1456,7 @@ def _write_llms_asset(project_slug, source, destination, config, audit, facts, m
         ]
     lines.append("")
     text = "\n".join(lines)
-    relative = Path("llms.en.txt") if complete and facts.get("reviewed") else (
-        Path("drafts/llms.en.txt") if complete else Path("llms.en.txt")
-    )
+    relative = Path("llms.en.txt") if complete and facts.get("reviewed") else Path("drafts/llms.en.txt")
     target = destination / relative
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, "utf-8")
@@ -1811,7 +1812,8 @@ def _asset_record(destination, delivery_path):
     if status == "needs_review":
         issues.append("Draft requires factual and editorial review")
     if status == "template":
-        target = destination / "templates" / relative
+        template_relative = Path("llms.en.txt") if relative == Path("drafts/llms.en.txt") else relative
+        target = destination / "templates" / template_relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(path, target)
         relative = target.relative_to(destination)
@@ -1894,8 +1896,6 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     schema_selection = asset_index.get("schema_selection") or {}
     documents = [f"{number}-{title}.html" for number, title in REQUIRED_DOCUMENTS.items()]
     site_score = audit.get("applicable_avg_score")
-    if site_score is None:
-        site_score = audit.get("avg_score")
     lines = [
         f"# {name} GEO Delivery Pack",
         "",

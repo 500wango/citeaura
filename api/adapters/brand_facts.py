@@ -183,6 +183,42 @@ def extract_brand_facts(ask_json, project_slug, digest):
     site = _text(brand.get("site"), "Unknown official website", limit=2048)
     prompt = ENGLISH_BRAND_PROMPT.replace("{site}", site) + str(digest or "") + "\n</official_site_evidence>"
     extracted = _model_brand(ask_json(prompt), brand)
+    evidence = " ".join(str(digest or "").split()).casefold()
+
+    def grounded(value):
+        text = " ".join(str(value or "").split()).casefold()
+        return bool(text and text in evidence)
+
+    configured_name = _text(brand.get("name"), "Needs verification")
+    if extracted["name"] != configured_name and not grounded(extracted["name"]):
+        extracted["name"] = configured_name
+    for field in ("aliases", "products", "suitable", "unsuitable", "disambiguation"):
+        configured = set(_items(brand.get(field)))
+        extracted[field] = [value for value in extracted[field] if grounded(value) or value in configured]
+    for field in ("industry", "target_users", "business_goal"):
+        configured = _provided(brand.get(field))
+        if extracted[field] != configured and not grounded(extracted[field]):
+            extracted[field] = configured or "Needs verification"
+    extracted["key_numbers"] = [item for item in extracted["key_numbers"] if grounded(item.get("value"))]
+    configured_pricing = {
+        (
+            _text(item.get("name")).casefold(),
+            _text(item.get("price")).casefold(),
+            _text(item.get("currency")).casefold(),
+        )
+        for item in (brand.get("offers") or [])
+        if isinstance(item, dict)
+    }
+    extracted["pricing"] = [
+        item for item in extracted["pricing"]
+        if grounded(item.get("price")) or (
+            _text(item.get("name")).casefold(),
+            _text(item.get("price")).casefold(),
+            _text(item.get("currency")).casefold(),
+        ) in configured_pricing
+    ]
+    extracted["extraction_provenance"] = "official_site_grounded_v2"
+    extracted["definition_review_required"] = bool(extracted.get("definition"))
     for field in ("industry", "target_users", "business_goal"):
         if extracted[field].casefold() == "needs verification":
             extracted[field] = ""

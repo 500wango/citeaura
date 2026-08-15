@@ -24,7 +24,7 @@ from api.adapters.engine import (
     with_tenant_context,
 )
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import audit_presentation, brand_identity, delivery, framing, global_scope, preflight, report_quality, sampling_control, ticket_workflow, workspace
+from api.adapters import audit_presentation, brand_identity, delivery, framing, global_scope, preflight, report_quality, sampling_control, sampling_modes, ticket_workflow, workspace
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
@@ -389,16 +389,9 @@ def _product_report(project_slug, metrics):
     citations = {}
     for item in engine_rows:
         platform_rows = [row for row in rows if row.get("platform") == item.get("platform")]
-        modes = {
-            "manual" if row.get("sample_mode") == "manual" or row.get("terminal") == "web" else "api"
-            for row in platform_rows
-        }
-        if len(modes) > 1:
-            sampling_mode = "Mixed API and product-interface samples"
-        elif "manual" in modes:
-            sampling_mode = "Manual - Product interface"
-        else:
-            sampling_mode = "API - Search grounded" if item.get("searched") else "API - Parametric knowledge"
+        modes = {sampling_modes.for_row(row) for row in platform_rows}
+        sampling_mode = (sampling_modes.MODE_MANUAL if sampling_modes.MODE_MANUAL in modes
+                         else next(iter(modes), sampling_modes.MODE_API))
         normalized = {
             "engine_code": item.get("platform"),
             "engine_name": item.get("label") or item.get("platform"),
@@ -652,7 +645,7 @@ def project_preflight(
         "site": site,
         "byok_engines": sorted(byok),
         "manual_only": [
-            {"engine_code": code, "name": name, "sampling_mode": "Manual - Product interface", "market": market}
+            {"engine_code": code, "name": name, "sampling_mode": sampling_modes.MODE_MANUAL, "market": market}
             for code, (name, market) in sorted(sample.MANUAL_ONLY.items())
             if market == "global"
         ],
@@ -1247,7 +1240,9 @@ def project_report(project_id: int, current_user: User = Depends(get_current_use
         metrics = geolib.read_json(path, None)
         product_report = _product_report(project.slug, metrics)
         quality = report_quality.assess(project.slug, _has_sampling_access(db, tenant, project))
-    return {"report": product_report, "date": metrics.get("date") if metrics else None, "report_quality": quality}
+    return {"report": product_report, "date": metrics.get("date") if metrics else None,
+            "sample_artifact": (metrics.get("run_id") or metrics.get("date")) if metrics else None,
+            "report_quality": quality}
 
 
 @router.get("/{project_id}/engines")
@@ -1268,6 +1263,7 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
         "project_id": project.id,
         "project_slug": project.slug,
         "date": metrics.get("date") if metrics else None,
+        "sample_artifact": (metrics.get("run_id") or metrics.get("date")) if metrics else None,
         "engines": [
             {
                 **item,
@@ -1316,13 +1312,21 @@ def project_samples(
     db: Session = Depends(get_db),
 ):
     """按日期返回原始答案回放。"""
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", sample_date):
+    if not re.fullmatch(r"(?:\d{4}-\d{2}-\d{2}|sample-[A-Za-z0-9-]{20,80})", sample_date):
         _error(status.HTTP_400_BAD_REQUEST, "invalid_sample_date")
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     with with_tenant_context(tenant.name, project.slug):
         config = global_scope.normalize_project(project.slug)
-        path = geolib.project_dir(project.slug) / "samples" / f"{sample_date}.jsonl"
+        sample_dir = geolib.project_dir(project.slug) / "samples"
+        path = sample_dir / f"{sample_date}.jsonl"
+        if not path.is_file() and re.fullmatch(r"\d{4}-\d{2}-\d{2}", sample_date):
+            candidates = []
+            for candidate in sorted(sample_dir.glob("sample-*.jsonl")) if sample_dir.is_dir() else []:
+                first = geolib.read_jsonl(candidate)[:1]
+                if first and first[0].get("date") == sample_date:
+                    candidates.append(candidate)
+            path = candidates[-1] if candidates else path
         if not path.is_file():
             _error(status.HTTP_404_NOT_FOUND, "samples_not_found")
         all_rows = geolib.read_jsonl(path)
@@ -1342,6 +1346,7 @@ def project_samples(
         "project_id": project.id,
         "project_slug": project.slug,
         "date": sample_date,
+        "sample_artifact": path.stem,
         "samples": rows,
         "excluded_sample_count": len(excluded),
         "exclusion_reasons": exclusion_reasons,

@@ -199,15 +199,15 @@ def test_delivery_audit_uses_page_role_applicability(tmp_path, monkeypatch):
     execution = (output / "02-Execution-Plan.md").read_text("utf-8")
     tickets = (output / "03-Ticket-Log.md").read_text("utf-8")
     verification = (output / "04-Acceptance-Checklist.md").read_text("utf-8")
-    assert "Applicable site score: **100**" in report
+    assert "Applicable site score: **Not measured**" in report
     assert "only evidence-backed checks applicable to each page role" in report
     assert "Missing definition block" not in report
     assert "Missing FAQ block" not in report
-    assert "| 100 | 44 | A |" in report
-    assert "Baseline site score: 100" in execution
-    assert "Add clear definitions to applicable pages" not in tickets
-    assert "Re-audit applicable score: 100" in verification
-    assert "T-002" not in verification
+    assert "| Not scored | 44 | - |" in report
+    assert "Baseline site score: Not measured" in execution
+    assert "Add clear definitions to applicable pages" in tickets
+    assert "Re-audit applicable score: Not measured" in verification
+    assert "T-002" in verification
     assert delivery.delivery_language_violations(output) == []
 
 

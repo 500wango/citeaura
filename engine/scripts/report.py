@@ -1,9 +1,9 @@
-"""生成本期 GEO 报告：Markdown + 自包含 HTML，并和上一期对比出 delta。
+"""Generate the current GEO report as Markdown and self-contained HTML.
 
-产物：
-  work/<slug>/reports/<日期>/report.md
-  work/<slug>/reports/<日期>/report.html
-  work/<slug>/reports/latest.md（软链接式副本，方便 Claude 每次直接读）
+Outputs:
+  work/<slug>/reports/<date>/report.md
+  work/<slug>/reports/<date>/report.html
+  work/<slug>/reports/latest.md
 """
 
 from __future__ import annotations
@@ -41,6 +41,13 @@ def delta(cur, prev, pct=False):
         return " (flat)"
     arrow = "↑" if d > 0 else "↓"
     return f" ({arrow}{abs(d)*100:.1f}pp)" if pct else f" ({arrow}{abs(d):.1f})"
+
+
+def _weighted(rows, field):
+    values = [(row.get(field), int(row.get("samples") or 0)) for row in rows
+              if row.get(field) is not None and int(row.get("samples") or 0) > 0]
+    total = sum(count for _value, count in values)
+    return sum(value * count for value, count in values) / total if total else None
 
 
 def pct(v):
@@ -128,9 +135,13 @@ def build_markdown(cfg, audit, metrics, prev_m, prev_a, todos) -> str:
                     if m.get("market", "cn") == mk]
             if not pool:
                 continue
-            rows = [(p, m) for p, m in pool if m.get("mention_rate") is not None]
-            if not rows:
+            measured = [(p, m) for p, m in pool if m.get("mention_rate") is not None]
+            rows = [(p, m) for p, m in measured if int(m.get("samples") or 0) >= 5]
+            if not measured:
                 A(f"- {mk_name}: Unmeasured")
+                continue
+            if not rows:
+                A(f"- {mk_name}: Insufficient samples for platform comparisons")
                 continue
             best = max(rows, key=lambda x: x[1]["mention_rate"])
             worst = min(rows, key=lambda x: x[1]["mention_rate"])
@@ -174,17 +185,18 @@ def build_markdown(cfg, audit, metrics, prev_m, prev_a, todos) -> str:
     A("")
     A("| Score | Words | Missing Extraction Blocks | Page |")
     A("|---:|---:|---|---|")
-    for p in audit["pages"][:12]:
-        miss = ", ".join([k for k, v in p["blocks"].items() if not v]) or "—"
+    scored_pages = [page for page in audit["pages"] if page.get("score") is not None]
+    for p in scored_pages[:12]:
+        miss = ", ".join([k for k, v in p["blocks"].items() if v is False]) or "—"
         label = cell(p["title"] or p["url"])[:40]
         A(f"| {p['score']} | {p['word_count']} | {miss} | [{label}]({p['url']}) |")
     A("")
-    A("Sitewide Extraction Block Gaps (Highest Leverage GEO Actions):")
+    A("Sitewide Extraction Block Gaps (Research Associations, Not Causal Lifts):")
     A("")
-    A("| Extraction Block | Missing Pages | Empirical Lift |")
+    A("| Extraction Block | Missing Pages | Evidence Note |")
     A("|---|---:|---|")
-    gain = {"数字事实": "+61.6%", "定义": "+57.3%", "对比": "+55.3%", "操作步骤": "+41.2%", "FAQ": "Facilitates direct QA retrieval",
-            "numeric_facts": "+61.6%", "definition": "+57.3%", "comparison": "+55.3%", "steps": "+41.2%", "faq": "Facilitates direct QA retrieval"}
+    gain = {key: "Associated with higher citation rates in the reference dataset; validate per project"
+            for key in ("numeric_facts", "definition", "comparison", "steps", "faq")}
     for g in audit["block_gap"]:
         A(f"| {g['block']} | {g['missing_pages']}/{g['total']} | {gain.get(g['block'], '—')} |")
     A("")
@@ -272,9 +284,9 @@ def market_avg_cards(metrics) -> list[tuple[str, str]]:
         pool = [m for m in metrics["platforms"].values() if m.get("market", "cn") == mk]
         if not pool:
             continue
-        rates = [m["mention_rate"] for m in pool if m.get("mention_rate") is not None]
+        rate = _weighted(pool, "mention_rate")
         cards.append((f"{mk_name} Avg Mention",
-                      f"{sum(rates)/len(rates):.0%}" if rates else "Unmeasured"))
+                      f"{rate:.0%}" if rate is not None else "Unmeasured"))
     return cards
 
 
@@ -372,7 +384,7 @@ def run(slug: str) -> Path:
     if metrics is None:
         files = sorted((pdir / "metrics").glob("*.json")) if (pdir / "metrics").exists() else []
         metrics = G.read_json(files[-1], None) if files else None
-    pm = prev_metrics(pdir, metrics["date"] if metrics else G.today())
+    pm = prev_metrics(pdir, (metrics.get("run_id") or metrics.get("date")) if metrics else G.today())
     pa = prev_audit(pdir)
 
     todos = collect_todos(audit)

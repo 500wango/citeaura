@@ -1,13 +1,8 @@
-"""三份正式交付物：诊断报告 / 优化方案 / 执行方案。
+"""Compile the diagnostic, optimization, and execution deliverables.
 
-前面各模块产出的是数据（audit.json / metrics / blueprint.json / tasks.json），
-这里把它们组织成客户看得懂、能签收的三份文档：
-
-  诊断报告  现在什么样   —— 站点体检 + AI 可见性 + 与全国大盘对照
-  优化方案  应该改成什么样 —— 结论、机会地图、建设地图、资源取舍
-  执行方案  谁在什么时候做什么 —— 工单、排期、验收标准、资产清单
-
-三份都出 Markdown + 自包含 HTML。
+Upstream modules produce audit, metrics, blueprint, and task data. This module
+organizes them into three client-ready documents, each emitted as Markdown and
+self-contained HTML.
 """
 
 from __future__ import annotations
@@ -16,11 +11,18 @@ from pathlib import Path
 
 import blueprint as BP
 import geolib as G
+
+
+def _weighted(rows: list[dict], field: str):
+    values = [(row.get(field), int(row.get("samples") or 0)) for row in rows
+              if row.get(field) is not None and int(row.get("samples") or 0) > 0]
+    total = sum(count for _value, count in values)
+    return sum(value * count for value, count in values) / total if total else None
 import report as R
 import tasks as T
 
-STATUS_CN = {"todo": "Todo", "doing": "In Progress", "done": "Done",
-             "blocked": "Blocked", "wontfix": "Won't Fix"}
+STATUS_LABEL = {"todo": "Todo", "doing": "In Progress", "done": "Done",
+                "blocked": "Blocked", "wontfix": "Won't Fix"}
 
 
 def _load(slug: str):
@@ -34,7 +36,7 @@ def _load(slug: str):
     return cfg, audit, metrics, bp, td
 
 
-# ---------------------------------------------------------------- 优化方案
+# ---------------------------------------------------------------- Optimization plan
 
 def optimization_plan(slug: str) -> str:
     cfg, audit, metrics, bp, td = _load(slug)
@@ -57,10 +59,10 @@ def optimization_plan(slug: str) -> str:
             rows = [v for v in metrics["platforms"].values() if v.get("market", "cn") == m_]
             if not rows:
                 continue
-            mr_v = [v["mention_rate"] for v in rows if v.get("mention_rate") is not None]
-            oc_v = [v["own_domain_cite_rate"] for v in rows if v.get("own_domain_cite_rate") is not None]
-            mr = f"{sum(mr_v)/len(mr_v):.0%}" if mr_v else "Unmeasured"
-            oc = f"{sum(oc_v)/len(oc_v):.0%}" if oc_v else "Unmeasured"
+            mr_value = _weighted(rows, "mention_rate")
+            oc_value = _weighted(rows, "own_domain_cite_rate")
+            mr = f"{mr_value:.0%}" if mr_value is not None else "Unmeasured"
+            oc = f"{oc_value:.0%}" if oc_value is not None else "Unmeasured"
             L.append(f"- {name} Market: Across {len(rows)} model platforms, average **unprompted mention rate {mr}**, "
                      f"own domain citation rate {oc}")
         L.append("")
@@ -89,9 +91,7 @@ def optimization_plan(slug: str) -> str:
 
     own = None
     if metrics:
-        vals = [v["own_domain_cite_rate"] for v in metrics["platforms"].values()
-                if v.get("own_domain_cite_rate") is not None]
-        own = sum(vals) / len(vals) if vals else None
+        own = _weighted(list(metrics["platforms"].values()), "own_domain_cite_rate")
     if own is None:
         L.append("| ② Citation Ingestion | Own domain cite rate unmeasured "
                  "| Run sampling cycle to establish baseline |")
@@ -114,7 +114,7 @@ def optimization_plan(slug: str) -> str:
         ("Entity Disambiguation & Fact Grounding", "P0", b.get("disambiguation") or [],
          "Ensure factual consistency. Standardize definitions across Hero slogan, About page, JSON-LD, and llms.txt."),
         ("Information Extraction Blocks", "P1", [g["block"] for g in gaps if g["missing_pages"] >= max(3, g["total"] * .3)],
-         "Empirical lift: Numeric facts +61.6%, Definitions +57.3%, Comparisons +55.3%, How-to steps +41.2%."),
+         "These structures were associated with higher citation rates in the reference dataset; they are not universal causal lifts."),
         ("Authoritative External Sources", "P1", [],
          "**Official brand sites account for only 1.37% of citations across models**—the official site is a source of truth, not the primary citation link. External authority drives AI recommendations."),
         ("Content Architecture", "P1", [],
@@ -159,8 +159,8 @@ def optimization_plan(slug: str) -> str:
         for m_, name in (("cn", "Domestic (CN)"), ("global", "Global")):
             rows = [v for v in metrics["platforms"].values() if v.get("market", "cn") == m_]
             if rows:
-                cur_v = [v["mention_rate"] for v in rows if v.get("mention_rate") is not None]
-                cur = f"{sum(cur_v)/len(cur_v):.0%}" if cur_v else "Unmeasured"
+                cur_value = _weighted(rows, "mention_rate")
+                cur = f"{cur_value:.0%}" if cur_value is not None else "Unmeasured"
                 L.append(f"| {name} Unprompted Mention Rate | {cur} | {tg.get('mention_rate', .3):.0%} |")
     L += [f"| Own Domain Citation Rate | {f'{own:.0%}' if own is not None else 'Unmeasured'} | {tg.get('own_domain_cite_rate', .2):.0%} |", "",
           "## 7. Service Boundaries", "",
@@ -171,7 +171,7 @@ def optimization_plan(slug: str) -> str:
     return "\n".join(L)
 
 
-# ---------------------------------------------------------------- 执行方案
+# ---------------------------------------------------------------- Execution plan
 
 def execution_plan(slug: str) -> str:
     cfg, audit, metrics, bp, td = _load(slug)
@@ -185,12 +185,10 @@ def execution_plan(slug: str) -> str:
          "> Auto-verifiable tickets are evaluated deterministically upon site re-crawling.", "", "---", ""]
 
     L += ["## 1. Phased Milestones", ""]
-    for win, label in (("30天", "Phase 1 · 0–30 Days · Foundation"),
-                       ("60天", "Phase 2 · 30–60 Days · Primary Visibility Gains"),
-                       ("90天", "Phase 3 · 60–90 Days · Scaling & Closed-Loop")):
-        batch = [t for t in rows if t.get("window") == win or t.get("window") == f"{win[:2]} Days"]
-        if not batch:
-            batch = [t for t in rows if win[:2] in str(t.get("window", ""))]
+    for window, label in (("30_days", "Phase 1 · 0–30 Days · Foundation"),
+                          ("60_days", "Phase 2 · 30–60 Days · Primary Visibility Gains"),
+                          ("90_days", "Phase 3 · 60–90 Days · Scaling & Closed-Loop")):
+        batch = [t for t in rows if t.get("window") == window]
         if not batch:
             continue
         done = sum(1 for t in batch if t["status"] == "done")
@@ -201,7 +199,7 @@ def execution_plan(slug: str) -> str:
             L.append(f"| {t['id']} | {R.cell(t['title'])} | {t['package']} | {t['owner']} "
                      f"| {T.EFFORT.get(t['effort'], t['effort'])} "
                      f"| {R.cell(t['acceptance'].get('desc',''))} "
-                     f"| {STATUS_CN.get(t['status'], t['status'])} |")
+                     f"| {STATUS_LABEL.get(t['status'], t['status'])} |")
         L.append("")
 
     L += ["## 2. Role-Based Assignments", "",
@@ -252,7 +250,7 @@ def execution_plan(slug: str) -> str:
     return "\n".join(L)
 
 
-# ---------------------------------------------------------------- 主流程
+# ---------------------------------------------------------------- Main flow
 
 def run(slug: str) -> Path:
     cfg = G.load_config(slug)
@@ -264,8 +262,8 @@ def run(slug: str) -> Path:
     reports = sorted((pdir / "reports").glob("2*")) if (pdir / "reports").exists() else []
     if reports:
         import shutil
-        for src, dst in ((reports[-1] / "report.md", "1-GEO诊断报告.md"),
-                         (reports[-1] / "report.html", "1-GEO诊断报告.html")):
+        for src, dst in ((reports[-1] / "report.md", "1-GEO-Diagnostic-Report.md"),
+                         (reports[-1] / "report.html", "1-GEO-Diagnostic-Report.html")):
             if src.exists():
                 shutil.copy2(src, out / dst)
 
@@ -273,17 +271,17 @@ def run(slug: str) -> Path:
     td = T.load(slug)
 
     opt = optimization_plan(slug)
-    (out / "2-GEO优化方案.md").write_text(opt, "utf-8")
-    (out / "2-GEO优化方案.html").write_text(
+    (out / "2-GEO-Optimization-Plan.md").write_text(opt, "utf-8")
+    (out / "2-GEO-Optimization-Plan.html").write_text(
         R.build_html(f"{name} · GEO Strategy & Optimization Plan", opt,
                      [("Site Score", str(audit.get("avg_score", "—"))),
                       ("Crawled Pages", str(audit.get("page_count", "—"))),
                       ("Total Tickets", str(td.get("summary", {}).get("total", 0)))]), "utf-8")
 
     exe = execution_plan(slug)
-    (out / "3-GEO执行方案.md").write_text(exe, "utf-8")
+    (out / "3-GEO-Execution-Plan.md").write_text(exe, "utf-8")
     s = td.get("summary", {})
-    (out / "3-GEO执行方案.html").write_text(
+    (out / "3-GEO-Execution-Plan.html").write_text(
         R.build_html(f"{name} · GEO Execution Plan", exe,
                      [("Total Tickets", str(s.get("total", 0))),
                       ("P0 Blockers", str(s.get("by_priority", {}).get("P0", 0))),

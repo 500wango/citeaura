@@ -89,7 +89,7 @@ def test_framing_uses_latest_samples_and_keeps_source_evidence(tmp_path, monkeyp
     assert repeated["count"] == 2
     assert repeated["share"] == 1.0
     assert repeated["engines"] == ["OpenAI", "Perplexity"]
-    assert {item["sampling_mode"] for item in repeated["evidence"]} == {"API - Parametric knowledge", "API - Search grounded"}
+    assert {item["sampling_mode"] for item in repeated["evidence"]} == {"API·参数化知识", "API·联网检索"}
     assert "专业的 AI" not in str(result)
     assert "old product" not in str(result)
 

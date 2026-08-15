@@ -43,8 +43,8 @@ def test_model_extraction_uses_url_and_fails_closed_on_non_english_values(tmp_pa
     assert "<official_site_evidence>" in prompts[0]
     assert result["industry"] == ""
     assert result["definition"] == ""
-    assert result["products"] == ["Plant telemetry"]
-    assert result["key_numbers"][0]["value"] == "240"
+    assert result["products"] == []
+    assert result["key_numbers"] == []
     assert not brand_facts.contains_han(json.dumps(result, ensure_ascii=False))
 
 
@@ -64,7 +64,7 @@ def test_model_extraction_preserves_existing_confirmed_english_fields(tmp_path, 
     result = brand_facts.extract_brand_facts(
         lambda prompt: {"name": "Example", "industry": "Needs verification"},
         "example-com",
-        "Official evidence",
+        "Official evidence: Example provides field service software for distributed operations teams.",
     )
 
     assert result["industry"] == "Industrial controls"
@@ -274,7 +274,10 @@ def test_engine_runtime_patches_are_scoped_and_restored(tmp_path, monkeypatch):
     with global_scope.normalize_generated_outputs("example-com"):
         assert engine_bootstrap.brand_facts is not original_extract
         assert engine_bootstrap.competitors is not original_competitors
-        extracted = engine_bootstrap.brand_facts("example-com", "Official evidence")
+        extracted = engine_bootstrap.brand_facts(
+            "example-com",
+            "Official evidence: Example provides field service software for distributed operations teams.",
+        )
         rendered = engine_bootstrap.render_facts("example-com", extracted)
         (project / "content" / "facts.md").write_text(rendered, "utf-8")
         parsed = engine_generate.parse_facts("example-com")

@@ -25,8 +25,9 @@ export default {
       if (enginesData && String(enginesData.project_id) !== String(projectId)) {
         throw new Error('Project response mismatch');
       }
-      if (enginesData?.date) {
-        const samplesData = await projects.getSamples(projectId, enginesData.date).catch(() => null);
+      const sampleArtifact = enginesData?.sample_artifact || enginesData?.date;
+      if (sampleArtifact) {
+        const samplesData = await projects.getSamples(projectId, sampleArtifact).catch(() => null);
         if (samplesData && String(samplesData.project_id) !== String(projectId)) {
           throw new Error('Sample response project mismatch');
         }

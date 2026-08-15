@@ -88,9 +88,9 @@ def _phrases(sentence, alias):
 
 
 def _sampling_mode(row):
-    if row.get("sample_mode") == "manual" or row.get("terminal") == "web":
-        return "Manual - Product interface"
-    return "API - Search grounded" if row.get("search_enabled") else "API - Parametric knowledge"
+    from api.adapters.sampling_modes import for_row
+
+    return for_row(row)
 
 
 def _latest_samples(project_slug, config):

@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import brand_facts, brand_identity, competitor_scope, generated_assets, global_scope
+from api.adapters import brand_facts, brand_identity, competitor_scope, generated_assets, global_scope, sampling_modes
 
 
 TEXT_SUFFIXES = {".txt", ".json", ".html", ".md"}
@@ -364,9 +364,7 @@ def workbench(project_slug: str, question_id: str):
             "rank": (row.get("analysis") or {}).get("brand_rank"),
             "matched_identity": (row.get("analysis") or {}).get("matched_identity"),
             "citations": row.get("citations") or [],
-            "sampling_mode": "Manual - Product interface" if row.get("sample_mode") == "manual" or row.get("terminal") == "web" else (
-                "API - Search grounded" if row.get("search_enabled") else "API - Parametric knowledge"
-            ),
+            "sampling_mode": sampling_modes.for_row(row),
             "sampled_at": row.get("ts"),
         }
         for row in rows

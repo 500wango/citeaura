@@ -72,6 +72,41 @@ class TestDedup(unittest.TestCase):
         rows = [make_row(rnd=1), make_row(rnd=2), make_row(mode="manual")]
         self.assertEqual(len(S.dedup_rows(rows)), 3)
 
+    def test_separate_runs_are_immutable_cohorts(self):
+        first = {**make_row(), "run_id": "run-a"}
+        second = {**make_row(), "run_id": "run-b"}
+        self.assertEqual(len(S.dedup_rows([first, second])), 2)
+
+
+class TestRankingAndCitationSemantics(unittest.TestCase):
+    def test_prose_first_mention_is_not_recommendation_rank(self):
+        result = S.analyze_answer("先说明竞品X的背景。AIGCLINK定制家也提供类似能力。", CFG)
+        self.assertEqual(result["first_mention_order"], 2)
+        self.assertEqual(result["brand_rank"], 0)
+        self.assertIsNone(result["rank_basis"])
+
+    def test_numbered_list_sets_actual_rank(self):
+        result = S.analyze_answer("1. 竞品X\n3. AIGCLINK定制家", CFG)
+        self.assertEqual(result["brand_rank"], 3)
+        self.assertEqual(result["rank_basis"], "explicit_list")
+
+    def test_domain_observation_does_not_prove_brand_presence(self):
+        result = S.analyze_answer(
+            "AIGCLINK定制家可以考虑。",
+            CFG,
+            [{"url": "https://wikipedia.org/wiki/Unrelated", "title": "Unrelated topic"}],
+        )
+        self.assertIn("wikipedia.org", result["cited_domains"])
+        self.assertNotIn("wikipedia.org", result["brand_cited_domains"])
+
+    def test_citation_title_can_prove_brand_specific_source(self):
+        result = S.analyze_answer(
+            "AIGCLINK定制家可以考虑。",
+            CFG,
+            [{"url": "https://wikipedia.org/wiki/AIGCLINK", "title": "AIGCLINK定制家"}],
+        )
+        self.assertIn("wikipedia.org", result["brand_cited_domains"])
+
 
 class TestProbeNoFallback(unittest.TestCase):
     def test_probe_only_platform_mention_rate_none(self):

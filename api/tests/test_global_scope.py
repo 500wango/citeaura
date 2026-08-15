@@ -93,6 +93,7 @@ def test_blueprint_and_tasks_remove_domestic_recommendations():
         "channel_all_total": 4,
         "channel_total": 4,
         "channel_covered": 1,
+        "channel_observed": 0,
         "channel_manual": 0,
         "channel_rate": 0.25,
         "p0p1_total": 4,
@@ -251,7 +252,9 @@ def test_audit_is_recomputed_from_deduplicated_evidence(tmp_path, monkeypatch):
     assert sum(audit["grade_distribution"].values()) == 2
     assert all(item["total"] == 2 for item in audit["block_gap"])
     assert audit["language_coverage"]["en_pages"] == 2
-    assert audit["avg_score"] == round(sum(page["score"] for page in audit["pages"]) / 2, 1)
+    scored_pages = [page for page in audit["pages"] if page["score"] is not None]
+    assert len(scored_pages) == 1
+    assert audit["avg_score"] == round(sum(page["score"] for page in scored_pages) / len(scored_pages), 1)
     assert site["pages_crawled"] == 2
     assert site["pages_ok"] == 2
     assert site["pages_crawled_raw"] == 3
@@ -315,10 +318,10 @@ def test_profile_channel_coverage_uses_citation_domains_and_marks_manual_channel
     )
     channels = {channel["id"]: channel for channel in blueprint["channels"]}
 
-    assert channels["official_en"]["coverage_status"] == "covered"
-    assert channels["b2b_marketplaces"]["coverage_status"] == "covered"
+    assert channels["official_en"]["coverage_status"] == "brand_cited"
+    assert channels["b2b_marketplaces"]["coverage_status"] == "brand_cited"
     assert channels["b2b_marketplaces"]["coverage_evidence"] == ["supplier.alibaba.com"]
-    assert channels["reddit"]["coverage_status"] == "covered"
+    assert channels["reddit"]["coverage_status"] == "brand_cited"
     assert channels["linkedin"]["coverage_status"] == "gap"
     assert channels["certification"]["coverage_status"] == "manual"
     assert channels["certification"]["covered"] is False
@@ -340,8 +343,8 @@ def test_missing_citation_domains_preserve_existing_channel_coverage(tmp_path, m
     }), "utf-8")
     monkeypatch.setattr(global_scope.geolib, "project_dir", lambda slug: project)
 
-    cited_domains = global_scope._latest_cited_domains("example")
-    assert cited_domains is None
+    channel_evidence = global_scope._latest_channel_evidence("example")
+    assert channel_evidence is None
     blueprint = global_scope.normalize_blueprint_data(
         {
             "channels": [{
@@ -353,7 +356,8 @@ def test_missing_citation_domains_preserve_existing_channel_coverage(tmp_path, m
             }],
         },
         profile={"id": "generic", "label": "General business", "confidence": "low", "evidence": []},
-        cited_domains=cited_domains,
+        cited_domains=None,
+        observed_domains=None,
         own_domain="example.com",
     )
     official = next(channel for channel in blueprint["channels"] if channel["id"] == "official_en")
@@ -363,7 +367,7 @@ def test_missing_citation_domains_preserve_existing_channel_coverage(tmp_path, m
     metrics_path.write_text(json.dumps({
         "platforms": {"openai": {"market": "global", "top_cited_domains": {}}},
     }), "utf-8")
-    assert global_scope._latest_cited_domains("example") == set()
+    assert global_scope._latest_channel_evidence("example") == {"observed": set(), "brand": set()}
 
 
 def test_project_normalization_updates_files(tmp_path, monkeypatch):
@@ -395,6 +399,7 @@ def test_project_normalization_updates_files(tmp_path, monkeypatch):
             "openai": {
                 "market": "global", "samples": 2,
                 "top_cited_domains": {"example.com": 2, "g2.com": 1, "github.com": 1},
+                "top_brand_cited_domains": {"example.com": 2, "g2.com": 1},
             },
         },
     }), "utf-8")
@@ -416,8 +421,9 @@ def test_project_normalization_updates_files(tmp_path, monkeypatch):
     assert metrics["provenance"]["platforms"] == [{"engine_code": "openai"}]
     assert metrics["provenance"]["question_set"]["count"] == 0
     channels = {channel["id"]: channel for channel in blueprint["channels"]}
-    assert channels["official_en"]["coverage_status"] == "covered"
-    assert channels["review"]["coverage_status"] == "covered"
-    assert channels["developer_community"]["coverage_status"] == "covered"
+    assert channels["official_en"]["coverage_status"] == "brand_cited"
+    assert channels["review"]["coverage_status"] == "brand_cited"
+    assert channels["developer_community"]["coverage_status"] == "observed_source"
     assert channels["docs"]["coverage_status"] == "manual"
-    assert blueprint["coverage"]["channel_covered"] == 3
+    assert blueprint["coverage"]["channel_covered"] == 2
+    assert blueprint["coverage"]["channel_observed"] == 1

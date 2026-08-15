@@ -146,7 +146,7 @@ def record_verification(project_slug, report):
             ticket = _find(data, result.get("id"))
             if ticket is None:
                 continue
-            failed = result.get("verdict") == "未达标"
+            failed = result.get("verdict") == "fail"
             result["failure_evidence"] = result.get("note") if failed else None
             result["next_action"] = ticket.get("action") if failed else None
             result["acceptance"] = ticket.get("acceptance")

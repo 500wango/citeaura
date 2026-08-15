@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 
 from api.adapters.engine import geolib, load_custom_providers, with_tenant_context
+from api.adapters import sampling_modes
 from api.billing.platform_pool import resolve_funding
 from api.models import PlatformUsage
 
@@ -87,7 +88,7 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1):
             items.append({
                 "engine_code": code,
                 "engine_name": sample.PROVIDERS[code].get("name", code),
-                "sampling_mode": "API - Search grounded" if sample.PROVIDERS[code].get("search") else "API - Parametric knowledge",
+                "sampling_mode": sampling_modes.for_provider(sample.PROVIDERS[code]),
                 "source": source,
                 "questions": question_count,
                 "repeat": int(repeat),

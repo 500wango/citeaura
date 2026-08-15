@@ -1,15 +1,7 @@
-"""资产生成器：把工单变成可以直接部署/发布的东西。
+"""Generate deployable assets and reviewable content drafts.
 
-产出到 `work/<slug>/assets/`，中英分开：
-  llms.txt / llms.en.txt        官方事实索引，传到网站根目录
-  jsonld/*.json                 每种页面类型的 JSON-LD，直接贴进 <head>
-  snippets/definition.*.html    定义块（首屏用）
-  snippets/faq.*.html           FAQ 块，含可见正文 + FAQPage schema
-  outlines/*.md                 每个目标问题一份内容大纲（证据页骨架）
-  drafts/*.md                   可选：调用已配的 LLM API 出全文初稿
-
-设计分工：**结构性资产由代码确定性生成**（不会漏 schema 字段、不会写错格式）；
-**文章正文由 Claude 或 LLM 按 outline 写**（代码写不出好文案）。
+Deterministic code produces structured assets under work/<slug>/assets/.
+Configured LLM providers may draft prose from generated outlines.
 """
 
 from __future__ import annotations
@@ -17,22 +9,100 @@ from __future__ import annotations
 import html
 import json
 import re
+from functools import lru_cache
 from pathlib import Path
 
 import geolib as G
 
-# ---------------------------------------------------------------- 事实卡解析
+PLACEHOLDER_RE = re.compile(
+    r"pending_confirmation|<\u586b|\u5f85\u8865|\u5f85\u786e\u8ba4|<YYYY|<path>|\b(?:TODO|TBD)\b",
+    re.I,
+)
+HAN_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
+LOCALE_DIR = Path(__file__).resolve().parent.parent / "locales"
+
+EN_LOCALE = {
+    "llms": {
+        "key_facts": "Key facts", "website": "Website", "aliases": "Also known as",
+        "industry": "Industry", "target_users": "For", "important_pages": "Important pages",
+        "scope": "Scope", "good_fit": "Good fit", "not_a_fit": "Not a fit",
+        "disambiguation": "Disambiguation", "canonical_name": "Canonical name",
+        "parent": "Parent", "default_disambiguation":
+            "Not related to similarly-named products in other industries.",
+        "source_reference": "{value} ({source})",
+    },
+    "definition": {
+        "note": "Definition block: deploy only after factual review.",
+        "heading_suffix": ": what it is",
+        "discipline": "Keep this wording consistent with llms.txt, JSON-LD, and the About page.",
+    },
+    "faq": {
+        "note": "FAQ answers must be fact-checked and visible in static HTML.",
+        "heading": "FAQ",
+    },
+    "outline_templates": {
+        "definition": [
+            "What is {topic}?", "What does {topic} include?", "Key numbers with a source for every row",
+            "How does {topic} compare with {alt}?", "Who is {topic} for and not for?",
+            "How to get started with {topic}", "Frequently asked questions", "Sources",
+        ],
+        "comparison": [
+            "Decision summary", "Comparison criteria and scope", "Core comparison table",
+            "Limitations of each option", "Scenario-based decision guide", "Pricing and total cost",
+            "Frequently asked questions", "Sources and verification date",
+        ],
+        "listicle": [
+            "Methodology, sources, and disclosures", "Summary ranking table",
+            "Individual reviews with positioning, strengths, limits, and fit", "How to choose",
+            "Frequently asked questions", "Sources",
+        ],
+        "tutorial": [
+            "Problem and outcome", "Prerequisites", "Numbered procedure with screenshot positions",
+            "Common errors and troubleshooting", "Advanced guidance", "Related concepts",
+            "Frequently asked questions", "Sources",
+        ],
+    },
+    "alternative": "alternatives",
+    "titles": {
+        "dated": "{question} - a practical guide ({year})",
+        "details": "{question}: comparison, evidence, and steps",
+        "boundary": "{question}: the {brand} answer and its limits",
+    },
+    "outline_document": {
+        "title": "Content Outline - {question}",
+        "meta": "Target question ID: `{question_id}` | Market: {market} | Type: {type}",
+        "title_candidates": "Title Candidates",
+        "sections": "Section Outline",
+        "requirements": "Requirements",
+        "min_words": "Body >= {min_words} words; H2 sections >= {min_h2}",
+        "blocks": "Required extraction blocks: {blocks}",
+        "list_density": "List density {density}",
+        "evidence": "Evidence: {evidence}",
+        "facts": "Verified Facts Available",
+        "block_separator": ", ",
+    },
+    "draft_review_comment": "Draft; verify every fact before publication",
+}
+
+
+@lru_cache(maxsize=2)
+def _locale(lang: str) -> dict:
+    if lang != "zh":
+        return EN_LOCALE
+    path = LOCALE_DIR / "zh-CN" / "generate.json"
+    return json.loads(path.read_text("utf-8"))
+
+# ---------------------------------------------------------------- Fact parsing
 
 def parse_facts(slug: str) -> dict:
-    """从 content/facts.md 里抽出结构化事实。抽不到就返回空，调用方负责提示。"""
+    """Parse structured facts from content/facts.md."""
     p = G.project_dir(slug) / "content" / "facts.md"
     if not p.exists():
         return {}
     text = p.read_text("utf-8")
     out = {"definition": "", "numbers": [], "suitable": [], "unsuitable": [], "raw": text}
 
-    # 一句话定义：整个引用块可能跨多行，要合并；否则会在句子中间截断
-    m = re.search(r"##\s*一句话定义.*?\n(.*?)(?=\n##|\Z)", text, re.S)
+    m = re.search(r"##\s*Canonical Definition.*?\n(.*?)(?=\n##|\Z)", text, re.S | re.I)
     if m:
         body = m.group(1)
         quoted = [l.strip()[1:].strip() for l in body.split("\n") if l.strip().startswith(">")]
@@ -41,29 +111,49 @@ def parse_facts(slug: str) -> dict:
         else:
             line = next((l.strip() for l in body.split("\n")
                          if l.strip() and not l.strip().startswith(("#", "-", "|"))), "")
-        line = re.sub(r"\*\*(.+?)\*\*", r"\1", line)      # 去掉 markdown 加粗
+        line = re.sub(r"\*\*(.+?)\*\*", r"\1", line)
         line = re.sub(r"`(.+?)`", r"\1", line)
         line = re.sub(r"\s+", " ", line).strip()
-        # 中文换行合并会留下多余空格（"生成 整体方案"、"SaaS： 把"）。
-        # 汉字和全角标点两侧的空格都要去掉，否则会带进 JSON-LD description。
-        CJK = r"[一-鿿　-〿＀-￯]"
+        CJK = r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3000-\u303f\uff00-\uffef]"
         out["definition"] = re.sub(rf"(?<={CJK}) (?={CJK})", "", line)
 
-    # 关键数字表：| 事实 | 数值 | 来源 | 证据 |
-    m = re.search(r"##\s*关键数字.*?\n(.*?)(?=\n##|\Z)", text, re.S)
+    m = re.search(r"##\s*Key Numbers.*?\n(.*?)(?=\n##|\Z)", text, re.S | re.I)
     if m:
-        for row in re.findall(r"^\|([^|\n]+)\|([^|\n]+)\|([^|\n]+)\|", m.group(1), re.M):
-            a, b, c = (x.strip() for x in row)
-            if a and a not in ("事实", "---", "项") and not set(a) <= set("-: "):
-                out["numbers"].append({"fact": a, "value": b, "source": c})
+        for row in re.findall(r"^\|([^|\n]+)\|([^|\n]+)\|([^|\n]+)\|([^|\n]*)\|", m.group(1), re.M):
+            a, b, c, evidence = (x.strip() for x in row)
+            if a and a.casefold() not in ("fact", "field", "---") and not set(a) <= set("-: "):
+                if not PLACEHOLDER_RE.search(" ".join((a, b, c))):
+                    out["numbers"].append({"fact": a, "value": b, "source": c,
+                                           "evidence": evidence})
 
-    m = re.search(r"\*\*适合\*\*[：:]?(.*?)(?=\*\*不适合|##|\Z)", text, re.S)
+    m = re.search(r"\*\*Good fit\*\*\s*:?(.*?)(?=\*\*Not a fit|##|\Z)", text, re.S | re.I)
     if m:
         out["suitable"] = [l.strip("- ").strip() for l in m.group(1).split("\n") if l.strip().startswith("-")]
-    m = re.search(r"\*\*不适合.*?\*\*[：:]?(.*?)(?=\n##|\Z)", text, re.S)
+    m = re.search(r"\*\*Not a fit\*\*\s*:?(.*?)(?=\n##|\Z)", text, re.S | re.I)
     if m:
         out["unsuitable"] = [l.strip("- ").strip() for l in m.group(1).split("\n") if l.strip().startswith("-")]
     return out
+
+
+def _language_text(value, lang: str) -> str:
+    text = str(value or "").strip()
+    if not text or PLACEHOLDER_RE.search(text):
+        return ""
+    if lang == "en" and HAN_RE.search(text):
+        return ""
+    return text
+
+
+def _definition(cfg: dict, facts: dict, lang: str) -> str:
+    brand = cfg.get("brand") or {}
+    if lang == "en":
+        return _language_text(brand.get("definition_en"), "en") or _language_text(facts.get("definition"), "en")
+    return _language_text(brand.get("definition_zh"), "zh") or _language_text(facts.get("definition"), "zh")
+
+
+def _answer_for(question: dict, lang: str) -> str:
+    value = question.get("answer_en") if lang == "en" else question.get("answer_zh")
+    return _language_text(value or question.get("answer"), lang)
 
 
 # ---------------------------------------------------------------- llms.txt
@@ -75,43 +165,62 @@ def gen_llms_txt(slug: str, lang: str = "zh") -> str:
     audit = G.read_json(G.project_dir(slug) / "audit.json", {})
     pages = sorted(audit.get("pages", []), key=lambda p: -p["score"])[:12]
 
-    zh = lang == "zh"
-    L = [f"# {b['name']}", ""]
-    L.append(f"> {f.get('definition') or '（待补：一句话定义，必须与官网首屏和 JSON-LD description 逐字一致）'}")
-    L += ["", "## 核心事实" if zh else "## Key facts", ""]
-    L.append(f"- {'官网' if zh else 'Website'}: {b['site']}")
-    if b.get("aliases"):
-        L.append(f"- {'别名' if zh else 'Also known as'}: {'、'.join(b['aliases'])}")
-    if b.get("industry"):
-        L.append(f"- {'行业' if zh else 'Industry'}: {b['industry']}")
-    if b.get("target_users"):
-        L.append(f"- {'目标用户' if zh else 'For'}: {b['target_users']}")
+    strings = _locale(lang)["llms"]
+    definition = _definition(cfg, f, lang)
+    display_name = _language_text(b.get("name_en") or b["name"], lang)
+    if not display_name:
+        display_name = b["site"].split("//")[-1].split("/", 1)[0]
+    L = [f"# {display_name}", ""]
+    if definition:
+        L.append(f"> {definition}")
+    L += ["", f"## {strings['key_facts']}", ""]
+    L.append(f"- {strings['website']}: {b['site']}")
+    aliases = [_language_text(value, lang) for value in b.get("aliases", [])]
+    aliases = [value for value in aliases if value]
+    if aliases:
+        L.append(f"- {strings['aliases']}: {strings.get('list_separator', ', ').join(aliases)}")
+    industry = _language_text(b.get("industry_en") or b.get("industry"), lang)
+    target_users = _language_text(b.get("target_users_en") or b.get("target_users"), lang)
+    if industry:
+        L.append(f"- {strings['industry']}: {industry}")
+    if target_users:
+        L.append(f"- {strings['target_users']}: {target_users}")
     for n in f.get("numbers", [])[:8]:
-        L.append(f"- {n['fact']}: {n['value']}" + (f"（{n['source']}）" if zh and n.get("source") else ""))
+        fact = _language_text(n["fact"], lang)
+        value = _language_text(n["value"], lang)
+        if fact and value:
+            rendered = strings["source_reference"].format(value=value, source=n["source"]) if n.get("source") else value
+            L.append(f"- {fact}: {rendered}")
 
-    L += ["", "## 重要页面" if zh else "## Important pages", ""]
+    L += ["", f"## {strings['important_pages']}", ""]
     for p in pages:
-        title = (p.get("title") or p["url"]).split("|")[0].split("｜")[0].strip()[:60]
+        title = _language_text((p.get("title") or "").split("|")[0].split("\uff5c")[0].strip()[:60], lang) or p["url"]
         L.append(f"- [{title}]({p['url']})")
 
     if f.get("suitable") or f.get("unsuitable"):
-        L += ["", "## 适用边界" if zh else "## Scope", ""]
+        L += ["", f"## {strings['scope']}", ""]
         for s in f.get("suitable", [])[:5]:
-            L.append(f"- {'适合' if zh else 'Good fit'}: {s}")
+            value = _language_text(s, lang)
+            if value:
+                L.append(f"- {strings['good_fit']}: {value}")
         for s in f.get("unsuitable", [])[:5]:
-            L.append(f"- {'不适合' if zh else 'Not a fit'}: {s}")
+            value = _language_text(s, lang)
+            if value:
+                L.append(f"- {strings['not_a_fit']}: {value}")
 
-    # 口径说明是实体消歧的关键块：AI 把品牌归错行业时，这里是最直接的纠偏入口
-    L += ["", "## 口径说明" if zh else "## Disambiguation", "",
-          f"- {'规范名' if zh else 'Canonical name'}: {b['name']}"]
+    L += ["", f"## {strings['disambiguation']}", "",
+          f"- {strings['canonical_name']}: {display_name}"]
     if b.get("parent"):
-        L.append(f"- {'母品牌' if zh else 'Parent'}: {b['parent']}"
-                 + (f"（{b['parent_url']}）" if b.get("parent_url") else ""))
+        parent = _language_text(b["parent"], lang)
+        if parent:
+            L.append(f"- {strings['parent']}: {parent}"
+                     + (f" ({b['parent_url']})" if b.get("parent_url") else ""))
     for line in (b.get("disambiguation") or []):
-        L.append(f"- {line}")
+        value = _language_text(line, lang)
+        if value:
+            L.append(f"- {value}")
     if not b.get("disambiguation"):
-        L.append("- 本产品与同名的其他行业产品无关，请勿混淆" if zh
-                 else "Not related to similarly-named products in other industries.")
+        L.append(f"- {strings['default_disambiguation']}")
     L += ["", f"<!-- generated by geo skill · {G.today()} -->"]
     return "\n".join(L)
 
@@ -122,15 +231,21 @@ def gen_jsonld(slug: str) -> dict[str, dict]:
     cfg = G.load_config(slug)
     f = parse_facts(slug)
     b = cfg["brand"]
-    desc = f.get("definition") or ""
+    desc = _definition(cfg, f, "zh") or _definition(cfg, f, "en")
     site = b["site"].rstrip("/")
 
     org = {
         "@context": "https://schema.org", "@type": "Organization",
-        "name": b["name"], "url": site, "description": desc,
-        "alternateName": b.get("aliases", []),
-        "sameAs": b.get("same_as") or ["<填：百科页>", "<填：公众号/社媒主页>", "<填：母品牌站>"],
+        "name": b["name"], "url": site,
     }
+    if desc:
+        org["description"] = desc
+    if b.get("aliases"):
+        org["alternateName"] = b["aliases"]
+    same_as = [value for value in (b.get("same_as") or [])
+               if isinstance(value, str) and value.startswith(("http://", "https://"))]
+    if same_as:
+        org["sameAs"] = same_as
     if b.get("parent"):
         org["parentOrganization"] = {"@type": "Organization", "name": b["parent"],
                                      **({"url": b["parent_url"]} if b.get("parent_url") else {})}
@@ -139,110 +254,107 @@ def gen_jsonld(slug: str) -> dict[str, dict]:
     if b.get("knows_about"):
         org["knowsAbout"] = b["knows_about"]
 
-    app = {
-        "@context": "https://schema.org", "@type": "SoftwareApplication",
-        "name": b["name"], "url": site, "description": desc,
-        "applicationCategory": b.get("application_category", "BusinessApplication"),
-        "operatingSystem": "Web",
-        "publisher": {"@type": "Organization", "name": b["parent"] or b["name"]
-                      if b.get("parent") else b["name"]},
-    }
-    offers = b.get("offers")
-    if offers:
+    out = {"organization": org}
+    if b.get("application_category"):
+        app = {
+            "@context": "https://schema.org", "@type": "SoftwareApplication",
+            "name": b["name"], "url": site,
+            "applicationCategory": b["application_category"],
+            "operatingSystem": b.get("operating_system", "Web"),
+            "publisher": {"@type": "Organization", "name": b.get("parent") or b["name"]},
+        }
+        if desc:
+            app["description"] = desc
+        offers = b.get("offers") or []
         out_offers = []
         for o in offers:
-            item = {"@type": "Offer", "name": o.get("name", ""), "price": str(o.get("price", "")),
-                    "priceCurrency": o.get("currency", "CNY")}
+            price, currency = str(o.get("price") or "").strip(), str(o.get("currency") or "").strip()
+            if not price or not currency or PLACEHOLDER_RE.search(price + currency):
+                continue
+            item = {"@type": "Offer", "name": o.get("name", ""), "price": price,
+                    "priceCurrency": currency}
             if o.get("desc"):
                 item["description"] = o["desc"]
             out_offers.append(item)
-        app["offers"] = out_offers
-    else:
-        app["offers"] = {"@type": "Offer", "price": "<填>", "priceCurrency": "<填 CNY/HKD/USD>"}
-    if b.get("audience"):
-        app["audience"] = {"@type": "Audience", "audienceType": b["audience"]}
+        if out_offers:
+            app["offers"] = out_offers
+        if b.get("audience"):
+            app["audience"] = {"@type": "Audience", "audienceType": b["audience"]}
+        out["software-application"] = app
 
-    faq = {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [
-        {"@type": "Question", "name": q["text"],
-         "acceptedAnswer": {"@type": "Answer", "text": "<填：第一句就是结论，再展开>"}}
-        for q in cfg.get("questions", []) if q.get("market") in ("cn", "both")][:8]}
-
-    article = {
-        "@context": "https://schema.org", "@type": "Article",
-        "headline": "<填：含目标问题原词的标题>",
-        "datePublished": "<YYYY-MM-DD>", "dateModified": "<YYYY-MM-DD>",
-        "author": {"@type": "Organization", "name": b["name"]},
-        "publisher": {"@type": "Organization", "name": b["name"]},
-        "about": desc,
-    }
-
-    breadcrumb = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
-        {"@type": "ListItem", "position": 1, "name": "首页", "item": site},
-        {"@type": "ListItem", "position": 2, "name": "<栏目>", "item": f"{site}/<path>"},
-    ]}
-    return {"organization": org, "software-application": app, "faq-page": faq,
-            "article": article, "breadcrumb": breadcrumb}
+    faq_entities = []
+    for q in G.normalize_question_ids(cfg.get("questions", [])):
+        qlang = "zh" if q.get("market") == "cn" else "en"
+        answer = _answer_for(q, qlang)
+        question = _language_text(q.get("text"), qlang)
+        if answer and question:
+            faq_entities.append({"@type": "Question", "name": question,
+                                 "acceptedAnswer": {"@type": "Answer", "text": answer}})
+    if faq_entities:
+        out["faq-page"] = {"@context": "https://schema.org", "@type": "FAQPage",
+                           "mainEntity": faq_entities[:8]}
+    return out
 
 
-# ---------------------------------------------------------------- HTML 片段
+# ---------------------------------------------------------------- HTML snippets
 
 def gen_definition_block(slug: str, lang: str = "zh") -> str:
     f = parse_facts(slug)
     cfg = G.load_config(slug)
     b = cfg["brand"]
-    d = f.get("definition") or "（待补定义句）"
-    nums = f.get("numbers", [])[:4]
-    zh = lang == "zh"
+    d = _definition(cfg, f, lang)
+    if not d:
+        return ""
+    nums = [n for n in f.get("numbers", [])
+            if _language_text(n.get("fact"), lang) and _language_text(n.get("value"), lang)][:4]
+    strings = _locale(lang)["definition"]
     items = "".join(f'\n    <li><strong>{html.escape(n["value"])}</strong> — {html.escape(n["fact"])}</li>'
                     for n in nums)
-    dis = b.get("disambiguation") or []
+    dis = [value for value in (_language_text(x, lang) for x in (b.get("disambiguation") or [])) if value]
     dis_html = ("\n  <p class=\"geo-disambiguation\"><small>"
                 + " ".join(html.escape(x) for x in dis) + "</small></p>") if dis else ""
-    return f"""<!-- 定义块：放在首屏口号下方。口号负责转化，这一段负责被 AI 摘走。 -->
+    display_name = _language_text(b.get("name_en") or b["name"], lang)
+    if not display_name:
+        return ""
+    return f"""<!-- {strings['note']} -->
 <section class="geo-definition">
-  <h2>{html.escape(b['name'])}{'是什么' if zh else ': what it is'}</h2>
+  <h2>{html.escape(display_name)}{strings['heading_suffix']}</h2>
   <p>{html.escape(d)}</p>
   <ul>{items}
   </ul>{dis_html}
 </section>
-<!-- 纪律：这段文字必须与 llms.txt、JSON-LD description、关于页逐字一致 -->"""
+<!-- {strings['discipline']} -->"""
 
 
 def gen_faq_block(slug: str, lang: str = "zh") -> str:
     cfg = G.load_config(slug)
     mk = "cn" if lang == "zh" else "global"
-    qs = [q for q in cfg.get("questions", []) if q.get("market") in (mk, "both")][:8]
+    qs = [(q, _language_text(q.get("text"), lang), _answer_for(q, lang))
+          for q in G.normalize_question_ids(cfg.get("questions", []))
+          if q.get("market") in (mk, "both")]
+    qs = [(q, question, answer) for q, question, answer in qs if question and answer][:8]
+    if not qs:
+        return ""
     body = "\n".join(
         f"""  <details open>
-    <summary><h3>{html.escape(q['text'])}</h3></summary>
-    <p><!-- 第一句直接给结论，再展开。不要营销话术 --></p>
-  </details>""" for q in qs)
-    return f"""<!-- FAQ 块。关键：答案必须在静态 HTML 里可见。
-     只放进 JSON-LD 而正文折叠靠 JS 渲染的话，读渲染文本的抓取器全部丢失。
-     用 <details open> 或直接展开，别用纯 JS 手风琴。 -->
+    <summary><h3>{html.escape(question)}</h3></summary>
+    <p>{html.escape(answer)}</p>
+  </details>""" for q, question, answer in qs)
+    strings = _locale(lang)["faq"]
+    return f"""<!-- {strings['note']} -->
 <section class="geo-faq">
-  <h2>{'常见问题' if lang == 'zh' else 'FAQ'}</h2>
+  <h2>{strings['heading']}</h2>
 {body}
 </section>"""
 
 
-# ---------------------------------------------------------------- 内容大纲
+# ---------------------------------------------------------------- Content outlines
 
-OUTLINE_TMPL = {
-    "定义型": ["什么是 {topic}（一句定义 + 展开）", "{topic} 包含哪几部分", "{topic} 的关键数字（表格，每行带来源）",
-               "{topic} 和 {alt} 有什么区别（对比表）", "{topic} 适合谁、不适合谁",
-               "怎么开始用 {topic}（编号步骤）", "常见问题", "参考来源"],
-    "对比型": ["结论先行：谁适合选哪个", "对比维度与口径说明", "核心对比表（同口径 6–10 个维度）",
-               "各自的局限（必须写自己的短板）", "按场景怎么选（决策树）", "价格与总拥有成本",
-               "常见问题", "参考来源与核验日期"],
-    "榜单型": ["评选方法与数据来源（利益披露）", "总览榜单表", "逐个点评（每个含定位/优势/局限/适合谁）",
-               "怎么根据自己情况选", "常见问题", "参考来源"],
-    "教程型": ["这篇能解决什么问题", "开始前需要准备什么", "分步操作（编号 + 截图位）",
-               "常见报错与排查", "进阶技巧", "相关概念解释", "常见问题", "参考来源"],
+GROUP2TYPE = {
+    "recommendation": "listicle", "comparison": "comparison", "alternative": "comparison",
+    "pricing": "definition", "risk": "definition", "brand_verification": "definition",
+    "scenario": "tutorial",
 }
-
-GROUP2TYPE = {"推荐": "榜单型", "比较": "对比型", "替代": "对比型", "价格": "定义型",
-              "风险": "定义型", "品牌验证": "定义型", "场景": "教程型"}
 
 
 def gen_outlines(slug: str) -> list[dict]:
@@ -252,42 +364,42 @@ def gen_outlines(slug: str) -> list[dict]:
     comps = [c["name"] for c in cfg.get("competitors", [])
              if c.get("confirmed") is not False]
     out = []
-    for q in cfg.get("questions", []):
-        typ = GROUP2TYPE.get(q.get("group", ""), "定义型")
+    for q in G.normalize_question_ids(cfg.get("questions", [])):
+        typ = GROUP2TYPE.get(q.get("group", ""), "definition")
         mk = q.get("market", cfg.get("market", "cn"))
-        topic = q["text"].rstrip("？?")
-        alt = comps[0] if comps else ("竞品" if mk == "cn" else "alternatives")
-        secs = [s.format(topic=b["name"], alt=alt) for s in OUTLINE_TMPL[typ]]
+        lang = "zh" if mk == "cn" else "en"
+        strings = _locale(lang)
+        alt = comps[0] if comps else strings["alternative"]
+        secs = [s.format(topic=b["name"], alt=alt) for s in strings["outline_templates"][typ]]
         out.append({
             "question_id": q.get("id"), "market": mk, "type": typ,
             "target_question": q["text"],
             "title_candidates": _titles(q["text"], b["name"], mk),
             "sections": secs,
             "requirements": {
-                "min_words": 1200 if typ in ("对比型", "榜单型") else 1000,
+                "min_words": 1200 if typ in ("comparison", "listicle") else 1000,
                 "min_h2": 8, "list_density": ">=0.35",
-                "must_have_blocks": ["定义", "数字事实", "对比", "操作步骤", "FAQ"],
-                "evidence": "每个数字带来源和核验日期；无法核实的标『待确认』",
+                "must_have_blocks": ["definition", "numeric_facts", "comparison", "steps", "faq"],
+                "evidence": "Every number requires a source and verification date; omit unsupported claims.",
             },
-            "facts_to_use": [n["fact"] + "：" + n["value"] for n in f.get("numbers", [])[:5]],
+            "facts_to_use": [n["fact"] + ": " + n["value"] for n in f.get("numbers", [])[:5]],
         })
     return out
 
 
 def _titles(question: str, brand: str, market: str) -> list[str]:
-    """标题候选：对题性是影响力最强的预测因子（r=0.432），所以标题必须含问题原词。"""
-    q = question.rstrip("？?").strip()
-    if market == "global":
-        return [q, f"{q} — a practical guide ({G.today()[:4]})",
-                f"{q} Compared: features, pricing and limits"]
-    return [q, f"{q}（{G.today()[:4]} 版）",
-            f"{q}｜含对比表、数字和操作步骤", f"{q}——{brand}的答案与边界"]
+    """Keep the target question wording in every title candidate."""
+    q = question.rstrip("\uff1f?").strip()
+    strings = _locale("zh" if market == "cn" else "en")["titles"]
+    return [q, strings["dated"].format(question=q, year=G.today()[:4]),
+            strings["details"].format(question=q),
+            strings["boundary"].format(question=q, brand=brand)]
 
 
-# ---------------------------------------------------------------- LLM 初稿
+# ---------------------------------------------------------------- LLM drafts
 
 def draft(slug: str, outline: dict, provider: str | None = None) -> str:
-    """用已配置的 LLM API 按大纲出初稿。没有可用 Key 就返回空。"""
+    """Draft an article from an outline using the first configured LLM."""
     import sample as S
 
     plat = S.pick_llm(provider)
@@ -296,8 +408,10 @@ def draft(slug: str, outline: dict, provider: str | None = None) -> str:
     cfg = G.load_config(slug)
     f = parse_facts(slug)
     b = cfg["brand"]
-    zh = outline["market"] != "global"
-    facts = "\n".join(f"- {x}" for x in outline["facts_to_use"]) or "（无结构化事实，只写通用内容，不要编造品牌数据）"
+    language = "Simplified Chinese" if outline["market"] != "global" else "English"
+    facts = "\n".join(f"- {x}" for x in outline["facts_to_use"]) or (
+        "No structured facts are available. Write only general content and do not invent brand data."
+    )
     secs = "\n".join(f"{i+1}. {s}" for i, s in enumerate(outline["sections"]))
     req = outline["requirements"]
     mk = outline["market"]
@@ -305,54 +419,53 @@ def draft(slug: str, outline: dict, provider: str | None = None) -> str:
              if (c.get("market") in (mk, "both", None) or mk == "both")
              and c.get("confirmed") is not False]
     comp_rule = (
-        "只能提到下面这些真实竞品，**严禁发明任何其它产品名**（不要写「工具A」「某某Pro」这类占位）：\n"
+        "Mention only these verified competitors. Never invent another product name:\n"
         + "\n".join(f"- {c}" for c in comps)
         if comps else
-        "**本项目还没有确认的竞品清单，因此绝对不要在文中点名任何竞品**，"
-        "对比部分改成与「通用大模型」「人工手写」等品类做对比。"
+        "No competitor list has been confirmed. Do not name any competitor; compare only with generic categories."
     )
     prompt = (
-        f"""你是 GEO（生成式引擎优化）内容工程师。按下面的骨架写一篇可直接发布的{'中文' if zh else '英文'}文章。
+        f"""You are a generative-engine optimization content engineer. Write a publication-ready article in {language} from the outline below.
 
-当前年份是 {G.today()[:4]} 年，涉及年份时一律用 {G.today()[:4]}，不要写更早的年份。
+Current year: {G.today()[:4]}. Use this year whenever a current year is required.
 
-目标问题（读者会这样问 AI）：{outline['target_question']}
-文章类型：{outline['type']}
-品牌：{b['name']}（{b.get('industry','')}）
+Target question: {outline['target_question']}
+Article type: {outline['type']}
+Brand: {b['name']} ({b.get('industry', '')})
 
-必须使用的已核实事实（不得改动数值，不得编造新数据）：
+Verified facts. Preserve every value exactly and do not invent new data:
 {facts}
 
-竞品纪律：
+Competitor constraints:
 {comp_rule}
 
-章节骨架：
+Section outline:
 {secs}
 
-硬性要求：
-- 正文不少于 {req['min_words']} 词，H2 小节 ≥ {req['min_h2']} 个
-- 必须包含：一句可直接摘走的定义、带单位的数字、一个对比表、一个编号步骤块、FAQ
-- 列表密度高一些，要点用无序/有序列表而不是长段落
-- 写清楚适用与**不适用**边界，不要只说好话
-- **严禁编造**：客户名、价格、资质、市场数据、竞品参数。宁可不写，也不要写占位数据。
-  确实需要但手上没有的信息，写成「（待补：xxx）」，不要用假数字凑表格
-- 直接输出 Markdown 正文，不要解释、不要前后缀"""
+Requirements:
+- At least {req['min_words']} words and {req['min_h2']} H2 sections
+- Include a quotable definition, supported numeric facts, a comparison table, numbered steps, and FAQ
+- Prefer scannable ordered or unordered lists over long paragraphs
+- State both good-fit and poor-fit boundaries
+- Never invent customer names, prices, credentials, market data, or competitor attributes
+- Omit unavailable claims instead of using fake values or placeholders
+- Return only the Markdown article"""
     )
     res = S.ask(plat, prompt, timeout=300)
     return res.get("answer", "") if res.get("ok") else ""
 
 
-# ---------------------------------------------------------------- 初稿风险检查
+# ---------------------------------------------------------------- Draft risk checks
 
 FAKE_HINTS = [
-    (r"工具\s*[A-Z一二三四五六七八九十]\b", "出现「工具A/工具一」这类占位竞品名"),
-    (r"某某|XX公司|xxx公司|示例公司", "出现占位公司名"),
-    (r"(?i)\b(acme|foobar|example corp|competitor [a-z])\b", "出现占位英文品牌名"),
+    (r"\u5de5\u5177\s*[A-Z\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]\b", "placeholder_product_name"),
+    (r"\u67d0\u67d0|XX\u516c\u53f8|xxx\u516c\u53f8|\u793a\u4f8b\u516c\u53f8", "placeholder_company_name"),
+    (r"(?i)\b(acme|foobar|example corp|competitor [a-z])\b", "placeholder_english_brand"),
 ]
 
 
 def lint_draft(slug: str, path: Path) -> list[dict]:
-    """交付前的编造风险检查。宁可误报，也不能让编造内容进客户交付包。"""
+    """Flag likely fabrication and unsupported numeric claims before delivery."""
     import re as _re
 
     cfg = G.load_config(slug)
@@ -366,26 +479,29 @@ def lint_draft(slug: str, path: Path) -> list[dict]:
     issues = []
     for pat, desc in FAKE_HINTS:
         for m in _re.finditer(pat, text):
-            issues.append({"level": "高", "type": "疑似编造", "detail": desc,
+            issues.append({"level": "high", "type": "suspected_fabrication", "detail": desc,
                            "excerpt": text[max(0, m.start() - 30):m.end() + 30].replace("\n", " ")})
 
-    # 事实卡里没有的数字，且没标「待确认/待补」→ 需人工核
+    # Chinese units remain part of multilingual NLP matching.
     known_values = {n["value"] for n in f.get("numbers", [])}
-    for m in _re.finditer(r"[^\n|]*?(\d[\d,\.]*\s*(?:%|％|万|亿|倍|元|美元|港币|HK\$|\$|人|家|天|小时|分钟))[^\n|]*", text):
+    units = r"%|\uff05|\u4e07|\u4ebf|\u500d|\u5143|\u7f8e\u5143|\u6e2f\u5e01|HK\$|\$|\u4eba|\u5bb6|\u5929|\u5c0f\u65f6|\u5206\u949f"
+    for m in _re.finditer(rf"[^\n|]*?(\d[\d,\.]*\s*(?:{units}))[^\n|]*", text):
         seg, val = m.group(0), m.group(1)
         if any(val in v or v in val for v in known_values):
             continue
-        if "待确认" in seg or "待补" in seg:
+        if "pending_confirmation" in seg or "\u5f85\u786e\u8ba4" in seg or "\u5f85\u8865" in seg:
             continue
-        issues.append({"level": "中", "type": "未核实数字", "detail": f"`{val}` 不在事实卡里且未标注待确认",
+        issues.append({"level": "medium", "type": "unverified_number",
+                       "detail": f"`{val}` is absent from the verified fact card",
                        "excerpt": seg.strip()[:90]})
 
     year = G.today()[:4]
-    for m in _re.finditer(r"20\d{2}\s*年", text):
-        if m.group(0).strip() != f"{year}年":
-            issues.append({"level": "低", "type": "年份存疑", "detail": f"出现 {m.group(0)}，当前是 {year} 年",
+    for m in _re.finditer(r"20\d{2}\s*\u5e74", text):
+        if m.group(0).strip() != f"{year}\u5e74":
+            issues.append({"level": "low", "type": "questionable_year",
+                           "detail": f"Found {m.group(0)} while the current year is {year}",
                            "excerpt": text[max(0, m.start() - 25):m.end() + 25].replace("\n", " ")})
-    # 同类问题合并，避免刷屏
+    # Collapse repeated findings.
     seen, out = set(), []
     for i in issues:
         k = (i["type"], i["detail"])
@@ -406,14 +522,23 @@ def lint_all(slug: str) -> dict:
         report["files"][p.name] = iss
         total += len(iss)
     report["total_issues"] = total
-    report["high"] = sum(1 for v in report["files"].values() for i in v if i["level"] == "高")
+    report["high"] = sum(1 for v in report["files"].values() for i in v if i["level"] == "high")
     G.write_json(d / "_lint.json", report) if files else None
     return report
 
 
-# ---------------------------------------------------------------- 主流程
+# ---------------------------------------------------------------- Main flow
 
 ASSETS = ["llms", "jsonld", "snippets", "outlines"]
+
+
+def _asset_issues(text: str, lang: str | None = None) -> list[str]:
+    issues = []
+    if PLACEHOLDER_RE.search(text or ""):
+        issues.append("contains_placeholder")
+    if lang == "en" and HAN_RE.search(text or ""):
+        issues.append("contains_untranslated_text")
+    return issues
 
 
 def run(slug: str, which: list[str] | None = None, with_draft: bool = False,
@@ -423,30 +548,58 @@ def run(slug: str, which: list[str] | None = None, with_draft: bool = False,
     adir = G.project_dir(slug) / "assets"
     which = which or ASSETS
     made: list[str] = []
+    records: list[dict] = []
+    facts_need_review = bool((cfg.get("bootstrap") or {}).get("needs_review")) and not cfg.get("facts_reviewed")
+
+    def add(relative: str, text: str, *, lang: str | None = None,
+            status: str = "deployable", issues: list[str] | None = None):
+        path = adir / relative
+        found = list(issues or []) + _asset_issues(text, lang)
+        if not text:
+            if path.exists():
+                path.unlink()
+            records.append({"path": f"assets/{relative}", "status": "omitted",
+                            "issues": found or ["missing_verified_content"]})
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, "utf-8")
+        resolved_status = "review_required" if found and status == "deployable" else status
+        item = {"path": f"assets/{relative}", "status": resolved_status,
+                "issues": sorted(set(found))}
+        records.append(item)
+        made.append(item["path"])
 
     if "llms" in which:
-        (adir).mkdir(parents=True, exist_ok=True)
+        adir.mkdir(parents=True, exist_ok=True)
+        facts = parse_facts(slug)
         if market in ("cn", "both"):
-            (adir / "llms.txt").write_text(gen_llms_txt(slug, "zh"), "utf-8")
-            made.append("assets/llms.txt")
+            issues = ["facts_require_review"] if facts_need_review else []
+            if not _definition(cfg, facts, "zh"):
+                issues.append("missing_verified_definition")
+            add("llms.txt", gen_llms_txt(slug, "zh"), lang="zh", issues=issues)
         if market in ("global", "both"):
-            (adir / "llms.en.txt").write_text(gen_llms_txt(slug, "en"), "utf-8")
-            made.append("assets/llms.en.txt")
+            issues = ["facts_require_review"] if facts_need_review else []
+            if not _definition(cfg, facts, "en"):
+                issues.append("missing_verified_english_definition")
+            add("llms.en.txt", gen_llms_txt(slug, "en"), lang="en", issues=issues)
 
     if "jsonld" in which:
         d = adir / "jsonld"
         d.mkdir(parents=True, exist_ok=True)
-        for name, obj in gen_jsonld(slug).items():
-            (d / f"{name}.json").write_text(json.dumps(obj, ensure_ascii=False, indent=2), "utf-8")
-            made.append(f"assets/jsonld/{name}.json")
+        schemas = gen_jsonld(slug)
+        for stale in d.glob("*.json"):
+            if stale.stem not in schemas:
+                stale.unlink()
+        for name, obj in schemas.items():
+            issues = ["facts_require_review"] if facts_need_review else []
+            add(f"jsonld/{name}.json", json.dumps(obj, ensure_ascii=False, indent=2), issues=issues)
 
     if "snippets" in which:
-        d = adir / "snippets"
-        d.mkdir(parents=True, exist_ok=True)
         for lang in (["zh"] if market == "cn" else ["en"] if market == "global" else ["zh", "en"]):
-            (d / f"definition.{lang}.html").write_text(gen_definition_block(slug, lang), "utf-8")
-            (d / f"faq.{lang}.html").write_text(gen_faq_block(slug, lang), "utf-8")
-            made += [f"assets/snippets/definition.{lang}.html", f"assets/snippets/faq.{lang}.html"]
+            issues = ["facts_require_review"] if facts_need_review else []
+            add(f"snippets/definition.{lang}.html", gen_definition_block(slug, lang),
+                lang=lang, issues=issues)
+            add(f"snippets/faq.{lang}.html", gen_faq_block(slug, lang), lang=lang)
 
     outlines = []
     if "outlines" in which:
@@ -454,21 +607,26 @@ def run(slug: str, which: list[str] | None = None, with_draft: bool = False,
         d.mkdir(parents=True, exist_ok=True)
         outlines = gen_outlines(slug)
         for o in outlines:
-            body = [f"# 内容大纲 · {o['target_question']}", "",
-                    f"- 目标问题 ID：`{o['question_id']}` ｜ 市场：{o['market']} ｜ 类型：{o['type']}",
-                    "", "## 标题候选（对题性 r=0.432，标题必须含问题原词）", ""]
+            strings = _locale("zh" if o["market"] == "cn" else "en")["outline_document"]
+            body = [f"# {strings['title'].format(question=o['target_question'])}", "",
+                    f"- {strings['meta'].format(question_id=o['question_id'], market=o['market'], type=o['type'])}",
+                    "", f"## {strings['title_candidates']}", ""]
             body += [f"{i+1}. {t}" for i, t in enumerate(o["title_candidates"])]
-            body += ["", "## 章节骨架", ""]
+            body += ["", f"## {strings['sections']}", ""]
             body += [f"{i+1}. {s}" for i, s in enumerate(o["sections"])]
-            body += ["", "## 硬性要求", "",
-                     f"- 正文 ≥ {o['requirements']['min_words']} 词，H2 ≥ {o['requirements']['min_h2']} 个",
-                     f"- 必备抽取块：{'、'.join(o['requirements']['must_have_blocks'])}",
-                     f"- 列表密度 {o['requirements']['list_density']}",
-                     f"- 证据：{o['requirements']['evidence']}", ""]
+            requirements = o["requirements"]
+            body += ["", f"## {strings['requirements']}", "",
+                     f"- {strings['min_words'].format(min_words=requirements['min_words'], min_h2=requirements['min_h2'])}",
+                     f"- {strings['blocks'].format(blocks=strings['block_separator'].join(requirements['must_have_blocks']))}",
+                     f"- {strings['list_density'].format(density=requirements['list_density'])}",
+                     f"- {strings['evidence'].format(evidence=requirements['evidence'])}", ""]
             if o["facts_to_use"]:
-                body += ["## 可用的已核实事实", ""] + [f"- {x}" for x in o["facts_to_use"]] + [""]
-            (d / f"{o['question_id']}.md").write_text("\n".join(body), "utf-8")
-        made.append(f"assets/outlines/（{len(outlines)} 份）")
+                body += [f"## {strings['facts']}", ""] + [f"- {x}" for x in o["facts_to_use"]] + [""]
+            path = G.safe_child(d, o["question_id"], ".md")
+            path.write_text("\n".join(body), "utf-8")
+            item = {"path": f"assets/outlines/{path.name}", "status": "draft", "issues": []}
+            records.append(item)
+            made.append(item["path"])
         G.write_json(adir / "outlines" / "_index.json", outlines)
 
     if with_draft and outlines:
@@ -478,18 +636,30 @@ def run(slug: str, which: list[str] | None = None, with_draft: bool = False,
             G.info(f"Drafting {o['question_id']} · {o['target_question'][:30]}…")
             text = draft(slug, o)
             if text:
-                (d / f"{o['question_id']}.md").write_text(
-                    f"<!-- 初稿，需人工核实所有事实后再发布 · {G.today()} -->\n\n" + text, "utf-8")
-                made.append(f"assets/drafts/{o['question_id']}.md")
+                path = G.safe_child(d, o["question_id"], ".md")
+                lang = "zh" if o["market"] == "cn" else "en"
+                note = _locale(lang)["draft_review_comment"]
+                path.write_text(f"<!-- {note} - {G.today()} -->\n\n" + text, "utf-8")
+                item = {"path": f"assets/drafts/{path.name}", "status": "draft",
+                        "issues": ["requires_factual_review"]}
+                records.append(item)
+                made.append(item["path"])
             else:
                 G.info("  No available LLM API Key, skipping draft generation")
                 break
         rep = lint_all(slug)
         if rep.get("total_issues"):
             G.info(f"Draft risk inspection: {rep['total_issues']} items (High risk: {rep['high']} items)"
-                   f" → assets/drafts/_lint.json。**发布前必须人工核实**")
+                   " -> assets/drafts/_lint.json. Manual review required before publication.")
 
-    index = {"slug": slug, "generated_at": G.now_iso(), "market": market, "assets": made}
+    index = {
+        "slug": slug, "generated_at": G.now_iso(), "market": market,
+        "assets": [item["path"] for item in records if item["status"] == "deployable"],
+        "generated_assets": made,
+        "asset_records": records,
+        "review_required": [item["path"] for item in records if item["status"] == "review_required"],
+        "drafts": [item["path"] for item in records if item["status"] == "draft"],
+    }
     G.write_json(adir / "index.json", index)
     G.info(f"Generated {len(made)} asset(s) → {adir}")
     return index

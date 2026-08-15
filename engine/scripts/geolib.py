@@ -1,16 +1,18 @@
-"""GEO 工具箱共用模块：路径、配置、HTTP、正文抽取。
+"""Shared GEO utilities for paths, configuration, HTTP, and content extraction.
 
-只依赖 requests / bs4 / lxml（标准 macOS Python 环境已有），不引入 yaml/jinja2。
+This module intentionally depends only on requests, BeautifulSoup, and lxml.
 """
 
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import os
 import re
 import sys
 import time
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,7 +26,7 @@ WORK = ROOT / "work"
 
 
 def load_env(path: Path | None = None):
-    """读项目根目录的 .env（已 gitignore）。已存在的环境变量优先，不覆盖。"""
+    """Load a gitignored project .env without overriding process variables."""
     p = path or (ROOT / ".env")
     if not p.exists():
         return
@@ -43,7 +45,7 @@ UA = (
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 geo-skill/1.0"
 )
 
-# ---------------------------------------------------------------- 基础工具
+# ---------------------------------------------------------------- Core utilities
 
 
 def now_iso() -> str:
@@ -56,7 +58,7 @@ def today() -> str:
 
 def slugify(text: str) -> str:
     text = re.sub(r"^https?://", "", (text or "").strip().lower())
-    text = re.sub(r"[^a-z0-9一-鿿]+", "-", text).strip("-")
+    text = re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "-", text).strip("-")
     return text[:48] or "project"
 
 
@@ -69,9 +71,10 @@ def info(msg: str):
     print(f"[geo] {msg}", file=sys.stderr)
 
 
-# ---------------------------------------------------------------- 项目目录
+# ---------------------------------------------------------------- Project directories
 
-SLUG_OK = re.compile(r"^[a-z0-9一-鿿][a-z0-9一-鿿-]{0,47}$")
+SLUG_OK = re.compile(r"^[a-z0-9\u4e00-\u9fff][a-z0-9\u4e00-\u9fff-]{0,47}$")
+QUESTION_ID_OK = re.compile(r"^q\d{3,6}$")
 
 
 def project_dir(slug: str) -> Path:
@@ -80,9 +83,50 @@ def project_dir(slug: str) -> Path:
     return WORK / slug
 
 
+def normalize_question_ids(questions: list) -> list[dict]:
+    """Return unique filename-safe IDs without trusting model-provided values."""
+    rows = [dict(q) for q in questions or [] if isinstance(q, dict)]
+    used: set[str] = set()
+    next_id = 1
+    for row in rows:
+        raw = str(row.get("id") or "").strip().lower()
+        if QUESTION_ID_OK.fullmatch(raw) and raw not in used:
+            qid = raw
+        else:
+            while f"q{next_id:03d}" in used:
+                next_id += 1
+            qid = f"q{next_id:03d}"
+            next_id += 1
+        row["id"] = qid
+        used.add(qid)
+    return rows
+
+
+def safe_child(directory: Path, name: str, suffix: str = "") -> Path:
+    """Build a direct child path and reject traversal or invalid question IDs."""
+    value = str(name or "")
+    if not QUESTION_ID_OK.fullmatch(value):
+        raise ValueError(f"Invalid question id: {value!r}")
+    base = Path(directory).resolve()
+    target = (base / f"{value}{suffix}").resolve()
+    if target.parent != base:
+        raise ValueError(f"Unsafe output path: {target}")
+    return target
+
+
+def stable_hash(value, length: int = 16) -> str:
+    body = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()[:length]
+
+
+def new_run_id(prefix: str = "run") -> str:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    return f"{prefix}-{stamp}-{uuid.uuid4().hex[:8]}"
+
+
 @contextmanager
 def project_lock(slug: str):
-    """项目级跨进程锁：load-modify-write 操作必须走它。"""
+    """Serialize project-level load-modify-write operations across processes."""
     d = project_dir(slug)
     d.mkdir(parents=True, exist_ok=True)
     with (d / ".lock").open("w") as fd:
@@ -101,8 +145,7 @@ def load_config(slug: str) -> dict:
 
 
 def save_config(slug: str, cfg: dict):
-    """写配置前先备份。geo.json 里是一期的人工投入（问题库、竞品、口径），
-    被误覆盖的代价远大于留几个备份文件。"""
+    """Back up curated project configuration before replacing it."""
     p = project_dir(slug) / "geo.json"
     p.parent.mkdir(parents=True, exist_ok=True)
     if p.exists():
@@ -130,7 +173,7 @@ def read_json(path: Path, default=None):
     try:
         return json.loads(p.read_text("utf-8"))
     except json.JSONDecodeError:
-        info(f"警告：{p} 已损坏，使用默认值")
+        info(f"Warning: {p} is corrupt; using the default value")
         return default
 
 
@@ -155,9 +198,9 @@ def read_jsonl(path: Path):
 
 # ---------------------------------------------------------------- HTTP
 
-MAX_BYTES = 4_000_000  # 单页最多读 4MB，防止一头扎进安装包/大文件把管线拖死
+MAX_BYTES = 4_000_000  # Bound page reads so large downloads cannot stall the pipeline.
 
-# 一看就不是网页的路径，直接跳过（安装包、媒体、静态资源等）
+# Skip obvious downloads, media, and static assets before opening a request.
 SKIP_EXT = re.compile(
     r"\.(zip|gz|tgz|bz2|7z|rar|dmg|pkg|exe|msi|apk|ipa|deb|rpm|bin|iso"
     r"|mp4|mov|avi|mkv|mp3|wav|flac|png|jpe?g|gif|webp|svg|ico|bmp|tiff"
@@ -176,10 +219,10 @@ def is_fetchable(url: str) -> bool:
 
 
 def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
-    """返回 {url, final_url, status, html, elapsed, error}。只读网页，且有体积上限。"""
+    """Fetch a bounded web document and return normalized response metadata."""
     if not is_fetchable(url):
         return {"url": url, "final_url": url, "status": 0, "html": "", "content_type": "",
-                "elapsed": 0, "error": "跳过：不是网页（下载/媒体/静态资源）"}
+                "elapsed": 0, "error": "Skipped: URL points to a download, media file, or static asset"}
     last = ""
     for attempt in range(retries + 1):
         try:
@@ -187,11 +230,11 @@ def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
             r = requests.get(
                 url,
                 timeout=timeout,
-                headers={"User-Agent": UA, "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"},
+                headers={"User-Agent": UA, "Accept-Language": os.environ.get("GEO_ACCEPT_LANGUAGE", "en")},
                 allow_redirects=True,
                 stream=True,
             )
-            # 5xx / 429 多是临时故障（服务端抖动、限流），值得按异常同样的节奏重试
+            # Server errors and rate limits are usually transient and follow the retry policy.
             if (r.status_code >= 500 or r.status_code == 429) and attempt < retries:
                 r.close()
                 time.sleep(1.5)
@@ -201,7 +244,7 @@ def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
                 r.close()
                 return {"url": url, "final_url": r.url, "status": r.status_code, "html": "",
                         "content_type": ctype, "elapsed": round(time.time() - t0, 2),
-                        "error": f"跳过非网页内容（{ctype.split(';')[0]}）"}
+                        "error": f"Skipped non-document content ({ctype.split(';')[0]})"}
             chunks, size = [], 0
             for chunk in r.iter_content(65536):
                 chunks.append(chunk)
@@ -247,7 +290,7 @@ def same_site(a: str, b: str) -> bool:
     return ha == hb or ha.endswith("." + hb) or hb.endswith("." + ha)
 
 
-# 跟踪参数：同一个页面挂不同参数会被当成多个 URL 重复抓，先剥掉
+# Strip tracking parameters so one page is not crawled under multiple URLs.
 TRACKING_PARAMS = {"fbclid", "gclid", "dclid", "msclkid", "igshid", "mc_cid", "mc_eid",
                    "ref", "spm", "scm"}
 
@@ -268,7 +311,7 @@ def normalize_url(base: str, href: str) -> str | None:
     return u
 
 
-# ---------------------------------------------------------------- 正文抽取
+# ---------------------------------------------------------------- Main-content extraction
 
 _DROP_TAGS = ["script", "style", "noscript", "svg", "iframe", "form", "template"]
 _BOILER = re.compile(r"(nav|header|footer|sidebar|menu|breadcrumb|cookie|banner|advert)", re.I)
@@ -278,7 +321,8 @@ def parse_html(html: str) -> BeautifulSoup:
     return BeautifulSoup(html or "", "lxml")
 
 
-def main_text(soup: BeautifulSoup) -> str:
+def main_content(soup: BeautifulSoup) -> BeautifulSoup:
+    """Return a cloned content DOM without navigation or interactive boilerplate."""
     body = soup.find("article") or soup.find("main") or soup.body or soup
     clone = BeautifulSoup(str(body), "lxml")
     for t in clone(_DROP_TAGS):
@@ -287,16 +331,25 @@ def main_text(soup: BeautifulSoup) -> str:
         t.decompose()
     for t in clone.find_all(attrs={"id": _BOILER}):
         t.decompose()
+    return clone
+
+
+def main_text(soup: BeautifulSoup) -> str:
+    clone = main_content(soup)
     text = clone.get_text("\n", strip=True)
     return re.sub(r"\n{3,}", "\n\n", text)
 
 
-CJK = re.compile(r"[一-鿿]")
-KANA = re.compile(r"[぀-ヿ]")
+CJK = re.compile(r"[\u4e00-\u9fff]")
+KANA = re.compile(r"[\u3040-\u30ff]")
+HANGUL = re.compile(r"[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]")
+THAI = re.compile(r"[\u0e00-\u0e7f]")
+ARABIC = re.compile(r"[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]")
+DEVANAGARI = re.compile(r"[\u0900-\u097f]")
 
 
 def cjk_ratio(text: str) -> float:
-    """中文字符占「中文字符 + 英文单词」的比例，用来判断这页到底是中文页还是英文页。"""
+    """Return the Han share among Han characters and Latin words."""
     cjk = len(CJK.findall(text))
     latin = len(re.findall(r"[A-Za-z][A-Za-z'\-]*", text))
     total = cjk + latin
@@ -304,25 +357,68 @@ def cjk_ratio(text: str) -> float:
 
 
 def page_language(text: str, lang_attr: str = "") -> str:
-    """返回 zh / ja / en / mixed / unknown。html lang 属性只作参考，正文说了算。"""
+    """Detect common writing systems, using the lang attribute only for short text."""
+    aliases = {"zh": "zh", "ja": "ja", "en": "en", "ko": "ko", "th": "th",
+               "ar": "ar", "hi": "hi", "mr": "hi", "ne": "hi"}
     if len(text) < 80:
         la = (lang_attr or "").lower()
-        return ("zh" if la.startswith("zh") else "en" if la.startswith("en")
-                else "ja" if la.startswith("ja") else "unknown")
-    # 日文：假名够多且占（假名 + 汉字）比例明显，避免把引用了一两个日语词的中文页判成 ja
+        return next((lang for prefix, lang in aliases.items() if la.startswith(prefix)), "unknown")
+    # Require a meaningful Kana share so occasional Japanese terms do not flip the result.
     kana = len(KANA.findall(text))
     if kana >= 5 and kana / (kana + len(CJK.findall(text))) > 0.2:
         return "ja"
-    r = cjk_ratio(text)
-    return "zh" if r >= 0.5 else "en" if r <= 0.1 else "mixed"
+    counts = {
+        "zh": len(CJK.findall(text)),
+        "ko": len(HANGUL.findall(text)),
+        "th": len(THAI.findall(text)),
+        "ar": len(ARABIC.findall(text)),
+        "hi": len(DEVANAGARI.findall(text)),
+        "en": len(re.findall(r"[A-Za-z][A-Za-z'\-]*", text)),
+    }
+    lang, count = max(counts.items(), key=lambda item: item[1])
+    total = sum(counts.values())
+    if not total:
+        return "unknown"
+    return lang if count / total >= 0.55 else "mixed"
 
 
 def word_count(text: str) -> int:
-    """中英日混排统一折算成「词」：CJK 1.6 字算 1 词（接近中英信息密度比）。
-    假名并入 CJK 统计：假名为主的日文页不算的话词数会被严重低估。"""
+    """Estimate words across writing systems with and without whitespace boundaries."""
     cjk = len(CJK.findall(text)) + len(KANA.findall(text))
     latin = len(re.findall(r"[A-Za-z][A-Za-z'\-]*", text))
-    return int(cjk / 1.6 + latin)
+    hangul = len(re.findall(r"[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]+", text))
+    thai = len(THAI.findall(text)) / 4
+    arabic = len(re.findall(r"[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]+", text))
+    devanagari = len(re.findall(r"[\u0900-\u097f]+", text))
+    return int(cjk / 1.6 + latin + hangul + thai + arabic + devanagari)
+
+
+_QUERY_STOP = re.compile(
+    "\u4ec0\u4e48|\u600e\u4e48|\u5982\u4f55|\u54ea\u4e2a|\u54ea\u4e9b|\u6709\u6ca1\u6709|"
+    "\u662f\u5426|\u53ef\u4ee5|\u9002\u5408|\u63a8\u8350|\u597d\u7528|\u6700\u597d|"
+    "\u8bf7\u95ee|\u591a\u5c11|\u54ea\u91cc|"
+    r"\b(?:the|and|for|how|what|which|best|good|recommend|is|are|can)\b",
+    re.I,
+)
+
+
+def relevance_tokens(text: str) -> list[str]:
+    """Split natural-language questions into reproducible query-intent tokens."""
+    out: list[str] = []
+    source = str(text or "").lower()
+    for phrase in re.findall(r"[\u4e00-\u9fff]{2,}", source):
+        if phrase not in out:
+            out.append(phrase)
+    cleaned = _QUERY_STOP.sub(" ", source)
+    for token in re.findall(r"[a-z][a-z0-9+.#'\-]{1,}|[\u4e00-\u9fff]{2,}", cleaned):
+        candidates = [token]
+        if CJK.search(token) and len(token) > 3:
+            candidates.extend(token[i:i + size] for size in (2, 3, 4)
+                              for i in range(0, len(token) - size + 1))
+        for candidate in candidates:
+            if candidate not in out:
+                out.append(candidate)
+    return out
 
 
 def jsonld(soup: BeautifulSoup) -> list:

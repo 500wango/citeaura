@@ -40,20 +40,20 @@ class TestFromMetricsNone(unittest.TestCase):
         # 一个已测平台 0.6（≥ 目标不下工单）+ 一个全点名平台 None：不崩且 None 被跳过
         m = _metrics({"deepseek": _plat(mention=0.6), "kimi": _plat(mention=None, cite=None)})
         out = T.from_metrics(m, CFG, _seq())
-        self.assertFalse(any("提及率" in t["title"] for t in out))
+        self.assertFalse(any("mention rate" in t["title"] for t in out))
 
     def test_all_none_market_no_conclusion_task(self):
         # 整个市场全是点名样本：可见性「未测」，不能按 0% 误下「未达标」工单
         m = _metrics({"deepseek": _plat(mention=None, cite=None)})
         out = T.from_metrics(m, CFG, _seq())
-        self.assertFalse(any("提及率" in t["title"] for t in out))
-        self.assertFalse(any("检索结果" in t["title"] for t in out))
+        self.assertFalse(any("mention rate" in t["title"] for t in out))
+        self.assertFalse(any("retrieval" in t["title"] for t in out))
 
     def test_low_measured_avg_still_creates_task(self):
         m = _metrics({"deepseek": _plat(mention=0.0, cite=0.0), "kimi": _plat(mention=None, cite=None)})
         out = T.from_metrics(m, CFG, _seq())
-        self.assertTrue(any("提及率" in t["title"] for t in out))
-        self.assertTrue(any("检索结果" in t["title"] for t in out))
+        self.assertTrue(any("mention rate" in t["title"] for t in out))
+        self.assertTrue(any("retrieval" in t["title"] for t in out))
 
 
 class TestMarketAvg(unittest.TestCase):
@@ -71,6 +71,35 @@ class TestMarketAvg(unittest.TestCase):
         task = {"acceptance": {"type": "auto", "check": "metrics.mention_rate_gte:cn:0.3"}}
         ok, why, _prog = V.check(task, {}, m)
         self.assertIsNone(ok)  # 无数据 → 无法判定，而不是 False「未达标」
+
+    def test_market_average_is_sample_weighted(self):
+        m = _metrics({"a": {**_plat(mention=1.0), "samples": 1},
+                      "b": {**_plat(mention=0.0), "samples": 9}})
+        self.assertAlmostEqual(V._market_avg(m, "cn", "mention_rate"), 0.1)
+
+    def test_metric_target_requires_representative_baseline(self):
+        m = _metrics({"a": {**_plat(mention=1.0), "samples": 3}})
+        task = {"acceptance": {"type": "auto", "check": "metrics.mention_rate_gte:cn:0.3"}}
+        ok, why, _progress = V.check(task, {}, m)
+        self.assertIsNone(ok)
+        self.assertIn("Sample volume", why)
+
+
+class TestVerificationCohort(unittest.TestCase):
+    def test_disappeared_baseline_urls_cannot_pass_relative_check(self):
+        task = {
+            "affected": [f"https://example.com/old-{i}" for i in range(10)],
+            "baseline_count": 10,
+            "verification_cohort": [f"https://example.com/old-{i}" for i in range(10)],
+            "acceptance": {"type": "auto", "check": "pages.block:definition"},
+        }
+        audit = {"pages": [
+            {"url": f"https://example.com/new-{i}", "blocks": {"definition": False}, "word_count": 500}
+            for i in range(5)
+        ]}
+        ok, note, _progress = V.check(task, audit, {})
+        self.assertIsNone(ok)
+        self.assertIn("not crawled", note)
 
 
 class TestDeliverablesNone(unittest.TestCase):

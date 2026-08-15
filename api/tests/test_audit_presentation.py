@@ -104,7 +104,8 @@ def test_contact_page_suppresses_unrelated_long_form_and_block_findings():
     page = result["pages"][0]
 
     assert page["role"]["id"] == "contact"
-    assert page["applicable_score"] == 100
+    assert page["applicable_score"] is None
+    assert page["evaluation_status"] == "insufficient_evidence"
     assert page["findings"] == []
     assert page["issues"] == []
     assert set(item["id"] for item in page["checks"] if item["status"] == "passed") == {
@@ -163,7 +164,8 @@ def test_unreachable_page_suppresses_cascading_content_findings():
     page = audit_presentation.present_audit_data(_audit([raw]), [evidence])["pages"][0]
 
     assert [item["code"] for item in page["findings"]] == ["PAGE_UNREACHABLE"]
-    assert page["applicable_score"] == 0
+    assert page["applicable_score"] is None
+    assert page["evaluation_status"] == "insufficient_evidence"
     assert page["check_summary"]["not_evaluated"] == len(audit_presentation.CHECK_WEIGHTS) - 1
 
 

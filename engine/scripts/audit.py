@@ -1,12 +1,7 @@
-"""页面 GEO 体检：把 citation-lab 的实证结论变成可计算的分数。
+"""Score page-level GEO signals using the citation-lab reference findings.
 
-评分口径全部来自 references/method.md 里记录的实测数字，不是拍脑袋：
-  长度   Top 四分位页面 1,943 词 / Bottom 四分位 170 词（11.4x）
-  结构   Top 四分位 10.59 个标题、47.49 个段落、列表密度 0.428
-  抽取块 含数字 +61.6%、含定义 +57.3%、含对比 +55.3%、含 how-to +41.2%
-  对题性 llm_relevance_score 是影响力最强预测因子（r = 0.432）
-
-产物：work/<slug>/audit.json
+The scoring model uses observational associations for prioritization, not as
+universal causal claims. Output: ``work/<slug>/audit.json``.
 """
 
 from __future__ import annotations
@@ -17,25 +12,39 @@ from urllib.parse import urlparse
 
 import geolib as G
 
-# ------------------------------------------------------------ 抽取块识别
+# ------------------------------------------------------------ Extraction blocks
 
 RE_DEFINITION = re.compile(
-    r"(是一[款种个家类]|是指|指的是|定义为|全称[为是]|又称|简称为?|属于一[种类]"
+    r"(\u662f\u4e00[\u6b3e\u79cd\u4e2a\u5bb6\u7c7b]|\u662f\u6307|\u6307\u7684\u662f|\u5b9a\u4e49\u4e3a|\u5168\u79f0[\u4e3a\u662f]|\u53c8\u79f0|\u7b80\u79f0\u4e3a?|\u5c5e\u4e8e\u4e00[\u79cd\u7c7b]"
     r"|\bis an? \w+|\brefers to\b|\bis defined as\b|\bstands for\b)"
 )
 RE_NUMBER = re.compile(
-    r"\d[\d,\.]*\s*(%|％|万|亿|千|倍|元|美元|人|家|个|天|小时|分钟|秒|次|条|款|年|月|"
+    r"\d[\d,\.]*\s*(%|\uff05|\u4e07|\u4ebf|\u5343|\u500d|\u5143|\u7f8e\u5143|\u4eba|\u5bb6|\u4e2a|\u5929|\u5c0f\u65f6|\u5206\u949f|\u79d2|\u6b21|\u6761|\u6b3e|\u5e74|\u6708|"
     r"percent|x\b|hours?|days?|users?|customers?)"
 )
-RE_COMPARE = re.compile(r"(对比|相比|区别|差异|优于|不如|竞品|替代|选型|哪个好|\bvs\.?\b|\bversus\b|\balternatives?\b)", re.I)
-RE_HOWTO = re.compile(r"(第[一二三四五六七八九十\d]+步|步骤\s*[一二三四五六七八九十\d]|操作流程|\bstep\s*\d|\bhow to\b)", re.I)
-# 「如何/怎么」只是弱信号，必须与列表结构共现才算操作步骤块（否则问句标题就送分）
-RE_HOWTO_SOFT = re.compile(r"(如何|怎么)")
-# 登录/注册/购物车等功能页天然低内容，不按 SPA 空壳 P0 误报
+RE_COMPARE = re.compile(
+    r"(\u5bf9\u6bd4|\u76f8\u6bd4|\u533a\u522b|\u5dee\u5f02|\u4f18\u4e8e|\u4e0d\u5982|\u7ade\u54c1|\u66ff\u4ee3|\u9009\u578b|\u54ea\u4e2a\u597d|\bvs\.?\b|\bversus\b|\balternatives?\b)",
+    re.I,
+)
+RE_HOWTO = re.compile(
+    r"(\u7b2c[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\d]+\u6b65|\u6b65\u9aa4\s*[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\d]|\u64cd\u4f5c\u6d41\u7a0b|\bstep\s*\d|\bhow to\b)",
+    re.I,
+)
+# Soft how-to terms count only when list structure is also present.
+RE_HOWTO_SOFT = re.compile(r"(\u5982\u4f55|\u600e\u4e48)")
+# Low-content utility pages are not treated as SPA shells.
 FUNC_PAGE = re.compile(r"/(login|signin|signup|register|cart|checkout|account|auth)(/|$)", re.I)
-RE_FAQ = re.compile(r"(常见问题|常见疑问|问答|\bFAQ\b|^\s*[问Q][:：]|答[:：])", re.I | re.M)
-RE_DATE = re.compile(r"(20\d{2}[-/年]\s?\d{1,2}[-/月]\s?\d{1,2}|更新[于时间]*[:：]?\s*20\d{2}|最后更新|发布于|\bupdated\b|\bpublished\b)", re.I)
-RE_AUTHOR = re.compile(r"(作者|撰文|编辑[:：]|\bauthor\b|\bby\s+[A-Z][a-z]+)", re.I)
+CONTACT_PAGE = re.compile(r"/(contact|contact-us|get-in-touch)(/|$)", re.I)
+LEGAL_PAGE = re.compile(r"/(privacy|terms|legal|cookies?|gdpr|imprint|disclaimer)(/|$)", re.I)
+RE_FAQ = re.compile(
+    r"(\u5e38\u89c1\u95ee\u9898|\u5e38\u89c1\u7591\u95ee|\u95ee\u7b54|\bFAQ\b|^\s*[\u95eeQ][:\uff1a]|\u7b54[:\uff1a])",
+    re.I | re.M,
+)
+RE_DATE = re.compile(
+    r"(20\d{2}[-/\u5e74]\s?\d{1,2}[-/\u6708]\s?\d{1,2}|\u66f4\u65b0[\u4e8e\u65f6\u95f4]*[:\uff1a]?\s*20\d{2}|\u6700\u540e\u66f4\u65b0|\u53d1\u5e03\u4e8e|\bupdated\b|\bpublished\b)",
+    re.I,
+)
+RE_AUTHOR = re.compile(r"(\u4f5c\u8005|\u64b0\u6587|\u7f16\u8f91[:\uff1a]|\bauthor\b|\bby\s+[A-Z][a-z]+)", re.I)
 
 AUTHORITY_SCHEMA = {
     "Organization", "Corporation", "Product", "SoftwareApplication", "Service",
@@ -45,7 +54,7 @@ AUTHORITY_SCHEMA = {
 
 
 def band(value: float, stops: list[tuple[float, float]]) -> float:
-    """stops 为 [(阈值, 得分比例)]，从高到低取第一个满足的。"""
+    """Return the ratio for the first descending threshold that matches."""
     for threshold, ratio in stops:
         if value >= threshold:
             return ratio
@@ -53,7 +62,7 @@ def band(value: float, stops: list[tuple[float, float]]) -> float:
 
 
 def jsonld_has_key(obj, keys: set[str]) -> bool:
-    """递归查 JSON-LD 原始 dict 的键（dateModified 是属性不是 @type，查 types 恒查不到）。"""
+    """Recursively inspect JSON-LD keys, including properties outside @type."""
     if isinstance(obj, dict):
         return any(k in keys or jsonld_has_key(v, keys) for k, v in obj.items())
     if isinstance(obj, list):
@@ -61,7 +70,57 @@ def jsonld_has_key(obj, keys: set[str]) -> bool:
     return False
 
 
+def page_role(page: dict) -> str:
+    path = urlparse(page.get("url") or "").path
+    if FUNC_PAGE.search(path):
+        return "utility"
+    if CONTACT_PAGE.search(path):
+        return "contact"
+    if LEGAL_PAGE.search(path):
+        return "legal"
+    if path.rstrip("/") in ("",):
+        return "home"
+    if re.search(r"/(blog|news|articles?|insights?)(/|$)", path, re.I):
+        return "editorial"
+    if re.search(r"/(help|support|docs?|faq|guides?|tutorials?)(/|$)", path, re.I):
+        return "support"
+    return "content"
+
+
+def _unscored_page(page: dict, role: str) -> dict:
+    """Report utility-page evidence without normalizing sparse checks into a score."""
+    status = page.get("status") or 0
+    issues, codes = [], []
+    if status != 200:
+        codes.append("PAGE_UNREACHABLE" if not status or status >= 400 else "NON_200_STATUS")
+        issues.append("P0 Page is not reliably accessible" if not status or status >= 400
+                      else "P1 Page did not return HTTP 200")
+    if "noindex" in (page.get("meta_robots") or "").lower():
+        codes.append("NOINDEX")
+        issues.append("P0 Page is excluded by noindex")
+    if not page.get("canonical"):
+        codes.append("NO_CANONICAL")
+        issues.append("P2 Missing canonical URL")
+    if page.get("word_count", 0) < 120:
+        codes.append("LOW_CONTENT_PAGE")
+        issues.append("Low-content utility page; excluded from public-content scoring")
+    return {
+        "url": page.get("url"), "title": page.get("title", "")[:120],
+        "word_count": page.get("word_count", 0), "score": None, "grade": "N/A",
+        "scored": False, "evaluation_status": "not_scored", "role": role,
+        "evaluated_checks": 3, "minimum_evaluated_checks": 8,
+        "dimensions": {},
+        "blocks": {"definition": None, "numeric_facts": None, "comparison": None,
+                   "steps": None, "faq": None},
+        "jsonld_types": sorted(set(page.get("jsonld_types", []))),
+        "issues": issues, "issue_codes": codes,
+    }
+
+
 def score_page(page: dict, keywords: list[str]) -> dict:
+    role = page_role(page)
+    if role in ("utility", "contact", "legal"):
+        return _unscored_page(page, role)
     text = page.get("text", "") or ""
     wc = page.get("word_count", 0)
     h1, h2 = page.get("h1", []), page.get("h2", [])
@@ -78,95 +137,95 @@ def score_page(page: dict, keywords: list[str]) -> dict:
 
     d: dict[str, float] = {}
 
-    # 1. 可抓取性 15
+    # 1. Crawlability: 15 points
     s = 0.0
     status = page.get("status") or 0
     if status == 200:
         s += 7
     elif 200 < status < 400:
         s += 3
-        issue("NON_200_STATUS", "P1 页面返回非 200（如 202/3xx），部分抓取器会直接放弃")
+        issue("NON_200_STATUS", "P1 Page returned a non-200 status; some crawlers may stop processing it")
     else:
-        issue("PAGE_UNREACHABLE", "P0 页面不可访问，AI 抓取器同样拿不到")
+        issue("PAGE_UNREACHABLE", "P0 Page is inaccessible to AI crawlers")
     if "noindex" not in (page.get("meta_robots") or "").lower():
         s += 3
     else:
-        issue("NOINDEX", "P0 meta robots 含 noindex，等于主动退出候选池")
+        issue("NOINDEX", "P0 Meta robots contains noindex, excluding the page from retrieval")
     if page.get("canonical"):
         s += 2
     else:
-        issue("NO_CANONICAL", "P2 缺 canonical，重复内容会稀释信号")
+        issue("NO_CANONICAL", "P2 Missing canonical URL can dilute duplicate-content signals")
     if wc >= 120:
         s += 3
     elif FUNC_PAGE.search(urlparse(page.get("url") or "").path):
-        issue("LOW_CONTENT_PAGE", "P2 低内容功能页（登录/注册/购物车等），内容少属正常，可考虑补充说明性文案")
+        issue("LOW_CONTENT_PAGE", "P2 Low-content utility page; add explanatory copy only when useful")
     else:
-        issue("SPA_SHELL", "P0 静态 HTML 里几乎没有正文（疑似纯前端渲染），AI 抓取器读不到内容")
-    d["可抓取性"] = s
+        issue("SPA_SHELL", "P0 Static HTML contains almost no body text; AI crawlers cannot read the content")
+    d["crawlability"] = s
 
-    # 2. 内容长度 15（1000+ 词是进入高影响力区间的门槛）
+    # 2. Content depth: 15 points
     r = band(wc, [(1500, 1.0), (1000, 0.85), (600, 0.6), (300, 0.35), (120, 0.15)])
-    d["内容长度"] = 15 * r
+    d["content_depth"] = 15 * r
     if wc < 1000:
-        issue("SHORT_CONTENT", "P1 正文不足 1000 词门槛（高影响力页面平均 1,943 词，Bottom 四分位仅 170 词）")
+        issue("SHORT_CONTENT", "P1 Content depth is below the reference range; expand evidence to match page intent")
 
-    # 3. 结构规范 20
+    # 3. Structure: 20 points
     s = 0.0
     if len(h1) == 1:
         s += 4
     else:
-        issue("BAD_H1", "P1 H1 不是唯一一个（0 个或多个），主题信号混乱")
+        issue("BAD_H1", "P1 Page must have exactly one H1 to provide a clear topic signal")
     s += 6 * band(len(h2), [(8, 1.0), (6, 0.85), (4, 0.6), (2, 0.3)])
     if len(h2) < 6:
-        issue("FEW_H2", "P1 H2 小节不足 6 个，高影响力页面平均 10.59 个标题；建议拆到 6-10 节")
+        issue("FEW_H2", "P1 Section structure is shallow; organize clear sections around page intent")
     s += 5 * band(paras, [(40, 1.0), (25, 0.8), (15, 0.55), (8, 0.3)])
     density = lis / max(paras + lis, 1)
     s += 5 * band(density, [(0.35, 1.0), (0.2, 0.75), (0.1, 0.45), (0.03, 0.2)])
     if density < 0.1:
-        issue("LOW_LIST_DENSITY", "P1 列表密度过低，Top 四分位页面为 0.428；把要点改成 ul/ol 更易被抽取")
-    d["结构规范"] = s
+        issue("LOW_LIST_DENSITY", "P1 Low list density; use semantic lists for genuinely list-like information")
+    d["structure"] = s
 
-    # 4. 可抽取块 25（GEO 的核心杠杆）
+    # 4. Extractable blocks: 25 points
     has = {
-        "定义": bool(RE_DEFINITION.search(text)),
-        "数字事实": len(RE_NUMBER.findall(text)) >= 3,
-        "对比": bool(RE_COMPARE.search(text)) or page.get("table_count", 0) >= 1,
-        "操作步骤": bool(RE_HOWTO.search(text)) or (bool(RE_HOWTO_SOFT.search(text)) and lis >= 3),
-        "FAQ": bool(RE_FAQ.search(text)) or "FAQPage" in types,
+        "definition": bool(RE_DEFINITION.search(text)),
+        "numeric_facts": len(RE_NUMBER.findall(text)) >= 3,
+        "comparison": bool(RE_COMPARE.search(text)) or page.get("table_count", 0) >= 1,
+        "steps": bool(RE_HOWTO.search(text)) or (bool(RE_HOWTO_SOFT.search(text)) and lis >= 3),
+        "faq": bool(RE_FAQ.search(text)) or "FAQPage" in types,
     }
-    block_codes = {"定义": "NO_DEFINITION", "数字事实": "NO_NUMBERS", "对比": "NO_COMPARISON",
-                   "操作步骤": "NO_HOWTO", "FAQ": "NO_FAQ"}
-    weights = {"定义": 6, "数字事实": 6, "对比": 5, "操作步骤": 5, "FAQ": 3}
-    d["可抽取块"] = sum(w for k, w in weights.items() if has[k])
+    block_codes = {"definition": "NO_DEFINITION", "numeric_facts": "NO_NUMBERS",
+                   "comparison": "NO_COMPARISON", "steps": "NO_HOWTO", "faq": "NO_FAQ"}
+    weights = {"definition": 6, "numeric_facts": 6, "comparison": 5, "steps": 5, "faq": 3}
+    d["extractability"] = sum(w for k, w in weights.items() if has[k])
     for k, ok in has.items():
         if not ok:
-            issue(block_codes[k], f"P1 缺「{k}」块，补上可显著提升被吸收概率")
+            issue(block_codes[k], f"P1 Missing {k} block; reference data shows an association that must be validated by page role")
 
-    # 5. 权威信号 15
+    # 5. Authority signals: 15 points
     s = 0.0
     if RE_DATE.search(text) or jsonld_has_key(page.get("jsonld_raw"), {"dateModified", "datePublished"}):
         s += 4
     else:
-        issue("NO_DATE", "P1 正文没有可见的发布/更新日期，时效性无法判断")
+        issue("NO_DATE", "P1 No visible publication or update date; freshness cannot be assessed")
     if RE_AUTHOR.search(text):
         s += 2
     ext = page.get("external_links", 0)
     s += 4 * band(ext, [(6, 1.0), (3, 0.7), (1, 0.4)])
     if ext < 3:
-        issue("FEW_EXTERNAL_LINKS", "P2 几乎不引用外部来源，证据链偏弱")
+        issue("FEW_EXTERNAL_LINKS", "P2 Few external sources; the evidence chain is weak")
     hit_schema = types & AUTHORITY_SCHEMA
     s += 5 * band(len(hit_schema), [(3, 1.0), (2, 0.75), (1, 0.45)])
     if not hit_schema:
-        issue("NO_JSONLD", "P0 没有任何结构化数据（JSON-LD），机器读不懂这页在讲什么实体")
-    d["权威信号"] = s
+        issue("NO_JSONLD", "P0 Missing JSON-LD structured data for machine-readable entity context")
+    d["authority"] = s
 
-    # 6. 对题性 10（title / h1 / h2 是否覆盖目标问题里的词）
+    # 6. Query alignment: 10 points
     surface = " ".join([page.get("title", "")] + h1 + h2).lower()
     hits = [k for k in keywords if k and k.lower() in surface]
     cover = len(hits) / max(len(keywords), 1) if keywords else 0
-    d["对题性"] = 10 * band(cover, [(0.4, 1.0), (0.25, 0.8), (0.12, 0.55), (0.04, 0.3)])
+    d["query_alignment"] = 10 * band(cover, [(0.4, 1.0), (0.25, 0.8), (0.12, 0.55), (0.04, 0.3)])
     if cover < 0.12:
-        issue("LOW_RELEVANCE", "P1 标题体系几乎不含目标问题关键词，对题性是影响力最强的预测因子（r=0.432）")
+        issue("LOW_RELEVANCE", "P1 Headings have weak target-query alignment; the reference association is not a guaranteed lift")
 
     total = round(sum(d.values()), 1)
     return {
@@ -180,25 +239,30 @@ def score_page(page: dict, keywords: list[str]) -> dict:
         "jsonld_types": sorted(types),
         "issues": issues,
         "issue_codes": issue_codes,
+        "scored": True,
+        "evaluation_status": "scored",
+        "role": role,
+        "evaluated_checks": 19,
+        "minimum_evaluated_checks": 8,
     }
 
 
 def keywords_from_config(cfg: dict) -> list[str]:
     b = cfg.get("brand", {})
-    # 品牌词不算对题性证据：标题里出现自家品牌名天经地义，用它撑覆盖率是自我安慰
+    # Brand terms do not count as evidence of target-query alignment.
     brand_terms = set()
     for k in [b.get("name")] + list(b.get("aliases", []) or []) + list(b.get("products", []) or []):
         if k:
             brand_terms.add(str(k).lower())
-    kws = set()
+    kws: list[str] = []
     for q in cfg.get("questions", []):
-        for token in re.findall(r"[一-鿿A-Za-z]{2,}", q.get("text", "")):
-            if len(token) >= 2:
-                kws.add(token)
-    # 只保留最有区分度的一批，避免「的」「怎么」这种噪声撑高覆盖率
-    stop = {"什么", "怎么", "哪个", "如何", "可以", "适合", "推荐", "有没有", "the", "and", "for", "how", "what", "which"}
-    return sorted({k for k in kws if k.lower() not in stop and k.lower() not in brand_terms
-                   and len(k) >= 2})[:40]
+        text = str(q.get("text") or "")
+        for term in sorted(brand_terms, key=len, reverse=True):
+            text = re.sub(re.escape(term), " ", text, flags=re.I)
+        for token in G.relevance_tokens(text):
+            if token.lower() not in brand_terms and token not in kws:
+                kws.append(token)
+    return kws[:40]
 
 
 def run(slug: str) -> dict:
@@ -211,49 +275,51 @@ def run(slug: str) -> dict:
     kws = keywords_from_config(cfg)
 
     results = [score_page(p, kws) for p in pages]
-    # 均分分母只计能打开的页（含 0 分页）：和 grade_distribution 同口径，
-    # 抓不到的页本来就不该参与内容质量均分
-    ok = [r for r, p in zip(results, pages) if (p.get("status") or 0) == 200]
-    avg = round(sum(r["score"] for r in ok) / max(len(ok), 1), 1)
+    # Average only successfully fetched, scored pages, including zero scores.
+    ok = [r for r, p in zip(results, pages)
+          if (p.get("status") or 0) == 200 and r.get("scored") and r.get("score") is not None]
+    avg = round(sum(r["score"] for r in ok) / len(ok), 1) if ok else None
 
-    # 语言覆盖：做双市场时，「有没有英文原生内容」是海外 GEO 的门票
+    # Language coverage is kept separate across markets.
     market = cfg.get("market", "cn")
     lang_dist: dict[str, int] = {}
     for p in pages:
         if p.get("word_count", 0) >= 120:
-            # 有正文就从正文重算语言，不盲信存储字段——evidence 可能是旧版口径抓的
+            # Recompute language from content because stored evidence may be stale.
             if p.get("text"):
                 lang = G.page_language(p["text"], p.get("lang", ""))
             else:
                 lang = p.get("language", "unknown")
             lang_dist[lang] = lang_dist.get(lang, 0) + 1
-    # mixed 单列，不双计进 zh/en——双计会让「中英对等」判断失真
+    # Mixed-language pages remain separate to avoid double counting.
     en_pages = lang_dist.get("en", 0)
     zh_pages = lang_dist.get("zh", 0)
     ja_pages = lang_dist.get("ja", 0)
 
-    # 站点级问题
+    # Site-level issues
     site_issues = []
     if market in ("global", "both") and en_pages == 0:
         site_issues.append(
-            "P0 抓到的页面里没有一页是英文原生内容，海外 AI 引用的可识别语言中英文占 82.90%–95.07%，"
-            "翻译腔或中文页几乎进不了候选池")
+            "P0 No native English content pages were found; establish and measure a global-market baseline")
     if market in ("cn", "both") and zh_pages == 0:
-        site_issues.append("P0 抓到的页面里没有中文内容，国内平台无从引用")
+        site_issues.append("P0 No Chinese content pages were found for the domestic market")
     if market == "both" and en_pages and zh_pages and abs(en_pages - zh_pages) > max(en_pages, zh_pages) * 0.7:
-        thin = "英文" if en_pages < zh_pages else "中文"
-        site_issues.append(f"P1 中英内容严重不对等（中文 {zh_pages} 页 / 英文 {en_pages} 页），{thin}侧是明显短板")
+        thin = "English" if en_pages < zh_pages else "Chinese"
+        site_issues.append(f"P1 Chinese and English content are imbalanced (Chinese {zh_pages} / English {en_pages}); {thin} coverage is weaker")
     if site.get("ai_bots_blocked"):
-        site_issues.append("P0 robots.txt 封禁了 " + "、".join(site["ai_bots_blocked"]) + "，这些引擎永远抓不到你")
+        site_issues.append("P0 robots.txt blocks these AI crawlers: " + ", ".join(site["ai_bots_blocked"]))
     if not site.get("has_sitemap"):
-        site_issues.append("P0 没有 sitemap.xml，收录效率和覆盖面都会打折")
+        site_issues.append("P0 Missing sitemap.xml reduces discovery efficiency and coverage")
     if not site.get("has_llms_txt"):
-        site_issues.append("P2 没有 /llms.txt，可以低成本给 AI 一份官方事实索引")
+        site_issues.append("P2 Missing /llms.txt official facts index")
     grade_dist = {g: sum(1 for r in results if r["grade"] == g) for g in "ABCD"}
+    grade_dist["not_scored"] = sum(not r.get("scored", True) for r in results)
 
-    # 全站最常见的缺口 → 直接就是 P0 内容工程清单
+    # Aggregate the most common sitewide extraction gaps.
     gap = {}
     for r in results:
+        if not r.get("scored", True):
+            continue
         for k, v in r["blocks"].items():
             gap.setdefault(k, 0)
             gap[k] += 0 if v else 1
@@ -272,7 +338,8 @@ def run(slug: str) -> dict:
         "avg_score": avg,
         "grade_distribution": grade_dist,
         "block_gap": [{"block": k, "missing_pages": v, "total": len(results)} for k, v in block_gap],
-        "pages": sorted(results, key=lambda r: r["score"]),
+        "scored_page_count": len(ok),
+        "pages": sorted(results, key=lambda r: (r.get("score") is None, r.get("score") or 0)),
     }
     G.write_json(pdir / "audit.json", out)
     G.info(f"Audit complete: {len(results)} pages, avg score {avg}, grade distribution {grade_dist} → {pdir/'audit.json'}")

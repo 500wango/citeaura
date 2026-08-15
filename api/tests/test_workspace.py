@@ -266,11 +266,12 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
     with session_factory() as db:
         import_job = db.query(Job).filter(Job.project_id == project_id, Job.action == "sample-import").one()
         assert import_job.status == "done"
-    sample_rows = [json.loads(line) for line in (root / "samples" / "2026-07-31.jsonl").read_text("utf-8").splitlines()]
+    sample_artifact = sorted((root / "samples").glob("sample-*.jsonl"))[-1]
+    sample_rows = [json.loads(line) for line in sample_artifact.read_text("utf-8").splitlines()]
     assert sample_rows[0]["sample_mode"] == "manual"
-    assert sample_rows[0]["terminal"] == "web"
+    assert sample_rows[0]["terminal"] == "manual"
     engine_rows = client.get(f"/api/v1/projects/{project_id}/engines", headers=headers).json()["engines"]
-    assert engine_rows[0]["sampling_mode"] == "Manual - Product interface"
+    assert engine_rows[0]["sampling_mode"] == "人工·产品端"
 
     invalid_import = client.post(
         f"/api/v1/projects/{project_id}/samples/import",

@@ -22,6 +22,7 @@ INTERNAL_PATHS = frozenset((
 ))
 LANGUAGE_VARIANT_PATTERN = re.compile(r"(?:^|\.)(?:zh|cn)(?:\.|$)", re.IGNORECASE)
 QUESTION_ASSET_PATTERN = re.compile(r"^(?:outlines|drafts)/(q\d{3,6})\.md$")
+PLACEHOLDER_PATTERN = re.compile(r"\[(?:Add|Insert|Replace|Verify)[^\]]*\]|\b(?:TODO|TBD)\b", re.IGNORECASE)
 CONTRACT = "citeaura.generated-assets.v1"
 MANUAL_EDITS_CONTRACT = "citeaura.manual-asset-edits.v1"
 
@@ -216,7 +217,7 @@ def _hidden_reason(relative, path, active_ids, omitted_schema):
     return None
 
 
-def _visible_assets(assets, active_ids, omitted_schema):
+def _visible_assets(assets, active_ids, omitted_schema, review_schema=None):
     records = []
     excluded = {}
     for path in sorted(assets.rglob("*")):
@@ -227,10 +228,21 @@ def _visible_assets(assets, active_ids, omitted_schema):
         if reason:
             excluded[reason] = excluded.get(reason, 0) + 1
             continue
+        text = path.read_text("utf-8", errors="replace")
+        issues = []
+        status = "draft" if relative.startswith(("drafts/", "outlines/")) else "deployable"
+        if relative in (review_schema or set()):
+            status = "review_required"
+            issues.append("schema_applicability_requires_review")
+        if PLACEHOLDER_PATTERN.search(text):
+            status = "review_required" if status == "deployable" else status
+            issues.append("contains_incomplete_material")
         records.append({
             "path": relative,
             "size": path.stat().st_size,
             "group": relative.split("/", 1)[0] if "/" in relative else "Root",
+            "status": status,
+            "issues": issues,
         })
     return records, excluded
 
@@ -244,6 +256,11 @@ def _write_index(assets, records, excluded):
         "market": "global",
         "assets": [record["path"] for record in records],
         "asset_records": records,
+        "deployable_assets": [record["path"] for record in records if record["status"] == "deployable"],
+        "review_required_assets": [record["path"] for record in records if record["status"] == "review_required"],
+        "draft_assets": [record["path"] for record in records if record["status"] == "draft"],
+        "readiness": ("deployable" if records and all(record["status"] == "deployable" for record in records)
+                      else "review_required"),
         "excluded": excluded,
     }
     comparable = {key: value for key, value in current.items() if key != "normalized_at"}
@@ -308,7 +325,12 @@ def normalize_project_assets(project_slug, config=None):
                 for item in rendered["schema_decisions"]
                 if item.get("status") == "omitted"
             }
-            records, excluded = _visible_assets(assets, active_ids, omitted_schema)
+            review_schema = {
+                str(item.get("path") or "")
+                for item in rendered["schema_decisions"]
+                if item.get("status") != "omitted" and item.get("requires_review")
+            }
+            records, excluded = _visible_assets(assets, active_ids, omitted_schema, review_schema)
             _write_index(assets, records, excluded)
         finally:
             shutil.rmtree(staging_root, ignore_errors=True)

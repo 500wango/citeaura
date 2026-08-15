@@ -38,7 +38,7 @@ BASE_CFG = {
         {"name": "老牌竞品", "aliases": [], "market": "cn"},  # 旧数据无字段，视为已确认
     ],
     "market": "cn",
-    "questions": [{"id": "q001", "group": "推荐", "market": "cn", "text": "有什么好用的工具？"}],
+    "questions": [{"id": "q001", "group": "recommendation", "market": "cn", "text": "有什么好用的工具？"}],
 }
 
 
@@ -55,7 +55,7 @@ class TestHomepageFirst(WorkDirCase):
             {"url": deep, "score": 99},
         ]})
         digest = B._site_digest(self.slug)
-        blocks = [b for b in digest.split("## 页面：") if b.strip()]
+        blocks = [b for b in digest.split("## Page:") if b.strip()]
         self.assertTrue(blocks, "digest 不应为空")
         self.assertIn(home, blocks[0], "摘要首块必须是首页（pages.jsonl 第一条），而不是高分页")
         self.assertNotIn(deep, blocks[0])
@@ -70,32 +70,50 @@ class TestCompetitorConfirmation(WorkDirCase):
             "utf-8")
         return str(f)
 
-    def test_mentioned_competitor_confirmed_after_import(self):
+    def test_single_mention_does_not_confirm_competitor(self):
         self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))
         S.sample_import(self.slug, self._manual_file("我推荐竞品A，它挺好用的。"))
         cfg = G.load_config(self.slug)
         by_name = {c["name"]: c for c in cfg["competitors"]}
-        self.assertTrue(by_name["竞品A"].get("confirmed"), "被采样提到的竞品应转正")
+        self.assertFalse(by_name["竞品A"].get("confirmed"), "单次提及不足以确认竞品")
         self.assertFalse(by_name["竞品B"].get("confirmed"), "未被提到的竞品保持未确认")
+        sample_path = next((self.pdir / "samples").glob("sample-*.jsonl"))
+        imported = G.read_jsonl(sample_path)[0]
+        self.assertIsNone(imported["search_enabled"])
+        self.assertEqual(imported["sampling_label"], "manual_product_interface")
+        self.assertTrue(imported["run_id"].startswith("sample-"))
 
-    def test_no_save_when_nothing_changes(self):
+    def test_single_mentions_do_not_rewrite_config(self):
         self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))
         S.sample_import(self.slug, self._manual_file("我推荐竞品A。"))
         bak = self.pdir / ".geo.bak"
         n1 = len(list(bak.glob("geo-*.json"))) if bak.exists() else 0
-        self.assertEqual(n1, 1, "首次转正应写一次配置（产生一个备份）")
+        self.assertEqual(n1, 0)
         S.sample_import(self.slug, self._manual_file("我推荐竞品A。"))
         n2 = len(list(bak.glob("geo-*.json")))
-        self.assertEqual(n2, 1, "值没有变化时不应再写 geo.json")
+        self.assertEqual(n2, 0, "证据不足时不应写 geo.json")
+
+    def test_repeated_unprompted_evidence_confirms_competitor(self):
+        self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))
+        cfg = G.load_config(self.slug)
+        rows = []
+        for qid in ("q001", "q002"):
+            answer = "我推荐竞品A，它适合这个场景。"
+            rows.append({"ok": True, "question_id": qid, "question": "工具怎么选？",
+                         "platform": "deepseek", "brand_in_question": False,
+                         "analysis": S.analyze_answer(answer, cfg), "needs_review": False})
+        S.confirm_competitors(self.slug, rows)
+        self.assertTrue(next(c for c in G.load_config(self.slug)["competitors"]
+                             if c["name"] == "竞品A")["confirmed"])
 
     def test_unconfirmed_marked_in_facts_md(self):
         self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))
         md = B.render_facts(self.slug, {"name": "测试品牌"})
-        self.assertIn("未经采样确认", md)
+        self.assertIn("unconfirmed_candidate", md)
         unconfirmed_line = next(l for l in md.splitlines() if "竞品A" in l)
-        self.assertIn("未经采样确认", unconfirmed_line)
+        self.assertIn("unconfirmed_candidate", unconfirmed_line)
         confirmed_line = next(l for l in md.splitlines() if "老牌竞品" in l)
-        self.assertNotIn("未经采样确认", confirmed_line)
+        self.assertNotIn("unconfirmed_candidate", confirmed_line)
 
 
 class TestDraftPromptCompetitors(WorkDirCase):
@@ -119,6 +137,40 @@ class TestDraftPromptCompetitors(WorkDirCase):
         self.assertNotIn("竞品A", prompt, "confirmed:false 的竞品不得进初稿 prompt")
         self.assertNotIn("竞品B", prompt)
         self.assertIn("老牌竞品", prompt, "无 confirmed 字段的旧数据视为已确认")
+
+
+class TestGeneratedAssetSafety(WorkDirCase):
+    def test_untrusted_question_id_cannot_escape_asset_directory(self):
+        cfg = json.loads(json.dumps(BASE_CFG, ensure_ascii=False))
+        cfg["questions"] = [{"id": "../../escaped", "group": "recommendation", "market": "cn", "text": "如何选择工具？"}]
+        self.write_config(cfg)
+        result = GEN.run(self.slug, which=["outlines"])
+        self.assertTrue((self.pdir / "assets" / "outlines" / "q001.md").is_file())
+        self.assertFalse((self.pdir / "escaped.md").exists())
+        self.assertFalse((Path(self._tmp.name) / "escaped.md").exists())
+        self.assertIn("assets/outlines/q001.md", result["drafts"])
+
+    def test_jsonld_omits_placeholders_and_unsupported_types(self):
+        cfg = json.loads(json.dumps(BASE_CFG, ensure_ascii=False))
+        self.write_config(cfg)
+        schemas = GEN.gen_jsonld(self.slug)
+        self.assertEqual(set(schemas), {"organization"})
+        self.assertNotIn("<填", json.dumps(schemas, ensure_ascii=False))
+        self.assertNotIn("FAQPage", json.dumps(schemas))
+
+    def test_global_assets_do_not_reuse_chinese_or_empty_faq(self):
+        cfg = json.loads(json.dumps(BASE_CFG, ensure_ascii=False))
+        cfg["market"] = "global"
+        cfg["brand"]["industry"] = "金融科技"
+        cfg["questions"] = [{"id": "q101", "market": "global", "group": "recommendation",
+                             "text": "What are reliable transfer apps?"}]
+        self.write_config(cfg)
+        (self.pdir / "content").mkdir(parents=True)
+        (self.pdir / "content" / "facts.md").write_text(
+            "# Facts\n\n## 一句话定义\n\n> 测试品牌是一款跨境支付工具。\n", "utf-8")
+        llms = GEN.gen_llms_txt(self.slug, "en")
+        self.assertNotRegex(llms, r"[一-鿿]")
+        self.assertEqual(GEN.gen_faq_block(self.slug, "en"), "")
 
 
 if __name__ == "__main__":

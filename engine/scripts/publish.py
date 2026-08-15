@@ -1,13 +1,7 @@
-"""发布渠道对接：把成稿/资产一键发到你自己的渠道，并留发布记录。
+"""Publish approved content to configured destinations and record outcomes.
 
-安全边界（刻意为之，别放松）：
-- 凭证只放项目根目录 .env（与引擎 Key 同一套管理，界面可配，已 gitignore）；
-- 发布动作只由界面上的明确点击或 CLI 显式命令触发，没有任何自动发布路径；
-- 公众号只建草稿（后台人工预览群发）；WordPress 只建草稿文章；
-- GitHub 是提交文件到你自己的仓库；Webhook 打到你自己配置的接收端。
-
-发布记录写 work/<slug>/publish.json，效果验收的 external.any 检查器
-可以用发布落点的域名做「已被引擎引用」判定，闭环到验收。
+Credentials remain in .env. Every publishing action requires an explicit UI or
+CLI command. WordPress and WeChat integrations create drafts only.
 """
 
 from __future__ import annotations
@@ -21,27 +15,27 @@ import requests
 
 import geolib as G
 
-# 渠道注册表：env 是 .env 里的凭证变量；cfg 是存在项目 geo.json publishing.<code> 的非敏感配置
+# Destination registry: env contains secret names; cfg contains non-secret project settings.
 PUBLISHERS = {
     "github": {
-        "name": "GitHub 仓库", "env": ["GITHUB_TOKEN"],
+        "name": "GitHub Repository", "env": ["GITHUB_TOKEN"],
         "cfg": [("repo", "owner/repo"), ("branch", "main"), ("dir", "docs/geo")],
-        "note": "Contents API 提交 markdown 到你的仓库（配 Pages/静态站即上线）",
+        "note": "Commit Markdown to the configured repository through the Contents API",
     },
     "wordpress": {
         "name": "WordPress", "env": ["WP_USER", "WP_APP_PASSWORD"],
         "cfg": [("site_url", "https://blog.example.com")],
-        "note": "REST API 新建草稿文章，登录后台确认后再发布",
+        "note": "Create a draft post through the REST API for editorial review",
     },
     "wechat_draft": {
-        "name": "公众号草稿箱", "env": ["WECHAT_APPID", "WECHAT_APPSECRET"],
-        "cfg": [("thumb_media_id", "永久素材封面 media_id（草稿必需）")],
-        "note": "新建草稿，需在公众号后台预览并群发；服务器 IP 要在白名单",
+        "name": "WeChat Drafts", "env": ["WECHAT_APPID", "WECHAT_APPSECRET"],
+        "cfg": [("thumb_media_id", "Permanent cover media_id required for drafts")],
+        "note": "Create a draft for preview and manual distribution; server IP must be allowlisted",
     },
     "webhook": {
-        "name": "自定义 Webhook", "env": ["PUBLISH_WEBHOOK_URL"],
+        "name": "Custom Webhook", "env": ["PUBLISH_WEBHOOK_URL"],
         "cfg": [],
-        "note": "POST JSON {title, markdown, html, slug, path} 到你自己的接收端",
+        "note": "POST JSON {title, markdown, html, slug, path} to the configured receiver",
     },
 }
 
@@ -55,8 +49,7 @@ def _cfg(slug: str, code: str) -> dict:
 
 
 # ---------------------------------------------------------------- markdown → html
-# 公众号/WordPress 要 HTML。只做最小转换（标题/加粗/链接/列表/代码块/段落），
-# 不引第三方库；表格等复杂结构原样进 <p>，发布前在渠道后台肉眼过一遍。
+# WeChat and WordPress require a minimal HTML conversion for draft preview.
 
 def md2html(md: str) -> str:
     md = re.sub(r"<!--.*?-->", "", md, flags=re.S)
@@ -82,7 +75,7 @@ def md2html(md: str) -> str:
             out.append("</ul>")
             in_list = False
         if m:
-            n = min(len(m.group(1)) + 1, 6)  # 文内 # 降一级，标题留给渠道的 title 字段
+            n = min(len(m.group(1)) + 1, 6)
             out.append(f"<h{n}>{inline(m.group(2))}</h{n}>")
         elif li:
             if not in_list:
@@ -98,12 +91,12 @@ def md2html(md: str) -> str:
     return "\n".join(out)
 
 
-# ---------------------------------------------------------------- 各渠道实现
+# ---------------------------------------------------------------- Destination implementations
 
 def _pub_github(cfg, text, title, fname):
     repo, branch = cfg.get("repo", ""), cfg.get("branch", "main")
     if not repo or "/" not in repo:
-        return {"ok": False, "error": "先在设置里配置 repo（owner/repo）"}
+        return {"ok": False, "error": "Configure repo as owner/repo first"}
     path = (cfg.get("dir", "").strip("/") + "/" + fname).lstrip("/")
     H = {"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
          "Accept": "application/vnd.github+json"}
@@ -111,7 +104,7 @@ def _pub_github(cfg, text, title, fname):
     body = {"message": f"geo: publish {title}", "branch": branch,
             "content": base64.b64encode(text.encode()).decode()}
     r0 = requests.get(url, headers=H, params={"ref": branch}, timeout=30)
-    if r0.status_code == 200:  # 已存在→更新
+    if r0.status_code == 200:
         body["sha"] = r0.json().get("sha")
     r = requests.put(url, headers=H, json=body, timeout=30)
     if r.status_code in (200, 201):
@@ -122,36 +115,36 @@ def _pub_github(cfg, text, title, fname):
 def _pub_wordpress(cfg, text, title, fname):
     site = (cfg.get("site_url") or "").rstrip("/")
     if not site:
-        return {"ok": False, "error": "先在设置里配置 site_url"}
+        return {"ok": False, "error": "Configure site_url first"}
     r = requests.post(f"{site}/wp-json/wp/v2/posts",
                       auth=(os.environ["WP_USER"], os.environ["WP_APP_PASSWORD"]),
                       json={"title": title, "content": md2html(text), "status": "draft"},
                       timeout=30)
     if r.status_code == 201:
         return {"ok": True, "url": r.json().get("link", ""),
-                "note": "已建为草稿，到 WordPress 后台确认发布"}
+                "note": "Draft created; review and publish it in WordPress"}
     return {"ok": False, "error": f"HTTP {r.status_code}: {r.text[:200]}"}
 
 
 def _pub_wechat(cfg, text, title, fname):
     thumb = cfg.get("thumb_media_id", "")
     if not thumb:
-        return {"ok": False, "error": "缺封面：先在设置里配置 thumb_media_id（永久素材）"}
+        return {"ok": False, "error": "Configure a permanent cover thumb_media_id first"}
     tr = requests.get("https://api.weixin.qq.com/cgi-bin/token",
                       params={"grant_type": "client_credential",
                               "appid": os.environ["WECHAT_APPID"],
                               "secret": os.environ["WECHAT_APPSECRET"]}, timeout=30).json()
     tok = tr.get("access_token")
     if not tok:
-        return {"ok": False, "error": f"取 token 失败：{tr.get('errmsg', tr)}"}
+        return {"ok": False, "error": f"Token request failed: {tr.get('errmsg', tr)}"}
     art = {"title": title[:60], "content": md2html(text), "thumb_media_id": thumb,
            "digest": re.sub(r"\s+", " ", text)[:100]}
     r = requests.post(f"https://api.weixin.qq.com/cgi-bin/draft/add?access_token={tok}",
                       data=json.dumps({"articles": [art]}, ensure_ascii=False).encode(),
                       timeout=30).json()
     if r.get("media_id"):
-        return {"ok": True, "url": "", "note": "已进草稿箱，到公众号后台预览群发"}
-    return {"ok": False, "error": f"draft/add 失败：{r.get('errmsg', r)}"}
+        return {"ok": True, "url": "", "note": "Draft created; preview and distribute it in WeChat"}
+    return {"ok": False, "error": f"draft/add failed: {r.get('errmsg', r)}"}
 
 
 def _pub_webhook(cfg, text, title, fname):
@@ -162,7 +155,7 @@ def _pub_webhook(cfg, text, title, fname):
         url = ""
         try:
             url = (r.json() or {}).get("url", "")
-        except Exception:  # noqa: BLE001  接收端不回 JSON 也算成功
+        except Exception:  # noqa: BLE001 - a successful receiver may return no JSON
             pass
         return {"ok": True, "url": url}
     return {"ok": False, "error": f"HTTP {r.status_code}: {r.text[:200]}"}
@@ -172,12 +165,10 @@ _IMPL = {"github": _pub_github, "wordpress": _pub_wordpress,
          "wechat_draft": _pub_wechat, "webhook": _pub_webhook}
 
 
-# ---------------------------------------------------------------- 入口与记录
+# ---------------------------------------------------------------- Entry point and records
 
 def _read_source(slug: str, rel: str) -> tuple[str, str]:
-    """rel 限定在 content/ 或 assets/ 下，返回 (文本, 文件名)。
-
-    校验解析后的真实路径归属，防 content/../ 这类穿越。"""
+    """Read a source confined to content/ or assets/ and return text and name."""
     pdir = G.project_dir(slug).resolve()
     target = (pdir / rel).resolve()
     if not any(target.is_relative_to(pdir / d) for d in ("content", "assets")):

@@ -78,34 +78,41 @@ class TestVerdict(Base):
         rows = [row(platform="only", mentioned=True) for _ in range(3)]
         engs = A.engines("demo", rows, None)
         self.assertEqual(len(engs), 1)
-        self.assertNotIn("最好", engs[0]["verdict"])
+        self.assertNotIn("Highest-performing", engs[0]["verdict"])
 
     def test_all_zero_no_best_claim(self):
         self.make_project()
         rows = [row(platform="a"), row(platform="b")]
         verdicts = [e["verdict"] for e in A.engines("demo", rows, None)]
-        self.assertFalse(any("最好" in v for v in verdicts))
+        self.assertFalse(any("Highest-performing" in v for v in verdicts))
 
     def test_all_equal_no_best_claim(self):
         self.make_project()
         rows = [row(platform="a", mentioned=True), row(platform="b", mentioned=True)]
         verdicts = [e["verdict"] for e in A.engines("demo", rows, None)]
-        self.assertFalse(any("最好" in v for v in verdicts))
+        self.assertFalse(any("Highest-performing" in v for v in verdicts))
 
     def test_best_only_when_strictly_ahead(self):
         self.make_project()
-        rows = ([row(platform="a", mentioned=True) for _ in range(3)]
-                + [row(platform="b", mentioned=True)] + [row(platform="b") for _ in range(2)])
+        rows = ([row(platform="a", mentioned=True) for _ in range(5)]
+                + [row(platform="b", mentioned=True) for _ in range(2)]
+                + [row(platform="b") for _ in range(3)])
         engs = {e["platform"]: e for e in A.engines("demo", rows, None)}
-        self.assertIn("最好", engs["a"]["verdict"])
-        self.assertNotIn("最好", engs["b"]["verdict"])
+        self.assertIn("Highest-performing", engs["a"]["verdict"])
+        self.assertNotIn("Highest-performing", engs["b"]["verdict"])
+
+    def test_small_samples_do_not_produce_best_claim(self):
+        self.make_project()
+        rows = [row(platform="a", mentioned=True) for _ in range(3)] + [row(platform="b") for _ in range(3)]
+        verdicts = [item["verdict"] for item in A.engines("demo", rows, None)]
+        self.assertTrue(all("Insufficient samples" in verdict for verdict in verdicts))
 
     def test_peers_all_none_no_best_claim(self):
         self.make_project()
         rows = [row(platform="a", mentioned=True),
                 row(platform="b", probe=True, qid="q2", question="Acme 是什么？", mentioned=True)]
         engs = {e["platform"]: e for e in A.engines("demo", rows, None)}
-        self.assertNotIn("最好", engs["a"]["verdict"])
+        self.assertNotIn("Highest-performing", engs["a"]["verdict"])
 
 
 class TestEnginesCiteShare(Base):
@@ -179,6 +186,18 @@ class TestTrend(Base):
         tr = A.trend("demo")
         self.assertEqual(tr[0]["mention"], 0.5)
 
+    def test_health_uses_historical_snapshot(self):
+        sample = row(mentioned=True)
+        sample.update({"run_id": "sample-run-1", "question_set_id": "qset", "cohort_id": "cohort"})
+        pdir = self.make_project(samples={"sample-run-1.jsonl": [sample]})
+        (pdir / "metrics").mkdir()
+        G.write_json(pdir / "metrics" / "sample-run-1.json", {
+            "run_id": "sample-run-1", "history_snapshot": {"health": {"score": 42.0}},
+        })
+        G.write_json(pdir / "blueprint.json", {"coverage": {"channel_total": 1, "channel_covered": 1,
+                                                               "content_total": 1, "content_done": 1}})
+        self.assertEqual(A.trend("demo")[0]["health"], 42.0)
+
 
 class TestQuestionDelta(Base):
     def test_untested_sorted_last(self):
@@ -194,7 +213,15 @@ class TestQuestionDelta(Base):
         self.assertEqual(d[0]["qid"], "q1")
         self.assertEqual(d[-1]["qid"], "q3")
         self.assertIsNone(d[-1]["after"])
-        self.assertEqual(d[-1].get("note"), "本期未测")
+        self.assertEqual(d[-1].get("note"), "Unmeasured this cycle")
+
+    def test_changed_cohort_is_not_compared(self):
+        before = row(mentioned=True)
+        before.update({"question_set_id": "same", "cohort_id": "a"})
+        after = row(mentioned=False)
+        after.update({"question_set_id": "same", "cohort_id": "b"})
+        self.make_project(samples={"sample-a.jsonl": [before], "sample-b.jsonl": [after]})
+        self.assertEqual(A.question_delta("demo"), [])
 
 
 if __name__ == "__main__":

@@ -559,29 +559,36 @@ def _same_domain(left, right):
     return bool(left and right and geolib.same_site(f"https://{left}", f"https://{right}"))
 
 
-def _channel_coverage(channel_id, defaults, previous, cited_domains, own_domain):
+def _channel_coverage(channel_id, defaults, previous, brand_domains, observed_domains, own_domain):
     targets = [own_domain] if channel_id == "official_en" else defaults.get("domains", [])
     targets = [host for host in (_domain_host(value) for value in targets) if host]
     if not targets:
         return "manual", []
-    if cited_domains is None:
+    if brand_domains is None and observed_domains is None:
         previous_status = previous.get("coverage_status")
-        if previous_status in ("covered", "gap"):
+        if previous_status in ("brand_cited", "covered", "observed_source", "gap"):
             return previous_status, deepcopy(previous.get("coverage_evidence") or [])
         if isinstance(previous.get("covered"), bool):
             return ("covered" if previous["covered"] else "gap"), []
         return "gap", []
     matches = sorted({
         cited
-        for cited in (_domain_host(value) for value in cited_domains)
+        for cited in (_domain_host(value) for value in (brand_domains or ()))
         if cited and any(_same_domain(cited, target) for target in targets)
     })
-    return ("covered" if matches else "gap"), matches
+    if matches:
+        return "brand_cited", matches
+    observed = sorted({
+        cited
+        for cited in (_domain_host(value) for value in (observed_domains or ()))
+        if cited and any(_same_domain(cited, target) for target in targets)
+    })
+    return ("observed_source" if observed else "gap"), observed
 
 
 def channel_coverage_status(channel):
     status = channel.get("coverage_status")
-    if status in ("covered", "gap", "manual"):
+    if status in ("brand_cited", "covered", "observed_source", "gap", "manual"):
         return status
     return "covered" if channel.get("covered") else "gap"
 
@@ -593,21 +600,23 @@ def summarize_channel_coverage(channels):
     return {
         "channel_all_total": len(channels),
         "channel_total": len(measurable),
-        "channel_covered": sum(channel_coverage_status(channel) == "covered" for channel in measurable),
+        "channel_covered": sum(channel_coverage_status(channel) in ("brand_cited", "covered") for channel in measurable),
+        "channel_observed": sum(channel_coverage_status(channel) == "observed_source" for channel in measurable),
         "channel_manual": len(manual),
         "p0p1_total": len(p0p1),
-        "p0p1_covered": sum(channel_coverage_status(channel) == "covered" for channel in p0p1),
+        "p0p1_covered": sum(channel_coverage_status(channel) in ("brand_cited", "covered") for channel in p0p1),
         "p0p1_manual": sum(channel.get("priority") in ("P0", "P1") for channel in manual),
     }
 
 
-def _latest_cited_domains(project_slug):
+def _latest_channel_evidence(project_slug):
     directory = geolib.project_dir(project_slug) / "metrics"
     files = sorted(directory.glob("*.json")) if directory.is_dir() else []
     if not files:
         return None
     metrics = geolib.read_json(files[-1], {}) or {}
     cited = set()
+    brand_cited = set()
     citation_domains_available = False
     for item in (metrics.get("platforms") or {}).values():
         if not isinstance(item, dict) or item.get("market") not in ("global", "both", None):
@@ -618,10 +627,13 @@ def _latest_cited_domains(project_slug):
         cited.update(
             host for host in (_domain_host(value) for value in (item.get("top_cited_domains") or {})) if host
         )
-    return cited if citation_domains_available else None
+        brand_cited.update(
+            host for host in (_domain_host(value) for value in (item.get("top_brand_cited_domains") or {})) if host
+        )
+    return {"observed": cited, "brand": brand_cited} if citation_domains_available else None
 
 
-def _profile_channels(profile, existing, *, cited_domains=None, own_domain=""):
+def _profile_channels(profile, existing, *, cited_domains=None, observed_domains=None, own_domain=""):
     existing_by_id = {
         str(channel.get("id")): channel
         for channel in existing
@@ -637,7 +649,7 @@ def _profile_channels(profile, existing, *, cited_domains=None, own_domain=""):
             "effect": "Supports project-specific discovery and verification",
         }))
         coverage_status, coverage_evidence = _channel_coverage(
-            channel_id, defaults, previous, cited_domains, own_domain,
+            channel_id, defaults, previous, cited_domains, observed_domains, own_domain,
         )
         rows.append({
             **defaults,
@@ -645,9 +657,10 @@ def _profile_channels(profile, existing, *, cited_domains=None, own_domain=""):
             "name": name,
             "priority": priority,
             "market": "global",
-            "covered": coverage_status == "covered",
+            "covered": coverage_status in ("brand_cited", "covered"),
             "coverage_status": coverage_status,
-            "coverage_evidence": coverage_evidence,
+            "coverage_evidence": coverage_evidence if coverage_status in ("brand_cited", "covered") else [],
+            "observed_source_evidence": coverage_evidence if coverage_status == "observed_source" else [],
             "strategy_profile": profile["id"],
         })
     return rows
@@ -669,6 +682,7 @@ def normalize_questions(questions, *, strict=False):
             raise ValueError("questions must be an array")
         return []
     normalized = []
+    seen_ids = set()
     for item in questions:
         if not isinstance(item, dict):
             if strict:
@@ -688,13 +702,18 @@ def normalize_questions(questions, *, strict=False):
             if strict:
                 raise ValueError("question market must be global")
             continue
+        question_id = str(item.get("id") or "").strip().lower()
+        if strict and (not re.fullmatch(r"q\d{3,6}", question_id) or question_id in seen_ids):
+            raise ValueError("question id must be a unique q followed by 3-6 digits")
+        if question_id:
+            seen_ids.add(question_id)
         normalized.append({
             **item,
             "text": text,
             "market": "global",
             "group": GROUP_NAMES.get(item.get("group"), item.get("group") or "recommendation"),
         })
-    return normalized
+    return geolib.normalize_question_ids(normalized)
 
 
 def _normalize_competitors(competitors):
@@ -743,7 +762,7 @@ def _rate(items, predicate):
     return round(sum(1 for item in items if predicate(item)) / len(items), 3) if items else 0
 
 
-def normalize_blueprint_data(blueprint, *, profile=None, cited_domains=None, own_domain=""):
+def normalize_blueprint_data(blueprint, *, profile=None, cited_domains=None, observed_domains=None, own_domain=""):
     current = deepcopy(blueprint) if isinstance(blueprint, dict) else {}
     existing_channels = [
         {
@@ -756,7 +775,8 @@ def normalize_blueprint_data(blueprint, *, profile=None, cited_domains=None, own
     ]
     profile = profile if isinstance(profile, dict) and profile.get("id") in CHANNEL_STRATEGIES else None
     channels = _profile_channels(
-        profile, existing_channels, cited_domains=cited_domains, own_domain=own_domain,
+        profile, existing_channels, cited_domains=cited_domains,
+        observed_domains=observed_domains, own_domain=own_domain,
     ) if profile else existing_channels
     contents = normalize_questions([
         {
@@ -775,11 +795,11 @@ def normalize_blueprint_data(blueprint, *, profile=None, cited_domains=None, own
         **summarize_channel_coverage(channels),
         "channel_rate": _rate(
             [channel for channel in channels if channel_coverage_status(channel) != "manual"],
-            lambda channel: channel_coverage_status(channel) == "covered",
+            lambda channel: channel_coverage_status(channel) in ("brand_cited", "covered"),
         ),
         "content_total": len(contents),
-        "content_done": sum(content.get("status") in ("ready", "done", "已成稿") for content in contents),
-        "content_rate": _rate(contents, lambda content: content.get("status") in ("ready", "done", "已成稿")),
+        "content_done": sum(content.get("status") in ("ready", "done") for content in contents),
+        "content_rate": _rate(contents, lambda content: content.get("status") in ("ready", "done")),
         "content_gap": sum(content.get("status") == "gap" for content in contents),
     }
     roadmap = [
@@ -822,10 +842,12 @@ def normalize_blueprint(project_slug):
         config = geolib.load_config(project_slug)
         pages = geolib.read_jsonl(geolib.project_dir(project_slug) / "evidence" / "pages.jsonl")
         profile = infer_business_profile(config, pages=pages)
+        channel_evidence = _latest_channel_evidence(project_slug)
         normalized = normalize_blueprint_data(
             current,
             profile=profile,
-            cited_domains=_latest_cited_domains(project_slug),
+            cited_domains=(channel_evidence or {}).get("brand") if channel_evidence is not None else None,
+            observed_domains=(channel_evidence or {}).get("observed") if channel_evidence is not None else None,
             own_domain=_domain_host((config.get("brand") or {}).get("site")),
         )
         if normalized != current:
@@ -972,8 +994,8 @@ def normalize_metrics(project_slug, question_count=None, config=None):
                 and item.get("market") in ("global", "both", None)
             }
             normalized = {**current, "platforms": platforms}
-            date = str(current.get("date") or "")
-            sample_path = geolib.project_dir(project_slug) / "samples" / f"{date}.jsonl"
+            artifact = str(current.get("run_id") or current.get("date") or "")
+            sample_path = geolib.project_dir(project_slug) / "samples" / f"{artifact}.jsonl"
             if sample_path.is_file():
                 import sample as engine_sample
 
@@ -1117,6 +1139,7 @@ def normalize_generated_outputs(project_slug):
             return original_generate(slug, *args, **kwargs)
         from api.adapters import generated_assets
 
+        normalize_config(project_slug)
         with generated_assets.preserve_manual_asset_edits(project_slug):
             result = original_generate(slug, *args, **kwargs)
         generated_assets.normalize_project_assets(project_slug, config=normalize_config(project_slug))
