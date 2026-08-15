@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -57,13 +58,18 @@ _running: dict[str, str] = {}   # slug -> job_id
 _procs: dict[str, subprocess.Popen] = {}
 STOP_GRACE_SECONDS = 5.0
 STOP_KILL_SECONDS = 2.0
+JOB_ID_OK = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 def _job_path(job_id: str) -> Path:
+    if not JOB_ID_OK.fullmatch(str(job_id or "")):
+        raise ValueError("Invalid job id")
     return JOBS_DIR / f"{job_id}.json"
 
 
 def _log_path(job_id: str) -> Path:
+    if not JOB_ID_OK.fullmatch(str(job_id or "")):
+        raise ValueError("Invalid job id")
     return JOBS_DIR / f"{job_id}.log"
 
 
@@ -114,7 +120,10 @@ def _write(job: dict):
 
 
 def get(job_id: str) -> dict | None:
-    p = _job_path(job_id)
+    try:
+        p = _job_path(job_id)
+    except ValueError:
+        return None
     if not p.exists():
         return None
     try:
@@ -125,6 +134,8 @@ def get(job_id: str) -> dict | None:
 
 def tail(job_id: str, offset: int = 0) -> tuple[str, int]:
     """Return the log suffix and the next byte offset for incremental polling."""
+    if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
+        raise ValueError("offset must be a non-negative integer")
     p = _log_path(job_id)
     if not p.exists():
         return "", offset
@@ -191,44 +202,64 @@ def start(slug: str, action: str, params: dict | None = None) -> dict:
         "started_at": G.now_iso(), "finished_at": None, "exit_code": None,
         "cmd": " ".join(cmd[2:]),
     }
-    JOBS_DIR.mkdir(parents=True, exist_ok=True)
-    _write(job)
-    logf = _log_path(job["id"]).open("wb")
-    logf.write(f"$ geo {' '.join(cmd[3:])}\n".encode())
-    logf.flush()
-
-    env = dict(os.environ)
-    env["PYTHONUNBUFFERED"] = "1"
+    logf = None
+    proc = None
     try:
+        JOBS_DIR.mkdir(parents=True, exist_ok=True)
+        _write(job)
+        logf = _log_path(job["id"]).open("wb")
+        logf.write(f"$ geo {' '.join(cmd[3:])}\n".encode())
+        logf.flush()
+        env = dict(os.environ)
+        env["PYTHONUNBUFFERED"] = "1"
         proc = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT,
                                 cwd=str(G.ROOT), env=env, start_new_session=True)
-    except Exception as e:  # noqa: BLE001 - spawn failures must transition the job out of running
-        logf.close()
+        job["pid"] = proc.pid
+        _write(job)
+        with _lock:
+            _running[slug] = job["id"]
+            _procs[job["id"]] = proc
+    except BaseException as e:
+        if proc is not None:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except Exception:  # noqa: BLE001 - cleanup must preserve the original startup error
+                try:
+                    proc.kill()
+                except Exception:  # noqa: BLE001
+                    pass
+            try:
+                proc.wait(timeout=STOP_KILL_SECONDS)
+            except Exception:  # noqa: BLE001 - cleanup must preserve the original startup error
+                pass
+        if logf is not None:
+            logf.close()
         job["status"] = "failed"
         job["error"] = f"{type(e).__name__}: {e}"
         job["finished_at"] = G.now_iso()
-        _write(job)
+        try:
+            _write(job)
+        except OSError:
+            pass
         _release_claim(slug, job["id"])
         raise
-    job["pid"] = proc.pid
-    _write(job)
-    with _lock:
-        _running[slug] = job["id"]
-        _procs[job["id"]] = proc
 
     def waiter():
         code = proc.wait()
-        logf.close()
-        j = get(job["id"]) or job
-        j["status"] = "done" if code == 0 else ("stopped" if code < 0 else "failed")
-        j["exit_code"] = code
-        j["finished_at"] = G.now_iso()
-        _write(j)
-        with _lock:
-            if _running.get(slug) == job["id"]:
-                _running.pop(slug, None)
-            _procs.pop(job["id"], None)
-        _release_claim(slug, job["id"])
+        try:
+            j = get(job["id"]) or job
+            j["status"] = ("stopped" if j.get("stop_requested_at") else
+                           ("done" if code == 0 else ("stopped" if code < 0 else "failed")))
+            j["exit_code"] = code
+            j["finished_at"] = G.now_iso()
+            _write(j)
+        finally:
+            logf.close()
+            with _lock:
+                if _running.get(slug) == job["id"]:
+                    _running.pop(slug, None)
+                _procs.pop(job["id"], None)
+            _release_claim(slug, job["id"])
 
     threading.Thread(target=waiter, daemon=True).start()
     return job
@@ -238,6 +269,10 @@ def stop(job_id: str) -> bool:
     with _lock:
         proc = _procs.get(job_id)
     if proc:
+        job = get(job_id)
+        if job and job.get("status") == "running":
+            job["stop_requested_at"] = G.now_iso()
+            _write(job)
         try:
             os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
         except ProcessLookupError:
@@ -265,7 +300,7 @@ def stop(job_id: str) -> bool:
                 return False
         job = get(job_id)
         if job and job.get("status") == "running":
-            job["status"] = "stopped" if code < 0 else ("done" if code == 0 else "failed")
+            job["status"] = "stopped"
             job["exit_code"] = code
             job["finished_at"] = G.now_iso()
             _write(job)
@@ -278,6 +313,8 @@ def stop(job_id: str) -> bool:
         return False
     try:
         pgid = os.getpgid(pid)
+        if pgid != pid:
+            return False
         os.killpg(pgid, signal.SIGTERM)
     except Exception:  # noqa: BLE001
         return False

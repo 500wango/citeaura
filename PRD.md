@@ -320,7 +320,7 @@ App
 | `ui.html` | 2342 | 单页前端（暗色主题） | MVP 嵌入；后期重做 |
 | `benchmark.py` | ~200 | 国内信源对标 | `benchmark.compare(domains)` |
 | `references/` | 6 files | 方法论/渠道/权重数据 | 保留不动 |
-| **tests/** | 180+ tests | 全部通过 | 保持绿灯 |
+| **tests/** | 200+ tests | 全部通过 | 保持绿灯 |
 
 **二次开发原则**：SaaS API `POST /projects/:id/cycle` 内部等价于 `geo.py cycle`。每个 API 端点对应一个开源模块的 `run()` 调用。
 

@@ -14,6 +14,7 @@ PACKAGES = ["Entity disambiguation", "Page technology", "Content matrix", "Headi
             "Knowledge base", "External evidence", "Measurement loop"]
 OWNERS = ["Engineering", "Content", "Marketing", "GEO consultant", "Legal", "Design"]
 EFFORT = {"S": "<=0.5 person-day", "M": "1-3 person-days", "L": ">=5 person-days"}
+VALID_STATUSES = ("todo", "doing", "done", "blocked", "wontfix")
 
 
 def _t(tid, priority, package, title, why, action, owner, effort, acceptance,
@@ -285,23 +286,24 @@ def build(slug: str) -> dict:
     for t in tasks:
         t["window"] = win.get(t["priority"], "90_days")
 
-    # Preserve status and evidence when the plan is regenerated.
-    old = {t["id"]: t for t in (G.read_json(pdir / "tasks.json", {}) or {}).get("tasks", [])}
-    old_by_title = {t["title"]: t for t in old.values()}
-    for t in tasks:
-        prev = old.get(t["id"]) if old.get(t["id"], {}).get("title") == t["title"] else old_by_title.get(t["title"])
-        if prev:
-            t.update({"status": prev.get("status", "todo"), "evidence": prev.get("evidence", []),
-                      "assets": prev.get("assets", []), "closed_at": prev.get("closed_at")})
+    with G.project_lock(slug):
+        # Preserve the latest state while serializing against status updates.
+        old = {t["id"]: t for t in (G.read_json(pdir / "tasks.json", {}) or {}).get("tasks", [])}
+        old_by_title = {t["title"]: t for t in old.values()}
+        for t in tasks:
+            prev = old.get(t["id"]) if old.get(t["id"], {}).get("title") == t["title"] else old_by_title.get(t["title"])
+            if prev:
+                t.update({"status": prev.get("status", "todo"), "evidence": prev.get("evidence", []),
+                          "assets": prev.get("assets", []), "closed_at": prev.get("closed_at")})
 
-    data = {
-        "slug": slug, "generated_at": G.now_iso(), "market": cfg.get("market", "cn"),
-        "baseline": {"avg_score": audit.get("avg_score"), "pages": audit.get("page_count"),
-                     "metrics_date": metrics.get("date") if metrics else None},
-        "summary": summarize(tasks),
-        "tasks": tasks,
-    }
-    G.write_json(pdir / "tasks.json", data)
+        data = {
+            "slug": slug, "generated_at": G.now_iso(), "market": cfg.get("market", "cn"),
+            "baseline": {"avg_score": audit.get("avg_score"), "pages": audit.get("page_count"),
+                         "metrics_date": metrics.get("date") if metrics else None},
+            "summary": summarize(tasks),
+            "tasks": tasks,
+        }
+        G.write_json(pdir / "tasks.json", data)
     G.info(f"Generated {len(tasks)} ticket(s) → {pdir/'tasks.json'}")
     return data
 
@@ -331,7 +333,7 @@ def save(slug: str, data: dict):
     if p.exists():
         bak = p.parent / ".geo.bak"
         bak.mkdir(exist_ok=True)
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         (bak / f"tasks-{stamp}.json").write_text(p.read_text("utf-8"), "utf-8")
         old = sorted(bak.glob("tasks-*.json"))
         for f in old[:-10]:
@@ -340,15 +342,20 @@ def save(slug: str, data: dict):
 
 
 def set_status(slug: str, task_id: str, status: str, note: str = "") -> dict:
+    if status not in VALID_STATUSES:
+        raise ValueError(f"Invalid task status: {status}")
     with G.project_lock(slug):
         data = load(slug)
         for t in data["tasks"]:
             if t["id"] == task_id:
+                previous = t.get("status")
                 t["status"] = status
                 if note:
-                    t["evidence"].append({"at": G.now_iso(), "note": note})
-                if status == "done":
+                    t.setdefault("evidence", []).append({"at": G.now_iso(), "note": note})
+                if status == "done" and previous != "done":
                     t["closed_at"] = G.now_iso()
+                elif status != "done":
+                    t["closed_at"] = None
                 save(slug, data)
                 G.info(f"{task_id} → {status}")
                 return t

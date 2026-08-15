@@ -226,7 +226,10 @@ def ask_ark(p: dict, key: str, question: str, timeout: int) -> dict:
         if r.status_code != 200:
             return {"ok": False, "answer": "", "error": f"HTTP {r.status_code}: {r.text[:300]}"}
         d = r.json()
-        return {"ok": True, "answer": d["choices"][0]["message"].get("content") or "",
+        answer = d["choices"][0]["message"].get("content") or ""
+        if not answer.strip():
+            return {"ok": False, "answer": "", "error": "Provider returned an empty answer"}
+        return {"ok": True, "answer": answer,
                 "citations": [], "raw_model": _p_model(p), "searched": False}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "answer": "", "error": f"{type(e).__name__}: {e}"}
@@ -256,6 +259,8 @@ def ask_anthropic(p: dict, key: str, question: str, timeout: int) -> dict:
                 return {"ok": False, "answer": "", "error": "Model refusal (stop_reason=refusal)"}
             answer = "".join(b.get("text", "") for b in d.get("content", [])
                              if b.get("type") == "text")
+            if not answer.strip():
+                return {"ok": False, "answer": "", "error": "Provider returned an empty answer"}
             return {"ok": True, "answer": answer, "citations": [],
                     "raw_model": d.get("model", _p_model(p)), "searched": False}
         except requests.exceptions.Timeout as e:
@@ -300,6 +305,8 @@ def ask(platform: str, question: str, timeout: int = 120) -> dict:
             data = r.json()
             msg = data["choices"][0]["message"]
             answer = msg.get("content") or ""
+            if not answer.strip():
+                return {"ok": False, "answer": "", "error": "Provider returned an empty answer"}
             # Providers expose search sources through different response fields.
             refs = []
             for item in (data.get("search_info") or {}).get("search_results", []) or []:
@@ -429,10 +436,10 @@ def brand_in_question(question: str, cfg: dict) -> bool:
     """Return whether the prompt names the brand and would bias mention rate."""
     b = cfg["brand"]
     names = [b["name"]] + list(b.get("aliases", []) or [])
-    host = urlparse(b.get("site", "")).netloc.lower().removeprefix("www.")
+    host = G.normalize_host(b.get("site", ""))
     if host and host in question.lower():
         return True
-    return any(n and n.lower() in question.lower() for n in names)
+    return any(n and _alias_spans(question, n) for n in names)
 
 
 def analyze_answer(answer: str, cfg: dict, citations: list | None = None) -> dict:
@@ -452,22 +459,15 @@ def analyze_answer(answer: str, cfg: dict, citations: list | None = None) -> dic
     for c in citations or []:
         if c.get("url"):
             urls.append(c["url"])
-            try:
-                host = urlparse(c["url"]).netloc.lower().removeprefix("www.")
-            except ValueError:
-                host = ""
+            host = G.normalize_host(c["url"])
             if host and _citation_supports_brand(c, alias[brand]):
                 brand_cited_domains.append(host)
     domains = []
     for u in urls:
-        try:
-            h = urlparse(u).netloc.lower().removeprefix("www.")
-            if h:
-                domains.append(h)
-        except Exception:  # noqa: BLE001
-            pass
+        if h := G.normalize_host(u):
+            domains.append(h)
 
-    own = urlparse(cfg["brand"]["site"]).netloc.lower().removeprefix("www.")
+    own = G.normalize_host(cfg["brand"]["site"])
 
     # Negative cues are evaluated only near brand mentions.
     neg = set()
@@ -675,7 +675,11 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
             for k in range(repeat):
                 jobs.append((plat, q, k + 1))
 
-    identity = _run_identity(cfg, runnable, repeat, "api")
+    if not jobs:
+        G.info("No runnable platform has questions for its configured market.")
+        return {}
+    active_platforms = list(dict.fromkeys(job[0] for job in jobs))
+    identity = _run_identity(cfg, active_platforms, repeat, "api")
     pdir = G.project_dir(slug)
     path = pdir / "samples" / f"{identity['run_id']}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -711,34 +715,32 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
     # Providers run concurrently while requests within one provider stay serial.
     rows, done, total = [], 0, len(jobs)
     lock = threading.Lock()
-    fh = path.open("a", encoding="utf-8")  # Preserve completed samples on interruption.
-
-    def worker(plat_jobs):
-        nonlocal done
-        out = []
-        for job in plat_jobs:
-            rec = one(job)
-            with lock:
-                done += 1
-                fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
-                fh.flush()
-                flag = "✓" if rec["analysis"]["brand_mentioned"] else ("✗" if not rec["ok"] else "·")
-                print(f"[geo] {done:3d}/{total} {flag} [{rec['platform']}] {rec['question'][:32]}",
-                      file=sys.stderr, flush=True)
-            out.append(rec)
-            time.sleep(0.4)
-        return out
-
     by_plat: dict[str, list] = {}
     for job in jobs:
         by_plat.setdefault(job[0], []).append(job)
-    with ThreadPoolExecutor(max_workers=max(1, len(by_plat))) as ex:
-        for fut in as_completed([ex.submit(worker, v) for v in by_plat.values()]):
-            try:
-                rows.extend(fut.result())
-            except Exception as e:  # noqa: BLE001
-                G.info(f"Engine query interrupted: {type(e).__name__}: {e}")
-    fh.close()
+    with path.open("a", encoding="utf-8") as fh:  # Preserve completed samples on interruption.
+        def worker(plat_jobs):
+            nonlocal done
+            out = []
+            for job in plat_jobs:
+                rec = one(job)
+                with lock:
+                    done += 1
+                    fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                    fh.flush()
+                    flag = "✓" if rec["analysis"]["brand_mentioned"] else ("✗" if not rec["ok"] else "·")
+                    print(f"[geo] {done:3d}/{total} {flag} [{rec['platform']}] {rec['question'][:32]}",
+                          file=sys.stderr, flush=True)
+                out.append(rec)
+                time.sleep(0.4)
+            return out
+
+        with ThreadPoolExecutor(max_workers=max(1, len(by_plat))) as ex:
+            for fut in as_completed([ex.submit(worker, v) for v in by_plat.values()]):
+                try:
+                    rows.extend(fut.result())
+                except Exception as e:  # noqa: BLE001
+                    G.info(f"Engine query interrupted: {type(e).__name__}: {e}")
 
     all_rows = dedup_rows(G.read_jsonl(path))
     ok_rows = [r for r in all_rows if r.get("ok")]

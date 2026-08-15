@@ -118,5 +118,33 @@ class TestDeliverablesNone(unittest.TestCase):
         self.assertIn("Unmeasured", md)
 
 
+class TestTaskStatusLifecycle(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.work = Path(self.tmp.name)
+        self.work_patch = mock.patch.object(G, "WORK", self.work)
+        self.work_patch.start()
+        self.addCleanup(self.work_patch.stop)
+        pdir = G.project_dir("demo")
+        pdir.mkdir()
+        G.write_json(pdir / "tasks.json", {"tasks": [{
+            "id": "T-001", "priority": "P0", "package": "Knowledge base",
+            "market": "both", "status": "todo", "acceptance": {"type": "manual"},
+            "evidence": [], "closed_at": None,
+        }]})
+
+    def test_done_timestamp_is_stable_and_cleared_when_reopened(self):
+        first = T.set_status("demo", "T-001", "done")["closed_at"]
+        second = T.set_status("demo", "T-001", "done")["closed_at"]
+        self.assertEqual(second, first)
+        reopened = T.set_status("demo", "T-001", "todo")
+        self.assertIsNone(reopened["closed_at"])
+
+    def test_invalid_status_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "Invalid task status"):
+            T.set_status("demo", "T-001", "unknown")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -11,6 +11,7 @@ from __future__ import annotations
 import html
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 import geolib as G
 
@@ -298,7 +299,7 @@ CSS = """
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 .wrap{max-width:920px;margin:0 auto;padding:40px 24px 96px}
-h1{font-size:28px;margin:0 0 4px;letter-spacing:-.01em}
+h1{font-size:28px;margin:0 0 4px;letter-spacing:0}
 h2{font-size:20px;margin:44px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--line);color:var(--acc)}
 h3{font-size:16px;margin:26px 0 10px}
 .sub{color:var(--mut);font-size:14px;margin-bottom:28px}
@@ -322,10 +323,26 @@ hr{border:0;border-top:1px solid var(--line);margin:36px 0}
 def md_to_html(md: str) -> str:
     """Markdown subset renderer."""
     def inline(s):
+        links = []
+
+        def hold_link(match):
+            label, href = match.group(1), match.group(2).strip()
+            try:
+                scheme = urlparse(href).scheme.lower()
+            except ValueError:
+                return label
+            if scheme and scheme not in ("http", "https", "mailto"):
+                return label
+            token = f"\x00LINK{len(links)}\x00"
+            links.append((token, label, href))
+            return token
+
+        s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", hold_link, s)
         s = html.escape(s)
-        s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', s)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
+        for token, label, href in links:
+            s = s.replace(token, f'<a href="{html.escape(href, quote=True)}">{html.escape(label)}</a>')
         return s
 
     out, lines, i = [], md.split("\n"), 0
@@ -359,9 +376,7 @@ def md_to_html(md: str) -> str:
         elif ln.strip():
             out.append(f"<p>{inline(ln)}</p>")
         i += 1
-    body = "\n".join(out)
-    body = body.replace("P0 ", '<span class="p0">P0</span> ')
-    return body
+    return "\n".join(out)
 
 
 def build_html(title: str, md: str, cards: list[tuple[str, str]]) -> str:

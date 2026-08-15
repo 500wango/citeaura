@@ -56,6 +56,21 @@ class PublishTest(unittest.TestCase):
     def test_github_rejects_invalid_repo_and_traversal_directory(self):
         self.assertFalse(P._pub_github({"repo": "owner/repo/extra"}, "x", "x", "x.md")["ok"])
         self.assertFalse(P._pub_github({"repo": "owner/repo", "dir": "../docs"}, "x", "x", "x.md")["ok"])
+        self.assertFalse(P._pub_github({"repo": "owner/repo", "dir": r"docs\..\x"}, "x", "x", "x.md")["ok"])
+
+    def test_destination_urls_reject_credentials_and_active_protocols(self):
+        self.assertEqual(P._http_url("javascript:alert(1)"), "")
+        self.assertEqual(P._http_url("https://user:pass@example.com"), "")
+        self.assertEqual(P._http_url("https://example.com/path"), "https://example.com/path")
+
+    def test_returned_active_url_is_removed_before_recording(self):
+        with mock.patch.dict(os.environ, {"PUBLISH_WEBHOOK_URL": "https://example.com/hook"}), \
+             mock.patch.dict(P._IMPL, {"webhook": mock.Mock(return_value={
+                 "ok": True, "url": "javascript:alert(1)",
+             })}):
+            result = P.publish("demo", "webhook", "content/article.md")
+        self.assertEqual(result["url"], "")
+        self.assertEqual(result["record"]["url"], "")
 
     def test_successful_publish_records_title_and_result(self):
         with mock.patch.dict(os.environ, {"PUBLISH_WEBHOOK_URL": "https://example.com/hook"}), \

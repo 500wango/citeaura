@@ -70,6 +70,12 @@ class JobsTest(unittest.TestCase):
         self.assertNotIn(j["id"], J._procs)
         self.assertNotIn("x", J._running)
 
+    def test_start_metadata_failure_releases_project_claim(self):
+        with mock.patch.object(J, "_write", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                J.start("x", "audit")
+        self.assertFalse((J.JOBS_DIR / "claims" / "x.json").exists())
+
     def test_start_writes_pid(self):
         proc = mock.Mock()
         proc.pid = 424242
@@ -112,6 +118,13 @@ class JobsTest(unittest.TestCase):
         self.assertEqual(j["status"], "stopped")
         self.assertTrue(j["finished_at"])
 
+    def test_stop_fallback_rejects_reused_non_leader_pid(self):
+        self._write_job("reusedpid123", pid=31336)
+        with mock.patch.object(J.os, "getpgid", return_value=99999), \
+             mock.patch.object(J.os, "killpg") as killpg:
+            self.assertFalse(J.stop("reusedpid123"))
+        killpg.assert_not_called()
+
     def test_stop_waits_for_in_memory_process(self):
         self._write_job("active1234567", pid=31338)
         proc = mock.Mock(pid=31338)
@@ -123,6 +136,16 @@ class JobsTest(unittest.TestCase):
         killpg.assert_called_once_with(31338, signal.SIGTERM)
         proc.wait.assert_called_once_with(timeout=J.STOP_GRACE_SECONDS)
         self.assertEqual(J.get("active1234567")["status"], "stopped")
+
+    def test_stop_request_remains_stopped_after_graceful_zero_exit(self):
+        self._write_job("graceful12345", pid=31341)
+        proc = mock.Mock(pid=31341)
+        proc.wait.return_value = 0
+        J._procs["graceful12345"] = proc
+        with mock.patch.object(J.os, "getpgid", return_value=31341), \
+             mock.patch.object(J.os, "killpg"):
+            self.assertTrue(J.stop("graceful12345"))
+        self.assertEqual(J.get("graceful12345")["status"], "stopped")
 
     def test_stop_escalates_after_grace_period(self):
         self._write_job("stubborn12345", pid=31339)
@@ -170,6 +193,13 @@ class JobsTest(unittest.TestCase):
         J.JOBS_DIR.mkdir(parents=True, exist_ok=True)
         (J.JOBS_DIR / "badjob123456.json").write_text("{not json", "utf-8")
         self.assertIsNone(J.get("badjob123456"))
+
+    def test_job_ids_and_log_offsets_are_confined(self):
+        self.assertIsNone(J.get("../../outside"))
+        with self.assertRaises(ValueError):
+            J.tail("../../outside")
+        with self.assertRaises(ValueError):
+            J.tail("valid-job", -1)
 
 
 if __name__ == "__main__":

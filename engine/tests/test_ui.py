@@ -31,6 +31,10 @@ class DocumentLangCase(unittest.TestCase):
         self.assertIn("en:'en'", mapping)
         self.assertIn("ja:'ja'", mapping)
 
+    def test_visible_brand_is_citeaura(self):
+        self.assertIn('>Cite<span style="color:var(--accent)">Aura</span>', self.html)
+        self.assertNotIn('>Geo<span style="color:var(--accent)">Look</span>', self.html)
+
 
 if __name__ == "__main__":
     unittest.main()

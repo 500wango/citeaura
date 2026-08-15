@@ -95,5 +95,16 @@ class TestMarketAvgCards(unittest.TestCase):
         self.assertEqual(R.market_avg_cards(None), [])
 
 
+class TestSafeHtml(unittest.TestCase):
+    def test_markdown_links_escape_html_and_block_active_protocols(self):
+        rendered = R.md_to_html(
+            '<img src=x onerror=alert(1)> [bad](javascript:alert(1)) '
+            '[good](https://example.com/?a=1&b=2)'
+        )
+        self.assertIn("&lt;img", rendered)
+        self.assertNotIn("javascript:", rendered)
+        self.assertIn('href="https://example.com/?a=1&amp;b=2"', rendered)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -112,6 +112,15 @@ class TestRankingAndCitationSemantics(unittest.TestCase):
         )
         self.assertIn("wikipedia.org", result["brand_cited_domains"])
 
+    def test_citation_hosts_normalize_ports_and_www(self):
+        result = S.analyze_answer(
+            "AIGCLINK定制家可以考虑。",
+            CFG,
+            [{"url": "https://WWW.AIGCLINK.EXAMPLE.COM:443/docs", "title": "AIGCLINK定制家"}],
+        )
+        self.assertIn("aigclink.example.com", result["cited_domains"])
+        self.assertTrue(result["own_domain_cited"])
+
 
 class TestProbeNoFallback(unittest.TestCase):
     def test_probe_only_platform_mention_rate_none(self):
@@ -133,6 +142,12 @@ class TestProbeNoFallback(unittest.TestCase):
         self.assertEqual(m["samples"], 2)
         self.assertEqual(m["mention_rate"], 0.5)
         self.assertEqual(m["probe"]["samples"], 1)
+
+    def test_short_latin_brand_requires_question_token_boundary(self):
+        cfg = {"brand": {"name": "AI", "aliases": [], "site": "https://ai.example"},
+               "competitors": [], "questions": []}
+        self.assertFalse(S.brand_in_question("Which paid tool is best?", cfg))
+        self.assertTrue(S.brand_in_question("Is AI useful?", cfg))
 
 
 class TestMarketOf(unittest.TestCase):
@@ -203,6 +218,12 @@ class TestAskRetry(unittest.TestCase):
         self.assertFalse(res["ok"])
         self.assertEqual(post.call_count, 1)
 
+    def test_empty_success_response_is_not_counted_as_a_sample(self):
+        res, post = self._ask([_Resp(200, {"choices": [{"message": {"content": "  "}}]})])
+        self.assertFalse(res["ok"])
+        self.assertIn("empty answer", res["error"])
+        self.assertEqual(post.call_count, 1)
+
     def test_anthropic_success_declares_parametric_mode(self):
         payload = {"model": "claude-test", "content": [{"type": "text", "text": "OK"}]}
         with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}), \
@@ -229,6 +250,20 @@ class TestRunValidation(unittest.TestCase):
             }), "utf-8")
             with self.assertRaisesRegex(ValueError, "Unknown API platform"):
                 S.run("demo", platforms=["typo"])
+
+    def test_no_market_matching_questions_does_not_create_empty_run(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(G, "WORK", Path(tmp)):
+            pdir = G.project_dir("demo")
+            pdir.mkdir()
+            (pdir / "geo.json").write_text(json.dumps({
+                "brand": {"name": "Acme", "site": "https://acme.example", "aliases": []},
+                "market": "global", "questions": [
+                    {"id": "q001", "market": "global", "text": "Best tool?"},
+                ],
+            }), "utf-8")
+            with mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test"}):
+                self.assertEqual(S.run("demo", platforms=["deepseek"]), {})
+            self.assertFalse((pdir / "samples").exists())
 
 
 class TestSamplingConcurrency(unittest.TestCase):

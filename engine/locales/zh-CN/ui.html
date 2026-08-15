@@ -19,7 +19,7 @@
 }
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 var(--font)}
-h1,h2,h3,h4{font-weight:500;line-height:1.12;letter-spacing:-.015em;margin:0 0 6px}
+h1,h2,h3,h4{font-weight:500;line-height:1.12;letter-spacing:0;margin:0 0 6px}
 h2{font-size:32px} h3{font-size:25px} h4{font-size:20px}
 p{margin:0 0 8px}
 a{color:var(--accent);text-underline-offset:3px}
@@ -697,7 +697,7 @@ function renderSide(){
   $('#side').innerHTML=`
   <div style="padding:0 8px">
     <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="font-weight:500;font-size:17px;letter-spacing:-.01em">Geo<span style="color:var(--accent)">Look</span></div>
+      <div style="font-weight:500;font-size:17px;letter-spacing:0">Cite<span style="color:var(--accent)">Aura</span></div>
       <span style="display:flex;gap:2px">
         ${[['zh','中'],['en','EN'],['ja','日']].map(([l,t])=>`<button onclick="setLang('${l}')"
           style="background:${ULANG===l?'var(--a900)':'none'};border:0;color:${ULANG===l?'var(--a300)':'var(--t600)'};font-size:10.5px;padding:2px 6px;border-radius:5px;cursor:pointer">${t}</button>`).join('')}
@@ -804,7 +804,7 @@ function vOverview(){
     <div class="kpis">
       ${kpis.map(([l,v,n])=>`<div class="card elev" style="gap:4px;padding:15px">
         <div style="font-size:11.5px;color:var(--t500)">${l}</div>
-        <div style="font-size:29px;font-weight:500;letter-spacing:-.02em">${v}</div>
+        <div style="font-size:29px;font-weight:500;letter-spacing:0">${v}</div>
         <div style="font-size:11px;color:var(--t600);line-height:1.4">${n}</div></div>`).join('')}
     </div>
 

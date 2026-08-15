@@ -45,10 +45,13 @@ def cmd_init(a):
     except ValueError:
         G.die("Site URL must use http or https and include a valid hostname")
     host = G.normalize_host(url)
-    if parsed.scheme not in ("http", "https") or not host:
+    if (parsed.scheme not in ("http", "https") or not host
+            or parsed.username is not None or parsed.password is not None):
         G.die("Site URL must use http or https and include a valid hostname")
     if a.max_pages < 1:
         G.die("max_pages must be at least 1")
+    if a.market not in ("cn", "global", "both"):
+        G.die("market must be one of: cn, global, both")
     slug = a.slug or G.slugify(host.split(".")[0])
 
     # Existing projects require an explicit force reset.

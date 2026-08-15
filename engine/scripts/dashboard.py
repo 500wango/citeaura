@@ -26,6 +26,9 @@ import jobs as J
 import tasks as T
 
 UI = Path(__file__).resolve().parent / "ui.html"
+MAX_BODY_BYTES = 1_000_000
+IMPORT_FILE_OK = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,126}\.md$", re.I)
+_env_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------- Data aggregation
@@ -51,8 +54,8 @@ def list_projects() -> list[dict]:
             "pages": audit.get("page_count"),
             "tasks_total": s.get("total", 0),
             "tasks_done": s.get("by_status", {}).get("done", 0),
-            "p0_open": sum(1 for t in td.get("tasks", [])
-                           if t["priority"] == "P0" and t["status"] != "done"),
+            "p0_open": sum(1 for t in td.get("tasks", []) if isinstance(t, dict)
+                           and t.get("priority") == "P0" and t.get("status") != "done"),
         })
     return out
 
@@ -71,9 +74,9 @@ def project(slug: str) -> dict:
         rs = v.get("results", [])
         verify_hist.append({
             "date": (v.get("verified_at") or f.stem)[:10],
-            "pass": sum(1 for r in rs if r["verdict"] == "pass"),
-            "fail": sum(1 for r in rs if r["verdict"] == "fail"),
-            "manual": sum(1 for r in rs if r["verdict"] == "manual"),
+            "pass": sum(1 for r in rs if isinstance(r, dict) and r.get("verdict") == "pass"),
+            "fail": sum(1 for r in rs if isinstance(r, dict) and r.get("verdict") == "fail"),
+            "manual": sum(1 for r in rs if isinstance(r, dict) and r.get("verdict") == "manual"),
             "avg_score": v.get("audit_avg_score"),
         })
 
@@ -152,7 +155,7 @@ def asset_tree(slug: str) -> list[dict]:
     if not adir.exists():
         return out
     for f in sorted(adir.rglob("*")):
-        if f.is_file() and f.suffix in (".txt", ".json", ".html", ".md"):
+        if not f.is_symlink() and f.is_file() and f.suffix in (".txt", ".json", ".html", ".md"):
             rel = f.relative_to(adir).as_posix()
             out.append({"path": rel, "size": f.stat().st_size,
                         "group": rel.split("/")[0] if "/" in rel else "root"})
@@ -174,20 +177,53 @@ def read_asset(slug: str, rel: str) -> dict:
 def write_env(updates: dict[str, str]):
     """Update the project .env file and synchronize the current process."""
     path = G.ROOT / ".env"
-    lines = path.read_text("utf-8").splitlines() if path.exists() else []
-    for k, v in updates.items():
-        pat = re.compile(rf"\s*(export\s+)?{re.escape(k)}\s*=")
-        lines = [ln for ln in lines if not pat.match(ln)]
-        if v:
-            lines.append(f"{k}={v}")
-            os.environ[k] = v
-        else:
-            os.environ.pop(k, None)
-    path.write_text("\n".join(lines) + ("\n" if lines else ""), "utf-8")
+    with _env_lock:
+        lines = path.read_text("utf-8").splitlines() if path.exists() else []
+        for k, v in updates.items():
+            pat = re.compile(rf"\s*(export\s+)?{re.escape(k)}\s*=")
+            lines = [ln for ln in lines if not pat.match(ln)]
+            if v:
+                lines.append(f"{k}={v}")
+        text = "\n".join(lines) + ("\n" if lines else "")
+        tmp = path.with_name(f".env.{os.getpid()}.{threading.get_ident()}.tmp")
+        try:
+            tmp.write_text(text, "utf-8")
+            tmp.chmod(0o600)
+            os.replace(tmp, path)
+        finally:
+            tmp.unlink(missing_ok=True)
+        for k, v in updates.items():
+            if v:
+                os.environ[k] = v
+            else:
+                os.environ.pop(k, None)
+
+
+def trusted_request(host: str, origin: str = "", fetch_site: str = "") -> bool:
+    """Accept only loopback hosts and reject browser cross-site mutations."""
     try:
-        path.chmod(0o600)
-    except OSError:
-        pass
+        parsed_host = urlparse("//" + str(host or ""))
+        hostname = (parsed_host.hostname or "").lower()
+    except ValueError:
+        return False
+    if hostname not in ("127.0.0.1", "localhost", "::1"):
+        return False
+    if origin:
+        try:
+            parsed_origin = urlparse(origin)
+        except ValueError:
+            return False
+        if parsed_origin.scheme != "http" or parsed_origin.netloc.lower() != str(host).lower():
+            return False
+    return fetch_site.lower() not in ("cross-site", "same-site")
+
+
+def sample_import_path(slug: str, filename: str) -> Path:
+    """Return a project-local Markdown sheet path."""
+    name = str(filename or "").strip()
+    if not IMPORT_FILE_OK.fullmatch(name) or Path(name).name != name:
+        raise ValueError("invalid_sample_sheet_filename")
+    return G.project_dir(slug) / "samples" / name
 
 
 def create_project(url: str, name: str, slug: str, market: str, max_pages: int) -> dict:
@@ -219,11 +255,28 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"))
 
     def _body(self) -> dict:
-        n = int(self.headers.get("Content-Length", 0))
-        return json.loads(self.rfile.read(n) or b"{}")
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            raise ValueError("content_length_must_be_integer") from None
+        if n < 0 or n > MAX_BODY_BYTES:
+            raise ValueError(f"request_body_must_not_exceed_{MAX_BODY_BYTES}_bytes")
+        body = json.loads(self.rfile.read(n) or b"{}")
+        if not isinstance(body, dict):
+            raise ValueError("request_body_must_be_object")
+        return body
+
+    def _trusted(self, write: bool = False) -> bool:
+        return trusted_request(
+            self.headers.get("Host", ""),
+            self.headers.get("Origin", "") if write else "",
+            self.headers.get("Sec-Fetch-Site", "") if write else "",
+        )
 
     # ------------------------------------------------------------ GET
     def do_GET(self):
+        if not self._trusted():
+            return self._json({"error": "untrusted_request_host"}, 403)
         u = urlparse(self.path)
         p, q = unquote(u.path), parse_qs(u.query)
         try:
@@ -314,6 +367,8 @@ class Handler(BaseHTTPRequestHandler):
                     off = int(q.get("offset", ["0"])[0])
                 except ValueError:
                     return self._json({"error": "offset_must_be_integer"}, 400)
+                if off < 0:
+                    return self._json({"error": "offset_must_be_non_negative"}, 400)
                 text, new_off = J.tail(jid, off)
                 return self._json({"job": job, "log": text, "offset": new_off})
             if p.startswith("/api/files/"):
@@ -356,6 +411,8 @@ class Handler(BaseHTTPRequestHandler):
 
     # ------------------------------------------------------------ POST
     def do_POST(self):
+        if not self._trusted(write=True):
+            return self._json({"ok": False, "error": "untrusted_request_origin"}, 403)
         p = unquote(urlparse(self.path).path)
         try:
             body = self._body()
@@ -392,9 +449,10 @@ class Handler(BaseHTTPRequestHandler):
 
             if p.startswith("/api/config/"):
                 slug = p[len("/api/config/"):]
-                cur = G.read_json(G.project_dir(slug) / "geo.json", {})
-                cur.update(body)
-                G.save_config(slug, cur)
+                with G.project_lock(slug):
+                    cur = G.read_json(G.project_dir(slug) / "geo.json", {})
+                    cur.update(body)
+                    G.save_config(slug, cur)
                 return self._json({"ok": True})
 
             if p.startswith("/api/facts/"):
@@ -469,12 +527,15 @@ class Handler(BaseHTTPRequestHandler):
                 code = body.get("platform")
                 if code not in P.PUBLISHERS:
                     return self._json({"ok": False, "error": f"unknown_channel: {code}"}, 400)
+                if not isinstance(body.get("cfg") or {}, dict):
+                    return self._json({"ok": False, "error": "cfg_must_be_object"}, 400)
                 keys = {k for k, _ in P.PUBLISHERS[code]["cfg"]}
-                cfg = G.read_json(G.project_dir(slug) / "geo.json", {})
-                pub = cfg.setdefault("publishing", {})
-                pub[code] = {k: str(v or "").strip() for k, v in (body.get("cfg") or {}).items()
-                             if k in keys}
-                G.save_config(slug, cfg)
+                with G.project_lock(slug):
+                    cfg = G.read_json(G.project_dir(slug) / "geo.json", {})
+                    pub = cfg.setdefault("publishing", {})
+                    pub[code] = {k: str(v or "").strip() for k, v in (body.get("cfg") or {}).items()
+                                 if k in keys}
+                    G.save_config(slug, cfg)
                 return self._json({"ok": True})
 
             if p.startswith("/api/publish/"):
@@ -492,52 +553,60 @@ class Handler(BaseHTTPRequestHandler):
                 if not qid or not ch:
                     return self._json({"ok": False, "error": "qid_and_channel_required"}, 400)
                 path = G.project_dir(slug) / "distribution.json"
-                dist = G.read_json(path, {})
-                if body.get("on"):
-                    dist.setdefault(qid, {})[ch] = G.now_iso()
-                else:
-                    dist.get(qid, {}).pop(ch, None)
-                    if not dist.get(qid):
-                        dist.pop(qid, None)
-                G.write_json(path, dist)
+                with G.project_lock(slug):
+                    dist = G.read_json(path, {})
+                    if body.get("on"):
+                        dist.setdefault(qid, {})[ch] = G.now_iso()
+                    else:
+                        dist.get(qid, {}).pop(ch, None)
+                        if not dist.get(qid):
+                            dist.pop(qid, None)
+                    G.write_json(path, dist)
                 return self._json({"ok": True, "distribution": dist})
 
             if p == "/api/questions-add":
                 slug = body.get("slug") or ""
                 items = body.get("items")
-                if not slug or not isinstance(items, list) or not items:
+                if (not slug or not isinstance(items, list) or not items
+                        or any(not isinstance(item, dict) for item in items)):
                     return self._json({"ok": False, "error": "slug_and_items_required"}, 400)
-                cfg = G.read_json(G.project_dir(slug) / "geo.json", {})
-                qs = cfg.setdefault("questions", [])
-                existing = {q.get("text", "").strip() for q in qs}
-                series = {"cn": 1, "global": 101, "both": 901}
-                used = {int(m.group(1)) for q in qs
-                        if (m := re.match(r"q(\d+)$", str(q.get("id", ""))))}
-                added = []
-                for it in items:
-                    text = str(it.get("text") or "").strip()
-                    mk = it.get("market") if it.get("market") in series else "cn"
-                    grp = str(it.get("group") or "scenario").strip() or "scenario"
-                    if not text or text in existing:
-                        continue
-                    n = series[mk]
-                    while n in used:
-                        n += 1
-                    used.add(n)
-                    q = {"id": f"q{n:03d}", "group": grp, "market": mk, "text": text,
-                         "source": "expand"}
-                    qs.append(q)
-                    existing.add(text)
-                    added.append(q)
-                if added:
-                    G.save_config(slug, cfg)
+                with G.project_lock(slug):
+                    cfg = G.read_json(G.project_dir(slug) / "geo.json", {})
+                    qs = cfg.setdefault("questions", [])
+                    existing = {q.get("text", "").strip() for q in qs}
+                    series = {"cn": 1, "global": 101, "both": 901}
+                    used = {int(m.group(1)) for q in qs
+                            if (m := re.match(r"q(\d+)$", str(q.get("id", ""))))}
+                    added = []
+                    for it in items:
+                        text = str(it.get("text") or "").strip()
+                        mk = it.get("market") if it.get("market") in series else "cn"
+                        grp = str(it.get("group") or "scenario").strip() or "scenario"
+                        if not text or text in existing:
+                            continue
+                        n = series[mk]
+                        while n in used:
+                            n += 1
+                        used.add(n)
+                        q = {"id": f"q{n:03d}", "group": grp, "market": mk, "text": text,
+                             "source": "expand"}
+                        qs.append(q)
+                        existing.add(text)
+                        added.append(q)
+                    if added:
+                        G.save_config(slug, cfg)
                 return self._json({"ok": True, "added": len(added),
                                    "ids": [q["id"] for q in added]})
 
             if p == "/api/sample-import":
                 import sample as S
-                path = G.project_dir(body["slug"]) / "samples" / body["file"]
+                if not body.get("slug") or not body.get("file"):
+                    return self._json({"ok": False, "error": "slug_and_file_required"}, 400)
+                if body.get("text") is not None and not isinstance(body["text"], str):
+                    return self._json({"ok": False, "error": "text_must_be_string"}, 400)
+                path = sample_import_path(body["slug"], body["file"])
                 if body.get("text") is not None:
+                    path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text(body["text"], "utf-8")
                 S.sample_import(body["slug"], str(path))
                 return self._json({"ok": True})
@@ -562,14 +631,25 @@ def _monitor_tick():
         every = mon.get("every_days")
         if not every or (mon.get("next_run") or "") > G.today():
             continue
+        try:
+            days = int(every)
+            if days < 1:
+                raise ValueError
+        except (TypeError, ValueError):
+            G.info(f"Scheduled run skipped for {d.name}: every_days must be a positive integer")
+            continue
         if J.running_for(d.name):
             continue
         try:
             J.start(d.name, "serve", {})
-            mon["next_run"] = (date.today() + timedelta(days=int(every))).isoformat()
-            cfg["monitor"] = mon
-            G.save_config(d.name, cfg)
-            G.info(f"Scheduled run triggered: {d.name}, next run at {mon['next_run']}")
+            next_run = (date.today() + timedelta(days=days)).isoformat()
+            with G.project_lock(d.name):
+                latest = G.read_json(cfg_path, {})
+                latest_mon = latest.get("monitor") or {}
+                latest_mon["next_run"] = next_run
+                latest["monitor"] = latest_mon
+                G.save_config(d.name, latest)
+            G.info(f"Scheduled run triggered: {d.name}, next run at {next_run}")
         except (ValueError, RuntimeError) as e:
             G.info(f"Scheduled run skipped for {d.name}: {e}")
 

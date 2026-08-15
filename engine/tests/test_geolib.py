@@ -1,8 +1,10 @@
 import sys
 import tempfile
+import threading
 import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 import geolib as G
@@ -21,6 +23,24 @@ class TestJsonIO(unittest.TestCase):
             p = Path(d) / "x.json"
             p.write_text("{broken", "utf-8")
             self.assertEqual(G.read_json(p, default={}), {})
+
+    def test_concurrent_json_writes_use_distinct_atomic_temp_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "x.json"
+            threads = [threading.Thread(target=G.write_json, args=(p, {"value": i}))
+                       for i in range(12)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            self.assertIn(G.read_json(p)["value"], range(12))
+            self.assertFalse(list(Path(d).glob("*.tmp")))
+
+    def test_jsonl_skips_a_corrupt_interrupted_record(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "x.jsonl"
+            p.write_text('{"ok": 1}\n{"truncated":\n{"ok": 2}\n', "utf-8")
+            self.assertEqual(G.read_jsonl(p), [{"ok": 1}, {"ok": 2}])
 
     def test_project_dir_rejects_traversal(self):
         for bad in ("../x", "/etc", "a/b", ".."):
@@ -71,10 +91,48 @@ class TestJsonIO(unittest.TestCase):
         self.assertEqual(G.normalize_host("//sub.example.com/x"), "sub.example.com")
         self.assertEqual(G.normalize_host(""), "")
         self.assertEqual(G.normalize_host("http://[broken"), "")
+        self.assertEqual(G.normalize_host("https://bad host.example"), "")
 
     def test_same_site_rejects_empty_hosts(self):
         self.assertFalse(G.same_site("", ""))
         self.assertTrue(G.same_site("https://www.example.com", "docs.example.com"))
+
+    def test_normalize_url_rejects_non_http_and_malformed_links(self):
+        self.assertIsNone(G.normalize_url("https://example.com", "javascript:alert(1)"))
+        self.assertIsNone(G.normalize_url("https://example.com", "ftp://example.com/file"))
+        self.assertIsNone(G.normalize_url("https://example.com", "http://[broken"))
+        self.assertIsNone(G.normalize_url("https://example.com", "https://user:pass@example.com/private"))
+
+    def test_fetch_text_uses_bounded_fetch_contract(self):
+        with mock.patch.object(G, "fetch", return_value={"status": 200, "html": "robots"}) as fetch:
+            self.assertEqual(G.fetch_text("https://example.com/robots.txt", timeout=3), "robots")
+        fetch.assert_called_once_with("https://example.com/robots.txt", timeout=3, retries=0)
+
+    def test_fetch_closes_stream_and_enforces_exact_byte_limit(self):
+        response = mock.Mock(
+            status_code=200,
+            headers={"Content-Type": "text/html; charset=utf-8"},
+            url="https://example.com",
+            encoding="utf-8",
+        )
+        response.iter_content.return_value = [b"a" * G.MAX_BYTES, b"overflow"]
+        with mock.patch.object(G.requests, "get", return_value=response):
+            result = G.fetch("https://example.com", retries=0)
+        self.assertEqual(len(result["html"]), G.MAX_BYTES)
+        response.close.assert_called_once()
+
+    def test_fetch_closes_stream_when_iteration_fails(self):
+        response = mock.Mock(
+            status_code=200,
+            headers={"Content-Type": "text/html"},
+            url="https://example.com",
+            encoding="utf-8",
+        )
+        response.iter_content.side_effect = OSError("stream failed")
+        with mock.patch.object(G.requests, "get", return_value=response):
+            result = G.fetch("https://example.com", retries=0)
+        self.assertEqual(result["status"], 0)
+        response.close.assert_called_once()
 
     def test_force_init_archives_stale_artifacts(self):
         with tempfile.TemporaryDirectory() as d:

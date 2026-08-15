@@ -42,7 +42,7 @@ load_env()
 
 UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 geo-skill/1.0"
+    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 CiteAuraEngine/1.0 (+https://citeaura.com)"
 )
 
 # ---------------------------------------------------------------- Core utilities
@@ -151,19 +151,22 @@ def save_config(slug: str, cfg: dict):
     if p.exists():
         bak = p.parent / ".geo.bak"
         bak.mkdir(exist_ok=True)
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         (bak / f"geo-{stamp}.json").write_text(p.read_text("utf-8"), "utf-8")
         old = sorted(bak.glob("geo-*.json"))
         for f in old[:-10]:
             f.unlink()
-    p.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), "utf-8")
+    write_json(p, cfg)
 
 
 def write_json(path: Path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
-    os.replace(tmp, path)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def read_json(path: Path, default=None):
@@ -172,16 +175,21 @@ def read_json(path: Path, default=None):
         return default
     try:
         return json.loads(p.read_text("utf-8"))
-    except json.JSONDecodeError:
+    except (OSError, UnicodeError, json.JSONDecodeError):
         info(f"Warning: {p} is corrupt; using the default value")
         return default
 
 
 def write_jsonl(path: Path, rows):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        with tmp.open("w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def read_jsonl(path: Path):
@@ -189,10 +197,13 @@ def read_jsonl(path: Path):
     if not p.exists():
         return []
     out = []
-    for line in p.read_text("utf-8").splitlines():
+    for line_no, line in enumerate(p.read_text("utf-8", errors="replace").splitlines(), 1):
         line = line.strip()
         if line:
-            out.append(json.loads(line))
+            try:
+                out.append(json.loads(line))
+            except json.JSONDecodeError:
+                info(f"Warning: {p}:{line_no} is corrupt; skipping the record")
     return out
 
 
@@ -225,6 +236,7 @@ def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
                 "elapsed": 0, "error": "Skipped: URL points to a download, media file, or static asset"}
     last = ""
     for attempt in range(retries + 1):
+        r = None
         try:
             t0 = time.time()
             r = requests.get(
@@ -237,21 +249,21 @@ def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
             # Server errors and rate limits are usually transient and follow the retry policy.
             if (r.status_code >= 500 or r.status_code == 429) and attempt < retries:
                 r.close()
+                r = None
                 time.sleep(1.5)
                 continue
             ctype = r.headers.get("Content-Type", "")
             if ctype and not any(k in ctype.lower() for k in ("html", "text/plain", "xml")):
-                r.close()
                 return {"url": url, "final_url": r.url, "status": r.status_code, "html": "",
                         "content_type": ctype, "elapsed": round(time.time() - t0, 2),
                         "error": f"Skipped non-document content ({ctype.split(';')[0]})"}
             chunks, size = [], 0
             for chunk in r.iter_content(65536):
-                chunks.append(chunk)
-                size += len(chunk)
-                if size >= MAX_BYTES:
+                remaining = MAX_BYTES - size
+                if remaining <= 0:
                     break
-            r.close()
+                chunks.append(chunk[:remaining])
+                size += min(len(chunk), remaining)
             raw = b"".join(chunks)
             enc = r.encoding if r.encoding and r.encoding.lower() != "iso-8859-1" else None
             if not enc:
@@ -269,19 +281,19 @@ def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
         except Exception as e:  # noqa: BLE001
             last = f"{type(e).__name__}: {e}"
             if attempt < retries:
+                if r is not None:
+                    r.close()
+                    r = None
                 time.sleep(1.5)
+        finally:
+            if r is not None:
+                r.close()
     return {"url": url, "final_url": url, "status": 0, "html": "", "content_type": "", "elapsed": 0, "error": last}
 
 
 def fetch_text(url: str, timeout: int = 8) -> str:
-    try:
-        r = requests.get(url, timeout=timeout, headers={"User-Agent": UA})
-        if r.status_code == 200:
-            r.encoding = r.apparent_encoding or r.encoding
-            return r.text
-    except Exception:  # noqa: BLE001
-        pass
-    return ""
+    result = fetch(url, timeout=timeout, retries=0)
+    return result["html"] if result["status"] == 200 else ""
 
 
 def same_site(a: str, b: str) -> bool:
@@ -301,6 +313,8 @@ def normalize_host(value: str) -> str:
         host = (parsed.hostname or "").strip().lower().rstrip(".")
     except ValueError:
         return ""
+    if any(ch.isspace() for ch in host):
+        return ""
     return host.removeprefix("www.")
 
 
@@ -315,9 +329,19 @@ def normalize_url(base: str, href: str) -> str | None:
     href = href.strip()
     if href.startswith(("mailto:", "tel:", "javascript:", "#")):
         return None
-    u = urljoin(base, href)
+    try:
+        u = urljoin(base, href)
+    except ValueError:
+        return None
     u, _, _ = u.partition("#")
-    parts = urlparse(u)
+    try:
+        parts = urlparse(u)
+        if (parts.scheme.lower() not in ("http", "https") or not parts.hostname
+                or parts.username is not None or parts.password is not None
+                or not normalize_host(u)):
+            return None
+    except ValueError:
+        return None
     if parts.query:
         qs = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
               if not (k.lower().startswith("utm_") or k.lower() in TRACKING_PARAMS)]

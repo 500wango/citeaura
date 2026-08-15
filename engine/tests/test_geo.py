@@ -11,19 +11,24 @@ import geolib as G
 
 
 def args(url, **values):
-    return types.SimpleNamespace(url=url, name="Acme", slug="demo", market="global",
+    return types.SimpleNamespace(url=url, name="Acme", slug="demo", market=values.get("market", "global"),
                                  max_pages=values.get("max_pages", 5), force=False)
 
 
 class GeoCliTest(unittest.TestCase):
     def test_init_rejects_non_http_and_missing_hosts(self):
-        for url in ("ftp://example.com", "https:///missing", "http://[broken"):
+        for url in ("ftp://example.com", "https:///missing", "http://[broken",
+                    "https://user:pass@example.com"):
             with self.subTest(url=url), self.assertRaises(SystemExit):
                 geo.cmd_init(args(url))
 
     def test_init_rejects_non_positive_page_limit(self):
         with self.assertRaises(SystemExit):
             geo.cmd_init(args("example.com", max_pages=0))
+
+    def test_init_rejects_unknown_market(self):
+        with self.assertRaises(SystemExit):
+            geo.cmd_init(args("example.com", market="unknown"))
 
     def test_init_normalizes_bare_domain_and_creates_directories(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(G, "WORK", Path(tmp)):

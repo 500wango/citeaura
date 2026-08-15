@@ -11,7 +11,7 @@ import html
 import json
 import os
 import re
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import requests
 
@@ -109,24 +109,45 @@ def md2html(md: str) -> str:
     return "\n".join(out)
 
 
+def _http_url(value: str, *, base: bool = False) -> str:
+    """Return a usable HTTP(S) URL without embedded credentials."""
+    raw = str(value or "").strip()
+    try:
+        parsed = urlparse(raw)
+        if (parsed.scheme.lower() not in ("http", "https") or not parsed.hostname
+                or parsed.username is not None or parsed.password is not None):
+            return ""
+    except ValueError:
+        return ""
+    if base and (parsed.query or parsed.fragment):
+        return ""
+    return raw.rstrip("/") if base else raw
+
+
 # ---------------------------------------------------------------- Destination implementations
 
 def _pub_github(cfg, text, title, fname):
     repo, branch = cfg.get("repo", ""), cfg.get("branch", "main")
-    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
+    if (not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo)
+            or any(part in (".", "..") for part in repo.split("/"))):
         return {"ok": False, "error": "Configure repo as owner/repo first"}
     remote_dir = cfg.get("dir", "").strip("/")
-    if any(part in ("", ".", "..") for part in remote_dir.split("/")) and remote_dir:
+    if ("\\" in remote_dir
+            or any(part in ("", ".", "..") for part in remote_dir.split("/")) and remote_dir):
         return {"ok": False, "error": "Configure dir as a repository-relative path"}
+    if not branch or any(ord(char) < 32 for char in branch):
+        return {"ok": False, "error": "Configure a valid branch first"}
     path = (remote_dir + "/" + fname).lstrip("/")
     H = {"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
          "Accept": "application/vnd.github+json"}
-    url = f"https://api.github.com/repos/{repo}/contents/{path}"
+    url = f"https://api.github.com/repos/{repo}/contents/{quote(path, safe='/')}"
     body = {"message": f"geo: publish {title}", "branch": branch,
             "content": base64.b64encode(text.encode()).decode()}
     r0 = requests.get(url, headers=H, params={"ref": branch}, timeout=30)
     if r0.status_code == 200:
         body["sha"] = r0.json().get("sha")
+    elif r0.status_code != 404:
+        return {"ok": False, "error": f"GitHub lookup failed with HTTP {r0.status_code}"}
     r = requests.put(url, headers=H, json=body, timeout=30)
     if r.status_code in (200, 201):
         return {"ok": True, "url": r.json().get("content", {}).get("html_url", "")}
@@ -134,9 +155,9 @@ def _pub_github(cfg, text, title, fname):
 
 
 def _pub_wordpress(cfg, text, title, fname):
-    site = (cfg.get("site_url") or "").rstrip("/")
+    site = _http_url(cfg.get("site_url"), base=True)
     if not site:
-        return {"ok": False, "error": "Configure site_url first"}
+        return {"ok": False, "error": "Configure a valid HTTP(S) site_url first"}
     r = requests.post(f"{site}/wp-json/wp/v2/posts",
                       auth=(os.environ["WP_USER"], os.environ["WP_APP_PASSWORD"]),
                       json={"title": title, "content": md2html(text), "status": "draft"},
@@ -169,7 +190,10 @@ def _pub_wechat(cfg, text, title, fname):
 
 
 def _pub_webhook(cfg, text, title, fname):
-    r = requests.post(os.environ["PUBLISH_WEBHOOK_URL"],
+    url = _http_url(os.environ["PUBLISH_WEBHOOK_URL"])
+    if not url:
+        return {"ok": False, "error": "Configure a valid HTTP(S) webhook URL first"}
+    r = requests.post(url,
                       json={"title": title, "markdown": text, "html": md2html(text),
                             "path": fname}, timeout=30)
     if 200 <= r.status_code < 300:
@@ -219,9 +243,13 @@ def publish(slug: str, code: str, rel: str, title: str = "") -> dict:
     title = title or _title_of(text, fname)
     try:
         res = _IMPL[code](_cfg(slug, code), text, title, fname)
-    except requests.RequestException:
+        if not isinstance(res, dict):
+            raise TypeError("Publisher result must be an object")
+    except (KeyError, TypeError, ValueError, requests.RequestException):
         return {"ok": False, "error":
                 "Publishing destination request failed; check URL, credentials, and network connectivity"}
+    if res.get("url"):
+        res["url"] = _http_url(res["url"])
     entry = {"at": G.now_iso(), "platform": code, "platform_name": PUBLISHERS[code]["name"],
              "path": rel, "title": title, "ok": res.get("ok", False),
              "url": res.get("url", ""), "note": res.get("note", ""),

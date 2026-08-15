@@ -10,7 +10,7 @@
 citeaura/
 ├── engine/                  # 允许修复 `engine/` 的通用缺陷，但不得引入租户、计费、认证等 SaaS 专属逻辑
 │   ├── scripts/             # 核心 Python 模块（20 个 .py）
-│   ├── tests/               # 180+ 个测试（必须保持全绿）
+│   ├── tests/               # 200+ 个测试（必须保持全绿）
 │   └── references/          # 方法论数据
 ├── api/                     # FastAPI 后端（新建）
 │   ├── main.py              # 应用入口
