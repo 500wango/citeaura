@@ -81,8 +81,8 @@ export default {
       try {
         await auth.register({ tenant_name, email, password });
         await auth.login({ email, password });
-        toast.success(t('auth.register_success', {}, 'Workspace created successfully'));
         await ctx.reloadSession();
+        toast.success(t('auth.register_success', {}, 'Workspace created successfully'));
         // 从落地页带 ?plan=pro 注册时，直接进入计费页发起升级，无需等 14 天试用结束。
         let intentPlan = '';
         try {

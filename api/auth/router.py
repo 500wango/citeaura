@@ -135,6 +135,7 @@ def token_response(
     response.set_cookie(
         ACCESS_TOKEN_COOKIE,
         access_token,
+        path="/",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
         secure=cookie_secure,
@@ -143,6 +144,7 @@ def token_response(
     response.set_cookie(
         REFRESH_TOKEN_COOKIE,
         refresh_token,
+        path="/",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         httponly=True,
         secure=cookie_secure,
@@ -356,8 +358,8 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
             ).update({RefreshToken.revoked_at: datetime.now(timezone.utc)}, synchronize_session=False)
             db.commit()
         break
-    response.delete_cookie(ACCESS_TOKEN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
-    response.delete_cookie(REFRESH_TOKEN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
+    response.delete_cookie(ACCESS_TOKEN_COOKIE, path="/", httponly=True, secure=config.session_cookie_secure(), samesite="strict")
+    response.delete_cookie(REFRESH_TOKEN_COOKIE, path="/", httponly=True, secure=config.session_cookie_secure(), samesite="strict")
     response.headers["Cache-Control"] = "no-store"
     return {"ok": True}
 
@@ -418,8 +420,8 @@ def reset_password(payload: ResetPasswordRequest, response: Response, db: Sessio
         PasswordResetToken.used_at.is_(None),
     ).update({"used_at": now}, synchronize_session=False)
     db.commit()
-    response.delete_cookie(ACCESS_TOKEN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
-    response.delete_cookie(REFRESH_TOKEN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
+    response.delete_cookie(ACCESS_TOKEN_COOKIE, path="/", httponly=True, secure=config.session_cookie_secure(), samesite="strict")
+    response.delete_cookie(REFRESH_TOKEN_COOKIE, path="/", httponly=True, secure=config.session_cookie_secure(), samesite="strict")
     response.headers["Cache-Control"] = "no-store"
     return {"ok": True}
 

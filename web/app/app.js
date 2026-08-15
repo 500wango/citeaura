@@ -89,8 +89,8 @@ export const TRACKS = [
 
 /* ----------  ---------- */
 const VIEW_LOADERS = {
-  login: () => import('./views/auth-login.js?v=2.8'),
-  register: () => import('./views/auth-register.js?v=2.8'),
+  login: () => import('./views/auth-login.js?v=2.9'),
+  register: () => import('./views/auth-register.js?v=2.9'),
   'forgot-password': () => import('./views/auth-forgot.js?v=2.5'),
   'reset-password': () => import('./views/auth-reset.js?v=2.5'),
   invite: () => import('./views/auth-invite.js?v=2.5'),
@@ -121,6 +121,7 @@ const VIEW_LOADERS = {
 };
 
 const PUBLIC_ROUTES = ['login', 'register', 'forgot-password', 'reset-password', 'invite'];
+const AUTH_ENTRY_ROUTES = new Set(['login', 'register']);
 let renderSequence = 0;
 let currentView = null;
 
@@ -151,6 +152,16 @@ class AppState {
     this.currentParams = {};
     this.currentTrack = 'overview';
     this.isJobPolling = false;
+    this.sessionChecked = false;
+  }
+
+  clearSession() {
+    this.user = null;
+    this.tenant = null;
+    this.projectsList = [];
+    this.activeProjectId = null;
+    this.activeJob = null;
+    this.sessionChecked = true;
   }
 
   async initSession() {
@@ -159,10 +170,10 @@ class AppState {
       this.user = me.user;
       this.tenant = me.tenant;
       await this.loadProjects();
+      this.sessionChecked = true;
       return true;
     } catch (e) {
-      this.user = null;
-      this.tenant = null;
+      this.clearSession();
       return false;
     }
   }
@@ -228,13 +239,17 @@ async function renderApp() {
 
   // 
   const isPublic = PUBLIC_ROUTES.includes(route);
-  if (!isPublic && !state.user) {
-    const ok = await state.initSession();
+  if (!state.sessionChecked) {
+    await state.initSession();
     if (renderId !== renderSequence) return;
-    if (!ok) {
-      location.hash = '#/login';
-      return;
-    }
+  }
+  if (AUTH_ENTRY_ROUTES.has(route) && state.user) {
+    location.hash = '#/overview';
+    return;
+  }
+  if (!isPublic && !state.user) {
+    location.hash = '#/login';
+    return;
   }
 
   const appRoot = document.getElementById('app');
@@ -298,7 +313,14 @@ function createContext() {
       location.hash = hash;
     },
     reloadSession: async () => {
-      await state.initSession();
+      const ok = await state.initSession();
+      if (!ok) {
+        throw {
+          error: 'session_establishment_failed',
+          detail: 'Sign-in succeeded, but the browser session could not be established. Please try again.',
+        };
+      }
+      return true;
     },
     reloadProjects: async () => {
       await state.loadProjects();
@@ -492,7 +514,7 @@ function bindAppShellEvents() {
     try {
       await auth.logout();
     } catch (e) {}
-    state.user = null;
+    state.clearSession();
     stopJobPolling();
     toast.success('Signed out');
     location.hash = '#/login';
@@ -594,7 +616,9 @@ async function init() {
   await loadCatalogs();
 
   onAuthFailure(() => {
-    location.hash = '#/login';
+    state.clearSession();
+    stopJobPolling();
+    if (!PUBLIC_ROUTES.includes(parseHash().route)) location.hash = '#/login';
   });
 
   window.addEventListener('hashchange', renderApp);

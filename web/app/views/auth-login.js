@@ -63,8 +63,8 @@ export default {
 
       try {
         await auth.login({ email, password });
-        toast.success(t('auth.login_success', {}, 'Signed in successfully'));
         await ctx.reloadSession();
+        toast.success(t('auth.login_success', {}, 'Signed in successfully'));
         // 保留落地页套餐意图（如 ?plan=pro），登录后直接进入升级结账。
         let intentPlan = '';
         try {

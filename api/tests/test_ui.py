@@ -42,7 +42,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.8' in response.text
+    assert '/app/app.js?v=3.9' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -130,6 +130,31 @@ def test_api_js_uses_cookie_session_refresh_and_unwraps_collections():
     assert "_authRetried: true" in text
     for field in ("jobs", "tickets", "members", "invitations", "schedule", "keys", "history", "deliveries", "events", "archives"):
         assert f"'{field}'" in text
+
+
+def test_spa_auth_routes_enforce_session_state_contract():
+    root = Path(__file__).resolve().parents[2]
+    app_js = (root / "web/app/app.js").read_text("utf-8")
+    login_js = (root / "web/app/views/auth-login.js").read_text("utf-8")
+    register_js = (root / "web/app/views/auth-register.js").read_text("utf-8")
+
+    assert "const AUTH_ENTRY_ROUTES = new Set(['login', 'register'])" in app_js
+    assert "auth-login.js?v=2.9" in app_js
+    assert "auth-register.js?v=2.9" in app_js
+    assert "if (!state.sessionChecked)" in app_js
+    assert "AUTH_ENTRY_ROUTES.has(route) && state.user" in app_js
+    assert "state.clearSession();" in app_js
+    assert "session_establishment_failed" in app_js
+    assert login_js.index("await ctx.reloadSession()") < login_js.index("auth.login_success")
+    assert register_js.index("await ctx.reloadSession()") < register_js.index("auth.register_success")
+
+
+def test_landing_auth_calls_to_action_use_explicit_routes():
+    html = TestClient(app).get("/").text
+
+    assert 'class="nav-sign-in" href="/app#/login"' in html
+    assert html.count('href="/app#/register"') == 3
+    assert re.search(r'href="/app"[^>]*>Start (?:free|14-day) trial', html) is None
 
 
 def test_frontend_contracts_match_backend_request_models():

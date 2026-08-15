@@ -57,6 +57,7 @@ def test_register_login_and_me(client):
     assert "citeaura_access_token=" in cookie
     assert "citeaura_refresh_token=" in cookie
     assert "HttpOnly" in cookie
+    assert "Path=/" in cookie
     assert "SameSite=strict" in cookie
     assert logged_in.headers["cache-control"] == "no-store"
 
@@ -203,6 +204,7 @@ def test_logout_clears_both_session_cookies(client):
     cookies = logged_out.headers.get_list("set-cookie")
     assert any("citeaura_access_token=" in item and "Max-Age=0" in item for item in cookies)
     assert any("citeaura_refresh_token=" in item and "Max-Age=0" in item for item in cookies)
+    assert all("Path=/" in item for item in cookies)
     assert client.post("/api/v1/auth/refresh").status_code == 401
     rejected = client.post("/api/v1/auth/refresh", json={"refresh_token": stolen_refresh_token})
     assert rejected.status_code == 401
