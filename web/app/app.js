@@ -89,8 +89,8 @@ export const TRACKS = [
 
 /* ----------  ---------- */
 const VIEW_LOADERS = {
-  login: () => import('./views/auth-login.js?v=2.10'),
-  register: () => import('./views/auth-register.js?v=2.10'),
+  login: () => import('./views/auth-login.js?v=2.11'),
+  register: () => import('./views/auth-register.js?v=2.11'),
   'forgot-password': () => import('./views/auth-forgot.js?v=2.5'),
   'reset-password': () => import('./views/auth-reset.js?v=2.5'),
   invite: () => import('./views/auth-invite.js?v=2.5'),

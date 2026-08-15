@@ -3,7 +3,7 @@
  */
 
 const BLOCKED_TAGS = new Set([
-  'script', 'style', 'iframe', 'object', 'embed', 'base', 'meta', 'link', 'form',
+  'script', 'style', 'iframe', 'object', 'embed', 'base', 'meta', 'link',
   'foreignobject', 'animate', 'animatemotion', 'animatetransform', 'set', 'math',
 ]);
 const URL_ATTRIBUTES = new Set(['href', 'src', 'action', 'formaction', 'poster', 'xlink:href']);

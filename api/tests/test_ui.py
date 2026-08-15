@@ -42,7 +42,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.10' in response.text
+    assert '/app/app.js?v=3.11' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -139,8 +139,8 @@ def test_spa_auth_routes_enforce_session_state_contract():
     register_js = (root / "web/app/views/auth-register.js").read_text("utf-8")
 
     assert "const AUTH_ENTRY_ROUTES = new Set(['login', 'register'])" in app_js
-    assert "auth-login.js?v=2.10" in app_js
-    assert "auth-register.js?v=2.10" in app_js
+    assert "auth-login.js?v=2.11" in app_js
+    assert "auth-register.js?v=2.11" in app_js
     assert "if (!state.sessionChecked)" in app_js
     assert "AUTH_ENTRY_ROUTES.has(route) && state.user" in app_js
     assert "state.clearSession();" in app_js
@@ -259,6 +259,7 @@ def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():
     assert "name.startsWith('on')" in sanitizer
     assert "URL_ATTRIBUTES" in sanitizer
     assert "'script', 'style', 'iframe'" in sanitizer
+    assert "'form'" not in sanitizer.split('const URL_ATTRIBUTES', 1)[0]
     assert "window.clearInterval(jobPollingTimer)" in app_js
     for path in (root / "web").rglob("*"):
         if path.suffix in (".html", ".js"):
