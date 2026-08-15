@@ -1,11 +1,16 @@
+import json
 import os
 import sys
+import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 import sample as S
+import geolib as G
 
 CFG = {
     "brand": {"name": "AIGCLINK定制家", "aliases": ["定制家"], "site": "https://aigclink.example.com"},
@@ -174,6 +179,7 @@ class TestAskRetry(unittest.TestCase):
                                _Resp(500, text="server error"),
                                _Resp(200, OK_PAYLOAD)])
         self.assertTrue(res["ok"])
+        self.assertFalse(res["searched"])
         self.assertEqual(post.call_count, 3)
 
     def test_retry_exhausted_returns_error(self):
@@ -196,6 +202,76 @@ class TestAskRetry(unittest.TestCase):
         res, post = self._ask([_Resp(400, text="bad request")] * 5)
         self.assertFalse(res["ok"])
         self.assertEqual(post.call_count, 1)
+
+    def test_anthropic_success_declares_parametric_mode(self):
+        payload = {"model": "claude-test", "content": [{"type": "text", "text": "OK"}]}
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}), \
+             mock.patch.object(S.requests, "post", return_value=_Resp(200, payload)):
+            result = S.ask("claude", "Question?")
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["searched"])
+
+
+class TestRunValidation(unittest.TestCase):
+    def test_invalid_limits_fail_before_loading_project(self):
+        with self.assertRaisesRegex(ValueError, "repeat"):
+            S.run("missing", repeat=0)
+        with self.assertRaisesRegex(ValueError, "limit"):
+            S.run("missing", limit=0)
+
+    def test_unknown_provider_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(G, "WORK", Path(tmp)):
+            pdir = G.project_dir("demo")
+            pdir.mkdir()
+            (pdir / "geo.json").write_text(json.dumps({
+                "brand": {"name": "Acme", "site": "https://acme.example", "aliases": []},
+                "market": "both", "questions": [{"id": "q001", "market": "both", "text": "Best tool?"}],
+            }), "utf-8")
+            with self.assertRaisesRegex(ValueError, "Unknown API platform"):
+                S.run("demo", platforms=["typo"])
+
+
+class TestSamplingConcurrency(unittest.TestCase):
+    def test_providers_overlap_but_each_provider_stays_serial(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(G, "WORK", Path(tmp)):
+            pdir = G.project_dir("soak")
+            pdir.mkdir()
+            questions = [{"id": f"q{i:03d}", "market": "both", "text": f"Question {i}?"}
+                         for i in range(1, 11)]
+            (pdir / "geo.json").write_text(json.dumps({
+                "brand": {"name": "Acme", "site": "https://acme.example", "aliases": []},
+                "market": "both", "platforms": ["deepseek", "openai"], "questions": questions,
+            }), "utf-8")
+            lock = threading.Lock()
+            barrier = threading.Barrier(2)
+            active = {"deepseek": 0, "openai": 0}
+            calls = {"deepseek": 0, "openai": 0}
+            peak_total = 0
+            peak_provider = {"deepseek": 0, "openai": 0}
+
+            def ask(platform, _question):
+                nonlocal peak_total
+                with lock:
+                    calls[platform] += 1
+                    first = calls[platform] == 1
+                    active[platform] += 1
+                    peak_provider[platform] = max(peak_provider[platform], active[platform])
+                    peak_total = max(peak_total, sum(active.values()))
+                if first:
+                    barrier.wait(timeout=2)
+                time.sleep(0.001)
+                with lock:
+                    active[platform] -= 1
+                return {"ok": True, "answer": "No brand mentioned.", "citations": [], "searched": False}
+
+            env = {"DEEPSEEK_API_KEY": "test", "OPENAI_API_KEY": "test"}
+            with mock.patch.dict(os.environ, env), mock.patch.object(S, "ask", side_effect=ask), \
+                 mock.patch.object(S.time, "sleep"):
+                result = S.run("soak", repeat=2)
+        self.assertEqual(result["sample_count"], 40)
+        self.assertEqual(calls, {"deepseek": 20, "openai": 20})
+        self.assertEqual(peak_provider, {"deepseek": 1, "openai": 1})
+        self.assertGreaterEqual(peak_total, 2)
 
 
 if __name__ == "__main__":

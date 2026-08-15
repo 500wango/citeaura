@@ -37,10 +37,18 @@ DEFAULT_PLATFORMS = {
 
 
 def cmd_init(a):
-    url = a.url.rstrip("/")
-    if not url.startswith("http"):
+    url = a.url.strip().rstrip("/")
+    if "://" not in url:
         url = "https://" + url
-    host = urlparse(url).netloc.removeprefix("www.")
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        G.die("Site URL must use http or https and include a valid hostname")
+    host = G.normalize_host(url)
+    if parsed.scheme not in ("http", "https") or not host:
+        G.die("Site URL must use http or https and include a valid hostname")
+    if a.max_pages < 1:
+        G.die("max_pages must be at least 1")
     slug = a.slug or G.slugify(host.split(".")[0])
 
     # Existing projects require an explicit force reset.
@@ -364,7 +372,6 @@ def cmd_status(a):
     if not data.get("tasks"):
         print("  No tickets found. Run plan to generate.\n")
         return
-    order = {"P0": 0, "P1": 1, "P2": 2}
     for pri in ("P0", "P1", "P2"):
         rows = [t for t in data["tasks"] if t["priority"] == pri]
         if not rows:

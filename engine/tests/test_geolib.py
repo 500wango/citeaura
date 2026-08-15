@@ -1,6 +1,10 @@
-import json, tempfile, types, unittest
+import sys
+import tempfile
+import types
+import unittest
 from pathlib import Path
-import sys; sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 import geolib as G
 import geo
 
@@ -60,6 +64,17 @@ class TestJsonIO(unittest.TestCase):
         tokens = G.relevance_tokens("智能体平台怎么选？有哪些好用的替代品？")
         self.assertIn("智能体平台", tokens)
         self.assertIn("替代品", tokens)
+
+    def test_normalize_host_accepts_urls_and_bare_domains(self):
+        self.assertEqual(G.normalize_host(" HTTPS://User:pass@WWW.Example.COM.:443/a "), "example.com")
+        self.assertEqual(G.normalize_host("www.example.com:8443/path"), "example.com")
+        self.assertEqual(G.normalize_host("//sub.example.com/x"), "sub.example.com")
+        self.assertEqual(G.normalize_host(""), "")
+        self.assertEqual(G.normalize_host("http://[broken"), "")
+
+    def test_same_site_rejects_empty_hosts(self):
+        self.assertFalse(G.same_site("", ""))
+        self.assertTrue(G.same_site("https://www.example.com", "docs.example.com"))
 
     def test_force_init_archives_stale_artifacts(self):
         with tempfile.TemporaryDirectory() as d:

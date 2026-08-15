@@ -55,6 +55,8 @@ FLAG_ARGS = {"--no-recrawl", "--draft", "--no-sample", "--skip-llm", "--no-llm"}
 _lock = threading.Lock()
 _running: dict[str, str] = {}   # slug -> job_id
 _procs: dict[str, subprocess.Popen] = {}
+STOP_GRACE_SECONDS = 5.0
+STOP_KILL_SECONDS = 2.0
 
 
 def _job_path(job_id: str) -> Path:
@@ -238,8 +240,36 @@ def stop(job_id: str) -> bool:
     if proc:
         try:
             os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        except ProcessLookupError:
+            pass
         except Exception:  # noqa: BLE001
-            proc.terminate()
+            try:
+                proc.terminate()
+            except ProcessLookupError:
+                pass
+        try:
+            code = proc.wait(timeout=STOP_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            except Exception:  # noqa: BLE001
+                try:
+                    proc.kill()
+                except ProcessLookupError:
+                    pass
+            try:
+                code = proc.wait(timeout=STOP_KILL_SECONDS)
+            except subprocess.TimeoutExpired:
+                return False
+        job = get(job_id)
+        if job and job.get("status") == "running":
+            job["status"] = "stopped" if code < 0 else ("done" if code == 0 else "failed")
+            job["exit_code"] = code
+            job["finished_at"] = G.now_iso()
+            _write(job)
+            _release_claim(job.get("slug", ""), job_id)
         return True
     # After a service restart, fall back to the persisted process group ID.
     job = get(job_id)
@@ -247,10 +277,41 @@ def stop(job_id: str) -> bool:
     if not pid or job.get("status") != "running":
         return False
     try:
-        os.killpg(os.getpgid(pid), signal.SIGTERM)
+        pgid = os.getpgid(pid)
+        os.killpg(pgid, signal.SIGTERM)
     except Exception:  # noqa: BLE001
         return False
+    final_signal = signal.SIGTERM
+    deadline = time.monotonic() + STOP_GRACE_SECONDS
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        except PermissionError:
+            pass
+        time.sleep(0.05)
+    else:
+        final_signal = signal.SIGKILL
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        except Exception:  # noqa: BLE001
+            return False
+        deadline = time.monotonic() + STOP_KILL_SECONDS
+        while time.monotonic() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
+            except PermissionError:
+                pass
+            time.sleep(0.05)
+        else:
+            return False
     job["status"] = "stopped"
+    job["exit_code"] = -final_signal
     job["finished_at"] = G.now_iso()
     _write(job)
     _release_claim(job.get("slug", ""), job_id)

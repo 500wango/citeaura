@@ -285,9 +285,23 @@ def fetch_text(url: str, timeout: int = 8) -> str:
 
 
 def same_site(a: str, b: str) -> bool:
-    ha, hb = urlparse(a).netloc.lower(), urlparse(b).netloc.lower()
-    ha, hb = ha.removeprefix("www."), hb.removeprefix("www.")
+    ha, hb = normalize_host(a), normalize_host(b)
+    if not ha or not hb:
+        return False
     return ha == hb or ha.endswith("." + hb) or hb.endswith("." + ha)
+
+
+def normalize_host(value: str) -> str:
+    """Return a lowercase host without credentials, port, ``www`` or a trailing dot."""
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        parsed = urlparse(raw if "://" in raw or raw.startswith("//") else "//" + raw)
+        host = (parsed.hostname or "").strip().lower().rstrip(".")
+    except ValueError:
+        return ""
+    return host.removeprefix("www.")
 
 
 # Strip tracking parameters so one page is not crawled under multiple URLs.

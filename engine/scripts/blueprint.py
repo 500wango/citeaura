@@ -7,7 +7,6 @@ the channel matrix, content matrix, coverage metrics, and phased roadmap.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import geolib as G
 
@@ -199,14 +198,18 @@ def build(slug: str) -> dict:
     brand_cited: dict[str, set] = {"cn": set(), "global": set()}
     for m in (metrics.get("platforms") or {}).values():
         mk = m.get("market", "cn")
+        if mk not in cited:
+            continue
         for d in (m.get("top_cited_domains") or {}):
-            cited[mk].add(d.lower())
+            if normalized := G.normalize_host(d):
+                cited[mk].add(normalized)
         for d in (m.get("top_brand_cited_domains") or {}):
-            brand_cited[mk].add(d.lower())
+            if normalized := G.normalize_host(d):
+                brand_cited[mk].add(normalized)
 
     def matches(ch, mk, source):
         if ch["id"] in ("official", "official_en"):
-            own = cfg["brand"]["site"].split("//")[-1].split("/")[0].removeprefix("www.")
+            own = G.normalize_host(cfg["brand"]["site"])
             return sorted(d for d in source[mk] if d == own or d.endswith("." + own))
         return sorted(c for c in source[mk] if any(c == dom or c.endswith("." + dom)
                    for dom in ch["domains"])

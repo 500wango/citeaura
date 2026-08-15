@@ -1,6 +1,6 @@
 <div align="center">
 
-# Disvor**AI**
+# Cite**Aura** Engine
 
 **开源的全流程 GEO 实施平台 · 自托管**
 
@@ -12,9 +12,7 @@
 
 ![产品演示](docs/demo.gif)
 
-🌐 [官网 disvorai.cc](https://disvorai.cc) · 🔍 [在线演示（只读）](https://disvorai.cc/demo/) · 📹 [高清演示视频 (mp4)](docs/demo.mp4) · 🖼 [全部截图](docs/screenshots/)
-
-<sub>域名生效前可用镜像：[disvorai.cc](https://disvorai.cc) · [演示](https://disvorai.cc/demo/)</sub>
+🌐 [官网 citeaura.com](https://citeaura.com) · 🔍 [在线演示（只读）](https://citeaura.com/demo/) · 📹 [高清演示视频 (mp4)](docs/demo.mp4) · 🖼 [全部截图](docs/screenshots/)
 
 </div>
 
@@ -24,7 +22,7 @@
 
 越来越多的用户直接问 AI「有哪些好用的 XX 工具」「XX 和 YY 哪个好」。如果你的品牌：
 
-| 问题 | DisvorAI 给的答案 |
+| 问题 | CiteAura Engine 给的答案 |
 |---|---|
 | **AI 根本不提你**——搜品类问题时你不在候选集里 | 逐引擎采样真实回答，量化提及率/位次/引用份额，诊断出「完全缺席」还是「竞品主导」 |
 | **不知道为什么不提你**——AI 是黑盒 | 六维站点体检 + 差距诊断：抓不到正文？缺抽取块？没铺 AI 实际引用的阵地？口径不一致？逐项定位 |
@@ -78,9 +76,9 @@
 
 ## 三、和市面 GEO 工具的区别
 
-市面上的 GEO 产品绝大多数是**监测型 SaaS**：告诉你提及率和排名，按月收订阅费，数据在别人云上。DisvorAI 的定位是**实施平台**，差别在这几处：
+市面上的 GEO 产品绝大多数是**监测型 SaaS**：告诉你提及率和排名，按月收订阅费，数据在别人云上。CiteAura Engine 的定位是**实施平台**，差别在这几处：
 
-| | 典型 GEO 监测 SaaS | DisvorAI |
+| | 典型 GEO 监测 SaaS | CiteAura Engine |
 |---|---|---|
 | **闭环深度** | 监测 + 建议 | 监测 → 诊断 → **工单 → 资产 → 自动验收 → 交付**，落地全流程 |
 | **验收方式** | 无（或人工回填） | 程序判定：重抓站点 + 下期采样自动验收，回归自动打回 |
@@ -91,7 +89,7 @@
 | **成本** | 按月订阅 | 开源免费，只花你自己的引擎 API 采样费（可为零：纯人工采样也能跑） |
 | **交付能力** | 截图仪表盘 | 直接产出可发客户的诊断报告/优化方案/执行方案/工单表，适合代理商与顾问 |
 
-诚实说明边界：DisvorAI 是单机工具，没有账号体系和团队协作；采样频率与样本量由你自己的 API 预算决定；「疑似负面」等判定是线索提示，定性仍需人工复核——这些是刻意的设计取舍，不是还没做完。
+诚实说明边界：CiteAura Engine 是单机工具，没有账号体系和团队协作；采样频率与样本量由你自己的 API 预算决定；「疑似负面」等判定是线索提示，定性仍需人工复核——这些是刻意的设计取舍，不是还没做完。
 
 ## 四、部署教程
 
@@ -105,8 +103,8 @@
 
 ```bash
 # 1. 克隆并安装依赖
-git clone https://github.com/aigclink/disvorai.git
-cd disvorai
+git clone https://github.com/500wango/citeaura.git
+cd citeaura/engine
 pip3 install requests beautifulsoup4 lxml
 
 # 2. 启动看板（自动打开浏览器）
@@ -194,7 +192,7 @@ python3 scripts/geo.py sample-import --slug <项目> --file <采样表>
 
 **Q：AI 回答每次都不一样，采样结果怎么保证稳定？**
 
-单条 AI 回答天然有随机性，所以 DisvorAI 的指标**从不看单条回答**，稳定性靠四层机制：
+单条 AI 回答天然有随机性，所以 CiteAura Engine 的指标**从不看单条回答**，稳定性靠四层机制：
 
 1. **聚合口径**——提及率等指标是「几十道题 × 多个引擎」的比例，单题抖动会被摊平；
 2. **固定变量**——每个引擎的采样模型版本固定（设置里可查可改），问题库固定，同一套题跨期复用，变的只有时间；
@@ -240,7 +238,7 @@ docs/             截图与 40 秒演示视频
 
 ## 联系我
 
-问题、建议或合作：邮箱 [bingqiang2008@gmail.com](mailto:bingqiang2008@gmail.com)，或提 [issue](https://github.com/aigclink/disvorai/issues)。
+问题、建议或合作：邮箱 [bingqiang2008@gmail.com](mailto:bingqiang2008@gmail.com)，或提 [issue](https://github.com/500wango/citeaura/issues)。
 
 ## License
 

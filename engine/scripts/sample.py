@@ -257,7 +257,7 @@ def ask_anthropic(p: dict, key: str, question: str, timeout: int) -> dict:
             answer = "".join(b.get("text", "") for b in d.get("content", [])
                              if b.get("type") == "text")
             return {"ok": True, "answer": answer, "citations": [],
-                    "raw_model": d.get("model", _p_model(p))}
+                    "raw_model": d.get("model", _p_model(p)), "searched": False}
         except requests.exceptions.Timeout as e:
             if attempt < len(delays):
                 time.sleep(delays[attempt])
@@ -313,7 +313,9 @@ def ask(platform: str, question: str, timeout: int = 120) -> dict:
                     refs.append({"url": u, "title": ""})
             seen = set()
             refs = [c for c in refs if not (c["url"] in seen or seen.add(c["url"]))]
-            return {"ok": True, "answer": answer, "citations": refs, "raw_model": data.get("model", _p_model(p))}
+            return {"ok": True, "answer": answer, "citations": refs,
+                    "raw_model": data.get("model", _p_model(p)),
+                    "searched": bool(p.get("search", False))}
         except requests.exceptions.Timeout as e:
             if attempt < len(delays):
                 time.sleep(delays[attempt])
@@ -639,12 +641,19 @@ def _history_snapshot(slug: str, rows: list[dict]) -> dict:
 
 
 def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: int | None = None) -> dict:
+    if repeat < 1:
+        raise ValueError("repeat must be at least 1")
+    if limit is not None and limit < 1:
+        raise ValueError("limit must be at least 1")
     cfg = G.load_config(slug)
     cfg = {**cfg, "questions": G.normalize_question_ids(cfg.get("questions", []))}
     if not cfg.get("questions"):
         G.die("geo.json is missing questions. Please populate questions first.")
 
-    plats = platforms or [p for p in cfg.get("platforms", []) if p in PROVIDERS]
+    plats = list(dict.fromkeys(platforms or [p for p in cfg.get("platforms", []) if p in PROVIDERS]))
+    unknown = [p for p in plats if p not in PROVIDERS]
+    if unknown:
+        raise ValueError("Unknown API platform(s): " + ", ".join(unknown))
     runnable = [p for p in plats if available(p)]
     skipped = [p for p in plats if not available(p)]
     if skipped:

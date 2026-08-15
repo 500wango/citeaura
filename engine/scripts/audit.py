@@ -7,7 +7,6 @@ universal causal claims. Output: ``work/<slug>/audit.json``.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from urllib.parse import urlparse
 
 import geolib as G

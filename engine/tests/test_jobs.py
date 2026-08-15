@@ -1,5 +1,7 @@
 import json
 import os
+import signal
+import subprocess
 import sys
 import tempfile
 import threading
@@ -9,7 +11,6 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-import geolib as G
 import jobs as J
 
 
@@ -101,7 +102,8 @@ class JobsTest(unittest.TestCase):
     def test_stop_fallback_by_pid(self):
         self._write_job("orphan1234567", pid=31337)
         with mock.patch.object(J.os, "getpgid", return_value=31337) as g, \
-             mock.patch.object(J.os, "killpg") as k:
+             mock.patch.object(J.os, "killpg") as k, \
+             mock.patch.object(J.os, "kill", side_effect=ProcessLookupError):
             ok = J.stop("orphan1234567")
         self.assertTrue(ok)
         g.assert_called_once_with(31337)
@@ -109,6 +111,44 @@ class JobsTest(unittest.TestCase):
         j = J.get("orphan1234567")
         self.assertEqual(j["status"], "stopped")
         self.assertTrue(j["finished_at"])
+
+    def test_stop_waits_for_in_memory_process(self):
+        self._write_job("active1234567", pid=31338)
+        proc = mock.Mock(pid=31338)
+        proc.wait.return_value = -signal.SIGTERM
+        J._procs["active1234567"] = proc
+        with mock.patch.object(J.os, "getpgid", return_value=31338), \
+             mock.patch.object(J.os, "killpg") as killpg:
+            self.assertTrue(J.stop("active1234567"))
+        killpg.assert_called_once_with(31338, signal.SIGTERM)
+        proc.wait.assert_called_once_with(timeout=J.STOP_GRACE_SECONDS)
+        self.assertEqual(J.get("active1234567")["status"], "stopped")
+
+    def test_stop_escalates_after_grace_period(self):
+        self._write_job("stubborn12345", pid=31339)
+        proc = mock.Mock(pid=31339)
+        proc.wait.side_effect = [subprocess.TimeoutExpired("geo", 5), -signal.SIGKILL]
+        J._procs["stubborn12345"] = proc
+        with mock.patch.object(J.os, "getpgid", return_value=31339), \
+             mock.patch.object(J.os, "killpg") as killpg:
+            self.assertTrue(J.stop("stubborn12345"))
+        self.assertEqual(killpg.call_args_list, [
+            mock.call(31339, signal.SIGTERM), mock.call(31339, signal.SIGKILL),
+        ])
+        self.assertEqual(J.get("stubborn12345")["exit_code"], -signal.SIGKILL)
+
+    def test_stop_fallback_records_sigkill_escalation(self):
+        self._write_job("orphanstubborn", pid=31340)
+        with mock.patch.object(J, "STOP_GRACE_SECONDS", 0), \
+             mock.patch.object(J, "STOP_KILL_SECONDS", 1), \
+             mock.patch.object(J.os, "getpgid", return_value=31340), \
+             mock.patch.object(J.os, "killpg") as killpg, \
+             mock.patch.object(J.os, "kill", side_effect=ProcessLookupError):
+            self.assertTrue(J.stop("orphanstubborn"))
+        self.assertEqual(killpg.call_args_list, [
+            mock.call(31340, signal.SIGTERM), mock.call(31340, signal.SIGKILL),
+        ])
+        self.assertEqual(J.get("orphanstubborn")["exit_code"], -signal.SIGKILL)
 
     def test_reap_skips_young_job_without_pid(self):
         self._write_job("youngjob12345")  # 刚落盘、还没来得及补 pid

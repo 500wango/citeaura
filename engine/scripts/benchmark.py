@@ -6,6 +6,11 @@ so runtime does not depend on DuckDB or Parquet.
 
 from __future__ import annotations
 
+import math
+from numbers import Real
+
+import geolib as G
+
 # High-citation domains covering all 11 platforms in the reference set.
 CROSS_PLATFORM = {
     "qq.com": ("Content platform", "Tencent", 11017),
@@ -55,13 +60,18 @@ CATEGORY_SHARE = [
 
 
 def _norm(domain: str) -> str:
-    d = (domain or "").lower().removeprefix("www.")
-    return d
+    return G.normalize_host(domain)
 
 
 def compare(cited_domains: dict[str, int]) -> dict:
     """Compare ``{domain: citation_count}`` from the current sampling cycle."""
-    got = {_norm(d): n for d, n in cited_domains.items()}
+    got: dict[str, Real] = {}
+    for domain, count in (cited_domains or {}).items():
+        normalized = _norm(domain)
+        if (not normalized or isinstance(count, bool) or not isinstance(count, Real)
+                or not math.isfinite(count) or count <= 0):
+            continue
+        got[normalized] = got.get(normalized, 0) + count
 
     def hit(base: str) -> int:
         """Return current-cycle citations for a domain and its subdomains."""

@@ -22,7 +22,8 @@ def report_key(f: Path) -> tuple[str, str]:
 
 
 def _pages_by_url(audit: dict) -> dict:
-    return {p["url"]: p for p in audit.get("pages", [])}
+    return {p["url"]: p for p in audit.get("pages", [])
+            if isinstance(p, dict) and p.get("url")}
 
 
 def _cited_domains(metrics: dict, market: str | None = None, *, brand_only: bool = False) -> dict[str, int]:
@@ -32,7 +33,9 @@ def _cited_domains(metrics: dict, market: str | None = None, *, brand_only: bool
             continue
         field = "top_brand_cited_domains" if brand_only else "top_cited_domains"
         for k, v in m.get(field, {}).items():
-            out[k] = out.get(k, 0) + v
+            domain = G.normalize_host(k)
+            if domain and isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0:
+                out[domain] = out.get(domain, 0) + v
     return out
 
 
@@ -175,7 +178,8 @@ def check(task: dict, audit: dict, metrics: dict) -> tuple[bool | None, str, dic
         if expr.startswith("external.any:"):
             return None, "Legacy checker proves only domain presence, not brand-related evidence; regenerate tickets", None
         if expr.startswith("external.brand_any:"):
-            targets = [d.strip() for d in expr.split(":", 1)[1].split(",") if d.strip()]
+            targets = [G.normalize_host(d) for d in expr.split(":", 1)[1].split(",")]
+            targets = [d for d in targets if d]
             doms = _cited_domains(metrics, brand_only=True)
             hit = [t for t in targets if any(d == t or d.endswith("." + t) for d in doms)]
             return bool(hit), (f"Cited domains: {', '.join(hit)}" if hit

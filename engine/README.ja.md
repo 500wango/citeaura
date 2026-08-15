@@ -1,6 +1,6 @@
 <div align="center">
 
-# Disvor**AI**
+# Cite**Aura** Engine
 
 **オープンソース・セルフホスト型の GEO 実装プラットフォーム（エンドツーエンド）**
 
@@ -12,7 +12,7 @@
 
 ![Product demo](docs/demo.ja.gif)
 
-🌐 [公式サイト disvorai.cc](https://disvorai.cc) · 🔍 [ライブデモ（読み取り専用）](https://disvorai.cc/demo/) · 📹 [HD デモ動画 (mp4)](docs/demo.ja.mp4) · 🖼 [全スクリーンショット](docs/screenshots-ja/)
+🌐 [公式サイト citeaura.com](https://citeaura.com) · 🔍 [ライブデモ（読み取り専用）](https://citeaura.com/demo/) · 📹 [HD デモ動画 (mp4)](docs/demo.ja.mp4) · 🖼 [全スクリーンショット](docs/screenshots-ja/)
 
 </div>
 
@@ -22,7 +22,7 @@
 
 「X におすすめのツールは？」「X と Y はどちらが良い？」——ユーザーはますます AI に直接質問するようになっています。あなたのブランドが：
 
-| 課題 | DisvorAI が提供するもの |
+| 課題 | CiteAura Engine が提供するもの |
 |---|---|
 | **AI に一切言及されない**——カテゴリ質問の候補に入っていない | エンジンごとに実回答をサンプリングし、言及率・順位・引用シェアを定量化。「完全不在」か「競合支配」かを診断 |
 | **理由がわからない**——AI はブラックボックス | 6 次元サイト監査 + ギャップ診断：クロール不能ページ？抽出ブロック欠如？AI が実際に引用するチャネルへの不在？メッセージの不一致？ |
@@ -55,9 +55,9 @@
 
 ## 3. 他の GEO ツールとの違い
 
-GEO 製品の大半は**モニタリング SaaS**です：言及率とランキングを表示し、月額課金し、データはベンダーのクラウドに置かれます。DisvorAI は**実装プラットフォーム**です：
+GEO 製品の大半は**モニタリング SaaS**です：言及率とランキングを表示し、月額課金し、データはベンダーのクラウドに置かれます。CiteAura Engine は**実装プラットフォーム**です：
 
-| | 一般的な GEO モニタリング SaaS | DisvorAI |
+| | 一般的な GEO モニタリング SaaS | CiteAura Engine |
 |---|---|---|
 | **ループの深さ** | 監視 + 提案 | 監視 → 診断 → **チケット → 資産 → 自動検証 → 納品** |
 | **検証** | なし（または手動チェック） | プログラムが判定：再クロール + 次期サンプリングで自動検証。リグレッションは自動再オープン |
@@ -82,8 +82,8 @@ GEO 製品の大半は**モニタリング SaaS**です：言及率とランキ�
 
 ```bash
 # 1. クローンしてインストール
-git clone https://github.com/aigclink/disvorai.git
-cd disvorai
+git clone https://github.com/500wango/citeaura.git
+cd citeaura/engine
 pip3 install requests beautifulsoup4 lxml
 
 # 2. ダッシュボードを起動（ブラウザが開きます）
@@ -157,7 +157,7 @@ python3 scripts/geo.py sample-import --slug <project> --file <sheet>
 
 **Q：AI の回答は毎回違うのに、サンプリング結果の安定性はどう担保するのか？**
 
-単一の AI 回答は本質的に確率的です。そのため DisvorAI は**単一の回答を指標として読むことはありません**。安定性は 4 層の仕組みで担保します：
+単一の AI 回答は本質的に確率的です。そのため CiteAura Engine は**単一の回答を指標として読むことはありません**。安定性は 4 層の仕組みで担保します：
 
 1. **集計ベース**——言及率などの指標は「数十問 × 複数エンジン」の比率であり、質問単位のブレは平均化されます。
 2. **変数の固定**——各エンジンのサンプリングモデルは固定（設定で確認・変更可能）、質問バンクも固定で、同じセットを期をまたいで再利用。変わるのは時間だけです。
@@ -203,7 +203,7 @@ docs/             スクリーンショットと 40 秒デモ動画
 
 ## お問い合わせ
 
-質問・提案・コラボレーションは [bingqiang2008@gmail.com](mailto:bingqiang2008@gmail.com) まで。[issue](https://github.com/aigclink/disvorai/issues) も歓迎。
+質問・提案・コラボレーションは [bingqiang2008@gmail.com](mailto:bingqiang2008@gmail.com) まで。[issue](https://github.com/500wango/citeaura/issues) も歓迎。
 
 ## License
 

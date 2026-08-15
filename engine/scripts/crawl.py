@@ -14,7 +14,6 @@ import time
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from html import unescape
-from pathlib import Path
 from urllib.parse import urlparse
 
 import geolib as G
@@ -267,7 +266,11 @@ def check_crawl_health(pages: list[dict]):
 def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
     cfg = G.load_config(slug)
     root = cfg["brand"]["site"].rstrip("/")
-    limit = max_pages or cfg.get("pages", {}).get("max", 25)
+    limit = max_pages if max_pages is not None else cfg.get("pages", {}).get("max", 25)
+    if limit < 1:
+        raise ValueError("max_pages must be at least 1")
+    if delay < 0:
+        raise ValueError("delay must be non-negative")
     outdir = G.project_dir(slug) / "evidence"
     run_id = G.new_run_id("crawl")
     staging = outdir / ".staging" / run_id

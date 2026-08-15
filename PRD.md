@@ -4,7 +4,7 @@
 > **定位**：面向出海企业与代理商的 Generative Engine Optimization (GEO) SaaS 交付平台
 > **底层引擎**：开源 GEO 引擎（去品牌化，纯净单机版）
 > **产品形态**：多租户 Web SaaS（FastAPI + Postgres + Redis + Celery + Docker）
-> **产品目录**：`~/project/disvorai`  
+> **产品目录**：`~/project/citeaura`
 > **开发指令**：`AGENTS.md`
 > **官网参考竞品**：https://www.higeo.ai/  
 > **对比文档**：`higeo-vs-disvorai-comparison.md`  
@@ -14,7 +14,7 @@
 
 ## 0. 给实现者的硬约束
 
-1. **开源代码已引入** `engine/`，测试全绿（109 tests, 0.056s）。SaaS 层须**调用或包装**现有模块。  
+1. **开源代码已引入** `engine/`，180+ 项确定性测试全绿。SaaS 层须**调用或包装**现有模块。
 2. **不要**用全新 stack 重写 sample/audit/plan/verify 逻辑，除非有测试证明行为等价且 PR 明确说明。  
 3. SaaS 层（账号、计费、多租户、调度、API 网关）可新建，但须**直接 import** 现有 Python 模块（`geolib`、`sample`、`audit`、`tasks`、`verify`、`deliver` 等）。  
 4. **SSOT 决策**：文件系统为管线 SSOT（`work/<tenant>/<slug>/`），Postgres 只存索引、元数据和账务。管线产物以 JSON/JSONL 文件为准，DB 存衍生视图，不双写。  
@@ -320,7 +320,7 @@ App
 | `ui.html` | 2342 | 单页前端（暗色主题） | MVP 嵌入；后期重做 |
 | `benchmark.py` | ~200 | 国内信源对标 | `benchmark.compare(domains)` |
 | `references/` | 6 files | 方法论/渠道/权重数据 | 保留不动 |
-| **tests/** | 109 tests | 全部通过 | 保持绿灯 |
+| **tests/** | 180+ tests | 全部通过 | 保持绿灯 |
 
 **二次开发原则**：SaaS API `POST /projects/:id/cycle` 内部等价于 `geo.py cycle`。每个 API 端点对应一个开源模块的 `run()` 调用。
 
@@ -474,7 +474,7 @@ POST   /billing/subscribe
 
 ### 12.1 继承开源测试
 
-保持 `tests/test_*.py` 全绿（109 tests），每次 CI 跑。
+保持 `tests/test_*.py` 全绿，每次 CI 跑完整引擎测试。
 
 ### 12.2 新增 SaaS 测试
 
@@ -513,7 +513,7 @@ POST   /billing/subscribe
 
 ## 14. 品牌与目录说明
 
-- 工作区文件夹：**disvorai**
+- 工作区文件夹：**citeaura**
 - 开源代码位于：`engine/`（已去品牌化，作为 git 子目录）
 - 商业产品名：**CiteAura**（官网：`citeaura.com`）
 - 避免使用已冲突品牌：GeoForge / GEOforge
@@ -522,7 +522,7 @@ POST   /billing/subscribe
 
 ## 附录 A — 开源代码审查总结
 
-**代码质量**：高。模块化清晰（每个文件一个职责），测试覆盖完整（109 tests），注释充分解释 why not just what，错误处理到位（单引擎失败不崩全管线）。
+**代码质量**：高。模块化清晰（每个文件一个职责），180+ 项确定性测试覆盖核心契约，注释充分解释 why not just what，错误处理到位（单引擎失败不崩全管线）。
 
 **设计亮点**：
 - `sample.py` 的品牌认知 vs 可见性分离防止假阳性

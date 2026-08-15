@@ -1,6 +1,6 @@
 <div align="center">
 
-# Disvor**AI**
+# Cite**Aura** Engine
 
 **Open-source, self-hosted platform for end-to-end GEO implementation**
 
@@ -12,9 +12,7 @@ English · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 ![Product demo](docs/demo.en.gif)
 
-🌐 [Website disvorai.cc](https://disvorai.cc) · 🔍 [Live demo (read-only)](https://disvorai.cc/demo/) · 📹 [HD demo video (mp4)](docs/demo.en.mp4) · 🖼 [All screenshots](docs/screenshots-en/)
-
-<sub>Mirror while DNS propagates: [disvorai.cc](https://disvorai.cc) · [demo](https://disvorai.cc/demo/)</sub>
+🌐 [Website citeaura.com](https://citeaura.com) · 🔍 [Live demo (read-only)](https://citeaura.com/demo/) · 📹 [HD demo video (mp4)](docs/demo.en.mp4) · 🖼 [All screenshots](docs/screenshots-en/)
 
 </div>
 
@@ -24,7 +22,7 @@ English · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 More and more users ask AI directly — "best tools for X", "X vs Y, which one". If your brand:
 
-| Problem | What DisvorAI gives you |
+| Problem | What CiteAura Engine gives you |
 |---|---|
 | **AI never mentions you** — you're not in the candidate set for category questions | Samples real answers engine by engine; quantifies mention rate / rank / citation share; diagnoses "absent" vs "competitor-dominated" |
 | **You don't know why** — AI is a black box | 6-dimension site audit + gap diagnosis: uncrawlable pages? missing extraction blocks? absent from the channels AI actually cites? inconsistent messaging? |
@@ -57,9 +55,9 @@ Four stages plus operations, all in one self-hosted dashboard:
 
 ## 3. How it differs from other GEO tools
 
-Most GEO products are **monitoring SaaS**: they show mention rates and rankings, charge monthly, and keep your data in their cloud. DisvorAI is an **implementation platform**:
+Most GEO products are **monitoring SaaS**: they show mention rates and rankings, charge monthly, and keep your data in their cloud. CiteAura Engine is an **implementation platform**:
 
-| | Typical GEO monitoring SaaS | DisvorAI |
+| | Typical GEO monitoring SaaS | CiteAura Engine |
 |---|---|---|
 | **Loop depth** | Monitor + advise | Monitor → diagnose → **tickets → assets → auto-verify → deliver** |
 | **Verification** | None (or manual check-off) | Programmatic: re-crawl + next sampling round decide; regressions reopen automatically |
@@ -84,8 +82,8 @@ Honest limits: single-machine tool, no accounts or team collaboration; sampling 
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/aigclink/disvorai.git
-cd disvorai
+git clone https://github.com/500wango/citeaura.git
+cd citeaura/engine
 pip3 install requests beautifulsoup4 lxml
 
 # 2. Start the dashboard (opens your browser)
@@ -159,7 +157,7 @@ Every command has `--help`.
 
 **Q: AI answers differ every time — how can sampling results be stable?**
 
-A single AI answer is inherently stochastic, so DisvorAI **never reads a single answer** as a metric. Stability comes from four layers:
+A single AI answer is inherently stochastic, so CiteAura Engine **never reads a single answer** as a metric. Stability comes from four layers:
 
 1. **Aggregation** — mention rate and friends are ratios over dozens of questions × multiple engines; per-question jitter averages out.
 2. **Fixed variables** — each engine's sampling model is pinned (visible and changeable in Settings), the question bank is fixed, and the same set is reused across rounds; the only thing that changes is time.
@@ -199,13 +197,36 @@ work/<slug>/      Per-project data (gitignored, never leaves your machine)
 docs/             Screenshots and the 40-second demo video
 ```
 
+## Development checks
+
+Run the deterministic suite and static checks before changing engine behavior:
+
+```bash
+python3 -m unittest discover -s tests
+ruff check scripts tests
+```
+
+The default suite includes mocked retry/rate-limit coverage and a multi-provider concurrency soak. Paid provider and public-site contracts are opt-in and never print API keys:
+
+```bash
+ENGINE_LIVE_TESTS=1 \
+ENGINE_LIVE_PROVIDERS=deepseek,openai \
+python3 -m unittest tests.test_live_contracts.LiveProviderContracts
+
+ENGINE_LIVE_TESTS=1 \
+ENGINE_LIVE_CRAWL_URL=https://example.com \
+python3 -m unittest tests.test_live_contracts.LiveCrawlContract
+```
+
+Only providers with configured keys are exercised. `ENGINE_LIVE_PROVIDERS` limits the paid contract set, and each selected provider receives one minimal prompt per test invocation.
+
 ## Acknowledgements
 
 - [@yaojingang](https://github.com/yaojingang)
 
 ## Contact
 
-Questions, ideas or collaboration — email [bingqiang2008@gmail.com](mailto:bingqiang2008@gmail.com), or open an [issue](https://github.com/aigclink/disvorai/issues).
+Questions, ideas or collaboration — email [bingqiang2008@gmail.com](mailto:bingqiang2008@gmail.com), or open an [issue](https://github.com/500wango/citeaura/issues).
 
 ## License
 

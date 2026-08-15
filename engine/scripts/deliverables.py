@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import blueprint as BP
 import geolib as G
+import report as R
+import tasks as T
 
 
 def _weighted(rows: list[dict], field: str):
@@ -18,8 +19,6 @@ def _weighted(rows: list[dict], field: str):
               if row.get(field) is not None and int(row.get("samples") or 0) > 0]
     total = sum(count for _value, count in values)
     return sum(value * count for value, count in values) / total if total else None
-import report as R
-import tasks as T
 
 STATUS_LABEL = {"todo": "Todo", "doing": "In Progress", "done": "Done",
                 "blocked": "Blocked", "wontfix": "Won't Fix"}

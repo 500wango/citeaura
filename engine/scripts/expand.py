@@ -105,6 +105,8 @@ def _roots(cfg: dict) -> list[dict]:
     for al in (b.get("aliases") or [])[:2]:
         add(al, "brand", market)
     for c in cfg.get("competitors") or []:
+        if c.get("confirmed") is False:
+            continue
         add(c.get("name"), "competitor", c.get("market") or market)
     add(b.get("industry"), "category", market)
     for pdt in (b.get("products") or [])[:4]:
@@ -206,10 +208,12 @@ def _convert_llm(terms: list[dict]) -> bool:
             continue
         if len(qs) != len(chunk):
             continue
+        changed = False
         for t, q in zip(chunk, qs):
             if isinstance(q, str) and q.strip():
                 t["question"] = q.strip()
-        ok_any = True
+                changed = True
+        ok_any = ok_any or changed
     return ok_any
 
 
@@ -219,8 +223,9 @@ def run(slug: str, use_llm: bool = True) -> dict:
     cfg = G.load_config(slug)
     path = G.project_dir(slug) / "expand.json"
     prev = G.read_json(path, {}) or {}
-    first_seen = {t["term"]: t.get("first_seen") or prev.get("generated_at", "")
-                  for t in prev.get("terms", [])}
+    first_seen = {str(t.get("term") or "").strip().casefold():
+                  t.get("first_seen") or prev.get("generated_at", "")
+                  for t in prev.get("terms", []) if t.get("term")}
 
     roots = _roots(cfg)
     today = G.today()
@@ -268,8 +273,8 @@ def run(slug: str, use_llm: bool = True) -> dict:
                     terms.append({"term": st, "root": r["root"], "kind": r["kind"],
                                   "market": mk, "group": grp,
                                   "question": qtext,
-                                  "first_seen": first_seen.get(s.strip(), today),
-                                  "new": s.strip() not in first_seen})
+                                  "first_seen": first_seen.get(key, today),
+                                  "new": key not in first_seen})
 
     llm_used = use_llm and _convert_llm(terms)
     existing = {q.get("text", "").strip().lower() for q in cfg.get("questions") or []}

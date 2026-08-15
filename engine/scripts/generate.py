@@ -105,12 +105,12 @@ def parse_facts(slug: str) -> dict:
     m = re.search(r"##\s*Canonical Definition.*?\n(.*?)(?=\n##|\Z)", text, re.S | re.I)
     if m:
         body = m.group(1)
-        quoted = [l.strip()[1:].strip() for l in body.split("\n") if l.strip().startswith(">")]
+        quoted = [row.strip()[1:].strip() for row in body.split("\n") if row.strip().startswith(">")]
         if quoted:
             line = " ".join(quoted)
         else:
-            line = next((l.strip() for l in body.split("\n")
-                         if l.strip() and not l.strip().startswith(("#", "-", "|"))), "")
+            line = next((row.strip() for row in body.split("\n")
+                         if row.strip() and not row.strip().startswith(("#", "-", "|"))), "")
         line = re.sub(r"\*\*(.+?)\*\*", r"\1", line)
         line = re.sub(r"`(.+?)`", r"\1", line)
         line = re.sub(r"\s+", " ", line).strip()
@@ -128,10 +128,12 @@ def parse_facts(slug: str) -> dict:
 
     m = re.search(r"\*\*Good fit\*\*\s*:?(.*?)(?=\*\*Not a fit|##|\Z)", text, re.S | re.I)
     if m:
-        out["suitable"] = [l.strip("- ").strip() for l in m.group(1).split("\n") if l.strip().startswith("-")]
+        out["suitable"] = [row.strip("- ").strip() for row in m.group(1).split("\n")
+                           if row.strip().startswith("-")]
     m = re.search(r"\*\*Not a fit\*\*\s*:?(.*?)(?=\n##|\Z)", text, re.S | re.I)
     if m:
-        out["unsuitable"] = [l.strip("- ").strip() for l in m.group(1).split("\n") if l.strip().startswith("-")]
+        out["unsuitable"] = [row.strip("- ").strip() for row in m.group(1).split("\n")
+                             if row.strip().startswith("-")]
     return out
 
 
@@ -269,7 +271,7 @@ def gen_jsonld(slug: str) -> dict[str, dict]:
         out_offers = []
         for o in offers:
             price, currency = str(o.get("price") or "").strip(), str(o.get("currency") or "").strip()
-            if not price or not currency or PLACEHOLDER_RE.search(price + currency):
+            if not price or not currency or PLACEHOLDER_RE.search(f"{price} {currency}"):
                 continue
             item = {"@type": "Offer", "name": o.get("name", ""), "price": price,
                     "priceCurrency": currency}
@@ -406,7 +408,6 @@ def draft(slug: str, outline: dict, provider: str | None = None) -> str:
     if not plat:
         return ""
     cfg = G.load_config(slug)
-    f = parse_facts(slug)
     b = cfg["brand"]
     language = "Simplified Chinese" if outline["market"] != "global" else "English"
     facts = "\n".join(f"- {x}" for x in outline["facts_to_use"]) or (
@@ -547,6 +548,11 @@ def run(slug: str, which: list[str] | None = None, with_draft: bool = False,
     market = cfg.get("market", "cn")
     adir = G.project_dir(slug) / "assets"
     which = which or ASSETS
+    unknown = sorted(set(which) - set(ASSETS))
+    if unknown:
+        raise ValueError("Unknown asset type(s): " + ", ".join(unknown))
+    if draft_limit < 0:
+        raise ValueError("draft_limit must be non-negative")
     made: list[str] = []
     records: list[dict] = []
     facts_need_review = bool((cfg.get("bootstrap") or {}).get("needs_review")) and not cfg.get("facts_reviewed")

@@ -6,9 +6,7 @@ its rationale, owner, acceptance criteria, and market.
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
-from pathlib import Path
 
 import geolib as G
 
@@ -46,7 +44,6 @@ def from_audit(audit: dict, cfg: dict, seq) -> list[dict]:
     market = cfg.get("market", "cn")
     pages = audit.get("pages", [])
     scored_pages = [p for p in pages if p.get("scored", True) and p.get("score") is not None]
-    weak = [p["url"] for p in scored_pages if p["score"] < 65]
 
     # Site-level findings
     if site.get("ai_bots_blocked"):

@@ -7,9 +7,11 @@ CLI command. WordPress and WeChat integrations create drafts only.
 from __future__ import annotations
 
 import base64
+import html
 import json
 import os
 import re
+from urllib.parse import urlparse
 
 import requests
 
@@ -56,9 +58,25 @@ def md2html(md: str) -> str:
     out, in_code, in_list = [], False, False
 
     def inline(s):
-        s = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        links = []
+
+        def hold_link(match):
+            label, href = match.group(1), match.group(2).strip()
+            try:
+                scheme = urlparse(href).scheme.lower()
+            except ValueError:
+                return label
+            if scheme and scheme not in ("http", "https", "mailto"):
+                return label
+            token = f"\x00LINK{len(links)}\x00"
+            links.append((token, label, href))
+            return token
+
+        s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", hold_link, s)
+        s = html.escape(s)
         s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
-        s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', s)
+        for token, label, href in links:
+            s = s.replace(token, f'<a href="{html.escape(href, quote=True)}">{html.escape(label)}</a>')
         return s
 
     for line in md.splitlines():
@@ -67,7 +85,7 @@ def md2html(md: str) -> str:
             in_code = not in_code
             continue
         if in_code:
-            out.append(line.replace("&", "&amp;").replace("<", "&lt;"))
+            out.append(html.escape(line))
             continue
         m = re.match(r"(#{1,6})\s+(.*)", line)
         li = re.match(r"\s*[-*]\s+(.*)", line) or re.match(r"\s*\d+[.、]\s+(.*)", line)
@@ -95,9 +113,12 @@ def md2html(md: str) -> str:
 
 def _pub_github(cfg, text, title, fname):
     repo, branch = cfg.get("repo", ""), cfg.get("branch", "main")
-    if not repo or "/" not in repo:
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
         return {"ok": False, "error": "Configure repo as owner/repo first"}
-    path = (cfg.get("dir", "").strip("/") + "/" + fname).lstrip("/")
+    remote_dir = cfg.get("dir", "").strip("/")
+    if any(part in ("", ".", "..") for part in remote_dir.split("/")) and remote_dir:
+        return {"ok": False, "error": "Configure dir as a repository-relative path"}
+    path = (remote_dir + "/" + fname).lstrip("/")
     H = {"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
          "Accept": "application/vnd.github+json"}
     url = f"https://api.github.com/repos/{repo}/contents/{path}"
@@ -193,10 +214,14 @@ def publish(slug: str, code: str, rel: str, title: str = "") -> dict:
         return {"ok": False, "error": "Missing credentials: " + ", ".join(miss)}
     try:
         text, fname = _read_source(slug, rel)
-    except (ValueError, FileNotFoundError):
+    except (OSError, RuntimeError, ValueError):
         return {"ok": False, "error": f"File unavailable: {rel}"}
     title = title or _title_of(text, fname)
-    res = _IMPL[code](_cfg(slug, code), text, title, fname)
+    try:
+        res = _IMPL[code](_cfg(slug, code), text, title, fname)
+    except requests.RequestException:
+        return {"ok": False, "error":
+                "Publishing destination request failed; check URL, credentials, and network connectivity"}
     entry = {"at": G.now_iso(), "platform": code, "platform_name": PUBLISHERS[code]["name"],
              "path": rel, "title": title, "ok": res.get("ok", False),
              "url": res.get("url", ""), "note": res.get("note", ""),

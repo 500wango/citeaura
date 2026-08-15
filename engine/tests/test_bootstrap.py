@@ -110,9 +110,9 @@ class TestCompetitorConfirmation(WorkDirCase):
         self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))
         md = B.render_facts(self.slug, {"name": "测试品牌"})
         self.assertIn("unconfirmed_candidate", md)
-        unconfirmed_line = next(l for l in md.splitlines() if "竞品A" in l)
+        unconfirmed_line = next(line for line in md.splitlines() if "竞品A" in line)
         self.assertIn("unconfirmed_candidate", unconfirmed_line)
-        confirmed_line = next(l for l in md.splitlines() if "老牌竞品" in l)
+        confirmed_line = next(line for line in md.splitlines() if "老牌竞品" in line)
         self.assertNotIn("unconfirmed_candidate", confirmed_line)
 
 

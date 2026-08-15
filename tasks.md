@@ -216,7 +216,7 @@ with with_tenant_context("test-tenant", "example"):
 ### Task 4.4: 闭环验证与清退旧注入
 
 - 清退 `api/ui.py` 中 3300+ 行旧 monkey-patch，瘦身为标准 SPA 静态伺服与 `/files` 交付下载
-- 更新 `api/tests/test_ui.py`，全量回归测试保持 100% 通过（136 pytest + 109 engine tests）
+- 更新 `api/tests/test_ui.py`，完整 API 与 engine 回归测试保持 100% 通过
 
 **验收**：浏览器打开 `/app` 呈现现代化精密仪器级 GEO 控制台，所有测试全绿通过
 
@@ -226,6 +226,6 @@ with with_tenant_context("test-tenant", "example"):
 
 1. 每完成一个 Task，运行 `cd engine && python3 -m unittest discover -s tests` 确保引擎测试不被破坏
 2. 每个 Task 独立提交，commit message 格式：`feat(module): 描述`
-3. 遇到引擎代码不满足需求时，**不要修改 engine/**，在 `api/adapters/` 中包装解决
+3. 引擎通用缺陷可在 `engine/` 修复；租户、计费、认证等 SaaS 专属逻辑必须留在 `api/adapters/`
 4. 所有异步操作返回 `job_id`，前端通过轮询 `/jobs/:jid` 获取进度
 5. 错误处理：引擎的 `GeoEngineError` 在 API 层转为 HTTP 400/500 + JSON body
