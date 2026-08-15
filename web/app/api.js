@@ -35,6 +35,16 @@ function fieldRequest(promise, key, fallback) {
   return promise.then((data) => responseField(data, key, fallback));
 }
 
+async function retryLoginTransport(operation) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!error || error.error !== 'network_error') throw error;
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
+    return operation();
+  }
+}
+
 async function request(endpoint, options = {}) {
   const url = endpoint.startsWith('http') ? endpoint : endpoint.startsWith('/') ? endpoint : `/api/v1/${endpoint}`;
   const authRetried = options._authRetried === true;
@@ -105,7 +115,7 @@ async function request(endpoint, options = {}) {
    ========================================================================== */
 export const auth = {
   register: (body) => request('/api/v1/auth/register', { method: 'POST', body }),
-  login: (body) => request('/api/v1/auth/login', { method: 'POST', body }),
+  login: (body) => retryLoginTransport(() => request('/api/v1/auth/login', { method: 'POST', body })),
   refresh: () => request('/api/v1/auth/refresh', { method: 'POST' }),
   logout: () => request('/api/v1/auth/logout', { method: 'POST' }),
   getMe: () => request('/api/v1/me'),
