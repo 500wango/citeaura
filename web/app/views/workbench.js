@@ -1,6 +1,8 @@
 import { workspace } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { renderEmpty } from '../components/empty.js';
+import { samplingModeBadge } from '../components/badge.js';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -29,11 +31,11 @@ export default {
           ${samples.length ? samples.map((sample) => `
             <div class="card" style="gap:var(--sp-3);">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);">
-                <strong>${sample.engine_name || sample.engine_code}</strong>
-                <span class="tag ${sample.mentioned ? 'pill-good' : 'tag-dim'}">${sample.mentioned ? `Mentioned${sample.matched_identity?.text ? ` via "${sample.matched_identity.text}"` : ''}${sample.rank ? ` at rank ${sample.rank}` : ''}` : 'Not mentioned'}</span>
+                <strong>${escapeHtml(sample.engine_name || sample.engine_code)}</strong>
+                <span class="tag ${sample.mentioned ? 'pill-good' : 'tag-dim'}">${sample.mentioned ? `Mentioned${sample.matched_identity?.text ? ` via "${escapeHtml(sample.matched_identity.text)}"` : ''}${sample.rank ? ` at rank ${sample.rank}` : ''}` : 'Not mentioned'}</span>
               </div>
-              <span class="tag tag-neutral" style="align-self:flex-start;">${sample.sampling_mode}</span>
-              <div class="sample-answer">${sample.ok ? (sample.answer || 'Empty model response') : `Sampling failed: ${sample.error || 'Unknown provider error'}`}</div>
+              <span style="align-self:flex-start;">${samplingModeBadge(sample.sampling_mode)}</span>
+              <div class="sample-answer">${escapeHtml(sample.ok ? (sample.answer || 'Empty model response') : `Sampling failed: ${sample.error || 'Unknown provider error'}`)}</div>
               ${(sample.citations || []).length ? `<div class="sample-citations">${sample.citations.map((citation) => {
                 const url = typeof citation === 'string' ? citation : citation.url;
                 return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;

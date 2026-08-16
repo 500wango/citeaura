@@ -38,9 +38,10 @@ export const TRACKS = [
     defaultView: 'siteaudit',
     views: [
       { id: 'siteaudit', labelKey: 'nav.siteaudit', defaultLabel: 'Site-wide GEO Audit' },
-      { id: 'gaps', labelKey: 'nav.gaps', defaultLabel: 'Perception Gaps' },
+      { id: 'gaps', labelKey: 'nav.gaps', defaultLabel: 'How Models Describe You' },
       { id: 'questions', labelKey: 'nav.questions', defaultLabel: 'Target Questions' },
       { id: 'facts', labelKey: 'nav.facts', defaultLabel: 'Brand Fact Library' },
+      { id: 'blueprint', labelKey: 'nav.blueprint', defaultLabel: 'Channel Blueprint' },
     ],
   },
   {
@@ -51,10 +52,8 @@ export const TRACKS = [
     defaultView: 'plan',
     views: [
       { id: 'plan', labelKey: 'nav.plan', defaultLabel: 'Action Tickets' },
-      { id: 'workbench', labelKey: 'nav.workbench_view', defaultLabel: 'Interactive Workbench' },
+      { id: 'workbench', labelKey: 'nav.workbench_view', defaultLabel: 'Sample Replay' },
       { id: 'assets', labelKey: 'nav.assets', defaultLabel: 'Assets & Templates' },
-      { id: 'outreach', labelKey: 'nav.outreach', defaultLabel: 'Media Outreach' },
-      { id: 'publishing', labelKey: 'nav.publishing', defaultLabel: 'Publishing Destinations' },
       { id: 'verify', labelKey: 'nav.verify', defaultLabel: 'Closed-Loop Verify' },
     ],
   },
@@ -66,7 +65,6 @@ export const TRACKS = [
     defaultView: 'report',
     views: [
       { id: 'report', labelKey: 'nav.report', defaultLabel: 'Client Delivery Packs' },
-      { id: 'branding', labelKey: 'nav.branding', defaultLabel: 'White-Label Branding' },
     ],
   },
   {
@@ -81,6 +79,9 @@ export const TRACKS = [
       { id: 'automation', labelKey: 'nav.automation', defaultLabel: 'Automated Schedule' },
       { id: 'team', labelKey: 'nav.team', defaultLabel: 'Team Members' },
       { id: 'billing', labelKey: 'nav.billing', defaultLabel: 'Billing & Plans' },
+      { id: 'branding', labelKey: 'nav.branding', defaultLabel: 'White-Label Branding' },
+      { id: 'outreach', labelKey: 'nav.outreach', defaultLabel: 'Media Outreach' },
+      { id: 'publishing', labelKey: 'nav.publishing', defaultLabel: 'Publishing Destinations' },
       { id: 'security', labelKey: 'nav.security', defaultLabel: 'Enterprise Security' },
       { id: 'archive', labelKey: 'nav.archive', defaultLabel: 'Backup Snapshots' },
     ],
@@ -101,7 +102,8 @@ const VIEW_LOADERS = {
   competitors: () => import('./views/competitors.js?v=2.6'),
   siteaudit: () => import('./views/siteaudit.js?v=2.6'),
   gaps: () => import('./views/gaps.js?v=2.5'),
-  questions: () => import('./views/questions.js?v=2.5'),
+  blueprint: () => import('./views/blueprint.js?v=1.0'),
+  questions: () => import('./views/questions.js?v=2.6'),
   facts: () => import('./views/facts.js?v=2.7'),
   plan: () => import('./views/plan.js?v=2.5'),
   workbench: () => import('./views/workbench.js?v=2.6'),
@@ -244,7 +246,11 @@ async function renderApp() {
     if (renderId !== renderSequence) return;
   }
   if (AUTH_ENTRY_ROUTES.has(route) && state.user) {
-    location.hash = '#/overview';
+    let pendingDomain = '';
+    try {
+      pendingDomain = sessionStorage.getItem('citeaura_pending_domain') || localStorage.getItem('citeaura_pending_domain') || '';
+    } catch (e) {}
+    location.hash = pendingDomain ? '#/onboarding' : '#/overview';
     return;
   }
   if (!isPublic && !state.user) {
@@ -549,7 +555,9 @@ async function checkJobs() {
         indicator.style.display = 'inline-flex';
         const actionLabel = active.action || 'Job';
         const stageLabel = active.stage || (active.status === 'running' ? 'executing' : 'queued');
-        const progressVal = active.progress || (active.status === 'running' ? 45 : 10);
+        const progressVal = Number.isFinite(Number(active.progress))
+          ? Number(active.progress)
+          : (active.status === 'running' ? 45 : 10);
         setSafeHtml(indicator, `
           <div class="active-job-capsule" id="header-job-capsule" title="Click to view live execution logs & telemetry">
             <div class="job-capsule-content">
@@ -578,7 +586,8 @@ async function checkJobs() {
         const finished = jobs.find((job) => job.id === lastJobId);
         if (finished?.status === 'done') toast.success('Pipeline task completed successfully!');
         else if (finished?.status === 'failed') toast.error(finished.error || 'Pipeline task failed');
-        renderApp();
+        const keepEditors = new Set(['facts', 'assets', 'branding', 'project-settings', 'outreach', 'publishing', 'questions']);
+        if (!keepEditors.has(state.currentRoute)) renderApp();
       }
       state.activeJob = null;
       lastJobStatus = null;

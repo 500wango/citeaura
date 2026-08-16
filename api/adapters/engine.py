@@ -368,25 +368,35 @@ def load_custom_providers(db, tenant_id):
 
 @contextmanager
 def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = None, custom_providers: list[dict] | None = None):
-    """在租户隔离、Key 注入和异常转换上下文中运行引擎代码。"""
+    """在租户隔离、Key 注入和异常转换上下文中运行引擎代码。
+
+    路径与 die/lock 走 ContextVar，文件读写不再占用进程锁。
+    只有注入密钥、改采样注册表或打网络补丁时才串行化进程全局状态。
+    """
     raw_tenant = getattr(tenant_id, "directory_slug", None) or getattr(tenant_id, "name", None) or str(tenant_id or "")
     raw_tenant = str(raw_tenant)
     if "/" in raw_tenant or "\\" in raw_tenant or ".." in raw_tenant:
         raise ValueError(f"invalid tenant slug: {raw_tenant!r}")
     tenant_directory = tenant_slug(raw_tenant)
     project_slug = _valid_slug(project_slug, "project")
-    with _CONTEXT_LOCK:
-        previous_die = patch_die()
-        previous_root, previous_work = patch_paths(tenant_directory, project_slug)
-        previous_project_lock = patch_project_lock(tenant_directory)
-        try:
+
+    def raise_error(message, code=1):
+        raise GeoEngineError(message)
+
+    def distributed_lock(slug):
+        return locking.project_lock(tenant_directory, _valid_slug(slug, "project"))
+
+    needs_process_state = keys is not None or custom_providers is not None
+    with geolib.scoped_paths(PROJECT_ROOT, WORK_ROOT / tenant_directory), geolib.scoped_runtime(
+        die_handler=raise_error,
+        project_lock_factory=distributed_lock,
+    ):
+        if not needs_process_state:
+            yield
+            return
+        with _CONTEXT_LOCK:
             with inject_keys(keys), protect_network_fetches(), _custom_provider_context(custom_providers):
                 yield
-        finally:
-            geolib.die = previous_die
-            geolib.ROOT = previous_root
-            geolib.WORK = previous_work
-            geolib.project_lock = previous_project_lock
 
 
 @contextmanager

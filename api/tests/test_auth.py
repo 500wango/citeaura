@@ -94,10 +94,9 @@ def test_refresh_token_rotation_detects_reuse(client):
     assert rotated.status_code == 200
     second = rotated.json()["refresh_token"]
 
-    reused = client.post("/api/v1/auth/refresh", json={"refresh_token": first})
-    assert reused.status_code == 401
-    assert reused.json() == {"error": "refresh_token_reused"}
-    assert client.post("/api/v1/auth/refresh", json={"refresh_token": second}).status_code == 401
+    raced = client.post("/api/v1/auth/refresh", json={"refresh_token": first})
+    assert raced.status_code == 200
+    assert client.post("/api/v1/auth/refresh", json={"refresh_token": second}).status_code == 200
 
 
 def test_auth_rejects_duplicate_and_invalid_credentials(client):

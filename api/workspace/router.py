@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from api.adapters.engine import with_tenant_context, with_tenant_read_context
+from api.adapters.engine import with_tenant_read_context
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import workspace
 from api.adapters.preflight import PreflightError, normalize_url
@@ -75,7 +75,7 @@ def _ensure_idle(db: Session, project: Project):
 
 def _call(db, user, project_id, function, *args, write=False):
     tenant, project = _tenant_project(db, user, project_id)
-    context = with_tenant_context(tenant.directory_slug, project.slug) if write else with_tenant_read_context(tenant, project.slug)
+    context = with_tenant_read_context(tenant, project.slug)
     try:
         with context:
             return function(project.slug, *args)
@@ -267,6 +267,51 @@ def add_project_questions(
     _ensure_idle(db, project)
     added = _call(db, current_user, project_id, workspace.add_questions, payload.items, write=True)
     return {"ok": True, "added": len(added), "ids": [question["id"] for question in added]}
+
+
+class QuestionUpdate(BaseModel):
+    text: str | None = Field(default=None, max_length=1000)
+    group: str | None = Field(default=None, max_length=128)
+
+
+@router.patch("/api/v1/projects/{project_id}/questions/{question_id}")
+def update_project_question(
+    project_id: int,
+    question_id: str,
+    payload: QuestionUpdate,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    _, project = _tenant_project(db, current_user, project_id)
+    _ensure_idle(db, project)
+    try:
+        question = _call(
+            db, current_user, project_id, workspace.update_question, question_id, payload.model_dump(exclude_unset=True), write=True,
+        )
+    except KeyError:
+        _error(status.HTTP_404_NOT_FOUND, "question_not_found")
+    return {"ok": True, "question": question}
+
+
+@router.delete("/api/v1/projects/{project_id}/questions/{question_id}")
+def delete_project_question(
+    project_id: int,
+    question_id: str,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    _, project = _tenant_project(db, current_user, project_id)
+    _ensure_idle(db, project)
+    try:
+        _call(db, current_user, project_id, workspace.delete_question, question_id, write=True)
+    except KeyError:
+        _error(status.HTTP_404_NOT_FOUND, "question_not_found")
+    return {"ok": True, "id": question_id}
+
+
+@router.get("/api/v1/projects/{project_id}/blueprint")
+def project_blueprint(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return {"blueprint": _call(db, current_user, project_id, workspace.read_blueprint)}
 
 
 @router.get("/api/v1/projects/{project_id}/files")

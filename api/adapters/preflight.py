@@ -68,14 +68,23 @@ def run(url: str, timeout: float = 8.0) -> dict:
     try:
         homepage = requests.get(normalized, timeout=timeout, allow_redirects=False, stream=True)
         status = homepage.status_code
-        reachable = 200 <= status < 300
+        location = ""
+        if 300 <= status < 400:
+            location = str((getattr(homepage, "headers", None) or {}).get("Location") or "")
+        reachable = 200 <= status < 300 or (300 <= status < 400 and bool(location))
         checks.append(_check(
             "tls", parsed.scheme == "https", "HTTPS handshake successful" if parsed.scheme == "https" else "Site does not enable HTTPS",
             action="Configure a valid TLS certificate and redirect HTTP permanently to HTTPS",
         ))
+        if reachable and 300 <= status < 400:
+            homepage_message = f"Homepage redirects ({status})"
+        elif reachable:
+            homepage_message = "Homepage accessible"
+        else:
+            homepage_message = f"Homepage returned HTTP {status}"
         checks.append(_check(
-            "homepage", reachable, "Homepage accessible" if reachable else f"Homepage returned HTTP {status}",
-            action="Inspect origin server, reverse proxy, and WAF to ensure homepage returns HTTP 2xx directly", status=status,
+            "homepage", reachable, homepage_message,
+            action="Inspect origin server, reverse proxy, and WAF to ensure homepage returns HTTP 2xx or a same-site redirect", status=status,
         ))
     except requests.exceptions.SSLError:
         checks.append(_check("tls", False, "TLS certificate verification failed", action="Update expired, mismatched, or incomplete certificate chain TLS certificate"))

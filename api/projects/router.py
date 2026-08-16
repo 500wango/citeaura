@@ -375,6 +375,41 @@ def _grade_for_score(score):
     return "D"
 
 
+def _include_configured_engines(db, tenant, engines):
+    """把已配置但尚未采到样本的引擎补成 Unmeasured 行。"""
+    import sample
+
+    rows = list(engines or [])
+    seen = {str(item.get("engine_code") or "") for item in rows}
+    configured = set(load_tenant_keys(db, tenant.id))
+    custom = load_custom_providers(db, tenant.id)
+    for code in list(ENGINE_KEY_ENV) + [provider["code"] for provider in custom]:
+        if code in seen:
+            continue
+        if code not in configured and not any(provider["code"] == code for provider in custom):
+            if code not in ENGINE_KEY_ENV:
+                continue
+        provider = sample.PROVIDERS.get(code) or next(
+            (item for item in custom if item["code"] == code),
+            {"name": code, "search": False},
+        )
+        rows.append({
+            "engine_code": code,
+            "engine_name": provider.get("name") or code,
+            "sampling_mode": sampling_modes.for_provider(provider),
+            "mention_rate": None,
+            "median_rank": None,
+            "sample_count": 0,
+            "citation_share": None,
+            "citation_counts": [0, 0],
+            "top_sources": [],
+            "example": None,
+            "negative_sample_count": 0,
+        })
+        seen.add(code)
+    return rows
+
+
 def _product_report(project_slug, metrics):
     """Normalize filesystem artifacts into the stable product report contract."""
     import analytics
@@ -671,7 +706,9 @@ def project_preflight(
         ],
         "requested_platforms": requested,
         "effective_platforms": effective,
-        "can_sample": bool(site["ready"] and effective),
+        "can_sample": bool(site["ready"] and (
+            effective or (tenant.plan in PAID_PLANS and public_catalog())
+        )),
         "estimate": {
             "quick": {"questions": quick_questions, "platforms": len(effective), "calls": quick_calls,
                       "minutes": max(1, round(quick_calls * 0.4)) if quick_calls else 0},
@@ -696,11 +733,12 @@ def create_project(
     except NetworkTargetError as exc:
         _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc))
     tenant = _tenant_for_user(db, current_user, for_update=True)
-    check_project_creation(db, tenant)
     slug = geolib.slugify(payload.url)
     existing = db.query(Project).filter(Project.tenant_id == tenant.id, Project.slug == slug).first()
     if existing is not None and existing.archived_at is None and existing.status != "archived":
         _error(status.HTTP_409_CONFLICT, "project_already_exists")
+    if existing is None or (existing.archived_at is None and existing.status != "archived"):
+        check_project_creation(db, tenant)
 
     restoring_existing_workspace = existing is not None and _project_directory_exists(tenant.directory_slug, slug)
     if existing is not None:
@@ -721,9 +759,9 @@ def create_project(
         )
         db.add(project)
     db.flush()
-    has_engine_keys = _has_api_keys(db, tenant.id)
-    skip_llm = payload.skip_llm or not has_engine_keys
-    no_sample = payload.no_sample or not has_engine_keys
+    has_sampling_access = _has_sampling_access(db, tenant, project)
+    skip_llm = payload.skip_llm or not has_sampling_access
+    no_sample = payload.no_sample or not has_sampling_access
     job_action = "bootstrap" if no_sample else "autopilot"
     if job_action == "autopilot":
         check_sample_run(db, tenant, project)
@@ -1117,6 +1155,14 @@ def retry_project_job(
         result = _dispatch_retry("retry", tenant.directory_slug, project.slug, request, job.id, source.action)
         job.celery_task_id = getattr(result, "id", None)
         db.commit()
+    except ValueError as exc:
+        job.status = "failed"
+        job.stage = "failed"
+        job.error = str(exc)
+        job.finished_at = datetime.now(timezone.utc)
+        project.status = source.status if source.status != "failed" else "ready"
+        db.commit()
+        _error(status.HTTP_400_BAD_REQUEST, "job_retry_invalid")
     except Exception as exc:  # noqa: BLE001
         job.status = "failed"
         job.stage = "failed"
@@ -1284,6 +1330,7 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
         metrics_path = _latest_file(pdir / "metrics", "*.json")
         metrics = geolib.read_json(metrics_path, None) if metrics_path else None
         engines = _product_report(project.slug, metrics)["engines"]
+        engines = _include_configured_engines(db, tenant, engines)
         measurement_quality = report_quality.assess(
             project.slug, _has_sampling_access(db, tenant, project),
         )["measurement_quality"]
@@ -1457,7 +1504,7 @@ def create_ticket(
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     try:
-        with with_tenant_context(tenant.directory_slug, project.slug):
+        with with_tenant_read_context(tenant, project.slug):
             ticket = workspace.create_offsite_ticket(
                 project.slug,
                 payload.url,
@@ -1489,7 +1536,7 @@ def bulk_update_tickets(
     if not changes or not any(key == "due_date" or value not in (None, "") for key, value in changes.items()):
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "ticket_update_empty")
     try:
-        with with_tenant_context(tenant.directory_slug, project.slug):
+        with with_tenant_read_context(tenant, project.slug):
             tickets = ticket_workflow.bulk_update(
                 project.slug, payload.ticket_ids, changes, current_user.email,
             )
@@ -1538,7 +1585,7 @@ def update_ticket(
     if not changes or not any(key == "due_date" or value not in (None, "") for key, value in changes.items()):
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "ticket_update_empty")
     try:
-        with with_tenant_context(tenant.directory_slug, project.slug):
+        with with_tenant_read_context(tenant, project.slug):
             ticket = ticket_workflow.update(project.slug, ticket_id, changes, current_user.email)
     except KeyError:
         _error(status.HTTP_404_NOT_FOUND, "ticket_not_found")
@@ -1650,19 +1697,26 @@ def download_delivery(
         _error(status.HTTP_400_BAD_REQUEST, "invalid_delivery_date")
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.directory_slug, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         directory = geolib.project_dir(project.slug) / "delivery" / delivery_date
         if not directory.is_dir():
             _error(status.HTTP_404_NOT_FOUND, "delivery_not_found")
-        try:
-            directory = delivery.ensure_delivery_contract(project.slug, directory)
-        except GeoEngineError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"error": "delivery_contract_invalid", "detail": str(exc)},
-            ) from exc
         asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
-        readiness = str(asset_index.get("readiness") or "unknown")
+        quality_status = str((asset_index.get("quality_gate") or {}).get("status") or "")
+        reuse_existing = quality_status == "passed"
+        served_last_known_good = False
+        if not reuse_existing:
+            try:
+                directory = delivery.ensure_delivery_contract(project.slug, directory)
+            except GeoEngineError as exc:
+                if not directory.is_dir():
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail={"error": "delivery_contract_invalid", "detail": str(exc)},
+                    ) from exc
+                served_last_known_good = True
+        asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
+        readiness = "last_known_good" if served_last_known_good else str(asset_index.get("readiness") or "unknown")
         package_kind = "customer-ready" if readiness == "customer_ready" else "review"
         source_revision = str(asset_index.get("source_revision") or "unknown")
         archive = tempfile.TemporaryFile(prefix="citeaura-delivery-", suffix=".zip")

@@ -32,6 +32,10 @@ export default {
     const quality = report && report.report_quality;
     const confidence = quality && quality.confidence;
     const confidenceLabel = confidence && confidence.label ? confidence.label : 'No baseline';
+    const trend = (quality && quality.measurement_quality && quality.measurement_quality.trend) || {};
+    const trendNote = trend.status === 'noteworthy'
+      ? `${trend.label || 'Trend'} ${trend.delta_pp != null ? `(${trend.delta_pp} pp)` : ''}`
+      : (trend.label || 'Single-round observation. Two comparable sample periods are required before treating a change as a trend.');
     const assetTotals = deliveries.reduce((totals, item) => {
       const summary = item && item.asset_summary ? item.asset_summary : {};
       totals.ready += Number(summary.ready || 0);
@@ -44,9 +48,9 @@ export default {
       <div class="app-view-container">
         <div class="view-header">
           <div class="view-title-group">
-            <h1 class="view-title">${t('report.title', {}, 'Deliverables & Client Delivery Packs')}</h1>
+            <h1 class="view-title">${t('report.title', {}, 'Client Delivery Packs')}</h1>
             <p class="view-desc">
-              ${t('report.desc', {}, 'Export audit decks, action matrices, ticket logs, comparisons, and explicitly classified implementation assets.')}
+              ${t('report.desc', {}, 'Compile and download client-ready ZIP packs. Visibility numbers live on the AI Visibility Matrix — this page is the handoff package.')}
             </p>
           </div>
           <div class="view-actions">
@@ -64,8 +68,8 @@ export default {
               ${overallGrade ? gradeBadge(overallGrade) : '<span class="tag tag-dim">Unmeasured</span>'}
               ${statusPill(confidence && confidence.sufficient ? 'good' : 'warning', confidenceLabel)}
               <div>
-                <strong style="font-size:var(--fs-4);">${t('report.exec_summary', {}, 'Executive Audit Summary')}</strong>
-                <div style="color:var(--muted);font-size:var(--fs-2);">Latest measured API and site-audit artifacts</div>
+                <strong style="font-size:var(--fs-4);">${t('report.exec_summary', {}, 'Pack snapshot')}</strong>
+                <div style="color:var(--muted);font-size:var(--fs-2);">${trendNote} · <a href="#/engines">Open visibility matrix</a></div>
               </div>
             </div>
             <div class="num" style="font-size:var(--fs-7);font-weight:700;color:var(--ink);">
@@ -168,9 +172,10 @@ export default {
       generateBtn.addEventListener('click', async () => {
         generateBtn.disabled = true;
         try {
-          await projects.triggerDeliver(projectId);
+          const res = await projects.triggerDeliver(projectId);
           toast.success(t('report.deliver_queued', {}, 'Delivery pack build job queued!'));
           ctx.pollActiveJobs();
+          if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'deliver');
         } catch (err) {
           toast.error(t(err.error, {}, err.detail || 'Failed to start delivery pack compilation'));
         } finally {

@@ -806,7 +806,7 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
         res = ask(plat, q["text"])
         elapsed_ms = int((time.monotonic() - t0) * 1000)
         citations = res.get("citations", [])
-        searched = bool(res.get("searched", PROVIDERS[plat].get("search", False)))
+        searched = bool(res.get("searched", False))
         if not res["ok"]:
             search_evidence = "request_failed"
         elif searched and citations:

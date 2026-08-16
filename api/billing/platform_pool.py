@@ -347,6 +347,16 @@ def reconcile_usage_outbox(limit=100):
                 row.next_attempt_at = now + timedelta(seconds=min(3600, 2 ** min(row.attempts, 10)))
                 row.last_error = str(exc)[:2000]
             db.commit()
+        stale_cutoff = now - timedelta(hours=2)
+        stale = db.query(Job).filter(
+            Job.budget_reservation_status == "review",
+            Job.finished_at.isnot(None),
+            Job.finished_at < stale_cutoff,
+        ).all()
+        for job in stale:
+            job.budget_reservation_status = "released"
+        if stale:
+            db.commit()
         return processed
     finally:
         db.close()

@@ -470,7 +470,7 @@ def add_questions(project_slug: str, items: list):
                 "group": group,
                 "market": "global",
                 "text": text,
-                "source": "expand",
+                "source": str(item.get("source") or "manual"),
             }
             questions.append(question)
             existing.add(text)
@@ -480,6 +480,52 @@ def add_questions(project_slug: str, items: list):
     if added or config != original:
         global_scope.normalize_project(project_slug)
     return added
+
+
+def update_question(project_slug: str, question_id: str, changes: dict):
+    question_id = str(question_id or "").strip()
+    if not re.fullmatch(r"q\d{3,6}", question_id):
+        raise ValueError("invalid question id")
+    with geolib.project_lock(project_slug):
+        config = global_scope.normalize_config_data(geolib.load_config(project_slug))
+        questions = config.get("questions") or []
+        current = next((item for item in questions if str(item.get("id")) == question_id), None)
+        if current is None:
+            raise KeyError(question_id)
+        if "text" in changes:
+            text = str(changes.get("text") or "").strip()
+            if not text or len(text) > 1000:
+                raise ValueError("question text is required and must not exceed 1000 characters")
+            if global_scope.contains_han(text):
+                raise ValueError("question text must not contain Chinese characters")
+            current["text"] = text
+        if "group" in changes and changes.get("group"):
+            current["group"] = str(changes.get("group")).strip()
+        geolib.save_config(project_slug, config)
+    global_scope.normalize_project(project_slug)
+    return current
+
+
+def delete_question(project_slug: str, question_id: str):
+    question_id = str(question_id or "").strip()
+    if not re.fullmatch(r"q\d{3,6}", question_id):
+        raise ValueError("invalid question id")
+    with geolib.project_lock(project_slug):
+        config = global_scope.normalize_config_data(geolib.load_config(project_slug))
+        questions = config.get("questions") or []
+        remaining = [item for item in questions if str(item.get("id")) != question_id]
+        if len(remaining) == len(questions):
+            raise KeyError(question_id)
+        config["questions"] = remaining
+        geolib.save_config(project_slug, config)
+    global_scope.normalize_project(project_slug)
+    return {"ok": True, "id": question_id}
+
+
+def read_blueprint(project_slug: str):
+    path = geolib.project_dir(project_slug) / "blueprint.json"
+    data = geolib.read_json(path, {}) or {}
+    return global_scope.normalize_blueprint_data(data)
 
 
 def _is_manual_offsite(ticket: dict) -> bool:

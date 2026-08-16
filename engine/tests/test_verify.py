@@ -48,6 +48,29 @@ class VerifyTest(unittest.TestCase):
         self.assertEqual(progress["base"], 10)
         self.assertEqual(progress["cur"], 5)
 
+    def test_applicable_page_checker_uses_role_aware_status(self):
+        urls = ["https://example.com/a", "https://example.com/b"]
+        audit = {"pages": [
+            {"url": urls[0], "evaluation_status": "evaluated",
+             "checks": [{"id": "jsonld", "status": "passed"}]},
+            {"url": urls[1], "evaluation_status": "evaluated",
+             "checks": [{"id": "jsonld", "status": "failed"}]},
+        ]}
+        ok, note, progress = V.check(
+            task("pages.applicable:jsonld", verification_cohort=urls, affected=urls),
+            audit, {},
+        )
+        self.assertFalse(ok)
+        self.assertIn("jsonld", note)
+        self.assertEqual(progress["cur"], 1)
+        audit["pages"][1]["checks"][0]["status"] = "passed"
+        ok, _note, progress = V.check(
+            task("pages.applicable:jsonld", verification_cohort=urls, affected=urls),
+            audit, {},
+        )
+        self.assertTrue(ok)
+        self.assertEqual(progress["cur"], 0)
+
     def test_malformed_pages_are_ignored_instead_of_crashing(self):
         ok, note, _ = V.check(task("pages.static_text", verification_cohort=["https://x"]),
                               {"pages": [None, {}, {"url": "https://x", "word_count": 200}]}, {})

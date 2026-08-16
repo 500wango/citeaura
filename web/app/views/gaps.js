@@ -1,5 +1,6 @@
 import { projects } from '../api.js?v=3.4';
 import { renderEmpty } from '../components/empty.js';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -11,7 +12,7 @@ export default {
       <div class="app-view-container">
         <div class="view-header">
           <div class="view-title-group">
-            <h1 class="view-title">AI Framing Analysis</h1>
+            <h1 class="view-title">How models describe you</h1>
             <p class="view-desc">Review the recurring descriptors that appear in recorded model answers. This view reflects sampled phrasing only. It does not infer factual correctness.</p>
           </div>
         </div>
@@ -25,7 +26,7 @@ export default {
               <table class="table">
                 <thead><tr><th>Descriptor</th><th style="text-align:right;">Share</th><th>Evidence</th></tr></thead>
                 <tbody>
-                  ${terms.map((term) => `<tr><td><strong>${term.term}</strong></td><td data-num>${Math.round((term.share || 0) * 100)}%</td><td>${(term.evidence || []).map((item) => `${item.platform_name}: ${item.excerpt}`).join('<br>')}</td></tr>`).join('')}
+                  ${terms.map((term) => `<tr><td><strong>${escapeHtml(term.term)}</strong></td><td data-num>${Math.round((term.share || 0) * 100)}%</td><td>${(term.evidence || []).map((item) => `${escapeHtml(item.platform_name)}: ${escapeHtml(item.excerpt)}`).join('<br>')}</td></tr>`).join('')}
                 </tbody>
               </table>
             </div>

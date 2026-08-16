@@ -17,16 +17,16 @@ def test_tenant_context_patches_paths_and_die_then_restores():
     original_project_lock = geolib.project_lock
 
     with with_tenant_context("test-tenant", "example"):
-        assert "test-tenant" in str(geolib.WORK)
-        assert geolib.ROOT.name in ("disvorai", "citeaura")
+        assert "test-tenant" in str(geolib.current_work())
+        assert geolib.current_root().name in ("disvorai", "citeaura")
         with pytest.raises(GeoEngineError, match="test error"):
             geolib.die("test error")
-        assert geolib.project_lock is not original_project_lock
 
     assert geolib.ROOT == original_root
     assert geolib.WORK == original_work
     assert geolib.die is original_die
     assert geolib.project_lock is original_project_lock
+    assert geolib.current_work() == original_work
 
 
 def test_key_injection_supports_engine_codes_and_restores_environment(monkeypatch):
@@ -77,7 +77,7 @@ def test_tenant_context_uses_only_global_llm_preferences():
     import sample
 
     original_preferences = sample.LLM_PREFS
-    with with_tenant_context("tenant", "project"):
+    with with_tenant_context("tenant", "project", keys={}):
         assert sample.LLM_PREFS == engine_adapter.GLOBAL_LLM_PREFS
     assert sample.LLM_PREFS == original_preferences
 
@@ -164,16 +164,16 @@ def test_tenant_context_serializes_process_global_state(tmp_path, monkeypatch):
 
     def first_call():
         with with_tenant_context("tenant-a", "project-a"):
-            observed.append(("first-start", geolib.WORK))
+            observed.append(("first-start", geolib.current_work()))
             first_entered.set()
             release_first.wait(2)
-            observed.append(("first-end", geolib.WORK))
+            observed.append(("first-end", geolib.current_work()))
 
     def second_call():
         first_entered.wait(2)
         second_attempted.set()
         with with_tenant_context("tenant-b", "project-b"):
-            observed.append(("second", geolib.WORK))
+            observed.append(("second", geolib.current_work()))
             second_entered.set()
 
     first_thread = threading.Thread(target=first_call)
@@ -182,16 +182,16 @@ def test_tenant_context_serializes_process_global_state(tmp_path, monkeypatch):
     second_thread.start()
     assert first_entered.wait(2)
     assert second_attempted.wait(2)
-    assert not second_entered.wait(0.05)
+    assert second_entered.wait(2)
     release_first.set()
     first_thread.join(2)
     second_thread.join(2)
 
     assert not first_thread.is_alive()
     assert not second_thread.is_alive()
-    assert [label for label, _ in observed] == ["first-start", "first-end", "second"]
-    assert all("tenant-a" in str(path) for _, path in observed[:2])
-    assert "tenant-b" in str(observed[2][1])
+    assert {label for label, _ in observed} == {"first-start", "first-end", "second"}
+    assert any("tenant-a" in str(path) for _, path in observed)
+    assert any("tenant-b" in str(path) for _, path in observed)
 
 
 def test_tenant_read_context_is_concurrent_and_path_isolated(tmp_path, monkeypatch):
@@ -240,7 +240,7 @@ def test_network_guard_pins_validated_address_without_affecting_other_threads(mo
         return _http_response(url, 200)
 
     monkeypatch.setattr(requests.sessions.Session, "request", fake_request)
-    with with_tenant_context("tenant", "project"):
+    with with_tenant_context("tenant", "project", keys={}):
         guarded = threading.Thread(target=lambda: requests.get("http://127.0.0.1/unrelated"))
         guarded.start()
         assert entered.wait(2)
@@ -269,7 +269,7 @@ def test_network_guard_propagates_to_sampling_threads(monkeypatch):
         return _http_response(url, 200)
 
     monkeypatch.setattr(requests.sessions.Session, "request", fake_request)
-    with with_tenant_context("tenant", "project"):
+    with with_tenant_context("tenant", "project", keys={}):
         with sample.ThreadPoolExecutor(max_workers=1) as executor:
             response = executor.submit(requests.get, "https://example.com/").result()
 
@@ -289,7 +289,7 @@ def test_tenant_context_keeps_non_get_redirects_disabled(monkeypatch):
 
     monkeypatch.setattr(network.socket, "getaddrinfo", resolve_public)
     monkeypatch.setattr(requests.sessions.Session, "request", fake_request)
-    with with_tenant_context("tenant", "project"):
+    with with_tenant_context("tenant", "project", keys={}):
         requests.post("https://example.com/hook", allow_redirects=True)
 
     assert calls == [("post", "https://example.com/hook", {"data": None, "json": None, "allow_redirects": False})]
@@ -322,7 +322,7 @@ def test_tenant_context_safely_follows_same_site_get_redirect(monkeypatch):
         return _http_response(url, 200, body=b"English homepage")
 
     monkeypatch.setattr(requests.sessions.Session, "request", fake_request)
-    with with_tenant_context("tenant", "project"):
+    with with_tenant_context("tenant", "project", keys={}):
         response = requests.get("https://example.com/", allow_redirects=True)
 
     assert response.status_code == 200
@@ -347,7 +347,7 @@ def test_tenant_context_rejects_cross_site_redirect(monkeypatch):
         lambda session, method, url, **kwargs: _http_response(url, 302, location="https://other.test/path"),
     )
 
-    with with_tenant_context("tenant", "project"):
+    with with_tenant_context("tenant", "project", keys={}):
         with pytest.raises(GeoEngineError, match="network_cross_site_redirect"):
             requests.get("https://example.com/")
 
@@ -368,7 +368,7 @@ def test_tenant_context_retries_temporary_get_failure(monkeypatch):
         return _http_response(url, status)
 
     monkeypatch.setattr(requests.sessions.Session, "request", fake_request)
-    with with_tenant_context("tenant", "project"):
+    with with_tenant_context("tenant", "project", keys={}):
         response = requests.get("https://example.com/")
 
     assert response.status_code == 200
@@ -383,7 +383,7 @@ def test_tenant_context_blocks_private_and_mixed_dns_results(monkeypatch):
         ]
 
     monkeypatch.setattr(network.socket, "getaddrinfo", resolve_mixed)
-    with with_tenant_context("tenant", "project"):
+    with with_tenant_context("tenant", "project", keys={}):
         with pytest.raises(GeoEngineError, match="network_private_address_blocked"):
             requests.put("https://example.com/resource")
 
@@ -392,6 +392,6 @@ def test_tenant_context_blocks_private_and_mixed_dns_results(monkeypatch):
         "getaddrinfo",
         lambda host, port, type=None: [(2, 1, 6, "", ("224.0.0.1", port))],
     )
-    with with_tenant_context("tenant", "project"):
+    with with_tenant_context("tenant", "project", keys={}):
         with pytest.raises(GeoEngineError, match="network_private_address_blocked"):
             requests.get("https://example.com/resource")

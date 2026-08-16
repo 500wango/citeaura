@@ -11,14 +11,6 @@ export function renderEmpty({
   onAction = null,
   icon = '',
 } = {}) {
-  const btnId = `empty-btn-${Math.random().toString(36).slice(2, 8)}`;
-  setTimeout(() => {
-    const btn = document.getElementById(btnId);
-    if (btn && onAction) {
-      btn.addEventListener('click', onAction);
-    }
-  }, 0);
-
   return `
     <div class="empty">
       ${icon ? `<div style="font-size:32px;margin-bottom:var(--sp-2);">${icon}</div>` : ''}
@@ -28,11 +20,16 @@ export function renderEmpty({
         actionText
           ? actionRoute
             ? `<a class="btn btn-primary btn-sm" href="#/${actionRoute}">${actionText}</a>`
-            : `<button type="button" id="${btnId}" class="btn btn-primary btn-sm">${actionText}</button>`
+            : `<button type="button" class="btn btn-primary btn-sm" data-empty-action="true">${actionText}</button>`
           : ''
       }
     </div>
   `;
+}
+
+export function bindEmptyAction(root, onAction) {
+  if (!root || typeof onAction !== 'function') return;
+  root.querySelector('[data-empty-action]')?.addEventListener('click', onAction);
 }
 
 export default { renderEmpty };

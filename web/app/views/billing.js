@@ -124,6 +124,7 @@ export default {
               <div>
                 <strong>${t('billing.current_plan', {}, 'Active Plan')}</strong>
                 <div style="font-size:var(--fs-2);color:var(--muted);">Active projects: ${activeProjects} / ${maxProjects === null || maxProjects === undefined ? '∞' : maxProjects}</div>
+                ${onTrial ? `<div style="font-size:var(--fs-2);color:var(--muted);">Trial samples: ${usage.sample_runs_lifetime || 0} / ${usage.sample_runs_lifetime_limit || 6} lifetime · ${usage.sample_runs_limit_per_project || 2} per project</div>` : ''}
                 ${onTrial ? `
                   <div style="font-size:var(--fs-2);color:var(--muted);margin-top:2px;">
                     ${trialExpired

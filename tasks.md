@@ -199,7 +199,7 @@ with with_tenant_context("test-tenant", "example"):
 - 落地页 `web/index.html`：Space Grotesk + OKLCH Teal 主色 + 4/16/36 节奏
 - 自托管字体与图标：`web/assets/fonts/`、`web/assets/icons/`（零外部 CDN 依赖）
 - 三种采样方式明确标注（API·参数化知识 / API·联网检索 / 人工·产品端）
-- 多语言切换与中英日三语目录同步（`api/i18n/messages/`）
+- 英语产品文案与目录（`api/i18n/messages/en.json`）；其他语言尚未作为产品开关交付
 
 ### Task 4.2: 统一 SPA 架构与 6 轨道导航
 

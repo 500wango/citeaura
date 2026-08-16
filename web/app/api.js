@@ -219,6 +219,9 @@ export const workspace = {
   saveContent: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/content`, { method: 'PUT', body }),
   getExpand: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/expand`),
   addQuestions: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/questions`, { method: 'POST', body }),
+  updateQuestion: (id, questionId, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/questions/${encodeURIComponent(questionId)}`, { method: 'PATCH', body }),
+  deleteQuestion: (id, questionId) => request(`/api/v1/projects/${encodeURIComponent(id)}/questions/${encodeURIComponent(questionId)}`, { method: 'DELETE' }),
+  getBlueprint: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/blueprint`), 'blueprint', {}),
   getFiles: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/files`),
   importSamples: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/samples/import`, { method: 'POST', body }),
 };

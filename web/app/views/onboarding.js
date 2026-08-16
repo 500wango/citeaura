@@ -1,5 +1,5 @@
 /**
- *  (Onboarding)
+ * Brand onboarding
  */
 
 import { projects } from '../api.js?v=3.4';
@@ -7,7 +7,7 @@ import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 
 export default {
-  render: (ctx) => {
+  render: () => {
     return `
       <div class="app-view-container">
         <div class="wizard-card">
@@ -33,13 +33,15 @@ export default {
               <input type="text" id="ob-name" class="input" placeholder="e.g. CiteAura">
             </div>
 
+            <div id="ob-preflight" class="card" style="display:none;background:var(--page);padding:var(--sp-3);gap:var(--sp-2);"></div>
+
             <div class="card" style="background:var(--deep);padding:var(--sp-4);border-radius:var(--r-md);gap:var(--sp-2);">
               <label style="display:flex;align-items:flex-start;gap:var(--sp-3);cursor:pointer;user-select:none;">
                 <input type="checkbox" id="ob-nosample" style="margin-top:2px;">
                 <div style="font-size:var(--fs-2);">
-                  <strong style="color:var(--ink);">${t('onboard.skip_llm_title', {}, 'Skip initial LLM sampling')}</strong>
+                  <strong style="color:var(--ink);">${t('onboard.skip_sample_title', {}, 'Skip initial AI sampling')}</strong>
                   <div style="color:var(--muted);margin-top:2px;">
-                    ${t('onboard.skip_llm_desc', {}, 'Only run fact crawling and question generation; run model sampling later after configuring API Keys in Settings.')}
+                    ${t('onboard.skip_sample_desc', {}, 'Run crawl, facts, and question generation only. Configure API keys later, then sample the model matrix.')}
                   </div>
                 </div>
               </label>
@@ -61,17 +63,16 @@ export default {
     const form = document.getElementById('onboard-form');
     if (!form) return;
 
-    // Auto-detect pending domain from scanner parameter
     try {
       const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
       const paramDomain = urlParams.get('domain');
       const pendingDomain = paramDomain || sessionStorage.getItem('citeaura_pending_domain') || localStorage.getItem('citeaura_pending_domain');
-      
+
       if (pendingDomain) {
         const clean = pendingDomain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
         const urlInput = document.getElementById('ob-url');
         const nameInput = document.getElementById('ob-name');
-        
+
         if (urlInput && !urlInput.value) {
           urlInput.value = `https://${clean}`;
         }
@@ -91,22 +92,51 @@ export default {
       e.preventDefault();
       const url = document.getElementById('ob-url').value.trim();
       const name = document.getElementById('ob-name').value.trim();
-      const skip_llm = document.getElementById('ob-nosample').checked;
+      const no_sample = document.getElementById('ob-nosample').checked;
       const submitBtn = document.getElementById('ob-submit');
+      const preflightBox = document.getElementById('ob-preflight');
 
       submitBtn.disabled = true;
-      submitBtn.innerHTML = `<span class="spin"></span> ${t('common.initializing', {}, 'Initializing pipeline...')}`;
+      submitBtn.innerHTML = `<span class="spin"></span> ${t('common.checking_site', {}, 'Checking site...')}`;
 
       try {
-        const res = await projects.create({ url, name: name || undefined, skip_llm });
-        toast.success(t('onboard.created_success', {}, 'Brand pipeline started! Crawling and analyzing...'));
+        const preflight = await projects.preflight({ url });
+        const site = preflight?.site || {};
+        if (preflightBox) {
+          const checks = site.checks || [];
+          preflightBox.style.display = 'flex';
+          preflightBox.innerHTML = checks.map((check) => (
+            `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);font-size:var(--fs-2);">
+              <span>${check.name}</span>
+              <span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : (check.message || 'Failed')}</span>
+            </div>`
+          )).join('');
+        }
+        if (site.ready === false) {
+          const failed = (site.checks || []).find((check) => !check.ok);
+          throw { error: 'site_not_ready', detail: failed?.action || failed?.message || 'Site is not reachable yet' };
+        }
+        if (!no_sample && preflight && preflight.can_sample === false) {
+          throw {
+            error: 'sampling_not_configured',
+            detail: 'Configure an API key or skip initial sampling to create an audit-only project.',
+          };
+        }
+
+        submitBtn.innerHTML = `<span class="spin"></span> ${t('common.initializing', {}, 'Initializing pipeline...')}`;
+        const res = await projects.create({ url, name: name || undefined, no_sample, skip_llm: false });
+        toast.success(
+          no_sample
+            ? t('onboard.created_audit_only', {}, 'Brand pipeline started. Site audit will run without AI sampling.')
+            : t('onboard.created_success', {}, 'Brand pipeline started! Crawling and analyzing...'),
+        );
         await ctx.reloadProjects();
         if (res && res.project_id) {
           ctx.setActiveProject(res.project_id);
         }
         ctx.navigate('#/overview');
         if (res?.project_id && res?.job_id && typeof ctx.openTelemetry === 'function') {
-          ctx.openTelemetry(res.job_id, res.action || (skip_llm ? 'bootstrap' : 'autopilot'), {
+          ctx.openTelemetry(res.job_id, res.action || (no_sample ? 'bootstrap' : 'autopilot'), {
             projectId: res.project_id,
             onComplete: async () => {
               await ctx.reloadProjects();
@@ -115,6 +145,11 @@ export default {
           });
         }
       } catch (err) {
+        if (err.error === 'sampling_not_configured') {
+          toast.error(err.detail);
+          ctx.navigate('#/engine-settings');
+          return;
+        }
         toast.error(t(err.error, {}, err.detail || 'Failed to initialize brand'));
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<span>${t('onboard.start_measurement', {}, 'Initialize Brand Pipeline')}</span>`;

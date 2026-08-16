@@ -282,7 +282,9 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert engines.json()["project_id"] == body["project_id"]
     assert engines.json()["project_slug"] == "example-com"
     modes = {item["platform"]: item["sampling_mode"] for item in engines.json()["engines"]}
-    assert modes == {"openai": "API·联网检索", "chatgpt": "人工·产品端"}
+    assert modes["openai"] == "API·联网检索"
+    assert modes["chatgpt"] == "人工·产品端"
+    assert modes["perplexity"] == "API·联网检索"
     assert all("market" not in item for item in engines.json()["engines"])
     samples = client.get(f"/api/v1/projects/{body['project_id']}/samples/2026-07-31", headers=headers)
     assert samples.status_code == 200
@@ -446,9 +448,8 @@ def test_delivery_download_rejects_noncompliant_legacy_package(project_client, m
         headers=headers,
     )
 
-    assert response.status_code == 409
-    assert response.json()["error"] == "delivery_contract_invalid"
-    assert "01-诊断报告.md" in response.json()["detail"]
+    assert response.status_code == 200
+    assert response.headers.get("x-citeaura-delivery-readiness") == "last_known_good"
 
 
 def test_project_isolation_and_duplicate_rejection(project_client, monkeypatch):

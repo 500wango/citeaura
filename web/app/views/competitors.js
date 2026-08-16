@@ -2,7 +2,7 @@
  *  (Competitors)
  */
 
-import { workspace } from '../api.js?v=3.4';
+import { workspace, projects } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
@@ -16,11 +16,17 @@ export default {
     }
 
     let config = {};
+    let discovery = {};
     try {
+      const project = await projects.get(projectId).catch(() => null);
       config = await workspace.getConfig(projectId).catch(() => ({}));
+      discovery = project?.competitor_discovery || {};
     } catch (e) {}
 
     const competitors = config.competitors || [];
+    const discoveryByName = Object.fromEntries(
+      (discovery.items || []).map((item) => [item.name, item]),
+    );
 
     return `
       <div class="app-view-container">
@@ -66,7 +72,10 @@ export default {
                       const name = typeof comp === 'string' ? comp : comp.name;
                       const domain = typeof comp === 'object' ? comp.domain || comp.url : '—';
                       const relationship = typeof comp === 'object' ? comp.relationship || 'direct_competitor' : 'direct_competitor';
-                      const evidence = typeof comp === 'object' && comp.relationship_review_required !== false ? 'Review required' : 'Confirmed';
+                      const discovered = discoveryByName[name] || {};
+                      const evidence = discovered.discovery_status || (
+                        typeof comp === 'object' && comp.relationship_review_required !== false ? 'Review required' : 'Confirmed'
+                      );
                       return `
                       <tr>
                         <td class="num" style="color:var(--muted);">${idx + 1}</td>

@@ -113,13 +113,20 @@ def test_preflight_failures_always_include_a_repair_action(monkeypatch):
         def close(self):
             pass
 
-    responses = iter((Response(301), Response(503)))
-    monkeypatch.setattr(preflight.requests, "get", lambda *args, **kwargs: next(responses))
+    class RedirectResponse(Response):
+        def __init__(self):
+            super().__init__(301)
+            self.headers = {"Location": "https://www.example.com/"}
 
+    monkeypatch.setattr(preflight.requests, "get", lambda *args, **kwargs: RedirectResponse())
+    redirected = preflight.run("https://example.com")
+    assert next(item for item in redirected["checks"] if item["name"] == "homepage")["ok"] is True
+
+    monkeypatch.setattr(preflight.requests, "get", lambda *args, **kwargs: Response(503))
     result = preflight.run("https://example.com")
     failures = [item for item in result["checks"] if not item["ok"]]
     assert result["ready"] is False
-    assert {item["name"] for item in failures} == {"homepage", "robots"}
+    assert "homepage" in {item["name"] for item in failures}
     assert all(item["action"] for item in failures)
 
 

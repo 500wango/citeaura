@@ -41,6 +41,9 @@ from api.worker.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
+MAX_JOB_ATTEMPTS = 3
+REVIEW_RESERVATION_TTL = timedelta(hours=2)
+
 
 PIPELINE_ACTIONS = {
     "crawl": {"label": "Crawl Website", "args": ["--max-pages"]},
@@ -115,13 +118,29 @@ _FLAG_ARGS = {"--no-recrawl", "--draft", "--no-sample", "--skip-llm", "--no-llm"
 _CSV_ARGS = {"--platforms", "--asset"}
 
 
-def _latest_metrics(project_slug):
+def _latest_metrics_path(project_slug):
     directory = geolib.project_dir(project_slug) / "metrics"
     files = sorted(directory.glob("*.json")) if directory.exists() else []
-    return geolib.read_json(files[-1], {}) if files else {}
+    return files[-1] if files else None
 
 
-def _sampling_succeeded(result, project_slug, job_id=None):
+def _latest_metrics(project_slug):
+    path = _latest_metrics_path(project_slug)
+    return geolib.read_json(path, {}) if path else {}
+
+
+def _metrics_written_since(project_slug, started_at):
+    if started_at is None:
+        return True
+    path = _latest_metrics_path(project_slug)
+    if path is None:
+        return False
+    started = started_at if started_at.tzinfo else started_at.replace(tzinfo=timezone.utc)
+    written = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+    return written >= started - timedelta(seconds=5)
+
+
+def _sampling_succeeded(result, project_slug, job_id=None, started_at=None):
     if isinstance(result, dict):
         sample_count = int(result.get("sample_count") or 0)
         if sample_count > 0:
@@ -130,8 +149,14 @@ def _sampling_succeeded(result, project_slug, job_id=None):
                 isinstance(item, dict) and int(item.get("samples") or 0) > 0
                 for item in platforms.values()
             )
+    if started_at is not None and not _metrics_written_since(project_slug, started_at):
+        return False
     metrics = result if isinstance(result, dict) and result.get("sample_summary") is not None else _latest_metrics(project_slug)
-    if job_id is not None and str(((metrics or {}).get("provenance") or {}).get("job_id")) != str(job_id):
+    if (
+        job_id is not None
+        and started_at is None
+        and str(((metrics or {}).get("provenance") or {}).get("job_id")) != str(job_id)
+    ):
         return False
     sample_summary = (metrics or {}).get("sample_summary") or {}
     successful = int(sample_summary.get("successful") or 0)
@@ -143,10 +168,21 @@ def _sampling_succeeded(result, project_slug, job_id=None):
     )
 
 
-def _require_sampling_output(result, project_slug, job_id=None):
-    if not _sampling_succeeded(result, project_slug, job_id=job_id):
+def _require_sampling_output(result, project_slug, job_id=None, started_at=None):
+    if not _sampling_succeeded(result, project_slug, job_id=job_id, started_at=started_at):
         raise RuntimeError("sampling produced no measurable successful samples")
     return result
+
+
+def _safe_delivery_contract(project_slug):
+    """客户包门禁失败不推翻已完成的审计/工单基线。"""
+    try:
+        ensure_delivery_contract(project_slug)
+        ensure_legacy_deliverables_contract(project_slug)
+        return None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Delivery contract deferred for %s: %s", project_slug, exc)
+        return f"{type(exc).__name__}: {exc}"
 
 
 def _should_require_sampling_result(action, params):
@@ -155,12 +191,9 @@ def _should_require_sampling_result(action, params):
     if action not in ("autopilot", "serve"):
         return False
     params = params or {}
-    if params.get("--no-sample", False):
+    if params.get("--no-sample", False) or params.get("no_sample", False):
         return False
-    requested_platforms = params.get("--platforms")
-    if requested_platforms:
-        return True
-    return False
+    return True
 
 
 def _action_namespace(action, params=None):
@@ -258,13 +291,13 @@ def _redelivered_task_id():
 
 
 def _engine_keys(tenant_id):
-    """读取租户 Key；直接调用任务且没有数据库时降级为空集合。"""
+    """读取租户 Key。数据库不可用时失败，避免把空集合注入成无密钥运行。"""
     db = SessionLocal()
     try:
         return load_tenant_keys(db, tenant_id)
-    except SQLAlchemyError:
+    except SQLAlchemyError as exc:
         db.rollback()
-        return {}
+        raise RuntimeError("engine_keys_unavailable") from exc
     finally:
         db.close()
 
@@ -274,24 +307,21 @@ def _engine_funding(tenant_id, project_slug, allow_pool=True):
     db = SessionLocal()
     try:
         return resolve_funding(db, tenant_id, project_slug, allow_pool=allow_pool)
-    except SQLAlchemyError:
+    except SQLAlchemyError as exc:
         db.rollback()
-        return {
-            "keys": {}, "pool_codes": frozenset(), "rates": {},
-            "tenant_id": None, "project_id": None,
-        }
+        raise RuntimeError("engine_funding_unavailable") from exc
     finally:
         db.close()
 
 
 def _engine_custom_providers(tenant_id):
-    """读取租户自定义供应商；数据库不可用时降级为空。"""
+    """读取租户自定义供应商。数据库不可用时失败，避免静默丢掉供应商。"""
     db = SessionLocal()
     try:
         return load_custom_providers(db, tenant_id)
-    except SQLAlchemyError:
+    except SQLAlchemyError as exc:
         db.rollback()
-        return []
+        raise RuntimeError("engine_providers_unavailable") from exc
     finally:
         db.close()
 
@@ -484,6 +514,22 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
             return job_id is None
         redelivered_task_id = _redelivered_task_id()
         if job.status == "running" and redelivered_task_id and job.celery_task_id == redelivered_task_id:
+            next_attempt = int(job.attempt or 1) + 1
+            if next_attempt > MAX_JOB_ATTEMPTS:
+                db.query(Job).filter(Job.id == job.id, Job.status == "running").update({
+                    Job.status: "failed",
+                    Job.stage: "failed",
+                    Job.finished_at: datetime.now(timezone.utc),
+                    Job.error: "worker_redelivered_attempt_limit",
+                }, synchronize_session=False)
+                project = db.get(Project, job.project_id)
+                if project is not None and project.status not in ("archived",):
+                    project.status = "failed"
+                logger.error(
+                    "Refusing redelivered job %s after %s attempts",
+                    job.id, next_attempt,
+                )
+                return False
             reclaimed = db.query(Job).filter(
                 Job.id == job.id,
                 Job.status == "running",
@@ -491,15 +537,15 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
             ).update({
                 Job.status: "queued",
                 Job.stage: "requeued",
-                Job.started_at: None,
                 Job.finished_at: None,
                 Job.error: "worker_redelivered",
-                Job.attempt: Job.attempt + 1,
+                Job.attempt: next_attempt,
             }, synchronize_session=False)
             if reclaimed != 1:
                 return False
             db.flush()
             job.status = "queued"
+            job.attempt = next_attempt
         if job.status != "queued":
             return False
         project = db.get(Project, job.project_id)
@@ -620,6 +666,7 @@ def task_bootstrap(
     import geo
 
     args = SimpleNamespace(slug=project_slug, skip_llm=skip_llm, no_sample=no_sample, limit=None)
+    started_at = datetime.now(timezone.utc)
     with _job_status(tenant_id, project_slug, job_action, job_id) as update:
         if update is _JOB_NOT_CLAIMED:
             return {"status": "ignored", "reason": "job_not_queued"}
@@ -636,9 +683,10 @@ def task_bootstrap(
                             geo.cmd_autopilot(args)
             baseline.normalize_bootstrap_metadata(project_slug)
             update("finalizing", 90)
-            ensure_delivery_contract(project_slug)
-            ensure_legacy_deliverables_contract(project_slug)
             if not no_sample:
+                _require_sampling_output(
+                    _latest_metrics(project_slug), project_slug, job_id=job_id, started_at=started_at,
+                )
                 funding = _engine_funding(
                     tenant_id, project_slug, allow_pool=job_action in PLATFORM_FUNDED_ACTIONS,
                 )
@@ -652,11 +700,13 @@ def task_bootstrap(
                     byok_codes=funding.get("keys", {}).keys(),
                     pool_codes=funding.get("pool_codes", ()),
                 )
-                if job_id is None:
-                    _require_sampling_output(_latest_metrics(project_slug), project_slug)
-                else:
-                    _require_sampling_output(_latest_metrics(project_slug), project_slug, job_id=job_id)
-            return {"status": "done", "action": job_action, "project_slug": project_slug}
+            delivery_error = _safe_delivery_contract(project_slug)
+            return {
+                "status": "done",
+                "action": job_action,
+                "project_slug": project_slug,
+                "delivery_error": delivery_error,
+            }
 
 
 @celery_app.task(name="citeaura.sample")
@@ -705,6 +755,7 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
     import geo
 
     args = SimpleNamespace(slug=project_slug, max_pages=None, limit=None)
+    started_at = datetime.now(timezone.utc)
     with _job_status(tenant_id, project_slug, "cycle", job_id) as update:
         if update is _JOB_NOT_CLAIMED:
             return {"status": "ignored", "reason": "job_not_queued"}
@@ -715,6 +766,9 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
             with site_signals.semantic_site_signals(project_slug):
                 with global_scope.normalize_generated_outputs(project_slug):
                     geo.cmd_cycle(args)
+            _require_sampling_output(
+                _latest_metrics(project_slug), project_slug, job_id=job_id, started_at=started_at,
+            )
             funding = _engine_funding(tenant_id, project_slug, allow_pool=False)
             measurement.record_sampling(
                 project_slug,
@@ -723,10 +777,6 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
                 byok_codes=funding.get("keys", {}).keys(),
                 pool_codes=funding.get("pool_codes", ()),
             )
-            if job_id is None:
-                _require_sampling_output(_latest_metrics(project_slug), project_slug)
-            else:
-                _require_sampling_output(_latest_metrics(project_slug), project_slug, job_id=job_id)
             update("finalizing", 90)
             return {"status": "done", "project_slug": project_slug}
 
@@ -746,6 +796,7 @@ def task_dispatch_schedules(now_iso=None):
                 db.query(Project.id)
                 .join(Tenant, Tenant.id == Project.tenant_id)
                 .filter(
+                    Tenant.status == "active",
                     Project.schedule_interval_days.in_((7, 14, 30)),
                     Project.schedule_next_run_at.isnot(None),
                     Project.schedule_next_run_at <= now,
@@ -772,6 +823,11 @@ def task_dispatch_schedules(now_iso=None):
                 db.rollback()
                 continue
             tenant = db.get(Tenant, project.tenant_id)
+            if tenant is None or tenant.status != "active":
+                project.schedule_interval_days = None
+                project.schedule_next_run_at = None
+                db.commit()
+                continue
             active = db.query(Job.id).filter(
                 Job.project_id == project.id,
                 Job.status.in_(("queued", "running")),
@@ -786,7 +842,13 @@ def task_dispatch_schedules(now_iso=None):
                     sampling_control.ensure_allowed(db, tenant, project, allow_pool=False)
             except (HTTPException, sampling_control.SamplingBudgetExceeded):
                 result["quota_blocked"] += 1
-                db.rollback()
+                scheduled_for = project.schedule_next_run_at
+                project.schedule_next_run_at = _next_scheduled_run(
+                    scheduled_for,
+                    project.schedule_interval_days,
+                    now,
+                )
+                db.commit()
                 continue
 
             scheduled_for = project.schedule_next_run_at
@@ -868,6 +930,7 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
 @celery_app.task(name="citeaura.pipeline")
 def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, job_id=None):
     """执行经过白名单校验的完整引擎动作。"""
+    started_at = datetime.now(timezone.utc)
     with _job_status(tenant_id, project_slug, action, job_id) as update:
         if update is _JOB_NOT_CLAIMED:
             return {"status": "ignored", "reason": "job_not_queued"}
@@ -905,6 +968,13 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
             if action in ("bootstrap", "autopilot"):
                 baseline.normalize_bootstrap_metadata(project_slug)
             if action in ("sample", "autopilot", "serve") and not (params or {}).get("--no-sample", False):
+                if _should_require_sampling_result(action, params):
+                    _require_sampling_output(
+                        result if action == "sample" else _latest_metrics(project_slug),
+                        project_slug,
+                        job_id=job_id,
+                        started_at=started_at,
+                    )
                 funding = _engine_funding(
                     tenant_id, project_slug, allow_pool=action in PLATFORM_FUNDED_ACTIONS,
                 )
@@ -918,18 +988,24 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                     byok_codes=funding.get("keys", {}).keys(),
                     pool_codes=funding.get("pool_codes", ()),
                 )
-                if _should_require_sampling_result(action, params):
-                    if job_id is None:
-                        _require_sampling_output(_latest_metrics(project_slug), project_slug)
-                    else:
-                        _require_sampling_output(_latest_metrics(project_slug), project_slug, job_id=job_id)
                 if action == "sample":
                     global_scope.normalize_project(project_slug)
             update("finalizing", 90)
-            if action in ("deliver", "autopilot", "serve"):
+            delivery_error = None
+            if action in ("deliver",):
                 ensure_delivery_contract(project_slug)
-            if action in ("deliverables", "autopilot"):
-                ensure_legacy_deliverables_contract(project_slug)
+            elif action in ("autopilot", "serve"):
+                delivery_error = _safe_delivery_contract(project_slug)
+            if action in ("deliverables",) and delivery_error is None:
+                try:
+                    ensure_legacy_deliverables_contract(project_slug)
+                except Exception as exc:  # noqa: BLE001
+                    delivery_error = f"{type(exc).__name__}: {exc}"
+            if delivery_error:
+                if isinstance(result, dict):
+                    result = {**result, "delivery_error": delivery_error}
+                else:
+                    result = {"result": result, "delivery_error": delivery_error}
             return result
 
 

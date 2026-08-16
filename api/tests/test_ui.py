@@ -228,7 +228,9 @@ def test_frontend_contracts_match_backend_request_models():
     assert "ctx.openTelemetry(res.job_id, 'autopilot'" in overview
     assert "Manually maintained action tickets are preserved" in overview
     assert "ctx.openTelemetry(res.job_id" in onboarding
-    assert "res.action || (skip_llm ? 'bootstrap' : 'autopilot')" in onboarding
+    assert "res.action || (no_sample ? 'bootstrap' : 'autopilot')" in onboarding
+    assert "projects.preflight" in onboarding
+    assert "no_sample" in onboarding
     assert "onComplete: async ()" in onboarding
     assert "STAGE_MAP" in telemetry
     assert "Crawl Website" in telemetry

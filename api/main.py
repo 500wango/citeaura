@@ -134,6 +134,8 @@ async def integrity_error_handler(request: Request, exc: IntegrityError):
     detail = str(getattr(exc, "orig", exc))
     if "uq_jobs_project_active" in detail or "UNIQUE constraint failed: jobs.project_id" in detail:
         return JSONResponse(status_code=409, content={"error": "project_job_already_running"})
+    if "uq_projects_tenant_slug" in detail or "UNIQUE constraint failed: projects.tenant_id, projects.slug" in detail:
+        return JSONResponse(status_code=409, content={"error": "project_already_exists"})
     return JSONResponse(status_code=500, content={"error": "database_integrity_error"})
 
 

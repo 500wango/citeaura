@@ -8,6 +8,18 @@ import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
+import { escapeHtml } from '../safe-html.js';
+import { workspace } from '../api.js?v=3.4';
+
+function ticketImpact(ticket) {
+  const priority = String(ticket.priority || 'P1').toUpperCase();
+  return priority === 'P2' ? 'low' : 'high';
+}
+
+function ticketEffortBand(ticket) {
+  const effort = String(ticket.effort || 'M').toUpperCase();
+  return effort === 'S' ? 'low' : 'high';
+}
 
 export default {
   render: async (ctx) => {
@@ -18,7 +30,8 @@ export default {
 
     let tickets = [];
     try {
-      tickets = await projects.getTickets(projectId).catch(() => []);
+      const playbook = await projects.getPlaybook(projectId).catch(() => null);
+      tickets = playbook?.playbook || await projects.getTickets(projectId).catch(() => []);
       if (!Array.isArray(tickets)) tickets = [];
     } catch (err) {
       console.error('Failed to load tickets:', err);
@@ -32,14 +45,14 @@ export default {
     const lowHanging = [];
     const deprioritize = [];
 
-    tickets.forEach((t) => {
-      const imp = String(t.impact || 'high').toLowerCase();
-      const eff = String(t.effort || 'low').toLowerCase();
+    tickets.forEach((item) => {
+      const imp = ticketImpact(item);
+      const eff = ticketEffortBand(item);
 
-      if (imp === 'high' && eff === 'low') quickWins.push(t);
-      else if (imp === 'high' && eff === 'high') strategic.push(t);
-      else if (imp === 'low' && eff === 'low') lowHanging.push(t);
-      else deprioritize.push(t);
+      if (imp === 'high' && eff === 'low') quickWins.push(item);
+      else if (imp === 'high' && eff === 'high') strategic.push(item);
+      else if (imp === 'low' && eff === 'low') lowHanging.push(item);
+      else deprioritize.push(item);
     });
 
     return `
@@ -48,7 +61,7 @@ export default {
           <div class="view-title-group">
             <h1 class="view-title">${t('plan.title', {}, 'Engineering Action Tickets')}</h1>
             <p class="view-desc">
-              ${t('plan.desc', {}, '13 standardized optimization tickets categorized by Impact × Effort to maximize engineering ROI and close recommendation gaps.')}
+              ${t('plan.desc', {}, `${tickets.length} optimization tickets categorized by Priority × Effort.`)}
             </p>
           </div>
           <div class="view-actions">
@@ -155,12 +168,12 @@ export default {
                         <tr>
                           <td class="num" style="color:var(--muted);">${idx + 1}</td>
                           <td>
-                            <strong style="font-size:var(--fs-2);color:var(--ink);">${title}</strong>
-                            ${ticket.target_page ? `<div class="num" style="font-size:11px;color:var(--muted);">${ticket.target_page}</div>` : ''}
+                            <strong style="font-size:var(--fs-2);color:var(--ink);">${escapeHtml(title)}</strong>
+                            ${ticket.target_page ? `<div class="num" style="font-size:11px;color:var(--muted);">${escapeHtml(ticket.target_page)}</div>` : ''}
                           </td>
-                          <td><span class="tag tag-neutral">${role}</span></td>
-                          <td><span class="tag ${ticket.impact === 'High' ? 'pill-good' : 'tag-dim'}">${ticket.impact || 'High'}</span></td>
-                          <td><span class="tag ${ticket.effort === 'Low' ? 'pill-good' : 'tag-dim'}">${ticket.effort || 'Low'}</span></td>
+                          <td><span class="tag tag-neutral">${escapeHtml(role)}</span></td>
+                          <td><span class="tag ${ticketImpact(ticket) === 'high' ? 'pill-good' : 'tag-dim'}">${escapeHtml(ticket.priority || 'P1')}</span></td>
+                          <td><span class="tag ${ticketEffortBand(ticket) === 'low' ? 'pill-good' : 'tag-dim'}">${escapeHtml(ticket.effort || 'M')}</span></td>
                           <td>${statusPill(ticket.status)}</td>
                           <td style="text-align:right;">
                             <button type="button" class="btn btn-secondary btn-sm btn-edit-ticket" data-tid="${ticket.id}">
@@ -206,16 +219,16 @@ export default {
 
 function renderTicketCard(ticket) {
   const isDone = ticket.status === 'done';
-  const title = t(ticket.title, {}, ticket.title_en || ticket.title || ticket.name || ticket.id);
-  const role = t(ticket.owner || ticket.role, {}, ticket.owner_en || ticket.role || 'Engineering');
+  const title = ticket.title_en || ticket.title || ticket.name || ticket.id;
+  const role = ticket.owner_en || ticket.role || ticket.owner || 'Engineering';
   return `
-    <div class="ticket-item ${isDone ? 'is-done' : ''}" data-tid="${ticket.id}">
+    <div class="ticket-item ${isDone ? 'is-done' : ''}" data-tid="${escapeHtml(ticket.id)}">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-2);">
-        <span class="ticket-item-title">${title}</span>
+        <span class="ticket-item-title">${escapeHtml(title)}</span>
         ${statusPill(ticket.status)}
       </div>
       <div class="ticket-item-meta">
-        <span class="tag tag-dim" style="font-size:10px;">${role}</span>
+        <span class="tag tag-dim" style="font-size:10px;">${escapeHtml(role)}</span>
         ${ticket.target_page ? `<span class="num" style="max-width:18ch;overflow:hidden;text-overflow:ellipsis;">${ticket.target_page}</span>` : ''}
       </div>
     </div>
@@ -230,19 +243,22 @@ async function showTicketDetailModal(projectId, tid, ctx) {
 
   const ticket = tickets.find((t) => String(t.id) === String(tid)) || { id: tid };
 
-  const title = ticket.title_en || t(ticket.title, {}, ticket.title || ticket.name || ticket.id);
-  const desc = ticket.desc_en || t(ticket.desc, {}, ticket.desc || ticket.description || 'Actionable engineering implementation item.');
-  const action = ticket.action_en || t(ticket.action, {}, ticket.action || '');
-  const role = ticket.owner_en || ticket.role_en || t(ticket.owner || ticket.role, {}, ticket.role || 'Engineering');
-  const acceptance = ticket.acceptance?.desc_en || t(ticket.acceptance?.desc, {}, ticket.acceptance?.desc || '');
+  const title = ticket.title_en || ticket.title || ticket.name || ticket.id;
+  const why = ticket.why_en || ticket.why || ticket.desc_en || ticket.desc || ticket.description || '';
+  const action = ticket.action_en || ticket.action || '';
+  const role = ticket.owner_en || ticket.role_en || ticket.owner || ticket.role || 'Engineering';
+  const acceptance = ticket.acceptance?.desc_en || ticket.acceptance?.desc || '';
+  const notes = Array.isArray(ticket.notes)
+    ? ticket.notes.map((item) => item?.text || item?.note || '').filter(Boolean).join('\n')
+    : (ticket.note || '');
 
   const content = `
     <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
       <div>
-        <h4 style="font-size:var(--fs-4);font-weight:700;margin:0 0 var(--sp-1) 0;">${title}</h4>
-        <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${desc}</p>
-        ${action ? `<div style="margin-top:var(--sp-2);padding:var(--sp-2) var(--sp-3);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);font-size:var(--fs-1);color:var(--ink);"><strong style="color:var(--accent);">Recommendation:</strong> ${action}</div>` : ''}
-        ${acceptance ? `<div style="margin-top:var(--sp-1);font-size:11px;color:var(--faint);"><strong>Acceptance:</strong> ${acceptance}</div>` : ''}
+        <h4 style="font-size:var(--fs-4);font-weight:700;margin:0 0 var(--sp-1) 0;">${escapeHtml(title)}</h4>
+        <p style="color:var(--muted);font-size:var(--fs-2);margin:0;"><strong>Why:</strong> ${escapeHtml(why || 'No rationale recorded.')}</p>
+        ${action ? `<div style="margin-top:var(--sp-2);padding:var(--sp-2) var(--sp-3);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);font-size:var(--fs-1);color:var(--ink);"><strong style="color:var(--accent);">Action:</strong> ${escapeHtml(action)}</div>` : ''}
+        ${acceptance ? `<div style="margin-top:var(--sp-1);font-size:var(--fs-2);"><strong>Acceptance:</strong> ${escapeHtml(acceptance)} ${ticket.acceptance?.type ? `(${escapeHtml(ticket.acceptance.type)})` : ''}</div>` : ''}
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);">
@@ -252,6 +268,8 @@ async function showTicketDetailModal(projectId, tid, ctx) {
             <option value="todo" ${ticket.status === 'todo' ? 'selected' : ''}>To Do</option>
             <option value="doing" ${ticket.status === 'doing' ? 'selected' : ''}>In Progress</option>
             <option value="done" ${ticket.status === 'done' ? 'selected' : ''}>Done / Completed</option>
+            <option value="blocked" ${ticket.status === 'blocked' ? 'selected' : ''}>Blocked</option>
+            <option value="wontfix" ${ticket.status === 'wontfix' ? 'selected' : ''}>Won't fix</option>
           </select>
         </div>
         <div class="field" style="margin:0;">
@@ -262,7 +280,7 @@ async function showTicketDetailModal(projectId, tid, ctx) {
 
       <div class="field" style="margin:0;">
         <label>${t('plan.notes_label', {}, 'Implementation Notes')}</label>
-        <textarea id="edit-ticket-notes" class="input" rows="3" placeholder="Deployment details, PR links, or verification observations...">${ticket.note || ticket.notes || ''}</textarea>
+        <textarea id="edit-ticket-notes" class="input" rows="3" placeholder="Add a new implementation note...">${escapeHtml(notes)}</textarea>
       </div>
     </div>
   `;
@@ -278,7 +296,7 @@ async function showTicketDetailModal(projectId, tid, ctx) {
       try {
         await projects.patchTicket(projectId, tid, { status, note });
         toast.success(t('plan.ticket_saved', {}, 'Ticket updated'));
-        ctx.navigate('#/plan');
+        await ctx.reloadCurrentView();
         return true;
       } catch (err) {
         toast.error(t(err.error, {}, err.detail || 'Failed to update ticket'));
@@ -288,7 +306,16 @@ async function showTicketDetailModal(projectId, tid, ctx) {
   });
 }
 
-function showCreateTicketModal(projectId, ctx) {
+async function showCreateTicketModal(projectId, ctx) {
+  const questions = await workspace.getQuestions(projectId).catch(() => []);
+  const questionOptions = (Array.isArray(questions) ? questions : []).map((question) => {
+    const id = question.id || '';
+    const text = question.text || question.question || question.query || id;
+    return `<label style="display:flex;gap:var(--sp-2);align-items:flex-start;font-size:var(--fs-2);">
+      <input type="checkbox" name="influenced-question" value="${escapeHtml(id)}">
+      <span><span class="num">${escapeHtml(id)}</span> ${escapeHtml(text)}</span>
+    </label>`;
+  }).join('');
   const content = `
     <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
       <div class="field" style="margin:0;">
@@ -300,8 +327,8 @@ function showCreateTicketModal(projectId, ctx) {
         <textarea id="new-t-ask" class="input" rows="3" placeholder="Describe the factual change requested from the page owner" required></textarea>
       </div>
       <div class="field" style="margin:0;">
-        <label>${t('plan.influenced_questions_label', {}, 'Influenced Question IDs')} *</label>
-        <input type="text" id="new-t-questions" class="input" placeholder="q001, q014" required>
+        <label>${t('plan.influenced_questions_label', {}, 'Influenced questions')} *</label>
+        <div id="new-t-questions" style="max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:var(--sp-2);">${questionOptions || '<span style="color:var(--muted);">Add questions first.</span>'}</div>
       </div>
     </div>
   `;
@@ -313,9 +340,8 @@ function showCreateTicketModal(projectId, ctx) {
     onConfirm: async () => {
       const url = document.getElementById('new-t-url')?.value.trim();
       const ask_text = document.getElementById('new-t-ask')?.value.trim();
-      const influenced_questions = (document.getElementById('new-t-questions')?.value || '')
-        .split(/[\s,]+/)
-        .map((value) => value.trim())
+      const influenced_questions = Array.from(document.querySelectorAll('input[name="influenced-question"]:checked'))
+        .map((input) => input.value)
         .filter(Boolean);
 
       if (!url || !ask_text || !influenced_questions.length) return false;
@@ -323,7 +349,7 @@ function showCreateTicketModal(projectId, ctx) {
       try {
         await projects.createTicket(projectId, { url, ask_text, influenced_questions });
         toast.success(t('plan.ticket_created_success', {}, 'Ticket created successfully'));
-        ctx.navigate('#/plan');
+        await ctx.reloadCurrentView();
         return true;
       } catch (err) {
         toast.error(t(err.error, {}, err.detail || 'Failed to create ticket'));

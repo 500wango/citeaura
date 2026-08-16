@@ -67,7 +67,12 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
 
     result = tasks.task_bootstrap.run("tenant-a", "example", skip_llm=True, no_sample=True)
 
-    assert result == {"status": "done", "action": "bootstrap", "project_slug": "example"}
+    assert result == {
+        "status": "done",
+        "action": "bootstrap",
+        "project_slug": "example",
+        "delivery_error": None,
+    }
     assert calls == [
         ("tenant-a", "example"),
         ("preserve", "example"),
@@ -135,6 +140,10 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
     monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
     monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
+    monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: None)
+    monkeypatch.setattr(tasks, "_require_sampling_output", lambda *args, **kwargs: None)
+    monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {"keys": {}, "pool_codes": ()})
+    monkeypatch.setattr(tasks.measurement, "record_sampling", lambda *args, **kwargs: None)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
     result = tasks.task_pipeline.run(
@@ -144,7 +153,8 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
         params={"--max-pages": 8, "limit": 3, "--draft": True, "ignored": "value"},
     )
 
-    assert result == {"status": "done", "action": "serve", "project_slug": "example"}
+    assert result["status"] == "done"
+    assert result["action"] == "serve"
     assert calls == [
         ("context", "tenant-a", "example", "serve", False),
         ("preserve", "example"),
@@ -212,7 +222,7 @@ def test_pipeline_autopilot_uses_resilient_crawl_evidence(monkeypatch):
     monkeypatch.setattr(tasks, "resilient_crawl_evidence", fake_crawl_evidence)
     monkeypatch.setattr(tasks.baseline, "normalize_bootstrap_metadata", lambda slug: calls.append(("normalize", slug)))
     monkeypatch.setattr(tasks, "_run_pipeline_action", lambda action, slug, params: calls.append((action, slug)))
-    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: None)
+    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
     monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: calls.append(("legacy-delivery", slug)))
     monkeypatch.setattr(tasks.measurement, "record_sampling", lambda *args, **kwargs: None)
 
@@ -223,6 +233,7 @@ def test_pipeline_autopilot_uses_resilient_crawl_evidence(monkeypatch):
         ("crawl-evidence", "example"),
         ("autopilot", "example"),
         ("normalize", "example"),
+        ("delivery", "example"),
         ("legacy-delivery", "example"),
     ]
 
@@ -248,6 +259,7 @@ def test_funded_context_unifies_historical_project_scope(monkeypatch):
         yield {}
 
     monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: funding)
+    monkeypatch.setattr(tasks, "_engine_custom_providers", lambda *args, **kwargs: [])
     monkeypatch.setattr(tasks, "with_tenant_context", fake_tenant_context)
     monkeypatch.setattr(tasks, "ensure_global_engine_scope", lambda slug: calls.append(("scope", slug)))
     monkeypatch.setattr(tasks, "meter_platform_calls", fake_meter)
@@ -676,7 +688,9 @@ def test_schedule_dispatcher_enqueues_due_projects_and_respects_guards(tmp_path,
         assert due.schedule_next_run_at > now.replace(tzinfo=None)
         assert db.query(Job).filter(Job.project_id == due_id, Job.action == "cycle").one().status == "queued"
         assert db.query(Project).filter(Project.slug == "busy").one().schedule_next_run_at == busy_next
-        assert db.query(Project).filter(Project.slug == "limited").one().schedule_next_run_at == limited_next
+        limited = db.query(Project).filter(Project.slug == "limited").one()
+        assert limited.schedule_next_run_at != limited_next
+        assert limited.schedule_next_run_at > now.replace(tzinfo=None)
 
 
 def test_schedule_dispatcher_honors_project_sampling_budget(tmp_path, monkeypatch):

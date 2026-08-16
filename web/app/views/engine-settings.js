@@ -158,7 +158,7 @@ export default {
           <div class="view-title-group">
             <h1 class="view-title">${t('engine_settings.title', {}, 'BYOK Model API Keys & Measurement Settings')}</h1>
             <p class="view-desc">
-              ${t('engine_settings.desc', {}, 'Bring Your Own Key (BYOK) for direct provider billing with zero middleman markup. Keys are stored via hardware-grade AES-256-GCM encryption and injected only during runtime.')}
+              ${t('engine_settings.desc', {}, 'Configure OpenAI, Claude, Gemini, Grok, or Perplexity keys. Other models use a custom OpenAI-compatible endpoint. Sampling modes: model knowledge except Perplexity (web-grounded).')}
             </p>
           </div>
         </div>

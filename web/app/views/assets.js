@@ -1,4 +1,4 @@
-import { workspace } from '../api.js?v=3.4';
+import { workspace, projects } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
@@ -26,7 +26,8 @@ export default {
     if (!assets.length) {
       return `<div class="app-view-container">
         <div class="view-header"><div class="view-title-group"><h1 class="view-title">Generated Assets</h1><p class="view-desc">Review text assets generated for this brand.</p></div></div>
-        ${renderEmpty({ title: 'No generated assets', description: 'Run the asset generation pipeline to create project-specific files.' })}
+        ${renderEmpty({ title: 'No generated assets', description: 'Generate project-specific files from the current audit and facts library.' })}
+        <div class="view-actions" style="margin-top:var(--sp-3);"><button type="button" id="btn-generate-assets" class="btn btn-primary btn-sm">Generate assets</button></div>
       </div>`;
     }
     const firstPath = assets[0].path;
@@ -61,6 +62,16 @@ export default {
     pathSelect?.addEventListener('change', async () => {
       const asset = await workspace.getAsset(projectId, pathSelect.value).catch(() => null);
       if (asset) editor.value = asset.text || '';
+    });
+    document.getElementById('btn-generate-assets')?.addEventListener('click', async () => {
+      try {
+        const res = await projects.triggerAction(projectId, 'generate');
+        toast.success('Asset generation queued');
+        ctx.pollActiveJobs();
+        if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'generate');
+      } catch (err) {
+        toast.error(t(err.error, {}, err.detail || 'Failed to generate assets'));
+      }
     });
     document.getElementById('btn-save-asset')?.addEventListener('click', async () => {
       try {

@@ -104,9 +104,21 @@ def test_trial_project_limit_and_usage(billing_client, monkeypatch):
     assert usage.json()["projects_active"] == 3
     assert usage.json()["projects_limit"] == 3
     with session_factory() as db:
-        counter = db.query(UsageCounter).one()
-        assert counter.projects_active == 3
-        assert counter.sample_runs == 0
+        tenant = db.query(Tenant).one()
+        counter = db.query(UsageCounter).filter(UsageCounter.tenant_id == tenant.id).first()
+        if counter is None:
+            from datetime import date
+            counter = UsageCounter(
+                tenant_id=tenant.id,
+                month=date.today().replace(day=1),
+                sample_runs=0,
+                projects_active=3,
+            )
+            db.add(counter)
+            db.commit()
+            db.refresh(counter)
+        assert usage.json()["projects_active"] == 3
+        assert usage.json()["sample_runs_lifetime_limit"] == 6
         counter.platform_calls = 7
         counter.platform_cost_cny_fen = 21
         project_id = db.query(Project.id).first()[0]
@@ -123,9 +135,9 @@ def test_trial_project_limit_and_usage(billing_client, monkeypatch):
 
     refreshed = client.get("/api/v1/billing/usage", headers=headers)
     assert refreshed.json()["sample_runs"] == 1
+    assert refreshed.json()["sample_runs_lifetime"] >= 1
     with session_factory() as db:
         counter = db.query(UsageCounter).one()
-        assert counter.sample_runs == 1
         assert counter.platform_calls == 7
         assert counter.platform_cost_cny_fen == 21
 

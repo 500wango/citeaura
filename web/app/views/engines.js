@@ -2,12 +2,13 @@
  * AI  (Engines & Sample Replay)
  */
 
-import { projects } from '../api.js?v=3.4';
+import { projects, workspace } from '../api.js?v=3.4';
+import { openModal } from '../components/modal.js';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { samplingModeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
-import { renderSkeleton } from '../components/skeleton.js';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -42,6 +43,10 @@ export default {
     }
 
     const engines = (enginesData && enginesData.engines) || [];
+    const trend = (enginesData && enginesData.measurement_quality && enginesData.measurement_quality.trend) || {};
+    const trendNote = trend.status === 'noteworthy'
+      ? `${trend.label || 'Trend'} ${trend.delta_pp != null ? `(${trend.delta_pp} pp)` : ''}`
+      : (trend.label || 'Single-round observation. Two comparable periods are required before calling a trend.');
 
     return `
       <div class="app-view-container">
@@ -50,6 +55,7 @@ export default {
             <h1 class="view-title">${t('engines.title', {}, 'AI Engine Visibility Matrix')}</h1>
             <p class="view-desc">
               ${t('engines.desc', {}, 'Unified visibility measurement across parametric knowledge, search-grounded models, and manual interface sampling.')}
+              <span style="display:block;margin-top:4px;">${trendNote}</span>
             </p>
           </div>
           <div class="view-actions">
@@ -57,6 +63,9 @@ export default {
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
               <span>${t('engines.configure_keys', {}, 'Configure API Keys')}</span>
             </a>
+            <button type="button" id="btn-import-sheet" class="btn btn-secondary btn-sm">
+              <span>Import product-surface sheet</span>
+            </button>
             <button type="button" id="btn-trigger-sample" class="btn btn-primary btn-sm">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               <span>${t('engines.sample_now', {}, 'Sample Matrix Now')}</span>
@@ -82,6 +91,7 @@ export default {
                     <th>${t('engines.col_mode', {}, 'Sampling Mode')}</th>
                     <th style="text-align:right;">${t('engines.col_mention_rate', {}, 'Mention Rate')}</th>
                     <th style="text-align:right;">${t('engines.col_avg_rank', {}, 'Avg Rank')}</th>
+                    <th style="text-align:right;">${t('engines.col_citation_share', {}, 'Citation Share')}</th>
                     <th style="text-align:right;">${t('engines.col_samples', {}, 'Samples')}</th>
                     <th>${t('common.status', {}, 'Status')}</th>
                   </tr>
@@ -93,7 +103,7 @@ export default {
                     <tr>
                       <td>
                         <div style="display:flex;align-items:center;gap:var(--sp-2);">
-                          <strong style="font-size:var(--fs-3);">${eng.engine_name || eng.engine_code}</strong>
+                          <strong style="font-size:var(--fs-3);">${escapeHtml(eng.engine_name || eng.engine_code)}</strong>
                           <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${eng.engine_code}</span>
                         </div>
                       </td>
@@ -102,7 +112,10 @@ export default {
                         ${eng.mention_rate !== null && eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : 'Unmeasured'}
                       </td>
                       <td data-num style="font-weight:600;">
-                        ${eng.median_rank ? `#${Number(eng.median_rank).toFixed(1)}` : 'Unmeasured'}
+                        ${eng.median_rank !== null && eng.median_rank !== undefined ? `#${Number(eng.median_rank).toFixed(1)}` : 'Unmeasured'}
+                      </td>
+                      <td data-num>
+                        ${eng.citation_share !== null && eng.citation_share !== undefined ? `${Math.round(eng.citation_share * 100)}%` : 'Unmeasured'}
                       </td>
                       <td data-num>
                         ${eng.sample_count || 0}
@@ -159,8 +172,8 @@ export default {
                     <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${s.date || ''}</span>
                   </div>
 
-                  <div class="sample-query">${s.question || 'Question unavailable'}</div>
-                  <div class="sample-answer">${s.ok ? (s.answer || 'Empty model response') : `Sampling failed: ${s.error || 'Unknown provider error'}`}</div>
+                  <div class="sample-query">${escapeHtml(s.question || 'Question unavailable')}</div>
+                  <div class="sample-answer">${escapeHtml(s.ok ? (s.answer || 'Empty model response') : `Sampling failed: ${s.error || 'Unknown provider error'}`)}</div>
 
                   ${
                     s.citations && s.citations.length
@@ -201,6 +214,28 @@ export default {
     const projectId = ctx.activeProjectId;
     if (!projectId) return;
 
+    document.getElementById('btn-import-sheet')?.addEventListener('click', () => {
+      openModal({
+        title: 'Import product-surface sample sheet',
+        content: `<div class="field"><label>Filename</label><input id="import-sheet-name" class="input" value="manual.md"></div>
+          <div class="field"><label>Sheet text</label><textarea id="import-sheet-text" class="input" rows="10" placeholder="### q001 · Question"></textarea></div>`,
+        confirmText: 'Import',
+        onConfirm: async () => {
+          try {
+            await workspace.importSamples(projectId, {
+              file: document.getElementById('import-sheet-name')?.value || 'manual.md',
+              text: document.getElementById('import-sheet-text')?.value || '',
+            });
+            toast.success('Sample sheet imported');
+            await ctx.reloadCurrentView();
+            return true;
+          } catch (err) {
+            toast.error(err.detail || 'Import failed');
+            return false;
+          }
+        },
+      });
+    });
     const sampleBtn = document.getElementById('btn-trigger-sample');
     if (sampleBtn) {
       sampleBtn.addEventListener('click', async () => {
@@ -213,6 +248,10 @@ export default {
             ctx.openTelemetry(res.job_id, 'sample');
           }
         } catch (err) {
+          if (err.error === 'project_questions_required') {
+            ctx.navigate('#/questions');
+            return;
+          }
           toast.error(t(err.error, {}, err.detail || 'Sampling task failed to start'));
         } finally {
           sampleBtn.disabled = false;

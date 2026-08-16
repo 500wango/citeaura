@@ -31,7 +31,7 @@ def assess(project_slug, has_sampling_access=False):
     audit_ratio = 0 if not page_count else max(0.2, min(1.0, crawl_ratio or 1.0))
     audit_score = round(35 * audit_ratio)
     if not page_count:
-        issues.append(_issue("audit_missing", "critical", "Site-wide GEO audit pending", "Re-run site crawl and page audit", "automation"))
+        issues.append(_issue("audit_missing", "critical", "Site-wide GEO audit pending", "Re-run site crawl and page audit", "siteaudit"))
     elif crawl_ratio < 0.8:
         issues.append(_issue(
             "crawl_limited", "warning", f"Only {pages_ok}/{pages_crawled} pages accessible",
@@ -57,7 +57,7 @@ def assess(project_slug, has_sampling_access=False):
             "Configure at least one API key or import manual sampling sheet", "engine-settings",
         ))
     if not metrics:
-        issues.append(_issue("sampling_missing", "critical", "AI visibility metrics pending", "Run AI answer sampling", "automation"))
+        issues.append(_issue("sampling_missing", "critical", "AI visibility metrics pending", "Run AI answer sampling", "engines"))
     elif successful < MIN_COMPARABLE_SAMPLES:
         issues.append(_issue(
             "sampling_insufficient", "warning", f"Currently only {successful} valid samples",
@@ -78,7 +78,7 @@ def assess(project_slug, has_sampling_access=False):
     ticket_count = len(tasks.get("tasks", [])) if isinstance(tasks.get("tasks"), list) else 0
     playbook_score = 20 if ticket_count else 0
     if not ticket_count:
-        issues.append(_issue("playbook_missing", "warning", "Action tickets pending", "Generate action plan", "automation"))
+        issues.append(_issue("playbook_missing", "warning", "Action tickets pending", "Generate action plan", "plan"))
 
     delivery_directory = directory / "delivery"
     has_delivery = delivery_directory.exists() and any(delivery_directory.iterdir())

@@ -146,16 +146,37 @@ def check_sample_run(db: Session, tenant: Tenant, project: Project):
 
 
 def usage(db: Session, tenant: Tenant) -> dict:
-    """返回当前租户用量和额度。"""
-    reconciled = reconcile_usage_counter(db, tenant)
-    project_count = reconciled["projects_active"]
+    """返回当前租户用量和额度。读取路径不写 usage_counters。"""
+    now = datetime.now(timezone.utc)
+    month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    if now.month == 12:
+        next_month = datetime(now.year + 1, 1, 1, tzinfo=timezone.utc)
+    else:
+        next_month = datetime(now.year, now.month + 1, 1, tzinfo=timezone.utc)
+    project_count = db.query(func.count(Project.id)).filter(
+        Project.tenant_id == tenant.id,
+        Project.archived_at.is_(None),
+        Project.status != "archived",
+    ).scalar() or 0
     projects = db.query(Project.id).filter(
         Project.tenant_id == tenant.id,
         Project.archived_at.is_(None),
         Project.status != "archived",
     ).all()
     project_ids = [row[0] for row in projects]
-    sample_count = reconciled["sample_runs"]
+    sample_count = (
+        db.query(func.count(Job.id))
+        .join(Project, Project.id == Job.project_id)
+        .filter(
+            Project.tenant_id == tenant.id,
+            Job.action.in_(SAMPLE_JOB_ACTIONS),
+            Job.status != "failed",
+            Job.created_at >= month_start,
+            Job.created_at < next_month,
+        )
+        .scalar()
+        or 0
+    )
     per_project = {}
     for project_id in project_ids:
         per_project[str(project_id)] = (
@@ -175,6 +196,18 @@ def usage(db: Session, tenant: Tenant) -> dict:
         if ends_at.tzinfo is None:
             ends_at = ends_at.replace(tzinfo=timezone.utc)
         trial_expired = datetime.now(timezone.utc) > ends_at
+    lifetime_sample_runs = (
+        db.query(func.count(Job.id))
+        .join(Project, Project.id == Job.project_id)
+        .filter(
+            Project.tenant_id == tenant.id,
+            Job.action.in_(SAMPLE_JOB_ACTIONS),
+            Job.status != "failed",
+        )
+        .scalar()
+        or 0
+    )
+    lifetime_limit = TRIAL_PROJECT_LIMIT * TRIAL_SAMPLE_LIMIT_PER_PROJECT if trial else None
     return {
         "plan": tenant.plan,
         "trial_ends_at": tenant.trial_ends_at,
@@ -186,4 +219,10 @@ def usage(db: Session, tenant: Tenant) -> dict:
         "sample_runs": sample_count,
         "sample_runs_limit_per_project": TRIAL_SAMPLE_LIMIT_PER_PROJECT if trial else None,
         "sample_runs_by_project": per_project,
+        "sample_runs_lifetime": lifetime_sample_runs,
+        "sample_runs_lifetime_limit": lifetime_limit,
+        "sample_runs_remaining_by_project": {
+            project_id: max(0, TRIAL_SAMPLE_LIMIT_PER_PROJECT - count)
+            for project_id, count in per_project.items()
+        } if trial else {},
     }

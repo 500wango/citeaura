@@ -793,6 +793,15 @@ def _tickets_markdown(name, tickets):
     return "\n".join(lines)
 
 
+def _affected_pages_cell(affected, limit=8):
+    pages = [str(item) for item in (affected or []) if item]
+    if not pages:
+        return ""
+    if len(pages) <= limit:
+        return ", ".join(pages)
+    return ", ".join(pages[:limit]) + f" (+{len(pages) - limit} more)"
+
+
 def _tickets_csv(tickets):
     output = io.StringIO(newline="")
     writer = csv.writer(output)
@@ -805,7 +814,8 @@ def _tickets_csv(tickets):
             ticket["id"], ticket["priority"], ticket["package"], ticket["market"], ticket["title"],
             ticket["rationale"], ticket["action"], ticket["owner"], ticket["effort"], ticket["window"],
             "; ".join(f"{item['label']} ({item['status']})" for item in ticket["prerequisites"]),
-            ticket["acceptance"], ticket["verification_mode"], ticket["status"], len(ticket["affected"]),
+            ticket["acceptance"], ticket["verification_mode"], ticket["status"],
+            _affected_pages_cell(ticket["affected"]),
         ])
     return output.getvalue()
 

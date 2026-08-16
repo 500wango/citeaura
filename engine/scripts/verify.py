@@ -144,6 +144,42 @@ def check(task: dict, audit: dict, metrics: dict) -> tuple[bool | None, str, dic
             return cur <= base * 0.5, f"Pages missing {blk}: {cur} (baseline {base}, target <={int(base*0.5)})", \
                 {"label": f"Pages missing {blk} blocks", "cur": cur, "target": int(base * 0.5),
                  "op": "lte", "base": base}
+        if expr.startswith("pages.applicable:"):
+            check_id = expr.split(":", 1)[1].strip()
+            missing = []
+            failed = []
+            for url in cohort:
+                page = pages.get(url)
+                if not page or page.get("evaluation_status") != "evaluated":
+                    missing.append(url)
+                    continue
+                check_row = next(
+                    (item for item in page.get("checks") or [] if isinstance(item, dict) and item.get("id") == check_id),
+                    None,
+                )
+                if not check_row or check_row.get("status") == "not_evaluated":
+                    missing.append(url)
+                elif check_row.get("status") == "failed":
+                    failed.append(url)
+            base = len(cohort)
+            progress = {
+                "label": "Applicable pages still failing",
+                "cur": len(failed),
+                "target": 0,
+                "op": "lte",
+                "missing": len(missing),
+                "base": base,
+            }
+            if missing:
+                return None, (
+                    f"{len(missing)} baseline URL(s) were not evaluated in the current crawl; pass is withheld"
+                ), progress
+            ok = not failed
+            return ok, (
+                f"{base - len(failed)}/{base} applicable pages pass {check_id}"
+                if ok else
+                f"{len(failed)} baseline page(s) still fail the role-aware {check_id} check"
+            ), progress
         if expr.startswith("pages.wordcount_gte:"):
             n = int(expr.split(":")[1])
             missing = [u for u in cohort if u not in pages]

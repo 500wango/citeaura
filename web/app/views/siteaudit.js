@@ -4,6 +4,7 @@
 
 import { projects } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
+import { toast } from '../components/toast.js';
 import { gradeBadge } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
 
@@ -177,10 +178,18 @@ export default {
     if (!projectId) return;
 
     document.getElementById('btn-re-audit')?.addEventListener('click', async () => {
+      const button = document.getElementById('btn-re-audit');
+      if (button) button.disabled = true;
       try {
-        await projects.triggerAction(projectId, 'audit');
+        const res = await projects.triggerAction(projectId, 'audit');
+        toast.success(t('siteaudit.queued', {}, 'Site audit queued'));
         ctx.pollActiveJobs();
-      } catch (e) {}
+        if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'audit');
+      } catch (err) {
+        toast.error(t(err.error, {}, err.detail || 'Failed to start site audit'));
+      } finally {
+        if (button) button.disabled = false;
+      }
     });
   },
 };

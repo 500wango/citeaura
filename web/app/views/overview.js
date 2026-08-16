@@ -9,7 +9,7 @@ import { toast } from '../components/toast.js';
 import { renderKpis } from '../components/kpi.js';
 import { gradeBadge, samplingModeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
-import { renderSkeleton } from '../components/skeleton.js';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -44,14 +44,27 @@ export default {
     }
 
     if (!project) {
-      return `<div class="app-view-container">${renderSkeleton({ rows: 6 })}</div>`;
+      return `<div class="app-view-container">${renderEmpty({
+        title: t('overview.load_failed_title', {}, 'Could not load this brand'),
+        description: t('overview.load_failed_desc', {}, 'The project record is unavailable. Retry or add a brand.'),
+        actionText: t('overview.add_brand_btn', {}, 'Add Brand'),
+        actionRoute: 'onboarding',
+      })}</div>`;
     }
 
     const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : 'Unmeasured';
     const overallGrade = report && report.grade;
     const totalTickets = Array.isArray(tickets) ? tickets.length : 0;
-    const doneTickets = Array.isArray(tickets) ? tickets.filter((t) => t.status === 'done').length : 0;
+    const doneTickets = Array.isArray(tickets) ? tickets.filter((item) => item.status === 'done').length : 0;
     const engines = (report && report.engines) || [];
+    const quality = (report && report.report_quality) || project.report_quality || {};
+    const qualityIssues = Array.isArray(quality.issues) ? quality.issues : [];
+    const trend = (quality.measurement_quality && quality.measurement_quality.trend) || {};
+    const trendNote = trend.status === 'noteworthy'
+      ? `${trend.label || 'Trend'} ${trend.direction || ''} ${trend.delta_pp != null ? `${trend.delta_pp} pp` : ''}`.trim()
+      : (trend.label || 'Single-round observation; two comparable periods are required before calling a trend');
+    const measuredEngines = engines.filter((item) => item.sample_count);
+    const priorityRank = { P0: 0, P1: 1, P2: 2 };
     const hasQuestions = Array.isArray(project.questions) && project.questions.length > 0;
     const projectStatus = project.project?.status || project.status;
     const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
@@ -63,10 +76,10 @@ export default {
     );
 
     const kpiData = [
-      { label: t('overview.kpi_mention_rate', {}, 'AI Mention Rate'), value: mentionRate, className: 'num' },
+      { label: t('overview.kpi_mention_rate', {}, 'AI Mention Rate'), value: mentionRate, className: 'num', sub: trendNote },
       { label: t('overview.kpi_grade', {}, 'Technical Audit Grade'), value: overallGrade ? gradeBadge(overallGrade) : 'Unmeasured' },
       { label: t('overview.kpi_tickets', {}, 'Action Tickets'), value: `${doneTickets} / ${totalTickets}`, sub: `${totalTickets - doneTickets} pending` },
-      { label: t('overview.kpi_engines', {}, 'Active Engines'), value: engines.length || '0', sub: 'Multi-model matrix' },
+      { label: t('overview.kpi_engines', {}, 'Measured Engines'), value: String(measuredEngines.length), sub: `${engines.length} in matrix` },
     ];
 
     return `
@@ -111,14 +124,26 @@ export default {
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
               <span>${t('overview.action_verify', {}, 'Verify Changes')}</span>
             </button>
-            <a href="#/report" class="btn btn-primary btn-sm">
-              <span>${t('overview.action_deliver', {}, 'View Delivery Pack')}</span>
+            <a href="#/${quality.effective_report ? 'report' : (qualityIssues[0]?.route || 'engines')}" class="btn btn-primary btn-sm">
+              <span>${quality.effective_report
+                ? t('overview.action_deliver', {}, 'View Delivery Pack')
+                : t('overview.action_next', {}, qualityIssues[0]?.action || 'Continue setup')}</span>
             </a>
           </div>
         </div>
 
         <!-- Key Metrics Bar -->
         ${renderKpis(kpiData)}
+        ${qualityIssues.length ? `
+          <div class="card" style="gap:var(--sp-3);">
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('overview.next_steps', {}, 'Setup checklist')}</h3>
+            ${qualityIssues.map((issue) => `
+              <a href="#/${issue.route || 'overview'}" style="display:flex;justify-content:space-between;gap:var(--sp-3);text-decoration:none;">
+                <span>${escapeHtml(issue.message)}</span>
+                <span style="font-size:var(--fs-2);">${escapeHtml(issue.action || 'Open')} →</span>
+              </a>
+            `).join('')}
+          </div>` : ''}
 
         <!-- Core Modules Column -->
         <div style="display:grid;grid-template-columns:minmax(0, 7fr) minmax(0, 5fr);gap:var(--sp-6);">
@@ -139,7 +164,7 @@ export default {
                     (eng) => `
                   <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--sp-2) var(--sp-3);background:var(--page);border:1px solid var(--line);border-radius:var(--r-md);">
                     <div style="display:flex;flex-direction:column;gap:2px;">
-                      <span style="font-weight:600;font-size:var(--fs-2);">${eng.engine_name || eng.engine_code}</span>
+                      <span style="font-weight:600;font-size:var(--fs-2);">${escapeHtml(eng.engine_name || eng.engine_code)}</span>
                       <div>${samplingModeBadge(eng.sampling_mode)}</div>
                     </div>
                     <div style="display:flex;align-items:center;gap:var(--sp-4);">
@@ -169,19 +194,21 @@ export default {
                 ? `
               <div style="display:flex;flex-direction:column;gap:var(--sp-2);">
                 ${tickets
+                  .slice()
+                  .sort((left, right) => (priorityRank[left.priority] ?? 99) - (priorityRank[right.priority] ?? 99))
                   .slice(0, 5)
                   .map((ticket) => {
-                    const title = t(ticket.title, {}, ticket.title_en || ticket.title || ticket.name || ticket.id);
+                    const title = ticket.title_en || ticket.title || ticket.name || ticket.id;
                     return `
                   <a class="ticket-item" href="#/plan" style="text-decoration:none;">
                     <div style="display:flex;align-items:center;justify-content:space-between;">
-                      <span class="ticket-item-title">${title}</span>
+                      <span class="ticket-item-title">${escapeHtml(title)}</span>
                       ${statusPill(ticket.status)}
                     </div>
                     <div class="ticket-item-meta">
-                      <span>Impact: <strong>${ticket.impact || 'High'}</strong></span>
+                      <span>Priority: <strong>${escapeHtml(ticket.priority || 'P1')}</strong></span>
                       <span>·</span>
-                      <span>Effort: <strong>${ticket.effort || 'Low'}</strong></span>
+                      <span>Effort: <strong>${escapeHtml(ticket.effort || 'M')}</strong></span>
                     </div>
                   </a>
                 `;

@@ -58,3 +58,12 @@ export function setSafeHtml(target, value) {
   if (!target) return;
   target.replaceChildren(sanitizeHtml(value));
 }
+
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
