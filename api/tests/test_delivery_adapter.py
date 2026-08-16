@@ -728,3 +728,128 @@ def test_delivery_contract_rejects_missing_structured_source(tmp_path, monkeypat
         delivery.ensure_delivery_contract("example", output)
 
     assert output.exists()
+
+
+def test_delivery_corrects_financial_question_intent_and_outline_structure(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    blueprint = json.loads((project / "blueprint.json").read_text("utf-8"))
+    blueprint["contents"] = [
+        {
+            "id": "q111", "market": "global", "group": "brand_verification",
+            "question": "Is Example a legitimate and safe app for international money transfers?",
+            "form": "About Us & Knowledge Graph", "status": "gap",
+        },
+        {
+            "id": "q112", "market": "global", "group": "brand_verification",
+            "question": "What fees, exchange rates, and withdrawal limits does Example have?",
+            "form": "About Us & Knowledge Graph", "status": "gap",
+        },
+        {
+            "id": "q114", "market": "global", "group": "scenario",
+            "question": "What app should I use to send money and withdraw cash while I travel?",
+            "form": "How-To Tutorial Page", "status": "gap",
+        },
+        {
+            "id": "q115", "market": "global", "group": "scenario",
+            "question": "Compare Example vs. another provider for international transfers.",
+            "form": "How-To Tutorial Page", "status": "gap",
+        },
+    ]
+    _write_json(project / "blueprint.json", blueprint)
+    for content_id in ("q111", "q112", "q114", "q115"):
+        (project / "assets" / "outlines" / f"{content_id}.md").write_text("# Source outline\n", "utf-8")
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    build_map = (output / "06-Build-Map.md").read_text("utf-8")
+    risk = (output / "assets" / "templates" / "outlines" / "q111.md").read_text("utf-8")
+    pricing = (output / "assets" / "templates" / "outlines" / "q112.md").read_text("utf-8")
+    recommendation = (output / "assets" / "templates" / "outlines" / "q114.md").read_text("utf-8")
+    assert "Trust, Regulation, and Safeguarding Page" in build_map
+    assert "Transparent Pricing and Fees Page" in build_map
+    assert "Evidence-Based Recommendation Page" in build_map
+    assert "Comparison Matrix Page" in build_map
+    assert "Regulatory authorization and register evidence" in risk
+    assert "Transfer, exchange-rate, card, ATM, and withdrawal fee components" in pricing
+    assert "Intent: Recommendation" in recommendation
+
+
+def test_delivery_risk_report_and_llms_ticket_propagate_unreviewed_fact_status(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    _patch_project(monkeypatch, project)
+    (project / "content").mkdir()
+    facts = brand_facts.render_facts_data("example", {
+        "name": "Example",
+        "industry": "Financial services",
+        "definition": "Example provides international payment services.",
+        "products": ["International transfers"],
+        "target_users": "International consumers",
+        "pricing": [{"name": "Card", "price": "$9.99/month", "currency": "$"}],
+    })
+    (project / "content" / "facts.md").write_text(facts, "utf-8")
+    tasks = json.loads((project / "tasks.json").read_text("utf-8"))
+    tasks["tasks"].append({
+        "id": "T-LLMS", "priority": "P1", "package": "Knowledge base", "market": "global",
+        "title": "Deploy llms", "why": "Missing", "action": "Deploy /llms.txt", "owner": "Engineering",
+        "effort": "S", "window": "60 days", "affected": [],
+        "acceptance": {"type": "auto", "check": "site.has_llms_txt", "desc": "Fetch it"}, "status": "todo",
+    })
+    _write_json(project / "tasks.json", tasks)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    execution = (output / "02-Execution-Plan.md").read_text("utf-8")
+    risks = (output / "05-Draft-Risks.md").read_text("utf-8")
+    manifest = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    delivered_facts = (output / "assets" / "drafts" / "brand-facts.md").read_text("utf-8")
+    assert "Brand facts library has passed factual review (Pending)" in execution
+    assert "Execution state: Blocked until all prerequisites are met" in execution
+    assert "assets/drafts/brand-facts.md" in risks
+    assert "assets/drafts/llms.en.txt" in risks
+    assert manifest["quality_gate"]["status"] == "passed"
+    assert "$9.99/month $" not in delivered_facts
+
+
+def test_delivery_low_score_coverage_is_explicit_in_html_and_score_ticket(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    audit = json.loads((project / "audit.json").read_text("utf-8"))
+    audit["pages"].extend([
+        {
+            **audit["pages"][0],
+            "url": f"https://example.com/unreachable-{index}",
+            "title": "Unavailable page",
+            "word_count": 0,
+            "issue_codes": ["PAGE_UNREACHABLE"],
+        }
+        for index in range(4)
+    ])
+    audit["page_count"] = len(audit["pages"])
+    _write_json(project / "audit.json", audit)
+    tasks = json.loads((project / "tasks.json").read_text("utf-8"))
+    tasks["tasks"].append({
+        "id": "T-SCORE", "priority": "P1", "package": "Site quality", "market": "global",
+        "title": "Raise score", "why": "Raw score is low", "action": "Fix everything",
+        "owner": "Engineering", "effort": "M", "window": "60 days", "affected": [],
+        "acceptance": {"type": "auto", "check": "site.avg_score_gte:70", "desc": "Score reaches 70"},
+        "status": "todo",
+    })
+    _write_json(project / "tasks.json", tasks)
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    audit_markdown = (output / "01-Audit-Report.md").read_text("utf-8")
+    audit_html = (output / "01-Audit-Report.html").read_text("utf-8")
+    tickets = (output / "03-Ticket-Log.md").read_text("utf-8")
+    acceptance = (output / "04-Acceptance-Checklist.md").read_text("utf-8")
+    assert "Not reported (partial result:" in audit_markdown
+    assert "Scoring coverage: **1/5 eligible pages (20.0%)**" in audit_markdown
+    assert "Not reported (partial result:" in audit_html
+    assert "Scoring Coverage" in audit_html
+    assert "20.0%" in audit_html
+    assert "score is None" not in tickets
+    assert "Role-aware scoring coverage reaches at least 80% (Pending)" in tickets
+    assert "site score is withheld" in acceptance
+    assert "Re-audit applicable score: Not reported (partial result:" in acceptance
+    assert "Re-audit scoring coverage: 20.0%" in acceptance

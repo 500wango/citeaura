@@ -93,6 +93,17 @@ CHANNEL_STRATEGIES = {
         ("social_distribution", "Relevant Social Distribution Channels", "P2"),
         ("industry_media", "Peer Publications and Industry Media", "P2"),
     ],
+    "financial_services": [
+        ("official_en", "English Official Site", "P0"),
+        ("regulatory_registries", "Applicable Financial Regulatory Registers", "P0"),
+        ("app_stores", "Official Mobile App Stores", "P0"),
+        ("finance_comparison", "Independent Financial Comparison and Review Sources", "P1"),
+        ("finance_media", "Financial Services and Consumer Finance Media", "P1"),
+        ("customer_communities", "Relevant Customer Communities", "P2"),
+        ("linkedin", "LinkedIn", "P2"),
+        ("youtube", "YouTube", "P2"),
+        ("wikipedia", "Wikipedia (only if independently notable)", "P2"),
+    ],
     "generic": [
         ("official_en", "English Official Site", "P0"),
         ("linkedin", "LinkedIn", "P1"),
@@ -106,6 +117,11 @@ CHANNEL_STRATEGIES = {
 }
 
 PROFILE_RULES = (
+    ("financial_services", (
+        "fintech", "financial service", "payments app", "payment app", "global payments",
+        "multi-currency", "money transfer", "remittance", "digital wallet", "e-money",
+        "electronic money", "neobank", "banking app", "foreign exchange",
+    )),
     ("manufacturer", ("manufacturer", "manufacturing", "oem", "odm", "factory", "private label", "contract production", "制造", "工厂", "代工", "生产商")),
     ("software", ("software", "saas", "api platform", "developer tool", "cloud platform", "web application", "software platform", "软件", "开发者工具", "云平台")),
     ("service", ("consulting", "agency", "professional service", "law firm", "accounting", "advisory", "studio", "咨询", "代理服务", "专业服务", "事务所")),
@@ -138,6 +154,34 @@ CHANNEL_FIELD_DEFAULTS = {
         "volume": "Only when independently notable", "cadence": "Evidence review first", "owner": "Marketing",
         "domains": ["wikipedia.org"], "why": "Entity authority requires substantial independent reliable coverage.",
         "effect": "May strengthen entity disambiguation when eligibility is established",
+    },
+    "regulatory_registries": {
+        "kind": "Regulatory Register", "forms": ["Authorized entity record", "Licence scope", "Current status"],
+        "volume": "Every applicable operating entity and jurisdiction", "cadence": "At onboarding and every status change",
+        "owner": "Legal + Compliance", "domains": [],
+        "why": "Official registers provide the strongest evidence for authorization and legal-entity claims.",
+        "effect": "Supports legitimacy, regulation, and safeguarding questions",
+    },
+    "app_stores": {
+        "kind": "Product Distribution", "forms": ["Verified publisher listing", "Current app description", "Support and privacy links"],
+        "volume": "Every supported mobile platform", "cadence": "At every material app release",
+        "owner": "Product + Compliance", "domains": ["apps.apple.com", "play.google.com"],
+        "why": "Publisher-controlled store listings establish product identity, availability, and current support paths.",
+        "effect": "Supports app legitimacy and product-discovery queries",
+    },
+    "finance_comparison": {
+        "kind": "Independent Comparison", "forms": ["Provider profile", "Fee comparison", "Eligibility and limitation review"],
+        "volume": "2-4 relevant sources per target market", "cadence": "Quarterly review",
+        "owner": "Marketing + Compliance", "domains": [],
+        "why": "Independent comparisons add evidence for fees, alternatives, and suitability claims.",
+        "effect": "Supports recommendation, pricing, and alternatives queries",
+    },
+    "finance_media": {
+        "kind": "Industry Media", "forms": ["Company profile", "Product review", "Regulatory or funding coverage"],
+        "volume": "Evidence-led coverage as available", "cadence": "Review quarterly",
+        "owner": "Communications + Compliance", "domains": [],
+        "why": "Independent financial reporting provides context that owned pages cannot establish alone.",
+        "effect": "Supports entity verification and trust queries",
     },
     "review": {
         "kind": "Review Platform", "forms": ["Product profile", "Verified customer reviews", "Comparison pages"],
@@ -499,7 +543,13 @@ def infer_business_profile(config, pages=None):
             }
             for item in matches
         ]
-        eligible = [item for item in matches if item[2] or item[3]]
+        eligible = [
+            item for item in matches
+            if item[2] or item[3] or (
+                len({row.get("url") for row in item[4] if row.get("url")}) >= 2
+                and len(item[5]) >= 2
+            )
+        ]
         if not eligible:
             return {
                 "id": "generic",

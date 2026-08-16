@@ -245,6 +245,46 @@ def test_reviewed_text_rejects_han_and_hides_internal_marker():
     assert "citeaura:brand-facts" not in brand_facts.display_text(reviewed)
 
 
+def test_price_rendering_normalizes_placeholders_symbols_and_duplicate_currency(tmp_path, monkeypatch):
+    config = {"brand": {"name": "Example", "site": "https://example.com"}, "competitors": []}
+    _project(tmp_path, monkeypatch, config)
+
+    rendered = brand_facts.render_facts_data("example-com", {
+        "name": "Example",
+        "pricing": [
+            {"name": "Basic", "price": "Free", "currency": "Needs verification"},
+            {"name": "Card", "price": "$9.99/month", "currency": "$"},
+            {"name": "Annual", "price": "999.99 USD/year", "currency": "USD"},
+            {"name": "Team", "price": "$49/month", "currency": "USD"},
+        ],
+    })
+
+    assert "| Basic | Free |" in rendered
+    assert "| Card | $9.99/month |" in rendered
+    assert "| Annual | 999.99 USD/year |" in rendered
+    assert "| Team | USD 49/month |" in rendered
+    assert "Free Needs verification" not in rendered
+    assert "$9.99/month $" not in rendered
+    assert "999.99 USD/year USD" not in rendered
+
+
+def test_existing_price_rows_are_normalized_without_rebuilding_the_fact_library():
+    text = """## Pricing
+
+| Offer | Price | Included scope | Source |
+|---|---|---|---|
+| Basic | Free Needs verification | Core | Official |
+| Card | $9.99/month $ | Core | Official |
+| Annual | 999.99 USD/year USD | Core | Official |
+"""
+
+    normalized = brand_facts.normalize_price_rows(text)
+
+    assert "Free Needs verification" not in normalized
+    assert "$9.99/month $" not in normalized
+    assert "999.99 USD/year USD" not in normalized
+
+
 def test_engine_runtime_patches_are_scoped_and_restored(tmp_path, monkeypatch):
     import bootstrap as engine_bootstrap
     import generate as engine_generate

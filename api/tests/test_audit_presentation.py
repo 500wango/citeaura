@@ -86,6 +86,10 @@ def _audit(pages):
     ({"url": "https://example.com/docs/api-reference"}, "docs_howto"),
     ({"url": "https://example.com/en/contact"}, "contact"),
     ({"url": "https://example.com/privacy-policy"}, "legal"),
+    ({"url": "https://example.com/en/compliance"}, "trust_compliance"),
+    ({"url": "https://example.com/en/security"}, "trust_compliance"),
+    ({"url": "https://example.com/en/send-to-global"}, "product_service"),
+    ({"url": "https://example.com/en/starrycard"}, "product_service"),
     ({"url": "https://example.com/login"}, "auth_utility"),
 ])
 def test_classify_page_uses_page_function_not_industry(page, expected):
@@ -105,12 +109,11 @@ def test_contact_page_suppresses_unrelated_long_form_and_block_findings():
 
     assert page["role"]["id"] == "contact"
     assert page["applicable_score"] is None
-    assert page["evaluation_status"] == "insufficient_evidence"
+    assert page["evaluation_status"] == "excluded"
     assert page["findings"] == []
     assert page["issues"] == []
-    assert set(item["id"] for item in page["checks"] if item["status"] == "passed") == {
-        "accessibility", "indexability", "canonical", "rendered_content", "h1",
-    }
+    assert page["checks"] == []
+    assert page["evaluation_note"] == "Contact pages are excluded from long-form public-content scoring."
     assert not HAN.search(json.dumps({
         "role": page["role"], "issues": page["issues"],
         "findings": page["findings"], "site_findings": result["site_findings"],
@@ -215,3 +218,36 @@ def test_non_ascii_unknown_code_and_dimension_get_ascii_fallbacks():
     assert page["issue_codes"] == ["UNCLASSIFIED_ENGINE_CHECK"]
     assert page["engine_dimensions"] == {"dimension_1": 4}
     assert not HAN.search(json.dumps(page["findings"], ensure_ascii=False))
+
+
+def test_generic_public_pages_receive_a_conservative_score():
+    url = "https://example.com/en/overview-center"
+    raw = _raw_page(url, word_count=240, codes=[])
+    evidence = _evidence(url, title="Overview center", word_count=240, para_count=8)
+
+    page = audit_presentation.present_audit_data(_audit([raw]), [evidence])["pages"][0]
+
+    assert page["role"]["id"] == "generic"
+    assert page["evaluation_status"] == "evaluated"
+    assert page["applicable_score"] is not None
+
+
+def test_site_score_is_withheld_when_page_scoring_coverage_is_too_low():
+    home_url = "https://example.com"
+    missing_url = "https://example.com/article/unavailable"
+    audit = _audit([
+        _raw_page(home_url, word_count=300, codes=[]),
+        _raw_page(missing_url, codes=["PAGE_UNREACHABLE"]),
+    ])
+    result = audit_presentation.present_audit_data(
+        audit,
+        [
+            _evidence(home_url, title="Example", word_count=300, para_count=10, schema=["Organization"]),
+            _evidence(missing_url, title="Unavailable", status=503, word_count=0, para_count=0, h1=[], h2=[]),
+        ],
+    )
+
+    assert result["score_coverage"] == 0.5
+    assert result["score_status"] == "insufficient_coverage"
+    assert result["partial_applicable_avg_score"] is not None
+    assert result["applicable_avg_score"] is None

@@ -102,6 +102,62 @@ def _cell(value, fallback=""):
     return _text(value, fallback).replace("|", "/")
 
 
+def _normalize_price_value(value):
+    value = _text(value)
+    if not value:
+        return value
+    value = re.sub(r"(?i)^(free|complimentary|custom|contact us)\s+needs verification$", r"\1", value)
+    for token in ("USD", "EUR", "GBP", "JPY", "CNY", "CAD", "AUD", "SGD", "HKD"):
+        if re.search(rf"(?i)\s+{token}$", value):
+            prefix = re.sub(rf"(?i)\s+{token}$", "", value).rstrip()
+            if re.search(rf"(?i)\b{token}\b", prefix):
+                value = prefix
+    for symbol in ("$", "€", "£", "¥"):
+        if value.endswith(f" {symbol}") and symbol in value[:-2]:
+            value = value[:-2].rstrip()
+    return value
+
+
+def _price_display(item):
+    item = item if isinstance(item, dict) else {}
+    price = _text(item.get("price"))
+    currency = _text(item.get("currency"))
+    placeholders = {"needs verification", "unknown", "not specified", "n/a", "na", "none", "-"}
+    if not price or price.casefold() in placeholders:
+        return "Needs verification"
+    if not currency or currency.casefold() in placeholders:
+        return _normalize_price_value(price)
+    if re.search(rf"(?i)(?<![A-Z]){re.escape(currency)}(?![A-Z])", price):
+        return _normalize_price_value(price)
+    if currency in "$€£¥" and currency in price:
+        return _normalize_price_value(price)
+    if price.casefold() in {"free", "complimentary", "custom", "contact us"}:
+        return _normalize_price_value(price)
+    symbols = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥", "CNY": "¥"}
+    if re.fullmatch(r"[A-Z]{3}", currency) and price[:1] in "$€£¥":
+        symbol = price[0]
+        amount = price[1:].strip()
+        if symbols.get(currency) == symbol or symbol == "$":
+            return _normalize_price_value(f"{currency} {amount}".strip())
+    return _normalize_price_value(f"{price} {currency}".strip())
+
+
+def normalize_price_rows(text):
+    lines = str(text or "").splitlines()
+    in_pricing = False
+    output = []
+    for line in lines:
+        if line.startswith("## "):
+            in_pricing = line.strip().casefold() == "## pricing"
+        if in_pricing and line.startswith("|"):
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if len(cells) >= 4 and cells[0].casefold() not in ("offer", "---") and not set(cells[0]) <= {"-", ":"}:
+                cells[1] = _normalize_price_value(cells[1])
+                line = "| " + " | ".join(cells) + " |"
+        output.append(line)
+    return "\n".join(output) + ("\n" if str(text or "").endswith("\n") else "")
+
+
 def _same_site_url(value, site):
     value = _text(value, limit=2048)
     if not value:
@@ -429,6 +485,10 @@ def render_facts_data(project_slug, brand, marker=AI_MARKER):
     brand = _model_brand(brand, configured)
     site = _text(configured.get("site"), "Needs verification", limit=2048)
     name = _cell(brand.get("name"), "Needs verification")
+    aliases = _cell(", ".join(brand.get("aliases") or []), "Needs verification")
+    aliases_evidence = "D - Evidence required" if aliases == "Needs verification" else "A - Official website"
+    industry = _cell(brand.get("industry"), "Needs verification")
+    industry_evidence = "D - Evidence required" if industry == "Needs verification" else "A - Official website"
     lines = [
         f"# {name} - Brand Fact Library",
         "",
@@ -442,9 +502,9 @@ def render_facts_data(project_slug, brand, marker=AI_MARKER):
         "| Field | Value | Evidence |",
         "|---|---|---|",
         f"| Canonical name | {name} | A - Official website |",
-        f"| Aliases | {_cell(', '.join(brand.get('aliases') or []), 'Needs verification')} | A - Official website |",
+        f"| Aliases | {aliases} | {aliases_evidence} |",
         f"| Official website | {_cell(site)} | A - Official website |",
-        f"| Industry or category | {_cell(brand.get('industry'), 'Needs verification')} | A - Official website |",
+        f"| Industry or category | {industry} | {industry_evidence} |",
         "",
         "## Definition",
         "",
@@ -472,7 +532,7 @@ def render_facts_data(project_slug, brand, marker=AI_MARKER):
     lines.extend([f"- {_cell(item)}" for item in brand.get("unsuitable") or []] or ["- Needs verification"])
     lines += [
         "",
-        "## Verified facts",
+        "## Officially stated facts requiring review",
         "",
         "| Fact | Value | Source | Evidence |",
         "|---|---|---|---|",
@@ -492,7 +552,7 @@ def render_facts_data(project_slug, brand, marker=AI_MARKER):
     if pricing:
         lines += ["## Pricing", "", "| Offer | Price | Included scope | Source |", "|---|---|---|---|"]
         for item in pricing:
-            price = " ".join(part for part in (_cell(item.get("price")), _cell(item.get("currency"))) if part)
+            price = _cell(_price_display(item))
             source_url = _same_site_url(item.get("source_url"), site)
             source = f"[Official website]({source_url})" if source_url else "Official website"
             lines.append(
@@ -584,7 +644,7 @@ def parse_facts_text(text):
         if line.startswith("- ") and line[2:].strip().casefold() != "needs verification"
     ]
 
-    facts = _section(text, "Verified facts")
+    facts = _section(text, "Verified facts") or _section(text, "Officially stated facts requiring review")
     for line in facts.splitlines():
         if not line.startswith("|"):
             continue

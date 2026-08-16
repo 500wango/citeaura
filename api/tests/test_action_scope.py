@@ -158,6 +158,39 @@ def test_score_task_replaces_raw_scope_and_progress_with_applicable_evidence():
     assert "role-aware" in task["action"]
 
 
+def test_score_task_withheld_for_low_coverage_has_no_none_copy_or_progress():
+    audit = _audit()
+    audit.update({
+        "applicable_avg_score": None,
+        "partial_applicable_avg_score": 64.2,
+        "score_coverage": 0.5,
+        "minimum_score_coverage": 0.8,
+    })
+    scoped = action_scope.scope_task_data(
+        {"tasks": [_task("T-SCORE", "site.avg_score_gte:70")]},
+        audit,
+        {"confidence": {"sufficient": True}},
+    )
+    task = next(item for item in scoped["tasks"] if item["id"] == "T-SCORE")
+    verification = action_scope.scope_verification(
+        {}, scoped, audit, {"confidence": {"sufficient": True}},
+    )
+    result = next(item for item in verification["results"] if item["id"] == "T-SCORE")
+
+    assert "score is None" not in task["why"]
+    assert "withheld" in task["why"]
+    assert "50%" in task["why"]
+    assert task["progress"] is None
+    assert task["prerequisites"] == [{
+        "id": "score_coverage",
+        "label": "Role-aware scoring coverage reaches at least 80%",
+        "status": "pending",
+    }]
+    assert result["verdict"] == "fail"
+    assert result["progress"] is None
+    assert "withheld" in result["note_en"]
+
+
 def test_scope_adds_baseline_without_metric_targets_and_removes_resolved_site_tasks():
     audit = _audit()
     audit["site"] = {"has_sitemap": True, "has_llms_txt": True, "ai_bots_blocked": []}
@@ -190,6 +223,30 @@ def test_missing_crawler_evidence_does_not_pass_the_unblocked_check():
     assert "T-BOTS" in {task["id"] for task in scoped["tasks"]}
     results = {item["id"]: item for item in verification["results"]}
     assert results["T-BOTS"]["verdict"] == "fail"
+
+
+def test_llms_task_requires_fact_approval_before_deployment_and_verification():
+    audit = _audit()
+    audit["site"] = {"has_sitemap": True, "has_llms_txt": True, "ai_bots_blocked": []}
+    audit["site_findings"] = []
+    source = {"tasks": [_task("T-LLMS", "site.has_llms_txt")]}
+
+    pending = action_scope.scope_task_data(
+        source, audit, {"confidence": {"sufficient": True}}, facts_approved=False,
+    )
+    task = next(item for item in pending["tasks"] if item["id"] == "T-LLMS")
+    verification = action_scope.scope_verification(
+        {}, pending, audit, {"confidence": {"sufficient": True}}, facts_approved=False,
+    )
+
+    assert task["prerequisites"][0]["status"] == "pending"
+    assert "approved" in task["acceptance"]["desc"].lower()
+    assert next(item for item in verification["results"] if item["id"] == "T-LLMS")["verdict"] == "fail"
+
+    approved = action_scope.scope_task_data(
+        source, audit, {"confidence": {"sufficient": True}}, facts_approved=True,
+    )
+    assert "T-LLMS" not in {item["id"] for item in approved["tasks"]}
 
 
 def test_verification_recomputes_role_aware_progress_and_sampling_evidence():

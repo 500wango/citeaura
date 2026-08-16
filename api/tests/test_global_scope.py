@@ -123,6 +123,9 @@ def test_channel_strategy_is_selected_per_project_profile():
     service = global_scope.infer_business_profile({
         "brand": {"industry": "Professional consulting services"},
     })
+    financial = global_scope.infer_business_profile({
+        "brand": {"industry": "Global payments and multi-currency financial services app"},
+    })
     unknown = global_scope.infer_business_profile({"brand": {"industry": ""}})
     evidenced_software = global_scope.infer_business_profile(
         {"brand": {"industry": "B2B SaaS software platform"}},
@@ -142,6 +145,7 @@ def test_channel_strategy_is_selected_per_project_profile():
     assert manufacturer["id"] == "manufacturer"
     assert software["id"] == "software"
     assert service["id"] == "service"
+    assert financial["id"] == "financial_services"
     assert unknown["id"] == "generic"
     assert unknown["confidence"] == "low"
     assert unknown["review_required"] is True
@@ -170,6 +174,24 @@ def test_channel_strategy_is_selected_per_project_profile():
     assert "b2b_marketplaces" not in software_ids
     assert "industry_directories" in unknown_ids
     assert unknown_blueprint["channel_strategy"]["confidence"] == "low"
+
+    financial_blueprint = global_scope.normalize_blueprint_data({}, profile=financial)
+    financial_ids = {item["id"] for item in financial_blueprint["channels"]}
+    assert {"regulatory_registries", "app_stores", "finance_comparison"} <= financial_ids
+
+
+def test_repeated_financial_website_evidence_can_select_a_reviewable_profile():
+    profile = global_scope.infer_business_profile(
+        {"brand": {"industry": ""}},
+        pages=[
+            {"url": "https://example.com", "status": 200, "text": "A multi-currency payment app for money transfers."},
+            {"url": "https://example.com/transfers", "status": 200, "text": "Send money internationally with foreign exchange support."},
+        ],
+    )
+
+    assert profile["id"] == "financial_services"
+    assert profile["confidence"] == "medium"
+    assert profile["review_required"] is True
 
 
 def test_crawl_deduplication_preserves_query_pages_with_different_content():

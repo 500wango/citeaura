@@ -280,9 +280,39 @@ def _synthetic_page_task(check_id, audit):
     return _scope_page_task(task, audit, check_id)[0]
 
 
-def _synthetic_site_task(check):
-    title, action, priority = SITE_COPY[check]
+def _facts_prerequisite(facts_approved):
     return {
+        "id": "facts_approved",
+        "label": "Brand facts library has passed factual review",
+        "status": "met" if facts_approved else "pending",
+    }
+
+
+def _scope_site_task(task, check, facts_approved=None):
+    if check != "site.has_llms_txt" or facts_approved is None:
+        return task
+    title, action, _priority = SITE_COPY[check]
+    acceptance = task.get("acceptance") if isinstance(task.get("acceptance"), dict) else {}
+    return {
+        **task,
+        "title": title,
+        "title_en": title,
+        "action": action,
+        "action_en": action,
+        "prerequisites": [_facts_prerequisite(facts_approved)],
+        "acceptance": {
+            **acceptance,
+            "type": "auto",
+            "check": check,
+            "desc": "The brand facts library is approved and /llms.txt is retrieved successfully on re-crawl.",
+            "desc_en": "The brand facts library is approved and /llms.txt is retrieved successfully on re-crawl.",
+        },
+    }
+
+
+def _synthetic_site_task(check, facts_approved=None):
+    title, action, priority = SITE_COPY[check]
+    task = {
         "id": "T-AUDIT-" + check.rsplit(".", 1)[-1].replace("_", "-").upper(),
         "priority": priority,
         "package": "Page technology" if check != "site.has_llms_txt" else "Knowledge base",
@@ -298,6 +328,7 @@ def _synthetic_site_task(check):
         "status": "todo",
         "scope_generated": True,
     }
+    return _scope_site_task(task, check, facts_approved)
 
 
 def _sampling_sufficient(quality):
@@ -333,7 +364,7 @@ def _sampling_task(quality):
     }
 
 
-def scope_task_data(data, audit, sampling_quality=None):
+def scope_task_data(data, audit, sampling_quality=None, facts_approved=None):
     """Rebuild the active action set from applicable failures and sample confidence."""
     current = deepcopy(data) if isinstance(data, dict) else {}
     audit = audit if isinstance(audit, dict) else {}
@@ -369,6 +400,42 @@ def scope_task_data(data, audit, sampling_quality=None):
                 excluded.append(task)
                 continue
             title = f"Raise the applicable site audit score to {target:g}"
+            existing_prerequisites = task.get("prerequisites")
+            prerequisites = [
+                item for item in (existing_prerequisites if isinstance(existing_prerequisites, list) else [])
+                if not isinstance(item, dict) or item.get("id") != "score_coverage"
+            ]
+            if score is None:
+                minimum_coverage = float(audit.get("minimum_score_coverage") or 0.8)
+                coverage = audit.get("score_coverage")
+                coverage_label = "not measurable" if coverage is None else f"{float(coverage):.0%}"
+                why = (
+                    f"The applicable site score is withheld because scoring coverage is {coverage_label}; "
+                    f"at least {minimum_coverage:.0%} is required before comparing it with the {target:g} target."
+                )
+                action = (
+                    "First obtain enough crawl evidence to evaluate the eligible public pages. Then resolve the "
+                    "failed role-aware checks; do not apply content, schema, or extraction requirements to "
+                    "excluded utility pages or roles where they are not applicable."
+                )
+                progress = None
+                prerequisites.append({
+                    "id": "score_coverage",
+                    "label": f"Role-aware scoring coverage reaches at least {minimum_coverage:.0%}",
+                    "status": "pending",
+                })
+            else:
+                why = f"The role-aware applicable score is {score}; the target is {target:g}."
+                action = (
+                    "Resolve the failed role-aware checks on applicable public pages. Do not apply content, "
+                    "schema, or extraction requirements to excluded utility pages or roles where they are not applicable."
+                )
+                progress = {
+                    "label": "Applicable site score",
+                    "cur": score,
+                    "target": target,
+                    "op": "gte",
+                }
             affected = [
                 str(page.get("url") or "")
                 for page in audit.get("pages") or []
@@ -380,17 +447,12 @@ def scope_task_data(data, audit, sampling_quality=None):
                 **task,
                 "title": title,
                 "title_en": title,
-                "why": f"The role-aware applicable score is {score}; the target is {target:g}.",
-                "why_en": f"The role-aware applicable score is {score}; the target is {target:g}.",
-                "action": (
-                    "Resolve the failed role-aware checks on applicable public pages. Do not apply content, "
-                    "schema, or extraction requirements to excluded utility pages or roles where they are not applicable."
-                ),
-                "action_en": (
-                    "Resolve the failed role-aware checks on applicable public pages. Do not apply content, "
-                    "schema, or extraction requirements to excluded utility pages or roles where they are not applicable."
-                ),
+                "why": why,
+                "why_en": why,
+                "action": action,
+                "action_en": action,
                 "affected": affected,
+                "prerequisites": prerequisites,
                 "acceptance": {
                     **(task.get("acceptance") if isinstance(task.get("acceptance"), dict) else {}),
                     "type": "auto",
@@ -398,12 +460,7 @@ def scope_task_data(data, audit, sampling_quality=None):
                     "desc": f"The role-aware applicable site score reaches at least {target:g}.",
                     "desc_en": f"The role-aware applicable site score reaches at least {target:g}.",
                 },
-                "progress": {
-                    "label": "Applicable site score",
-                    "cur": score,
-                    "target": target,
-                    "op": "gte",
-                },
+                "progress": progress,
                 "scope_original_check": check,
             }
             scoped.pop("progress_first", None)
@@ -420,8 +477,9 @@ def scope_task_data(data, audit, sampling_quality=None):
                 active.append(task)
             continue
         if check in SITE_COPY:
+            task = _scope_site_task(task, check, facts_approved)
             covered_site_checks.add(check)
-            passed = _site_result(audit.get("site") or {}, check)
+            passed = _site_result(audit.get("site") or {}, check, facts_approved)
             if passed and task.get("status") not in ("done", "wontfix") and not task.get("workflow_customized"):
                 task["scope_exclusion_reason"] = "site_check_already_passes"
                 excluded.append(task)
@@ -443,7 +501,7 @@ def scope_task_data(data, audit, sampling_quality=None):
     for finding in audit.get("site_findings") or []:
         check = SITE_FINDING_CHECKS.get(finding.get("code")) if isinstance(finding, dict) else None
         if check and check not in covered_site_checks:
-            active.append(_synthetic_site_task(check))
+            active.append(_synthetic_site_task(check, facts_approved))
             covered_site_checks.add(check)
 
     baseline = deepcopy(current.get("baseline") if isinstance(current.get("baseline"), dict) else {})
@@ -456,6 +514,10 @@ def scope_task_data(data, audit, sampling_quality=None):
     baseline["applicable_pages"] = sum(
         page.get("evaluation_status") == "evaluated" for page in audit.get("pages") or [] if isinstance(page, dict)
     )
+    baseline["score_eligible_pages"] = audit.get("score_eligible_page_count")
+    baseline["score_coverage"] = audit.get("score_coverage")
+    baseline["score_status"] = audit.get("score_status")
+    baseline["partial_applicable_avg_score"] = audit.get("partial_applicable_avg_score")
 
     deduplicated = []
     seen_ids = set()
@@ -475,7 +537,7 @@ def scope_task_data(data, audit, sampling_quality=None):
     }
 
 
-def _site_result(site, check):
+def _site_result(site, check, facts_approved=None):
     if check == "site.no_ai_bot_block":
         if "ai_bots_blocked" not in site:
             return None
@@ -483,11 +545,12 @@ def _site_result(site, check):
     if check == "site.has_sitemap":
         return bool(site.get("has_sitemap"))
     if check == "site.has_llms_txt":
-        return bool(site.get("has_llms_txt"))
+        deployed = bool(site.get("has_llms_txt"))
+        return deployed if facts_approved is None else deployed and bool(facts_approved)
     return None
 
 
-def scope_verification(verification, task_data, audit, sampling_quality=None):
+def scope_verification(verification, task_data, audit, sampling_quality=None, facts_approved=None):
     """Recompute deterministic acceptance values using the same scoped evidence as the report."""
     source = deepcopy(verification) if isinstance(verification, dict) else {}
     source_results = {
@@ -529,11 +592,19 @@ def scope_verification(verification, task_data, audit, sampling_quality=None):
                 "note_en": note,
             })
         elif check in SITE_COPY:
-            passed = _site_result(audit.get("site") or {}, check)
+            passed = _site_result(audit.get("site") or {}, check, facts_approved)
+            if check == "site.has_llms_txt" and facts_approved is not None:
+                note = (
+                    "The approved brand facts library and deployed /llms.txt both pass the current checks."
+                    if passed else
+                    "Completion requires both an approved brand facts library and a retrievable /llms.txt."
+                )
+            else:
+                note = "The current role-aware site evidence passes this check." if passed else "The current role-aware site evidence still fails this check."
             result.update({
                 "verdict": "pass" if passed else "fail",
                 "progress": None,
-                "note_en": "The current role-aware site evidence passes this check." if passed else "The current role-aware site evidence still fails this check.",
+                "note_en": note,
             })
         elif check.startswith("site.avg_score_gte:"):
             try:
@@ -541,8 +612,22 @@ def scope_verification(verification, task_data, audit, sampling_quality=None):
             except ValueError:
                 target = 0
             score = audit.get("applicable_avg_score")
+            if score is None:
+                coverage = audit.get("score_coverage")
+                minimum_coverage = float(audit.get("minimum_score_coverage") or 0.8)
+                coverage_label = "not measurable" if coverage is None else f"{float(coverage):.0%}"
+                result.update({
+                    "verdict": "fail",
+                    "progress": None,
+                    "note_en": (
+                        f"The site score is withheld because role-aware scoring coverage is {coverage_label}; "
+                        f"at least {minimum_coverage:.0%} is required before the {target:g} target can be assessed."
+                    ),
+                })
+                results.append(result)
+                continue
             result.update({
-                "verdict": "pass" if score is not None and float(score) >= target else "fail",
+                "verdict": "pass" if float(score) >= target else "fail",
                 "progress": {"label": "Applicable site score", "cur": score, "target": target, "op": "gte"},
                 "note_en": "The applicable page-role score is used for this acceptance check.",
             })
@@ -570,6 +655,9 @@ def scope_verification(verification, task_data, audit, sampling_quality=None):
         **source,
         "verified_at": source.get("verified_at") or audit.get("audited_at"),
         "audit_avg_score": audit.get("applicable_avg_score"),
+        "partial_applicable_avg_score": audit.get("partial_applicable_avg_score"),
+        "score_coverage": audit.get("score_coverage"),
+        "score_status": audit.get("score_status"),
         "score_method": "applicable_page_role_v1",
         "results": results,
     }

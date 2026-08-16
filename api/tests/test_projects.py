@@ -273,7 +273,8 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     audit = report.json()["report"]["audit"]
     assert audit["presentation_version"] == 1
     assert audit["applicable_avg_score"] is None
-    assert audit["pages"][0]["evaluation_status"] == "insufficient_evidence"
+    assert audit["pages"][0]["evaluation_status"] == "excluded"
+    assert "Contact pages are excluded" in audit["pages"][0]["evaluation_note"]
     assert audit["pages"][0]["role"]["id"] == "contact"
     assert audit["pages"][0]["issues"] == []
     engines = client.get(f"/api/v1/projects/{body['project_id']}/engines", headers=headers)

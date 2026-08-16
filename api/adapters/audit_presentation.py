@@ -19,13 +19,14 @@ ROLE_LABELS = {
     "about": "About page",
     "contact": "Contact page",
     "legal": "Legal or policy page",
+    "trust_compliance": "Trust, security, or compliance page",
     "category_listing": "Category or listing page",
     "auth_utility": "Application or utility page",
     "generic": "General content page",
 }
 
 ROLE_PRIORITY = (
-    "contact", "legal", "auth_utility", "pricing", "comparison", "faq_support",
+    "contact", "legal", "trust_compliance", "auth_utility", "pricing", "comparison", "faq_support",
     "docs_howto", "case_study", "article_news", "about", "category_listing",
     "product_service", "generic",
 )
@@ -56,6 +57,10 @@ PATH_SIGNALS = {
         "legal", "cookies", "cookie policy", "gdpr", "imprint", "disclaimer",
         "acceptable use", "refund policy", "shipping policy", "license agreement",
     ),
+    "trust_compliance": (
+        "compliance", "security", "safety", "trust", "regulation", "regulatory",
+        "licence", "license", "licensing", "safeguarding", "certification",
+    ),
     "auth_utility": (
         "login", "log in", "signin", "sign in", "signup", "sign up", "register",
         "account", "auth", "password", "reset password", "dashboard", "admin", "app",
@@ -81,13 +86,18 @@ PATH_SIGNALS = {
     "category_listing": ("category", "categories", "collection", "collections", "catalog", "shop", "store"),
     "product_service": (
         "product", "products", "service", "services", "solution", "solutions", "platform",
-        "feature", "features", "offering", "offerings", "capabilities",
+        "feature", "features", "offering", "offerings", "capabilities", "transfer",
+        "transfers", "send money", "send to global", "remittance", "card", "cards", "wallet",
     ),
 }
 
 SURFACE_SIGNALS = {
     "contact": ("contact us", "get in touch", "contact our", "sales inquiry"),
     "legal": ("privacy policy", "terms of service", "terms and conditions", "cookie policy"),
+    "trust_compliance": (
+        "security", "compliance", "regulated", "regulatory", "safeguarding",
+        "fund protection", "customer protection",
+    ),
     "pricing": ("pricing", "plans and pricing", "choose a plan"),
     "comparison": ("comparison", "compare", " versus ", " alternatives"),
     "faq_support": ("frequently asked questions", "help center", "support center"),
@@ -114,8 +124,9 @@ ROLE_POLICY = {
     "about": {"content": (100, 4), "h2": 1, "definition": True, "schema": True},
     "contact": {},
     "legal": {"content": (100, 5), "h2": 1, "date": True},
+    "trust_compliance": {"content": (120, 5), "h2": 2, "external": True},
     "category_listing": {"content": (60, 3), "h2": 1, "schema": True},
-    "generic": {},
+    "generic": {"content": (120, 5), "h2": 2},
 }
 
 CHECK_WEIGHTS = {
@@ -136,6 +147,7 @@ CHECK_WEIGHTS = {
     "external_evidence": 5,
 }
 MIN_EVALUATED_CHECKS = 6
+MIN_SITE_SCORE_COVERAGE = 0.8
 
 KNOWN_ISSUE_CODES = frozenset((
     "BAD_H1", "FEW_EXTERNAL_LINKS", "FEW_H2", "LOW_CONTENT_PAGE",
@@ -212,6 +224,8 @@ def classify_page(page):
     listing_roots = {"products", "collections", "catalog", "shop", "blog", "articles", "news", "insights"}
     if final_segment in listing_roots:
         _add_signal(scores, evidence, "category_listing", 16, f"URL section: {final_segment}")
+    if re.search(r"(?:card|wallet)$", final_segment):
+        _add_signal(scores, evidence, "product_service", 12, f"URL product suffix: {final_segment}")
 
     for role, phrases in PATH_SIGNALS.items():
         for phrase in phrases:
@@ -390,13 +404,18 @@ def _present_page(raw_page, evidence):
         "role": role,
     }
 
-    if role_id == "auth_utility":
+    if role_id in ("auth_utility", "contact"):
+        note = (
+            "Application and utility pages are excluded from public-content scoring."
+            if role_id == "auth_utility" else
+            "Contact pages are excluded from long-form public-content scoring."
+        )
         return {
             **base,
             "applicable_score": None,
             "applicable_grade": None,
             "evaluation_status": "excluded",
-            "evaluation_note": "Application and utility pages are excluded from public-content scoring.",
+            "evaluation_note": note,
             "findings": [],
             "issues": [],
             "checks": [],
@@ -654,13 +673,25 @@ def present_audit_data(audit, evidence_pages=None, site_data=None):
     lookup = _evidence_lookup(evidence_pages or [])
     pages = [_present_page(page, _page_evidence(page, lookup)) for page in raw_pages]
 
+    evaluated_pages = [page for page in pages if page.get("evaluation_status") == "evaluated"]
+    score_eligible_pages = [page for page in pages if page.get("evaluation_status") != "excluded"]
+    score_coverage = (
+        round(len(evaluated_pages) / len(score_eligible_pages), 3)
+        if score_eligible_pages else None
+    )
     evaluated_checks = [
         check for page in pages for check in page.get("checks") or []
         if page.get("evaluation_status") == "evaluated" and check.get("status") in ("passed", "failed")
     ]
     possible = sum(check["weight"] for check in evaluated_checks)
     earned = sum(check["weight"] for check in evaluated_checks if check["status"] == "passed")
-    applicable_avg = round(earned / possible * 100, 1) if possible else None
+    partial_applicable_avg = round(earned / possible * 100, 1) if possible else None
+    score_reliable = bool(
+        partial_applicable_avg is not None
+        and score_coverage is not None
+        and score_coverage >= MIN_SITE_SCORE_COVERAGE
+    )
+    applicable_avg = partial_applicable_avg if score_reliable else None
     distribution = {grade: sum(page.get("applicable_grade") == grade for page in pages) for grade in "ABCD"}
     distribution["excluded"] = sum(page.get("evaluation_status") == "excluded" for page in pages)
     distribution["not_scored"] = sum(page.get("evaluation_status") in ("insufficient_evidence", "not_evaluated")
@@ -688,6 +719,19 @@ def present_audit_data(audit, evidence_pages=None, site_data=None):
     return {
         "presentation_version": 1,
         "score_method": "Weighted coverage of evidence-backed checks applicable to each inferred page role.",
+        "score_status": (
+            "reported" if score_reliable else
+            "insufficient_coverage" if score_eligible_pages else "no_eligible_pages"
+        ),
+        "score_coverage": score_coverage,
+        "minimum_score_coverage": MIN_SITE_SCORE_COVERAGE,
+        "evaluated_page_count": len(evaluated_pages),
+        "score_eligible_page_count": len(score_eligible_pages),
+        "not_scored_page_count": sum(
+            page.get("evaluation_status") in ("insufficient_evidence", "not_evaluated")
+            for page in pages
+        ),
+        "excluded_page_count": sum(page.get("evaluation_status") == "excluded" for page in pages),
         "slug": audit.get("slug"),
         "audited_at": audit.get("audited_at"),
         "market": audit.get("market"),
@@ -701,6 +745,7 @@ def present_audit_data(audit, evidence_pages=None, site_data=None):
         "avg_score": audit.get("avg_score"),
         "grade_distribution": audit.get("grade_distribution") or {},
         "applicable_avg_score": applicable_avg,
+        "partial_applicable_avg_score": partial_applicable_avg,
         "applicable_grade": _grade(applicable_avg),
         "applicable_grade_distribution": distribution,
         "block_gap": block_gap,

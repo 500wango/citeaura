@@ -325,6 +325,14 @@ def _format_rate(value):
     return "Not measured" if value is None else f"{float(value):.1%}"
 
 
+def _score_result_label(score, partial_score=None):
+    if score is not None:
+        return _format_number(score)
+    if partial_score is not None:
+        return f"Not reported (partial result: {_format_number(partial_score)})"
+    return "Not measured"
+
+
 def _window_name(value, priority):
     value = normalize_english_typography(str(value or "").strip())
     if match := re.fullmatch(r"(\d+)\s*天", value):
@@ -353,10 +361,10 @@ def _check_copy(check):
         )
     if check == "site.has_llms_txt":
         return (
-            "Publish the official facts index at /llms.txt",
+            "Publish the approved facts index at /llms.txt",
             "A curated facts index gives AI systems a stable official reference.",
-            "Generate the llms.txt asset and deploy it at the website root.",
-            "/llms.txt is retrieved successfully on re-crawl.",
+            "After factual approval, generate the llms.txt asset and deploy it at the website root.",
+            "The brand facts library is approved and /llms.txt is retrieved successfully on re-crawl.",
         )
     if check.startswith("site.en_pages_gte:"):
         target = check.rsplit(":", 1)[-1]
@@ -481,6 +489,13 @@ def _ticket_en(ticket):
     ticket_id = _require_english(ticket.get("id") or "Unnumbered", "ticket id")
     package = localized.get("package_en") or localized.get("category_en") or ticket.get("package") or "General"
     owner = localized.get("owner_en") or localized.get("role_en") or ticket.get("owner") or "Unassigned"
+    prerequisites = []
+    for item in ticket.get("prerequisites") or []:
+        if not isinstance(item, dict):
+            continue
+        label = _require_english(item.get("label") or item.get("id") or "Required evidence", f"{ticket_id} prerequisite")
+        status = "Met" if item.get("status") == "met" else "Pending"
+        prerequisites.append({"label": label, "status": status})
     return {
         "id": ticket_id,
         "priority": _require_english(ticket.get("priority") or "P2", f"{ticket_id} priority"),
@@ -499,6 +514,8 @@ def _ticket_en(ticket):
             _require_english(item, f"{ticket_id} affected page")
             for item in (ticket.get("affected") or [])
         ],
+        "prerequisites": prerequisites,
+        "execution_ready": all(item["status"] == "Met" for item in prerequisites),
     }
 
 
@@ -558,6 +575,11 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
     coverage = audit.get("language_coverage") or {}
     grades = audit.get("applicable_grade_distribution") or audit.get("grade_distribution") or {}
     site_score = audit.get("applicable_avg_score")
+    partial_score = audit.get("partial_applicable_avg_score")
+    score_coverage = audit.get("score_coverage")
+    evaluated_pages = int(audit.get("evaluated_page_count") or 0)
+    eligible_pages = int(audit.get("score_eligible_page_count") or 0)
+    score_label = _score_result_label(site_score, partial_score)
     audited_at = str(audit.get("audited_at") or geolib.today())[:10]
     lines = [
         f"# {name} GEO Audit Report",
@@ -566,7 +588,9 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
         f"- Official website: {site}",
         "- Target market: Global",
         f"- Crawled pages: {audit.get('page_count', 0)}",
-        f"- Applicable site score: **{_format_number(site_score)}**",
+        f"- Applicable site score: **{score_label}**",
+        f"- Scoring coverage: **{evaluated_pages}/{eligible_pages} eligible pages ({_format_rate(score_coverage)})**",
+        f"- Not scored: **{audit.get('not_scored_page_count', 0)}**; excluded: **{audit.get('excluded_page_count', 0)}**",
         "- Scoring method: only evidence-backed checks applicable to each page role are counted.",
         "",
         "## Technical Baseline",
@@ -585,12 +609,22 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
         "|---|---:|",
     ]
     lines.extend(f"| {grade} | {grades.get(grade, 0)} |" for grade in "ABCD")
+    lines.extend([
+        f"| Not scored | {audit.get('not_scored_page_count', 0)} |",
+        f"| Excluded | {audit.get('excluded_page_count', 0)} |",
+    ])
+    if audit.get("score_status") == "insufficient_coverage":
+        lines += [
+            "",
+            "> Site score is withheld because scoring coverage is below the required "
+            f"{float(audit.get('minimum_score_coverage') or 0.8):.0%} threshold.",
+        ]
     lines += [
         "",
         "## Priority Pages",
         "",
-        "| Score | Words | Grade | Page | Primary Gaps |",
-        "|---:|---:|---|---|---|",
+        "| Score | Words | Grade | Role | Evaluation | Page | Primary Gaps or Reason |",
+        "|---:|---:|---|---|---|---|---|",
     ]
     pages = sorted(
         audit.get("pages") or [],
@@ -598,19 +632,30 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
             page.get("applicable_score") is None,
             page.get("applicable_score") if page.get("applicable_score") is not None else 101,
         ),
-    )[:20]
+    )
     for page in pages:
         url = _require_english(page.get("url") or "Unknown URL", "audit page URL")
         findings = page.get("findings") or []
         issues = ", ".join(
             _require_english(item.get("title") or item.get("code") or "Review required", "audit finding")
             for item in findings[:5] if isinstance(item, dict)
-        ) or ("Not scored" if page.get("evaluation_status") == "excluded" else "None")
+        )
+        if not issues and page.get("evaluation_status") != "evaluated":
+            issues = _require_english(page.get("evaluation_note") or "Not scored", "audit evaluation note")
+        issues = issues or "None"
         score = page.get("applicable_score")
         grade = page.get("applicable_grade") or "-"
+        role = _require_english((page.get("role") or {}).get("label") or "Unclassified", "audit page role")
+        evaluation = {
+            "evaluated": "Evaluated",
+            "excluded": "Excluded",
+            "insufficient_evidence": "Insufficient evidence",
+            "not_evaluated": "Not evaluated",
+        }.get(page.get("evaluation_status"), "Not evaluated")
         lines.append(
             f"| {_format_number(score) if score is not None else 'Not scored'} | {page.get('word_count', 0)} | {grade} "
-            f"| [{_markdown_cell(url)}]({_markdown_cell(url)}) | {_markdown_cell(issues)} |"
+            f"| {_markdown_cell(role)} | {evaluation} | [{_markdown_cell(url)}]({_markdown_cell(url)}) "
+            f"| {_markdown_cell(issues)} |"
         )
     lines += [
         "",
@@ -661,12 +706,17 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
 
 def _execution_markdown(name, tickets, tasks):
     baseline = tasks.get("baseline") or {}
+    baseline_score = baseline.get("applicable_avg_score")
+    baseline_score_label = _score_result_label(
+        baseline_score, baseline.get("partial_applicable_avg_score"),
+    )
     lines = [
         f"# {name} GEO Execution Plan",
         "",
         "This plan converts the current audit and visibility baseline into assigned, verifiable work.",
         "",
-        f"- Baseline site score: {_format_number(baseline.get('applicable_avg_score'))}",
+        f"- Baseline site score: {baseline_score_label}",
+        f"- Baseline scoring coverage: {_format_rate(baseline.get('score_coverage'))}",
         f"- Baseline pages: {_format_number(baseline.get('pages'))}",
         f"- Total tickets: {len(tickets)}",
         "",
@@ -687,8 +737,14 @@ def _execution_markdown(name, tickets, tasks):
                 f"- Rationale: {ticket['rationale']}",
                 f"- Action: {ticket['action']}",
                 f"- Acceptance: {ticket['acceptance']}",
-                "",
             ]
+            if ticket["prerequisites"]:
+                lines.append("- Prerequisites: " + "; ".join(
+                    f"{item['label']} ({item['status']})" for item in ticket["prerequisites"]
+                ))
+                if not ticket["execution_ready"]:
+                    lines.append("- Execution state: Blocked until all prerequisites are met")
+            lines.append("")
     lines += [
         "## Operating Cadence",
         "",
@@ -726,6 +782,10 @@ def _tickets_markdown(name, tickets):
             f"- Action: {ticket['action']}",
             f"- Acceptance: {ticket['acceptance']}",
         ]
+        if ticket["prerequisites"]:
+            lines.append("- Prerequisites: " + "; ".join(
+                f"{item['label']} ({item['status']})" for item in ticket["prerequisites"]
+            ))
         if ticket["affected"]:
             lines.append("- Affected pages: " + ", ".join(ticket["affected"][:10]))
         lines.append("")
@@ -737,12 +797,13 @@ def _tickets_csv(tickets):
     writer = csv.writer(output)
     writer.writerow([
         "ID", "Priority", "Package", "Market", "Task", "Rationale", "Action", "Owner",
-        "Effort", "Window", "Acceptance Criteria", "Verification Mode", "Status", "Affected Pages",
+        "Effort", "Window", "Prerequisites", "Acceptance Criteria", "Verification Mode", "Status", "Affected Pages",
     ])
     for ticket in tickets:
         writer.writerow([
             ticket["id"], ticket["priority"], ticket["package"], ticket["market"], ticket["title"],
             ticket["rationale"], ticket["action"], ticket["owner"], ticket["effort"], ticket["window"],
+            "; ".join(f"{item['label']} ({item['status']})" for item in ticket["prerequisites"]),
             ticket["acceptance"], ticket["verification_mode"], ticket["status"], len(ticket["affected"]),
         ])
     return output.getvalue()
@@ -781,9 +842,14 @@ def _verification_markdown(name, audit, verification, tickets):
         ]
         return "\n".join(lines)
 
+    verification_score = verification.get("audit_avg_score")
+    verification_score_label = _score_result_label(
+        verification_score, verification.get("partial_applicable_avg_score"),
+    )
     lines += [
         f"- Verification date: {verify_date or 'Not recorded'}",
-        f"- Re-audit applicable score: {_format_number(verification.get('audit_avg_score'))}",
+        f"- Re-audit applicable score: {verification_score_label}",
+        f"- Re-audit scoring coverage: {_format_rate(verification.get('score_coverage'))}",
         f"- Ticket status changes: {verification.get('changed', 0)}",
         "",
         "| ID | Task | Priority | Verdict | Evidence Summary |",
@@ -807,33 +873,73 @@ def _verification_markdown(name, audit, verification, tickets):
     return "\n".join(lines)
 
 
-def _risk_markdown(name, lint):
+def _risk_summary(lint, asset_index=None):
+    items = []
+    files = lint.get("files") if isinstance(lint, dict) and isinstance(lint.get("files"), dict) else {}
+    for filename, issues in files.items():
+        for issue in issues if isinstance(issues, list) else []:
+            items.append({
+                "path": str(filename),
+                "level": RISK_LEVELS.get(issue.get("level"), "Review"),
+                "reason": _safe_display(issue.get("message_en") or issue.get("message"), "AI draft claim requires review"),
+            })
+    assets = (asset_index or {}).get("assets") if isinstance(asset_index, dict) else []
+    for record in assets or []:
+        if not isinstance(record, dict) or record.get("status") != "needs_review":
+            continue
+        reasons = record.get("issues") or ["Asset requires factual or editorial review"]
+        for reason in reasons:
+            reason = _safe_display(reason, "Asset requires review")
+            level = "High" if any(
+                token in reason.casefold() for token in ("factual", "unreviewed", "brand facts")
+            ) else "Medium"
+            items.append({"path": f"assets/{record.get('path')}", "level": level, "reason": reason})
+    deduplicated = []
+    seen = set()
+    for item in items:
+        key = (item["path"], item["reason"])
+        if key not in seen:
+            seen.add(key)
+            deduplicated.append(item)
+    return {
+        "items": deduplicated,
+        "total": len(deduplicated),
+        "high": sum(item["level"] == "High" for item in deduplicated),
+        "files": len({item["path"] for item in deduplicated}),
+        "templates": int(((asset_index or {}).get("summary") or {}).get("template") or 0),
+    }
+
+
+def _risk_markdown(name, lint, asset_index=None):
+    summary = _risk_summary(lint, asset_index)
     lines = [f"# {name} AI Draft Risk Report", ""]
-    if not isinstance(lint, dict):
-        lines += ["No AI drafts were generated for this cycle; no draft risks require review.", ""]
+    if not summary["items"] and not summary["templates"]:
+        lines += ["No generated draft or asset risks require review for this cycle.", ""]
         return "\n".join(lines)
-    files = lint.get("files") if isinstance(lint.get("files"), dict) else {}
     lines += [
-        f"- Draft files checked: {len(files)}",
-        f"- Items requiring review: {lint.get('total_issues', 0)}",
-        f"- High-risk items: {lint.get('high', 0)}",
+        f"- Files requiring review: {summary['files']}",
+        f"- Review findings: {summary['total']}",
+        f"- High-risk findings: {summary['high']}",
+        f"- Incomplete templates: {summary['templates']}",
         "",
     ]
-    if lint.get("total_issues"):
+    if summary["items"]:
         lines += [
             "**Do not publish affected drafts until manual verification is complete.**",
             "",
-            "| File | Risk Level | Required Action |",
-            "|---|---|---|",
+            "| File | Risk Level | Reason | Required Action |",
+            "|---|---|---|---|",
         ]
-        for filename, issues in files.items():
-            filename = _require_english(filename, "draft risk filename")
-            for issue in issues if isinstance(issues, list) else []:
-                level = RISK_LEVELS.get(issue.get("level"), "Review")
-                lines.append(f"| `{_markdown_cell(filename)}` | {level} | Verify claims and attach primary-source evidence before publication. |")
+        for item in summary["items"]:
+            filename = _require_english(item["path"], "draft risk filename")
+            reason = _require_english(item["reason"], "draft risk reason")
+            lines.append(
+                f"| `{_markdown_cell(filename)}` | {item['level']} | {_markdown_cell(reason)} "
+                "| Verify claims and attach attributable evidence before publication. |"
+            )
         lines.append("")
     else:
-        lines += ["No draft issues were detected by the current lint rules.", ""]
+        lines += ["No reviewable claims were detected; incomplete templates remain non-publishable.", ""]
     return "\n".join(lines)
 
 
@@ -853,6 +959,49 @@ def _delivery_question(content, content_id):
         return question
     market = MARKET_NAMES.get(content.get("market"), "Global")
     return f"Configured {market} target question {content_id}"
+
+
+def _is_financial_question(question):
+    value = str(question or "").casefold()
+    return any(token in value for token in (
+        "money", "payment", "transfer", "currency", "exchange rate", "atm", "cash",
+        "card", "bank", "finance", "financial", "remittance", "withdraw", "funds",
+    ))
+
+
+def _content_intent(content, question):
+    value = str(question or "").casefold()
+    if any(token in value for token in (
+        "how much", "price", "pricing", "cost", "fee", "fees", "exchange rate",
+        "withdrawal limit", "withdrawal limits", "hidden charge", "hidden charges",
+    )):
+        return "Pricing"
+    if any(token in value for token in (
+        "legitimate", "safe", "safety", "secure", "security", "regulated", "regulator",
+        "licence", "license", "safeguard", "fund protection",
+    )):
+        return "Risk"
+    if any(token in value for token in ("alternative to", "alternatives to", "instead of")):
+        return "Alternatives"
+    if "comparison" in value or "better to use" in value or re.search(r"\b(?:compare|versus|vs)\.?\b", value):
+        return "Comparison"
+    if re.search(r"\b(?:what|which)\s+app\s+should\s+i\s+use\b", value) or "best app" in value:
+        return "Recommendation"
+    return GROUP_NAMES.get(content.get("group"), _safe_display(content.get("group"), "Recommendation"))
+
+
+def _content_form(intent, question):
+    if intent == "Pricing":
+        return "Transparent Pricing and Fees Page" if _is_financial_question(question) else "Transparent Pricing Page"
+    if intent == "Risk":
+        return "Trust, Regulation, and Safeguarding Page" if _is_financial_question(question) else "Security and Reliability Page"
+    return {
+        "Recommendation": "Evidence-Based Recommendation Page",
+        "Comparison": "Comparison Matrix Page",
+        "Alternatives": "Alternative Guide Page",
+        "Use case": "How-To Tutorial Page",
+        "Brand verification": "Entity Verification and Evidence Page",
+    }.get(intent, "Definition or Guide Page")
 
 
 def _build_map_markdown(name, blueprint):
@@ -942,8 +1091,8 @@ def _build_map_markdown(name, blueprint):
     for content in contents:
         content_id = _require_english(content.get("id") or "Unnumbered", "content id")
         question = _delivery_question(content, content_id)
-        intent = GROUP_NAMES.get(content.get("group"), _safe_display(content.get("group"), "General"))
-        form = _require_english(content.get("form") or "Definition or guide page", f"{content_id} content form")
+        intent = _content_intent(content, question)
+        form = _content_form(intent, question)
         status_name = {
             "ready": "Ready",
             "draft": "Draft",
@@ -1371,12 +1520,14 @@ def _write_facts_asset(destination, facts, facts_text, made):
     relative = Path("facts/brand-facts.md") if reviewed else Path("drafts/brand-facts.md")
     target = destination / relative
     target.parent.mkdir(parents=True, exist_ok=True)
-    text = brand_facts.display_text(facts_text)
+    text = brand_facts.normalize_price_rows(brand_facts.display_text(facts_text))
     if reviewed:
         text = text.replace(
             "Generated from official website evidence on ",
             "Reviewed from official website evidence originally collected on ",
-        ).replace(" Every material claim requires human review.", "")
+        ).replace(" Every material claim requires human review.", "").replace(
+            "## Officially stated facts requiring review", "## Verified facts"
+        )
     target.write_text(text, "utf-8")
     made.append(target.relative_to(destination.parent).as_posix())
 
@@ -1447,7 +1598,8 @@ def _write_llms_asset(project_slug, source, destination, config, audit, facts, m
     if complete:
         lines += [f"- {item}" for item in products]
         lines += [f"- Good fit: {item}" for item in facts.get("suitable") or []]
-        lines += [f"- Verified fact: {item['fact']} - {item['value']}" for item in facts.get("numbers") or []]
+        fact_label = "Verified fact" if facts.get("reviewed") else "Officially stated fact requiring review"
+        lines += [f"- {fact_label}: {item['fact']} - {item['value']}" for item in facts.get("numbers") or []]
         if not facts.get("reviewed"):
             lines += ["", "<!-- Draft generated from the Brand Fact Library; factual review is required before deployment. -->"]
     else:
@@ -1536,9 +1688,9 @@ def _write_outline_assets(source, destination, blueprint, made):
     }
     for content_id, content in sorted(content_by_id.items()):
         question = _delivery_question(content, content_id)
-        form = _require_english(content.get("form") or "Definition or guide page", f"{content_id} content form")
+        group = _content_intent(content, question)
+        form = _content_form(group, question)
         target_dir.mkdir(parents=True, exist_ok=True)
-        group = GROUP_NAMES.get(content.get("group"), _safe_display(content.get("group"), "Recommendation"))
         structures = {
             "Recommendation": (
                 ["Direct recommendation by user profile", "Who this is and is not for", "Evaluation criteria and weights", "Evidence-backed shortlist table", "Trade-offs and final selection guidance"],
@@ -1571,12 +1723,34 @@ def _write_outline_assets(source, destination, blueprint, made):
                 "Product documentation, tested steps, version information, and observable results",
             ),
             "Brand verification": (
-                ["One-sentence entity definition", "Official identity and aliases", "Products and audience", "Verified facts table", "What the brand does not claim", "Official sources and last verification"],
+                ["One-sentence entity definition", "Legal identity and aliases", "Products and audience", "Claim-evidence-source table", "Unknown or unsupported claims", "Official and independent sources with last verification"],
                 "A fact-evidence-source table with confidence grades",
                 "Approved facts library, official pages, legal identity, and independent reliable sources where available",
             ),
         }
         sections, decision_aid, evidence = structures.get(group, structures["Recommendation"])
+        if group == "Risk" and _is_financial_question(question):
+            sections = [
+                "Direct safety answer with jurisdiction and scope",
+                "Legal entity and service-provider responsibilities",
+                "Regulatory authorization and register evidence",
+                "Safeguarding, insurance, and insolvency distinctions",
+                "Operational risks, complaints, and user protections",
+                "Unknowns and verification checklist",
+            ]
+            decision_aid = "A claim-regulator-provider-evidence matrix"
+            evidence = "Official regulator registers, legal terms, safeguarding disclosures, provider records, and independent operational evidence"
+        elif group == "Pricing" and _is_financial_question(question):
+            sections = [
+                "Direct fee summary with currency and verification date",
+                "Transfer, exchange-rate, card, ATM, and withdrawal fee components",
+                "Limits, tiers, eligibility, and geographic availability",
+                "Worked low, expected, and high-cost scenarios",
+                "Third-party charges and exchange-rate assumptions",
+                "Unknowns, exclusions, and buyer checklist",
+            ]
+            decision_aid = "A dated fee-and-limit table plus worked transaction scenarios"
+            evidence = "Official fee schedules and terms with currency, jurisdiction, billing period, limits, and verification date"
         markdown_lines = [
             f"# Content Outline - {question}",
             "",
@@ -1885,6 +2059,8 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
         readiness_issues.append(f"{summary['template']} template asset(s) contain incomplete material")
     if not confidence.get("sufficient"):
         readiness_issues.append(f"Sampling confidence is {confidence.get('label', 'unavailable')}")
+    if audit.get("score_status") != "reported":
+        readiness_issues.append("Audit score is withheld because scoring coverage is insufficient")
     index = {
         "generated_at": geolib.now_iso(),
         "source_revision": app_config.source_revision(),
@@ -1892,6 +2068,17 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
         "readiness": "customer_ready" if records and not readiness_issues else "review_required",
         "readiness_issues": readiness_issues,
         "report_confidence": confidence,
+        "audit_confidence": {
+            "status": audit.get("score_status"),
+            "score_coverage": audit.get("score_coverage"),
+            "minimum_score_coverage": audit.get("minimum_score_coverage"),
+            "evaluated_pages": audit.get("evaluated_page_count"),
+            "eligible_pages": audit.get("score_eligible_page_count"),
+        },
+        "facts_review": {
+            "available": bool(facts_text),
+            "approved": bool(facts.get("reviewed")),
+        },
         "schema_selection": {
             "policy": "Specialized Schema.org types require project evidence",
             "included": [item for item in schema_decisions if item["status"] == "included"],
@@ -1904,6 +2091,71 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
     return index
 
 
+def validate_delivery_quality(directory, audit, tickets, asset_index):
+    directory = Path(directory)
+    issues = []
+    required = [
+        *(f"{number}-{name}.md" for number, name in REQUIRED_DOCUMENTS.items()),
+        *(f"{number}-{name}.html" for number, name in REQUIRED_DOCUMENTS.items()),
+        "03-Ticket-Log.csv",
+    ]
+    issues.extend(f"Missing required document: {name}" for name in required if not (directory / name).is_file())
+
+    page_count = int(audit.get("page_count") or 0)
+    pages = [page for page in audit.get("pages") or [] if isinstance(page, dict)]
+    if page_count != len(pages):
+        issues.append("Audit page count does not match the page evidence list")
+    coverage = audit.get("score_coverage")
+    minimum = float(audit.get("minimum_score_coverage") or audit_presentation.MIN_SITE_SCORE_COVERAGE)
+    if audit.get("applicable_avg_score") is not None and (coverage is None or float(coverage) < minimum):
+        issues.append("Audit reports a site score below the minimum scoring coverage")
+    if audit.get("score_status") == "reported" and audit.get("applicable_avg_score") is None:
+        issues.append("Audit score status is reported without a site score")
+
+    records = [item for item in asset_index.get("assets") or [] if isinstance(item, dict)]
+    summary = asset_index.get("summary") or {}
+    for status in ("ready", "needs_review", "template"):
+        if int(summary.get(status) or 0) != sum(item.get("status") == status for item in records):
+            issues.append(f"Asset summary does not match {status} records")
+    for record in records:
+        path = directory / "assets" / str(record.get("path") or "")
+        if not path.is_file():
+            issues.append(f"Manifest asset is missing: {record.get('path')}")
+        if record.get("status") == "ready" and record.get("issues"):
+            issues.append(f"Ready asset still has unresolved issues: {record.get('path')}")
+
+    risk_text = (directory / "05-Draft-Risks.md").read_text("utf-8") if (directory / "05-Draft-Risks.md").is_file() else ""
+    for record in records:
+        if record.get("status") == "needs_review" and f"assets/{record.get('path')}" not in risk_text:
+            issues.append(f"Review-required asset is absent from the risk report: {record.get('path')}")
+
+    facts_approved = bool((asset_index.get("facts_review") or {}).get("approved"))
+    llms_tickets = [ticket for ticket in tickets if "/llms.txt" in ticket.get("title", "") or "/llms.txt" in ticket.get("action", "")]
+    if not facts_approved:
+        for ticket in llms_tickets:
+            pending = any(
+                item.get("label") == "Brand facts library has passed factual review" and item.get("status") == "Pending"
+                for item in ticket.get("prerequisites") or []
+            )
+            if not pending or "approved" not in ticket.get("acceptance", "").casefold():
+                issues.append(f"{ticket.get('id')} does not block llms.txt deployment on factual approval")
+
+    for path in directory.rglob("brand-facts.md"):
+        text = path.read_text("utf-8")
+        if brand_facts.normalize_price_rows(text) != text:
+            issues.append(f"Brand facts contain a non-normalized price: {path.relative_to(directory).as_posix()}")
+
+    if issues:
+        raise GeoEngineError("delivery quality gate failed: " + "; ".join(issues))
+    return {
+        "status": "passed",
+        "checks": [
+            "document_contract", "audit_coverage", "asset_manifest", "risk_propagation",
+            "fact_approval_dependency", "price_normalization",
+        ],
+    }
+
+
 def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint, asset_index):
     coverage = blueprint.get("coverage") or {}
     assets = asset_index.get("assets") or []
@@ -1911,6 +2163,9 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     schema_selection = asset_index.get("schema_selection") or {}
     documents = [f"{number}-{title}.html" for number, title in REQUIRED_DOCUMENTS.items()]
     site_score = audit.get("applicable_avg_score")
+    site_score_label = _score_result_label(
+        site_score, audit.get("partial_applicable_avg_score"),
+    )
     source_revision = asset_index.get("source_revision") or app_config.source_revision()
     lines = [
         f"# {name} GEO Delivery Pack",
@@ -1918,7 +2173,8 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         f"- Official website: {site}",
         f"- Delivery date: {delivery_date}",
         f"- Source revision: {source_revision}",
-        f"- Applicable site score: {_format_number(site_score)}",
+        f"- Applicable site score: {site_score_label}",
+        f"- Scoring coverage: {audit.get('evaluated_page_count', 0)}/{audit.get('score_eligible_page_count', 0)} eligible pages ({_format_rate(audit.get('score_coverage'))})",
         f"- Action tickets: {len(tickets)}",
         f"- Channel coverage: {coverage.get('channel_covered', 0)}/{coverage.get('channel_total', 0)}",
     ]
@@ -1975,7 +2231,8 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
             f"{name} GEO Delivery Pack",
             markdown,
             [
-                ("Applicable Site Score", _format_number(site_score)),
+                ("Applicable Site Score", site_score_label),
+                ("Scoring Coverage", _format_rate(audit.get("score_coverage"))),
                 ("Tickets", str(len(tickets))),
                 ("Documents", str(len(documents))),
                 ("Ready Assets", str(asset_summary.get("ready", 0))),
@@ -2014,13 +2271,19 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
         geolib.read_jsonl(project_directory / "evidence" / "pages.jsonl"),
         audit.get("site") or {},
     )
+    facts_path = project_directory / "content" / "facts.md"
+    facts_text = facts_path.read_text("utf-8") if facts_path.is_file() else ""
+    facts_approved = brand_facts.REVIEWED_MARKER in facts_text
     sampling_quality = measurement.sampling_quality(project_slug)
-    task_data = action_scope.scope_task_data(task_data, display_audit, sampling_quality)
+    task_data = action_scope.scope_task_data(
+        task_data, display_audit, sampling_quality, facts_approved=facts_approved,
+    )
     verification = action_scope.scope_verification(
         verification,
         task_data,
         display_audit,
         sampling_quality,
+        facts_approved=facts_approved,
     )
     tickets = [_ticket_en(ticket) for ticket in task_data["tasks"] if isinstance(ticket, dict)]
     tickets.sort(key=lambda ticket: (ticket["priority"], ticket["id"]))
@@ -2029,11 +2292,17 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
     execution_markdown = _execution_markdown(name, tickets, task_data)
     tickets_markdown = _tickets_markdown(name, tickets)
     verification_markdown = _verification_markdown(name, display_audit, verification, tickets)
-    risk_markdown = _risk_markdown(name, lint)
+    asset_index = _write_assets(project_slug, project_directory, directory, config, display_audit, blueprint)
+    risk_summary = _risk_summary(lint, asset_index)
+    risk_markdown = _risk_markdown(name, lint, asset_index)
     build_map_markdown = _build_map_markdown(name, blueprint)
 
     _write_document(directory, "01", audit_markdown, [
-        ("Applicable Site Score", _format_number(display_audit.get("applicable_avg_score"))),
+        ("Applicable Site Score", _score_result_label(
+            display_audit.get("applicable_avg_score"),
+            display_audit.get("partial_applicable_avg_score"),
+        )),
+        ("Scoring Coverage", _format_rate(display_audit.get("score_coverage"))),
         ("Crawled Pages", str(display_audit.get("page_count", 0))),
     ])
     _write_document(directory, "02", execution_markdown, [
@@ -2049,8 +2318,8 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
         ("Status", "Verified" if verification else "Unverified"),
     ])
     _write_document(directory, "05", risk_markdown, [
-        ("Items to Review", str((lint or {}).get("total_issues", 0))),
-        ("High Risk", str((lint or {}).get("high", 0))),
+        ("Items to Review", str(risk_summary["total"])),
+        ("High Risk", str(risk_summary["high"])),
     ])
     coverage = blueprint.get("coverage") or {}
     channel_stats = [
@@ -2060,7 +2329,10 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
     if coverage.get("channel_manual"):
         channel_stats.append(("Manual Confirmation", str(coverage["channel_manual"])))
     _write_document(directory, "06", build_map_markdown, channel_stats)
-    asset_index = _write_assets(project_slug, project_directory, directory, config, audit, blueprint)
+    asset_index["quality_gate"] = validate_delivery_quality(directory, display_audit, tickets, asset_index)
+    (directory / "assets" / "index.json").write_text(
+        json.dumps(asset_index, ensure_ascii=False, indent=2) + "\n", "utf-8",
+    )
     _write_index(directory, name, site, delivery_date, display_audit, tickets, blueprint, asset_index)
     apply_delivery_branding(directory)
     validate_delivery_language(directory)
