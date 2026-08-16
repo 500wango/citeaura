@@ -245,6 +245,13 @@ def test_reviewed_text_rejects_han_and_hides_internal_marker():
     assert "citeaura:brand-facts" not in brand_facts.display_text(reviewed)
 
 
+def test_unreviewed_text_removes_approval_marker_without_promoting_draft():
+    draft = brand_facts.unreviewed_text(f"# Facts\n\n{brand_facts.REVIEWED_MARKER}\n")
+
+    assert brand_facts.REVIEWED_MARKER not in draft
+    assert draft == "# Facts\n"
+
+
 def test_price_rendering_normalizes_placeholders_symbols_and_duplicate_currency(tmp_path, monkeypatch):
     config = {"brand": {"name": "Example", "site": "https://example.com"}, "competitors": []}
     _project(tmp_path, monkeypatch, config)

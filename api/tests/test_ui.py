@@ -174,6 +174,8 @@ def test_frontend_contracts_match_backend_request_models():
     telemetry = (root / "web/app/components/telemetry-modal.js").read_text("utf-8")
     siteaudit = (root / "web/app/views/siteaudit.js").read_text("utf-8")
     facts = (root / "web/app/views/facts.js").read_text("utf-8")
+    assets = (root / "web/app/views/assets.js").read_text("utf-8")
+    report = (root / "web/app/views/report.js").read_text("utf-8")
 
     assert "resetPassword({ token, password })" in reset
     assert "preview.tenant?.name" in invite
@@ -189,6 +191,12 @@ def test_frontend_contracts_match_backend_request_models():
     assert "escapeHtml(facts.text || '')" in facts
     assert "manual_translation_required" in facts
     assert "evidence_rebuilt" in facts
+    assert "facts-approve" in facts
+    assert "approve" in facts
+    assert "derived asset(s) cannot be published" in assets
+    assert "derived_from_unreviewed_brand_facts" not in assets
+    assert "Download customer-ready ZIP" in report
+    assert "Download review ZIP" in report
     catalog = (root / "api/i18n/messages/en.json").read_text("utf-8")
     assert '"siteaudit.overall_score": "Applicable Technical Score"' in catalog
     assert '"siteaudit.col_issues": "Applicable Findings"' in catalog
@@ -236,7 +244,7 @@ def test_frontend_contracts_match_backend_request_models():
     assert "workbench.js?v=2.6" in app_js
     assert "overview.js?v=2.7" in app_js
     assert "onboarding.js?v=2.6" in app_js
-    assert "facts.js?v=2.6" in app_js
+    assert "facts.js?v=2.7" in app_js
     assert "telemetry-modal.js?v=2.6" in app_js
     assert "function projectKey(project)" in app_js
     assert "projectKey(p) === state.activeProjectId" in app_js

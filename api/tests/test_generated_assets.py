@@ -189,6 +189,28 @@ def test_generated_assets_preserve_repeated_manual_english_edits(tmp_path, monke
     )}
 
 
+def test_generated_assets_block_fact_derived_files_until_review(tmp_path, monkeypatch):
+    project, config = _seed_project(tmp_path, monkeypatch)
+    facts_path = project / "content" / "facts.md"
+    facts_path.write_text(
+        facts_path.read_text("utf-8").replace(f"{brand_facts.REVIEWED_MARKER}\n\n", ""),
+        "utf-8",
+    )
+
+    state = generated_assets.normalize_project_assets("aqua-example", config=config)
+    records = {item["path"]: item for item in state["tree"]}
+
+    for path in ("llms.en.txt", "snippets/definition.en.html", "jsonld/organization.json"):
+        assert records[path]["status"] == "review_required"
+        assert "derived_from_unreviewed_brand_facts" in records[path]["issues"]
+    assert records["custom/manual.txt"]["status"] == "deployable"
+    index = json.loads((project / "assets" / "index.json").read_text("utf-8"))
+    assert index["readiness"] == "review_required"
+    assert set(index["review_required_assets"]) >= {
+        "llms.en.txt", "snippets/definition.en.html", "jsonld/organization.json",
+    }
+
+
 def test_asset_validation_rejects_encoded_chinese_and_internal_paths():
     for value in (
         "\u4e2d\u6587",

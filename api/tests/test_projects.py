@@ -382,6 +382,8 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     archive = client.get(f"/api/v1/projects/{body['project_id']}/deliveries/2026-07-31", headers=headers)
     assert archive.status_code == 200
     assert archive.headers["content-type"] == "application/zip"
+    assert archive.headers["x-citeaura-delivery-readiness"] == "unknown"
+    assert archive.headers["content-disposition"] == 'attachment; filename="delivery-review-2026-07-31.zip"'
     import io
     with zipfile.ZipFile(io.BytesIO(archive.content)) as bundle:
         assert bundle.namelist() == ["index.html"]

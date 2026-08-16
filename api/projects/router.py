@@ -1661,6 +1661,10 @@ def download_delivery(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"error": "delivery_contract_invalid", "detail": str(exc)},
             ) from exc
+        asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
+        readiness = str(asset_index.get("readiness") or "unknown")
+        package_kind = "customer-ready" if readiness == "customer_ready" else "review"
+        source_revision = str(asset_index.get("source_revision") or "unknown")
         archive = tempfile.TemporaryFile(prefix="citeaura-delivery-", suffix=".zip")
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
             for file_path in sorted(directory.rglob("*")):
@@ -1674,6 +1678,10 @@ def download_delivery(
     return StreamingResponse(
         iter(lambda: archive.read(64 * 1024), b""),
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="delivery-{delivery_date}.zip"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="delivery-{package_kind}-{delivery_date}.zip"',
+            "X-CiteAura-Delivery-Readiness": readiness,
+            "X-CiteAura-Source-Revision": source_revision,
+        },
         background=BackgroundTask(close_archive),
     )

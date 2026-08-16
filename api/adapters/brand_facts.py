@@ -799,7 +799,19 @@ def reviewed_text(text):
         raise ValueError("brand fact library must be written in English")
     for marker in GENERATED_MARKERS:
         text = text.replace(marker, REVIEWED_MARKER)
+    if REVIEWED_MARKER not in text:
+        text = text.rstrip() + f"\n\n{REVIEWED_MARKER}\n"
     return text
+
+
+def unreviewed_text(text):
+    """保存未批准的事实草稿，并移除任何历史审核标记。"""
+    text = str(text or "")
+    if contains_han(text):
+        raise ValueError("brand fact library must be written in English")
+    for marker in (*GENERATED_MARKERS, REVIEWED_MARKER):
+        text = text.replace(marker, "")
+    return text.rstrip() + ("\n" if text.strip() else "")
 
 
 def display_text(text):

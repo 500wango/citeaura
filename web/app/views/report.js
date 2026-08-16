@@ -116,6 +116,10 @@ export default {
                     .map((d) => {
                       const dateStr = typeof d === 'string' ? d : d.date || d.name || 'Archive';
                       const dlUrl = projects.getDeliveryDownloadUrl(projectId, dateStr);
+                      const customerReady = d.readiness === 'customer_ready';
+                      const reviewRequired = d.readiness === 'review_required';
+                      const statusLabel = customerReady ? 'Customer-ready package' : reviewRequired ? 'Review package' : 'Readiness unavailable';
+                      const downloadLabel = customerReady ? 'Download customer-ready ZIP' : 'Download review ZIP';
                       return `
                       <tr>
                         <td>
@@ -123,14 +127,14 @@ export default {
                         </td>
                         <td>
                           <div style="display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;">
-                            ${statusPill(d.readiness === 'customer_ready' ? 'good' : 'warning', d.readiness === 'customer_ready' ? 'Ready for customer review' : d.readiness === 'review_required' ? 'Review required' : 'Status unavailable')}
+                            ${statusPill(customerReady ? 'good' : 'warning', statusLabel)}
                             <span style="font-size:var(--fs-2);color:var(--muted);">${Number((d.asset_summary || {}).ready || 0)} ready · ${Number((d.asset_summary || {}).needs_review || 0)} review · ${Number((d.asset_summary || {}).template || 0)} templates</span>
                           </div>
                         </td>
                         <td style="text-align:right;">
-                          <a href="${dlUrl}" class="btn btn-secondary btn-sm" download>
+                          <a href="${dlUrl}" class="btn btn-secondary btn-sm" download title="${reviewRequired ? 'Contains assets that require review before publishing.' : customerReady ? 'All delivery assets passed the current readiness checks.' : 'Readiness could not be confirmed.'}" aria-label="${downloadLabel}">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            <span>${t('report.download_zip', {}, 'Download ZIP')}</span>
+                            <span>${t(customerReady ? 'report.download_ready_zip' : 'report.download_review_zip', {}, downloadLabel)}</span>
                           </a>
                         </td>
                       </tr>

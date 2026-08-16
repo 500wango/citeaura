@@ -25,6 +25,11 @@ QUESTION_ASSET_PATTERN = re.compile(r"^(?:outlines|drafts)/(q\d{3,6})\.md$")
 PLACEHOLDER_PATTERN = re.compile(r"\[(?:Add|Insert|Replace|Verify)[^\]]*\]|\b(?:TODO|TBD)\b", re.IGNORECASE)
 CONTRACT = "citeaura.generated-assets.v1"
 MANUAL_EDITS_CONTRACT = "citeaura.manual-asset-edits.v1"
+FACT_DERIVED_ASSET_PATHS = frozenset((
+    "llms.txt",
+    "llms.en.txt",
+    "snippets/definition.en.html",
+))
 
 
 def language_violation(value):
@@ -217,7 +222,7 @@ def _hidden_reason(relative, path, active_ids, omitted_schema):
     return None
 
 
-def _visible_assets(assets, active_ids, omitted_schema, review_schema=None):
+def _visible_assets(assets, active_ids, omitted_schema, review_schema=None, facts_review_pending=False):
     records = []
     excluded = {}
     for path in sorted(assets.rglob("*")):
@@ -234,6 +239,11 @@ def _visible_assets(assets, active_ids, omitted_schema, review_schema=None):
         if relative in (review_schema or set()):
             status = "review_required"
             issues.append("schema_applicability_requires_review")
+        if facts_review_pending and (
+            relative in FACT_DERIVED_ASSET_PATHS or relative.startswith("jsonld/")
+        ) and status == "deployable":
+            status = "review_required"
+            issues.append("derived_from_unreviewed_brand_facts")
         if PLACEHOLDER_PATTERN.search(text):
             status = "review_required" if status == "deployable" else status
             issues.append("contains_incomplete_material")
@@ -330,7 +340,12 @@ def normalize_project_assets(project_slug, config=None):
                 for item in rendered["schema_decisions"]
                 if item.get("status") != "omitted" and item.get("requires_review")
             }
-            records, excluded = _visible_assets(assets, active_ids, omitted_schema, review_schema)
+            facts_path = project / "content" / "facts.md"
+            facts_review_pending = facts_path.is_file() and brand_facts.REVIEWED_MARKER not in facts_path.read_text("utf-8")
+            records, excluded = _visible_assets(
+                assets, active_ids, omitted_schema, review_schema,
+                facts_review_pending=facts_review_pending,
+            )
             _write_index(assets, records, excluded)
         finally:
             shutil.rmtree(staging_root, ignore_errors=True)

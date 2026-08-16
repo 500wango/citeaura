@@ -287,7 +287,19 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
         headers=headers,
         json={"text": "# Updated facts\n"},
     ).status_code == 200
-    assert client.get(f"/api/v1/projects/{project_id}/facts", headers=headers).json()["text"] == "# Updated facts\n"
+    facts_response = client.get(f"/api/v1/projects/{project_id}/facts", headers=headers).json()
+    assert facts_response["text"] == "# Updated facts\n"
+    assert facts_response["reviewed"] is False
+    assert facts_response["review_status"] == "review_required"
+    approved = client.put(
+        f"/api/v1/projects/{project_id}/facts",
+        headers=headers,
+        json={"text": "# Updated facts\n", "approve": True},
+    )
+    assert approved.status_code == 200
+    facts_response = client.get(f"/api/v1/projects/{project_id}/facts", headers=headers).json()
+    assert facts_response["reviewed"] is True
+    assert facts_response["review_status"] == "approved"
     non_english = client.put(
         f"/api/v1/projects/{project_id}/facts",
         headers=headers,

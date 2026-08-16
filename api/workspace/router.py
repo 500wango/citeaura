@@ -23,6 +23,10 @@ class TextRequest(BaseModel):
     text: str = Field(default="", max_length=2_000_000)
 
 
+class FactsRequest(TextRequest):
+    approve: bool = False
+
+
 class AssetRequest(TextRequest):
     path: str = Field(min_length=1, max_length=1024)
 
@@ -131,13 +135,13 @@ def project_facts(project_id: int, current_user: User = Depends(get_current_user
 @router.put("/api/v1/projects/{project_id}/facts")
 def update_project_facts(
     project_id: int,
-    payload: TextRequest,
+    payload: FactsRequest,
     current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     _, project = _tenant_project(db, current_user, project_id)
     _ensure_idle(db, project)
-    _call(db, current_user, project_id, workspace.save_facts, payload.text, write=True)
+    _call(db, current_user, project_id, workspace.save_facts, payload.text, payload.approve, write=True)
     return {"ok": True}
 
 

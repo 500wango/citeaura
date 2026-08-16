@@ -3,6 +3,19 @@ import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function assetStatusLabel(status) {
+  return status === 'deployable' ? 'Deployable' : status === 'review_required' ? 'Review required' : status === 'draft' ? 'Draft' : 'Unavailable';
+}
+
 export default {
   render: async (ctx) => {
     const projectId = ctx.activeProjectId;
@@ -18,17 +31,19 @@ export default {
     }
     const firstPath = assets[0].path;
     const first = await workspace.getAsset(projectId, firstPath).catch(() => ({ path: firstPath, text: '' }));
+    const reviewRequired = assets.filter((item) => item.status === 'review_required');
     return `
       <div class="app-view-container">
         <div class="view-header">
           <div class="view-title-group"><h1 class="view-title">Generated Assets</h1><p class="view-desc">Review and edit files generated from the current project workspace.</p></div>
           <div class="view-actions"><button type="button" id="btn-save-asset" class="btn btn-primary btn-sm">Save Asset</button></div>
         </div>
+        ${reviewRequired.length ? `<div class="banner warn" style="margin-bottom:var(--sp-4);"><div><strong>Review required.</strong> ${reviewRequired.length} derived asset(s) cannot be published until the brand fact library and supporting evidence are approved.</div></div>` : ''}
         <div class="card" style="gap:var(--sp-4);">
           <div class="field" style="margin:0;">
             <label for="asset-path">Asset file</label>
             <select id="asset-path" class="input">
-              ${assets.map((item) => `<option value="${item.path}" ${item.path === first.path ? 'selected' : ''}>${item.path}</option>`).join('')}
+              ${assets.map((item) => `<option value="${escapeHtml(item.path)}" ${item.path === first.path ? 'selected' : ''}>${escapeHtml(item.path)} · ${assetStatusLabel(item.status)}</option>`).join('')}
             </select>
           </div>
           <div class="field" style="margin:0;">
