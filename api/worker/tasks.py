@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 
-from api.adapters import baseline, global_scope, locking, measurement, sampling_control, site_signals, ticket_workflow
+from api.adapters import baseline, brand_facts, global_scope, locking, measurement, sampling_control, site_signals, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract, ensure_legacy_deliverables_contract
 from api.adapters.engine import (
     ENGINE_MAX_REPEAT,
@@ -172,6 +172,20 @@ def _require_sampling_output(result, project_slug, job_id=None, started_at=None)
     if not _sampling_succeeded(result, project_slug, job_id=job_id, started_at=started_at):
         raise RuntimeError("sampling produced no measurable successful samples")
     return result
+
+
+def _sync_claim_verification(project_slug):
+    """用官网抓取证据对照事实库，并在有采样时回填 factcheck。"""
+    try:
+        facts_path = geolib.project_dir(project_slug) / "content" / "facts.md"
+        if not facts_path.is_file():
+            return None
+        verification = brand_facts.verify_against_site(project_slug)
+        brand_facts.sync_sample_factcheck(project_slug, verification)
+        return verification
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Claim verification deferred for %s: %s", project_slug, exc)
+        return None
 
 
 def _safe_delivery_contract(project_slug):
@@ -700,6 +714,7 @@ def task_bootstrap(
                     byok_codes=funding.get("keys", {}).keys(),
                     pool_codes=funding.get("pool_codes", ()),
                 )
+            _sync_claim_verification(project_slug)
             delivery_error = _safe_delivery_contract(project_slug)
             return {
                 "status": "done",
@@ -991,6 +1006,8 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                 if action == "sample":
                     global_scope.normalize_project(project_slug)
             update("finalizing", 90)
+            if action in ("bootstrap", "autopilot", "serve", "generate", "sample", "deliver"):
+                _sync_claim_verification(project_slug)
             delivery_error = None
             if action in ("deliver",):
                 ensure_delivery_contract(project_slug)

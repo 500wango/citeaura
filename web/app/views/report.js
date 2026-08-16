@@ -50,7 +50,7 @@ export default {
           <div class="view-title-group">
             <h1 class="view-title">${t('report.title', {}, 'Client Delivery Packs')}</h1>
             <p class="view-desc">
-              ${t('report.desc', {}, 'Compile and download client-ready ZIP packs. Visibility numbers live on the AI Visibility Matrix — this page is the handoff package.')}
+              ${t('report.desc', {}, 'The first-run ZIP is the diagnostic final pack. Send documents 01–06 to the client. Templates and unmeasured visibility stay disclosed as implementation backlog — they do not block this pack.')}
             </p>
           </div>
           <div class="view-actions">
@@ -122,8 +122,19 @@ export default {
                       const dlUrl = projects.getDeliveryDownloadUrl(projectId, dateStr);
                       const customerReady = d.readiness === 'customer_ready';
                       const reviewRequired = d.readiness === 'review_required';
-                      const statusLabel = customerReady ? 'Customer-ready package' : reviewRequired ? 'Review package' : 'Readiness unavailable';
+                      const implementationReady = Boolean(d.implementation_ready);
+                      const diagnosticReady = d.diagnostic_ready !== false && customerReady;
+                      const statusLabel = implementationReady
+                        ? t('report.status_implementation', {}, 'Implementation pack ready')
+                        : diagnosticReady
+                          ? t('report.status_diagnostic', {}, 'Diagnostic pack ready')
+                          : reviewRequired
+                            ? t('report.status_review', {}, 'Review package')
+                            : t('report.status_unknown', {}, 'Readiness unavailable');
                       const downloadLabel = customerReady ? 'Download customer-ready ZIP' : 'Download review ZIP';
+                      const backlogNote = !implementationReady && Array.isArray(d.implementation_backlog) && d.implementation_backlog.length
+                        ? `${Number((d.asset_summary || {}).template || 0)} outlines remain implementation backlog`
+                        : `${Number((d.asset_summary || {}).ready || 0)} ready · ${Number((d.asset_summary || {}).needs_review || 0)} review · ${Number((d.asset_summary || {}).template || 0)} templates`;
                       return `
                       <tr>
                         <td>
@@ -132,11 +143,11 @@ export default {
                         <td>
                           <div style="display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;">
                             ${statusPill(customerReady ? 'good' : 'warning', statusLabel)}
-                            <span style="font-size:var(--fs-2);color:var(--muted);">${Number((d.asset_summary || {}).ready || 0)} ready · ${Number((d.asset_summary || {}).needs_review || 0)} review · ${Number((d.asset_summary || {}).template || 0)} templates</span>
+                            <span style="font-size:var(--fs-2);color:var(--muted);">${backlogNote}</span>
                           </div>
                         </td>
                         <td style="text-align:right;">
-                          <a href="${dlUrl}" class="btn btn-secondary btn-sm" download title="${reviewRequired ? 'Contains assets that require review before publishing.' : customerReady ? 'All delivery assets passed the current readiness checks.' : 'Readiness could not be confirmed.'}" aria-label="${downloadLabel}">
+                          <a href="${dlUrl}" class="btn btn-secondary btn-sm" download title="${reviewRequired ? 'Contains assets that require review before publishing.' : implementationReady ? 'Diagnostic documents and publishable assets passed the current checks.' : customerReady ? 'Diagnostic final pack. Implementation outlines stay classified and do not block sending this ZIP.' : 'Readiness could not be confirmed.'}" aria-label="${downloadLabel}">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             <span>${t(customerReady ? 'report.download_ready_zip' : 'report.download_review_zip', {}, downloadLabel)}</span>
                           </a>

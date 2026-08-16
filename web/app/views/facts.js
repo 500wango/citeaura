@@ -42,9 +42,17 @@ function reviewStatusNotice(facts) {
         <div><strong>Approved for derived assets.</strong> Saving with approval enabled will keep generated JSON-LD, /llms.txt, and definition assets eligible for deployment.</div>
       </div>`;
   }
+  if (facts?.machine_verified) {
+    const verified = Number(facts?.verification?.verified || 0);
+    const needsHuman = Number(facts?.verification?.needs_human || 0);
+    return `
+      <div class="banner good" style="margin-bottom:var(--sp-4);">
+        <div><strong>Machine-verified against the official website.</strong> ${verified} publication claim(s) matched crawl evidence. Derived /llms.txt, JSON-LD, and definition assets can be published. ${needsHuman ? `${needsHuman} inferred statement(s) stay out of publishable copy until a human confirms them.` : ''}</div>
+      </div>`;
+  }
   return `
     <div class="banner warn" style="margin-bottom:var(--sp-4);">
-      <div><strong>Review required.</strong> Derived assets remain blocked until every material claim has evidence and you explicitly approve this library.</div>
+      <div><strong>Not yet grounded.</strong> CiteAura verifies claims by matching them to official-site crawl text. It does not ask the model to grade its own extraction. Add source-backed values or keep inferred statements out of published assets.</div>
     </div>`;
 }
 
@@ -61,7 +69,7 @@ export default {
         <div class="view-header">
           <div class="view-title-group">
             <h1 class="view-title">Brand Fact Library</h1>
-            <p class="view-desc">Maintain the official facts used by generated content and delivery assets. Include sources and verification dates for material claims.</p>
+            <p class="view-desc">CiteAura extracts facts from the official site, then verifies them against the crawl. The checkbox is only a human override. Inferred or paraphrased claims stay unpublished until they appear on the site or you approve them.</p>
           </div>
           <div class="view-actions">
             <button type="button" id="btn-save-facts" class="btn btn-primary btn-sm">Save Fact Library</button>
@@ -77,7 +85,7 @@ export default {
           </div>
           <label style="display:flex;align-items:flex-start;gap:var(--sp-2);font-size:var(--fs-2);">
             <input type="checkbox" id="facts-approve" ${facts.reviewed ? 'checked' : ''}>
-            <span>I reviewed every material claim, attached evidence, and approve this library for derived assets.</span>
+            <span>I reviewed every material claim, attached evidence, and approve this library for publishable derived assets. The diagnostic pack does not need this checkbox.</span>
           </label>
         </div>
       </div>`;

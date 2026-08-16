@@ -374,6 +374,10 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert deliveries.json()["packages"] == [{
         "date": "2026-07-31",
         "readiness": "unknown",
+        "pack_kind": "unknown",
+        "diagnostic_ready": False,
+        "implementation_ready": False,
+        "implementation_backlog": [],
         "asset_summary": {"ready": 0, "needs_review": 0, "template": 0},
     }]
     monkeypatch.setattr(project_router.task_deliver, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-4"))

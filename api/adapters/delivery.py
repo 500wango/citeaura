@@ -594,6 +594,8 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
         f"- Not scored: **{audit.get('not_scored_page_count', 0)}**; excluded: **{audit.get('excluded_page_count', 0)}**",
         "- Scoring method: only evidence-backed checks applicable to each page role are counted.",
         "",
+        "This document is the diagnostic final report. Unmeasured AI visibility and withheld site scores are disclosed below; they do not make this report incomplete.",
+        "",
         "## Technical Baseline",
         "",
         "| Check | Result |",
@@ -683,7 +685,10 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
     lines.append("")
     platforms = (metrics or {}).get("platforms") or {}
     if not platforms:
-        lines += ["No AI visibility samples are available for this cycle.", ""]
+        lines += [
+            "AI visibility is not measured for this cycle. That is a disclosed measurement gap, not a missing diagnosis.",
+            "",
+        ]
     else:
         modes = _sample_modes(project_directory, metrics)
         lines += [
@@ -928,6 +933,8 @@ def _risk_markdown(name, lint, asset_index=None):
         lines += ["No generated draft or asset risks require review for this cycle.", ""]
         return "\n".join(lines)
     lines += [
+        "These items are implementation publication risks. They do not block the diagnostic pack.",
+        "",
         f"- Files requiring review: {summary['files']}",
         f"- Review findings: {summary['total']}",
         f"- High-risk findings: {summary['high']}",
@@ -1521,24 +1528,29 @@ def _facts_delivery_data(project_slug, project_directory, config):
     text = path.read_text("utf-8")
     if _contains_han(text):
         return {}, ""
-    return brand_facts.parse_facts_text(text), text
+    facts, text = brand_facts.load_facts(project_slug)
+    return facts, text
 
 
 def _write_facts_asset(destination, facts, facts_text, made):
     if not facts_text:
         return
-    reviewed = bool(facts.get("reviewed"))
-    relative = Path("facts/brand-facts.md") if reviewed else Path("drafts/brand-facts.md")
+    approved = bool(facts.get("approved") or facts.get("reviewed"))
+    machine_only = approved and not facts.get("reviewed")
+    relative = Path("facts/brand-facts.md") if approved else Path("drafts/brand-facts.md")
     target = destination / relative
     target.parent.mkdir(parents=True, exist_ok=True)
     text = brand_facts.normalize_price_rows(brand_facts.display_text(facts_text))
-    if reviewed:
-        text = text.replace(
-            "Generated from official website evidence on ",
-            "Reviewed from official website evidence originally collected on ",
-        ).replace(" Every material claim requires human review.", "").replace(
-            "## Officially stated facts requiring review", "## Verified facts"
+    if approved:
+        prefix = (
+            "Machine-verified from official website evidence originally collected on "
+            if machine_only else
+            "Reviewed from official website evidence originally collected on "
         )
+        text = text.replace("Generated from official website evidence on ", prefix).replace(
+            " Every material claim requires human review.",
+            " Publication-bound claims were matched to official-site crawl evidence." if machine_only else "",
+        ).replace("## Officially stated facts requiring review", "## Verified facts")
     else:
         text = text.replace("## Verified facts", "## Officially stated facts requiring review")
     target.write_text(text, "utf-8")
@@ -1611,9 +1623,9 @@ def _write_llms_asset(project_slug, source, destination, config, audit, facts, m
     if complete:
         lines += [f"- {item}" for item in products]
         lines += [f"- Good fit: {item}" for item in facts.get("suitable") or []]
-        fact_label = "Verified fact" if facts.get("reviewed") else "Officially stated fact requiring review"
+        fact_label = "Verified fact" if facts.get("approved") or facts.get("reviewed") else "Officially stated fact requiring review"
         lines += [f"- {fact_label}: {item['fact']} - {item['value']}" for item in facts.get("numbers") or []]
-        if not facts.get("reviewed"):
+        if not (facts.get("approved") or facts.get("reviewed")):
             lines += ["", "<!-- Draft generated from the Brand Fact Library; factual review is required before deployment. -->"]
     else:
         lines += [
@@ -1622,7 +1634,7 @@ def _write_llms_asset(project_slug, source, destination, config, audit, facts, m
         ]
     lines.append("")
     text = "\n".join(lines)
-    relative = Path("llms.en.txt") if complete and facts.get("reviewed") else Path("drafts/llms.en.txt")
+    relative = Path("llms.en.txt") if complete and (facts.get("approved") or facts.get("reviewed")) else Path("drafts/llms.en.txt")
     target = destination / relative
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, "utf-8")
@@ -2022,6 +2034,61 @@ def _asset_record(destination, delivery_path, *, facts_review_pending=False):
     }
 
 
+def _classify_pack_readiness(audit, summary, sampling, facts_review):
+    """拆开诊断终稿与可发布落地资产。
+
+    首轮只要审计合同成立，就是可发给客户的诊断终稿。提纲、待核验文案、
+    未测可见度、未达覆盖率的站点分，记为落地 backlog，不挡诊断包。
+    """
+    audit = audit if isinstance(audit, dict) else {}
+    summary = summary if isinstance(summary, dict) else {}
+    sampling = sampling if isinstance(sampling, dict) else {}
+    facts_review = facts_review if isinstance(facts_review, dict) else {}
+    confidence = sampling.get("confidence") or {}
+    page_count = int(audit.get("page_count") or 0)
+
+    implementation_backlog = []
+    needs_review = int(summary.get("needs_review") or 0)
+    templates = int(summary.get("template") or 0)
+    if needs_review:
+        implementation_backlog.append(
+            f"{needs_review} implementation asset(s) require factual or editorial review before publication"
+        )
+    if templates:
+        implementation_backlog.append(
+            f"{templates} template asset(s) are implementation outlines, not finished publishable pages"
+        )
+    if not confidence.get("sufficient"):
+        label = str(confidence.get("label") or "unmeasured")
+        implementation_backlog.append(
+            f"AI visibility is {label.lower()}; representative 20/2 sampling is required "
+            "only before publishing measured mention rates"
+        )
+    if audit.get("score_status") and audit.get("score_status") != "reported":
+        implementation_backlog.append(
+            "Site score is withheld until scoring coverage reaches the reporting threshold"
+        )
+    if facts_review.get("available") and not facts_review.get("approved"):
+        implementation_backlog.append(
+            "Brand facts are site-extracted and not yet approved for publication-derived assets"
+        )
+
+    diagnostic_blockers = []
+    if page_count < 1:
+        diagnostic_blockers.append("Audit has no crawled pages")
+
+    implementation_ready = not implementation_backlog and int(summary.get("ready") or 0) > 0
+    diagnostic_ready = not diagnostic_blockers
+    return {
+        "pack_kind": "implementation" if implementation_ready else "diagnostic",
+        "readiness": "customer_ready" if diagnostic_ready else "review_required",
+        "diagnostic_ready": diagnostic_ready,
+        "implementation_ready": implementation_ready,
+        "readiness_issues": diagnostic_blockers,
+        "implementation_backlog": implementation_backlog,
+    }
+
+
 def _write_assets(project_slug, project_directory, directory, config, audit, blueprint):
     source = project_directory / "assets"
     destination = directory / "assets"
@@ -2042,7 +2109,7 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
     schema_decisions = generated["schema_decisions"]
     _copy_drafts(source, destination, blueprint, made)
     _copy_other_assets(source, destination, blueprint, made)
-    facts_review_pending = bool(facts_text) and not bool(facts.get("reviewed"))
+    facts_review_pending = bool(facts_text) and not bool(facts.get("approved") or facts.get("reviewed"))
     records = [
         _asset_record(destination, path, facts_review_pending=facts_review_pending)
         for path in sorted(set(made))
@@ -2065,21 +2132,22 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
     }
     sampling = measurement.sampling_quality(project_slug)
     confidence = sampling.get("confidence") or {}
-    readiness_issues = []
-    if summary["needs_review"]:
-        readiness_issues.append(f"{summary['needs_review']} asset(s) require factual or editorial review")
-    if summary["template"]:
-        readiness_issues.append(f"{summary['template']} template asset(s) contain incomplete material")
-    if not confidence.get("sufficient"):
-        readiness_issues.append(f"Sampling confidence is {confidence.get('label', 'unavailable')}")
-    if audit.get("score_status") != "reported":
-        readiness_issues.append("Audit score is withheld because scoring coverage is insufficient")
+    facts_review = {
+        "available": bool(facts_text),
+        "approved": bool(facts.get("approved") or facts.get("reviewed")),
+        "machine_verified": bool((facts.get("verification") or {}).get("publication_ready")) and not bool(facts.get("reviewed")),
+    }
+    classification = _classify_pack_readiness(audit, summary, sampling, facts_review)
     index = {
         "generated_at": geolib.now_iso(),
         "source_revision": app_config.source_revision(),
         "language": "English",
-        "readiness": "customer_ready" if records and not readiness_issues else "review_required",
-        "readiness_issues": readiness_issues,
+        "pack_kind": classification["pack_kind"],
+        "readiness": classification["readiness"],
+        "diagnostic_ready": classification["diagnostic_ready"],
+        "implementation_ready": classification["implementation_ready"],
+        "readiness_issues": classification["readiness_issues"],
+        "implementation_backlog": classification["implementation_backlog"],
         "report_confidence": confidence,
         "audit_confidence": {
             "status": audit.get("score_status"),
@@ -2088,10 +2156,7 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
             "evaluated_pages": audit.get("evaluated_page_count"),
             "eligible_pages": audit.get("score_eligible_page_count"),
         },
-        "facts_review": {
-            "available": bool(facts_text),
-            "approved": bool(facts.get("reviewed")),
-        },
+        "facts_review": facts_review,
         "schema_selection": {
             "policy": "Specialized Schema.org types require project evidence",
             "included": [item for item in schema_decisions if item["status"] == "included"],
@@ -2183,9 +2248,32 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         site_score, audit.get("partial_applicable_avg_score"),
     )
     source_revision = asset_index.get("source_revision") or app_config.source_revision()
+    pack_kind = asset_index.get("pack_kind") or "diagnostic"
+    diagnostic_ready = bool(asset_index.get("diagnostic_ready"))
+    implementation_ready = bool(asset_index.get("implementation_ready"))
+    if implementation_ready:
+        pack_status = "Implementation pack ready"
+        pack_purpose = (
+            "This package is the implementation final pack: diagnostic documents plus "
+            "publishable assets that passed factual and editorial checks."
+        )
+    elif diagnostic_ready:
+        pack_status = "Diagnostic pack ready"
+        pack_purpose = (
+            "This package is the diagnostic final pack. Send documents 01-06 to the client. "
+            "Templates and review-only drafts are the implementation backlog, not missing diagnosis."
+        )
+    else:
+        pack_status = "Review required"
+        pack_purpose = (
+            "This package could not be classified as a complete diagnostic pack. "
+            "Resolve the readiness issues below before sending it to a client."
+        )
     lines = [
         f"# {name} GEO Delivery Pack",
         "",
+        f"- Pack type: {pack_kind}",
+        f"- Pack status: {pack_status}",
         f"- Official website: {site}",
         f"- Delivery date: {delivery_date}",
         f"- Source revision: {source_revision}",
@@ -2196,7 +2284,17 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     ]
     if coverage.get("channel_manual"):
         lines.append(f"- Channels requiring manual confirmation: {coverage['channel_manual']}")
-    lines.append("")
+    lines += ["", pack_purpose, ""]
+    backlog = [str(item) for item in (asset_index.get("implementation_backlog") or []) if item]
+    if backlog and not implementation_ready:
+        lines += ["## Implementation Backlog", ""]
+        lines += [f"- {item}" for item in backlog]
+        lines.append("")
+    blockers = [str(item) for item in (asset_index.get("readiness_issues") or []) if item]
+    if blockers:
+        lines += ["## Diagnostic Blockers", ""]
+        lines += [f"- {item}" for item in blockers]
+        lines.append("")
     strategy = blueprint.get("channel_strategy") or {}
     if strategy:
         lines += [
@@ -2214,7 +2312,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         "", "## Asset Readiness", "",
         f"- Ready to deploy: {asset_summary.get('ready', 0)}",
         f"- Needs factual or editorial review: {asset_summary.get('needs_review', 0)}",
-        f"- Templates requiring completion: {asset_summary.get('template', 0)}",
+        f"- Implementation outlines (templates): {asset_summary.get('template', 0)}",
         f"- Specialized JSON-LD assets omitted for lack of supporting evidence: {len(schema_selection.get('omitted') or [])}",
         "",
     ]
@@ -2234,7 +2332,8 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         "",
         "## Use and Verification",
         "",
-        "Review the audit first, execute tickets by priority, attach evidence, then re-run acceptance checks and visibility sampling.",
+        "Send the diagnostic documents first. Execute tickets by priority, attach evidence, then re-run acceptance checks.",
+        "Do not treat unmeasured visibility or unfinished outlines as a reason to withhold this pack.",
         "Sampling results must retain their stated mode: API - Parametric knowledge, API - Search grounded, or Manual - Product interface.",
         "",
     ]
@@ -2247,6 +2346,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
             f"{name} GEO Delivery Pack",
             markdown,
             [
+                ("Pack Status", pack_status),
                 ("Applicable Site Score", site_score_label),
                 ("Scoring Coverage", _format_rate(audit.get("score_coverage"))),
                 ("Tickets", str(len(tickets))),
@@ -2260,8 +2360,12 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         f"# {name} GEO Delivery Pack",
         "",
         f"Source revision: `{source_revision}`",
+        f"Pack type: `{pack_kind}`",
+        f"Pack status: {pack_status}",
         "",
-        "Start with `index.html` for the delivery overview.",
+        pack_purpose,
+        "",
+        "Start with `index.html` for the delivery overview. Documents 01-06 are the client-facing diagnostic final pack.",
         "",
         "## Package Contents",
         "",
@@ -2269,11 +2373,12 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         "- `02-Execution-Plan`: prioritized 30/60/90-day implementation sequence.",
         "- `03-Ticket-Log`: assigned work, rationale, actions, and acceptance criteria.",
         "- `04-Acceptance-Checklist`: current automated and manual verification state.",
-        "- `05-Draft-Risks`: publication risks requiring human review.",
+        "- `05-Draft-Risks`: publication risks for implementation assets, not diagnostic defects.",
         "- `06-Build-Map`: channel and target-query content architecture.",
-        "- `assets/`: assets grouped as ready, needs review, or template in `assets/index.json`.",
+        "- `assets/`: classified as ready, needs review, or template in `assets/index.json`.",
         "",
-        "Do not publish drafts or deploy placeholders until the responsible owner has verified every claim and value.",
+        "Templates and review-only drafts stay in the pack as the next implementation backlog. "
+        "They do not block sending this diagnostic pack. Do not publish them until every claim is verified.",
         "",
     ])
     (directory / "README.md").write_text(readme, "utf-8")
@@ -2289,7 +2394,7 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
     )
     facts_path = project_directory / "content" / "facts.md"
     facts_text = facts_path.read_text("utf-8") if facts_path.is_file() else ""
-    facts_approved = brand_facts.REVIEWED_MARKER in facts_text
+    facts_approved = brand_facts.publication_approved(project_slug, facts_text)
     sampling_quality = measurement.sampling_quality(project_slug)
     task_data = action_scope.scope_task_data(
         task_data, display_audit, sampling_quality, facts_approved=facts_approved,

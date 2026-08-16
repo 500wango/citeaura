@@ -53,20 +53,27 @@ def assess(project_slug, has_sampling_access=False):
     sampling_score = round(35 * sampling_ratio)
     if not has_sampling_access:
         issues.append(_issue(
-            "api_key_missing", "warning", "API keys unconfigured; automated sampling and inference limited",
-            "Configure at least one API key or import manual sampling sheet", "engine-settings",
+            "api_key_missing", "info",
+            "API keys are optional. The diagnostic pack still reports site and content findings",
+            "Add a key or import a manual sheet only if you want measured mention rates", "engine-settings",
         ))
     if not metrics:
-        issues.append(_issue("sampling_missing", "critical", "AI visibility metrics pending", "Run AI answer sampling", "engines"))
+        issues.append(_issue(
+            "sampling_missing", "info",
+            "AI visibility is not measured yet. That does not block the diagnostic pack",
+            "Run sampling only if you want measured mention rates in the next cycle", "engines",
+        ))
     elif successful < MIN_COMPARABLE_SAMPLES:
         issues.append(_issue(
-            "sampling_insufficient", "warning", f"Currently only {successful} valid samples",
-            f"Collect at least {MIN_COMPARABLE_SAMPLES} valid samples before evaluating trends", "engines",
+            "sampling_insufficient", "info",
+            f"Currently only {successful} valid samples; mention rates stay limited",
+            f"Collect at least {MIN_COMPARABLE_SAMPLES} valid samples before publishing visibility claims", "engines",
         ))
     if metrics and platform_count < MIN_REPRESENTATIVE_PLATFORMS:
         issues.append(_issue(
-            "sampling_platforms_limited", "warning", f"Currently only {platform_count} sampled platform(s)",
-            f"Sample at least {MIN_REPRESENTATIVE_PLATFORMS} representative platforms before making global conclusions",
+            "sampling_platforms_limited", "info",
+            f"Currently only {platform_count} sampled platform(s); do not generalize across engines",
+            f"Sample at least {MIN_REPRESENTATIVE_PLATFORMS} platforms before publishing cross-engine claims",
             "engines",
         ))
     if current.get("failure_rate") is not None and current["failure_rate"] > 0.2:
@@ -84,7 +91,10 @@ def assess(project_slug, has_sampling_access=False):
     has_delivery = delivery_directory.exists() and any(delivery_directory.iterdir())
     delivery_score = 10 if has_delivery else 0
     if not has_delivery:
-        issues.append(_issue("delivery_missing", "info", "Client delivery pack pending", "Compile delivery pack after report review", "report"))
+        issues.append(_issue(
+            "delivery_missing", "info", "Diagnostic pack not compiled yet",
+            "Build the diagnostic pack", "report",
+        ))
 
     score = audit_score + sampling_score + playbook_score + delivery_score
     if score >= 85:
@@ -95,10 +105,13 @@ def assess(project_slug, has_sampling_access=False):
         level = "partial"
     else:
         level = "missing"
+    diagnostic_ready = page_count > 0 and ticket_count > 0
     return {
         "score": score,
         "level": level,
-        "effective_report": score >= 60 and page_count > 0 and bool(metrics) and bool(confidence.get("sufficient")),
+        "effective_report": diagnostic_ready,
+        "diagnostic_ready": diagnostic_ready,
+        "measured_visibility": bool(confidence.get("sufficient")),
         "confidence": confidence,
         "components": {
             "site_audit": {"score": audit_score, "max": 35, "pages_ok": pages_ok, "pages_crawled": pages_crawled},

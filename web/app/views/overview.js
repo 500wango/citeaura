@@ -136,7 +136,9 @@ export default {
         ${renderKpis(kpiData)}
         ${qualityIssues.length ? `
           <div class="card" style="gap:var(--sp-3);">
-            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('overview.next_steps', {}, 'Setup checklist')}</h3>
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${quality.effective_report
+              ? t('overview.optional_upgrades', {}, 'Optional upgrades')
+              : t('overview.next_steps', {}, 'Setup checklist')}</h3>
             ${qualityIssues.map((issue) => `
               <a href="#/${issue.route || 'overview'}" style="display:flex;justify-content:space-between;gap:var(--sp-3);text-decoration:none;">
                 <span>${escapeHtml(issue.message)}</span>

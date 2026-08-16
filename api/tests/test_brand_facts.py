@@ -252,6 +252,116 @@ def test_unreviewed_text_removes_approval_marker_without_promoting_draft():
     assert draft == "# Facts\n"
 
 
+def test_official_site_grounding_approves_verbatim_claims_only(tmp_path, monkeypatch):
+    config = {
+        "brand": {
+            "name": "Example",
+            "site": "https://example.com",
+            "industry": "Operations software",
+            "products": ["Work order coordination"],
+            "target_users": "Plant operators",
+        },
+    }
+    project = _project(tmp_path, monkeypatch, config)
+    (project / "evidence" / "pages.jsonl").write_text(
+        json.dumps({
+            "url": "https://example.com",
+            "status": 200,
+            "title": "Example",
+            "text": (
+                "Example coordinates field operations for distributed industrial teams. "
+                "Operations software for work order coordination."
+            ),
+            "jsonld_raw": [{"@type": "Organization", "name": "Example", "url": "https://example.com"}],
+        }) + "\n",
+        "utf-8",
+    )
+    facts = brand_facts.render_facts_data("example-com", {
+        "name": "Example",
+        "industry": "Operations software",
+        "definition": "Example coordinates field operations for distributed industrial teams.",
+        "products": ["Work order coordination"],
+        "target_users": "Plant operators",
+        "business_goal": "Qualified product enquiries (inferred)",
+        "key_numbers": [{"fact": "Supported regions", "value": "18", "source": "About"}],
+    })
+    (project / "content" / "facts.md").write_text(facts, "utf-8")
+
+    verified = brand_facts.verify_against_site("example-com", facts)
+    assert verified["publication_ready"] is False
+    assert any(item["field"] == "key_numbers" and item["status"] == "needs_human" for item in verified["claims"])
+    assert any(item["field"] == "definition" and item["status"] == "machine_verified" for item in verified["claims"])
+    assert brand_facts.publication_approved("example-com", facts) is False
+
+    (project / "content" / "facts.md").write_text(
+        facts.replace("| Supported regions | 18 |", "| Supported regions | Needs verification |"),
+        "utf-8",
+    )
+    grounded = brand_facts.verify_against_site("example-com")
+    assert grounded["publication_ready"] is True
+    assert brand_facts.publication_approved("example-com") is True
+    assert "18" not in {item.get("value") for item in grounded["claims"]}
+
+
+def test_paraphrased_definition_is_not_machine_verified(tmp_path, monkeypatch):
+    config = {"brand": {"name": "Example", "site": "https://example.com"}}
+    project = _project(tmp_path, monkeypatch, config)
+    (project / "evidence" / "pages.jsonl").write_text(
+        json.dumps({
+            "url": "https://example.com", "status": 200,
+            "text": "Example sells industrial sensors.",
+        }) + "\n",
+        "utf-8",
+    )
+    facts = brand_facts.render_facts_data("example-com", {
+        "name": "Example",
+        "definition": "Example is the leading global platform for sensor intelligence.",
+        "industry": "Industrial sensors",
+    })
+    (project / "content" / "facts.md").write_text(facts, "utf-8")
+
+    result = brand_facts.verify_against_site("example-com")
+    assert result["publication_ready"] is False
+    definition = next(item for item in result["claims"] if item["field"] == "definition")
+    assert definition["status"] == "needs_human"
+    assert definition["method"] == "ungrounded"
+
+
+def test_sample_factcheck_is_filled_from_grounded_claims(tmp_path, monkeypatch):
+    config = {"brand": {"name": "Example", "site": "https://example.com"}}
+    project = _project(tmp_path, monkeypatch, config)
+    (project / "evidence" / "pages.jsonl").write_text(
+        json.dumps({
+            "url": "https://example.com", "status": 200,
+            "text": "Example is operations software. Work order coordination is the core product.",
+        }) + "\n",
+        "utf-8",
+    )
+    facts = brand_facts.render_facts_data("example-com", {
+        "name": "Example",
+        "definition": "Example is operations software.",
+        "industry": "operations software",
+        "products": ["Work order coordination"],
+    })
+    (project / "content" / "facts.md").write_text(facts, "utf-8")
+    (project / "samples").mkdir()
+    (project / "samples" / "2026-08-17.jsonl").write_text(
+        json.dumps({
+            "ok": True,
+            "answer": "Example is operations software used by field teams.",
+        }) + "\n",
+        "utf-8",
+    )
+
+    items = brand_facts.sync_sample_factcheck("example-com")
+    assert items
+    assert all(item["source"] == "official_site_grounding" for item in items)
+    assert any(item["field"] == "definition" and item["state"] == "consistent" for item in items)
+    assert all(item["field"] != "site" for item in items)
+    (project / "factcheck.json").write_text(json.dumps([{"field": "price", "state": "incorrect"}]), "utf-8")
+    assert brand_facts.sync_sample_factcheck("example-com") == [{"field": "price", "state": "incorrect"}]
+
+
 def test_price_rendering_normalizes_placeholders_symbols_and_duplicate_currency(tmp_path, monkeypatch):
     config = {"brand": {"name": "Example", "site": "https://example.com"}, "competitors": []}
     _project(tmp_path, monkeypatch, config)

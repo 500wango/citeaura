@@ -292,12 +292,23 @@ def facts_source(project_slug: str) -> dict:
     migration = brand_facts.ensure_english_facts(project_slug)
     text = path.read_text("utf-8") if path.exists() else ""
     reviewed = brand_facts.REVIEWED_MARKER in text
+    verification = brand_facts.verify_against_site(project_slug, text) if text else {}
+    machine_verified = bool(verification.get("publication_ready")) and not reviewed
+    if machine_verified:
+        brand_facts.sync_sample_factcheck(project_slug, verification)
+    review_status = (
+        "approved" if reviewed else
+        "machine_verified" if machine_verified else
+        ("review_required" if path.exists() else "missing")
+    )
     return {
         "exists": path.exists(),
         "text": brand_facts.display_text(text),
         "language": "non_english" if brand_facts.contains_han(text) else "en",
         "reviewed": reviewed,
-        "review_status": "approved" if reviewed else ("review_required" if path.exists() else "missing"),
+        "machine_verified": machine_verified,
+        "review_status": review_status,
+        "verification": verification,
         "migration": migration,
     }
 
@@ -308,6 +319,7 @@ def save_facts(project_slug: str, text: str, approve: bool = False):
             geolib.project_dir(project_slug) / "content" / "facts.md",
             brand_facts.reviewed_text(text) if approve else brand_facts.unreviewed_text(text),
         )
+    brand_facts.verify_against_site(project_slug)
 
 
 def asset_tree(project_slug: str):

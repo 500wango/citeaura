@@ -76,6 +76,7 @@ def test_report_quality_explains_crawl_sampling_and_delivery_gaps(tmp_path, monk
             "sampling_failure_high", "playbook_missing", "delivery_missing"} <= codes
     assert all(item["action"] and item["route"] for item in result["issues"])
     assert result["effective_report"] is False
+    assert result["diagnostic_ready"] is False
     assert result["components"]["measurement"]["successful_samples"] == 4
 
 
@@ -99,7 +100,9 @@ def test_single_platform_with_fourteen_samples_is_a_limited_baseline(tmp_path, m
     assert measurement_result["confidence"]["level"] == "limited_baseline"
     assert measurement_result["confidence"]["allows_global_conclusions"] is False
     assert measurement_result["confidence"]["allows_trend_attribution"] is False
-    assert report_result["effective_report"] is False
+    assert report_result["effective_report"] is True
+    assert report_result["diagnostic_ready"] is True
+    assert report_result["measured_visibility"] is False
     assert "sampling_platforms_limited" in {item["code"] for item in report_result["issues"]}
 
 

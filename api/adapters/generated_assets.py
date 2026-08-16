@@ -341,7 +341,9 @@ def normalize_project_assets(project_slug, config=None):
                 if item.get("status") != "omitted" and item.get("requires_review")
             }
             facts_path = project / "content" / "facts.md"
-            facts_review_pending = facts_path.is_file() and brand_facts.REVIEWED_MARKER not in facts_path.read_text("utf-8")
+            facts_review_pending = facts_path.is_file() and not brand_facts.publication_approved(
+                project_slug, facts_path.read_text("utf-8"),
+            )
             records, excluded = _visible_assets(
                 assets, active_ids, omitted_schema, review_schema,
                 facts_review_pending=facts_review_pending,

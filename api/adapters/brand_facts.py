@@ -1,6 +1,7 @@
 """Build and maintain English, evidence-backed brand fact libraries."""
 
 import hashlib
+import json
 import os
 import re
 from copy import deepcopy
@@ -819,3 +820,214 @@ def display_text(text):
     markers = (*GENERATED_MARKERS, REVIEWED_MARKER)
     lines = [line for line in str(text or "").splitlines() if line.strip() not in markers]
     return "\n".join(lines).strip() + ("\n" if lines else "")
+
+
+_VERIFICATION_PLACEHOLDERS = {
+    "needs verification", "unknown", "not specified", "n/a", "na", "none", "-",
+}
+_INFERRED_HINT = re.compile(r"\(inferred\)|inferred conversion|inferred from", re.I)
+
+
+def _normalize_evidence(value):
+    return " ".join(str(value or "").casefold().split())
+
+
+def _claim_value(value):
+    text = _text(value)
+    if not text or text.casefold() in _VERIFICATION_PLACEHOLDERS:
+        return ""
+    if _INFERRED_HINT.search(text):
+        return ""
+    return text
+
+
+def _evidence_pages(project_slug):
+    pages = geolib.read_jsonl(geolib.project_dir(project_slug) / "evidence" / "pages.jsonl")
+    corpus = []
+    for page in pages:
+        if not isinstance(page, dict):
+            continue
+        if page.get("status") not in (200, None, ""):
+            continue
+        parts = [
+            page.get("title"),
+            page.get("text"),
+            page.get("meta_description"),
+            " ".join(page.get("h1") or []) if isinstance(page.get("h1"), list) else page.get("h1"),
+            " ".join(page.get("h2") or []) if isinstance(page.get("h2"), list) else page.get("h2"),
+            json.dumps(page.get("jsonld_raw") or [], ensure_ascii=False),
+        ]
+        haystack = _normalize_evidence(" ".join(str(item or "") for item in parts))
+        if not haystack:
+            continue
+        corpus.append({"url": _text(page.get("url"), limit=2048), "text": haystack})
+    return corpus
+
+
+def _source_url(value, corpus):
+    needle = _normalize_evidence(value)
+    if not needle or len(needle) < 2:
+        return ""
+    for page in corpus:
+        if needle in page["text"]:
+            return page["url"]
+    compact = re.sub(r"[\s,]", "", needle)
+    if compact != needle and any(character.isdigit() for character in compact):
+        for page in corpus:
+            if compact in re.sub(r"[\s,]", "", page["text"]):
+                return page["url"]
+    return ""
+
+
+def _claim(field, value, corpus, *, blocks_publication):
+    usable = _claim_value(value)
+    if not usable:
+        return None
+    source_url = _source_url(usable, corpus)
+    return {
+        "field": field,
+        "value": usable,
+        "status": "machine_verified" if source_url else "needs_human",
+        "source_url": source_url,
+        "blocks_publication": bool(blocks_publication),
+        "method": "official_site_substring" if source_url else "ungrounded",
+    }
+
+
+def verify_against_site(project_slug, text=None):
+    """用官网抓取正文校验事实库。模型只负责抽取，不给自己打分。"""
+    path = geolib.project_dir(project_slug) / "content" / "facts.md"
+    if text is None:
+        text = path.read_text("utf-8") if path.is_file() else ""
+    facts = parse_facts_text(text)
+    corpus = _evidence_pages(project_slug)
+    site = _claim_value(facts.get("site"))
+    claims = []
+    for field, value, blocks in (
+        ("name", facts.get("name"), True),
+        ("definition", facts.get("definition"), True),
+        ("industry", facts.get("industry"), True),
+        ("target_users", facts.get("target_users"), False),
+        ("business_goal", facts.get("business_goal"), False),
+    ):
+        item = _claim(field, value, corpus, blocks_publication=blocks)
+        if item:
+            claims.append(item)
+    if site:
+        claims.append({
+            "field": "site",
+            "value": site,
+            "status": "machine_verified",
+            "source_url": site,
+            "blocks_publication": True,
+            "method": "project_official_site",
+        })
+    for value in facts.get("products") or []:
+        item = _claim("products", value, corpus, blocks_publication=True)
+        if item:
+            claims.append(item)
+    for value in facts.get("suitable") or []:
+        item = _claim("suitable", value, corpus, blocks_publication=False)
+        if item:
+            claims.append(item)
+    for value in facts.get("unsuitable") or []:
+        item = _claim("unsuitable", value, corpus, blocks_publication=False)
+        if item:
+            claims.append(item)
+    for item in facts.get("numbers") or []:
+        if not isinstance(item, dict):
+            continue
+        claim = _claim("key_numbers", item.get("value"), corpus, blocks_publication=True)
+        if claim:
+            claim["label"] = _text(item.get("fact"))
+            claims.append(claim)
+    for item in facts.get("pricing") or []:
+        if not isinstance(item, dict):
+            continue
+        claim = _claim("pricing", item.get("price"), corpus, blocks_publication=True)
+        if claim:
+            claim["label"] = _text(item.get("name"))
+            claims.append(claim)
+
+    blocking = [item for item in claims if item.get("blocks_publication")]
+    publication_ready = bool(blocking) and all(item["status"] == "machine_verified" for item in blocking)
+    payload = {
+        "method": "official_site_grounding_v1",
+        "generated_at": geolib.now_iso() if hasattr(geolib, "now_iso") else "",
+        "human_reviewed": REVIEWED_MARKER in text,
+        "publication_ready": publication_ready or REVIEWED_MARKER in text,
+        "verified": sum(item["status"] == "machine_verified" for item in claims),
+        "needs_human": sum(item["status"] == "needs_human" for item in claims),
+        "blocking_unverified": sum(
+            item["status"] != "machine_verified" for item in blocking
+        ) if REVIEWED_MARKER not in text else 0,
+        "claims": claims,
+    }
+    ledger = geolib.project_dir(project_slug) / "content" / "facts.verification.json"
+    _atomic_write(ledger, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+    return payload
+
+
+def publication_approved(project_slug, text=None):
+    """人类批准或官网原文对照通过，均可用于派生资产。"""
+    path = geolib.project_dir(project_slug) / "content" / "facts.md"
+    if text is None:
+        if not path.is_file():
+            return False
+        text = path.read_text("utf-8")
+    if not str(text or "").strip():
+        return False
+    if REVIEWED_MARKER in text:
+        return True
+    return bool(verify_against_site(project_slug, text).get("publication_ready"))
+
+
+def load_facts(project_slug):
+    path = geolib.project_dir(project_slug) / "content" / "facts.md"
+    text = path.read_text("utf-8") if path.is_file() else ""
+    facts = parse_facts_text(text) if text else {}
+    verification = verify_against_site(project_slug, text) if text else {
+        "publication_ready": False, "claims": [], "verified": 0, "needs_human": 0,
+    }
+    facts["approved"] = bool(facts.get("reviewed") or verification.get("publication_ready"))
+    facts["verification"] = verification
+    return facts, text
+
+
+def sync_sample_factcheck(project_slug, verification=None):
+    """用已对照过的官网事实核对最近一轮采样回答，不覆盖人工记录。"""
+    directory = geolib.project_dir(project_slug)
+    path = directory / "factcheck.json"
+    current = geolib.read_json(path, []) or []
+    if current and any(item.get("source") != "official_site_grounding" for item in current if isinstance(item, dict)):
+        return current
+    verification = verification or verify_against_site(project_slug)
+    verified = [
+        item for item in verification.get("claims") or []
+        if item.get("status") == "machine_verified" and item.get("blocks_publication")
+    ]
+    sample_files = sorted((directory / "samples").glob("*.jsonl")) if (directory / "samples").exists() else []
+    answers = []
+    if sample_files:
+        for row in geolib.read_jsonl(sample_files[-1]):
+            if isinstance(row, dict) and row.get("ok") and row.get("answer"):
+                answers.append(_normalize_evidence(row.get("answer")))
+    if not answers:
+        return current
+    items = []
+    for claim in verified:
+        value = _normalize_evidence(claim.get("value")).rstrip(".,;:")
+        if not value or claim.get("field") == "site":
+            continue
+        said = next((answer for answer in answers if value in answer), "")
+        items.append({
+            "field": claim.get("field"),
+            "said": (said[:240] if said else ""),
+            "truth": claim.get("value"),
+            "state": "consistent" if said else "missing",
+            "source": "official_site_grounding",
+            "source_url": claim.get("source_url") or "",
+        })
+    if items:
+        _atomic_write(path, json.dumps(items, ensure_ascii=False, indent=2) + "\n")
+    return items

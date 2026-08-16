@@ -587,12 +587,18 @@ def test_delivery_manifest_separates_ready_review_and_template_assets(tmp_path, 
 
     index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
     records = {item["path"]: item for item in index["assets"]}
-    assert index["readiness"] == "review_required"
+    assert index["readiness"] == "customer_ready"
+    assert index["pack_kind"] == "diagnostic"
+    assert index["diagnostic_ready"] is True
+    assert index["implementation_ready"] is False
+    assert index["implementation_backlog"]
     assert records["jsonld/organization-ready.json"]["status"] == "ready"
     assert records["drafts/q001.md"]["status"] == "needs_review"
     assert records["templates/llms.en.txt"]["status"] == "template"
     assert "Contains unresolved placeholders" in records["templates/llms.en.txt"]["issues"]
     assert "Ready to deploy" in (output / "index.md").read_text("utf-8")
+    assert "Diagnostic pack ready" in (output / "index.md").read_text("utf-8")
+    assert "implementation backlog" in (output / "README.md").read_text("utf-8").casefold()
 
 
 def test_delivery_manifest_rejects_jsonld_path_placeholders(tmp_path, monkeypatch):
@@ -881,3 +887,108 @@ def test_delivery_low_score_coverage_is_explicit_in_html_and_score_ticket(tmp_pa
     assert "site score is withheld" in acceptance
     assert "Re-audit applicable score: Not reported (partial result:" in acceptance
     assert "Re-audit scoring coverage: 20.0%" in acceptance
+
+
+def test_first_run_pack_is_customer_ready_without_manual_gates(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    readme = (output / "README.md").read_text("utf-8")
+    audit = (output / "01-Audit-Report.md").read_text("utf-8")
+    assert index["readiness"] == "customer_ready"
+    assert index["pack_kind"] == "diagnostic"
+    assert index["diagnostic_ready"] is True
+    assert index["implementation_ready"] is False
+    assert index["readiness_issues"] == []
+    assert any("template" in item for item in index["implementation_backlog"])
+    assert any("20/2" in item or "visibility" in item for item in index["implementation_backlog"])
+    assert "diagnostic final pack" in readme
+    assert "do not block sending this diagnostic pack" in readme.casefold()
+    assert "do not make this report incomplete" in audit
+
+
+def test_delivery_promotes_machine_verified_facts_without_human_checkbox(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    config = json.loads((project / "geo.json").read_text("utf-8"))
+    config["brand"].update({
+        "industry": "Operations software",
+        "target_users": "Field teams",
+        "products": ["Work order coordination"],
+    })
+    _write_json(project / "geo.json", config)
+    _write_jsonl(project / "evidence" / "pages.jsonl", [{
+        "url": "https://example.com",
+        "status": 200,
+        "title": "Example",
+        "text": (
+            "Example coordinates field operations for distributed industrial teams. "
+            "Operations software and work order coordination for field teams."
+        ),
+    }])
+    (project / "content").mkdir(exist_ok=True)
+    _patch_project(monkeypatch, project)
+    facts = brand_facts.render_facts_data("example", {
+        "name": "Example",
+        "industry": "Operations software",
+        "definition": "Example coordinates field operations for distributed industrial teams.",
+        "products": ["Work order coordination"],
+        "target_users": "Field teams",
+    })
+    (project / "content" / "facts.md").write_text(facts, "utf-8")
+    (project / "assets" / "llms.en.txt").write_text(
+        "# Example\n\n> Example coordinates field operations for distributed industrial teams.\n",
+        "utf-8",
+    )
+    _write_json(project / "assets" / "jsonld" / "organization.json", {
+        "@context": "https://schema.org", "@type": "Organization",
+        "name": "Example", "url": "https://example.com",
+    })
+
+    delivery.ensure_delivery_contract("example", output)
+
+    index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    records = {item["path"]: item for item in index["assets"]}
+    assert index["facts_review"]["approved"] is True
+    assert index["facts_review"]["machine_verified"] is True
+    assert records["facts/brand-facts.md"]["status"] == "ready"
+    assert "Derived from an unreviewed brand facts library" not in records["jsonld/organization.json"]["issues"]
+    assert (output / "assets" / "facts" / "brand-facts.md").is_file()
+    assert "Machine-verified from official website" in (output / "assets" / "facts" / "brand-facts.md").read_text("utf-8")
+
+
+def test_classify_pack_readiness_keeps_implementation_gate_strict():
+    diagnostic = delivery._classify_pack_readiness(
+        {"page_count": 4, "score_status": "insufficient_coverage"},
+        {"ready": 0, "needs_review": 2, "template": 8},
+        {"confidence": {"sufficient": False, "label": "No baseline"}},
+        {"available": True, "approved": False},
+    )
+    assert diagnostic["readiness"] == "customer_ready"
+    assert diagnostic["pack_kind"] == "diagnostic"
+    assert diagnostic["implementation_ready"] is False
+    assert diagnostic["readiness_issues"] == []
+    assert len(diagnostic["implementation_backlog"]) >= 4
+
+    empty = delivery._classify_pack_readiness(
+        {"page_count": 0, "score_status": "insufficient_coverage"},
+        {"ready": 0, "needs_review": 0, "template": 0},
+        {"confidence": {"sufficient": False, "label": "No baseline"}},
+        {"available": False, "approved": False},
+    )
+    assert empty["readiness"] == "review_required"
+    assert empty["diagnostic_ready"] is False
+    assert empty["readiness_issues"] == ["Audit has no crawled pages"]
+
+    implementation = delivery._classify_pack_readiness(
+        {"page_count": 6, "score_status": "reported"},
+        {"ready": 3, "needs_review": 0, "template": 0},
+        {"confidence": {"sufficient": True, "label": "Representative baseline"}},
+        {"available": True, "approved": True},
+    )
+    assert implementation["readiness"] == "customer_ready"
+    assert implementation["pack_kind"] == "implementation"
+    assert implementation["implementation_ready"] is True
+    assert implementation["implementation_backlog"] == []

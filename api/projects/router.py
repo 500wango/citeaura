@@ -1680,6 +1680,10 @@ def deliveries(project_id: int, current_user: User = Depends(get_current_user), 
         packages.append({
             "date": item.name,
             "readiness": asset_index.get("readiness", "unknown"),
+            "pack_kind": asset_index.get("pack_kind") or "unknown",
+            "diagnostic_ready": bool(asset_index.get("diagnostic_ready")),
+            "implementation_ready": bool(asset_index.get("implementation_ready")),
+            "implementation_backlog": list(asset_index.get("implementation_backlog") or []),
             "asset_summary": asset_index.get("summary") or {"ready": 0, "needs_review": 0, "template": 0},
         })
     return {"deliveries": [item["date"] for item in packages], "packages": packages}
