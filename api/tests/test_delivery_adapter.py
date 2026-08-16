@@ -811,6 +811,19 @@ def test_delivery_risk_report_and_llms_ticket_propagate_unreviewed_fact_status(t
     assert "$9.99/month $" not in delivered_facts
 
 
+def test_delivery_quality_gate_does_not_treat_llms_mentions_as_llms_deployment_tasks(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    tasks = json.loads((project / "tasks.json").read_text("utf-8"))
+    tasks["tasks"][0]["action"] = "Keep the definition identical across the homepage, JSON-LD, and /llms.txt."
+    _write_json(project / "tasks.json", tasks)
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    manifest = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    assert manifest["quality_gate"]["status"] == "passed"
+
+
 def test_delivery_low_score_coverage_is_explicit_in_html_and_score_ticket(tmp_path, monkeypatch):
     project, output = seed_delivery_project(tmp_path)
     audit = json.loads((project / "audit.json").read_text("utf-8"))

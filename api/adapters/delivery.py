@@ -508,6 +508,7 @@ def _ticket_en(ticket):
         "effort": EFFORT_NAMES.get(ticket.get("effort"), _require_english(ticket.get("effort") or "Not estimated", f"{ticket_id} effort")),
         "window": _window_name(ticket.get("window"), ticket.get("priority")),
         "acceptance": _require_english(acceptance_text or "Attach verifiable completion evidence.", f"{ticket_id} acceptance"),
+        "acceptance_check": check,
         "verification_mode": "Automated" if acceptance.get("type") == "auto" else "Manual",
         "status": STATUS_NAMES.get(ticket.get("status"), _require_english(ticket.get("status") or "todo", f"{ticket_id} status")),
         "affected": [
@@ -2130,7 +2131,10 @@ def validate_delivery_quality(directory, audit, tickets, asset_index):
             issues.append(f"Review-required asset is absent from the risk report: {record.get('path')}")
 
     facts_approved = bool((asset_index.get("facts_review") or {}).get("approved"))
-    llms_tickets = [ticket for ticket in tickets if "/llms.txt" in ticket.get("title", "") or "/llms.txt" in ticket.get("action", "")]
+    llms_tickets = [
+        ticket for ticket in tickets
+        if ticket.get("acceptance_check") == "site.has_llms_txt"
+    ]
     if not facts_approved:
         for ticket in llms_tickets:
             pending = any(
