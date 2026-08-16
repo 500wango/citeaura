@@ -58,6 +58,16 @@ def _measurement_sufficient(metrics: dict) -> bool:
     return sum(int(item.get("samples") or 0) for item in rows) >= 20 and len(rows) >= 2
 
 
+def _evidence_history(task: dict) -> list:
+    """Normalize legacy verification evidence before appending a new entry."""
+    value = task.get("evidence")
+    if isinstance(value, list):
+        return value
+    if value in (None, ""):
+        return []
+    return [{"note": str(value)}]
+
+
 def check(task: dict, audit: dict, metrics: dict) -> tuple[bool | None, str, dict | None]:
     """Return ``(passed, note, progress)``; ``None`` means manual review.
 
@@ -227,9 +237,10 @@ def run(slug: str, recrawl: bool = True) -> dict:
                 t["status"] = "todo"
                 t["closed_at"] = None
                 changed += 1
-            t["evidence"].append({"at": G.now_iso(), "check": t["acceptance"].get("check"),
-                                  "result": {True: "pass", False: "fail", None: "manual"}[ok], "note": note})
-            t["evidence"] = t["evidence"][-6:]
+            evidence = _evidence_history(t)
+            evidence.append({"at": G.now_iso(), "check": (t.get("acceptance") or {}).get("check"),
+                             "result": {True: "pass", False: "fail", None: "manual"}[ok], "note": note})
+            t["evidence"] = evidence[-6:]
             results.append({"id": t["id"], "title": t["title"], "priority": t["priority"],
                             "market": t["market"], "package": t["package"],
                             "verdict": {True: "pass", False: "fail", None: "manual"}[ok],

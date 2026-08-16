@@ -1,8 +1,11 @@
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+import geolib as G
 import verify as V
 
 
@@ -49,6 +52,28 @@ class VerifyTest(unittest.TestCase):
         ok, note, _ = V.check(task("pages.static_text", verification_cohort=["https://x"]),
                               {"pages": [None, {}, {"url": "https://x", "word_count": 200}]}, {})
         self.assertTrue(ok, note)
+
+    def test_run_normalizes_missing_legacy_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory)
+            project = work / "demo"
+            project.mkdir()
+            G.write_json(project / "audit.json", {"site": {}, "pages": [], "avg_score": 0})
+            G.write_json(project / "tasks.json", {
+                "tasks": [{
+                    "id": "T-001", "title": "Legacy task", "priority": "P1",
+                    "market": "both", "package": "Knowledge base", "status": "todo",
+                    "acceptance": {"type": "manual"},
+                }],
+                "summary": {},
+            })
+            with mock.patch.object(G, "WORK", work):
+                V.run("demo", recrawl=False)
+            saved = G.read_json(project / "tasks.json", {})
+
+        evidence = saved["tasks"][0]["evidence"]
+        self.assertEqual(len(evidence), 1)
+        self.assertEqual(evidence[0]["result"], "manual")
 
 
 if __name__ == "__main__":
