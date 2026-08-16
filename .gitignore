@@ -10,5 +10,7 @@ __pycache__/
 dump.rdb
 .commandcode/
 .reasonix/
+reasonix.toml
+higeo-vs-disvorai-comparison.md
 work/
 deploy/certs/

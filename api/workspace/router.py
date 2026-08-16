@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from api.adapters.engine import with_tenant_context
+from api.adapters.engine import with_tenant_context, with_tenant_read_context
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import workspace
 from api.adapters.preflight import PreflightError, normalize_url
@@ -69,10 +69,11 @@ def _ensure_idle(db: Session, project: Project):
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
 
 
-def _call(db, user, project_id, function, *args):
+def _call(db, user, project_id, function, *args, write=False):
     tenant, project = _tenant_project(db, user, project_id)
+    context = with_tenant_context(tenant.directory_slug, project.slug) if write else with_tenant_read_context(tenant, project.slug)
     try:
-        with with_tenant_context(tenant.name, project.slug):
+        with context:
             return function(project.slug, *args)
     except FileNotFoundError:
         _error(status.HTTP_404_NOT_FOUND, "workspace_file_not_found")
@@ -114,7 +115,7 @@ def update_project_config(
                 detail={"error": "invalid_project_url", "detail": str(exc)},
             ) from exc
         updates["url"] = normalized_url
-    config = _call(db, current_user, project_id, workspace.update_config, updates)
+    config = _call(db, current_user, project_id, workspace.update_config, updates, write=True)
     if normalized_url is not None:
         project.url = normalized_url
     project.market = "global"
@@ -136,7 +137,7 @@ def update_project_facts(
 ):
     _, project = _tenant_project(db, current_user, project_id)
     _ensure_idle(db, project)
-    _call(db, current_user, project_id, workspace.save_facts, payload.text)
+    _call(db, current_user, project_id, workspace.save_facts, payload.text, write=True)
     return {"ok": True}
 
 
@@ -164,7 +165,7 @@ def update_project_asset(
 ):
     _, project = _tenant_project(db, current_user, project_id)
     _ensure_idle(db, project)
-    _call(db, current_user, project_id, workspace.save_asset, payload.path, payload.text)
+    _call(db, current_user, project_id, workspace.save_asset, payload.path, payload.text, write=True)
     return {"ok": True}
 
 
@@ -197,7 +198,7 @@ def update_project_factcheck(
 ):
     _, project = _tenant_project(db, current_user, project_id)
     _ensure_idle(db, project)
-    _call(db, current_user, project_id, workspace.save_factcheck, payload.items)
+    _call(db, current_user, project_id, workspace.save_factcheck, payload.items, write=True)
     return {"ok": True, "count": len(payload.items)}
 
 
@@ -218,6 +219,7 @@ def update_project_distribution(
         payload.qid,
         payload.channel,
         payload.on,
+        write=True,
     )
     return {"ok": True, "distribution": distribution}
 
@@ -241,7 +243,7 @@ def update_project_content(
 ):
     _, project = _tenant_project(db, current_user, project_id)
     _ensure_idle(db, project)
-    _call(db, current_user, project_id, workspace.save_content, payload.path, payload.text)
+    _call(db, current_user, project_id, workspace.save_content, payload.path, payload.text, write=True)
     return {"ok": True}
 
 
@@ -259,7 +261,7 @@ def add_project_questions(
 ):
     _, project = _tenant_project(db, current_user, project_id)
     _ensure_idle(db, project)
-    added = _call(db, current_user, project_id, workspace.add_questions, payload.items)
+    added = _call(db, current_user, project_id, workspace.add_questions, payload.items, write=True)
     return {"ok": True, "added": len(added), "ids": [question["id"] for question in added]}
 
 
@@ -299,6 +301,7 @@ def import_project_samples(
             workspace.import_sample_sheet,
             payload.file,
             payload.text,
+            write=True,
         )
     except Exception:
         db.delete(job)

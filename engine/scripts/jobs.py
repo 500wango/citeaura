@@ -56,7 +56,7 @@ FLAG_ARGS = {"--no-recrawl", "--draft", "--no-sample", "--skip-llm", "--no-llm"}
 INT_ARG_LIMITS = {
     "--max-pages": (1, 1000),
     "--limit": (1, 1000),
-    "--repeat": (1, 20),
+    "--repeat": (1, G.MAX_SAMPLE_REPEAT),
     "--draft-limit": (1, 50),
 }
 LIST_ARG_VALUES = {

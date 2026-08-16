@@ -61,7 +61,7 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, allow
         requested = [item.strip() for item in requested.split(",") if item.strip()]
     funding = resolve_funding(db, tenant.id, project.slug, allow_pool=allow_pool)
     custom_providers = load_custom_providers(db, tenant.id)
-    with with_tenant_context(tenant.name, project.slug, custom_providers=custom_providers):
+    with with_tenant_context(tenant.directory_slug, project.slug, custom_providers=custom_providers):
         config_path = geolib.project_dir(project.slug) / "geo.json"
         config = geolib.load_config(project.slug) if config_path.is_file() else {
             "questions": [],

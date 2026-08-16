@@ -9,7 +9,7 @@ from api.auth import password_reset
 from api.adapters.engine import tenant_slug
 from api.db import Base, get_db
 from api.main import app
-from api.models import PasswordResetToken, User
+from api.models import PasswordResetToken, Tenant, User
 
 
 @pytest.fixture()
@@ -348,3 +348,9 @@ def test_long_tenant_names_get_distinct_directory_slugs(client):
     assert tenant_slug(second_name) == second_name
     assert len(first_name) <= 48
     assert len(second_name) <= 48
+    with client.session_factory() as db:
+        directories = {
+            row.directory_slug
+            for row in db.query(Tenant).filter(Tenant.name.in_((first_name, second_name))).all()
+        }
+    assert directories == {first_name, second_name}

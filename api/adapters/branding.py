@@ -79,7 +79,7 @@ def normalize_branding(value):
 
 
 def branding_path():
-    return Path(geolib.WORK) / BRANDING_FILENAME
+    return Path(geolib.current_work()) / BRANDING_FILENAME
 
 
 def load_branding():

@@ -3,12 +3,11 @@
 import json
 import threading
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from contextvars import ContextVar, copy_context
+from contextvars import ContextVar
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
@@ -25,23 +24,11 @@ _METER_CONTEXT = ContextVar("citeaura_platform_meter", default=None)
 _METER_HOOK_LOCK = threading.Lock()
 
 
-class _ContextThreadPoolExecutor(ThreadPoolExecutor):
-    """把提交线程的计量上下文传播到引擎采样线程。"""
-
-    _citeaura_context_hook = True
-
-    def submit(self, fn, /, *args, **kwargs):
-        context = copy_context()
-        return super().submit(context.run, fn, *args, **kwargs)
-
-
 def _ensure_meter_hook():
     """安装一次稳定的计量入口；每个任务的计数保存在 ContextVar 中。"""
     import sample
 
     with _METER_HOOK_LOCK:
-        if not getattr(sample.ThreadPoolExecutor, "_citeaura_context_hook", False):
-            sample.ThreadPoolExecutor = _ContextThreadPoolExecutor
         if getattr(sample.ask, "_citeaura_meter_hook", False):
             return
         original = sample.ask
@@ -108,7 +95,10 @@ def _tenant(db, tenant_id):
     try:
         return db.get(Tenant, int(tenant_id))
     except (TypeError, ValueError):
-        return db.query(Tenant).filter(Tenant.name == str(tenant_id)).first()
+        return db.query(Tenant).filter(or_(
+            Tenant.name == str(tenant_id),
+            Tenant.directory_slug == str(tenant_id),
+        )).first()
 
 
 def resolve_funding(db, tenant_id, project_slug, allow_pool=True):

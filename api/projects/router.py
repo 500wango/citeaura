@@ -1,8 +1,9 @@
 """项目 CRUD、Bootstrap 和任务查询 API。"""
 
-import io
 import json
+import os
 import re
+import tempfile
 import zipfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -10,6 +11,7 @@ from types import SimpleNamespace
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from starlette.background import BackgroundTask
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy.orm import Session
@@ -21,6 +23,8 @@ from api.adapters.engine import (
     job_log_path,
     load_custom_providers,
     load_tenant_keys,
+    tenant_project_dir,
+    with_tenant_read_context,
     with_tenant_context,
 )
 from api.adapters.exceptions import GeoEngineError
@@ -195,15 +199,14 @@ def _job_payload(job: Job, include_log: bool = True, log_offset: int | None = No
     next_offset = 0
     if include_log and job.log_path:
         try:
-            with open(job.log_path, "r", encoding="utf-8", errors="replace") as handle:
-                contents = handle.read()
-            if log_offset is None:
-                log = contents[-20000:]
-                next_offset = len(contents)
-            else:
-                start = min(log_offset, len(contents))
-                log = contents[start:start + 20000]
-                next_offset = start + len(log)
+            with open(job.log_path, "rb") as handle:
+                handle.seek(0, os.SEEK_END)
+                file_size = handle.tell()
+                start = max(0, file_size - 20_000) if log_offset is None else min(max(0, log_offset), file_size)
+                handle.seek(start)
+                chunk = handle.read(20_000)
+            log = chunk.decode("utf-8", "replace")
+            next_offset = start + len(chunk)
         except OSError:
             log = ""
     derived_stage, derived_progress = _progress_from_log(log)
@@ -294,7 +297,7 @@ def _active_job(db: Session, project_id: int):
 def _require_project_questions(tenant: Tenant, project: Project):
     """采样入队前确认项目已有目标问题。"""
     try:
-        with with_tenant_context(tenant.name, project.slug):
+        with with_tenant_read_context(tenant, project.slug):
             config = workspace.ensure_global_engine_scope(project.slug)
     except GeoEngineError:
         config = {}
@@ -699,7 +702,7 @@ def create_project(
     if existing is not None and existing.archived_at is None and existing.status != "archived":
         _error(status.HTTP_409_CONFLICT, "project_already_exists")
 
-    restoring_existing_workspace = existing is not None and _project_directory_exists(tenant.name, slug)
+    restoring_existing_workspace = existing is not None and _project_directory_exists(tenant.directory_slug, slug)
     if existing is not None:
         project = existing
         project.url = payload.url
@@ -756,7 +759,7 @@ def create_project(
                 max_pages=25,
                 force=False,
             )
-            with with_tenant_context(tenant.name, slug):
+            with with_tenant_context(tenant.directory_slug, slug):
                 geo.cmd_init(args)
         except GeoEngineError as exc:
             project.status = "failed"
@@ -776,11 +779,11 @@ def create_project(
             _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "project_init_failed")
 
     project.status = "bootstrapping"
-    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
     try:
         task_result = task_bootstrap.delay(
-            tenant.name,
+            tenant.directory_slug,
             slug,
             skip_llm=skip_llm,
             no_sample=no_sample,
@@ -820,7 +823,7 @@ def list_projects(current_user: User = Depends(get_current_user), db: Session = 
     summaries = {}
     if projects:
         try:
-            with with_tenant_context(tenant.name, projects[0].slug):
+            with with_tenant_read_context(tenant, projects[0].slug):
                 import dashboard
 
                 for project in projects:
@@ -862,7 +865,7 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     try:
-        with with_tenant_context(tenant.name, project.slug):
+        with with_tenant_read_context(tenant, project.slug):
             import dashboard
 
             cfg = workspace.ensure_global_engine_scope(project.slug)
@@ -896,7 +899,7 @@ def project_status(project_id: int, current_user: User = Depends(get_current_use
     """返回文件系统项目进度和最近任务状态。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         import dashboard
 
         workspace.ensure_global_engine_scope(project.slug)
@@ -1108,10 +1111,10 @@ def retry_project_job(
     }.get(source.action, "processing")
     db.commit()
     db.refresh(job)
-    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
     try:
-        result = _dispatch_retry("retry", tenant.name, project.slug, request, job.id, source.action)
+        result = _dispatch_retry("retry", tenant.directory_slug, project.slug, request, job.id, source.action)
         job.celery_task_id = getattr(result, "id", None)
         db.commit()
     except Exception as exc:  # noqa: BLE001
@@ -1162,11 +1165,11 @@ def sample_project(
     project.status = "sampling"
     db.commit()
     db.refresh(job)
-    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
     try:
         task_result = task_sample.delay(
-            tenant.name,
+            tenant.directory_slug,
             project.slug,
             limit=payload.limit,
             platforms=payload.platforms,
@@ -1229,10 +1232,10 @@ def run_pipeline_action(
     }.get(action, "processing")
     db.commit()
     db.refresh(job)
-    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
     try:
-        task_result = task_pipeline.delay(tenant.name, project.slug, action, params=params, job_id=job.id)
+        task_result = task_pipeline.delay(tenant.directory_slug, project.slug, action, params=params, job_id=job.id)
         job.celery_task_id = getattr(task_result, "id", None)
         db.commit()
     except Exception as exc:  # noqa: BLE001
@@ -1257,7 +1260,7 @@ def project_report(project_id: int, current_user: User = Depends(get_current_use
     """返回最新 metrics 报告。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         global_scope.normalize_project(project.slug)
         path = _latest_file(geolib.project_dir(project.slug) / "metrics", "*.json")
         if path is None:
@@ -1275,7 +1278,7 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
     """返回分引擎指标，并标明 API 采样模式。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         global_scope.normalize_project(project.slug)
         pdir = geolib.project_dir(project.slug)
         metrics_path = _latest_file(pdir / "metrics", "*.json")
@@ -1323,7 +1326,7 @@ def project_framing(project_id: int, current_user: User = Depends(get_current_us
     """返回最新采样中 AI 对品牌的描述短语和原文证据。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         global_scope.normalize_project(project.slug)
         result = framing.build(project.slug)
     return {"framing": result}
@@ -1341,7 +1344,7 @@ def project_samples(
         _error(status.HTTP_400_BAD_REQUEST, "invalid_sample_date")
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         config = global_scope.normalize_project(project.slug)
         sample_dir = geolib.project_dir(project.slug) / "samples"
         path = sample_dir / f"{sample_date}.jsonl"
@@ -1391,7 +1394,7 @@ def project_tickets(
     """读取 engine 生成的工单列表。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         import tasks as engine_tasks
 
         data = global_scope.normalize_tasks(project.slug) or engine_tasks.load(project.slug)
@@ -1414,7 +1417,7 @@ def project_playbook(
     """按影响、工作量和原始顺序稳定返回 Playbook。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         import tasks as engine_tasks
 
         data = global_scope.normalize_tasks(project.slug) or engine_tasks.load(project.slug)
@@ -1454,7 +1457,7 @@ def create_ticket(
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     try:
-        with with_tenant_context(tenant.name, project.slug):
+        with with_tenant_context(tenant.directory_slug, project.slug):
             ticket = workspace.create_offsite_ticket(
                 project.slug,
                 payload.url,
@@ -1486,7 +1489,7 @@ def bulk_update_tickets(
     if not changes or not any(key == "due_date" or value not in (None, "") for key, value in changes.items()):
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "ticket_update_empty")
     try:
-        with with_tenant_context(tenant.name, project.slug):
+        with with_tenant_context(tenant.directory_slug, project.slug):
             tickets = ticket_workflow.bulk_update(
                 project.slug, payload.ticket_ids, changes, current_user.email,
             )
@@ -1507,7 +1510,7 @@ def ticket_timeline(
     """返回工单手动修改和自动验收时间线。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         import tasks as engine_tasks
 
         data = global_scope.normalize_tasks(project.slug) or engine_tasks.load(project.slug)
@@ -1535,7 +1538,7 @@ def update_ticket(
     if not changes or not any(key == "due_date" or value not in (None, "") for key, value in changes.items()):
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "ticket_update_empty")
     try:
-        with with_tenant_context(tenant.name, project.slug):
+        with with_tenant_context(tenant.directory_slug, project.slug):
             ticket = ticket_workflow.update(project.slug, ticket_id, changes, current_user.email)
     except KeyError:
         _error(status.HTTP_404_NOT_FOUND, "ticket_not_found")
@@ -1556,10 +1559,10 @@ def verify_project(project_id: int, current_user: User = Depends(require_editor)
     db.commit()
     db.refresh(job)
     tenant = _tenant_for_user(db, current_user)
-    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
     try:
-        task_result = task_verify.delay(tenant.name, project.slug, job_id=job.id)
+        task_result = task_verify.delay(tenant.directory_slug, project.slug, job_id=job.id)
         job.celery_task_id = getattr(task_result, "id", None)
         db.commit()
     except Exception as exc:  # noqa: BLE001
@@ -1578,7 +1581,7 @@ def verify_history(project_id: int, current_user: User = Depends(get_current_use
     """返回 engine verify 生成的验收历史。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         import verify as engine_verify
 
         directory = geolib.project_dir(project.slug) / "verify"
@@ -1599,10 +1602,10 @@ def deliver_project(project_id: int, current_user: User = Depends(require_editor
     db.commit()
     db.refresh(job)
     tenant = _tenant_for_user(db, current_user)
-    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
     try:
-        task_result = task_deliver.delay(tenant.name, project.slug, job_id=job.id)
+        task_result = task_deliver.delay(tenant.directory_slug, project.slug, job_id=job.id)
         job.celery_task_id = getattr(task_result, "id", None)
         db.commit()
     except Exception as exc:  # noqa: BLE001
@@ -1621,18 +1624,17 @@ def deliveries(project_id: int, current_user: User = Depends(get_current_user), 
     """返回已生成的交付包及其资产就绪状态。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.name, project.slug):
-        directory = geolib.project_dir(project.slug) / "delivery"
-        packages = []
-        directories = sorted((item for item in directory.iterdir() if item.is_dir()), reverse=True) \
-            if directory.exists() else []
-        for item in directories:
-            asset_index = geolib.read_json(item / "assets" / "index.json", {}) or {}
-            packages.append({
-                "date": item.name,
-                "readiness": asset_index.get("readiness", "unknown"),
-                "asset_summary": asset_index.get("summary") or {"ready": 0, "needs_review": 0, "template": 0},
-            })
+    directory = tenant_project_dir(tenant, project.slug) / "delivery"
+    packages = []
+    directories = sorted((item for item in directory.iterdir() if item.is_dir()), reverse=True) \
+        if directory.exists() else []
+    for item in directories:
+        asset_index = geolib.read_json(item / "assets" / "index.json", {}) or {}
+        packages.append({
+            "date": item.name,
+            "readiness": asset_index.get("readiness", "unknown"),
+            "asset_summary": asset_index.get("summary") or {"ready": 0, "needs_review": 0, "template": 0},
+        })
     return {"deliveries": [item["date"] for item in packages], "packages": packages}
 
 
@@ -1648,7 +1650,7 @@ def download_delivery(
         _error(status.HTTP_400_BAD_REQUEST, "invalid_delivery_date")
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_context(tenant.directory_slug, project.slug):
         directory = geolib.project_dir(project.slug) / "delivery" / delivery_date
         if not directory.is_dir():
             _error(status.HTTP_404_NOT_FOUND, "delivery_not_found")
@@ -1659,14 +1661,19 @@ def download_delivery(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"error": "delivery_contract_invalid", "detail": str(exc)},
             ) from exc
-        archive = io.BytesIO()
+        archive = tempfile.TemporaryFile(prefix="citeaura-delivery-", suffix=".zip")
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
             for file_path in sorted(directory.rglob("*")):
                 if file_path.is_file():
                     bundle.write(file_path, file_path.relative_to(directory).as_posix())
-    archive.seek(0)
+        archive.seek(0)
+
+    def close_archive():
+        archive.close()
+
     return StreamingResponse(
-        archive,
+        iter(lambda: archive.read(64 * 1024), b""),
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="delivery-{delivery_date}.zip"'},
+        background=BackgroundTask(close_archive),
     )

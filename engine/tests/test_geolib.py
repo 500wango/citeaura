@@ -121,8 +121,9 @@ class TestJsonIO(unittest.TestCase):
             encoding="utf-8",
         )
         response.iter_content.return_value = [b"a" * G.MAX_BYTES, b"overflow"]
-        with mock.patch.object(G.requests, "get", return_value=response), \
-             mock.patch.object(G, "_validate_fetch_target"):
+        target = (G.urlparse("https://example.com"), ("93.184.216.34",))
+        with mock.patch.object(G, "_request_pinned", return_value=response), \
+             mock.patch.object(G, "_validate_fetch_target", return_value=target):
             result = G.fetch("https://example.com", retries=0)
         self.assertEqual(len(result["html"]), G.MAX_BYTES)
         response.close.assert_called_once()
@@ -135,8 +136,9 @@ class TestJsonIO(unittest.TestCase):
             encoding="utf-8",
         )
         response.iter_content.side_effect = OSError("stream failed")
-        with mock.patch.object(G.requests, "get", return_value=response), \
-             mock.patch.object(G, "_validate_fetch_target"):
+        target = (G.urlparse("https://example.com"), ("93.184.216.34",))
+        with mock.patch.object(G, "_request_pinned", return_value=response), \
+             mock.patch.object(G, "_validate_fetch_target", return_value=target):
             result = G.fetch("https://example.com", retries=0)
         self.assertEqual(result["status"], 0)
         response.close.assert_called_once()

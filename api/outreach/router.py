@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from api.adapters import outreach
-from api.adapters.engine import job_log_path, with_tenant_context
+from api.adapters.engine import job_log_path, with_tenant_context, with_tenant_read_context
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.db import get_db
 from api.models import IntegrationCredential, Job, Project, Tenant, User
@@ -134,7 +134,7 @@ def _smtp_payload(row):
 
 
 def _overview(db, tenant, project, can_edit):
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         drafts = outreach.list_drafts(project.slug)
     return {
         "project_id": project.id,
@@ -224,7 +224,7 @@ def create_outreach_draft(
     """从 offsite 工单生成一封待人工编辑的联络草稿。"""
     tenant, project = _tenant_project(db, current_user, project_id)
     try:
-        with with_tenant_context(tenant.name, project.slug):
+        with with_tenant_context(tenant.directory_slug, project.slug):
             import tasks as engine_tasks
 
             ticket = next(
@@ -252,7 +252,7 @@ def update_outreach_draft(
     """按 revision 更新草稿，避免覆盖他人或旧页面修改。"""
     tenant, project = _tenant_project(db, current_user, project_id)
     try:
-        with with_tenant_context(tenant.name, project.slug):
+        with with_tenant_context(tenant.directory_slug, project.slug):
             draft = outreach.update_draft(
                 project.slug,
                 draft_id,
@@ -288,7 +288,7 @@ def send_outreach_draft(
     if active is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     try:
-        with with_tenant_context(tenant.name, project.slug):
+        with with_tenant_context(tenant.directory_slug, project.slug):
             outreach.confirm_and_queue(
                 project.slug,
                 draft_id,
@@ -304,17 +304,17 @@ def send_outreach_draft(
     project.status = "processing"
     db.commit()
     db.refresh(job)
-    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
     try:
-        task_send_outreach.delay(tenant.name, project.slug, draft_id, job_id=job.id)
+        task_send_outreach.delay(tenant.directory_slug, project.slug, draft_id, job_id=job.id)
     except Exception as exc:  # noqa: BLE001
         job.status = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
         job.finished_at = datetime.now(timezone.utc)
         project.status = "failed"
         db.commit()
-        with with_tenant_context(tenant.name, project.slug):
+        with with_tenant_context(tenant.directory_slug, project.slug):
             outreach.restore_after_queue_failure(project.slug, draft_id, payload.revision, job.error)
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
     return {"job_id": job.id, "project_id": project.id, "draft_id": draft_id}

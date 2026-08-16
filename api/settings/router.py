@@ -285,7 +285,7 @@ def test_key(engine_code: str, current_user: User = Depends(require_owner), db: 
     try:
         import sample
 
-        with with_tenant_context(tenant.name, "keytest", keys={engine_code: secret}):
+        with with_tenant_context(tenant.directory_slug, "keytest", keys={engine_code: secret}):
             result = sample.ask(engine_code, "Reply with exactly OK.", timeout=20)
         ok = bool(result.get("ok"))
         error = None if ok else _safe_provider_error(result.get("error"))

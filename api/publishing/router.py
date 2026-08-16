@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 
 from api.adapters import publishing
-from api.adapters.engine import with_tenant_context
+from api.adapters.engine import with_tenant_context, with_tenant_read_context
 from api.adapters.exceptions import GeoEngineError
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.db import get_db
@@ -71,7 +71,7 @@ def _credentials(db, tenant_id, platform):
 
 
 def _overview(db, tenant, project):
-    with with_tenant_context(tenant.name, project.slug):
+    with with_tenant_read_context(tenant, project.slug):
         return publishing.overview(project.slug, _configured_codes(db, tenant.id))
 
 
@@ -110,7 +110,7 @@ def update_publisher(
             for env_name, value in payload.credentials.items()
         }
         if payload.publisher_config is not None:
-            with with_tenant_context(tenant.name, project.slug):
+            with with_tenant_context(tenant.directory_slug, project.slug):
                 publishing.save_config(project.slug, platform, payload.publisher_config)
 
         for code, encrypted in credential_changes.items():
@@ -144,7 +144,7 @@ def publish_content(
         _error(status.HTTP_400_BAD_REQUEST, "publish_confirmation_required")
     try:
         credentials = _credentials(db, tenant.id, platform)
-        with with_tenant_context(tenant.name, project.slug, credentials):
+        with with_tenant_context(tenant.directory_slug, project.slug, credentials):
             state = publishing.overview(project.slug, _configured_codes(db, tenant.id))
             publisher = next(item for item in state["publishers"] if item["code"] == platform)
             if not publisher["ready"]:

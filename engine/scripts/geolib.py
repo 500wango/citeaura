@@ -16,20 +16,61 @@ import sys
 import time
 import uuid
 from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 import requests
 from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
 
 ROOT = Path(__file__).resolve().parent.parent
 WORK = ROOT / "work"
+_ROOT_CONTEXT = ContextVar("geo_root_context", default=None)
+_WORK_CONTEXT = ContextVar("geo_work_context", default=None)
+_DIE_CONTEXT = ContextVar("geo_die_context", default=None)
+_PROJECT_LOCK_CONTEXT = ContextVar("geo_project_lock_context", default=None)
+
+
+def current_root() -> Path:
+    """Return the active engine root for this execution context."""
+    return _ROOT_CONTEXT.get() or ROOT
+
+
+def current_work() -> Path:
+    """Return the active engine workspace for this execution context."""
+    return _WORK_CONTEXT.get() or WORK
+
+
+@contextmanager
+def scoped_paths(root: Path, work: Path):
+    """Scope engine paths without mutating process-global module state."""
+    root_token = _ROOT_CONTEXT.set(Path(root))
+    work_token = _WORK_CONTEXT.set(Path(work))
+    try:
+        yield
+    finally:
+        _WORK_CONTEXT.reset(work_token)
+        _ROOT_CONTEXT.reset(root_token)
+
+
+@contextmanager
+def scoped_runtime(*, die_handler=None, project_lock_factory=None):
+    """Scope error and project-lock hooks without changing module globals."""
+    die_token = _DIE_CONTEXT.set(die_handler)
+    lock_token = _PROJECT_LOCK_CONTEXT.set(project_lock_factory)
+    try:
+        yield
+    finally:
+        _PROJECT_LOCK_CONTEXT.reset(lock_token)
+        _DIE_CONTEXT.reset(die_token)
 
 
 def load_env(path: Path | None = None):
     """Load a gitignored project .env without overriding process variables."""
-    p = path or (ROOT / ".env")
+    p = path or (current_root() / ".env")
     if not p.exists():
         return
     for line in p.read_text("utf-8").splitlines():
@@ -40,12 +81,46 @@ def load_env(path: Path | None = None):
         os.environ.setdefault(k.strip(), v.strip().strip("'\""))
 
 
-load_env()
-
 UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 CiteAuraEngine/1.0 (+https://citeaura.com)"
 )
+
+
+class _PinnedAddressAdapter(HTTPAdapter):
+    """Connect to a validated address while preserving the origin Host and SNI."""
+
+    def __init__(self, hostname: str, address: str, port: int):
+        super().__init__()
+        self.hostname = hostname
+        self.address = address
+        self.port = port
+
+    def get_connection(self, url, proxies=None):
+        if proxies:
+            raise ValueError("fetch proxies are not supported")
+        parsed = urlparse(url)
+        options = {
+            "maxsize": self._pool_maxsize,
+            "block": self._pool_block,
+            "retries": self.max_retries,
+        }
+        if parsed.scheme == "https":
+            return HTTPSConnectionPool(
+                self.address,
+                self.port,
+                assert_hostname=self.hostname,
+                server_hostname=self.hostname,
+                **options,
+            )
+        return HTTPConnectionPool(self.address, self.port, **options)
+
+    def send(self, request, **kwargs):
+        host = self.hostname
+        if (self.port, request.url.lower().startswith("https://")) not in ((443, True), (80, False)):
+            host = f"{host}:{self.port}"
+        request.headers.setdefault("Host", host)
+        return super().send(request, **kwargs)
 
 # ---------------------------------------------------------------- Core utilities
 
@@ -65,6 +140,9 @@ def slugify(text: str) -> str:
 
 
 def die(msg: str, code: int = 1):
+    handler = _DIE_CONTEXT.get()
+    if handler is not None:
+        return handler(msg, code)
     print(f"[geo] Error: {msg}", file=sys.stderr)
     sys.exit(code)
 
@@ -77,12 +155,13 @@ def info(msg: str):
 
 SLUG_OK = re.compile(r"^[a-z0-9\u4e00-\u9fff][a-z0-9\u4e00-\u9fff-]{0,47}$")
 QUESTION_ID_OK = re.compile(r"^q\d{3,6}$")
+MAX_SAMPLE_REPEAT = 20
 
 
 def project_dir(slug: str) -> Path:
     if not SLUG_OK.match(slug or ""):
         die(f"Invalid project slug: {slug!r}")
-    return WORK / slug
+    return current_work() / slug
 
 
 def normalize_question_ids(questions: list) -> list[dict]:
@@ -129,6 +208,11 @@ def new_run_id(prefix: str = "run") -> str:
 @contextmanager
 def project_lock(slug: str):
     """Serialize project-level load-modify-write operations across processes."""
+    lock_factory = _PROJECT_LOCK_CONTEXT.get()
+    if lock_factory is not None:
+        with lock_factory(slug):
+            yield
+        return
     d = project_dir(slug)
     d.mkdir(parents=True, exist_ok=True)
     with (d / ".lock").open("w") as fd:
@@ -244,6 +328,17 @@ def _validate_fetch_target(url: str):
         raise ValueError("fetch target could not be resolved") from exc
     if not addresses or any(not ipaddress.ip_address(address).is_global for address in addresses):
         raise ValueError("fetch target resolves to a non-public address")
+    return parsed, tuple(sorted(addresses, key=lambda address: (ipaddress.ip_address(address).version, address)))
+
+
+def _request_pinned(session, url, parsed, addresses, **kwargs):
+    """Send one request to an address from the validated DNS result."""
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    session.mount(
+        f"{parsed.scheme}://",
+        _PinnedAddressAdapter(parsed.hostname, addresses[0], port),
+    )
+    return session.get(url, **kwargs)
 
 
 
@@ -253,16 +348,27 @@ def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
         return {"url": url, "final_url": url, "status": 0, "html": "", "content_type": "",
                 "elapsed": 0, "error": "Skipped: URL points to a download, media file, or static asset"}
     last = ""
+    deadline = time.monotonic() + max(1, timeout) * (retries + 1)
     for attempt in range(retries + 1):
         r = None
+        session = requests.Session()
+        session.trust_env = False
         try:
             t0 = time.time()
             current_url = url
             for redirect_count in range(6):
-                _validate_fetch_target(current_url)
-                r = requests.get(
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise requests.Timeout("fetch wall-clock deadline exceeded")
+                connect_timeout = min(3.0, max(0.1, remaining / 3))
+                read_timeout = max(0.1, remaining - connect_timeout)
+                parsed, addresses = _validate_fetch_target(current_url)
+                r = _request_pinned(
+                    session,
                     current_url,
-                    timeout=timeout,
+                    parsed,
+                    addresses,
+                    timeout=(connect_timeout, read_timeout),
                     headers={"User-Agent": UA, "Accept-Language": os.environ.get("GEO_ACCEPT_LANGUAGE", "en")},
                     allow_redirects=False,
                     stream=True,
@@ -289,6 +395,8 @@ def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
                         "error": f"Skipped non-document content ({ctype.split(';')[0]})"}
             chunks, size = [], 0
             for chunk in r.iter_content(65536):
+                if time.monotonic() >= deadline:
+                    raise requests.Timeout("fetch wall-clock deadline exceeded")
                 remaining = MAX_BYTES - size
                 if remaining <= 0:
                     break
@@ -318,6 +426,7 @@ def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
         finally:
             if r is not None:
                 r.close()
+            session.close()
     return {"url": url, "final_url": url, "status": 0, "html": "", "content_type": "", "elapsed": 0, "error": last}
 
 

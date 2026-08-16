@@ -9,6 +9,7 @@ import jwt
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from api import config
@@ -95,7 +96,10 @@ def _tenant_name(db: Session, requested: str | None, email: str) -> str:
     """生成唯一的默认租户名称，避免文件系统目录冲突。"""
     base = tenant_slug((requested or email.split("@", 1)[0]).strip() or "workspace")
     candidate = base
-    while db.query(Tenant.id).filter(Tenant.name == candidate).first() is not None:
+    while db.query(Tenant.id).filter(or_(
+        Tenant.name == candidate,
+        Tenant.directory_slug == candidate,
+    )).first() is not None:
         candidate = f"{base[:39]}-{uuid.uuid4().hex[:8]}"
     return candidate
 
@@ -189,6 +193,7 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
             country_source="cloudflare_signup" if country_code else None,
             trial_ends_at=datetime.now(timezone.utc) + timedelta(days=14),
         )
+        tenant.directory_slug = tenant.name
 
     user = User(
         email=payload.email,

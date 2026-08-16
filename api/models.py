@@ -1,5 +1,7 @@
 """SaaS 数据模型。"""
 
+import re
+
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -28,6 +30,7 @@ class Tenant(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(128), nullable=False, unique=True)
+    directory_slug = Column(String(48), nullable=False, unique=True)
     plan = Column(String(32), nullable=False, default="trial", server_default="trial")
     status = Column(String(32), nullable=False, default="active", server_default="active")
     acquisition_country_code = Column(String(2), nullable=True, index=True)
@@ -50,6 +53,13 @@ class Tenant(Base):
     integration_credentials = relationship(
         "IntegrationCredential", back_populates="tenant", cascade="all, delete-orphan",
     )
+
+    def __init__(self, **kwargs):
+        if not kwargs.get("directory_slug"):
+            name = str(kwargs.get("name") or "").strip().lower()
+            name = re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "-", name).strip("-")
+            kwargs["directory_slug"] = name[:48] or "workspace"
+        super().__init__(**kwargs)
 
 
 class User(Base):

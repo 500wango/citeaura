@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from api.adapters import branding
-from api.adapters.engine import with_tenant_context
+from api.adapters.engine import with_tenant_context, with_tenant_read_context
 from api.auth.deps import get_current_user, require_owner
 from api.db import get_db
 from api.models import Tenant, User
@@ -35,7 +35,7 @@ def _tenant(db, user):
 
 
 def _load(tenant):
-    with with_tenant_context(tenant.name, "branding"):
+    with with_tenant_read_context(tenant, "branding"):
         return branding.load_branding()
 
 
@@ -67,7 +67,7 @@ def put_delivery_branding(
     if tenant.plan not in WHITE_LABEL_PLANS:
         _error(status.HTTP_403_FORBIDDEN, "white_label_plan_required")
     try:
-        with with_tenant_context(tenant.name, "branding"):
+        with with_tenant_context(tenant.directory_slug, "branding"):
             value = branding.save_branding(payload.model_dump())
     except ValueError as exc:
         raise HTTPException(
@@ -84,6 +84,6 @@ def delete_delivery_branding(
 ):
     """移除当前租户白标设置；降级后仍允许清理。"""
     tenant = _tenant(db, current_user)
-    with with_tenant_context(tenant.name, "branding"):
+    with with_tenant_context(tenant.directory_slug, "branding"):
         value = branding.delete_branding()
     return _response(tenant, current_user, value)

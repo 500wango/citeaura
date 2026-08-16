@@ -6,8 +6,12 @@ import sys
 import threading
 import time
 from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
+
+from requests.adapters import HTTPAdapter
+from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
 
 from api import config
 from api.adapters import locking
@@ -27,6 +31,7 @@ import geolib  # noqa: E402 - 引擎路径必须先加入 sys.path
 
 _MISSING = object()
 _CONTEXT_LOCK = threading.RLock()
+_NETWORK_GUARD_ACTIVE = ContextVar("citeaura_network_guard_active", default=False)
 ENGINE_KEY_ENV = {
     "gemini": "GEMINI_API_KEY",
     "openai": "OPENAI_API_KEY",
@@ -39,8 +44,48 @@ NETWORK_REDIRECT_STATUSES = frozenset((301, 302, 303, 307, 308))
 NETWORK_RETRY_STATUSES = frozenset((429, 500, 502, 503, 504))
 NETWORK_MAX_REDIRECTS = 5
 NETWORK_MAX_ATTEMPTS = 2
+ENGINE_MAX_REPEAT = geolib.MAX_SAMPLE_REPEAT
 
 CUSTOM_PROVIDER_CODE = re.compile(r"^custom_[a-z0-9][a-z0-9_-]{2,55}$")
+
+
+class _PinnedAddressAdapter(HTTPAdapter):
+    """让一次引擎请求复用已校验的 DNS 地址，并保留 HTTPS SNI。"""
+
+    def __init__(self, hostname, address, port, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.hostname = hostname
+        self.address = str(address)
+        self.port = int(port)
+
+    def get_connection(self, url, proxies=None):
+        if proxies:
+            raise GeoEngineError("network_proxy_not_allowed")
+        parsed = urlparse(url)
+        if parsed.scheme == "https":
+            return HTTPSConnectionPool(
+                self.address,
+                self.port,
+                maxsize=self._pool_maxsize,
+                block=self._pool_block,
+                retries=self.max_retries,
+                assert_hostname=self.hostname,
+                server_hostname=self.hostname,
+            )
+        return HTTPConnectionPool(
+            self.address,
+            self.port,
+            maxsize=self._pool_maxsize,
+            block=self._pool_block,
+            retries=self.max_retries,
+        )
+
+    def send(self, request, **kwargs):
+        host = self.hostname
+        if (self.port, request.url.lower().startswith("https://")) not in ((443, True), (80, False)):
+            host = f"{host}:{self.port}"
+        request.headers.setdefault("Host", host)
+        return super().send(request, **kwargs)
 
 
 def custom_provider_env(code: str) -> str:
@@ -61,7 +106,8 @@ def _valid_slug(value: str, label: str) -> str:
 
 def tenant_slug(value: str) -> str:
     """把租户名称转换为引擎可接受的目录标识。"""
-    return _valid_slug(geolib.slugify(str(value or "")), "tenant")
+    raw = getattr(value, "directory_slug", None) or getattr(value, "name", None) or value
+    return _valid_slug(geolib.slugify(str(raw or "")), "tenant")
 
 
 def job_log_path(tenant_id: str, project_slug: str, job_id: int) -> Path:
@@ -71,6 +117,29 @@ def job_log_path(tenant_id: str, project_slug: str, job_id: int) -> Path:
     if job_id <= 0:
         raise ValueError("invalid job id")
     return WORK_ROOT / tenant_slug(tenant_id) / project_slug / ".jobs" / f"{job_id}.log"
+
+
+def tenant_project_dir(tenant_id: str, project_slug: str) -> Path:
+    """返回租户项目绝对路径；只读 API 可直接使用，避免切换引擎全局路径。"""
+    return WORK_ROOT / tenant_slug(tenant_id) / _valid_slug(str(project_slug or ""), "project")
+
+
+@contextmanager
+def with_tenant_read_context(tenant_id: str, project_slug: str):
+    """为文件型 API 读取设置并发安全的租户路径，不修改引擎全局状态。"""
+    tenant_directory = tenant_slug(tenant_id)
+    _valid_slug(str(project_slug or ""), "project")
+    def raise_error(message, code=1):
+        raise GeoEngineError(message)
+
+    def distributed_lock(slug):
+        return locking.project_lock(tenant_directory, _valid_slug(slug, "project"))
+
+    with geolib.scoped_paths(PROJECT_ROOT, WORK_ROOT / tenant_directory), geolib.scoped_runtime(
+        die_handler=raise_error,
+        project_lock_factory=distributed_lock,
+    ):
+        yield
 
 
 def patch_die():
@@ -143,7 +212,7 @@ def inject_keys(keys: dict | None):
 
 @contextmanager
 def protect_network_fetches():
-    """校验每一跳网络目标，安全跟随同站跳转并重试临时 GET 故障。"""
+    """校验每一跳网络目标，固定已解析地址并安全跟随同站跳转。"""
     original_request = geolib.requests.sessions.Session.request
 
     def same_site(source, target):
@@ -155,40 +224,57 @@ def protect_network_fetches():
             or target_host.endswith("." + source_host)
         )
 
-    def request_once(session, method, url, args, kwargs):
+    def request_once(session, method, url, args, kwargs, addresses):
         retryable = str(method).upper() in ("GET", "HEAD")
-        for attempt in range(NETWORK_MAX_ATTEMPTS):
-            try:
-                response = original_request(
-                    session, method, url, *args, **kwargs, allow_redirects=False,
-                )
-            except geolib.requests.RequestException:
-                if not retryable or attempt + 1 >= NETWORK_MAX_ATTEMPTS:
-                    raise
-                time.sleep(0.35)
-                continue
-            if (
-                retryable
-                and response.status_code in NETWORK_RETRY_STATUSES
-                and attempt + 1 < NETWORK_MAX_ATTEMPTS
-            ):
-                response.close()
-                time.sleep(0.35)
-                continue
-            return response
-        raise GeoEngineError("network_retry_exhausted")
+        parsed = urlparse(url)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        adapter = _PinnedAddressAdapter(parsed.hostname, addresses[0], port)
+        previous_adapters = session.adapters.copy()
+        previous_trust_env = session.trust_env
+        session.trust_env = False
+        session.mount(f"{parsed.scheme}://", adapter)
+        try:
+            for attempt in range(NETWORK_MAX_ATTEMPTS):
+                try:
+                    response = original_request(
+                        session, method, url, *args, **kwargs, allow_redirects=False,
+                    )
+                except geolib.requests.RequestException:
+                    if not retryable or attempt + 1 >= NETWORK_MAX_ATTEMPTS:
+                        raise
+                    time.sleep(0.35)
+                    continue
+                if (
+                    retryable
+                    and response.status_code in NETWORK_RETRY_STATUSES
+                    and attempt + 1 < NETWORK_MAX_ATTEMPTS
+                ):
+                    response.close()
+                    time.sleep(0.35)
+                    continue
+                return response
+            raise GeoEngineError("network_retry_exhausted")
+        finally:
+            session.adapters = previous_adapters
+            session.trust_env = previous_trust_env
 
     def guarded_request(session, method, url, *args, **kwargs):
+        if not _NETWORK_GUARD_ACTIVE.get():
+            return original_request(session, method, url, *args, **kwargs)
         follow_redirects = bool(kwargs.pop("allow_redirects", True))
         current_url = str(url)
         original_url = current_url
         history = []
         for redirect_count in range(NETWORK_MAX_REDIRECTS + 1):
             try:
-                validate_outbound_url(current_url, require_https=False)
+                _validated, addresses = validate_outbound_url(
+                    current_url,
+                    require_https=False,
+                    return_addresses=True,
+                )
             except NetworkTargetError as exc:
                 raise GeoEngineError(str(exc)) from exc
-            response = request_once(session, method, current_url, args, kwargs)
+            response = request_once(session, method, current_url, args, kwargs, addresses)
             location = response.headers.get("Location") if hasattr(response, "headers") else None
             if (
                 not follow_redirects
@@ -216,21 +302,28 @@ def protect_network_fetches():
         raise GeoEngineError("network_redirect_limit")
 
     geolib.requests.sessions.Session.request = guarded_request
+    token = _NETWORK_GUARD_ACTIVE.set(True)
     try:
         yield
     finally:
+        _NETWORK_GUARD_ACTIVE.reset(token)
         geolib.requests.sessions.Session.request = original_request
 
 
 def load_tenant_keys(db, tenant_id):
     """从数据库解密当前租户的 Key，供 worker 注入环境变量。"""
+    from sqlalchemy import or_
+
     from api.models import ApiKey, CustomProvider, Tenant
     from api.settings.crypto import decrypt_key
 
     try:
         tenant = db.get(Tenant, int(tenant_id))
     except (TypeError, ValueError):
-        tenant = db.query(Tenant).filter(Tenant.name == str(tenant_id)).first()
+        tenant = db.query(Tenant).filter(or_(
+            Tenant.name == str(tenant_id),
+            Tenant.directory_slug == str(tenant_id),
+        )).first()
     if tenant is None:
         return {}
     rows = db.query(ApiKey).filter(
@@ -245,13 +338,18 @@ def load_tenant_keys(db, tenant_id):
 
 def load_custom_providers(db, tenant_id):
     """读取当前租户的自定义供应商配置（含仅供运行时使用的 Key）。"""
+    from sqlalchemy import or_
+
     from api.models import CustomProvider, Tenant
     from api.settings.crypto import decrypt_key
 
     try:
         tenant = db.get(Tenant, int(tenant_id))
     except (TypeError, ValueError):
-        tenant = db.query(Tenant).filter(Tenant.name == str(tenant_id)).first()
+        tenant = db.query(Tenant).filter(or_(
+            Tenant.name == str(tenant_id),
+            Tenant.directory_slug == str(tenant_id),
+        )).first()
     if tenant is None:
         return []
     rows = db.query(CustomProvider).filter(CustomProvider.tenant_id == tenant.id).order_by(CustomProvider.id).all()
@@ -271,7 +369,8 @@ def load_custom_providers(db, tenant_id):
 @contextmanager
 def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = None, custom_providers: list[dict] | None = None):
     """在租户隔离、Key 注入和异常转换上下文中运行引擎代码。"""
-    raw_tenant = str(tenant_id or "")
+    raw_tenant = getattr(tenant_id, "directory_slug", None) or getattr(tenant_id, "name", None) or str(tenant_id or "")
+    raw_tenant = str(raw_tenant)
     if "/" in raw_tenant or "\\" in raw_tenant or ".." in raw_tenant:
         raise ValueError(f"invalid tenant slug: {raw_tenant!r}")
     tenant_directory = tenant_slug(raw_tenant)

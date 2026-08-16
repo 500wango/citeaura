@@ -30,8 +30,9 @@ class FakeResp:
 
 class TestFetchRetry(unittest.TestCase):
     def _run(self, responses, retries=1):
-        with mock.patch.object(G.requests, "get", side_effect=responses) as get, \
-             mock.patch.object(G, "_validate_fetch_target"), \
+        target = (G.urlparse("http://x.test/"), ("93.184.216.34",))
+        with mock.patch.object(G, "_request_pinned", side_effect=responses) as get, \
+             mock.patch.object(G, "_validate_fetch_target", return_value=target), \
              mock.patch.object(G.time, "sleep"):
             res = G.fetch("http://x.test/", retries=retries)
         return res, get.call_count

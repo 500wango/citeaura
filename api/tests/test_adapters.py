@@ -6,7 +6,7 @@ import requests
 
 from api.adapters import engine as engine_adapter
 from api.adapters import network
-from api.adapters.engine import geolib, job_log_path, with_tenant_context
+from api.adapters.engine import geolib, job_log_path, with_tenant_context, with_tenant_read_context
 from api.adapters.exceptions import GeoEngineError
 
 
@@ -192,6 +192,89 @@ def test_tenant_context_serializes_process_global_state(tmp_path, monkeypatch):
     assert [label for label, _ in observed] == ["first-start", "first-end", "second"]
     assert all("tenant-a" in str(path) for _, path in observed[:2])
     assert "tenant-b" in str(observed[2][1])
+
+
+def test_tenant_read_context_is_concurrent_and_path_isolated(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    first_entered = threading.Event()
+    second_entered = threading.Event()
+    release = threading.Event()
+    observed = []
+
+    def read(label, tenant, entered):
+        with with_tenant_read_context(tenant, "project"):
+            observed.append((label, geolib.project_dir("project")))
+            entered.set()
+            release.wait(2)
+
+    first = threading.Thread(target=read, args=("first", "tenant-a", first_entered))
+    second = threading.Thread(target=read, args=("second", "tenant-b", second_entered))
+    first.start()
+    second.start()
+    assert first_entered.wait(2)
+    assert second_entered.wait(2)
+    release.set()
+    first.join(2)
+    second.join(2)
+
+    assert {label: path for label, path in observed} == {
+        "first": tmp_path / "work" / "tenant-a" / "project",
+        "second": tmp_path / "work" / "tenant-b" / "project",
+    }
+
+
+def test_network_guard_pins_validated_address_without_affecting_other_threads(monkeypatch):
+    calls = []
+    entered = threading.Event()
+
+    monkeypatch.setattr(
+        network.socket,
+        "getaddrinfo",
+        lambda host, port, type=None: [(2, 1, 6, "", ("93.184.216.34", port))],
+    )
+
+    def fake_request(session, method, url, **kwargs):
+        adapter = session.get_adapter(url)
+        calls.append((url, getattr(adapter, "address", None)))
+        entered.set()
+        return _http_response(url, 200)
+
+    monkeypatch.setattr(requests.sessions.Session, "request", fake_request)
+    with with_tenant_context("tenant", "project"):
+        guarded = threading.Thread(target=lambda: requests.get("http://127.0.0.1/unrelated"))
+        guarded.start()
+        assert entered.wait(2)
+        guarded.join(2)
+        requests.get("https://example.com/")
+
+    assert calls == [
+        ("http://127.0.0.1/unrelated", None),
+        ("https://example.com/", "93.184.216.34"),
+    ]
+
+
+def test_network_guard_propagates_to_sampling_threads(monkeypatch):
+    import sample
+
+    calls = []
+    monkeypatch.setattr(
+        network.socket,
+        "getaddrinfo",
+        lambda host, port, type=None: [(2, 1, 6, "", ("93.184.216.34", port))],
+    )
+
+    def fake_request(session, method, url, **kwargs):
+        adapter = session.get_adapter(url)
+        calls.append((url, getattr(adapter, "address", None), session.trust_env))
+        return _http_response(url, 200)
+
+    monkeypatch.setattr(requests.sessions.Session, "request", fake_request)
+    with with_tenant_context("tenant", "project"):
+        with sample.ThreadPoolExecutor(max_workers=1) as executor:
+            response = executor.submit(requests.get, "https://example.com/").result()
+
+    assert response.status_code == 200
+    assert calls == [("https://example.com/", "93.184.216.34", False)]
 
 
 def test_tenant_context_keeps_non_get_redirects_disabled(monkeypatch):

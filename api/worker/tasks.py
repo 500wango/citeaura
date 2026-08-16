@@ -7,12 +7,22 @@ from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+from celery import current_task
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 
 from api.adapters import baseline, global_scope, locking, measurement, sampling_control, site_signals, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract, ensure_legacy_deliverables_contract
-from api.adapters.engine import geolib, job_log_path, load_custom_providers, load_tenant_keys, tenant_slug, with_tenant_context
+from api.adapters.engine import (
+    ENGINE_MAX_REPEAT,
+    geolib,
+    job_log_path,
+    load_custom_providers,
+    load_tenant_keys,
+    tenant_slug,
+    with_tenant_context,
+)
 from api.adapters.workspace import ensure_global_engine_scope, preserve_manual_tickets, resilient_crawl_evidence
 from api.billing.limits import check_sample_run
 from api.billing.platform_pool import (
@@ -98,7 +108,7 @@ _ACTION_DEFAULTS = {
 _INTEGER_LIMITS = {
     "--max-pages": (1, 1000),
     "--limit": (1, 1000),
-    "--repeat": (1, 10),
+    "--repeat": (1, ENGINE_MAX_REPEAT),
     "--draft-limit": (1, 100),
 }
 _FLAG_ARGS = {"--no-recrawl", "--draft", "--no-sample", "--skip-llm", "--no-llm"}
@@ -196,7 +206,10 @@ def _tenant_record(db, tenant_id):
     try:
         return db.get(Tenant, int(tenant_id))
     except (TypeError, ValueError):
-        return db.query(Tenant).filter(Tenant.name == str(tenant_id)).first()
+        return db.query(Tenant).filter(or_(
+            Tenant.name == str(tenant_id),
+            Tenant.directory_slug == str(tenant_id),
+        )).first()
 
 
 def _find_job(db, tenant_id, project_slug, action, job_id):
@@ -226,6 +239,22 @@ def _find_job(db, tenant_id, project_slug, action, job_id):
         .order_by(Job.id.desc())
         .first()
     )
+
+
+def _redelivered_task_id():
+    """返回 Celery broker 重投任务的 ID；普通调用返回空值。"""
+    request = getattr(current_task, "request", None)
+    if request is None:
+        return None
+    delivery_info = getattr(request, "delivery_info", None) or {}
+    redelivered = bool(
+        getattr(request, "redelivered", False)
+        or delivery_info.get("redelivered", False)
+    )
+    if not redelivered:
+        return None
+    value = getattr(request, "id", None)
+    return str(value) if value else None
 
 
 def _engine_keys(tenant_id):
@@ -453,12 +482,30 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
         job = _find_job(db, tenant_id, project_slug, action, job_id)
         if job is None:
             return job_id is None
+        redelivered_task_id = _redelivered_task_id()
+        if job.status == "running" and redelivered_task_id and job.celery_task_id == redelivered_task_id:
+            reclaimed = db.query(Job).filter(
+                Job.id == job.id,
+                Job.status == "running",
+                Job.celery_task_id == redelivered_task_id,
+            ).update({
+                Job.status: "queued",
+                Job.stage: "requeued",
+                Job.started_at: None,
+                Job.finished_at: None,
+                Job.error: "worker_redelivered",
+                Job.attempt: Job.attempt + 1,
+            }, synchronize_session=False)
+            if reclaimed != 1:
+                return False
+            db.flush()
+            job.status = "queued"
         if job.status != "queued":
             return False
         project = db.get(Project, job.project_id)
         tenant = db.get(Tenant, project.tenant_id) if project is not None else None
         if tenant is not None:
-            log_path = job_log_path(tenant.name, project.slug, job.id)
+            log_path = job_log_path(tenant.directory_slug, project.slug, job.id)
             job.log_path = str(log_path)
         claimed = db.query(Job).filter(
             Job.id == job.id,
@@ -760,10 +807,10 @@ def task_dispatch_schedules(now_iso=None):
                 db.rollback()
                 result["busy"] += 1
                 continue
-            job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+            job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
             db.commit()
             try:
-                task_result = task_cycle.delay(tenant.name, project.slug, job_id=job.id)
+                task_result = task_cycle.delay(tenant.directory_slug, project.slug, job_id=job.id)
                 job.celery_task_id = getattr(task_result, "id", None)
                 db.commit()
             except Exception as exc:  # noqa: BLE001
@@ -897,7 +944,7 @@ def task_send_outreach(tenant_id: str, project_slug: str, draft_id: str, job_id=
         tenant = _tenant_record(db, tenant_id)
         if tenant is None:
             raise ValueError("tenant_not_found")
-        tenant_name = tenant.name
+        tenant_name = tenant.directory_slug
         tenant_db_id = tenant.id
     finally:
         db.close()

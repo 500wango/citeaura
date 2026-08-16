@@ -38,7 +38,7 @@ def serve_project_file(path: str, current_user: User = Depends(get_current_user)
     project = db.query(Project).filter(Project.tenant_id == tenant.id, Project.slug == parts[0]).first()
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "file_not_found"})
-    tenant_directory = engine_adapter.tenant_slug(tenant.name)
+    tenant_directory = engine_adapter.tenant_slug(tenant)
     root = (engine_adapter.WORK_ROOT / tenant_directory / project.slug).resolve()
     target = (root / parts[1]).resolve()
     try:

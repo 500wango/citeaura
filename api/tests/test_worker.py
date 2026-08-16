@@ -441,6 +441,61 @@ def test_job_status_uses_short_database_sessions(tmp_path, monkeypatch):
         assert job.progress == 100
 
 
+def test_job_status_reclaims_matching_broker_redelivery(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'redelivery.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with session_factory() as db:
+        tenant = Tenant(name="tenant-a", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="example",
+            url="https://example.com",
+            market="global",
+            status="processing",
+        )
+        db.add(project)
+        db.flush()
+        job = Job(
+            project_id=project.id,
+            action="audit",
+            status="running",
+            stage="audit",
+            attempt=1,
+            celery_task_id="same-task-id",
+            started_at=datetime.now(timezone.utc),
+        )
+        db.add(job)
+        db.commit()
+        job_id = job.id
+
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(tasks, "_redelivered_task_id", lambda: "same-task-id")
+    monkeypatch.setattr(tasks, "job_log_path", lambda *args: tmp_path / "logs" / "redelivery.log")
+
+    with tasks._job_status("tenant-a", "example", "audit", job_id) as update:
+        assert update is not tasks._JOB_NOT_CLAIMED
+        update("audit", 50)
+
+    with session_factory() as db:
+        job = db.get(Job, job_id)
+        assert job.status == "done"
+        assert job.attempt == 2
+        assert job.error is None
+
+
+def test_redelivered_task_id_reads_celery_delivery_info(monkeypatch):
+    request = types.SimpleNamespace(
+        id="broker-task-id",
+        delivery_info={"redelivered": True},
+    )
+    monkeypatch.setattr(tasks, "current_task", types.SimpleNamespace(request=request))
+
+    assert tasks._redelivered_task_id() == "broker-task-id"
+
+
 def test_job_status_marks_failure_when_log_directory_is_not_writable(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{tmp_path / 'log-failure.sqlite'}")
     Base.metadata.create_all(engine)

@@ -31,3 +31,29 @@ def test_removed_seo_credentials_are_deleted_without_touching_outreach_smtp():
         )
 
     assert providers == ["outreach_smtp"]
+
+
+def test_tenant_directory_slug_migration_backfills_collisions_deterministically():
+    migration = importlib.import_module("api.migrations.versions.0024_tenant_directory_slug")
+    engine = sa.create_engine("sqlite:///:memory:")
+    metadata = sa.MetaData()
+    tenants = sa.Table(
+        "tenants",
+        metadata,
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("name", sa.String(128), nullable=False),
+    )
+    metadata.create_all(engine)
+
+    with engine.begin() as connection:
+        connection.execute(tenants.insert(), [
+            {"id": 1, "name": "Acme Co"},
+            {"id": 2, "name": "acme_co"},
+        ])
+        migration.op = Operations(MigrationContext.configure(connection))
+        migration.upgrade()
+        rows = list(connection.execute(sa.text(
+            "SELECT directory_slug FROM tenants ORDER BY id"
+        )).scalars())
+
+    assert rows == ["acme-co", "acme-co-00000002"]

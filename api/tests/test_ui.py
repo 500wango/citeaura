@@ -52,6 +52,7 @@ def test_spa_is_served_with_citeaura_shell():
     policy = response.headers["content-security-policy"]
     assert "script-src 'self';" in policy
     assert "script-src 'self' 'unsafe-inline'" not in policy
+    assert response.headers["cache-control"] == "public, max-age=0, must-revalidate"
 
 
 def test_spa_static_modules_are_served():

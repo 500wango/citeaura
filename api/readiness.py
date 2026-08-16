@@ -9,7 +9,7 @@ from api.settings.crypto import _master_key
 from api.worker.celery_app import celery_app
 
 
-EXPECTED_DB_REVISION = "0023_platform_usage_outbox"
+EXPECTED_DB_REVISION = "0024_tenant_directory_slug"
 
 
 def _worker_available():
@@ -45,6 +45,11 @@ def readiness_checks(db):
         checks["encryption"] = False
     checks["jwt"] = config.jwt_secret_valid()
     checks["https"] = config.session_cookie_secure() and config.public_base_url().startswith("https://")
+    checks["rate_limit_proxy_headers"] = (
+        not config.production_proxy_mode()
+        or not config.rate_limit_enabled()
+        or config.rate_limit_trust_proxy_headers()
+    )
     checks["stripe"] = not config.billing_enabled() or stripe_adapter.configured()
     checks["password_reset_email"] = not config.password_reset_email_enabled() or config.auth_smtp_configured()
     return {"status": "ready" if all(checks.values()) else "not_ready", "checks": checks}

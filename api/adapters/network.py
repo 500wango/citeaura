@@ -9,7 +9,8 @@ class NetworkTargetError(ValueError):
     """目标地址不是可访问的公网地址。"""
 
 
-def _resolved_addresses(host, port):
+def resolve_public_addresses(host, port):
+    """解析主机并返回稳定排序的地址集合。"""
     host = str(host or "").strip().rstrip(".")
     if not host:
         raise NetworkTargetError("network_target_invalid")
@@ -26,7 +27,12 @@ def _resolved_addresses(host, port):
             raise NetworkTargetError("network_target_invalid") from exc
     if not addresses:
         raise NetworkTargetError("network_target_unresolvable")
-    return addresses
+    return tuple(sorted(addresses, key=lambda address: (address.version, int(address))))
+
+
+def _resolved_addresses(host, port):
+    """兼容内部调用的 DNS 解析入口。"""
+    return set(resolve_public_addresses(host, port))
 
 
 def _is_loopback(host, port):
@@ -42,13 +48,21 @@ def _is_loopback(host, port):
 
 def assert_public_host(host, port):
     """拒绝私网、回环、链路本地、保留和云元数据地址。"""
-    for address in _resolved_addresses(host, port):
+    addresses = resolve_public_addresses(host, port)
+    for address in addresses:
         if not address.is_global or address.is_multicast:
             raise NetworkTargetError("network_private_address_blocked")
     return str(host).strip()
 
 
-def validate_outbound_url(value, *, require_https=True, allow_loopback=False, resolve=True):
+def validate_outbound_url(
+    value,
+    *,
+    require_https=True,
+    allow_loopback=False,
+    resolve=True,
+    return_addresses=False,
+):
     """校验服务端请求 URL，并在需要时解析 DNS 验证所有结果。"""
     value = str(value or "").strip()
     parsed = urlparse(value)
@@ -79,8 +93,11 @@ def validate_outbound_url(value, *, require_https=True, allow_loopback=False, re
         if parsed.hostname.lower() in {"localhost", "localhost.localdomain"}:
             raise NetworkTargetError("network_private_address_blocked")
         return value
-    assert_public_host(parsed.hostname, port)
-    return value
+    addresses = resolve_public_addresses(parsed.hostname, port)
+    for address in addresses:
+        if not address.is_global or address.is_multicast:
+            raise NetworkTargetError("network_private_address_blocked")
+    return (value, addresses) if return_addresses else value
 
 
 def assert_public_url(value, *, require_https=True):

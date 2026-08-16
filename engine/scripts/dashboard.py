@@ -35,9 +35,9 @@ _env_lock = threading.Lock()
 
 def list_projects() -> list[dict]:
     out = []
-    if not G.WORK.exists():
+    if not G.current_work().exists():
         return out
-    for d in sorted(G.WORK.iterdir()):
+    for d in sorted(G.current_work().iterdir()):
         cfg_path = d / "geo.json"
         if not cfg_path.exists():
             continue
@@ -176,7 +176,7 @@ def read_asset(slug: str, rel: str) -> dict:
 
 def write_env(updates: dict[str, str]):
     """Update the project .env file and synchronize the current process."""
-    path = G.ROOT / ".env"
+    path = G.current_root() / ".env"
     with _env_lock:
         lines = path.read_text("utf-8").splitlines() if path.exists() else []
         for k, v in updates.items():
@@ -388,9 +388,9 @@ class Handler(BaseHTTPRequestHandler):
                 })
             if p.startswith("/files/"):
                 rel = p[len("/files/"):]
-                target = (G.WORK / rel).resolve()
+                target = (G.current_work() / rel).resolve()
                 try:
-                    target.relative_to(G.WORK.resolve())
+                    target.relative_to(G.current_work().resolve())
                 except ValueError:
                     return self._send(403, b"forbidden", "text/plain")
                 if not target.is_file():
@@ -440,6 +440,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "slug": cfg["slug"]})
 
             if p == "/api/run":
+                missing = [key for key in ("slug", "action") if not body.get(key)]
+                if missing:
+                    return self._json({"error": f"missing_parameters: {', '.join(missing)}"}, 400)
                 job = J.start(body["slug"], body["action"], body.get("params") or {})
                 return self._json({"ok": True, "job": job})
 
@@ -622,7 +625,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def _monitor_tick():
     """Trigger a scheduled cycle when monitor.next_run is due."""
-    for d in (G.WORK.iterdir() if G.WORK.exists() else []):
+    for d in (G.current_work().iterdir() if G.current_work().exists() else []):
         cfg_path = d / "geo.json"
         if not cfg_path.exists():
             continue

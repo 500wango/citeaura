@@ -105,3 +105,22 @@ def test_readiness_requires_an_active_worker(monkeypatch):
 
     assert result["status"] == "not_ready"
     assert result["checks"]["worker"] is False
+
+
+def test_readiness_rejects_untrusted_proxy_headers_in_production_mode(monkeypatch):
+    monkeypatch.setattr(readiness, "redis_client", lambda: Redis())
+    monkeypatch.setattr(readiness, "_worker_available", lambda: True)
+    monkeypatch.setattr(readiness, "_master_key", lambda: b"a" * 32)
+    monkeypatch.setattr(readiness.config, "billing_enabled", lambda: False)
+    monkeypatch.setattr(readiness.config, "jwt_secret", lambda: "j" * 32)
+    monkeypatch.setattr(readiness.config, "session_cookie_secure", lambda: True)
+    monkeypatch.setattr(readiness.config, "public_base_url", lambda: "https://app.example.test")
+    monkeypatch.setattr(readiness.config, "password_reset_email_enabled", lambda: False)
+    monkeypatch.setattr(readiness.config, "production_proxy_mode", lambda: True)
+    monkeypatch.setattr(readiness.config, "rate_limit_enabled", lambda: True)
+    monkeypatch.setattr(readiness.config, "rate_limit_trust_proxy_headers", lambda: False)
+
+    result = readiness.readiness_checks(Database())
+
+    assert result["status"] == "not_ready"
+    assert result["checks"]["rate_limit_proxy_headers"] is False

@@ -7,7 +7,6 @@
 > **产品目录**：`~/project/citeaura`
 > **开发指令**：`AGENTS.md`
 > **官网参考竞品**：https://www.higeo.ai/  
-> **对比文档**：`higeo-vs-disvorai-comparison.md`  
 > **约束**：**所有开发工作基于开源版二次开发**，禁止从零重写核心 GEO 管线；在其之上加多租户 SaaS、商业包装与 HiGEO 级体验。
 
 ---

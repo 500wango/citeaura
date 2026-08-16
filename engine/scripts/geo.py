@@ -27,7 +27,6 @@ try:
 except ModuleNotFoundError as e:
     raise SystemExit(f"Missing dependency: {e.name}. Please run: pip3 install requests beautifulsoup4 lxml") from e
 
-
 DEFAULT_PLATFORMS = {
     "cn": ["glm", "doubao", "deepseek", "kimi", "minimax", "nano_ai", "baidu"],
     "global": ["gemini", "openai", "claude", "grok", "perplexity", "chatgpt"],
@@ -61,7 +60,7 @@ def cmd_init(a):
         G.die(f"Project `{slug}` already exists ({len(cur.get('questions', []))} questions, "
               f"{len(cur.get('competitors', []))} competitors). Choose another --slug or use --force to reset it")
     if getattr(a, "force", False) and existing.parent.exists():
-        archive = G.WORK / ".archive"
+        archive = G.current_work() / ".archive"
         archive.mkdir(parents=True, exist_ok=True)
         destination = archive / f"{slug}-{G.new_run_id('reset')}"
         existing.parent.replace(destination)
@@ -438,10 +437,10 @@ def cmd_ui(a):
 
 
 def cmd_list(a):
-    if not G.WORK.exists():
+    if not G.current_work().exists():
         print("No projects found")
         return
-    for d in sorted(G.WORK.iterdir()):
+    for d in sorted(G.current_work().iterdir()):
         cfg_path = d / "geo.json"
         if cfg_path.exists():
             cfg = G.read_json(cfg_path, {})
@@ -451,6 +450,7 @@ def cmd_list(a):
 
 
 def main():
+    G.load_env()
     p = argparse.ArgumentParser(prog="geo", description="GEO automation pipeline")
     sub = p.add_subparsers(dest="cmd", required=True)
 

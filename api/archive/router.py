@@ -43,7 +43,7 @@ def _records(db, user, project_id):
 
 def _archive_entry(tenant, project, archive_id):
     try:
-        entries = archive.list_archives(tenant.name, project.slug)
+        entries = archive.list_archives(tenant.directory_slug, project.slug)
     except archive.ArchiveError as exc:
         _error(status.HTTP_409_CONFLICT, str(exc))
     entry = next((item for item in entries if item.get("id") == archive_id), None)
@@ -73,10 +73,10 @@ def _enqueue(db, tenant, project, action, task, *task_args):
     project.status = "archiving" if action == "archive" else "restoring"
     db.commit()
     db.refresh(job)
-    job.log_path = str(job_log_path(tenant.name, project.slug, job.id))
+    job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
     try:
-        task.delay(tenant.name, project.slug, *task_args, job_id=job.id)
+        task.delay(tenant.directory_slug, project.slug, *task_args, job_id=job.id)
     except Exception as exc:  # noqa: BLE001
         job.status = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
@@ -96,7 +96,7 @@ def archives(
     """返回项目归档清单和非敏感存储状态。"""
     tenant, project = _records(db, current_user, project_id)
     try:
-        entries = archive.list_archives(tenant.name, project.slug)
+        entries = archive.list_archives(tenant.directory_slug, project.slug)
         storage = archive.storage_status()
     except archive.ArchiveError as exc:
         _error(status.HTTP_409_CONFLICT, str(exc))

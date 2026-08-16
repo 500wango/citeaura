@@ -71,6 +71,11 @@ def rate_limit_trust_proxy_headers():
     return _enabled("RATE_LIMIT_TRUST_PROXY_HEADERS")
 
 
+def production_proxy_mode():
+    """是否由可信生产反向代理承接公网流量。"""
+    return _enabled("PRODUCTION_PROXY_MODE")
+
+
 def trust_cloudflare_country_header():
     """仅在源站限制为可信 Cloudflare 流量后启用国家头。"""
     return _enabled("TRUST_CLOUDFLARE_COUNTRY_HEADER")

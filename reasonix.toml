@@ -1,2 +1,0 @@
-[permissions]
-allow = ["Edit", "Bash(cd /home/michael/project/citeaura && grep -rn --include='*.py' --include='*.js' --include='*.html' --include='*.css' --include='*.json' --include='*.md' --include='*.sql' --include='*.yml' --include='*.yaml' --include='*.txt' --include='*.toml' --include='*.cfg' --include='*.ini' --include='*.env' -P '\\p{Han}' . 2>/dev/null | grep -v '^\\./\\.git/' | wc -l)", "Bash(pwd; ls)"]

@@ -16,7 +16,8 @@ import re
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -25,6 +26,14 @@ from urllib.parse import urlparse
 import requests
 
 import geolib as G
+
+
+class ThreadPoolExecutor(_ThreadPoolExecutor):
+    """Propagate runtime contexts to provider worker threads."""
+
+    def submit(self, fn, /, *args, **kwargs):
+        context = copy_context()
+        return super().submit(context.run, fn, *args, **kwargs)
 
 # Provider registry. Market determines which question set a provider receives.
 PROVIDERS = {
@@ -582,9 +591,12 @@ def aggregate(rows: list[dict], cfg: dict) -> dict:
 
     out = {}
     for plat, all_rs in by_platform.items():
-        probe = [r for r in all_rs if r.get("brand_in_question")
-                 or brand_in_question(r.get("question", ""), cfg)]
-        rs = [r for r in all_rs if r not in probe]
+        probe = [
+            r for r in all_rs
+            if r.get("brand_in_question") or brand_in_question(r.get("question", ""), cfg)
+        ]
+        probe_ids = {id(r) for r in probe}
+        rs = [r for r in all_rs if id(r) not in probe_ids]
         n = len(rs)
         market = (rs[0].get("market") if rs else None) or market_of(plat)
         mentioned = [r for r in rs if r["analysis"]["brand_mentioned"]]
@@ -745,8 +757,8 @@ def _history_snapshot(slug: str, rows: list[dict]) -> dict:
 
 
 def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: int | None = None) -> dict:
-    if repeat < 1:
-        raise ValueError("repeat must be at least 1")
+    if not 1 <= repeat <= G.MAX_SAMPLE_REPEAT:
+        raise ValueError(f"repeat must be between 1 and {G.MAX_SAMPLE_REPEAT}")
     if limit is not None and limit < 1:
         raise ValueError("limit must be at least 1")
     cfg = G.load_config(slug)

@@ -18,6 +18,7 @@ def _valid_environment():
         "RATE_LIMIT_AUTH_REQUESTS": "20",
         "RATE_LIMIT_WINDOW_SECONDS": "60",
         "RATE_LIMIT_TRUST_PROXY_HEADERS": "true",
+        "PRODUCTION_PROXY_MODE": "true",
         "TRUST_CLOUDFLARE_COUNTRY_HEADER": "true",
         "BILLING_ENABLED": "true",
         "PASSWORD_RESET_TTL_MINUTES": "30",

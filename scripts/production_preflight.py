@@ -64,13 +64,14 @@ def validate_environment(values):
         "PUBLIC_BASE_URL", "REDIS_URL", "REDIS_PASSWORD", "JWT_SECRET", "AES_KEY", "SESSION_COOKIE_SECURE",
         "RATE_LIMIT_ENABLED", "RATE_LIMIT_REQUESTS", "RATE_LIMIT_AUTH_REQUESTS",
         "RATE_LIMIT_WINDOW_SECONDS", "RATE_LIMIT_TRUST_PROXY_HEADERS",
-        "TRUST_CLOUDFLARE_COUNTRY_HEADER",
+        "PRODUCTION_PROXY_MODE", "TRUST_CLOUDFLARE_COUNTRY_HEADER",
     )
     for key in required:
         if not values.get(key):
             errors.append(f"{key} is required")
     billing_enabled = _feature_flag(values, "BILLING_ENABLED", errors)
     password_reset_email_enabled = _feature_flag(values, "PASSWORD_RESET_EMAIL_ENABLED", errors)
+    production_proxy_mode = _feature_flag(values, "PRODUCTION_PROXY_MODE", errors)
     _feature_flag(values, "TRUST_CLOUDFLARE_COUNTRY_HEADER", errors)
     domain = values.get("DOMAIN", "")
     if domain and (not re.fullmatch(r"[A-Za-z0-9.-]+", domain) or "." not in domain or _placeholder(domain)):
@@ -112,6 +113,8 @@ def validate_environment(values):
         errors.append("RATE_LIMIT_ENABLED must be true")
     if values.get("RATE_LIMIT_TRUST_PROXY_HEADERS", "").lower() not in ("1", "true", "yes"):
         errors.append("RATE_LIMIT_TRUST_PROXY_HEADERS must be true behind the production proxy")
+    if not production_proxy_mode:
+        errors.append("PRODUCTION_PROXY_MODE must be true for the production proxy deployment")
     for key, maximum in (("RATE_LIMIT_REQUESTS", 1_000_000), ("RATE_LIMIT_AUTH_REQUESTS", 1_000_000), ("RATE_LIMIT_WINDOW_SECONDS", 3600)):
         try:
             number = int(values.get(key, ""))

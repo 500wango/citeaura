@@ -94,6 +94,8 @@ async def api_rate_limiter(request: Request, call_next):
 async def security_headers(request: Request, call_next):
     """为 API 和嵌入式 UI 添加基础浏览器安全策略。"""
     response = await call_next(request)
+    if request.url.path == "/app" or request.url.path.startswith("/app/"):
+        response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
