@@ -972,6 +972,8 @@ def _is_financial_question(question):
 
 def _content_intent(content, question):
     value = str(question or "").casefold()
+    if re.search(r"\b(?:what|which)\s+app\s+should\s+i\s+use\b", value) or "best app" in value:
+        return "Recommendation"
     if any(token in value for token in (
         "how much", "price", "pricing", "cost", "fee", "fees", "exchange rate",
         "withdrawal limit", "withdrawal limits", "hidden charge", "hidden charges",
@@ -986,8 +988,6 @@ def _content_intent(content, question):
         return "Alternatives"
     if "comparison" in value or "better to use" in value or re.search(r"\b(?:compare|versus|vs)\.?\b", value):
         return "Comparison"
-    if re.search(r"\b(?:what|which)\s+app\s+should\s+i\s+use\b", value) or "best app" in value:
-        return "Recommendation"
     return GROUP_NAMES.get(content.get("group"), _safe_display(content.get("group"), "Recommendation"))
 
 
@@ -1529,6 +1529,8 @@ def _write_facts_asset(destination, facts, facts_text, made):
         ).replace(" Every material claim requires human review.", "").replace(
             "## Officially stated facts requiring review", "## Verified facts"
         )
+    else:
+        text = text.replace("## Verified facts", "## Officially stated facts requiring review")
     target.write_text(text, "utf-8")
     made.append(target.relative_to(destination.parent).as_posix())
 

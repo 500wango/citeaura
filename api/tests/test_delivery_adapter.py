@@ -456,6 +456,7 @@ def test_delivery_reuses_unreviewed_brand_facts_as_review_drafts(tmp_path, monke
         "suitable": ["Multi-site field operations"],
         "unsuitable": ["Unverified medical workflows"],
     })
+    facts = facts.replace("## Officially stated facts requiring review", "## Verified facts")
     (project / "content" / "facts.md").write_text(facts, "utf-8")
     (project / "assets" / "llms.en.txt").write_text(
         "# Example\n\n> Example coordinates field operations for distributed industrial teams.\n\n- Industry: Industrial operations software\n",
@@ -483,6 +484,9 @@ def test_delivery_reuses_unreviewed_brand_facts_as_review_drafts(tmp_path, monke
     assert "Example coordinates field operations" in llms
     assert "[Add" not in llms
     assert "Industrial operations software" in llms
+    delivered_facts = (output / "assets" / "drafts" / "brand-facts.md").read_text("utf-8")
+    assert "## Officially stated facts requiring review" in delivered_facts
+    assert "## Verified facts" not in delivered_facts
 
 
 def test_delivery_omits_specialized_schema_without_project_evidence(tmp_path, monkeypatch):
@@ -773,6 +777,17 @@ def test_delivery_corrects_financial_question_intent_and_outline_structure(tmp_p
     assert "Regulatory authorization and register evidence" in risk
     assert "Transfer, exchange-rate, card, ATM, and withdrawal fee components" in pricing
     assert "Intent: Recommendation" in recommendation
+
+
+def test_delivery_prioritizes_recommendation_over_pricing_keywords():
+    content = {"group": "pricing"}
+    question = (
+        "What is the best app for holding multiple currencies and sending money internationally "
+        "without paying excessive fees?"
+    )
+
+    assert delivery._content_intent(content, question) == "Recommendation"
+    assert delivery._content_form("Recommendation", question) == "Evidence-Based Recommendation Page"
 
 
 def test_delivery_risk_report_and_llms_ticket_propagate_unreviewed_fact_status(tmp_path, monkeypatch):
