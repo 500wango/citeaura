@@ -14,6 +14,21 @@ import geolib as G
 
 WEIGHTS = {"mention": 30, "cite": 25, "channel": 20, "content": 15, "fact": 10}
 
+_ANALYSIS_DEFAULTS = {
+    "brand_mentioned": False,
+    "brand_rank": 0,
+    "cited_domains": [],
+    "own_domain_cited": False,
+    "competitors_mentioned": [],
+    "candidates": [],
+    "negative_cues": [],
+    "brand_cited_domains": [],
+    "answer_chars": 0,
+    "needs_review": False,
+    "first_mention_order": 0,
+    "rank_basis": None,
+}
+
 
 def _own_host(cfg) -> str:
     return urlparse(cfg["brand"]["site"]).netloc.lower().removeprefix("www.")
@@ -29,15 +44,60 @@ def _sample_files(pdir: Path):
     return sorted(d.glob("*.jsonl")) if d.exists() else []
 
 
+def _list_value(value) -> list:
+    """Keep list-like analysis fields bounded to predictable JSON values."""
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
+def _bool_value(value) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y"}
+    return bool(value)
+
+
+def _rank_value(value) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    try:
+        rank = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+    return max(0, rank)
+
+
+def _normalize_analysis(value: dict) -> dict:
+    """Normalize legacy or partially corrupt sample analysis at one boundary."""
+    source = value if isinstance(value, dict) else {}
+    analysis = dict(_ANALYSIS_DEFAULTS)
+    analysis.update(source)
+    analysis["brand_mentioned"] = _bool_value(source.get("brand_mentioned", False))
+    analysis["brand_rank"] = _rank_value(source.get("brand_rank", 0))
+    for key in ("cited_domains", "competitors_mentioned", "candidates",
+                "negative_cues", "brand_cited_domains"):
+        analysis[key] = _list_value(source.get(key, []))
+    analysis["own_domain_cited"] = _bool_value(source.get("own_domain_cited", False))
+    analysis["needs_review"] = _bool_value(source.get("needs_review", False))
+    return analysis
+
+
 def _rows(path: Path):
     return _usable_rows(G.read_jsonl(path))
 
 
 def _usable_rows(rows):
-    return [
-        row for row in rows
-        if isinstance(row, dict) and row.get("ok") and isinstance(row.get("analysis"), dict)
-    ]
+    normalized = []
+    for row in rows or []:
+        if not isinstance(row, dict) or not row.get("ok"):
+            continue
+        if not isinstance(row.get("analysis"), dict):
+            continue
+        item = dict(row)
+        item["platform"] = str(row.get("platform") or "unknown")
+        item["analysis"] = _normalize_analysis(row["analysis"])
+        normalized.append(item)
+    return normalized
 
 
 def _unprompted(rows):

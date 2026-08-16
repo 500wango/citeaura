@@ -8,6 +8,7 @@ Outputs:
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import time
@@ -25,6 +26,30 @@ PRIORITY = [
     "\u4ea7\u54c1", "\u4ef7\u683c", "\u65b9\u6848", "\u6848\u4f8b", "\u5ba2\u6237",
     "\u6587\u6863", "\u5e2e\u52a9", "\u5173\u4e8e", "\u65b0\u95fb", "\u535a\u5ba2",
 ]
+
+DEFAULT_SNAPSHOT_RUNS = 10
+
+
+def _snapshot_retention() -> int:
+    raw = os.environ.get("GEO_CRAWL_SNAPSHOT_RUNS")
+    try:
+        keep = int(raw) if raw is not None else DEFAULT_SNAPSHOT_RUNS
+    except (TypeError, ValueError):
+        keep = DEFAULT_SNAPSHOT_RUNS
+    return min(100, max(1, keep))
+
+
+def _prune_snapshots(root, keep: int | None = None) -> int:
+    """Bound raw HTML evidence while retaining the latest crawl cohorts."""
+    if not root.exists():
+        return 0
+    runs = sorted(item for item in root.iterdir()
+                  if item.is_dir() and not item.is_symlink() and not item.name.startswith("."))
+    removed = 0
+    for old in runs[:-(keep or _snapshot_retention())]:
+        shutil.rmtree(old, ignore_errors=True)
+        removed += 1
+    return removed
 
 
 def discover_sitemap(root: str, limit: int = 300) -> list[str]:
@@ -369,6 +394,9 @@ def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
     if (staging / "html").exists():
         (staging / "html").replace(final_snapshots)
     shutil.rmtree(staging, ignore_errors=True)
+    removed_snapshots = _prune_snapshots(final_snapshots.parent)
+    if removed_snapshots:
+        G.info(f"Pruned {removed_snapshots} old crawl snapshot run(s)")
     G.write_json(outdir / "site.json", site)
     G.write_jsonl(outdir / "pages.jsonl", pages)
     G.info(f"Complete: {site['pages_ok']}/{len(pages)} pages accessible → {outdir}")

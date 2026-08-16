@@ -73,6 +73,17 @@ class TestCrawlHealth(unittest.TestCase):
         crawl.check_crawl_health(self._pages([200] * 5))
         crawl.check_crawl_health(self._pages([200] + [0] * 4))  # 20% 刚好达标
 
+    def test_snapshot_pruning_keeps_latest_runs(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            for name in ("crawl-001", "crawl-002", "crawl-003"):
+                (root / name).mkdir()
+            removed = crawl._prune_snapshots(root, keep=2)
+            self.assertEqual(removed, 1)
+            self.assertFalse((root / "crawl-001").exists())
+            self.assertTrue((root / "crawl-002").exists())
+            self.assertTrue((root / "crawl-003").exists())
+
 
 class TestWordCountKana(unittest.TestCase):
     def test_pure_kana_counts(self):

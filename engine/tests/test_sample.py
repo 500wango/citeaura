@@ -150,6 +150,16 @@ class TestProbeNoFallback(unittest.TestCase):
         self.assertTrue(S.brand_in_question("Is AI useful?", cfg))
 
 
+class TestProviderPacing(unittest.TestCase):
+    def test_provider_delay_is_bounded_and_configurable(self):
+        with mock.patch.dict(os.environ, {"GEO_PROVIDER_DELAY_SECONDS": "2.5"}):
+            self.assertEqual(S._provider_delay("deepseek"), 2.5)
+        with mock.patch.dict(os.environ, {"GEO_PROVIDER_DELAY_SECONDS": "-3"}):
+            self.assertEqual(S._provider_delay("deepseek"), 0.0)
+        with mock.patch.dict(os.environ, {"GEO_PROVIDER_DELAY_SECONDS": "not-a-number"}):
+            self.assertEqual(S._provider_delay("deepseek"), S.DEFAULT_PROVIDER_DELAY)
+
+
 class TestProviderObservability(unittest.TestCase):
     def test_summarizes_usage_retries_models_and_search_evidence(self):
         rows = [

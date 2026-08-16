@@ -3,6 +3,7 @@ import io
 import os
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -105,6 +106,11 @@ class DashboardTest(unittest.TestCase):
         latest = G.read_json(config_path)
         self.assertEqual(latest["brand"]["name"], "Updated concurrently")
         self.assertTrue(latest["monitor"]["next_run"])
+
+    def test_monitor_loop_honors_shutdown_event(self):
+        stop = threading.Event()
+        stop.set()
+        D._monitor_loop(stop, interval=60)
 
 
 if __name__ == "__main__":

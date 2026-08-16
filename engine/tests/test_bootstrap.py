@@ -101,6 +101,24 @@ class TestCompetitorConfirmation(WorkDirCase):
         self.assertEqual(imported["sampling_label"], "manual_product_interface")
         self.assertTrue(imported["run_id"].startswith("sample-"))
 
+    def test_sample_import_rejects_oversized_file(self):
+        self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))
+        path = Path(self._tmp.name) / "oversized.md"
+        path.write_text("x" * 32, "utf-8")
+        with mock.patch.object(S, "MAX_IMPORT_BYTES", 16):
+            with self.assertRaises(SystemExit):
+                S.sample_import(self.slug, str(path))
+
+    def test_sample_import_rejects_duplicate_platform_sections(self):
+        self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))
+        path = Path(self._tmp.name) / "duplicate.md"
+        path.write_text(
+            "## platform: deepseek\n\n### q001 · 有什么好用的工具？\n\n```answer\n答案\n```\n"
+            "## platform: deepseek\n\n### q001 · 有什么好用的工具？\n\n```answer\n答案\n```\n",
+            "utf-8")
+        with self.assertRaises(SystemExit):
+            S.sample_import(self.slug, str(path))
+
     def test_single_mentions_do_not_rewrite_config(self):
         self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))
         S.sample_import(self.slug, self._manual_file("我推荐竞品A。"))

@@ -136,6 +136,12 @@ MANUAL_ONLY = {
     "claude_web": ("Claude Web Search", "global"),
 }
 
+MAX_IMPORT_BYTES = 4_000_000
+MAX_IMPORT_BLOCKS = 500
+MAX_IMPORT_ANSWER_CHARS = 2_000_000
+IMPORT_PLATFORM_OK = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
+DEFAULT_PROVIDER_DELAY = 0.4
+
 
 def market_of(platform: str) -> str:
     if platform in PROVIDERS:
@@ -221,6 +227,16 @@ def _call_meta(response, payload: dict, model: str, retry_count: int) -> dict:
 def available(platform: str) -> bool:
     p = PROVIDERS.get(platform)
     return bool(p and os.environ.get(p["key_env"]))
+
+
+def _provider_delay(platform: str) -> float:
+    """Resolve a bounded inter-request delay without changing provider concurrency."""
+    raw = os.environ.get("GEO_PROVIDER_DELAY_SECONDS")
+    try:
+        delay = float(raw) if raw is not None else DEFAULT_PROVIDER_DELAY
+    except (TypeError, ValueError):
+        delay = DEFAULT_PROVIDER_DELAY
+    return min(60.0, max(0.0, delay))
 
 
 # Shared fallback order for modules that need one configured LLM.
@@ -824,7 +840,7 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
         def worker(plat_jobs):
             nonlocal done
             out = []
-            for job in plat_jobs:
+            for index, job in enumerate(plat_jobs):
                 rec = one(job)
                 with lock:
                     done += 1
@@ -834,7 +850,10 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
                     print(f"[geo] {done:3d}/{total} {flag} [{rec['platform']}] {rec['question'][:32]}",
                           file=sys.stderr, flush=True)
                 out.append(rec)
-                time.sleep(0.4)
+                if index + 1 < len(plat_jobs):
+                    delay = _provider_delay(plat)
+                    if delay:
+                        time.sleep(delay)
             return out
 
         with ThreadPoolExecutor(max_workers=max(1, len(by_plat))) as ex:
@@ -893,13 +912,30 @@ def sheet(slug: str) -> Path:
 def sample_import(slug: str, file: str) -> dict:
     cfg = G.load_config(slug)
     cfg = {**cfg, "questions": G.normalize_question_ids(cfg.get("questions", []))}
-    text = Path(file).read_text("utf-8")
+    source = Path(file)
+    try:
+        size = source.stat().st_size
+    except OSError as exc:
+        G.die(f"Cannot read sample import file: {exc}")
+    if size > MAX_IMPORT_BYTES:
+        G.die(f"Sample import file exceeds {MAX_IMPORT_BYTES} bytes")
+    try:
+        text = source.read_text("utf-8")
+    except (OSError, UnicodeError) as exc:
+        G.die(f"Cannot decode sample import file: {exc}")
     qmap = {q.get("id"): q["text"] for q in cfg.get("questions", [])}
 
     rows, platform = [], "manual"
     blocks = re.split(r"(?m)^##\s+platform:\s*(\S+)\s*$", text)
+    if (len(blocks) - 1) // 2 > MAX_IMPORT_BLOCKS:
+        G.die(f"Sample import contains more than {MAX_IMPORT_BLOCKS} platform sections")
     manual_platforms = [blocks[i].strip() for i in range(1, len(blocks), 2)]
+    if len(set(manual_platforms)) != len(manual_platforms):
+        G.die("Sample import contains duplicate platform sections")
+    if any(not IMPORT_PLATFORM_OK.fullmatch(item) for item in manual_platforms):
+        G.die("Sample import contains an invalid platform identifier")
     identity = _run_identity(cfg, manual_platforms, 1, "manual")
+    answer_chars = 0
     # Blocks alternate between platform identifiers and platform bodies.
     for i in range(1, len(blocks), 2):
         platform = blocks[i].strip()
@@ -908,6 +944,9 @@ def sample_import(slug: str, file: str) -> dict:
             qid, qtext, _, answer = m.group(1), m.group(2).strip(), m.group(3), m.group(4).strip()
             if not answer or qid not in qmap:
                 continue
+            answer_chars += len(answer)
+            if answer_chars > MAX_IMPORT_ANSWER_CHARS:
+                G.die(f"Sample import answers exceed {MAX_IMPORT_ANSWER_CHARS} characters")
             rec = {
                 "date": G.today(), "ts": G.now_iso(),
                 **identity,

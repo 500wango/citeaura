@@ -654,22 +654,28 @@ def _monitor_tick():
             G.info(f"Scheduled run skipped for {d.name}: {e}")
 
 
-def _monitor_loop():
-    while True:
+MONITOR_INTERVAL_SECONDS = 1800
+
+
+def _monitor_loop(stop_event=None, interval: float = MONITOR_INTERVAL_SECONDS):
+    stop_event = stop_event or threading.Event()
+    while not stop_event.is_set():
         try:
             J.reap_orphans()
             J.prune_history()
             _monitor_tick()
         except Exception as e:  # noqa: BLE001 - scheduler loop must stay alive
             G.info(f"Scheduled run error: {type(e).__name__}: {e}")
-        time.sleep(1800)
+        stop_event.wait(interval)
 
 
 def run(port: int = 8765, open_browser: bool = True):
     J.reap_orphans()
     J.prune_history()
-    threading.Thread(target=_monitor_loop, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    monitor_stop = threading.Event()
+    monitor = threading.Thread(target=_monitor_loop, args=(monitor_stop,), daemon=True)
+    monitor.start()
     url = f"http://127.0.0.1:{port}/"
     G.info(f"Dashboard started: {url} (Ctrl+C to quit)")
     if open_browser:
@@ -679,4 +685,6 @@ def run(port: int = 8765, open_browser: bool = True):
     except KeyboardInterrupt:
         G.info("Dashboard stopped")
     finally:
+        monitor_stop.set()
+        monitor.join(timeout=2)
         srv.server_close()

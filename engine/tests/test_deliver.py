@@ -61,6 +61,20 @@ class TestRebuild(unittest.TestCase):
                 DL.run("x")
             self.assertFalse((out / "假文件.txt").exists())
 
+    def test_staging_publish_replaces_old_package_and_removes_backup(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            final = root / "2026-08-16"
+            staging = root / ".2026-08-16.tmp"
+            final.mkdir()
+            (final / "old.txt").write_text("old", "utf-8")
+            staging.mkdir()
+            (staging / "new.txt").write_text("new", "utf-8")
+            DL._publish_staging(staging, final)
+            self.assertFalse((final / "old.txt").exists())
+            self.assertEqual((final / "new.txt").read_text("utf-8"), "new")
+            self.assertEqual(list(root.glob("*.backup-*")), [])
+
     def test_summary_mention_rate_is_weighted_by_sample_count(self):
         with tempfile.TemporaryDirectory() as d:
             pdir = _project(d)

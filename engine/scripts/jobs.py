@@ -53,6 +53,16 @@ ACTIONS: dict[str, dict] = {
 }
 
 FLAG_ARGS = {"--no-recrawl", "--draft", "--no-sample", "--skip-llm", "--no-llm"}
+INT_ARG_LIMITS = {
+    "--max-pages": (1, 1000),
+    "--limit": (1, 1000),
+    "--repeat": (1, 20),
+    "--draft-limit": (1, 50),
+}
+LIST_ARG_VALUES = {
+    "--asset": {"llms", "jsonld", "snippets", "outlines"},
+}
+ARG_TOKEN_OK = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 _lock = threading.Lock()
 _running: dict[str, str] = {}   # slug -> job_id
@@ -123,6 +133,39 @@ def _acquire_claim(slug: str, job_id: str):
 def _write(job: dict):
     JOBS_DIR.mkdir(parents=True, exist_ok=True)
     G.write_json(_job_path(job["id"]), job)
+
+
+def _validate_arg(flag: str, value):
+    """Validate an allowlisted CLI value before it reaches a subprocess."""
+    if flag in FLAG_ARGS:
+        if not isinstance(value, bool):
+            raise ValueError(f"{flag} must be a boolean")
+        return value
+    if flag in INT_ARG_LIMITS:
+        if isinstance(value, bool):
+            raise ValueError(f"{flag} must be an integer")
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"{flag} must be an integer") from exc
+        if str(value).strip() != str(parsed):
+            raise ValueError(f"{flag} must be an integer")
+        low, high = INT_ARG_LIMITS[flag]
+        if not low <= parsed <= high:
+            raise ValueError(f"{flag} must be between {low} and {high}")
+        return parsed
+    if flag in ("--platforms", "--asset"):
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{flag} must be a comma-separated list")
+        values = [item.strip() for item in value.split(",")]
+        if any(not ARG_TOKEN_OK.fullmatch(item) for item in values):
+            raise ValueError(f"{flag} contains an invalid token")
+        if flag == "--asset" and any(item not in LIST_ARG_VALUES[flag] for item in values):
+            raise ValueError(f"{flag} contains an unsupported asset")
+        if len(set(values)) != len(values):
+            raise ValueError(f"{flag} contains duplicate values")
+        return ",".join(values)
+    return value
 
 
 def get(job_id: str) -> dict | None:
@@ -257,11 +300,16 @@ def start(slug: str, action: str, params: dict | None = None) -> dict:
     if action not in ACTIONS:
         raise ValueError(f"Unsupported action: {action}")
     spec = ACTIONS[action]
+    if params is not None and not isinstance(params, dict):
+        raise ValueError("Job parameters must be an object")
     cmd = [sys.executable, "-u", str(GEO_PY), action, "--slug", slug]
     for k, v in (params or {}).items():
         flag = k if k.startswith("--") else "--" + k
         if flag not in spec["args"]:
             continue
+        if v is None:
+            continue
+        v = _validate_arg(flag, v)
         if flag in FLAG_ARGS:
             if v:
                 cmd.append(flag)

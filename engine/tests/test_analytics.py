@@ -71,6 +71,27 @@ class TestHealthCite(Base):
         h = A.health("demo", None, [], rows)
         self.assertEqual(h["subs"]["cite"], 0.0)
 
+    def test_partial_analysis_is_normalized_at_input_boundary(self):
+        self.make_project()
+        rows = A._usable_rows([{
+            "ok": True,
+            "analysis": {"brand_mentioned": True, "brand_rank": "not-a-rank"},
+        }])
+        self.assertEqual(len(rows), 1)
+        analysis = rows[0]["analysis"]
+        self.assertTrue(analysis["brand_mentioned"])
+        self.assertEqual(analysis["brand_rank"], 0)
+        self.assertEqual(analysis["cited_domains"], [])
+        self.assertEqual(analysis["competitors_mentioned"], [])
+
+    def test_missing_platform_uses_unknown_bucket(self):
+        self.make_project()
+        rows = A.engines("demo", [{
+            "ok": True,
+            "analysis": {"brand_mentioned": False},
+        }], None)
+        self.assertEqual(rows[0]["platform"], "unknown")
+
 
 class TestVerdict(Base):
     def test_single_platform_no_best_claim(self):

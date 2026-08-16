@@ -16,7 +16,9 @@ conclusions based on evidence, and no commitments regarding specific platform ci
 from __future__ import annotations
 
 import csv
+import os
 import shutil
+import uuid
 from pathlib import Path
 
 import geolib as G
@@ -155,7 +157,36 @@ Standardize your one-sentence brand definition across four surfaces: Hero slogan
 """
 
 
-def run(slug: str) -> Path:
+def _remove_path(path: Path):
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    else:
+        path.unlink(missing_ok=True)
+
+
+def _publish_staging(staging: Path, final: Path):
+    """Publish a completed delivery directory with rollback on replacement failure."""
+    backup = final.with_name(f".{final.name}.backup-{os.getpid()}-{uuid.uuid4().hex}")
+    moved_old = False
+    try:
+        if final.exists() or final.is_symlink():
+            final.replace(backup)
+            moved_old = True
+        staging.replace(final)
+    except BaseException:
+        if final.exists() or final.is_symlink():
+            _remove_path(final)
+        if moved_old and backup.exists():
+            backup.replace(final)
+        raise
+    if moved_old:
+        try:
+            _remove_path(backup)
+        except OSError as exc:
+            G.info(f"Delivery backup cleanup deferred: {exc}")
+
+
+def _run_unlocked(slug: str) -> Path:
     cfg = G.load_config(slug)
     pdir = G.project_dir(slug)
     audit = G.read_json(pdir / "audit.json", {})
@@ -183,8 +214,13 @@ def run(slug: str) -> Path:
         notes.append("Unverified for this cycle: " + ("No verification records found yet" if not vrep else
                      f"Latest verification date {vrep_date} is older than current audit date {audit_date}"))
 
-    out = pdir / "delivery" / G.today()
-    # Rebuild the dated directory so optional files from earlier runs cannot linger.
+    delivery_root = pdir / "delivery"
+    delivery_root.mkdir(parents=True, exist_ok=True)
+    final_out = delivery_root / G.today()
+    for stale in delivery_root.glob(f".{G.today()}.tmp-*"):
+        _remove_path(stale)
+    out = delivery_root / f".{G.today()}.tmp-{os.getpid()}-{uuid.uuid4().hex}"
+    # Build in isolation so an interrupted run never exposes a partial package.
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -382,5 +418,12 @@ def run(slug: str) -> Path:
         R.build_html(f"{cfg['brand']['name']} · GEO Client Delivery {G.today()}", ov, cards), "utf-8")
     (out / "README.md").write_text(_readme(cfg, data, notes), "utf-8")
 
-    G.info(f"Delivery package compiled → {out}")
-    return out
+    _publish_staging(out, final_out)
+    G.info(f"Delivery package compiled → {final_out}")
+    return final_out
+
+
+def run(slug: str) -> Path:
+    """Compile one project delivery package while serializing project writes."""
+    with G.project_lock(slug):
+        return _run_unlocked(slug)

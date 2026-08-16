@@ -26,6 +26,24 @@ class JobsTest(unittest.TestCase):
         self.addCleanup(J._running.clear)
         self.addCleanup(J._procs.clear)
 
+    def test_start_rejects_invalid_allowlisted_arguments(self):
+        cases = (
+            {"repeat": 0},
+            {"max-pages": "many"},
+            {"draft-limit": 51},
+            {"draft": "false"},
+            {"platforms": "openai,,deepseek"},
+        )
+        for params in cases:
+            with self.subTest(params=params):
+                action = "sample"
+                if "max-pages" in params:
+                    action = "crawl"
+                elif "draft-limit" in params or "draft" in params:
+                    action = "generate"
+                with self.assertRaises(ValueError):
+                    J.start("x", action, params)
+
     def _write_job(self, job_id, **kw):
         job = {"id": job_id, "slug": "x", "action": "audit", "label": "页面体检",
                "status": "running", "started_at": "2026-07-28T10:00:00",
