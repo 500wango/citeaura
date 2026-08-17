@@ -109,3 +109,11 @@ def test_seo_technical_files_are_served():
     assert "xml" in sitemap_res.headers["content-type"]
     assert "<loc>https://citeaura.com/</loc>" in sitemap_res.text
     assert "<loc>https://citeaura.com/docs</loc>" in sitemap_res.text
+
+    llms_res = client.get("/llms.txt")
+    assert llms_res.status_code == 200
+    assert llms_res.headers["content-type"].startswith("text/plain")
+    assert llms_res.text.startswith("# CiteAura\n")
+    assert "https://citeaura.com/docs" in llms_res.text
+    assert "API - Parametric knowledge" in llms_res.text
+    assert client.head("/llms.txt").status_code == 200

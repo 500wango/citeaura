@@ -1,0 +1,32 @@
+# CiteAura
+
+> CiteAura is an evidence-based Generative Engine Optimization platform for website diagnosis, AI visibility measurement, action tickets, verification, and delivery packages.
+
+## Official pages
+
+- [Website](https://citeaura.com/): Product overview and plan information.
+- [Application](https://citeaura.com/app/): CiteAura workspace and account access.
+- [Documentation](https://citeaura.com/docs): Setup, measurement, execution, verification, and delivery guidance.
+- [Privacy Policy](https://citeaura.com/privacy): Data handling and privacy terms.
+- [Terms of Service](https://citeaura.com/terms): Service terms and acceptable use.
+
+## Product workflow
+
+- Create a workspace and add a public website domain.
+- Audit crawlability, page structure, extractable facts, structured data, and authority signals.
+- Measure AI visibility with explicit provenance and sampling-mode labels.
+- Convert evidence into prioritized action tickets with acceptance criteria.
+- Re-crawl implemented changes and retain verification evidence.
+- Export diagnostic reports and delivery assets with explicit readiness states.
+
+## Measurement integrity
+
+- Sampling outputs retain one of these modes: API - Parametric knowledge, API - Search grounded, or Manual - Product interface.
+- Unmeasured providers and insufficient sample coverage are disclosed rather than estimated.
+- CiteAura does not guarantee AI mentions, rankings, citations, or optimization outcomes.
+
+## Delivery readiness
+
+- Diagnostic readiness, visibility readiness, and implementation readiness are evaluated independently.
+- Assets marked as needing review require factual or editorial approval before publication.
+- Templates and outlines are implementation inputs, not finished publishable pages.

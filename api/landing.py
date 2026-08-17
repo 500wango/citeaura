@@ -58,6 +58,13 @@ def serve_sitemap_xml():
     return FileResponse(WEB_ROOT / "sitemap.xml", media_type="application/xml; charset=utf-8")
 
 
+@router.get("/llms.txt")
+@router.head("/llms.txt")
+def serve_llms_txt():
+    """返回 CiteAura 的公开机器可读产品说明。"""
+    return FileResponse(WEB_ROOT / "llms.txt", media_type="text/plain; charset=utf-8")
+
+
 @router.get("/i18n/{locale}.json")
 def serve_i18n_catalog(locale: str):
     """Serve the English landing-page catalog."""
