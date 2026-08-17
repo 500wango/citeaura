@@ -194,5 +194,11 @@ def test_homepage_keeps_slogan_h1_and_links_guides():
     response = client.get("/")
     assert 'id="hero-title" data-i18n="landing.hero_title"' in response.text
     assert "Win brand visibility in the" in response.text
-    assert 'href="/blog"' in response.text
-    assert 'data-i18n="nav.guides"' in response.text
+    assert 'id="primary-nav"' in response.text
+    assert 'href="/blog" data-i18n="nav.guides">Guides</a>' in response.text
+    assert 'id="blog"' in response.text
+    assert 'href="/blog/measure-if-chatgpt-mentions-your-brand"' in response.text
+    assert 'href="/blog/why-chatgpt-does-not-mention-my-brand"' in response.text
+    assert 'href="/blog/gptbot-blocked-by-robots-txt"' in response.text
+    assert 'href="/blog/what-to-put-in-llms-txt"' in response.text
+    assert 'href="/blog/white-label-geo-diagnostic-report"' in response.text
