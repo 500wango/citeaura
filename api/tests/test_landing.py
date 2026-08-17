@@ -29,7 +29,18 @@ def test_landing_page_is_public_and_links_to_application():
 
 
 def test_public_verification_pages_support_head_requests():
-    for path in ("/", "/privacy", "/terms", "/docs"):
+    for path in (
+        "/",
+        "/privacy",
+        "/terms",
+        "/docs",
+        "/blog",
+        "/blog/measure-if-chatgpt-mentions-your-brand",
+        "/blog/why-chatgpt-does-not-mention-my-brand",
+        "/blog/gptbot-blocked-by-robots-txt",
+        "/blog/what-to-put-in-llms-txt",
+        "/blog/white-label-geo-diagnostic-report",
+    ):
         response = client.head(path)
         assert response.status_code == 200, path
         assert response.headers["content-type"].startswith("text/html"), path
@@ -50,6 +61,7 @@ def test_landing_assets_are_served():
         ("/site-assets/styles/base.css", "text/css"),
         ("/site-assets/styles/components.css", "text/css"),
         ("/site-assets/styles/landing.css", "text/css"),
+        ("/site-assets/styles/blog.css", "text/css"),
         ("/site-assets/landing.js", "text/javascript"),
         ("/site-assets/favicon.png", "image/png"),
         ("/site-assets/brand/mark.svg", "image/svg+xml"),
@@ -103,17 +115,84 @@ def test_seo_technical_files_are_served():
     assert robots_res.headers["content-type"].startswith("text/plain")
     assert "User-agent: Googlebot" in robots_res.text
     assert "Sitemap: https://citeaura.com/sitemap.xml" in robots_res.text
+    assert "Allow: /blog" in robots_res.text
 
     sitemap_res = client.get("/sitemap.xml")
     assert sitemap_res.status_code == 200
     assert "xml" in sitemap_res.headers["content-type"]
     assert "<loc>https://citeaura.com/</loc>" in sitemap_res.text
     assert "<loc>https://citeaura.com/docs</loc>" in sitemap_res.text
+    assert "<loc>https://citeaura.com/blog</loc>" in sitemap_res.text
+    assert "<loc>https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand</loc>" in sitemap_res.text
+    assert "<loc>https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand</loc>" in sitemap_res.text
+    assert "<loc>https://citeaura.com/blog/gptbot-blocked-by-robots-txt</loc>" in sitemap_res.text
+    assert "<loc>https://citeaura.com/blog/what-to-put-in-llms-txt</loc>" in sitemap_res.text
+    assert "<loc>https://citeaura.com/blog/white-label-geo-diagnostic-report</loc>" in sitemap_res.text
 
     llms_res = client.get("/llms.txt")
     assert llms_res.status_code == 200
     assert llms_res.headers["content-type"].startswith("text/plain")
     assert llms_res.text.startswith("# CiteAura\n")
     assert "https://citeaura.com/docs" in llms_res.text
+    assert "https://citeaura.com/blog" in llms_res.text
+    assert "https://citeaura.com/app/" not in llms_res.text
     assert "API - Parametric knowledge" in llms_res.text
     assert client.head("/llms.txt").status_code == 200
+
+
+def test_blog_index_and_articles_are_static_html():
+    index = client.get("/blog")
+    assert index.status_code == 200
+    assert index.headers["content-type"].startswith("text/html")
+    assert "<h1>Measure and diagnose AI brand visibility</h1>" in index.text
+    assert 'href="/blog/measure-if-chatgpt-mentions-your-brand"' in index.text
+    assert 'href="/blog/why-chatgpt-does-not-mention-my-brand"' in index.text
+    assert 'href="/blog/gptbot-blocked-by-robots-txt"' in index.text
+    assert 'href="/blog/what-to-put-in-llms-txt"' in index.text
+    assert 'href="/blog/white-label-geo-diagnostic-report"' in index.text
+    assert 'rel="canonical" href="https://citeaura.com/blog"' in index.text
+
+    articles = (
+        (
+            "/blog/measure-if-chatgpt-mentions-your-brand",
+            "How to measure if ChatGPT mentions your brand",
+            "API · Model knowledge",
+        ),
+        (
+            "/blog/why-chatgpt-does-not-mention-my-brand",
+            "Why ChatGPT does not mention my brand",
+            "API · Web-grounded retrieval",
+        ),
+        (
+            "/blog/gptbot-blocked-by-robots-txt",
+            "GPTBot blocked by robots.txt: how to fix",
+            "User-agent: GPTBot",
+        ),
+        (
+            "/blog/what-to-put-in-llms-txt",
+            "What to put in llms.txt for your brand",
+            "text/plain",
+        ),
+        (
+            "/blog/white-label-geo-diagnostic-report",
+            "White-label GEO diagnostic report for agencies",
+            "API · Model knowledge",
+        ),
+    )
+    for path, headline, marker in articles:
+        page = client.get(path)
+        assert page.status_code == 200, path
+        assert f"<h1>{headline}</h1>" in page.text
+        assert marker in page.text
+        assert "does not guarantee" in page.text
+        assert f'rel="canonical" href="https://citeaura.com{path}"' in page.text
+
+    assert client.get("/blog/not-a-real-slug").status_code == 404
+
+
+def test_homepage_keeps_slogan_h1_and_links_guides():
+    response = client.get("/")
+    assert 'id="hero-title" data-i18n="landing.hero_title"' in response.text
+    assert "Win brand visibility in the" in response.text
+    assert 'href="/blog"' in response.text
+    assert 'data-i18n="nav.guides"' in response.text

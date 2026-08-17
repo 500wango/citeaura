@@ -10,6 +10,13 @@ from api.i18n.catalog import MESSAGES_DIR
 
 router = APIRouter(include_in_schema=False)
 WEB_ROOT = Path(__file__).resolve().parent.parent / "web"
+BLOG_SLUGS = (
+    "measure-if-chatgpt-mentions-your-brand",
+    "why-chatgpt-does-not-mention-my-brand",
+    "gptbot-blocked-by-robots-txt",
+    "white-label-geo-diagnostic-report",
+    "what-to-put-in-llms-txt",
+)
 
 
 @router.get("/")
@@ -38,6 +45,25 @@ def serve_terms_page():
 def serve_docs_page():
     """返回 CiteAura 文档与新手上手中心页面。"""
     return FileResponse(WEB_ROOT / "docs.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/blog")
+@router.head("/blog")
+def serve_blog_index():
+    """返回可收录的 Guides 列表页。"""
+    return FileResponse(WEB_ROOT / "blog" / "index.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/blog/{slug}")
+@router.head("/blog/{slug}")
+def serve_blog_article(slug: str):
+    """返回白名单内的静态长尾文章；未知 slug 返回 404。"""
+    if slug not in BLOG_SLUGS:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    path = WEB_ROOT / "blog" / f"{slug}.html"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    return FileResponse(path, media_type="text/html; charset=utf-8")
 
 
 @router.get("/docs.js")

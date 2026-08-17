@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How to measure if ChatGPT mentions your brand — CiteAura</title>
+  <meta name="description" content="How to measure if ChatGPT mentions your brand: fix a question set, record raw answers, count brand-name hits, and keep API knowledge separate from the product UI.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <script src="/site-assets/theme-init.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/base.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.5">
+  <link rel="stylesheet" href="/site-assets/styles/blog.css?v=1.0">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="canonical" href="https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand">
+  <meta property="og:title" content="How to measure if ChatGPT mentions your brand — CiteAura">
+  <meta property="og:description" content="A repeatable way to measure ChatGPT brand mentions from a fixed question set and labeled sampling mode.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/logo.png">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="How to measure if ChatGPT mentions your brand — CiteAura">
+  <meta name="twitter:description" content="Fix the questions, log the raw answers, and count mentions against a defined cohort.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/logo.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://citeaura.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Guides",
+            "item": "https://citeaura.com/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "How to measure if ChatGPT mentions your brand",
+            "item": "https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand"
+          }
+        ]
+      },
+      {
+        "@type": "Article",
+        "headline": "How to measure if ChatGPT mentions your brand",
+        "description": "A repeatable method for measuring ChatGPT brand mentions with a fixed question set, raw answers, and sampling-mode labels.",
+        "url": "https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand",
+        "datePublished": "2026-08-17",
+        "dateModified": "2026-08-17",
+        "author": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com",
+          "logo": "https://citeaura.com/site-assets/logo.png"
+        },
+        "mainEntityOfPage": "https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Main Navigation">
+        <a href="/#simulator">Free AI Audit</a>
+        <a href="/docs">Docs</a>
+        <a href="/blog" class="is-current">Guides</a>
+        <a href="/#pricing">Pricing</a>
+      </nav>
+
+      <div class="nav-actions">
+        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <article class="blog-shell blog-article">
+    <nav class="blog-crumb" aria-label="Breadcrumb">
+      <a href="/">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/blog">Guides</a>
+      <span aria-hidden="true">/</span>
+      <span>Measurement</span>
+    </nav>
+
+    <header class="blog-header">
+      <span class="blog-kicker">Measurement</span>
+      <h1>How to measure if ChatGPT mentions your brand</h1>
+      <p class="blog-lead">You cannot treat one ChatGPT reply as a measurement. To measure if ChatGPT mentions your brand, fix a question set, record each raw answer, and mark whether the brand name or official domain appears. Repeat the same questions later. CiteAura stores those traces with a sampling-mode label so a mention rate is tied to a defined cohort, not a screenshot.</p>
+      <p class="blog-meta">17 August 2026 · 6 min read</p>
+    </header>
+
+    <h2>What counts as a mention</h2>
+    <p>A mention is a usable string match in the recorded answer: the brand name you configured, a clear alias, or the official domain. A source URL is a different signal. ChatGPT only returns citations in some product or retrieval modes, so “no link” is not the same as “no mention.”</p>
+    <p>Do not convert a missing rank into a fake rank. Many answers name a brand without ordering a list. Record rank only when the answer actually ranks options.</p>
+
+    <h2>How to measure it without guessing</h2>
+    <ol>
+      <li>Write 10–20 questions a buyer would ask. Include category, comparison, and problem prompts. Avoid “tell me about [your brand].”</li>
+      <li>Ask the same questions in the same market and language.</li>
+      <li>Save the question, raw answer, date, and whether you used the ChatGPT product UI or an API.</li>
+      <li>Mark each successful answer as mentioned or not mentioned.</li>
+      <li>Compute mention rate as mentioned ÷ successful answers in that cohort.</li>
+      <li>Repeat later with the same questions before you call the change a trend.</li>
+    </ol>
+    <p>A cohort is the unit of measurement. If you change the questions, the providers, or the product surface, you started a new series.</p>
+
+    <h2>API knowledge is not the ChatGPT product UI</h2>
+    <p>Most developer APIs measure parametric model knowledge. The consumer ChatGPT app can retrieve the web, apply memory, or use a different system prompt. Mixing those answers into one percentage hides the method.</p>
+    <ul>
+      <li><strong>API · Model knowledge</strong> — provider API, no live retrieval.</li>
+      <li><strong>API · Web-grounded retrieval</strong> — provider API with search enabled; this is the mode that can return source URLs.</li>
+      <li><strong>Manual · Product surface</strong> — a transcript from the ChatGPT app or another consumer UI.</li>
+    </ul>
+    <div class="blog-callout">
+      <p>Label every sample. An unlabeled “ChatGPT said this” log is not comparable next month.</p>
+    </div>
+
+    <h2>How CiteAura records the measurement</h2>
+    <p>In the workspace you keep a target question bank, run a sample, and inspect the raw answer next to the aggregate. Mention rate, sample count, and sampling mode stay attached to that cohort. Unmeasured providers stay unmeasured; they are not shown as 0%.</p>
+    <p>See <a href="/docs#measurement">Measurement Concepts</a> for how those labels appear in the product, and <a href="/">the CiteAura homepage</a> for the overall workflow.</p>
+
+    <h2>A mention rate is not a ranking promise</h2>
+    <p>Answers vary by model version, region, and retrieval path. A higher mention rate on a fixed question set is evidence about that sample. It does not guarantee that ChatGPT will mention or rank the brand for every user.</p>
+    <p>If the brand is missing across a stable cohort, the next question is why. Start with <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT does not mention my brand</a>.</p>
+
+    <div class="blog-cta">
+      <p>Set up a domain, keep the question set stable, and review labeled ChatGPT samples in one workspace.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+    </div>
+  </article>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-word">CiteAura</span>
+        </a>
+        <p class="footer-tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/docs">Docs</a>
+        <a href="/blog">Guides</a>
+        <a href="/app?auth=login">Sign In</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

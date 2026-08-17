@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPTBot blocked by robots.txt: how to fix — CiteAura</title>
+  <meta name="description" content="GPTBot blocked by robots.txt: how to find the Disallow rule, allow public product pages, and confirm the crawl after you deploy.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <script src="/site-assets/theme-init.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/base.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.5">
+  <link rel="stylesheet" href="/site-assets/styles/blog.css?v=1.0">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="canonical" href="https://citeaura.com/blog/gptbot-blocked-by-robots-txt">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/blog/gptbot-blocked-by-robots-txt">
+  <meta property="og:title" content="GPTBot blocked by robots.txt: how to fix — CiteAura">
+  <meta property="og:description" content="Find the Disallow rule that blocks GPTBot, allow the public pages, and re-check the live file.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/logo.png">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="GPTBot blocked by robots.txt: how to fix — CiteAura">
+  <meta name="twitter:description" content="A practical fix for GPTBot Disallow rules on public product pages.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/logo.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://citeaura.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Guides",
+            "item": "https://citeaura.com/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "GPTBot blocked by robots.txt: how to fix",
+            "item": "https://citeaura.com/blog/gptbot-blocked-by-robots-txt"
+          }
+        ]
+      },
+      {
+        "@type": "Article",
+        "headline": "GPTBot blocked by robots.txt: how to fix",
+        "description": "How to find and fix robots.txt rules that block GPTBot from public product pages.",
+        "url": "https://citeaura.com/blog/gptbot-blocked-by-robots-txt",
+        "datePublished": "2026-08-17",
+        "dateModified": "2026-08-17",
+        "author": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com",
+          "logo": "https://citeaura.com/site-assets/logo.png"
+        },
+        "mainEntityOfPage": "https://citeaura.com/blog/gptbot-blocked-by-robots-txt"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Main Navigation">
+        <a href="/#simulator">Free AI Audit</a>
+        <a href="/docs">Docs</a>
+        <a href="/blog" class="is-current">Guides</a>
+        <a href="/#pricing">Pricing</a>
+      </nav>
+
+      <div class="nav-actions">
+        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <article class="blog-shell blog-article">
+    <nav class="blog-crumb" aria-label="Breadcrumb">
+      <a href="/">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/blog">Guides</a>
+      <span aria-hidden="true">/</span>
+      <span>Crawl access</span>
+    </nav>
+
+    <header class="blog-header">
+      <span class="blog-kicker">Crawl access</span>
+      <h1>GPTBot blocked by robots.txt: how to fix</h1>
+      <p class="blog-lead">GPTBot is blocked by robots.txt when a Disallow rule matches the paths that state your product. Open the file at the site root, find the User-agent for GPTBot or a blanket * rule, and allow the public pages you want retrieved. After you deploy, request the file again and confirm the crawl. CiteAura flags blocked AI crawlers in the site audit so the fix is a ticket, not a guess.</p>
+      <p class="blog-meta">17 August 2026 · 6 min read</p>
+    </header>
+
+    <h2>How to tell that GPTBot is blocked</h2>
+    <p>Fetch <code>https://yourdomain.com/robots.txt</code> in a browser or with curl. Look for a group that names <code>GPTBot</code>, <code>OAI-SearchBot</code>, or <code>ChatGPT-User</code>, and for a <code>User-agent: *</code> group that Disallows <code>/</code> or the marketing paths. The first matching group for that crawler wins.</p>
+    <p>A WAF challenge or a login wall can look the same as a robots block in a later model answer. Fix robots first because it is the cheapest, explicit signal.</p>
+
+    <h2>How to fix the file</h2>
+    <ol>
+      <li>Keep Disallow on private app, admin, cart, and API routes.</li>
+      <li>Allow the homepage, product, pricing, docs, and other pages that state official facts.</li>
+      <li>Add an explicit GPTBot group if a blanket <code>*</code> rule is too coarse to edit safely.</li>
+      <li>Deploy to the canonical host, including the www or apex redirect you actually use.</li>
+      <li>Fetch the live file again. Do not trust a staging copy or a CDN cache you have not purged.</li>
+    </ol>
+    <p>A minimal public allow looks like this:</p>
+    <p><code>User-agent: GPTBot</code><br>
+    <code>Allow: /</code><br>
+    <code>Disallow: /app/</code><br>
+    <code>Disallow: /admin/</code></p>
+    <div class="blog-callout">
+      <p>Allowing GPTBot is not a mention switch. It only removes a crawl block. Retrieval and answers can still skip the brand.</p>
+    </div>
+
+    <h2>Related crawlers to check at the same time</h2>
+    <ul>
+      <li><strong>OAI-SearchBot</strong> and <strong>ChatGPT-User</strong> — OpenAI search and in-product browsing.</li>
+      <li><strong>ClaudeBot</strong>, <strong>PerplexityBot</strong>, <strong>Google-Extended</strong> — other training or retrieval agents you may want on public pages.</li>
+      <li><strong>A sitewide <code>Disallow: /</code></strong> — often copied from a staging template and left on production.</li>
+    </ul>
+    <p>If the homepage is a JavaScript shell, opening robots is not enough. See <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT does not mention my brand</a> for extractability checks after the crawler is allowed in.</p>
+
+    <h2>How CiteAura records the block</h2>
+    <p>The site audit reads the live robots file and maps a GPTBot or related Disallow on public pages to an action ticket. After you deploy, run verification so the re-crawl can mark the acceptance check. A separate AI sample is required if you also want a new mention cohort.</p>
+    <p>Workspace steps are in <a href="/docs#diagnostics">Audit &amp; Brand Inputs</a>. The homepage workflow is on <a href="/">citeaura.com</a>.</p>
+
+    <h2>A crawl allow is not a ranking promise</h2>
+    <p>Opening robots.txt lets a crawler request the page. It does not guarantee that ChatGPT will fetch, mention, cite, or rank the brand. Treat the fix as a prerequisite, then measure with a labeled cohort.</p>
+
+    <div class="blog-cta">
+      <p>Audit the live robots file, keep private routes closed, and verify GPTBot can reach the public product pages.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+    </div>
+  </article>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-word">CiteAura</span>
+        </a>
+        <p class="footer-tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/docs">Docs</a>
+        <a href="/blog">Guides</a>
+        <a href="/app?auth=login">Sign In</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

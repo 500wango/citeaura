@@ -5,8 +5,13 @@
 ## Official pages
 
 - [Website](https://citeaura.com/): Product overview and plan information.
-- [Application](https://citeaura.com/app/): CiteAura workspace and account access.
 - [Documentation](https://citeaura.com/docs): Setup, measurement, execution, verification, and delivery guidance.
+- [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
+- [How to measure if ChatGPT mentions your brand](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
+- [Why ChatGPT does not mention my brand](https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand)
+- [GPTBot blocked by robots.txt: how to fix](https://citeaura.com/blog/gptbot-blocked-by-robots-txt)
+- [What to put in llms.txt for your brand](https://citeaura.com/blog/what-to-put-in-llms-txt)
+- [White-label GEO diagnostic report for agencies](https://citeaura.com/blog/white-label-geo-diagnostic-report)
 - [Privacy Policy](https://citeaura.com/privacy): Data handling and privacy terms.
 - [Terms of Service](https://citeaura.com/terms): Service terms and acceptable use.
 
