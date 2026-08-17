@@ -571,6 +571,112 @@ def _sample_modes(project_directory, metrics):
     }
 
 
+DIAGNOSIS_CATEGORY_ORDER = (
+    "crawlability", "content", "extractability", "structure", "authority", "semantics", "coverage", "review",
+)
+DIAGNOSIS_CATEGORY_HEADINGS = {
+    "crawlability": "AI cannot reliably access the site",
+    "content": "Pages lack enough useful content",
+    "extractability": "Pages do not state facts models can quote",
+    "structure": "Pages are hard for models to parse",
+    "authority": "Claims lack supporting evidence",
+    "semantics": "Machine-readable brand facts are missing",
+    "coverage": "Language or market coverage is incomplete",
+    "review": "Findings that still need a human decision",
+}
+DIAGNOSIS_SEVERITY_RANK = {"P0": 0, "P1": 1, "P2": 2}
+
+
+def _diagnosis_groups(audit):
+    groups = {}
+    for finding in audit.get("site_findings") or []:
+        if isinstance(finding, dict):
+            _record_diagnosis_finding(groups, finding, "Site-wide")
+    for page in audit.get("pages") or []:
+        if not isinstance(page, dict):
+            continue
+        url = _safe_display(page.get("url"), "")
+        if not url:
+            continue
+        for finding in page.get("findings") or []:
+            if isinstance(finding, dict):
+                _record_diagnosis_finding(groups, finding, url)
+    ordered = []
+    for category in DIAGNOSIS_CATEGORY_ORDER:
+        items = groups.get(category) or []
+        if items:
+            items.sort(key=lambda item: (
+                DIAGNOSIS_SEVERITY_RANK.get(item["severity"], 9),
+                -item["count"],
+                item["title"],
+            ))
+            ordered.append((category, items))
+    leftover = [finding for key, items in groups.items() if key not in DIAGNOSIS_CATEGORY_HEADINGS for finding in items]
+    if leftover:
+        existing = next((items for key, items in ordered if key == "review"), None)
+        if existing is None:
+            leftover.sort(key=lambda item: (DIAGNOSIS_SEVERITY_RANK.get(item["severity"], 9), item["title"]))
+            ordered.append(("review", leftover))
+        else:
+            existing.extend(leftover)
+    return ordered
+
+
+def _record_diagnosis_finding(groups, finding, location):
+    title = _safe_display(finding.get("title") or finding.get("code"), "Review required")
+    if not title:
+        return
+    category = str(finding.get("category") or "content")
+    bucket = groups.setdefault(category, [])
+    match = next((item for item in bucket if item["title"] == title), None)
+    if match is None:
+        match = {
+            "title": title,
+            "severity": str(finding.get("severity") or "P1"),
+            "why": _safe_display(finding.get("detail"), "This check failed on the current crawl."),
+            "change": _safe_display(finding.get("recommendation"), "Fix the failed check on the affected pages."),
+            "locations": [],
+            "count": 0,
+        }
+        bucket.append(match)
+    if location not in match["locations"]:
+        match["locations"].append(location)
+        match["count"] += 1
+
+
+def _diagnosis_markdown(audit):
+    groups = _diagnosis_groups(audit)
+    lines = [
+        "## What to change",
+        "",
+        "These are the website problems that currently hurt AI crawling, extraction, and mention. "
+        "Each item says what to change. The tables below are the evidence.",
+        "",
+    ]
+    if not groups:
+        lines += ["No site or page problems were detected that currently block AI access or extraction.", ""]
+        return lines
+    for index, (category, items) in enumerate(groups, 1):
+        heading = DIAGNOSIS_CATEGORY_HEADINGS.get(category, "Other findings")
+        lines += [f"### {index}. {heading}", ""]
+        for item in items:
+            scope = "site-wide" if item["locations"] == ["Site-wide"] else f"{item['count']} page(s)"
+            lines += [
+                f"- **{item['title']}** ({item['severity']}, {scope})",
+                f"  - Why it hurts AI: {item['why']}",
+                f"  - Change this: {item['change']}",
+            ]
+            if item["locations"] != ["Site-wide"]:
+                shown = item["locations"][:8]
+                extra = item["count"] - len(shown)
+                pages = ", ".join(f"`{url}`" for url in shown)
+                if extra > 0:
+                    pages = f"{pages}, and {extra} more"
+                lines.append(f"  - Pages: {pages}")
+            lines.append("")
+    return lines
+
+
 def _audit_markdown(project_slug, project_directory, name, site, audit, metrics):
     site_data = audit.get("site") or {}
     coverage = audit.get("language_coverage") or {}
@@ -583,19 +689,18 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
     score_label = _score_result_label(site_score, partial_score)
     audited_at = str(audit.get("audited_at") or geolib.today())[:10]
     lines = [
-        f"# {name} GEO Audit Report",
+        f"# {name} GEO Diagnostic Report",
         "",
-        f"- Audit date: {audited_at}",
         f"- Official website: {site}",
-        "- Target market: Global",
-        f"- Crawled pages: {audit.get('page_count', 0)}",
-        f"- Applicable site score: **{score_label}**",
-        f"- Scoring coverage: **{evaluated_pages}/{eligible_pages} eligible pages ({_format_rate(score_coverage)})**",
-        f"- Not scored: **{audit.get('not_scored_page_count', 0)}**; excluded: **{audit.get('excluded_page_count', 0)}**",
-        "- Scoring method: only evidence-backed checks applicable to each page role are counted.",
+        f"- Audit date: {audited_at}",
+        f"- Pages reviewed: {audit.get('page_count', 0)} "
+        f"({evaluated_pages} scored, {audit.get('excluded_page_count', 0)} excluded)",
         "",
-        "This document is the diagnostic final report. Unmeasured AI visibility and withheld site scores are disclosed below; they do not make this report incomplete.",
+        "This report tells you which website content currently hurts AI access, extraction, and mention, and what to change.",
         "",
+    ]
+    lines += _diagnosis_markdown(audit)
+    lines += [
         "## Technical Baseline",
         "",
         "| Check | Result |",
@@ -605,6 +710,12 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
         f"| AI crawlers blocked | {', '.join(site_data.get('ai_bots_blocked') or []) or 'None'} |",
         f"| Accessible pages | {site_data.get('pages_ok', 0)}/{site_data.get('pages_crawled', 0)} |",
         f"| English content pages (120+ words) | {coverage.get('en_pages', 0)} |",
+        "",
+        f"- Applicable site score: **{score_label}**",
+        f"- Scoring coverage: **{evaluated_pages}/{eligible_pages} eligible pages ({_format_rate(score_coverage)})**",
+        f"- Not scored: **{audit.get('not_scored_page_count', 0)}**; excluded: **{audit.get('excluded_page_count', 0)}**",
+        "- Scoring method: only evidence-backed checks applicable to each page role are counted.",
+        "- Unmeasured AI visibility and withheld site scores are disclosed below; they do not make this report incomplete.",
         "",
         "## Grade Distribution",
         "",
@@ -2369,7 +2480,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         "",
         "## Package Contents",
         "",
-        "- `01-Audit-Report`: current technical, content, and AI visibility baseline.",
+        "- `01-Audit-Report`: what to change on the website so AI systems can crawl, extract, and mention the brand.",
         "- `02-Execution-Plan`: prioritized 30/60/90-day implementation sequence.",
         "- `03-Ticket-Log`: assigned work, rationale, actions, and acceptance criteria.",
         "- `04-Acceptance-Checklist`: current automated and manual verification state.",

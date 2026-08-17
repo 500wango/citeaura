@@ -157,7 +157,11 @@ def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypa
     files = {path.relative_to(output).as_posix() for path in output.rglob("*") if path.is_file()}
     assert expected <= files
     assert "01-诊断报告.md" not in files
-    assert "API - Parametric knowledge" in (output / "01-Audit-Report.md").read_text("utf-8")
+    report = (output / "01-Audit-Report.md").read_text("utf-8")
+    assert "## What to change" in report
+    assert "Change this:" in report
+    assert "Why it hurts AI:" in report
+    assert "API - Parametric knowledge" in report
     assert "abcdef123456" in (output / "README.md").read_text("utf-8")
     assert "abcdef123456" in (output / "index.md").read_text("utf-8")
     assert json.loads((output / "assets" / "index.json").read_text("utf-8"))["source_revision"] == "abcdef123456"
@@ -203,6 +207,7 @@ def test_delivery_audit_uses_page_role_applicability(tmp_path, monkeypatch):
     execution = (output / "02-Execution-Plan.md").read_text("utf-8")
     tickets = (output / "03-Ticket-Log.md").read_text("utf-8")
     verification = (output / "04-Acceptance-Checklist.md").read_text("utf-8")
+    assert "## What to change" in report
     assert "Applicable site score: **Not measured**" in report
     assert "only evidence-backed checks applicable to each page role" in report
     assert "Missing definition block" not in report
@@ -908,6 +913,7 @@ def test_first_run_pack_is_customer_ready_without_manual_gates(tmp_path, monkeyp
     assert "diagnostic final pack" in readme
     assert "do not block sending this diagnostic pack" in readme.casefold()
     assert "do not make this report incomplete" in audit
+    assert "## What to change" in audit
 
 
 def test_delivery_promotes_machine_verified_facts_without_human_checkbox(tmp_path, monkeypatch):
