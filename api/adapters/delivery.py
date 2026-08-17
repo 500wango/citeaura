@@ -557,22 +557,52 @@ def _internal_provider_code(value):
     return text == "custom" or text.startswith("custom_")
 
 
+def _usable_provider_name(value):
+    text = str(value or "").strip()
+    if not text or _internal_provider_code(text):
+        return ""
+    return text
+
+
+def _merged_provider_labels(project_directory, metrics=None, config=None):
+    config = config if isinstance(config, dict) else geolib.read_json(Path(project_directory) / "geo.json", {}) or {}
+    labels = {}
+    for key, value in (config.get("provider_labels") or {}).items():
+        name = _usable_provider_name(value)
+        if name:
+            labels[str(key)] = name
+    samples_dir = Path(project_directory) / "samples"
+    if samples_dir.is_dir():
+        for path in sorted(samples_dir.glob("*.jsonl")):
+            for row in geolib.read_jsonl(path):
+                if not isinstance(row, dict):
+                    continue
+                name = _usable_provider_name(row.get("platform_name"))
+                code = str(row.get("platform") or "")
+                if code and name:
+                    labels[code] = name
+    for code, item in ((metrics or {}).get("platforms") or {}).items():
+        if not isinstance(item, dict):
+            continue
+        name = _usable_provider_name(item.get("name") or item.get("label"))
+        if name:
+            labels[str(code)] = name
+    return labels
+
+
 def _platform_display_name(code, item, config=None):
     item = item if isinstance(item, dict) else {}
     config = config if isinstance(config, dict) else {}
     labels = config.get("provider_labels") if isinstance(config.get("provider_labels"), dict) else {}
     for candidate in (item.get("label"), item.get("name"), labels.get(code)):
-        text = str(candidate or "").strip()
-        if text and not _internal_provider_code(text):
-            return _safe_display(text, "Configured OpenAI-compatible provider")
+        name = _usable_provider_name(candidate)
+        if name:
+            return _safe_display(name, "Configured OpenAI-compatible provider")
     if _internal_provider_code(code) or _internal_provider_code(item.get("label")):
-        named = [
-            str(value).strip()
-            for value in labels.values()
-            if str(value or "").strip() and not _internal_provider_code(value)
-        ]
-        if len(named) == 1:
-            return _safe_display(named[0], "Configured OpenAI-compatible provider")
+        named = [name for name in (_usable_provider_name(value) for value in labels.values()) if name]
+        unique = list(dict.fromkeys(named))
+        if len(unique) == 1:
+            return _safe_display(unique[0], "Configured OpenAI-compatible provider")
         return "Configured OpenAI-compatible provider"
     return _safe_display(code, "Configured provider")
 
@@ -685,18 +715,30 @@ def _record_diagnosis_finding(groups, finding, location, page=None):
 WORD_COUNT_WHY_CODES = {"SPA_SHELL", "SHORT_CONTENT"}
 
 
+MULTI_PAGE_WHY = {
+    "NO_DEFINITION": "A clear, extractable definition was not detected on these pages.",
+    "FEW_H2": "These pages do not have enough distinct section headings for their roles.",
+    "BAD_H1": "The crawl did not find exactly one primary page heading on these pages.",
+    "NO_JSONLD": "These pages have no machine-readable structured data describing their visible content.",
+    "FEW_EXTERNAL_LINKS": "No external primary or independent source was detected on these pages.",
+}
+
+
 def _refresh_diagnosis_why(item):
-    if str(item.get("code") or "") not in WORD_COUNT_WHY_CODES:
+    code = str(item.get("code") or "")
+    if code in WORD_COUNT_WHY_CODES:
+        counts = [value for value in item.get("word_counts") or [] if isinstance(value, int)]
+        if len(counts) < 2:
+            return
+        low, high = min(counts), max(counts)
+        if low == high:
+            words = f"{low} words on each of {len(counts)} pages"
+        else:
+            words = f"{low}-{high} words across {len(counts)} pages"
+        item["why"] = f"The crawl found {words}."
         return
-    counts = [value for value in item.get("word_counts") or [] if isinstance(value, int)]
-    if len(counts) < 2:
-        return
-    low, high = min(counts), max(counts)
-    if low == high:
-        words = f"{low} words on each of {len(counts)} pages"
-    else:
-        words = f"{low}-{high} words across {len(counts)} pages"
-    item["why"] = f"The crawl found {words}."
+    if item.get("count", 0) > 1 and code in MULTI_PAGE_WHY:
+        item["why"] = MULTI_PAGE_WHY[code]
 
 
 def _diagnosis_markdown(audit):
@@ -861,6 +903,10 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
             "|---|---|---|---:|---:|---:|---:|",
         ]
         provider_config = geolib.read_json(project_directory / "geo.json", {}) or {}
+        provider_config = {
+            **provider_config,
+            "provider_labels": _merged_provider_labels(project_directory, metrics, provider_config),
+        }
         for code, item in platforms.items():
             code = str(code or "")
             label = _platform_display_name(code, item, provider_config)
@@ -874,32 +920,38 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
     return "\n".join(lines)
 
 
-def _execution_markdown(name, tickets, tasks):
-    baseline = tasks.get("baseline") or {}
-    baseline_score = baseline.get("applicable_avg_score")
-    baseline_score_label = _score_result_label(
-        baseline_score, baseline.get("partial_applicable_avg_score"),
-    )
-    lines = [
-        f"# {name} GEO Execution Plan",
-        "",
-        "This plan converts the current audit and visibility baseline into assigned, verifiable work.",
-        "",
-        f"- Baseline site score: {baseline_score_label}",
-        f"- Baseline scoring coverage: {_format_rate(baseline.get('score_coverage'))}",
-        f"- Baseline pages: {_format_number(baseline.get('pages'))}",
-        f"- Total tickets: {len(tickets)}",
-        "",
-    ]
-    for priority, heading in (("P0", "0-30 Days: Foundation"), ("P1", "30-60 Days: Visibility Gains"), ("P2", "60-90 Days: Scale")):
+def _is_supporting_ticket(ticket):
+    blob = " ".join(str(ticket.get(key) or "") for key in (
+        "id", "title", "action", "acceptance", "acceptance_check", "package", "rationale",
+    )).casefold()
+    check = str(ticket.get("acceptance_check") or "")
+    if "facts.md" in blob or "brand facts library" in blob:
+        return True
+    if check == "metrics.representative_baseline" or "visibility baseline" in blob:
+        return True
+    if "encyclopedia" in blob or "wikipedia" in blob or "knowledge-graph" in blob:
+        return True
+    if check == "site.has_llms_txt" or "/llms.txt" in blob:
+        return True
+    return False
+
+
+def _append_execution_tickets(lines, tickets):
+    if not tickets:
+        lines += ["No tickets are currently assigned to this section.", ""]
+        return
+    for priority, heading in (
+        ("P0", "0-30 Days: Foundation"),
+        ("P1", "30-60 Days: Visibility Gains"),
+        ("P2", "60-90 Days: Scale"),
+    ):
         rows = [ticket for ticket in tickets if ticket["priority"] == priority]
-        lines += [f"## {heading}", ""]
         if not rows:
-            lines += ["No tickets are currently assigned to this phase.", ""]
             continue
+        lines += [f"### {heading}", ""]
         for ticket in rows:
             lines += [
-                f"### {ticket['id']} - {ticket['title']}",
+                f"#### {ticket['id']} - {ticket['title']}",
                 "",
                 f"- Owner: {ticket['owner']}",
                 f"- Package: {ticket['package']}",
@@ -915,10 +967,46 @@ def _execution_markdown(name, tickets, tasks):
                 if not ticket["execution_ready"]:
                     lines.append("- Execution state: Blocked until all prerequisites are met")
             lines.append("")
+
+
+def _execution_markdown(name, tickets, tasks):
+    baseline = tasks.get("baseline") or {}
+    baseline_score = baseline.get("applicable_avg_score")
+    baseline_score_label = _score_result_label(
+        baseline_score, baseline.get("partial_applicable_avg_score"),
+    )
+    website = [ticket for ticket in tickets if not _is_supporting_ticket(ticket)]
+    supporting = [ticket for ticket in tickets if _is_supporting_ticket(ticket)]
+    lines = [
+        f"# {name} GEO Execution Plan",
+        "",
+        "This plan converts the current audit into assigned work. Website changes come first. "
+        "Measurement and CiteAura files are a later stage and do not block this diagnostic pack.",
+        "",
+        f"- Baseline site score: {baseline_score_label}",
+        f"- Baseline scoring coverage: {_format_rate(baseline.get('score_coverage'))}",
+        f"- Baseline pages: {_format_number(baseline.get('pages'))}",
+        f"- Total tickets: {len(tickets)}",
+        f"- Website-change tickets: {_format_number(len(website))}",
+        f"- Measurement and delivery-asset tickets: {_format_number(len(supporting))}",
+        "",
+        "## Website changes",
+        "",
+        "Do these on the official website. They are the diagnostic actions from the audit.",
+        "",
+    ]
+    _append_execution_tickets(lines, website)
+    lines += [
+        "## Measurement and delivery assets",
+        "",
+        "These items improve sampling or CiteAura-generated files. They do not block sending this diagnostic pack.",
+        "",
+    ]
+    _append_execution_tickets(lines, supporting)
     lines += [
         "## Operating Cadence",
         "",
-        "1. Complete P0 blockers before scaling content production.",
+        "1. Complete website P0 blockers before scaling content production.",
         "2. Attach implementation evidence to each ticket.",
         "3. Re-crawl the site and run automated acceptance checks.",
         "4. Re-sample AI platforms using the same question set and sampling modes.",

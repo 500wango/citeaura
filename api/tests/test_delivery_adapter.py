@@ -165,6 +165,9 @@ def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypa
     assert "abcdef123456" in (output / "README.md").read_text("utf-8")
     assert "abcdef123456" in (output / "index.md").read_text("utf-8")
     assert json.loads((output / "assets" / "index.json").read_text("utf-8"))["source_revision"] == "abcdef123456"
+    execution = (output / "02-Execution-Plan.md").read_text("utf-8")
+    assert "## Website changes" in execution
+    assert "## Measurement and delivery assets" in execution
     assert "Add sitemap.xml and submit it to international search engines" in (output / "03-Ticket-Log.md").read_text("utf-8")
     assert "Current value: 1; target: at most 0." in (output / "04-Acceptance-Checklist.md").read_text("utf-8")
     assert delivery.delivery_language_violations(output) == []
@@ -1038,6 +1041,15 @@ def test_diagnosis_uses_word_count_ranges_and_hides_internal_provider_codes(tmp_
     config = json.loads((project / "geo.json").read_text("utf-8"))
     config["provider_labels"] = {"custom_2cbbade680b8": "Starryblu OpenAI Proxy"}
     _write_json(project / "geo.json", config)
+    (project / "samples" / "2026-07-31.jsonl").write_text(
+        json.dumps({
+            "platform": "custom_2cbbade680b8",
+            "platform_name": "Starryblu OpenAI Proxy",
+            "market": "global", "sample_mode": "api", "ok": True,
+            "question_id": "q001", "question": "What is Example?",
+        }) + "\n",
+        "utf-8",
+    )
     _patch_project(monkeypatch, project)
 
     delivery.ensure_delivery_contract("example", output)
@@ -1048,9 +1060,11 @@ def test_diagnosis_uses_word_count_ranges_and_hides_internal_provider_codes(tmp_
     assert "3-7 words across 2 pages" in report
     assert "63-88 words across 2 pages" in report
     assert "The crawler found 5 words" not in report
-    assert "The expected definition block was not detected" in report
+    assert "A clear, extractable definition was not detected on these pages." in report
+    assert "on this product or service page" not in report.split("Missing a clear definition", 1)[1].split("###", 1)[0]
     assert report.split("Missing a clear definition", 1)[1].split("Change this:", 1)[0].count("The crawl found") == 0
     assert "custom_2cbbade680b8" not in report
+    assert "Starryblu OpenAI Proxy" in report
     assert delivery._platform_display_name(
         "custom_2cbbade680b8",
         {"label": "custom_2cbbade680b8"},
