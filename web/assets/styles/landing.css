@@ -93,12 +93,17 @@
 .nav-links a:hover { color: var(--ink); background: color-mix(in oklch, var(--accent) 8%, transparent); }
 .nav-links a:hover::after { width: 20px; }
 
-.header-status-badge {
+.header-status-badge,
+.hero-status-badge {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 3px 10px; border-radius: var(--r-pill);
   background: color-mix(in oklch, var(--good) 12%, transparent);
   border: 1px solid color-mix(in oklch, var(--good) 30%, transparent);
   color: var(--good); font-family: var(--font-mono); font-size: var(--fs-1); font-weight: 600;
+}
+.hero-status-badge {
+  margin: 0 0 var(--sp-3);
+  opacity: 0; animation: hero-fade-up 0.6s var(--ease-out) 0.18s forwards;
 }
 .status-pulse {
   width: 6px; height: 6px; border-radius: 50%;
@@ -1131,7 +1136,7 @@
   
   .nav-links { display: none; }
   .nav-menu-toggle { display: inline-flex; }
-  .header-status-badge { display: none; }
+  .nav-actions .header-status-badge { display: none; }
   .nav-actions { gap: 4px; flex-shrink: 0; }
   .nav-sign-in { min-width: 58px; padding: 8px 6px; text-align: center; white-space: nowrap; }
   .nav-actions .nav-cta { padding-left: 10px; padding-right: 10px; white-space: nowrap; }

@@ -196,6 +196,9 @@ def test_homepage_keeps_slogan_h1_and_links_guides():
     assert "Win brand visibility in the" in response.text
     assert 'id="primary-nav"' in response.text
     assert 'href="/blog" data-i18n="nav.guides">Guides</a>' in response.text
+    assert 'class="header-status-badge"' not in response.text
+    assert 'class="hero-status-badge"' in response.text
+    assert 'data-i18n="nav.status"' in response.text
     assert 'id="blog"' in response.text
     assert 'href="/blog/measure-if-chatgpt-mentions-your-brand"' in response.text
     assert 'href="/blog/why-chatgpt-does-not-mention-my-brand"' in response.text
