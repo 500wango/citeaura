@@ -83,6 +83,8 @@ def test_i18n_catalogs_are_public():
     assert response.status_code == 200
     data = response.json()
     assert data["nav.cta"] == "Start free trial"
+    assert data["nav.status"] == "5 BYOK engines + custom"
+    assert "DeepSeek" not in data["landing.truth_engines_dd"]
     assert "landing.title" in data
     assert client.get("/i18n/zh.json").status_code == 404
     assert client.get("/i18n/ja.json").status_code == 404
