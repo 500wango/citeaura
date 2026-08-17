@@ -196,7 +196,7 @@ def _convert_llm(terms: list[dict]) -> bool:
     ok_any = False
     for i in range(0, len(terms), 40):
         chunk = terms[i:i + 40]
-        res = S.ask(plat, CONVERT_PROMPT + "\n".join(t["term"] for t in chunk), timeout=180)
+        res = S.ask(plat, CONVERT_PROMPT + "\n".join(t["term"] for t in chunk), timeout=180, search=False)
         if not res.get("ok"):
             continue
         m = re.search(r"\{.*\}", res["answer"], re.S)

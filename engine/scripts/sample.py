@@ -89,21 +89,23 @@ PROVIDERS = {
     # ---------------- Global ----------------
     "gemini": {
         "name": "Gemini", "market": "global",
+        "protocol": "gemini",
         "base": "https://generativelanguage.googleapis.com/v1beta/openai",
         "model": "gemini-2.5-flash",
         "model_env": "GEMINI_MODEL",
         "key_env": "GEMINI_API_KEY",
-        "search": False,
-        "note": "The OpenAI-compatible endpoint has no grounding; sample AI Overviews separately.",
+        "search": True,
+        "note": "Uses Google Search grounding when enabled; this is not Google AI Overviews.",
     },
     "openai": {
         "name": "OpenAI(ChatGPT)", "market": "global",
+        "protocol": "openai",
         "base": os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
         "model": "gpt-4o-mini",
         "model_env": "OPENAI_MODEL",
         "key_env": "OPENAI_API_KEY",
-        "search": False,
-        "note": "Chat Completions does not search by default; sample ChatGPT Search separately.",
+        "search": True,
+        "note": "Uses Responses web_search when enabled; this is not ChatGPT Search.",
     },
     "claude": {
         # Anthropic Messages returns content blocks instead of OpenAI choices.
@@ -113,17 +115,18 @@ PROVIDERS = {
         "model": "claude-sonnet-5",
         "model_env": "ANTHROPIC_MODEL",
         "key_env": "ANTHROPIC_API_KEY",
-        "search": False,
-        "note": "The API does not search the web; sample Claude Web Search separately.",
+        "search": True,
+        "note": "Uses the Messages web_search tool when enabled; this is not Claude.ai search.",
     },
     "grok": {
         "name": "Grok", "market": "global",
+        "protocol": "grok",
         "base": "https://api.x.ai/v1",
         "model": "grok-3-mini",
         "model_env": "GROK_MODEL",
         "key_env": "XAI_API_KEY",
-        "search": False,
-        "note": "The xAI API does not search the web; sample the X product interface separately.",
+        "search": True,
+        "note": "Uses xAI web_search when enabled; this is not the X product interface.",
     },
     "perplexity": {
         "name": "Perplexity", "market": "global",
@@ -233,6 +236,69 @@ def _call_meta(response, payload: dict, model: str, retry_count: int) -> dict:
     }
 
 
+def _dedupe_refs(refs: list) -> list:
+    seen = set()
+    out = []
+    for item in refs:
+        url = item.get("url") if isinstance(item, dict) else ""
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        out.append({"url": url, "title": item.get("title") or ""})
+    return out
+
+
+def _parse_responses_payload(payload: dict) -> tuple[str, list, bool]:
+    """Parse OpenAI-compatible Responses output into answer, citations, search used."""
+    answer, refs, searched = "", [], False
+    if isinstance(payload.get("output_text"), str):
+        answer = payload["output_text"]
+    for item in payload.get("output") or []:
+        if not isinstance(item, dict):
+            continue
+        itype = str(item.get("type") or "")
+        if "web_search" in itype or itype in ("search", "x_search"):
+            searched = True
+        for c in item.get("content") or []:
+            if not isinstance(c, dict):
+                continue
+            if c.get("type") in ("output_text", "text"):
+                answer += c.get("text") or ""
+            for ann in c.get("annotations") or []:
+                if isinstance(ann, dict) and ann.get("url"):
+                    refs.append({"url": ann["url"], "title": ann.get("title") or ""})
+        for res in item.get("results") or []:
+            if isinstance(res, dict) and res.get("url"):
+                refs.append({"url": res["url"], "title": res.get("title") or ""})
+    refs.extend(_chat_citation_refs(payload))
+    refs = _dedupe_refs(refs)
+    return answer, refs, searched or bool(refs)
+
+
+def _chat_citation_refs(payload: dict) -> list:
+    refs = []
+    for item in (payload.get("search_info") or {}).get("search_results", []) or []:
+        if isinstance(item, dict) and item.get("url"):
+            refs.append({"url": item["url"], "title": item.get("title") or ""})
+    for item in payload.get("search_results") or []:
+        if isinstance(item, dict) and item.get("url"):
+            refs.append({"url": item["url"], "title": item.get("title") or ""})
+    for item in payload.get("citations") or []:
+        if isinstance(item, str):
+            refs.append({"url": item, "title": ""})
+        elif isinstance(item, dict) and item.get("url"):
+            refs.append({"url": item["url"], "title": item.get("title") or ""})
+    return refs
+
+
+def _empty_fail(error: str, retry_count: int = 0) -> dict:
+    return {"ok": False, "answer": "", "retry_count": retry_count, "error": error}
+
+
+def _want_search(provider: dict, search) -> bool:
+    return bool(provider.get("search", False) if search is None else search)
+
+
 def available(platform: str) -> bool:
     p = PROVIDERS.get(platform)
     return bool(p and os.environ.get(p["key_env"]))
@@ -258,126 +324,24 @@ def pick_llm(prefer: str | None = None):
     return next((c for c in cands if c and available(c)), None)
 
 
-def ask_ark(p: dict, key: str, question: str, timeout: int) -> dict:
-    """Use Ark Responses with web search, then fall back to chat completions."""
-    H = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    try:
-        r = requests.post(f"{p['base']}/responses", headers=H,
-                          json={"model": _p_model(p), "input": question,
-                                "tools": [{"type": "web_search"}]}, timeout=timeout)
-        if r.status_code == 200:
-            d = r.json()
-            answer, refs = "", []
-            for item in d.get("output") or []:
-                for c in item.get("content") or []:
-                    if c.get("type") in ("output_text", "text"):
-                        answer += c.get("text", "")
-                    for ann in c.get("annotations") or []:
-                        if ann.get("url"):
-                            refs.append({"url": ann["url"], "title": ann.get("title", "")})
-                for res in item.get("results") or []:
-                    if isinstance(res, dict) and res.get("url"):
-                        refs.append({"url": res["url"], "title": res.get("title", "")})
-            if answer:
-                seen = set()
-                refs = [c for c in refs if not (c["url"] in seen or seen.add(c["url"]))]
-                return {"ok": True, "answer": answer, "citations": refs,
-                        "searched": True, **_call_meta(r, d, _p_model(p), 0)}
-        elif "ToolNotOpen" not in r.text:
-            return {"ok": False, "answer": "", "retry_count": 0,
-                    "error": f"HTTP {r.status_code}: {r.text[:300]}"}
-    except Exception:  # noqa: BLE001
-        pass  # Fall through to the non-search endpoint.
-
-    try:
-        r = requests.post(f"{p['base']}/chat/completions", headers=H,
-                          json={"model": _p_model(p),
-                                "messages": [{"role": "user", "content": question}]}, timeout=timeout)
-        if r.status_code != 200:
-            return {"ok": False, "answer": "", "retry_count": 0,
-                    "error": f"HTTP {r.status_code}: {r.text[:300]}"}
-        d = r.json()
-        answer = d["choices"][0]["message"].get("content") or ""
-        if not answer.strip():
-            return {"ok": False, "answer": "", "retry_count": 0,
-                    "error": "Provider returned an empty answer"}
-        return {"ok": True, "answer": answer,
-                "citations": [], "searched": False, **_call_meta(r, d, _p_model(p), 0)}
-    except Exception as e:  # noqa: BLE001
-        return {"ok": False, "answer": "", "retry_count": 0,
-                "error": f"{type(e).__name__}: {e}"}
-
-
-def ask_anthropic(p: dict, key: str, question: str, timeout: int) -> dict:
-    """Call the native Anthropic Messages API and parse content blocks."""
-    delays = RETRY_DELAYS
-    for attempt in range(len(delays) + 1):
-        try:
-            r = requests.post(
-                f"{p['base']}/messages",
-                headers={"x-api-key": key, "anthropic-version": "2023-06-01",
-                         "content-type": "application/json"},
-                # Bound output length to keep requests within the default timeout.
-                json={"model": _p_model(p), "max_tokens": 4096,
-                      "messages": [{"role": "user", "content": question}]},
-                timeout=timeout,
-            )
-            if r.status_code != 200:
-                if (r.status_code == 429 or r.status_code >= 500) and attempt < len(delays):
-                    time.sleep(_retry_delay(r, attempt, delays))
-                    continue
-                return {"ok": False, "answer": "", "retry_count": attempt,
-                        "error": f"HTTP {r.status_code}: {r.text[:300]}"}
-            d = r.json()
-            if d.get("stop_reason") == "refusal":
-                return {"ok": False, "answer": "", "retry_count": attempt,
-                        "error": "Model refusal (stop_reason=refusal)"}
-            answer = "".join(b.get("text", "") for b in d.get("content", [])
-                             if b.get("type") == "text")
-            if not answer.strip():
-                return {"ok": False, "answer": "", "retry_count": attempt,
-                        "error": "Provider returned an empty answer"}
-            return {"ok": True, "answer": answer, "citations": [],
-                    "searched": False, **_call_meta(r, d, _p_model(p), attempt)}
-        except requests.exceptions.Timeout as e:
-            if attempt < len(delays):
-                time.sleep(float(delays[attempt]))
-                continue
-            return {"ok": False, "answer": "", "retry_count": attempt,
-                    "error": f"{type(e).__name__}: {e}"}
-        except Exception as e:  # noqa: BLE001
-            return {"ok": False, "answer": "", "retry_count": attempt,
-                    "error": f"{type(e).__name__}: {e}"}
-
-
-def ask(platform: str, question: str, timeout: int = 120) -> dict:
-    p = PROVIDERS[platform]
-    key = os.environ.get(p["key_env"])
-    if not key:
-        return {"ok": False, "answer": "", "retry_count": 0,
-                "error": f"Missing environment variable {p['key_env']}"}
-    if p.get("protocol") == "ark":
-        return ask_ark(p, key, question, timeout)
-    if p.get("protocol") == "anthropic":
-        return ask_anthropic(p, key, question, timeout)
+def _ask_chat_completions(p: dict, key: str, question: str, timeout: int, searched: bool,
+                          extra: dict | None = None) -> dict:
+    """OpenAI-compatible chat path. `searched` is the requested sampling mode."""
     body = {
         "model": _p_model(p),
         "messages": [{"role": "user", "content": question}],
         "temperature": 0.7,
     }
-    body.update(p.get("extra", {}))
-    delays = RETRY_DELAYS  # Retry timeouts, rate limits, and server errors twice.
+    body.update(p.get("extra") or {})
+    body.update(extra or {})
+    delays = RETRY_DELAYS
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     for attempt in range(len(delays) + 1):
         try:
-            r = requests.post(
-                f"{p['base']}/chat/completions",
-                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                json=body,
-                timeout=timeout,
-            )
+            r = requests.post(f"{p['base']}/chat/completions", headers=headers,
+                              json=body, timeout=timeout)
             if r.status_code != 200:
-                err = {"ok": False, "answer": "", "retry_count": attempt,
-                       "error": f"HTTP {r.status_code}: {r.text[:300]}"}
+                err = _empty_fail(f"HTTP {r.status_code}: {r.text[:300]}", attempt)
                 if (r.status_code == 429 or r.status_code >= 500) and attempt < len(delays):
                     time.sleep(_retry_delay(r, attempt, delays))
                     continue
@@ -386,33 +350,198 @@ def ask(platform: str, question: str, timeout: int = 120) -> dict:
             msg = data["choices"][0]["message"]
             answer = msg.get("content") or ""
             if not answer.strip():
-                return {"ok": False, "answer": "", "retry_count": attempt,
-                        "error": "Provider returned an empty answer"}
-            # Providers expose search sources through different response fields.
-            refs = []
-            for item in (data.get("search_info") or {}).get("search_results", []) or []:
-                if item.get("url"):
-                    refs.append({"url": item["url"], "title": item.get("title", "")})
-            for item in data.get("search_results") or []:
-                if isinstance(item, dict) and item.get("url"):
-                    refs.append({"url": item["url"], "title": item.get("title", "")})
-            for u in data.get("citations") or []:
-                if isinstance(u, str):
-                    refs.append({"url": u, "title": ""})
-            seen = set()
-            refs = [c for c in refs if not (c["url"] in seen or seen.add(c["url"]))]
+                return _empty_fail("Provider returned an empty answer", attempt)
+            refs = _dedupe_refs(_chat_citation_refs(data))
             return {"ok": True, "answer": answer, "citations": refs,
-                    "searched": bool(p.get("search", False)),
-                    **_call_meta(r, data, _p_model(p), attempt)}
+                    "searched": bool(searched), **_call_meta(r, data, _p_model(p), attempt)}
         except requests.exceptions.Timeout as e:
             if attempt < len(delays):
                 time.sleep(float(delays[attempt]))
                 continue
-            return {"ok": False, "answer": "", "retry_count": attempt,
-                    "error": f"{type(e).__name__}: {e}"}
+            return _empty_fail(f"{type(e).__name__}: {e}", attempt)
         except Exception as e:  # noqa: BLE001
-            return {"ok": False, "answer": "", "retry_count": attempt,
-                    "error": f"{type(e).__name__}: {e}"}
+            return _empty_fail(f"{type(e).__name__}: {e}", attempt)
+
+
+def _ask_responses(p: dict, key: str, question: str, timeout: int) -> dict | None:
+    """Try Responses + web_search. Return None to fall back to chat."""
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    try:
+        r = requests.post(
+            f"{p['base']}/responses",
+            headers=headers,
+            json={"model": _p_model(p), "input": question, "tools": [{"type": "web_search"}]},
+            timeout=timeout,
+        )
+        if r.status_code == 200:
+            data = r.json()
+            answer, refs, _hit = _parse_responses_payload(data)
+            if answer.strip():
+                return {"ok": True, "answer": answer, "citations": refs,
+                        "searched": True, **_call_meta(r, data, _p_model(p), 0)}
+            return _empty_fail("Provider returned an empty answer")
+        text = r.text or ""
+        if r.status_code in (400, 404, 405, 422) or "ToolNotOpen" in text:
+            return None
+        if r.status_code >= 400:
+            return _empty_fail(f"HTTP {r.status_code}: {text[:300]}")
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def ask_ark(p: dict, key: str, question: str, timeout: int) -> dict:
+    """Use Ark Responses with web search, then fall back to chat completions."""
+    hit = _ask_responses(p, key, question, timeout)
+    if hit is not None:
+        return hit
+    return _ask_chat_completions(p, key, question, timeout, searched=False)
+
+
+def _parse_anthropic_content(payload: dict) -> tuple[str, list, bool]:
+    answer, refs, searched = "", [], False
+    for block in payload.get("content") or []:
+        if not isinstance(block, dict):
+            continue
+        btype = str(block.get("type") or "")
+        name = str(block.get("name") or "")
+        if "web_search" in btype or "web_search" in name or btype == "server_tool_use":
+            searched = True
+        if btype == "text":
+            answer += block.get("text") or ""
+        for cit in block.get("citations") or []:
+            if isinstance(cit, dict) and (cit.get("url") or cit.get("source")):
+                refs.append({"url": cit.get("url") or cit.get("source"),
+                             "title": cit.get("title") or ""})
+    return answer, _dedupe_refs(refs), searched
+
+
+def ask_anthropic(p: dict, key: str, question: str, timeout: int, want_search: bool) -> dict:
+    """Call Anthropic Messages, preferring the server-side web_search tool."""
+    headers = {"x-api-key": key, "anthropic-version": "2023-06-01",
+               "content-type": "application/json"}
+    body = {"model": _p_model(p), "max_tokens": 4096,
+            "messages": [{"role": "user", "content": question}]}
+    tool_types = ("web_search_20260209", "web_search_20250305") if want_search else ()
+    last_error = None
+    for tool_type in tool_types or (None,):
+        payload = dict(body)
+        if tool_type:
+            payload["tools"] = [{"type": tool_type, "name": "web_search", "max_uses": 3}]
+        delays = RETRY_DELAYS
+        for attempt in range(len(delays) + 1):
+            try:
+                r = requests.post(f"{p['base']}/messages", headers=headers,
+                                  json=payload, timeout=timeout)
+                if r.status_code != 200:
+                    last_error = _empty_fail(f"HTTP {r.status_code}: {r.text[:300]}", attempt)
+                    if (r.status_code == 429 or r.status_code >= 500) and attempt < len(delays):
+                        time.sleep(_retry_delay(r, attempt, delays))
+                        continue
+                    if tool_type and r.status_code in (400, 404, 422):
+                        break
+                    if tool_type:
+                        break
+                    return last_error
+                data = r.json()
+                if data.get("stop_reason") == "refusal":
+                    return _empty_fail("Model refusal (stop_reason=refusal)", attempt)
+                answer, refs, used = _parse_anthropic_content(data)
+                if not answer.strip():
+                    last_error = _empty_fail("Provider returned an empty answer", attempt)
+                    break
+                return {"ok": True, "answer": answer, "citations": refs,
+                        "searched": bool(tool_type) or used,
+                        **_call_meta(r, data, _p_model(p), attempt)}
+            except requests.exceptions.Timeout as e:
+                last_error = _empty_fail(f"{type(e).__name__}: {e}", attempt)
+                if attempt < len(delays):
+                    time.sleep(float(delays[attempt]))
+                    continue
+                if tool_type:
+                    break
+                return last_error
+            except Exception as e:  # noqa: BLE001
+                last_error = _empty_fail(f"{type(e).__name__}: {e}", attempt)
+                if tool_type:
+                    break
+                return last_error
+    if want_search:
+        return ask_anthropic(p, key, question, timeout, False)
+    return last_error or _empty_fail("Anthropic request failed")
+
+
+def ask_gemini(p: dict, key: str, question: str, timeout: int, want_search: bool) -> dict:
+    """Native generateContent with Google Search grounding, then OpenAI-compat chat."""
+    if want_search:
+        model = _p_model(p)
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        headers = {"Content-Type": "application/json", "x-goog-api-key": key}
+        for tool in ({"google_search": {}}, {"googleSearch": {}}):
+            try:
+                r = requests.post(url, headers=headers, params={"key": key},
+                                  json={"contents": [{"role": "user",
+                                                      "parts": [{"text": question}]}],
+                                        "tools": [tool]},
+                                  timeout=timeout)
+                if r.status_code != 200:
+                    continue
+                data = r.json()
+                cand = (data.get("candidates") or [{}])[0]
+                parts = ((cand.get("content") or {}).get("parts") or [])
+                answer = "".join(part.get("text") or "" for part in parts if isinstance(part, dict))
+                refs = []
+                meta = cand.get("groundingMetadata") or data.get("groundingMetadata") or {}
+                for chunk in meta.get("groundingChunks") or []:
+                    web = (chunk or {}).get("web") or {}
+                    if web.get("uri"):
+                        refs.append({"url": web["uri"], "title": web.get("title") or ""})
+                if answer.strip():
+                    return {"ok": True, "answer": answer, "citations": _dedupe_refs(refs),
+                            "searched": True, **_call_meta(r, data, model, 0)}
+            except Exception:  # noqa: BLE001
+                continue
+    return _ask_chat_completions(p, key, question, timeout, searched=False)
+
+
+def ask_openai(p: dict, key: str, question: str, timeout: int, want_search: bool) -> dict:
+    if want_search:
+        hit = _ask_responses(p, key, question, timeout)
+        if hit is not None:
+            return hit
+    return _ask_chat_completions(p, key, question, timeout, searched=False)
+
+
+def ask_grok(p: dict, key: str, question: str, timeout: int, want_search: bool) -> dict:
+    if want_search:
+        hit = _ask_responses(p, key, question, timeout)
+        if hit is not None:
+            return hit
+        extra = {"search_parameters": {"mode": "on", "return_citations": True}}
+        fallback = _ask_chat_completions(p, key, question, timeout, searched=True, extra=extra)
+        if fallback.get("ok"):
+            return fallback
+    return _ask_chat_completions(p, key, question, timeout, searched=False)
+
+
+def ask(platform: str, question: str, timeout: int = 120, search=None) -> dict:
+    p = PROVIDERS[platform]
+    key = os.environ.get(p["key_env"])
+    if not key:
+        return _empty_fail(f"Missing environment variable {p['key_env']}")
+    want_search = _want_search(p, search)
+    protocol = p.get("protocol")
+    if protocol == "ark":
+        return ask_ark(p, key, question, timeout)
+    if protocol == "anthropic":
+        return ask_anthropic(p, key, question, timeout, want_search)
+    if protocol == "gemini":
+        return ask_gemini(p, key, question, timeout, want_search)
+    if protocol == "openai":
+        return ask_openai(p, key, question, timeout, want_search)
+    if protocol == "grok":
+        return ask_grok(p, key, question, timeout, want_search)
+    return _ask_chat_completions(p, key, question, timeout, searched=want_search)
 
 
 # ------------------------------------------------------------ Answer analysis

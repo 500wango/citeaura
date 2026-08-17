@@ -270,13 +270,100 @@ class TestAskRetry(unittest.TestCase):
         self.assertIn("empty answer", res["error"])
         self.assertEqual(post.call_count, 1)
 
-    def test_anthropic_success_declares_parametric_mode(self):
+    def test_anthropic_success_declares_search_mode_when_tool_is_on(self):
         payload = {"model": "claude-test", "content": [{"type": "text", "text": "OK"}]}
         with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}), \
-             mock.patch.object(S.requests, "post", return_value=_Resp(200, payload)):
+             mock.patch.object(S.requests, "post", return_value=_Resp(200, payload)) as post:
             result = S.ask("claude", "Question?")
         self.assertTrue(result["ok"])
+        self.assertTrue(result["searched"])
+        tools = post.call_args.kwargs["json"]["tools"]
+        self.assertEqual(tools[0]["name"], "web_search")
+
+    def test_anthropic_can_still_run_parametric_when_search_disabled(self):
+        payload = {"model": "claude-test", "content": [{"type": "text", "text": "OK"}]}
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}), \
+             mock.patch.object(S.requests, "post", return_value=_Resp(200, payload)) as post:
+            result = S.ask("claude", "Question?", search=False)
+        self.assertTrue(result["ok"])
         self.assertFalse(result["searched"])
+        self.assertNotIn("tools", post.call_args.kwargs["json"])
+
+
+class TestAskWebSearch(unittest.TestCase):
+    def test_openai_uses_responses_web_search(self):
+        payload = {
+            "output": [{
+                "type": "web_search_call",
+                "action": {"type": "search", "query": "best tool"},
+            }, {
+                "type": "message",
+                "content": [{
+                    "type": "output_text",
+                    "text": "Acme is cited.",
+                    "annotations": [{"url": "https://acme.example", "title": "Acme"}],
+                }],
+            }],
+        }
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}), \
+             mock.patch.object(S.requests, "post", return_value=_Resp(200, payload)) as post:
+            result = S.ask("openai", "Best tool?")
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["searched"])
+        self.assertEqual(result["citations"][0]["url"], "https://acme.example")
+        self.assertTrue(post.call_args.args[0].endswith("/responses"))
+        self.assertEqual(post.call_args.kwargs["json"]["tools"], [{"type": "web_search"}])
+
+    def test_openai_falls_back_to_chat_when_responses_missing(self):
+        chat = {"choices": [{"message": {"content": "Memory only."}}]}
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}), \
+             mock.patch.object(S.requests, "post", side_effect=[
+                 _Resp(404, text="no responses"),
+                 _Resp(200, chat),
+             ]):
+            result = S.ask("openai", "Best tool?")
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["searched"])
+        self.assertEqual(result["answer"], "Memory only.")
+
+    def test_gemini_uses_google_search_grounding(self):
+        payload = {
+            "candidates": [{
+                "content": {"parts": [{"text": "Grounded answer."}]},
+                "groundingMetadata": {
+                    "groundingChunks": [{"web": {"uri": "https://docs.example", "title": "Docs"}}],
+                },
+            }],
+        }
+        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}), \
+             mock.patch.object(S.requests, "post", return_value=_Resp(200, payload)) as post:
+            result = S.ask("gemini", "Best tool?")
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["searched"])
+        self.assertEqual(result["citations"][0]["url"], "https://docs.example")
+        self.assertIn("generateContent", post.call_args.args[0])
+        self.assertIn("google_search", post.call_args.kwargs["json"]["tools"][0])
+
+    def test_grok_falls_back_to_live_search_parameters(self):
+        chat = {
+            "choices": [{"message": {"content": "Live search answer."}}],
+            "citations": ["https://news.example"],
+        }
+        with mock.patch.dict(os.environ, {"XAI_API_KEY": "test-key"}), \
+             mock.patch.object(S.requests, "post", side_effect=[
+                 _Resp(404, text="no responses"),
+                 _Resp(200, chat),
+             ]) as post:
+            result = S.ask("grok", "Best tool?")
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["searched"])
+        self.assertEqual(result["citations"][0]["url"], "https://news.example")
+        self.assertEqual(post.call_args.kwargs["json"]["search_parameters"]["mode"], "on")
+
+    def test_registry_marks_global_apis_as_search_capable(self):
+        for code in ("openai", "claude", "gemini", "grok", "perplexity"):
+            self.assertTrue(S.PROVIDERS[code]["search"], code)
+        self.assertFalse(S.PROVIDERS["deepseek"]["search"])
 
 
 class TestRunValidation(unittest.TestCase):

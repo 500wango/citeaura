@@ -162,7 +162,7 @@ class TestDraftPromptCompetitors(WorkDirCase):
         }
         captured = {}
 
-        def fake_ask(plat, prompt, timeout=300):
+        def fake_ask(plat, prompt, timeout=300, **_kwargs):
             captured["prompt"] = prompt
             return {"ok": True, "answer": "# 初稿"}
 

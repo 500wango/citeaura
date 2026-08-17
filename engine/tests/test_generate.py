@@ -81,7 +81,7 @@ class GenerateTest(unittest.TestCase):
         outline = GEN.gen_outlines("demo")[0]
         captured = {}
 
-        def ask(_platform, prompt, timeout):
+        def ask(_platform, prompt, timeout, **_kwargs):
             captured["prompt"] = prompt
             return {"ok": False, "error": "timeout"}
 

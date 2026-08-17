@@ -54,7 +54,7 @@ def _ask_json(prompt: str, provider: str | None = None, timeout: int = 300) -> d
     plat = S.pick_llm(provider)
     if not plat:
         return None
-    res = S.ask(plat, prompt, timeout=timeout)
+    res = S.ask(plat, prompt, timeout=timeout, search=False)
     if not res.get("ok"):
         G.info(f"  LLM call failed: {str(res.get('error'))[:120]}")
         return None

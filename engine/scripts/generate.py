@@ -458,7 +458,7 @@ Requirements:
 - Omit unavailable claims instead of using fake values or placeholders
 - Return only the Markdown article"""
     )
-    res = S.ask(plat, prompt, timeout=300)
+    res = S.ask(plat, prompt, timeout=300, search=False)
     return res.get("answer", "") if res.get("ok") else ""
 
 
