@@ -107,6 +107,43 @@ class TestCrawlSelectionAndEvidence(unittest.TestCase):
         self.assertEqual(page["para_count"], 1)
         self.assertEqual(page["external_links"], 1)
 
+    def test_prefers_main_over_later_article_cards(self):
+        body = """<html><body>
+        <header class="site-header"><h1>Chrome</h1></header>
+        <main><h1>Win brand visibility</h1><h2>Workflow</h2><p>Body copy.</p>
+        <article class="price-card"><p>Starter</p></article></main>
+        </body></html>"""
+        page = crawl.analyze_page("https://example.com/", {
+            "html": body, "final_url": "https://example.com/", "status": 200, "error": None,
+        })
+        self.assertEqual(page["h1"], ["Win brand visibility"])
+        self.assertEqual(page["h2"], ["Workflow"])
+
+    def test_keeps_h1_inside_article_and_legal_header_classes(self):
+        blog = """<html><body><article class="blog-article">
+        <header class="blog-header"><h1>Why ChatGPT does not mention my brand</h1></header>
+        <h2>Common reasons</h2><p>Explanation.</p></article></body></html>"""
+        legal = """<html><body><main class="legal-content">
+        <div class="legal-header"><h1>Privacy Policy</h1></div>
+        <h2>Overview</h2><p>Policy body.</p></main></body></html>"""
+        blog_page = crawl.analyze_page("https://example.com/blog/x", {
+            "html": blog, "final_url": "https://example.com/blog/x", "status": 200, "error": None,
+        })
+        legal_page = crawl.analyze_page("https://example.com/privacy", {
+            "html": legal, "final_url": "https://example.com/privacy", "status": 200, "error": None,
+        })
+        self.assertEqual(blog_page["h1"], ["Why ChatGPT does not mention my brand"])
+        self.assertEqual(legal_page["h1"], ["Privacy Policy"])
+
+    def test_multiple_h1s_in_main_remain_visible(self):
+        body = """<html><body><main>
+        <h1>First</h1><h1>Second</h1><h2>Section</h2><p>Copy.</p>
+        </main></body></html>"""
+        page = crawl.analyze_page("https://example.com/x", {
+            "html": body, "final_url": "https://example.com/x", "status": 200, "error": None,
+        })
+        self.assertEqual(page["h1"], ["First", "Second"])
+
     def test_role_quota_limits_help_pages(self):
         urls = ([f"https://example.com/help/topic-{i}" for i in range(12)]
                 + ["https://example.com/product", "https://example.com/pricing", "https://example.com/about"])

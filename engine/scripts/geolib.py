@@ -491,22 +491,53 @@ def normalize_url(base: str, href: str) -> str | None:
 # ---------------------------------------------------------------- Main-content extraction
 
 _DROP_TAGS = ["script", "style", "noscript", "svg", "iframe", "form", "template"]
-_BOILER = re.compile(r"(nav|header|footer|sidebar|menu|breadcrumb|cookie|banner|advert)", re.I)
+# Whole class/id tokens only. Do not substring-match "header" or "blog-header"
+# and "legal-header" get stripped with the page H1.
+_CHROME_TOKENS = {
+    "nav", "navbar", "navigation", "site-header", "page-header", "header",
+    "footer", "site-footer", "page-footer", "sidebar", "menu", "menubar",
+    "breadcrumb", "breadcrumbs", "cookie", "cookie-banner", "banner",
+    "advert", "advertisement",
+}
 
 
 def parse_html(html: str) -> BeautifulSoup:
     return BeautifulSoup(html or "", "lxml")
 
 
+def _attr_tokens(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        return [str(item).lower() for item in value if item]
+    return str(value).lower().split()
+
+
+def _is_chrome(tag) -> bool:
+    tokens = _attr_tokens(tag.get("class")) + _attr_tokens(tag.get("id"))
+    return any(token in _CHROME_TOKENS for token in tokens)
+
+
+def _content_root(soup: BeautifulSoup):
+    """Prefer <main> over the first <article>, which is often a card or teaser."""
+    main = soup.find("main")
+    if main:
+        return main
+    articles = soup.find_all("article")
+    if len(articles) == 1:
+        return articles[0]
+    if articles:
+        return max(articles, key=lambda node: len(node.get_text(" ", strip=True)))
+    return soup.body or soup
+
+
 def main_content(soup: BeautifulSoup) -> BeautifulSoup:
     """Return a cloned content DOM without navigation or interactive boilerplate."""
-    body = soup.find("article") or soup.find("main") or soup.body or soup
+    body = _content_root(soup)
     clone = BeautifulSoup(str(body), "lxml")
     for t in clone(_DROP_TAGS):
         t.decompose()
-    for t in clone.find_all(attrs={"class": _BOILER}):
-        t.decompose()
-    for t in clone.find_all(attrs={"id": _BOILER}):
+    for t in list(clone.find_all(_is_chrome)):
         t.decompose()
     return clone
 
