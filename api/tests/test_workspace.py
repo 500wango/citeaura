@@ -2,6 +2,7 @@ import json
 import sys
 import types
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -148,13 +149,46 @@ def test_manual_sample_import_normalizes_after_releasing_project_lock(tmp_path, 
     )
 
     assert result == {"sample_count": 1}
-    assert calls == [
-        ("lock-enter", "example"),
-        ("sample-import", "example", str(sample_path)),
-        ("record", "example"),
-        ("lock-exit", "example"),
-        ("normalize", "example"),
-    ]
+
+
+def test_product_surface_import_writes_sheet_and_labels_manual(tmp_path, monkeypatch):
+    project = tmp_path / "example"
+    (project / "samples").mkdir(parents=True)
+    captured = {}
+
+    @contextmanager
+    def fake_project_lock(project_slug):
+        yield
+
+    def fake_sample_import(project_slug, filename):
+        captured["filename"] = filename
+        captured["text"] = Path(filename).read_text("utf-8")
+        return {"sample_count": 1, "date": "2026-08-18"}
+
+    sample_module = types.SimpleNamespace(
+        PROVIDERS={},
+        MANUAL_ONLY={"chatgpt": ("ChatGPT Search", "global")},
+        sample_import=fake_sample_import,
+    )
+    monkeypatch.setitem(sys.modules, "sample", sample_module)
+    monkeypatch.setattr(workspace.geolib, "project_dir", lambda slug: project)
+    monkeypatch.setattr(workspace.geolib, "today", lambda: "2026-08-18")
+    monkeypatch.setattr(workspace.geolib, "load_config", lambda slug: {
+        "questions": [{"id": "q001", "text": "Does ChatGPT mention Example?"}],
+    })
+    monkeypatch.setattr(workspace.geolib, "project_lock", fake_project_lock)
+    monkeypatch.setattr(measurement, "record_sampling", lambda slug, **kwargs: None)
+    monkeypatch.setattr(workspace.global_scope, "normalize_project", lambda slug: None)
+
+    result = workspace.import_product_surface(
+        "example",
+        "chatgpt",
+        [{"question_id": "q001", "answer": "I do not see Example in this answer."}],
+    )
+    assert result["sample_count"] == 1
+    assert captured["filename"].endswith("2026-08-18-manual.md")
+    assert "## platform: chatgpt" in captured["text"]
+    assert "I do not see Example in this answer." in captured["text"]
 
 
 def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeypatch):

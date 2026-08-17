@@ -38,8 +38,9 @@ ENGINE_KEY_ENV = {
     "claude": "ANTHROPIC_API_KEY",
     "grok": "XAI_API_KEY",
     "perplexity": "PERPLEXITY_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
 }
-GLOBAL_LLM_PREFS = ("openai", "gemini", "claude", "grok", "perplexity")
+GLOBAL_LLM_PREFS = ("openai", "gemini", "claude", "grok", "perplexity", "deepseek")
 NETWORK_REDIRECT_STATUSES = frozenset((301, 302, 303, 307, 308))
 NETWORK_RETRY_STATUSES = frozenset((429, 500, 502, 503, 504))
 NETWORK_MAX_REDIRECTS = 5

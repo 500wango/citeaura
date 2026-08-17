@@ -50,6 +50,16 @@ class SampleImportRequest(BaseModel):
     text: str = Field(max_length=5_000_000)
 
 
+class ProductSurfaceItem(BaseModel):
+    question_id: str = Field(min_length=1, max_length=64)
+    answer: str = Field(min_length=1, max_length=20000)
+
+
+class ProductSurfaceImportRequest(BaseModel):
+    platform: str = Field(min_length=2, max_length=64)
+    items: list[ProductSurfaceItem] = Field(min_length=1, max_length=100)
+
+
 def _error(status_code: int, message: str):
     raise HTTPException(status_code=status_code, detail={"error": message})
 
@@ -366,4 +376,55 @@ def import_project_samples(
         "job_id": job.id,
         "date": metrics.get("date"),
         "sample_count": metrics.get("sample_count", 0),
+    }
+
+
+@router.post("/api/v1/projects/{project_id}/samples/product-surface")
+def import_product_surface_samples(
+    project_id: int,
+    payload: ProductSurfaceImportRequest,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    tenant, project = _tenant_project(db, current_user, project_id)
+    check_sample_run(db, tenant, project)
+    _ensure_idle(db, project)
+    started_at = datetime.now(timezone.utc)
+    job = Job(
+        project_id=project.id,
+        action="sample-import",
+        status="running",
+        stage="importing",
+        progress=25,
+        request_json='{"source":"product_surface"}',
+        started_at=started_at,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    try:
+        metrics = _call(
+            db,
+            current_user,
+            project_id,
+            workspace.import_product_surface,
+            payload.platform,
+            [item.model_dump() for item in payload.items],
+            write=True,
+        )
+    except Exception:
+        db.delete(job)
+        db.commit()
+        raise
+    job.status = "done"
+    job.stage = "complete"
+    job.progress = 100
+    job.finished_at = datetime.now(timezone.utc)
+    db.commit()
+    return {
+        "ok": True,
+        "job_id": job.id,
+        "date": metrics.get("date"),
+        "sample_count": metrics.get("sample_count", 0),
+        "sampling_mode": "Manual · Product surface",
     }

@@ -60,7 +60,7 @@ PROVIDERS = {
         "note": "Uses Responses with web_search when enabled, otherwise falls back to parametric knowledge.",
     },
     "deepseek": {
-        "name": "DeepSeek", "market": "cn",
+        "name": "DeepSeek", "market": "global",
         "base": "https://api.deepseek.com/v1",
         "model": "deepseek-v4-flash",
         "model_env": "DEEPSEEK_MODEL",
@@ -146,6 +146,7 @@ MANUAL_ONLY = {
     "doubao_app": ("Doubao App / Web", "cn"),
     "chatgpt": ("ChatGPT Search", "global"),
     "claude_web": ("Claude Web Search", "global"),
+    "google_ai_overview": ("Google AI Overviews", "global"),
 }
 
 MAX_IMPORT_BYTES = 4_000_000

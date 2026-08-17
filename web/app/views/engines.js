@@ -2,7 +2,7 @@
  * AI  (Engines & Sample Replay)
  */
 
-import { projects, workspace } from '../api.js?v=3.4';
+import { projects, workspace } from '../api.js?v=3.5';
 import { openModal } from '../components/modal.js';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
@@ -43,10 +43,69 @@ export default {
     }
 
     const engines = (enginesData && enginesData.engines) || [];
-    const trend = (enginesData && enginesData.measurement_quality && enginesData.measurement_quality.trend) || {};
+    const modeKey = (mode) => {
+      const n = String(mode || '').toLowerCase();
+      if (n.includes('manual') || n.includes('surface') || n.includes('人工')) return 'manual';
+      if (n.includes('search') || n.includes('ground') || n.includes('retrieval') || n.includes('联网')) return 'search';
+      if (n.includes('param') || n.includes('model') || n.includes('参数')) return 'parametric';
+      return 'other';
+    };
+    const modeGroups = [
+      { key: 'search', title: 'API · Web-grounded retrieval', hint: 'Official search tools. This is not ChatGPT Search or Google AI Overviews.' },
+      { key: 'parametric', title: 'API · Model knowledge', hint: 'Provider APIs with no live retrieval.' },
+      { key: 'manual', title: 'Manual · Product surface', hint: 'Answers pasted from ChatGPT, Claude.ai, or Google AI Overviews.' },
+    ];
+    const grouped = Object.fromEntries(modeGroups.map((group) => [group.key, engines.filter((eng) => modeKey(eng.sampling_mode) === group.key)]));
+    grouped.other = engines.filter((eng) => modeKey(eng.sampling_mode) === 'other');
+    const mq = (enginesData && enginesData.measurement_quality) || {};
+    const confidence = mq.confidence || mq;
+    const limitations = confidence.limitations || mq.limitations || [];
+    const trend = mq.trend || {};
     const trendNote = trend.status === 'noteworthy'
       ? `${trend.label || 'Trend'} ${trend.delta_pp != null ? `(${trend.delta_pp} pp)` : ''}`
       : (trend.label || 'Single-round observation. Two comparable periods are required before calling a trend.');
+    const renderEngineTable = (rows) => `
+            <div class="tbl" style="overflow-x:auto;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>${t('engines.col_engine', {}, 'Engine')}</th>
+                    <th>${t('engines.col_mode', {}, 'Sampling Mode')}</th>
+                    <th style="text-align:right;">${t('engines.col_mention_rate', {}, 'Mention Rate')}</th>
+                    <th style="text-align:right;">${t('engines.col_avg_rank', {}, 'Avg Rank')}</th>
+                    <th style="text-align:right;">${t('engines.col_citation_share', {}, 'Citation Share')}</th>
+                    <th style="text-align:right;">${t('engines.col_samples', {}, 'Samples')}</th>
+                    <th>${t('common.status', {}, 'Status')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows.map((eng) => `
+                    <tr>
+                      <td>
+                        <div style="display:flex;align-items:center;gap:var(--sp-2);">
+                          <strong style="font-size:var(--fs-3);">${escapeHtml(eng.engine_name || eng.engine_code)}</strong>
+                          <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${escapeHtml(eng.engine_code || '')}</span>
+                        </div>
+                      </td>
+                      <td>${samplingModeBadge(eng.sampling_mode)}</td>
+                      <td data-num style="font-size:var(--fs-4);font-weight:700;color:var(--ink);">
+                        ${eng.mention_rate !== null && eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : 'Unmeasured'}
+                      </td>
+                      <td data-num style="font-weight:600;">
+                        ${eng.median_rank !== null && eng.median_rank !== undefined ? `#${Number(eng.median_rank).toFixed(1)}` : 'Unmeasured'}
+                      </td>
+                      <td data-num>
+                        ${eng.citation_share !== null && eng.citation_share !== undefined ? `${Math.round(eng.citation_share * 100)}%` : 'Unmeasured'}
+                      </td>
+                      <td data-num>${eng.sample_count || 0}</td>
+                      <td>
+                        ${statusPill(eng.sample_count ? 'good' : 'idle', eng.sample_count ? 'Measured' : 'Unmeasured')}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>`;
 
     return `
       <div class="app-view-container">
@@ -63,8 +122,8 @@ export default {
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
               <span>${t('engines.configure_keys', {}, 'Configure API Keys')}</span>
             </a>
-            <button type="button" id="btn-import-sheet" class="btn btn-secondary btn-sm">
-              <span>Import product-surface sheet</span>
+            <button type="button" id="btn-import-surface" class="btn btn-secondary btn-sm">
+              <span>Log product-surface answer</span>
             </button>
             <button type="button" id="btn-trigger-sample" class="btn btn-primary btn-sm">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -73,67 +132,29 @@ export default {
           </div>
         </div>
 
-        <!-- Engine Visibility Matrix -->
-        <div class="card" style="padding:0;overflow:hidden;">
-          <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
-            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('engines.matrix_head', {}, 'Monitored Model Engines')}</h3>
-            <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${engines.length} ${t('common.engines_total', {}, 'engines configured')}</span>
-          </div>
+        ${limitations.length ? `<div class="card" style="padding:var(--sp-4);border-color:var(--line);">
+          <strong style="display:block;margin-bottom:6px;">Measurement is a limited baseline</strong>
+          <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">
+            ${escapeHtml(limitations.join(' '))} Configure at least two built-in engines and collect 20 samples before publishing a mention rate. Do not mix these rows into one score.
+          </p>
+        </div>` : ''}
 
-          ${
-            engines.length
-              ? `
-            <div class="tbl" style="overflow-x:auto;">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>${t('engines.col_engine', {}, 'Engine')}</th>
-                    <th>${t('engines.col_mode', {}, 'Sampling Mode')}</th>
-                    <th style="text-align:right;">${t('engines.col_mention_rate', {}, 'Mention Rate')}</th>
-                    <th style="text-align:right;">${t('engines.col_avg_rank', {}, 'Avg Rank')}</th>
-                    <th style="text-align:right;">${t('engines.col_citation_share', {}, 'Citation Share')}</th>
-                    <th style="text-align:right;">${t('engines.col_samples', {}, 'Samples')}</th>
-                    <th>${t('common.status', {}, 'Status')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${engines
-                    .map(
-                      (eng) => `
-                    <tr>
-                      <td>
-                        <div style="display:flex;align-items:center;gap:var(--sp-2);">
-                          <strong style="font-size:var(--fs-3);">${escapeHtml(eng.engine_name || eng.engine_code)}</strong>
-                          <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${eng.engine_code}</span>
-                        </div>
-                      </td>
-                      <td>${samplingModeBadge(eng.sampling_mode)}</td>
-                      <td data-num style="font-size:var(--fs-4);font-weight:700;color:var(--ink);">
-                        ${eng.mention_rate !== null && eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : 'Unmeasured'}
-                      </td>
-                      <td data-num style="font-weight:600;">
-                        ${eng.median_rank !== null && eng.median_rank !== undefined ? `#${Number(eng.median_rank).toFixed(1)}` : 'Unmeasured'}
-                      </td>
-                      <td data-num>
-                        ${eng.citation_share !== null && eng.citation_share !== undefined ? `${Math.round(eng.citation_share * 100)}%` : 'Unmeasured'}
-                      </td>
-                      <td data-num>
-                        ${eng.sample_count || 0}
-                      </td>
-                      <td>
-                        ${statusPill(eng.sample_count ? 'good' : 'idle', eng.sample_count ? 'Measured' : 'Unmeasured')}
-                      </td>
-                    </tr>
-                  `
-                    )
-                    .join('')}
-                </tbody>
-              </table>
-            </div>
-          `
-              : `<div style="padding:var(--sp-8);text-align:center;color:var(--muted);">${t('engines.no_engines_msg', {}, 'No engine data available. Please configure API keys and run a sample.')}</div>`
-          }
-        </div>
+        ${modeGroups.map((group) => `
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0 0 4px;">${group.title}</h3>
+            <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${group.hint}</p>
+          </div>
+          ${grouped[group.key].length
+            ? renderEngineTable(grouped[group.key])
+            : `<div style="padding:var(--sp-6);color:var(--muted);font-size:var(--fs-2);">No ${group.title} observations yet.</div>`}
+        </div>`).join('')}
+        ${grouped.other.length ? `<div class="card" style="padding:0;overflow:hidden;">
+          <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Other</h3>
+          </div>
+          ${renderEngineTable(grouped.other)}
+        </div>` : ''}
 
         <!-- Raw Sample Answers Replay -->
         <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
@@ -214,19 +235,40 @@ export default {
     const projectId = ctx.activeProjectId;
     if (!projectId) return;
 
-    document.getElementById('btn-import-sheet')?.addEventListener('click', () => {
+    document.getElementById('btn-import-surface')?.addEventListener('click', async () => {
+      const questions = await workspace.getQuestions(projectId).catch(() => []);
+      const options = (questions || []).map((q) => `<option value="${escapeHtml(q.id || '')}">${escapeHtml(q.id || '')} · ${escapeHtml(q.text || '')}</option>`).join('');
       openModal({
-        title: 'Import product-surface sample sheet',
-        content: `<div class="field"><label>Filename</label><input id="import-sheet-name" class="input" value="manual.md"></div>
-          <div class="field"><label>Sheet text</label><textarea id="import-sheet-text" class="input" rows="10" placeholder="### q001 · Question"></textarea></div>`,
-        confirmText: 'Import',
+        title: 'Log a product-surface answer',
+        content: `<p style="margin:0 0 var(--sp-3);color:var(--muted);font-size:var(--fs-2);">Paste what you saw in ChatGPT, Claude.ai, or Google AI Overviews. This stays in a separate cohort from API samples.</p>
+          <div class="field"><label>Product surface</label>
+            <select id="surface-platform" class="input">
+              <option value="chatgpt">ChatGPT Search</option>
+              <option value="claude_web">Claude.ai</option>
+              <option value="google_ai_overview">Google AI Overviews</option>
+            </select>
+          </div>
+          <div class="field"><label>Question</label>
+            <select id="surface-question" class="input">${options || '<option value="">No questions yet</option>'}</select>
+          </div>
+          <div class="field"><label>Answer transcript</label>
+            <textarea id="surface-answer" class="input" rows="8" placeholder="Paste the exact answer text"></textarea>
+          </div>`,
+        confirmText: 'Save transcript',
         onConfirm: async () => {
+          const platform = document.getElementById('surface-platform')?.value;
+          const questionId = document.getElementById('surface-question')?.value;
+          const answer = document.getElementById('surface-answer')?.value || '';
+          if (!questionId || !answer.trim()) {
+            toast.error('Choose a question and paste the answer');
+            return false;
+          }
           try {
-            await workspace.importSamples(projectId, {
-              file: document.getElementById('import-sheet-name')?.value || 'manual.md',
-              text: document.getElementById('import-sheet-text')?.value || '',
+            await workspace.importProductSurface(projectId, {
+              platform,
+              items: [{ question_id: questionId, answer: answer.trim() }],
             });
-            toast.success('Sample sheet imported');
+            toast.success('Product-surface answer saved');
             await ctx.reloadCurrentView();
             return true;
           } catch (err) {

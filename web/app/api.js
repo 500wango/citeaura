@@ -224,6 +224,7 @@ export const workspace = {
   getBlueprint: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/blueprint`), 'blueprint', {}),
   getFiles: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/files`),
   importSamples: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/samples/import`, { method: 'POST', body }),
+  importProductSurface: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/samples/product-surface`, { method: 'POST', body }),
 };
 
 /* ==========================================================================

@@ -13,10 +13,11 @@ from api.adapters.engine import geolib
 
 HAN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 DOMESTIC_PLATFORM_CODES = frozenset((
-    "glm", "doubao", "deepseek", "kimi", "minimax", "nano_ai", "baidu", "doubao_app",
+    "glm", "doubao", "kimi", "minimax", "nano_ai", "baidu", "doubao_app",
 ))
 GLOBAL_PLATFORM_CODES = frozenset((
-    "gemini", "openai", "claude", "grok", "perplexity", "chatgpt", "claude_web",
+    "gemini", "openai", "claude", "grok", "perplexity", "deepseek",
+    "chatgpt", "claude_web", "google_ai_overview",
 ))
 
 GROUP_NAMES = {

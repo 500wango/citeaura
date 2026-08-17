@@ -25,6 +25,12 @@ def test_landing_page_is_public_and_links_to_application():
     assert "$199" in response.text
     assert "$79" in response.text
     assert 'data-i18n="landing.pricing_note"' in response.text
+    assert "regression alerts" not in response.text
+    assert "Scheduled matrix re-sampling" in response.text
+    assert "6 BYOK engines + custom" in response.text
+    assert "5 BYOK engines + custom" not in response.text
+    assert "model-ribbon-name\">DeepSeek</span>" in response.text
+    assert "data-radar-bar=\"grok\"" in response.text
     assert 'data-i18n="landing.ops_enterprise_dd"' in response.text
 
 
@@ -83,8 +89,9 @@ def test_i18n_catalogs_are_public():
     assert response.status_code == 200
     data = response.json()
     assert data["nav.cta"] == "Start free trial"
-    assert data["nav.status"] == "5 BYOK engines + custom"
-    assert "DeepSeek" not in data["landing.truth_engines_dd"]
+    assert data["landing.plan_pro_3"] == "Scheduled matrix re-sampling every 7, 14, or 30 days"
+    assert data["nav.status"] == "6 BYOK engines + custom"
+    assert "DeepSeek" in data["landing.truth_engines_dd"]
     assert "landing.title" in data
     assert client.get("/i18n/zh.json").status_code == 404
     assert client.get("/i18n/ja.json").status_code == 404
@@ -105,7 +112,7 @@ def test_landing_js_is_english_only():
     assert response.status_code == 200
     assert "localStorage.setItem('ulang'" in response.text
     assert "initTypewriter()" in response.text
-    assert "Audit citations across ChatGPT, Claude, and Perplexity." in response.text
+    assert "Audit citations across 6 BYOK engines plus custom endpoints." in response.text
     assert "fetch('/i18n/en.json')" in response.text
     assert "zh-CN" not in response.text
     assert "ja" not in response.text

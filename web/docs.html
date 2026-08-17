@@ -674,7 +674,7 @@
         <!-- BYOK Setup Guide -->
         <section id="byok">
           <h2>Model Keys &amp; Providers</h2>
-          <p>Bring Your Own Key routes measurement requests through your provider account, so provider usage and charges remain visible there. CiteAura currently exposes five built-in providers and supports custom OpenAI-compatible HTTPS endpoints.</p>
+          <p>Bring Your Own Key routes measurement requests through your provider account, so provider usage and charges remain visible there. CiteAura currently exposes six built-in providers and supports custom OpenAI-compatible HTTPS endpoints.</p>
 
           <h3 id="key-setup-openai">1. OpenAI</h3>
           <ol>
@@ -710,6 +710,13 @@
             <li>Visit the official <a href="https://www.perplexity.ai/settings/api" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Perplexity API Settings (perplexity.ai/settings/api)</a>.</li>
             <li>Ensure billing is active on your API account, then click <strong>Generate</strong> under API Keys.</li>
             <li>Copy the <code>pplx-...</code> token and paste it into CiteAura under <strong>Settings → Model Keys (BYOK) → Perplexity</strong>.</li>
+          </ol>
+
+          <h3 id="key-setup-deepseek">6. DeepSeek</h3>
+          <ol>
+            <li>Visit the official <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">DeepSeek Platform (platform.deepseek.com/api_keys)</a>.</li>
+            <li>Create an API key and copy the token.</li>
+            <li>In CiteAura, open <strong>Settings → Model Keys (BYOK) → DeepSeek</strong> and paste the key. DeepSeek’s official API is parametric knowledge only; it does not enable live web search.</li>
           </ol>
 
           <h3>Custom OpenAI-compatible providers</h3>

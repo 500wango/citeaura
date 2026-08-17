@@ -10,6 +10,14 @@ from api.adapters.engine import geolib, job_log_path, with_tenant_context, with_
 from api.adapters.exceptions import GeoEngineError
 
 
+def test_default_sample_platforms_prefers_funded_built_ins():
+    from api.adapters.sampling_control import default_sample_platforms
+
+    funding = {"keys": {"openai": "x"}, "pool_codes": frozenset({"perplexity"})}
+    assert default_sample_platforms(funding, [], ["glm"]) == ["openai", "perplexity"]
+    assert default_sample_platforms({"keys": {}, "pool_codes": frozenset()}, [], ["glm"]) == ["glm"]
+
+
 def test_tenant_context_patches_paths_and_die_then_restores():
     original_root = geolib.ROOT
     original_work = geolib.WORK

@@ -375,6 +375,63 @@ def _grade_for_score(score):
     return "D"
 
 
+def _engine_rows_by_mode(item, platform_rows):
+    """Keep knowledge, retrieval, and product-surface cohorts on separate rows."""
+    grouped = {}
+    for row in platform_rows:
+        grouped.setdefault(sampling_modes.for_row(row), []).append(row)
+    if not grouped:
+        return [{
+            "engine_code": item.get("platform"),
+            "engine_name": item.get("label") or item.get("platform"),
+            "sampling_mode": sampling_modes.MODE_API,
+            "mention_rate": item.get("mention"),
+            "median_rank": item.get("pos_median"),
+            "sample_count": item.get("samples", 0),
+            "citation_share": item.get("cite_share"),
+            "citation_counts": item.get("cite_counts", [0, 0]),
+            "top_sources": item.get("top_sources", []),
+            "example": item.get("example"),
+            "negative_sample_count": item.get("neg_n", 0),
+        }]
+    rows = []
+    for mode, mode_rows in grouped.items():
+        ok_rows = [row for row in mode_rows if row.get("ok")]
+        mentioned = [
+            row for row in ok_rows
+            if (row.get("analysis") or {}).get("brand_mentioned")
+        ]
+        ranks = [
+            (row.get("analysis") or {}).get("brand_rank")
+            for row in mentioned
+            if (row.get("analysis") or {}).get("brand_rank")
+        ]
+        ranks = [value for value in ranks if value]
+        mention_rate = (len(mentioned) / len(ok_rows)) if ok_rows else None
+        rows.append({
+            "engine_code": item.get("platform"),
+            "engine_name": item.get("label") or item.get("platform"),
+            "sampling_mode": mode,
+            "mention_rate": mention_rate,
+            "median_rank": sorted(ranks)[len(ranks) // 2] if ranks else None,
+            "sample_count": len(ok_rows),
+            "citation_share": item.get("cite_share") if len(grouped) == 1 else None,
+            "citation_counts": item.get("cite_counts", [0, 0]) if len(grouped) == 1 else [0, 0],
+            "top_sources": item.get("top_sources", []) if len(grouped) == 1 else [],
+            "example": item.get("example"),
+            "negative_sample_count": sum(
+                1 for row in ok_rows if (row.get("analysis") or {}).get("negative_cues")
+            ),
+        })
+    mode_order = {
+        sampling_modes.MODE_SEARCH: 0,
+        sampling_modes.MODE_API: 1,
+        sampling_modes.MODE_MANUAL: 2,
+    }
+    rows.sort(key=lambda item: mode_order.get(item["sampling_mode"], 9))
+    return rows
+
+
 def _include_configured_engines(db, tenant, engines):
     """把已配置但尚未采到样本的引擎补成 Unmeasured 行。"""
     import sample
@@ -428,23 +485,7 @@ def _product_report(project_slug, metrics):
     citations = {}
     for item in engine_rows:
         platform_rows = [row for row in rows if row.get("platform") == item.get("platform")]
-        modes = {sampling_modes.for_row(row) for row in platform_rows}
-        sampling_mode = (sampling_modes.MODE_MANUAL if sampling_modes.MODE_MANUAL in modes
-                         else next(iter(modes), sampling_modes.MODE_API))
-        normalized = {
-            "engine_code": item.get("platform"),
-            "engine_name": item.get("label") or item.get("platform"),
-            "sampling_mode": sampling_mode,
-            "mention_rate": item.get("mention"),
-            "median_rank": item.get("pos_median"),
-            "sample_count": item.get("samples", 0),
-            "citation_share": item.get("cite_share"),
-            "citation_counts": item.get("cite_counts", [0, 0]),
-            "top_sources": item.get("top_sources", []),
-            "example": item.get("example"),
-            "negative_sample_count": item.get("neg_n", 0),
-        }
-        engines.append(normalized)
+        engines.extend(_engine_rows_by_mode(item, platform_rows))
         for row in platform_rows:
             if not row.get("ok"):
                 continue
@@ -1195,6 +1236,15 @@ def sample_project(
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     _require_project_questions(tenant, project)
     payload = payload or SampleRequest()
+    if not payload.platforms:
+        estimate_preview = _sample_estimate(db, tenant, project, payload, enforce=False)
+        funded = [
+            item["engine_code"]
+            for item in estimate_preview.get("platforms") or []
+            if item.get("source") in ("byok", "platform_pool") and item.get("calls")
+        ]
+        if funded:
+            payload = payload.model_copy(update={"platforms": funded})
     request_values = {"limit": payload.limit, "platforms": payload.platforms, "repeat": payload.repeat}
     job = Job(project_id=project.id, action="sample", status="queued", stage="queued",
               request_json=_safe_request_json("sample", request_values))

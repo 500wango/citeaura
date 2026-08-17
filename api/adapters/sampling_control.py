@@ -18,6 +18,27 @@ class SamplingBudgetExceeded(ValueError):
         self.estimate = estimate
 
 
+BUILTIN_GLOBAL_SAMPLE_PLATFORMS = ("openai", "claude", "gemini", "grok", "perplexity", "deepseek")
+
+
+def default_sample_platforms(funding, custom_providers, config_platforms=None):
+    """Prefer funded built-in global APIs, then custom endpoints, then geo.json."""
+    import sample
+
+    funded = set((funding or {}).get("keys") or {}) | set((funding or {}).get("pool_codes") or ())
+    custom_codes = [
+        provider["code"]
+        for provider in (custom_providers or [])
+        if provider.get("code") in sample.PROVIDERS
+    ]
+    built_in = [code for code in BUILTIN_GLOBAL_SAMPLE_PLATFORMS if code in funded]
+    extras = [code for code in custom_codes if code in funded]
+    chosen = list(dict.fromkeys(built_in + extras))
+    if chosen:
+        return chosen
+    return [code for code in (config_platforms or []) if code in sample.PROVIDERS]
+
+
 def _month_range():
     now = datetime.now(timezone.utc)
     start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
@@ -68,9 +89,9 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, allow
             "platforms": list(requested or []),
         }
         configured = [provider["code"] for provider in custom_providers]
-        requested = list(dict.fromkeys(requested or [
-            code for code in list(config.get("platforms", [])) + configured if code in sample.PROVIDERS
-        ]))
+        requested = list(dict.fromkeys(requested or default_sample_platforms(
+            funding, custom_providers, list(config.get("platforms", [])) + configured,
+        )))
         items = []
         total_calls = 0
         pool_calls = 0

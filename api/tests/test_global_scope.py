@@ -51,7 +51,7 @@ def test_mixed_historical_config_is_normalized_to_global():
     normalized = global_scope.normalize_config_data(config)
 
     assert normalized["market"] == "global"
-    assert normalized["platforms"] == ["openai", "chatgpt", "custom_gateway"]
+    assert normalized["platforms"] == ["deepseek", "openai", "chatgpt", "custom_gateway"]
     assert [question["id"] for question in normalized["questions"]] == ["q101", "q901"]
     assert all(question["market"] == "global" for question in normalized["questions"])
     assert normalized["questions"][1]["group"] == "brand_verification"
@@ -434,13 +434,13 @@ def test_project_normalization_updates_files(tmp_path, monkeypatch):
     metrics = json.loads((project / "metrics" / "2026-08-13.json").read_text("utf-8"))
     blueprint = json.loads((project / "blueprint.json").read_text("utf-8"))
     assert config["questions"] == []
-    assert config["platforms"] == ["openai"]
+    assert config["platforms"] == ["deepseek", "openai"]
     assert list(metrics["platforms"]) == ["openai"]
     assert metrics["question_count"] == 0
     assert metrics["sample_count"] == 2
     assert metrics["sample_summary"]["successful"] == 2
-    assert metrics["provenance"]["requested_platforms"] == ["openai"]
-    assert metrics["provenance"]["platforms"] == [{"engine_code": "openai"}]
+    assert metrics["provenance"]["requested_platforms"] == ["deepseek", "openai"]
+    assert metrics["provenance"]["platforms"] == [{"engine_code": "deepseek"}, {"engine_code": "openai"}]
     assert metrics["provenance"]["question_set"]["count"] == 0
     channels = {channel["id"]: channel for channel in blueprint["channels"]}
     assert channels["official_en"]["coverage_status"] == "brand_cited"

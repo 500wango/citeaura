@@ -29,7 +29,7 @@ except ModuleNotFoundError as e:
 
 DEFAULT_PLATFORMS = {
     "cn": ["glm", "doubao", "deepseek", "kimi", "minimax", "nano_ai", "baidu"],
-    "global": ["gemini", "openai", "claude", "grok", "perplexity", "chatgpt"],
+    "global": ["gemini", "openai", "claude", "grok", "perplexity", "deepseek", "chatgpt"],
     "both": ["glm", "doubao", "deepseek", "kimi", "minimax", "nano_ai", "baidu",
              "gemini", "openai", "claude", "grok", "perplexity", "chatgpt"],
 }

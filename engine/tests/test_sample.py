@@ -184,7 +184,7 @@ class TestMarketOf(unittest.TestCase):
         self.assertEqual(S.market_of("deepssek"), "unknown")
 
     def test_known_codes_unchanged(self):
-        self.assertEqual(S.market_of("deepseek"), "cn")
+        self.assertEqual(S.market_of("deepseek"), "global")
         self.assertEqual(S.market_of("perplexity"), "global")
         self.assertEqual(S.market_of("chatgpt"), "global")
 
@@ -394,8 +394,8 @@ class TestRunValidation(unittest.TestCase):
                     {"id": "q001", "market": "global", "text": "Best tool?"},
                 ],
             }), "utf-8")
-            with mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test"}):
-                self.assertEqual(S.run("demo", platforms=["deepseek"]), {})
+            with mock.patch.dict(os.environ, {"ZHIPUAI_API_KEY": "test"}):
+                self.assertEqual(S.run("demo", platforms=["glm"]), {})
             self.assertFalse((pdir / "samples").exists())
 
     def test_run_persists_provider_and_search_evidence(self):

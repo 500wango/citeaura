@@ -13,6 +13,7 @@ const AVAILABLE_ENGINES = [
   { code: 'gemini', name: 'Google', provider: 'Google AI Studio' },
   { code: 'grok', name: 'xAI', provider: 'xAI Console' },
   { code: 'perplexity', name: 'Perplexity', provider: 'Perplexity API' },
+  { code: 'deepseek', name: 'DeepSeek', provider: 'DeepSeek Platform' },
 ];
 
 function escapeHtml(value) {

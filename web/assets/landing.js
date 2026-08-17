@@ -190,7 +190,7 @@ fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', header
      ================================================================ */
   var TYPED_SENTENCES = {
     en: [
-      'Audit citations across ChatGPT, Claude, and Perplexity.',
+      'Audit citations across 6 BYOK engines plus custom endpoints.',
       'Turn AI audits into 13 actionable engineering tickets.',
       'Close knowledge gaps and competitor blind spots.',
       'Review before and after evidence with repeatable verification runs.',
@@ -334,6 +334,7 @@ fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', header
     chatgpt: { width: '72%', badge: 'Example grounded run', value: 'Source links' },
     claude: { width: '64%', badge: 'Example answer replay', value: 'Answer diff' },
     gemini: { width: '58%', badge: 'Example retrieval view', value: 'Crawl notes' },
+    grok: { width: '61%', badge: 'Example search replay', value: 'Search notes' },
     perplexity: { width: '76%', badge: 'Example research replay', value: 'Citation trail' }
   };
 

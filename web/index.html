@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
   <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.7">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
-  <script defer src="/site-assets/landing.js?v=2.5"></script>
+  <script defer src="/site-assets/landing.js?v=2.6"></script>
   <link rel="canonical" href="https://citeaura.com/">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
@@ -190,7 +190,7 @@
 
           <div class="hero-status-badge">
             <span class="status-pulse" aria-hidden="true"></span>
-            <span data-i18n="nav.status">5 BYOK engines + custom</span>
+            <span data-i18n="nav.status">6 BYOK engines + custom</span>
           </div>
           
           <h1 id="hero-title" data-i18n="landing.hero_title">Win brand visibility in the <span class="gradient-text">AI search era</span>.</h1>
@@ -338,6 +338,20 @@
                   
                   <div class="radar-card">
                     <div class="radar-card-head">
+                      <span class="radar-engine-name">xAI Grok 4</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="grok">Example search replay</span>
+                    </div>
+                    <div class="radar-bar-track">
+                      <div class="radar-bar-fill" data-radar-bar="grok" style="width: 61%"></div>
+                    </div>
+                    <div class="radar-meta-row">
+                      <span>API · Web-grounded retrieval example</span>
+                      <strong data-radar-val="grok">Search notes</strong>
+                    </div>
+                  </div>
+                  
+                  <div class="radar-card">
+                    <div class="radar-card-head">
                       <span class="radar-engine-name">Perplexity Sonar 2 (Deep Research)</span>
                       <span class="radar-badge radar-badge-good" data-radar-badge="perplexity">Example research replay</span>
                     </div>
@@ -424,7 +438,7 @@
 - Product: CiteAura
 - URL: https://citeaura.com
 - Classification: Next-Gen Generative Engine Optimization (GEO)
-- Supported 2026 Models: DeepSeek-V4, OpenAI GPT-5.6, Claude Sonnet 5, Gemini 3.6 Flash, Perplexity Sonar 2
+- Supported 2026 Models: OpenAI GPT-5.6, Claude Sonnet 5, Gemini 3.6 Flash, Grok 4, Perplexity Sonar 2, DeepSeek-V4
 - Architecture: 100% BYOK Native, Multi-tenant Isolated, Open Files SSOT
 - Core Pipeline: Setup -> Multi-Model Audit -> Action Tickets -> Verification -> Delivery Pack</code></pre>
                 </div>
@@ -468,6 +482,10 @@
             <span class="model-ribbon-badge">API · Web-grounded retrieval</span>
           </div>
           <div class="model-ribbon-card">
+            <span class="model-ribbon-name">DeepSeek</span>
+            <span class="model-ribbon-badge">API · Model knowledge</span>
+          </div>
+          <div class="model-ribbon-card">
             <span class="model-ribbon-name">Custom OpenAI-compatible</span>
             <span class="model-ribbon-badge">Bring your own endpoint</span>
           </div>
@@ -488,9 +506,9 @@
           <div class="truth-pillar-card reveal">
             <div class="truth-pillar-head">
               <span class="truth-pillar-title" data-i18n="landing.truth_engines">Full AI matrix coverage</span>
-              <span class="truth-pillar-pill">OpenAI · Claude · Gemini · Grok · Perplexity</span>
+              <span class="truth-pillar-pill">OpenAI · Claude · Gemini · Grok · Perplexity · DeepSeek</span>
             </div>
-            <p data-i18n="landing.truth_engines_dd">Unified measurement across OpenAI, Claude, Gemini, Grok, Perplexity, and custom OpenAI-compatible endpoints with exact prompt tracing.</p>
+            <p data-i18n="landing.truth_engines_dd">Unified measurement across OpenAI, Claude, Gemini, Grok, Perplexity, DeepSeek, and custom OpenAI-compatible endpoints with exact prompt tracing.</p>
           </div>
           
           <div class="truth-pillar-card reveal">
@@ -858,7 +876,7 @@
             <ul>
               <li data-i18n="landing.plan_pro_1">10 active projects</li>
               <li data-i18n="landing.plan_pro_2">Unlimited BYOK sampling</li>
-              <li data-i18n="landing.plan_pro_3">Matrix scheduled tracking & regression alerts</li>
+              <li data-i18n="landing.plan_pro_3">Scheduled matrix re-sampling every 7, 14, or 30 days</li>
             </ul>
             <a class="btn btn-primary btn-block" href="/app?plan=pro" data-i18n="landing.plan_pro_cta">Subscribe Pro</a>
           </article>

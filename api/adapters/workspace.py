@@ -746,14 +746,40 @@ def import_sample_sheet(project_slug: str, filename: str, text: str):
         raise ValueError(f"sample sheet contains invalid questions: {detail}")
 
     target = _safe_target(geolib.project_dir(project_slug) / "samples", filename, {".md"})
-    if not target.is_file():
-        raise FileNotFoundError(filename)
     with geolib.project_lock(project_slug):
         _write_text(target, text)
         metrics = sample.sample_import(project_slug, str(target))
         measurement.record_sampling(project_slug, source="manual", requested_platforms=platforms)
     global_scope.normalize_project(project_slug)
     return metrics
+
+
+def import_product_surface(project_slug, platform, items):
+    """Import one product-surface transcript without requiring a raw sheet filename."""
+    import sample
+
+    platform = str(platform or "").strip()
+    if platform not in sample.MANUAL_ONLY:
+        raise ValueError("product_surface_platform_invalid")
+    config = geolib.load_config(project_slug)
+    qmap = {
+        str(question.get("id") or ""): str(question.get("text") or "")
+        for question in config.get("questions") or []
+        if isinstance(question, dict)
+    }
+    lines = [f"## platform: {platform}", ""]
+    for item in items or []:
+        qid = str((item or {}).get("question_id") or "").strip()
+        answer = str((item or {}).get("answer") or "").strip()
+        if qid not in qmap or not answer:
+            raise ValueError("product_surface_item_invalid")
+        lines.append(f"### {qid} · {qmap[qid]}")
+        lines.append("")
+        lines.append("```answer")
+        lines.append(answer)
+        lines.append("```")
+        lines.append("")
+    return import_sample_sheet(project_slug, f"{geolib.today()}-manual.md", "\n".join(lines))
 
 
 def project_files(project_slug: str):

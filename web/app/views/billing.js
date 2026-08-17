@@ -179,7 +179,7 @@ export default {
             <ul>
               <li>${pro?.projects || 10} active projects</li>
               <li>Unlimited BYOK sampling</li>
-              <li>Matrix scheduled tracking & regression alerts</li>
+              <li>Scheduled matrix re-sampling every 7, 14, or 30 days</li>
             </ul>
             <button type="button" class="btn btn-primary btn-block btn-subscribe" data-plan="pro" ${currentPlan === 'pro' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
               ${subscribeLabel('pro', onTrial ? 'Upgrade to Pro' : 'Subscribe Pro')}
