@@ -504,7 +504,7 @@ def _present_page(raw_page, evidence):
                 "NO_JSONLD", "No JSON-LD detected for this content page",
                 "The page has no machine-readable structured data describing its visible content.",
                 "Add only Schema.org types and properties supported by visible content and verified facts.",
-                "P2", "semantics",
+                "P1", "semantics",
             ))
 
         if not rendered_ok:

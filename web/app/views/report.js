@@ -131,7 +131,11 @@ export default {
                           : reviewRequired
                             ? t('report.status_review', {}, 'Review package')
                             : t('report.status_unknown', {}, 'Readiness unavailable');
-                      const downloadLabel = customerReady ? 'Download customer-ready ZIP' : 'Download review ZIP';
+                      const downloadLabel = implementationReady
+                        ? 'Download implementation ZIP'
+                        : customerReady
+                          ? 'Download diagnostic ZIP'
+                          : 'Download review ZIP';
                       const backlogNote = !implementationReady && Array.isArray(d.implementation_backlog) && d.implementation_backlog.length
                         ? `${Number((d.asset_summary || {}).template || 0)} outlines remain implementation backlog`
                         : `${Number((d.asset_summary || {}).ready || 0)} ready · ${Number((d.asset_summary || {}).needs_review || 0)} review · ${Number((d.asset_summary || {}).template || 0)} templates`;
@@ -149,7 +153,7 @@ export default {
                         <td style="text-align:right;">
                           <a href="${dlUrl}" class="btn btn-secondary btn-sm" download title="${reviewRequired ? 'Contains assets that require review before publishing.' : implementationReady ? 'Diagnostic documents and publishable assets passed the current checks.' : customerReady ? 'Diagnostic final pack. Implementation outlines stay classified and do not block sending this ZIP.' : 'Readiness could not be confirmed.'}" aria-label="${downloadLabel}">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            <span>${t(customerReady ? 'report.download_ready_zip' : 'report.download_review_zip', {}, downloadLabel)}</span>
+                            <span>${t(implementationReady ? 'report.download_implementation_zip' : customerReady ? 'report.download_diagnostic_zip' : 'report.download_review_zip', {}, downloadLabel)}</span>
                           </a>
                         </td>
                       </tr>

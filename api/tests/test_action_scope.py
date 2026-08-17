@@ -191,6 +191,41 @@ def test_score_task_withheld_for_low_coverage_has_no_none_copy_or_progress():
     assert "withheld" in result["note_en"]
 
 
+def test_scope_creates_ssr_ticket_for_unscored_empty_shell_pages():
+    audit = _audit()
+    audit["pages"].append({
+        "url": "https://example.com/help",
+        "evaluation_status": "insufficient_evidence",
+        "word_count": 5,
+        "findings": [{"code": "SPA_SHELL", "severity": "P0", "title": "No meaningful server-rendered content detected"}],
+        "checks": [{"id": "rendered_content", "status": "failed"}],
+    })
+    audit["applicable_avg_score"] = None
+    audit["score_coverage"] = 0.63
+    audit["minimum_score_coverage"] = 0.8
+
+    scoped = action_scope.scope_task_data(
+        {"tasks": [_task("T-SCORE", "site.avg_score_gte:70")]},
+        audit,
+        _limited_quality(),
+    )
+    tasks = {task["id"]: task for task in scoped["tasks"]}
+
+    assert tasks["T-AUDIT-RENDERED-CONTENT"]["priority"] == "P0"
+    assert tasks["T-AUDIT-RENDERED-CONTENT"]["affected"] == ["https://example.com/help"]
+    assert any(item.get("id") == "rendered_content" for item in tasks["T-SCORE"]["prerequisites"])
+
+
+def test_scope_uses_role_aware_priority_for_jsonld_tickets():
+    scoped = action_scope.scope_task_data(
+        {"tasks": [_task("T-006", "pages.has_jsonld", ["https://example.com/docs"])]},
+        _audit(),
+        {"confidence": {"sufficient": True}},
+    )
+    task = next(item for item in scoped["tasks"] if item["id"] == "T-006")
+    assert task["priority"] == "P1"
+
+
 def test_scope_adds_baseline_without_metric_targets_and_removes_resolved_site_tasks():
     audit = _audit()
     audit["site"] = {"has_sitemap": True, "has_llms_txt": True, "ai_bots_blocked": []}

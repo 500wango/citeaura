@@ -1682,6 +1682,7 @@ def deliveries(project_id: int, current_user: User = Depends(get_current_user), 
             "readiness": asset_index.get("readiness", "unknown"),
             "pack_kind": asset_index.get("pack_kind") or "unknown",
             "diagnostic_ready": bool(asset_index.get("diagnostic_ready")),
+            "visibility_ready": bool(asset_index.get("visibility_ready")),
             "implementation_ready": bool(asset_index.get("implementation_ready")),
             "implementation_backlog": list(asset_index.get("implementation_backlog") or []),
             "asset_summary": asset_index.get("summary") or {"ready": 0, "needs_review": 0, "template": 0},
@@ -1721,7 +1722,12 @@ def download_delivery(
                 served_last_known_good = True
         asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
         readiness = "last_known_good" if served_last_known_good else str(asset_index.get("readiness") or "unknown")
-        package_kind = "customer-ready" if readiness == "customer_ready" else "review"
+        if asset_index.get("implementation_ready"):
+            package_kind = "implementation-ready"
+        elif readiness == "customer_ready" or asset_index.get("diagnostic_ready"):
+            package_kind = "diagnostic-ready"
+        else:
+            package_kind = "review"
         source_revision = str(asset_index.get("source_revision") or "unknown")
         archive = tempfile.TemporaryFile(prefix="citeaura-delivery-", suffix=".zip")
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:

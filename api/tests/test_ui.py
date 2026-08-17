@@ -197,7 +197,7 @@ def test_frontend_contracts_match_backend_request_models():
     assert "official-site crawl" in facts
     assert "derived asset(s) cannot be published" in assets
     assert "derived_from_unreviewed_brand_facts" not in assets
-    assert "Download customer-ready ZIP" in report
+    assert "Download diagnostic ZIP" in report
     assert "Download review ZIP" in report
     assert "Diagnostic pack ready" in report
     assert "Implementation pack ready" in report

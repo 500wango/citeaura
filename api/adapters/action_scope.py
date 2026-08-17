@@ -159,8 +159,11 @@ def _page_check(check):
 
 def _page_rows(audit, check_id):
     rows = []
+    allowed = {"evaluated"}
+    if check_id == "rendered_content":
+        allowed.add("insufficient_evidence")
     for page in audit.get("pages") or []:
-        if not isinstance(page, dict) or page.get("evaluation_status") != "evaluated":
+        if not isinstance(page, dict) or page.get("evaluation_status") not in allowed:
             continue
         check = next((item for item in page.get("checks") or [] if item.get("id") == check_id), None)
         if check and check.get("status") in ("passed", "failed"):
@@ -230,7 +233,7 @@ def _scope_page_task(task, audit, check_id):
         "action_en": action,
         "package": "Page technology" if package in ("crawlability", "semantics") else "Content matrix",
         "package_en": "Page technology" if package in ("crawlability", "semantics") else "Content matrix",
-        "priority": min(str(task.get("priority") or priority), priority),
+        "priority": priority,
         "market": "global",
         "affected": affected,
         "verification_cohort": cohort,
@@ -409,12 +412,13 @@ def scope_task_data(data, audit, sampling_quality=None, facts_approved=None):
                 minimum_coverage = float(audit.get("minimum_score_coverage") or 0.8)
                 coverage = audit.get("score_coverage")
                 coverage_label = "not measurable" if coverage is None else f"{float(coverage):.0%}"
+                empty_shells, _total = _failed_pages(audit, "rendered_content")
                 why = (
                     f"The applicable site score is withheld because scoring coverage is {coverage_label}; "
                     f"at least {minimum_coverage:.0%} is required before comparing it with the {target:g} target."
                 )
                 action = (
-                    "First obtain enough crawl evidence to evaluate the eligible public pages. Then resolve the "
+                    "First server-render empty-shell public pages so they can be scored. Then resolve the "
                     "failed role-aware checks; do not apply content, schema, or extraction requirements to "
                     "excluded utility pages or roles where they are not applicable."
                 )
@@ -424,6 +428,12 @@ def scope_task_data(data, audit, sampling_quality=None, facts_approved=None):
                     "label": f"Role-aware scoring coverage reaches at least {minimum_coverage:.0%}",
                     "status": "pending",
                 })
+                if empty_shells:
+                    prerequisites.append({
+                        "id": "rendered_content",
+                        "label": "Server-render empty-shell public pages so they can be scored",
+                        "status": "pending",
+                    })
             else:
                 why = f"The role-aware applicable score is {score}; the target is {target:g}."
                 action = (

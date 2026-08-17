@@ -974,6 +974,7 @@ def test_classify_pack_readiness_keeps_implementation_gate_strict():
     )
     assert diagnostic["readiness"] == "customer_ready"
     assert diagnostic["pack_kind"] == "diagnostic"
+    assert diagnostic["visibility_ready"] is False
     assert diagnostic["implementation_ready"] is False
     assert diagnostic["readiness_issues"] == []
     assert len(diagnostic["implementation_backlog"]) >= 4
@@ -996,5 +997,68 @@ def test_classify_pack_readiness_keeps_implementation_gate_strict():
     )
     assert implementation["readiness"] == "customer_ready"
     assert implementation["pack_kind"] == "implementation"
+    assert implementation["visibility_ready"] is True
     assert implementation["implementation_ready"] is True
     assert implementation["implementation_backlog"] == []
+
+
+def test_diagnosis_uses_word_count_ranges_and_hides_internal_provider_codes(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    audit = json.loads((project / "audit.json").read_text("utf-8"))
+    audit["pages"] = [
+        {
+            "url": "https://example.com/en/help", "title": "Help", "word_count": 3,
+            "issue_codes": ["SPA_SHELL"],
+        },
+        {
+            "url": "https://example.com/fil/help", "title": "Help", "word_count": 7,
+            "issue_codes": ["SPA_SHELL"],
+        },
+        {
+            "url": "https://example.com/en/starrycard", "title": "Card", "word_count": 63,
+            "issue_codes": ["SHORT_CONTENT", "NO_DEFINITION"],
+        },
+        {
+            "url": "https://example.com/fil/starrycard", "title": "Card", "word_count": 88,
+            "issue_codes": ["SHORT_CONTENT", "NO_DEFINITION"],
+        },
+    ]
+    audit["page_count"] = 4
+    _write_json(project / "audit.json", audit)
+    _write_jsonl(project / "evidence" / "pages.jsonl", [
+        {"url": page["url"], "status": 200, "title": page["title"], "text": "x " * page["word_count"],
+         "word_count": page["word_count"], "h1": [], "h2": [], "para_count": 0, "jsonld_types": []}
+        for page in audit["pages"]
+    ])
+    metrics = json.loads((project / "metrics" / "2026-07-31.json").read_text("utf-8"))
+    metrics["platforms"] = {
+        "custom_2cbbade680b8": {"label": "custom_2cbbade680b8", "samples": 12, "mention_rate": 0, "top3_rate": 0, "own_domain_cite_rate": 0},
+    }
+    _write_json(project / "metrics" / "2026-07-31.json", metrics)
+    config = json.loads((project / "geo.json").read_text("utf-8"))
+    config["provider_labels"] = {"custom_2cbbade680b8": "Starryblu OpenAI Proxy"}
+    _write_json(project / "geo.json", config)
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    report = (output / "01-Audit-Report.md").read_text("utf-8")
+    index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    tickets = (output / "03-Ticket-Log.md").read_text("utf-8")
+    assert "3-7 words across 2 pages" in report
+    assert "63-88 words across 2 pages" in report
+    assert "The crawler found 5 words" not in report
+    assert "custom_2cbbade680b8" not in report
+    assert delivery._platform_display_name(
+        "custom_2cbbade680b8",
+        {"label": "custom_2cbbade680b8"},
+        {"provider_labels": {"custom_2cbbade680b8": "Starryblu OpenAI Proxy"}},
+    ) == "Starryblu OpenAI Proxy"
+    assert delivery._platform_display_name("custom_2cbbade680b8", {"label": "custom_2cbbade680b8"}, {}) == (
+        "Configured OpenAI-compatible provider"
+    )
+    assert "not scored" in report
+    assert index["visibility_ready"] is False
+    assert any(item.get("deploy_path") == "/llms.txt" for item in index["assets"] if "llms" in item["path"])
+    assert "Render meaningful HTML on applicable public pages" in tickets
+    assert "publish as `/llms.txt`" in (output / "index.md").read_text("utf-8")

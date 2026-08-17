@@ -376,6 +376,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
         "readiness": "unknown",
         "pack_kind": "unknown",
         "diagnostic_ready": False,
+        "visibility_ready": False,
         "implementation_ready": False,
         "implementation_backlog": [],
         "asset_summary": {"ready": 0, "needs_review": 0, "template": 0},

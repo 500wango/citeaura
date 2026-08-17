@@ -547,6 +547,19 @@ def _identity(project_directory, project_slug, config, audit):
     return name, _safe_display(site, host)
 
 
+def _platform_display_name(code, item, config=None):
+    item = item if isinstance(item, dict) else {}
+    config = config if isinstance(config, dict) else {}
+    labels = config.get("provider_labels") if isinstance(config.get("provider_labels"), dict) else {}
+    for candidate in (item.get("label"), item.get("name"), labels.get(code)):
+        text = str(candidate or "").strip()
+        if text and not str(text).startswith("custom_"):
+            return _safe_display(text, "Configured provider")
+    if str(code or "").startswith("custom_"):
+        return "Configured OpenAI-compatible provider"
+    return _safe_display(code, "Configured provider")
+
+
 def _sample_modes(project_directory, metrics):
     date = str((metrics or {}).get("run_id") or (metrics or {}).get("date") or "")
     config = geolib.read_json(project_directory / "geo.json", {}) or {}
@@ -600,7 +613,7 @@ def _diagnosis_groups(audit):
             continue
         for finding in page.get("findings") or []:
             if isinstance(finding, dict):
-                _record_diagnosis_finding(groups, finding, url)
+                _record_diagnosis_finding(groups, finding, url, page=page)
     ordered = []
     for category in DIAGNOSIS_CATEGORY_ORDER:
         items = groups.get(category) or []
@@ -622,7 +635,7 @@ def _diagnosis_groups(audit):
     return ordered
 
 
-def _record_diagnosis_finding(groups, finding, location):
+def _record_diagnosis_finding(groups, finding, location, page=None):
     title = _safe_display(finding.get("title") or finding.get("code"), "Review required")
     if not title:
         return
@@ -636,12 +649,31 @@ def _record_diagnosis_finding(groups, finding, location):
             "why": _safe_display(finding.get("detail"), "This check failed on the current crawl."),
             "change": _safe_display(finding.get("recommendation"), "Fix the failed check on the affected pages."),
             "locations": [],
+            "word_counts": [],
             "count": 0,
         }
         bucket.append(match)
     if location not in match["locations"]:
         match["locations"].append(location)
         match["count"] += 1
+        if isinstance(page, dict) and page.get("word_count") is not None:
+            try:
+                match["word_counts"].append(int(page.get("word_count")))
+            except (TypeError, ValueError):
+                pass
+        _refresh_diagnosis_why(match)
+
+
+def _refresh_diagnosis_why(item):
+    counts = [value for value in item.get("word_counts") or [] if isinstance(value, int)]
+    if len(counts) < 2:
+        return
+    low, high = min(counts), max(counts)
+    if low == high:
+        words = f"{low} words on each of {len(counts)} pages"
+    else:
+        words = f"{low}-{high} words across {len(counts)} pages"
+    item["why"] = f"The crawl found {words}."
 
 
 def _diagnosis_markdown(audit):
@@ -667,11 +699,7 @@ def _diagnosis_markdown(audit):
                 f"  - Change this: {item['change']}",
             ]
             if item["locations"] != ["Site-wide"]:
-                shown = item["locations"][:8]
-                extra = item["count"] - len(shown)
-                pages = ", ".join(f"`{url}`" for url in shown)
-                if extra > 0:
-                    pages = f"{pages}, and {extra} more"
+                pages = ", ".join(f"`{url}`" for url in item["locations"])
                 lines.append(f"  - Pages: {pages}")
             lines.append("")
     return lines
@@ -694,7 +722,8 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
         f"- Official website: {site}",
         f"- Audit date: {audited_at}",
         f"- Pages reviewed: {audit.get('page_count', 0)} "
-        f"({evaluated_pages} scored, {audit.get('excluded_page_count', 0)} excluded)",
+        f"({evaluated_pages} scored, {audit.get('not_scored_page_count', 0)} not scored, "
+        f"{audit.get('excluded_page_count', 0)} excluded)",
         "",
         "This report tells you which website content currently hurts AI access, extraction, and mention, and what to change.",
         "",
@@ -808,9 +837,10 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
             "| Platform | Market | Sampling Mode | Samples | Mention Rate | Top 3 Rate | Official Domain Cited |",
             "|---|---|---|---:|---:|---:|---:|",
         ]
+        provider_config = geolib.read_json(project_directory / "geo.json", {}) or {}
         for code, item in platforms.items():
-            code = _require_english(code, "sampling platform code")
-            label = _safe_display(item.get("label"), code)
+            code = str(code or "")
+            label = _platform_display_name(code, item, provider_config)
             lines.append(
                 f"| {_markdown_cell(label)} | Global "
                 f"| {modes.get(code, 'API - Parametric knowledge')} | {item.get('samples', 0)} "
@@ -2137,12 +2167,15 @@ def _asset_record(destination, delivery_path, *, facts_review_pending=False):
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(path, target)
         relative = target.relative_to(destination)
-    return {
+    record = {
         "path": relative.as_posix(),
         "status": status,
         "type": relative.suffix.lower().lstrip(".") or "file",
         "issues": list(dict.fromkeys(issues)),
     }
+    if relative.name in {"llms.en.txt", "llms.txt"} or relative.as_posix().endswith("/llms.en.txt"):
+        record["deploy_path"] = "/llms.txt"
+    return record
 
 
 def _classify_pack_readiness(audit, summary, sampling, facts_review):
@@ -2189,11 +2222,19 @@ def _classify_pack_readiness(audit, summary, sampling, facts_review):
         diagnostic_blockers.append("Audit has no crawled pages")
 
     implementation_ready = not implementation_backlog and int(summary.get("ready") or 0) > 0
+    visibility_ready = bool(confidence.get("sufficient"))
     diagnostic_ready = not diagnostic_blockers
+    if implementation_ready:
+        pack_kind = "implementation"
+    elif diagnostic_ready:
+        pack_kind = "diagnostic"
+    else:
+        pack_kind = "review"
     return {
-        "pack_kind": "implementation" if implementation_ready else "diagnostic",
+        "pack_kind": pack_kind,
         "readiness": "customer_ready" if diagnostic_ready else "review_required",
         "diagnostic_ready": diagnostic_ready,
+        "visibility_ready": visibility_ready,
         "implementation_ready": implementation_ready,
         "readiness_issues": diagnostic_blockers,
         "implementation_backlog": implementation_backlog,
@@ -2256,6 +2297,7 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
         "pack_kind": classification["pack_kind"],
         "readiness": classification["readiness"],
         "diagnostic_ready": classification["diagnostic_ready"],
+        "visibility_ready": classification["visibility_ready"],
         "implementation_ready": classification["implementation_ready"],
         "readiness_issues": classification["readiness_issues"],
         "implementation_backlog": classification["implementation_backlog"],
@@ -2362,6 +2404,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     pack_kind = asset_index.get("pack_kind") or "diagnostic"
     diagnostic_ready = bool(asset_index.get("diagnostic_ready"))
     implementation_ready = bool(asset_index.get("implementation_ready"))
+    visibility_ready = bool(asset_index.get("visibility_ready"))
     if implementation_ready:
         pack_status = "Implementation pack ready"
         pack_purpose = (
@@ -2385,6 +2428,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         "",
         f"- Pack type: {pack_kind}",
         f"- Pack status: {pack_status}",
+        f"- Visibility ready: {'yes' if visibility_ready else 'no'}",
         f"- Official website: {site}",
         f"- Delivery date: {delivery_date}",
         f"- Source revision: {source_revision}",
@@ -2435,7 +2479,9 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         lines += [f"### {heading}", ""]
         matching = [item for item in assets if item.get("status") == status]
         lines += [
-            f"- `assets/{item['path']}`" + (f" - {'; '.join(item['issues'])}" if item.get("issues") else "")
+            f"- `assets/{item['path']}`"
+            + (f" → publish as `{item['deploy_path']}`" if item.get("deploy_path") else "")
+            + (f" - {'; '.join(item['issues'])}" if item.get("issues") else "")
             for item in matching
         ] or ["- None"]
         lines.append("")
@@ -2487,6 +2533,7 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         "- `05-Draft-Risks`: publication risks for implementation assets, not diagnostic defects.",
         "- `06-Build-Map`: channel and target-query content architecture.",
         "- `assets/`: classified as ready, needs review, or template in `assets/index.json`.",
+        "- `assets/llms.en.txt`: English facts index to publish at `/llms.txt`.",
         "",
         "Templates and review-only drafts stay in the pack as the next implementation backlog. "
         "They do not block sending this diagnostic pack. Do not publish them until every claim is verified.",
