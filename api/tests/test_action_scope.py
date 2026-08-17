@@ -214,6 +214,15 @@ def test_scope_creates_ssr_ticket_for_unscored_empty_shell_pages():
     assert tasks["T-AUDIT-RENDERED-CONTENT"]["priority"] == "P0"
     assert tasks["T-AUDIT-RENDERED-CONTENT"]["affected"] == ["https://example.com/help"]
     assert any(item.get("id") == "rendered_content" for item in tasks["T-SCORE"]["prerequisites"])
+    verification = action_scope.scope_verification({}, scoped, audit, _limited_quality())
+    rendered = next(item for item in verification["results"] if item["id"] == "T-AUDIT-RENDERED-CONTENT")
+    assert rendered["verdict"] == "fail"
+    assert rendered["progress"]["cur"] == 1
+    assert rendered["progress"]["target"] == 0
+
+    again = action_scope.scope_task_data(scoped, audit, _limited_quality())
+    score = next(item for item in again["tasks"] if item["id"] == "T-SCORE")
+    assert [item["id"] for item in score["prerequisites"]] == ["score_coverage", "rendered_content"]
 
 
 def test_scope_uses_role_aware_priority_for_jsonld_tickets():
@@ -224,6 +233,30 @@ def test_scope_uses_role_aware_priority_for_jsonld_tickets():
     )
     task = next(item for item in scoped["tasks"] if item["id"] == "T-006")
     assert task["priority"] == "P1"
+
+
+def test_scope_keeps_site_blockers_ahead_of_facts_library_and_sampling():
+    facts = _task("T-002", "manual.facts")
+    facts.update({
+        "priority": "P0",
+        "title": "Build a sourced brand facts library",
+        "action": "Populate content/facts.md with entities and evidence grades",
+    })
+    definition = _task("T-001", "manual.definition")
+    definition.update({
+        "priority": "P0",
+        "title": "Standardize one-sentence brand definition across four surfaces",
+        "action": "Synchronize the definition across homepage, about, JSON-LD, and /llms.txt",
+    })
+    scoped = action_scope.scope_task_data(
+        {"tasks": [facts, definition]},
+        _audit(),
+        _limited_quality(),
+    )
+    tasks = {task["id"]: task for task in scoped["tasks"]}
+    assert tasks["T-002"]["priority"] == "P2"
+    assert tasks["T-001"]["priority"] == "P1"
+    assert tasks["T-MEASUREMENT-BASELINE"]["priority"] == "P1"
 
 
 def test_scope_adds_baseline_without_metric_targets_and_removes_resolved_site_tasks():

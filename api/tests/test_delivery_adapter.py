@@ -1048,6 +1048,8 @@ def test_diagnosis_uses_word_count_ranges_and_hides_internal_provider_codes(tmp_
     assert "3-7 words across 2 pages" in report
     assert "63-88 words across 2 pages" in report
     assert "The crawler found 5 words" not in report
+    assert "The expected definition block was not detected" in report
+    assert report.split("Missing a clear definition", 1)[1].split("Change this:", 1)[0].count("The crawl found") == 0
     assert "custom_2cbbade680b8" not in report
     assert delivery._platform_display_name(
         "custom_2cbbade680b8",
@@ -1057,8 +1059,20 @@ def test_diagnosis_uses_word_count_ranges_and_hides_internal_provider_codes(tmp_
     assert delivery._platform_display_name("custom_2cbbade680b8", {"label": "custom_2cbbade680b8"}, {}) == (
         "Configured OpenAI-compatible provider"
     )
+    assert delivery._platform_display_name("custom", {"label": "custom"}, {}) == (
+        "Configured OpenAI-compatible provider"
+    )
+    assert delivery._platform_display_name(
+        "custom",
+        {"label": "custom"},
+        {"provider_labels": {"custom_2cbbade680b8": "Starryblu OpenAI Proxy"}},
+    ) == "Starryblu OpenAI Proxy"
     assert "not scored" in report
     assert index["visibility_ready"] is False
     assert any(item.get("deploy_path") == "/llms.txt" for item in index["assets"] if "llms" in item["path"])
     assert "Render meaningful HTML on applicable public pages" in tickets
     assert "publish as `/llms.txt`" in (output / "index.md").read_text("utf-8")
+    acceptance = (output / "04-Acceptance-Checklist.md").read_text("utf-8")
+    rendered_line = next(row for row in acceptance.splitlines() if "| T-AUDIT-RENDERED-CONTENT |" in row or "| T-005 |" in row)
+    assert "Current value: 0" not in rendered_line
+    assert "Unmet" in rendered_line or "Current value: 2" in rendered_line

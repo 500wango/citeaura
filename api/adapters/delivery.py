@@ -490,12 +490,17 @@ def _ticket_en(ticket):
     package = localized.get("package_en") or localized.get("category_en") or ticket.get("package") or "General"
     owner = localized.get("owner_en") or localized.get("role_en") or ticket.get("owner") or "Unassigned"
     prerequisites = []
+    seen_prereqs = set()
     for item in ticket.get("prerequisites") or []:
         if not isinstance(item, dict):
             continue
         label = _require_english(item.get("label") or item.get("id") or "Required evidence", f"{ticket_id} prerequisite")
         status = "Met" if item.get("status") == "met" else "Pending"
-        prerequisites.append({"label": label, "status": status})
+        key = str(item.get("id") or label)
+        if key in seen_prereqs:
+            continue
+        seen_prereqs.add(key)
+        prerequisites.append({"id": key, "label": label, "status": status})
     return {
         "id": ticket_id,
         "priority": _require_english(ticket.get("priority") or "P2", f"{ticket_id} priority"),
@@ -547,15 +552,27 @@ def _identity(project_directory, project_slug, config, audit):
     return name, _safe_display(site, host)
 
 
+def _internal_provider_code(value):
+    text = str(value or "").strip()
+    return text == "custom" or text.startswith("custom_")
+
+
 def _platform_display_name(code, item, config=None):
     item = item if isinstance(item, dict) else {}
     config = config if isinstance(config, dict) else {}
     labels = config.get("provider_labels") if isinstance(config.get("provider_labels"), dict) else {}
     for candidate in (item.get("label"), item.get("name"), labels.get(code)):
         text = str(candidate or "").strip()
-        if text and not str(text).startswith("custom_"):
-            return _safe_display(text, "Configured provider")
-    if str(code or "").startswith("custom_"):
+        if text and not _internal_provider_code(text):
+            return _safe_display(text, "Configured OpenAI-compatible provider")
+    if _internal_provider_code(code) or _internal_provider_code(item.get("label")):
+        named = [
+            str(value).strip()
+            for value in labels.values()
+            if str(value or "").strip() and not _internal_provider_code(value)
+        ]
+        if len(named) == 1:
+            return _safe_display(named[0], "Configured OpenAI-compatible provider")
         return "Configured OpenAI-compatible provider"
     return _safe_display(code, "Configured provider")
 
@@ -644,6 +661,7 @@ def _record_diagnosis_finding(groups, finding, location, page=None):
     match = next((item for item in bucket if item["title"] == title), None)
     if match is None:
         match = {
+            "code": str(finding.get("code") or ""),
             "title": title,
             "severity": str(finding.get("severity") or "P1"),
             "why": _safe_display(finding.get("detail"), "This check failed on the current crawl."),
@@ -664,7 +682,12 @@ def _record_diagnosis_finding(groups, finding, location, page=None):
         _refresh_diagnosis_why(match)
 
 
+WORD_COUNT_WHY_CODES = {"SPA_SHELL", "SHORT_CONTENT"}
+
+
 def _refresh_diagnosis_why(item):
+    if str(item.get("code") or "") not in WORD_COUNT_WHY_CODES:
+        return
     counts = [value for value in item.get("word_counts") or [] if isinstance(value, int)]
     if len(counts) < 2:
         return
@@ -2374,6 +2397,22 @@ def validate_delivery_quality(directory, audit, tickets, asset_index):
             if not pending or "approved" not in ticket.get("acceptance", "").casefold():
                 issues.append(f"{ticket.get('id')} does not block llms.txt deployment on factual approval")
 
+    for ticket in tickets:
+        ids = [item.get("id") or item.get("label") for item in ticket.get("prerequisites") or []]
+        if len(ids) != len(set(ids)):
+            issues.append(f"{ticket.get('id')} has duplicate prerequisites")
+
+    checklist = directory / "04-Acceptance-Checklist.md"
+    checklist_text = checklist.read_text("utf-8") if checklist.is_file() else ""
+    for ticket in tickets:
+        if ticket.get("acceptance_check") not in {"pages.applicable:rendered_content", "pages.static_text"}:
+            continue
+        if not ticket.get("affected"):
+            continue
+        line = next((row for row in checklist_text.splitlines() if f"| {ticket.get('id')} |" in row), "")
+        if "Current value: 0" in line:
+            issues.append(f"{ticket.get('id')} acceptance count ignores empty-shell failures")
+
     for path in directory.rglob("brand-facts.md"):
         text = path.read_text("utf-8")
         if brand_facts.normalize_price_rows(text) != text:
@@ -2385,7 +2424,7 @@ def validate_delivery_quality(directory, audit, tickets, asset_index):
         "status": "passed",
         "checks": [
             "document_contract", "audit_coverage", "asset_manifest", "risk_propagation",
-            "fact_approval_dependency", "price_normalization",
+            "fact_approval_dependency", "price_normalization", "ticket_acceptance_consistency",
         ],
     }
 

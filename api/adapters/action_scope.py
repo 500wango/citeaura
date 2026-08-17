@@ -176,6 +176,30 @@ def _failed_pages(audit, check_id):
     return [str(page.get("url") or "") for page, check in rows if check.get("status") == "failed"], len(rows)
 
 
+def _customer_facing_priority(task):
+    """站点访问/内容问题优先；事实库和采样基线不占 P0。"""
+    blob = " ".join(str(task.get(key) or "") for key in ("id", "title", "title_en", "action", "action_en")).casefold()
+    check = _check(task)
+    if "facts.md" in blob or "brand facts library" in blob:
+        return "P2"
+    if "four surfaces" in blob:
+        return "P1"
+    if check == "metrics.representative_baseline" or "representative ai visibility" in blob:
+        return "P1"
+    return None
+
+
+def _dedupe_prerequisites(items):
+    unique = {}
+    leftover = []
+    for item in items or []:
+        if isinstance(item, dict) and item.get("id"):
+            unique[item["id"]] = item
+        elif item:
+            leftover.append(item)
+    return leftover + list(unique.values())
+
+
 def _task_summary(tasks):
     packages = list(dict.fromkeys(task.get("package") for task in tasks if task.get("package")))
     return {
@@ -406,7 +430,7 @@ def scope_task_data(data, audit, sampling_quality=None, facts_approved=None):
             existing_prerequisites = task.get("prerequisites")
             prerequisites = [
                 item for item in (existing_prerequisites if isinstance(existing_prerequisites, list) else [])
-                if not isinstance(item, dict) or item.get("id") != "score_coverage"
+                if not isinstance(item, dict) or item.get("id") not in {"score_coverage", "rendered_content"}
             ]
             if score is None:
                 minimum_coverage = float(audit.get("minimum_score_coverage") or 0.8)
@@ -462,7 +486,7 @@ def scope_task_data(data, audit, sampling_quality=None, facts_approved=None):
                 "action": action,
                 "action_en": action,
                 "affected": affected,
-                "prerequisites": prerequisites,
+                "prerequisites": _dedupe_prerequisites(prerequisites),
                 "acceptance": {
                     **(task.get("acceptance") if isinstance(task.get("acceptance"), dict) else {}),
                     "type": "auto",
@@ -535,6 +559,11 @@ def scope_task_data(data, audit, sampling_quality=None, facts_approved=None):
         task_id = str(task.get("id") or "")
         if task_id and task_id not in seen_ids:
             seen_ids.add(task_id)
+            if task.get("prerequisites"):
+                task["prerequisites"] = _dedupe_prerequisites(task.get("prerequisites"))
+            override = _customer_facing_priority(task)
+            if override:
+                task["priority"] = override
             deduplicated.append(task)
     return {
         **current,
@@ -578,18 +607,20 @@ def scope_verification(verification, task_data, audit, sampling_quality=None, fa
             cohort = list(task.get("verification_cohort") or task.get("affected") or [])
             pages = {str(page.get("url") or ""): page for page in audit.get("pages") or []
                      if isinstance(page, dict)}
-            missing = [url for url in cohort if url not in pages]
+            missing = []
             failed = []
             for url in cohort:
                 page = pages.get(url)
-                if not page or page.get("evaluation_status") != "evaluated":
+                if not page:
                     missing.append(url)
                     continue
                 check_row = next((item for item in page.get("checks") or [] if item.get("id") == page_check), None)
-                if not check_row or check_row.get("status") == "not_evaluated":
-                    missing.append(url)
-                elif check_row.get("status") == "failed":
+                if check_row and check_row.get("status") == "failed":
                     failed.append(url)
+                elif check_row and check_row.get("status") == "passed":
+                    continue
+                else:
+                    missing.append(url)
             missing = list(dict.fromkeys(missing))
             verdict = "manual" if missing else "fail" if failed else "pass"
             note = (f"{len(missing)} baseline URL(s) were not evaluated in the current crawl; pass is withheld."
