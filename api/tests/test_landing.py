@@ -25,8 +25,8 @@ def test_landing_page_is_public_and_links_to_application():
     assert "$199" in response.text
     assert "$79" in response.text
     assert 'data-i18n="landing.pricing_note"' in response.text
-    assert "regression alerts" not in response.text
-    assert "Scheduled matrix re-sampling" in response.text
+    assert "Scheduled re-sampling and email alerts on mention-rate drops" in response.text
+    assert "One-click sendable white-label client pack" in response.text
     assert "6 BYOK engines + custom" in response.text
     assert "5 BYOK engines + custom" not in response.text
     assert "model-ribbon-name\">DeepSeek</span>" in response.text
@@ -89,7 +89,8 @@ def test_i18n_catalogs_are_public():
     assert response.status_code == 200
     data = response.json()
     assert data["nav.cta"] == "Start free trial"
-    assert data["landing.plan_pro_3"] == "Scheduled matrix re-sampling every 7, 14, or 30 days"
+    assert data["landing.plan_pro_3"] == "Scheduled re-sampling and email alerts on mention-rate drops"
+    assert data["landing.plan_agency_2"] == "One-click sendable white-label client pack"
     assert data["nav.status"] == "6 BYOK engines + custom"
     assert "DeepSeek" in data["landing.truth_engines_dd"]
     assert "landing.title" in data

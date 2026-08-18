@@ -28,12 +28,13 @@ from api.adapters.engine import (
     with_tenant_context,
 )
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import audit_presentation, brand_identity, delivery, framing, global_scope, preflight, report_quality, sampling_control, sampling_modes, ticket_workflow, workspace
+from api.adapters import audit_presentation, brand_identity, delivery, delivery_share, framing, global_scope, preflight, report_quality, sampling_control, sampling_modes, ticket_workflow, workspace
 from api.adapters.network import NetworkTargetError, validate_outbound_url
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.db import get_db
+from api import config
 from api.models import Job, Project, Tenant, User
 from api.product_events import record_product_event
 from api.worker.tasks import (
@@ -137,6 +138,7 @@ class PipelineActionRequest(BaseModel):
 
 class ScheduleRequest(BaseModel):
     interval_days: int = 0
+    alert_on_regression: bool | None = None
 
     @field_validator("interval_days")
     @classmethod
@@ -144,6 +146,10 @@ class ScheduleRequest(BaseModel):
         if value not in (0, 7, 14, 30):
             raise ValueError("interval_days must be 0, 7, 14, or 30")
         return value
+
+
+class DeliverySendRequest(BaseModel):
+    recipient_email: str | None = None
 
 
 class SamplingFundingRequest(BaseModel):
@@ -562,6 +568,8 @@ def _schedule_payload(project: Project):
         "interval_days": project.schedule_interval_days or 0,
         "next_run_at": project.schedule_next_run_at,
         "last_enqueued_at": project.schedule_last_enqueued_at,
+        "alert_on_regression": bool(project.alert_on_regression),
+        "alert_email_ready": config.auth_smtp_configured(),
     }
 
 
@@ -639,6 +647,16 @@ def _sampling_funding_payload(db, tenant, project, user):
 
 def _has_api_keys(db, tenant_id):
     return bool(load_tenant_keys(db, tenant_id))
+
+
+def _enable_platform_pool_if_available(tenant, project):
+    """Paid workspaces can run the first matrix from the platform pool without filling every BYOK key."""
+    if project.platform_pool_enabled:
+        return True
+    if tenant.plan in PAID_PLANS and public_catalog():
+        project.platform_pool_enabled = True
+        return True
+    return False
 
 
 def _has_sampling_access(db, tenant, project):
@@ -726,12 +744,19 @@ def project_preflight(
     custom_providers = load_custom_providers(db, tenant.id)
     custom_codes = {provider["code"] for provider in custom_providers}
     available = set(sample.PROVIDERS) - global_scope.DOMESTIC_PLATFORM_CODES
-    requested = list(dict.fromkeys(payload.platforms or sorted(available | custom_codes)))
+    byok = set(load_tenant_keys(db, tenant.id))
+    catalog = public_catalog() if tenant.plan in PAID_PLANS else []
+    pool_codes = {item["engine_code"] for item in catalog}
+    funding = {"keys": {code: True for code in byok}, "pool_codes": pool_codes}
+    requested = list(dict.fromkeys(payload.platforms or sampling_control.default_sample_platforms(
+        funding, custom_providers, sorted(available | custom_codes),
+    )))
     invalid = sorted(set(requested) - available - custom_codes)
     if invalid:
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "unsupported_api_platform")
-    byok = set(load_tenant_keys(db, tenant.id))
-    effective = [code for code in requested if code in byok]
+    effective = [code for code in requested if code in byok or code in pool_codes]
+    pool_only = [code for code in effective if code in pool_codes and code not in byok]
+    prices = {item["engine_code"]: item["unit_price_cny_fen"] for item in catalog}
     quick_questions = min(5, payload.question_count)
     full_questions = payload.question_count
     quick_calls = quick_questions * len(effective)
@@ -740,6 +765,7 @@ def project_preflight(
     return {
         "site": site,
         "byok_engines": sorted(byok),
+        "pool_engines": sorted(pool_codes),
         "manual_only": [
             {"engine_code": code, "name": name, "sampling_mode": sampling_modes.MODE_MANUAL, "market": market}
             for code, (name, market) in sorted(sample.MANUAL_ONLY.items())
@@ -747,17 +773,15 @@ def project_preflight(
         ],
         "requested_platforms": requested,
         "effective_platforms": effective,
-        "can_sample": bool(site["ready"] and (
-            effective or (tenant.plan in PAID_PLANS and public_catalog())
-        )),
+        "can_sample": bool(site["ready"] and effective),
         "estimate": {
             "quick": {"questions": quick_questions, "platforms": len(effective), "calls": quick_calls,
                       "minutes": max(1, round(quick_calls * 0.4)) if quick_calls else 0},
             "full": {"questions": full_questions, "platforms": len(effective), "calls": full_calls,
                      "minutes": max(1, round(full_calls * 0.4)) if full_calls else 0},
             "repeat": 1,
-            "platform_pool_cost_cny_fen": None,
-            "cost_note": "BYOK costs are billed directly by API providers; current preflight does not estimate provider invoices.",
+            "platform_pool_cost_cny_fen": sum(full_questions * prices[code] for code in pool_only if code in prices),
+            "cost_note": "BYOK costs are billed directly by API providers. Platform-pool engines are billed by CiteAura at the listed unit price.",
         },
     }
 
@@ -800,6 +824,8 @@ def create_project(
         )
         db.add(project)
     db.flush()
+    if not payload.no_sample:
+        _enable_platform_pool_if_available(tenant, project)
     has_sampling_access = _has_sampling_access(db, tenant, project)
     skip_llm = payload.skip_llm or not has_sampling_access
     no_sample = payload.no_sample or not has_sampling_access
@@ -1111,6 +1137,8 @@ def update_project_schedule(
         if project.schedule_interval_days != payload.interval_days or project.schedule_next_run_at is None:
             project.schedule_next_run_at = datetime.now(timezone.utc) + timedelta(days=payload.interval_days)
         project.schedule_interval_days = payload.interval_days
+    if payload.alert_on_regression is not None:
+        project.alert_on_regression = bool(payload.alert_on_regression)
     db.commit()
     db.refresh(project)
     return {"schedule": _schedule_payload(project)}
@@ -1231,6 +1259,7 @@ def sample_project(
     """投递一次 API 采样任务。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
+    _enable_platform_pool_if_available(tenant, project)
     check_sample_run(db, tenant, project)
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
@@ -1727,6 +1756,10 @@ def deliveries(project_id: int, current_user: User = Depends(get_current_user), 
         if directory.exists() else []
     for item in directories:
         asset_index = geolib.read_json(item / "assets" / "index.json", {}) or {}
+        sendable = bool(
+            tenant.plan in delivery_share.WHITE_LABEL_PLANS
+            and (asset_index.get("diagnostic_ready") or asset_index.get("readiness") == "customer_ready")
+        )
         packages.append({
             "date": item.name,
             "readiness": asset_index.get("readiness", "unknown"),
@@ -1736,8 +1769,13 @@ def deliveries(project_id: int, current_user: User = Depends(get_current_user), 
             "implementation_ready": bool(asset_index.get("implementation_ready")),
             "implementation_backlog": list(asset_index.get("implementation_backlog") or []),
             "asset_summary": asset_index.get("summary") or {"ready": 0, "needs_review": 0, "template": 0},
+            "can_send": sendable,
         })
-    return {"deliveries": [item["date"] for item in packages], "packages": packages}
+    return {
+        "deliveries": [item["date"] for item in packages],
+        "packages": packages,
+        "can_send": tenant.plan in delivery_share.WHITE_LABEL_PLANS,
+    }
 
 
 @router.get("/{project_id}/deliveries/{delivery_date}")
@@ -1772,19 +1810,18 @@ def download_delivery(
                 served_last_known_good = True
         asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
         readiness = "last_known_good" if served_last_known_good else str(asset_index.get("readiness") or "unknown")
-        if asset_index.get("implementation_ready"):
-            package_kind = "implementation-ready"
-        elif readiness == "customer_ready" or asset_index.get("diagnostic_ready"):
-            package_kind = "diagnostic-ready"
-        else:
-            package_kind = "review"
+        package_kind = _delivery_package_kind(asset_index, readiness)
         source_revision = str(asset_index.get("source_revision") or "unknown")
-        archive = tempfile.TemporaryFile(prefix="citeaura-delivery-", suffix=".zip")
-        with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
-            for file_path in sorted(directory.rglob("*")):
-                if file_path.is_file():
-                    bundle.write(file_path, file_path.relative_to(directory).as_posix())
-        archive.seek(0)
+        return _stream_delivery_zip(directory, package_kind, delivery_date, readiness, source_revision)
+
+
+def _stream_delivery_zip(directory, package_kind, delivery_date, readiness, source_revision):
+    archive = tempfile.TemporaryFile(prefix="citeaura-delivery-", suffix=".zip")
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        for file_path in sorted(directory.rglob("*")):
+            if file_path.is_file():
+                bundle.write(file_path, file_path.relative_to(directory).as_posix())
+    archive.seek(0)
 
     def close_archive():
         archive.close()
@@ -1799,3 +1836,65 @@ def download_delivery(
         },
         background=BackgroundTask(close_archive),
     )
+
+
+def _delivery_package_kind(asset_index, readiness="unknown"):
+    if asset_index.get("implementation_ready"):
+        return "implementation-ready"
+    if readiness == "customer_ready" or asset_index.get("diagnostic_ready"):
+        return "diagnostic-ready"
+    return "review"
+
+
+@router.post("/{project_id}/deliveries/{delivery_date}/send")
+def send_delivery_pack(
+    project_id: int,
+    delivery_date: str,
+    payload: DeliverySendRequest | None = None,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    """Create a 7-day client download link and optionally email it. Agency/Enterprise only."""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", delivery_date):
+        _error(status.HTTP_400_BAD_REQUEST, "invalid_delivery_date")
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    if tenant.plan not in delivery_share.WHITE_LABEL_PLANS:
+        _error(status.HTTP_403_FORBIDDEN, "white_label_plan_required")
+    payload = payload or DeliverySendRequest()
+    try:
+        recipient = delivery_share.clean_email(payload.recipient_email)
+    except ValueError:
+        _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_recipient_email")
+    if recipient and not config.auth_smtp_configured():
+        _error(status.HTTP_409_CONFLICT, "alert_email_not_configured")
+    with with_tenant_read_context(tenant, project.slug):
+        directory = geolib.project_dir(project.slug) / "delivery" / delivery_date
+        if not directory.is_dir():
+            _error(status.HTTP_404_NOT_FOUND, "delivery_not_found")
+        asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
+    if not (asset_index.get("diagnostic_ready") or asset_index.get("readiness") == "customer_ready"):
+        _error(status.HTTP_409_CONFLICT, "delivery_not_sendable")
+    share, token = delivery_share.create_share(db, project, current_user.id, delivery_date, recipient)
+    url = delivery_share.public_url(token)
+    email_sent = False
+    if recipient:
+        try:
+            with with_tenant_read_context(tenant, project.slug):
+                delivery_share.send_share_email(recipient, project, delivery_date, url, share.expires_at)
+            email_sent = True
+        except Exception as exc:  # noqa: BLE001
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={"error": "delivery_share_email_failed", "url": url, "expires_at": share.expires_at.isoformat()},
+            ) from exc
+    db.commit()
+    return {
+        "url": url,
+        "delivery_date": delivery_date,
+        "expires_at": share.expires_at,
+        "recipient_email": recipient,
+        "email_sent": email_sent,
+        "share_id": share.id,
+    }

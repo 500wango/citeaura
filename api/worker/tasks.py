@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 
-from api.adapters import baseline, brand_facts, global_scope, locking, measurement, sampling_control, site_signals, ticket_workflow
+from api.adapters import baseline, brand_facts, global_scope, locking, measurement, regression_alerts, sampling_control, site_signals, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract, ensure_legacy_deliverables_contract
 from api.adapters.engine import (
     ENGINE_MAX_REPEAT,
@@ -67,7 +67,7 @@ PIPELINE_ACTIONS = {
     },
 }
 
-PLATFORM_FUNDED_ACTIONS = frozenset(("sample",))
+PLATFORM_FUNDED_ACTIONS = frozenset(("sample", "autopilot", "serve", "cycle"))
 _JOB_NOT_CLAIMED = object()
 
 _ACTION_METHODS = {
@@ -668,6 +668,9 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                     )
 
             _job_transaction(mark_complete)
+            if action in regression_alerts.SAMPLE_ACTIONS:
+                alert = regression_alerts.notify_if_needed(tenant_id, project_slug, action)
+                _append_job_event(log_path, f"regression alert {alert.get('status')}")
         _append_job_event(log_path, f"{action} done")
 
 
@@ -780,7 +783,7 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
             return {"status": "ignored", "reason": "job_not_queued"}
         update = update or (lambda *args: None)
         update("crawl", 15)
-        with _funded_engine_context(tenant_id, project_slug, "cycle", job_id=job_id, allow_pool=False):
+        with _funded_engine_context(tenant_id, project_slug, "cycle", job_id=job_id, allow_pool=True):
             global_scope.normalize_project(project_slug)
             with site_signals.semantic_site_signals(project_slug):
                 with global_scope.normalize_generated_outputs(project_slug):
@@ -788,7 +791,7 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
             _require_sampling_output(
                 _latest_metrics(project_slug), project_slug, job_id=job_id, started_at=started_at,
             )
-            funding = _engine_funding(tenant_id, project_slug, allow_pool=False)
+            funding = _engine_funding(tenant_id, project_slug, allow_pool=True)
             measurement.record_sampling(
                 project_slug,
                 source="api",
@@ -858,7 +861,7 @@ def task_dispatch_schedules(now_iso=None):
             try:
                 check_sample_run(db, tenant, project)
                 if project.monthly_budget_cny_fen is not None or project.sample_call_limit is not None:
-                    sampling_control.ensure_allowed(db, tenant, project, allow_pool=False)
+                    sampling_control.ensure_allowed(db, tenant, project, allow_pool=True)
             except (HTTPException, sampling_control.SamplingBudgetExceeded):
                 result["quota_blocked"] += 1
                 scheduled_for = project.schedule_next_run_at

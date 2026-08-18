@@ -41,7 +41,7 @@ export default {
                 <div style="font-size:var(--fs-2);">
                   <strong style="color:var(--ink);">${t('onboard.skip_sample_title', {}, 'Skip initial AI sampling')}</strong>
                   <div style="color:var(--muted);margin-top:2px;">
-                    ${t('onboard.skip_sample_desc', {}, 'Run crawl, facts, and question generation only. Configure API keys later, then sample the model matrix.')}
+                    ${t('onboard.skip_sample_desc', {}, 'Run crawl, facts, and tickets only. Paid plans can sample the first matrix from the CiteAura platform pool without adding every API key.')}
                   </div>
                 </div>
               </label>

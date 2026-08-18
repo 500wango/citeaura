@@ -157,7 +157,10 @@ export const projects = {
   updateSchedule: (id, body) => fieldRequest(
     request(`/api/v1/projects/${encodeURIComponent(id)}/schedule`, {
       method: 'POST',
-      body: { interval_days: body.enabled === false ? 0 : body.interval_days },
+      body: {
+        interval_days: body.enabled === false ? 0 : body.interval_days,
+        alert_on_regression: body.alert_on_regression,
+      },
     }),
     'schedule',
     {},
@@ -198,6 +201,11 @@ export const projects = {
     ));
   }),
   getDeliveryDownloadUrl: (id, date) => `/api/v1/projects/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(date)}`,
+  sendDeliveryPack: (id, date, body = {}) =>
+    request(`/api/v1/projects/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(date)}/send`, {
+      method: 'POST',
+      body,
+    }),
 };
 
 /* ==========================================================================

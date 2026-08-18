@@ -177,6 +177,64 @@ def test_platform_pool_api_is_explicit_byok_first_and_tenant_isolated(pool_clien
     assert unavailable.json()["error"] == "platform_pool_unavailable"
 
 
+def test_paid_first_run_uses_platform_pool_without_byok(pool_client, tmp_path, monkeypatch):
+    import sys
+    import types
+
+    from api.adapters import engine as engine_adapter
+    from api.projects import router as project_router
+
+    client, session_factory = pool_client
+    registered, headers = _register(client, "starter@example.com", "starter-co")
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    monkeypatch.setattr(project_router, "validate_outbound_url", lambda value, **kwargs: value)
+    monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-pool"))
+
+    def fake_init(args):
+        from api.adapters.engine import geolib
+
+        config_dir = geolib.project_dir(args.slug)
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "geo.json").write_text(json.dumps({
+            "brand": {"name": "Starter", "site": args.url},
+            "market": "global",
+            "questions": [{"id": "q001", "text": "Best tool?", "market": "global"}],
+        }), "utf-8")
+        return {"slug": args.slug}
+
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_init=fake_init))
+    monkeypatch.setattr(
+        project_router.preflight,
+        "run",
+        lambda url: {"ready": True, "checks": [{"name": "https", "ok": True}]},
+    )
+
+    with session_factory() as db:
+        db.get(Tenant, registered["tenant"]["id"]).plan = "starter"
+        db.commit()
+
+    preflight = client.post("/api/v1/projects/preflight", headers=headers, json={"url": "https://pool-first.example"})
+    assert preflight.status_code == 200
+    body = preflight.json()
+    assert body["can_sample"] is True
+    assert "openai" in body["effective_platforms"]
+    assert "gemini" in body["effective_platforms"]
+    assert body["estimate"]["platform_pool_cost_cny_fen"] > 0
+
+    created = client.post("/api/v1/projects", headers=headers, json={"url": "https://pool-first.example"})
+    assert created.status_code == 202
+    assert created.json()["action"] == "autopilot"
+    funding = client.get(
+        f"/api/v1/projects/{created.json()['project_id']}/sampling-funding",
+        headers=headers,
+    )
+    assert funding.status_code == 200
+    assert funding.json()["platform_pool_enabled"] is True
+    sources = {item["engine_code"]: item["source"] for item in funding.json()["effective_engines"]}
+    assert sources["openai"] == "platform_pool"
+    assert sources["gemini"] == "platform_pool"
+
+
 def test_pool_meter_records_only_fallback_calls_once_per_job(tmp_path, monkeypatch):
     monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"1" * 32).decode())
     monkeypatch.setenv("PLATFORM_POOL_PRICES_CNY_FEN", json.dumps({"gemini": 2, "openai": 3}))

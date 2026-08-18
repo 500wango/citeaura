@@ -31,7 +31,7 @@ def test_celery_registers_all_pipeline_tasks():
     assert celery_app.conf.beat_schedule["dispatch-due-project-schedules"]["task"] == "citeaura.dispatch_schedules"
     assert celery_app.conf.beat_schedule["reconcile-platform-usage"]["task"] == "citeaura.reconcile_platform_usage"
     assert celery_app.conf.task_ignore_result is True
-    assert {"sample"} == set(tasks.PLATFORM_FUNDED_ACTIONS)
+    assert {"sample", "autopilot", "serve", "cycle"} == set(tasks.PLATFORM_FUNDED_ACTIONS)
     assert {"verify", "deliver", "plan"}.isdisjoint(tasks.PLATFORM_FUNDED_ACTIONS)
 
 
@@ -156,7 +156,7 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
     assert result["status"] == "done"
     assert result["action"] == "serve"
     assert calls == [
-        ("context", "tenant-a", "example", "serve", False),
+        ("context", "tenant-a", "example", "serve", True),
         ("preserve", "example"),
         ("serve", "example", 8, 3, False, True),
         ("delivery", "example"),

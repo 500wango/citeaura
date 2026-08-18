@@ -22,6 +22,7 @@ from api.landing import WEB_ROOT, router as landing_router
 from api.db import get_db
 from api.outreach.router import router as outreach_router
 from api.publishing.router import router as publishing_router
+from api.projects.public import router as public_projects_router
 from api.projects.router import router as projects_router
 from api.settings.router import router as settings_router
 from api.team.router import router as team_router
@@ -49,6 +50,7 @@ app.include_router(billing_router)
 app.include_router(branding_router)
 app.include_router(outreach_router)
 app.include_router(publishing_router)
+app.include_router(public_projects_router)
 app.include_router(projects_router)
 app.include_router(settings_router)
 app.include_router(team_router)

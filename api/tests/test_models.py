@@ -98,9 +98,15 @@ def test_initial_schema_contains_all_tables():
         "usage_counters",
         "refresh_tokens",
         "platform_usage_outbox",
+        "delivery_shares",
     }
     project_columns = {item["name"] for item in inspect(engine).get_columns("projects")}
-    assert {"monthly_budget_cny_fen", "sample_call_limit", "pause_on_budget_exceeded"} <= project_columns
+    assert {
+        "monthly_budget_cny_fen",
+        "sample_call_limit",
+        "pause_on_budget_exceeded",
+        "alert_on_regression",
+    } <= project_columns
 
 
 def test_project_allows_only_one_active_job():

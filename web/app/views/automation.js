@@ -2,7 +2,7 @@
  *  (Automation & Schedule)
  */
 
-import { projects } from '../api.js?v=3.4';
+import { projects } from '../api.js?v=3.6';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
@@ -21,6 +21,8 @@ export default {
 
     const enabled = Boolean(schedule.enabled);
     const intervalDays = [7, 14, 30].includes(schedule.interval_days) ? schedule.interval_days : 7;
+    const alertOnRegression = schedule.alert_on_regression !== false;
+    const alertEmailReady = Boolean(schedule.alert_email_ready);
 
     return `
       <div class="app-view-container">
@@ -59,6 +61,19 @@ export default {
               <option value="30" ${intervalDays === 30 ? 'selected' : ''}>Monthly (30 Days)</option>
             </select>
           </div>
+
+          <div class="card" style="background:var(--page);padding:var(--sp-4);border-radius:var(--r-md);">
+            <label style="display:flex;align-items:flex-start;gap:var(--sp-3);cursor:pointer;">
+              <input type="checkbox" id="schedule-alert" ${alertOnRegression ? 'checked' : ''} style="margin-top:2px;">
+              <div style="font-size:var(--fs-2);">
+                <strong style="color:var(--ink);">${t('automation.alert_title', {}, 'Email owners if mention rate drops')}</strong>
+                <div style="color:var(--muted);margin-top:2px;">
+                  ${t('automation.alert_desc', {}, 'After a comparable re-sample, send an email when the overall mention rate falls by a statistically noteworthy amount.')}
+                </div>
+                ${alertEmailReady ? '' : `<div style="color:var(--warn);margin-top:6px;">${t('automation.alert_smtp_missing', {}, 'Platform AUTH SMTP is not configured. Drops will be recorded but not emailed until AUTH_SMTP_* is set.')}</div>`}
+              </div>
+            </label>
+          </div>
         </div>
       </div>
     `;
@@ -71,9 +86,10 @@ export default {
     document.getElementById('btn-save-schedule')?.addEventListener('click', async () => {
       const enabled = document.getElementById('schedule-enabled')?.checked;
       const interval_days = parseInt(document.getElementById('schedule-interval')?.value || '7');
+      const alert_on_regression = Boolean(document.getElementById('schedule-alert')?.checked);
 
       try {
-        await projects.updateSchedule(projectId, { enabled, interval_days });
+        await projects.updateSchedule(projectId, { enabled, interval_days, alert_on_regression });
         toast.success(t('automation.saved_success', {}, 'Schedule updated successfully'));
       } catch (err) {
         toast.error(t(err.error, {}, err.detail || 'Failed to update schedule'));

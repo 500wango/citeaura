@@ -179,7 +179,7 @@ export default {
             <ul>
               <li>${pro?.projects || 10} active projects</li>
               <li>Unlimited BYOK sampling</li>
-              <li>Scheduled matrix re-sampling every 7, 14, or 30 days</li>
+              <li>Scheduled re-sampling and email alerts on mention-rate drops</li>
             </ul>
             <button type="button" class="btn btn-primary btn-block btn-subscribe" data-plan="pro" ${currentPlan === 'pro' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
               ${subscribeLabel('pro', onTrial ? 'Upgrade to Pro' : 'Subscribe Pro')}
@@ -196,7 +196,7 @@ export default {
             <p class="plan-summary" data-m="Parallel client delivery for digital agencies" data-a="${planSummary(agency, 'annual', 'Parallel client delivery for digital agencies', 'About $399 / month billed annually')}">Parallel client delivery for digital agencies</p>
             <ul>
               <li>${agency?.projects || 30} active projects</li>
-              <li>White-label client delivery headers (No CiteAura)</li>
+              <li>One-click sendable white-label client pack</li>
               <li>Team multi-role permissions & white-label delivery branding</li>
             </ul>
             <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="agency" ${currentPlan === 'agency' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>

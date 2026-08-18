@@ -2,11 +2,12 @@
  *  (Report & Deliveries)
  */
 
-import { projects } from '../api.js?v=3.4';
+import { projects } from '../api.js?v=3.6';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { gradeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
+import { openModal } from '../components/modal.js';
 
 export default {
   render: async (ctx) => {
@@ -27,6 +28,7 @@ export default {
       console.error('Failed to load report data:', err);
     }
 
+    const canSendAny = deliveries.some((item) => item && item.can_send);
     const overallGrade = report && report.grade;
     const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : 'Unmeasured';
     const quality = report && report.report_quality;
@@ -113,6 +115,7 @@ export default {
                     <th>${t('report.col_date', {}, 'Generation Date')}</th>
                     <th>${t('report.col_contents', {}, 'Package Contents')}</th>
                     <th style="text-align:right;">${t('common.download', {}, 'Download')}</th>
+                    ${canSendAny ? `<th style="text-align:right;">${t('report.col_send', {}, 'Send')}</th>` : ''}
                   </tr>
                 </thead>
                 <tbody>
@@ -156,6 +159,11 @@ export default {
                             <span>${t(implementationReady ? 'report.download_implementation_zip' : customerReady ? 'report.download_diagnostic_zip' : 'report.download_review_zip', {}, downloadLabel)}</span>
                           </a>
                         </td>
+                        ${canSendAny ? `<td style="text-align:right;">
+                          ${d.can_send
+                            ? `<button type="button" class="btn btn-primary btn-sm btn-send-pack" data-date="${dateStr}">${t('report.send_client_btn', {}, 'Send to client')}</button>`
+                            : `<span style="font-size:var(--fs-1);color:var(--muted);">${t('report.send_unavailable', {}, 'Not sendable yet')}</span>`}
+                        </td>` : ''}
                       </tr>
                     `;
                     })
@@ -198,5 +206,47 @@ export default {
         }
       });
     }
+
+    document.querySelectorAll('.btn-send-pack').forEach((button) => {
+      button.addEventListener('click', () => {
+        const dateStr = button.getAttribute('data-date');
+        openModal({
+          title: t('report.send_modal_title', {}, 'Send white-label pack'),
+          content: `<p style="margin:0 0 var(--sp-3);color:var(--muted);font-size:var(--fs-2);">${t('report.send_modal_desc', {}, 'Creates a 7-day client download link. Email is optional — you can copy the link instead.')}</p>
+            <div class="field"><label>${t('report.send_email_label', {}, 'Client email (optional)')}</label>
+            <input type="email" id="pack-recipient" class="input" placeholder="client@agency.com"></div>
+            <div id="pack-share-url" class="field-hint"></div>`,
+          confirmText: t('report.send_confirm', {}, 'Create sendable link'),
+          onConfirm: async () => {
+            const recipient = document.getElementById('pack-recipient')?.value.trim();
+            try {
+              const result = await projects.sendDeliveryPack(projectId, dateStr, {
+                recipient_email: recipient || null,
+              });
+              const urlBox = document.getElementById('pack-share-url');
+              if (urlBox && result?.url) {
+                urlBox.textContent = result.url;
+              }
+              if (result?.url && navigator.clipboard) {
+                await navigator.clipboard.writeText(result.url).catch(() => {});
+              }
+              toast.success(
+                result?.email_sent
+                  ? t('report.send_emailed', {}, 'Client link emailed and copied')
+                  : t('report.send_copied', {}, 'Client link created and copied'),
+              );
+              return true;
+            } catch (err) {
+              toast.error(t(err.error, {}, err.detail || 'Could not create a client link'));
+              if (err.data?.url) {
+                const urlBox = document.getElementById('pack-share-url');
+                if (urlBox) urlBox.textContent = err.data.url;
+              }
+              return false;
+            }
+          },
+        });
+      });
+    });
   },
 };

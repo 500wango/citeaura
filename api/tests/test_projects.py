@@ -380,7 +380,9 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
         "implementation_ready": False,
         "implementation_backlog": [],
         "asset_summary": {"ready": 0, "needs_review": 0, "template": 0},
+        "can_send": False,
     }]
+    assert deliveries.json()["can_send"] is False
     monkeypatch.setattr(project_router.task_deliver, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-4"))
     delivered = client.post(f"/api/v1/projects/{body['project_id']}/deliver", headers=headers)
     assert delivered.status_code == 202

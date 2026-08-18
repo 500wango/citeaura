@@ -241,6 +241,63 @@ def sampling_quality(project_slug):
     }
 
 
+ENGINE_DROP_ALERT_PP = 10.0
+
+
+def _platform_mention(metrics, code):
+    item = ((metrics or {}).get("platforms") or {}).get(code) or {}
+    rate = item.get("mention_rate")
+    count = int(item.get("samples") or 0)
+    if rate is None or count <= 0:
+        return None, 0
+    return float(rate), count
+
+
+def regression_events(project_slug):
+    """Return statistically noteworthy mention-rate drops between the last two periods."""
+    quality = sampling_quality(project_slug)
+    if not quality.get("comparable"):
+        return []
+    trend = quality.get("trend") or {}
+    if trend.get("status") != "noteworthy" or trend.get("direction") != "down":
+        return []
+    directory = geolib.project_dir(project_slug) / "metrics"
+    files = sorted(directory.glob("*.json")) if directory.exists() else []
+    metrics = [geolib.read_json(path, {}) or {} for path in files[-2:]]
+    if len(metrics) < 2:
+        return []
+    previous, current = metrics[0], metrics[1]
+    events = [{
+        "kind": "overall",
+        "engine_code": None,
+        "previous_rate": (quality.get("previous") or {}).get("mention_rate"),
+        "current_rate": (quality.get("current") or {}).get("mention_rate"),
+        "delta_pp": trend.get("delta_pp"),
+        "previous_date": (quality.get("previous") or {}).get("date"),
+        "current_date": (quality.get("current") or {}).get("date"),
+    }]
+    codes = sorted(set((previous.get("platforms") or {})) & set((current.get("platforms") or {})))
+    for code in codes:
+        previous_rate, previous_n = _platform_mention(previous, code)
+        current_rate, current_n = _platform_mention(current, code)
+        if previous_rate is None or current_rate is None:
+            continue
+        if min(previous_n, current_n) < MIN_COMPARABLE_SAMPLES:
+            continue
+        delta_pp = round((current_rate - previous_rate) * 100, 2)
+        if delta_pp <= -ENGINE_DROP_ALERT_PP:
+            events.append({
+                "kind": "engine",
+                "engine_code": code,
+                "previous_rate": round(previous_rate, 4),
+                "current_rate": round(current_rate, 4),
+                "delta_pp": delta_pp,
+                "previous_date": previous.get("date"),
+                "current_date": current.get("date"),
+            })
+    return events
+
+
 def record_sampling(
     project_slug,
     *,

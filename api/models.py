@@ -179,12 +179,30 @@ class Project(Base):
     monthly_budget_cny_fen = Column(Integer, nullable=True)
     sample_call_limit = Column(Integer, nullable=True)
     pause_on_budget_exceeded = Column(Boolean, nullable=False, default=True, server_default="true")
+    alert_on_regression = Column(Boolean, nullable=False, default=False, server_default="false")
     archived_at = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     tenant = relationship("Tenant", back_populates="projects")
     jobs = relationship("Job", back_populates="project", cascade="all, delete-orphan")
     platform_usage = relationship("PlatformUsage", back_populates="project", cascade="all, delete-orphan")
+    delivery_shares = relationship("DeliveryShare", back_populates="project", cascade="all, delete-orphan")
+
+
+class DeliveryShare(Base):
+    __tablename__ = "delivery_shares"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    delivery_date = Column(String(10), nullable=False)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    recipient_email = Column(String(320), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    project = relationship("Project", back_populates="delivery_shares")
 
 
 class ApiKey(Base):
