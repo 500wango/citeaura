@@ -245,11 +245,11 @@ def test_frontend_contracts_match_backend_request_models():
     app_js = (root / "web/app/app.js").read_text("utf-8")
     assert "citeaura_intent_plan" in app_js
     assert "ENTRY_PLANS" in app_js
-    assert "engine-settings.js?v=2.8" in app_js
+    assert "engine-settings.js?v=2.9" in app_js
     assert "engines.js?v=2.6" in app_js
     assert "workbench.js?v=2.6" in app_js
     assert "overview.js?v=2.7" in app_js
-    assert "onboarding.js?v=2.6" in app_js
+    assert "onboarding.js?v=2.7" in app_js
     assert "facts.js?v=2.7" in app_js
     assert "telemetry-modal.js?v=2.6" in app_js
     assert "function projectKey(project)" in app_js

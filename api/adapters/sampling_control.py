@@ -22,21 +22,23 @@ BUILTIN_GLOBAL_SAMPLE_PLATFORMS = ("openai", "claude", "gemini", "grok", "perple
 
 
 def default_sample_platforms(funding, custom_providers, config_platforms=None):
-    """Prefer funded built-in global APIs, then custom endpoints, then geo.json."""
+    """Prefer funded built-in APIs and saved custom endpoints, then geo.json."""
     import sample
 
     funded = set((funding or {}).get("keys") or {}) | set((funding or {}).get("pool_codes") or ())
+    # Saved custom providers are first-class engines. They are not in sample.PROVIDERS
+    # until tenant context registers them, so do not require that registry here.
     custom_codes = [
         provider["code"]
         for provider in (custom_providers or [])
-        if provider.get("code") in sample.PROVIDERS
+        if provider.get("code")
     ]
     built_in = [code for code in BUILTIN_GLOBAL_SAMPLE_PLATFORMS if code in funded]
-    extras = [code for code in custom_codes if code in funded]
-    chosen = list(dict.fromkeys(built_in + extras))
+    chosen = list(dict.fromkeys(built_in + custom_codes))
     if chosen:
         return chosen
-    return [code for code in (config_platforms or []) if code in sample.PROVIDERS]
+    known = set(sample.PROVIDERS) | set(custom_codes)
+    return [code for code in (config_platforms or []) if code in known]
 
 
 def _month_range():
@@ -89,6 +91,7 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, allow
             "platforms": list(requested or []),
         }
         configured = [provider["code"] for provider in custom_providers]
+        custom_codes = set(configured)
         requested = list(dict.fromkeys(requested or default_sample_platforms(
             funding, custom_providers, list(config.get("platforms", [])) + configured,
         )))
@@ -98,11 +101,17 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, allow
         pool_cost = 0
         byok_calls = 0
         for code in requested:
-            if code not in sample.PROVIDERS:
+            provider = sample.PROVIDERS.get(code)
+            if provider is None and code not in custom_codes:
                 continue
+            if provider is None:
+                provider = next(
+                    (item for item in custom_providers if item["code"] == code),
+                    {"name": code, "search": False},
+                )
             if code in funding.get("pool_codes", ()):
                 source = "platform_pool"
-            elif code in funding.get("keys", {}):
+            elif code in funding.get("keys", {}) or code in custom_codes:
                 source = "byok"
             else:
                 source = "unavailable"
@@ -120,8 +129,8 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, allow
                 byok_calls += calls
             items.append({
                 "engine_code": code,
-                "engine_name": sample.PROVIDERS[code].get("name", code),
-                "sampling_mode": sampling_modes.for_provider(sample.PROVIDERS[code]),
+                "engine_name": provider.get("name", code),
+                "sampling_mode": sampling_modes.for_provider(provider),
                 "source": source,
                 "questions": question_count,
                 "repeat": int(repeat),

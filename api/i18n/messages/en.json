@@ -443,7 +443,7 @@
   "archive.no_snapshots": "No Snapshots Found",
   "archive.no_snapshots_desc": "Create point-in-time project snapshots before executing major ticket changes.",
   "engine_settings.title": "BYOK Model API Keys & Measurement Settings",
-  "engine_settings.desc": "Bring Your Own Key (BYOK) for direct provider billing with zero middleman markup. Keys are stored via hardware-grade AES-256-GCM encryption and injected only during runtime.",
+  "engine_settings.desc": "Each configured endpoint is a sampling engine. Built-in providers and custom OpenAI-compatible models share the same measurement matrix. Keys are stored with AES-256-GCM and injected only at runtime.",
   "engine_settings.matrix_title": "Supported Model Matrix Endpoints",
   "engine_settings.col_model": "Model Provider",
   "engine_settings.col_env": "Engine Code",

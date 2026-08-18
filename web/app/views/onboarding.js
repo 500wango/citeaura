@@ -119,7 +119,7 @@ export default {
         if (!no_sample && preflight && preflight.can_sample === false) {
           throw {
             error: 'sampling_not_configured',
-            detail: 'Configure an API key or skip initial sampling to create an audit-only project.',
+            detail: 'Configure a model API key — a built-in provider or a custom OpenAI-compatible endpoint — or skip initial sampling to create an audit-only project.',
           };
         }
 

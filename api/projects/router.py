@@ -616,11 +616,12 @@ def _competitor_discovery_payload(config):
 
 def _sampling_funding_payload(db, tenant, project, user):
     byok = sorted(load_tenant_keys(db, tenant.id))
+    custom_codes = {provider["code"] for provider in load_custom_providers(db, tenant.id)}
     catalog = public_catalog()
     pool_codes = {item["engine_code"] for item in catalog}
     effective = []
-    for code in sorted(set(ENGINE_KEY_ENV) | pool_codes | set(byok)):
-        if code in byok:
+    for code in sorted(set(ENGINE_KEY_ENV) | pool_codes | set(byok) | custom_codes):
+        if code in byok or code in custom_codes:
             source = "byok"
         elif project.platform_pool_enabled and tenant.plan in PAID_PLANS and code in pool_codes:
             source = "platform_pool"
@@ -660,8 +661,10 @@ def _enable_platform_pool_if_available(tenant, project):
 
 
 def _has_sampling_access(db, tenant, project):
-    return _has_api_keys(db, tenant.id) or bool(
-        project.platform_pool_enabled and tenant.plan in PAID_PLANS and public_catalog()
+    return (
+        _has_api_keys(db, tenant.id)
+        or bool(load_custom_providers(db, tenant.id))
+        or bool(project.platform_pool_enabled and tenant.plan in PAID_PLANS and public_catalog())
     )
 
 
@@ -754,7 +757,10 @@ def project_preflight(
     invalid = sorted(set(requested) - available - custom_codes)
     if invalid:
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "unsupported_api_platform")
-    effective = [code for code in requested if code in byok or code in pool_codes]
+    effective = [
+        code for code in requested
+        if code in byok or code in pool_codes or code in custom_codes
+    ]
     pool_only = [code for code in effective if code in pool_codes and code not in byok]
     prices = {item["engine_code"]: item["unit_price_cny_fen"] for item in catalog}
     quick_questions = min(5, payload.question_count)

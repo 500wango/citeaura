@@ -1,3 +1,4 @@
+import base64
 import json
 import sys
 import types
@@ -11,10 +12,11 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import Job
+from api.models import CustomProvider, Job, Tenant
 from api.projects import router as project_router
 from api.adapters import engine as engine_adapter, sampling_control
 from api.adapters.network import validate_outbound_url as real_validate_outbound_url
+from api.settings.crypto import encrypt_key
 
 
 @pytest.fixture()
@@ -432,6 +434,54 @@ def test_project_create_rejects_private_target_before_persisting(project_client,
     with session_factory() as db:
         assert db.query(project_router.Project).count() == 0
         assert db.query(Job).count() == 0
+
+
+def test_custom_llm_alone_unlocks_sampling_and_brand_creation(project_client, monkeypatch):
+    client, session_factory = project_client
+    monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"0" * 32).decode())
+    headers = _register(client, "custom-only@example.com")
+    with session_factory() as db:
+        tenant = db.query(Tenant).one()
+        db.add(CustomProvider(
+            tenant_id=tenant.id,
+            code="custom_budget",
+            name="Budget Gateway",
+            base_url="https://gateway.example.com/v1",
+            model_id="vendor/budget-model",
+            market="global",
+            encrypted_api_key=encrypt_key("sk-custom"),
+        ))
+        db.commit()
+
+    monkeypatch.setattr(
+        project_router.preflight,
+        "run",
+        lambda url: {"ready": True, "checks": [{"name": "https", "ok": True}]},
+    )
+    preflight = client.post(
+        "/api/v1/projects/preflight",
+        headers=headers,
+        json={"url": "https://custom-only.example"},
+    )
+    assert preflight.status_code == 200
+    body = preflight.json()
+    assert body["can_sample"] is True
+    assert "custom_budget" in body["effective_platforms"]
+    assert "custom_budget" in body["byok_engines"]
+
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_init=lambda args: None))
+    monkeypatch.setattr(
+        project_router.task_bootstrap,
+        "delay",
+        lambda *args, **kwargs: types.SimpleNamespace(id="celery-custom"),
+    )
+    created = client.post(
+        "/api/v1/projects",
+        headers=headers,
+        json={"url": "https://custom-only.example"},
+    )
+    assert created.status_code == 202
+    assert created.json()["action"] == "autopilot"
 
 
 def test_delivery_download_rejects_noncompliant_legacy_package(project_client, monkeypatch, tmp_path):
