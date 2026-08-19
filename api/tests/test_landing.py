@@ -207,6 +207,8 @@ def test_blog_index_and_articles_are_static_html():
         assert marker in page.text
         assert "does not guarantee" in page.text
         assert f'rel="canonical" href="https://citeaura.com{path}"' in page.text
+        assert page.text.count('href="https://') >= 3
+        assert "<h2>Sources</h2>" in page.text
 
     assert client.get("/blog/not-a-real-slug").status_code == 404
 

@@ -102,6 +102,14 @@ class TestJsonIO(unittest.TestCase):
             with self.assertRaises(ValueError):
                 G._validate_fetch_target("http://internal.example/")
 
+    def test_machine_index_files_are_not_html_page_candidates(self):
+        self.assertFalse(G.is_fetchable("https://example.com/llms.txt"))
+        self.assertFalse(G.is_fetchable("https://example.com/llms.en.txt"))
+        self.assertFalse(G.is_fetchable("https://example.com/robots.txt"))
+        self.assertFalse(G.is_fetchable("https://example.com/sitemap.xml"))
+        self.assertTrue(G.is_fetchable("https://example.com/docs"))
+        self.assertTrue(G.is_fetchable("https://example.com/blog/what-to-put-in-llms-txt"))
+
     def test_normalize_url_rejects_non_http_and_malformed_links(self):
         self.assertIsNone(G.normalize_url("https://example.com", "javascript:alert(1)"))
         self.assertIsNone(G.normalize_url("https://example.com", "ftp://example.com/file"))

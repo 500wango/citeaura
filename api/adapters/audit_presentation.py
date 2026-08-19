@@ -215,6 +215,14 @@ def classify_page(page):
             "id": "home", "label": ROLE_LABELS["home"], "confidence": "high",
             "confidence_score": 0.99, "signals": ["root URL"],
         }
+    final_name = segments[-1].lower()
+    if final_name in {"llms.txt", "robots.txt"} or (
+        final_name.startswith("llms.") and final_name.endswith(".txt")
+    ):
+        return {
+            "id": "auth_utility", "label": ROLE_LABELS["auth_utility"], "confidence": "high",
+            "confidence_score": 0.99, "signals": ["machine-readable index file"],
+        }
 
     scores = defaultdict(int)
     evidence = defaultdict(list)
@@ -405,11 +413,14 @@ def _present_page(raw_page, evidence):
     }
 
     if role_id in ("auth_utility", "contact"):
-        note = (
-            "Application and utility pages are excluded from public-content scoring."
-            if role_id == "auth_utility" else
-            "Contact pages are excluded from long-form public-content scoring."
-        )
+        path = unquote(urlparse(str(base.get("url") or "")).path or "").lower()
+        machine_index = path.rstrip("/").endswith((".txt", "/llms.txt")) or path.rstrip("/").endswith("/robots.txt")
+        if role_id == "contact":
+            note = "Contact pages are excluded from long-form public-content scoring."
+        elif machine_index:
+            note = "Machine-readable index files are excluded from public-content scoring. They are checked as site-level signals, not HTML pages."
+        else:
+            note = "Application and utility pages are excluded from public-content scoring."
         return {
             **base,
             "applicable_score": None,

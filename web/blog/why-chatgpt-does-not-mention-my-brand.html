@@ -63,7 +63,7 @@
         "description": "Common reasons ChatGPT skips a brand, and how to separate site extractability issues from sampling noise.",
         "url": "https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand",
         "datePublished": "2026-08-17",
-        "dateModified": "2026-08-17",
+        "dateModified": "2026-08-19",
         "author": {
           "@type": "Organization",
           "name": "CiteAura",
@@ -116,7 +116,7 @@
       <span class="blog-kicker">Diagnosis</span>
       <h1>Why ChatGPT does not mention my brand</h1>
       <p class="blog-lead">ChatGPT often skips a brand because the official site is hard to extract, public facts are thin or inconsistent, or the question never required that brand. A blocked crawler, a JavaScript-only homepage, or missing comparison copy can all produce the same unanswered result. CiteAura separates those site-level causes from sampling noise so you can tell a content problem from a one-off answer.</p>
-      <p class="blog-meta">17 August 2026 · 6 min read</p>
+      <p class="blog-meta">Updated 19 August 2026 · 6 min read</p>
     </header>
 
     <h2>Common reasons ChatGPT skips a brand</h2>
@@ -149,6 +149,14 @@
 
     <h2>No mention guarantee</h2>
     <p>Fixing extractability and publishing clearer facts can change what a later sample observes. It does not guarantee that ChatGPT will mention, cite, or rank the brand. Treat a before/after only when the question set and sampling mode stayed comparable.</p>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI crawler documentation</a> — a robots Disallow for GPTBot prevents retrieval of public product pages.</li>
+      <li><a href="https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics" rel="noopener noreferrer">Google JavaScript SEO basics</a> — crawlers that do not execute your app shell only see the initial HTML.</li>
+      <li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — official name and description should match the visible homepage copy.</li>
+      <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — /llms.txt is an optional facts index, not a mention switch.</li>
+    </ul>
 
     <div class="blog-cta">
       <p>Run a site audit, keep official facts in HTML, and review why a cohort still skips the brand.</p>

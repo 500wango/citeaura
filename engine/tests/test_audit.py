@@ -39,6 +39,13 @@ class TestIssueCodes(unittest.TestCase):
         self.assertIn("LOW_CONTENT_PAGE", r["issue_codes"])
         self.assertFalse(any(i.startswith("P0 静态 HTML") for i in r["issues"]))
 
+    def test_llms_txt_is_not_scored_as_html_content(self):
+        r = A.score_page(make_page(url="https://example.com/llms.txt", text=SPA_TEXT, canonical=""), [])
+        self.assertFalse(r["scored"])
+        self.assertEqual(r["role"], "utility")
+        self.assertNotIn("SPA_SHELL", r["issue_codes"])
+        self.assertNotIn("BAD_H1", r["issue_codes"])
+
     def test_functional_page_case_insensitive(self):
         r = A.score_page(make_page(url="https://example.com/Auth/SignIn", text=SPA_TEXT), [])
         self.assertIn("LOW_CONTENT_PAGE", r["issue_codes"])

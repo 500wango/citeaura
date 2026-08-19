@@ -35,6 +35,10 @@ RE_HOWTO_SOFT = re.compile(r"(\u5982\u4f55|\u600e\u4e48)")
 FUNC_PAGE = re.compile(r"/(login|signin|signup|register|cart|checkout|account|auth)(/|$)", re.I)
 CONTACT_PAGE = re.compile(r"/(contact|contact-us|get-in-touch)(/|$)", re.I)
 LEGAL_PAGE = re.compile(r"/(privacy|terms|legal|cookies?|gdpr|imprint|disclaimer)(/|$)", re.I)
+MACHINE_FILE = re.compile(
+    r"/(?:llms(?:\.[a-z0-9-]+)?|robots|ads|app-ads|security)\.txt$",
+    re.I,
+)
 RE_FAQ = re.compile(
     r"(\u5e38\u89c1\u95ee\u9898|\u5e38\u89c1\u7591\u95ee|\u95ee\u7b54|\bFAQ\b|^\s*[\u95eeQ][:\uff1a]|\u7b54[:\uff1a])",
     re.I | re.M,
@@ -71,7 +75,7 @@ def jsonld_has_key(obj, keys: set[str]) -> bool:
 
 def page_role(page: dict) -> str:
     path = urlparse(page.get("url") or "").path
-    if FUNC_PAGE.search(path):
+    if FUNC_PAGE.search(path) or MACHINE_FILE.search(path):
         return "utility"
     if CONTACT_PAGE.search(path):
         return "contact"

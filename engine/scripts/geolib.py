@@ -307,11 +307,21 @@ SKIP_EXT = re.compile(
 SKIP_PATH = re.compile(r"/(downloads?|dl|releases?|assets|static|cdn)/", re.I)
 
 
+MACHINE_FILES = frozenset({
+    "robots.txt", "humans.txt", "ads.txt", "app-ads.txt", "security.txt",
+    "sitemap.xml", "sitemap_index.xml",
+})
+
+
 def is_fetchable(url: str) -> bool:
     if SKIP_EXT.search(url) or SKIP_PATH.search(url):
         return False
     tail = url.rstrip("/").rsplit("/", 1)[-1].lower()
-    return tail not in {"download", "dl"}
+    if tail in {"download", "dl"} or tail in MACHINE_FILES:
+        return False
+    if tail == "llms.txt" or (tail.startswith("llms.") and tail.endswith(".txt")):
+        return False
+    return True
 
 
 def _validate_fetch_target(url: str):

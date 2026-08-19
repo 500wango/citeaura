@@ -63,7 +63,7 @@
         "description": "A repeatable method for measuring ChatGPT brand mentions with a fixed question set, raw answers, and sampling-mode labels.",
         "url": "https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand",
         "datePublished": "2026-08-17",
-        "dateModified": "2026-08-17",
+        "dateModified": "2026-08-19",
         "author": {
           "@type": "Organization",
           "name": "CiteAura",
@@ -116,7 +116,7 @@
       <span class="blog-kicker">Measurement</span>
       <h1>How to measure if ChatGPT mentions your brand</h1>
       <p class="blog-lead">You cannot treat one ChatGPT reply as a measurement. To measure if ChatGPT mentions your brand, fix a question set, record each raw answer, and mark whether the brand name or official domain appears. Repeat the same questions later. CiteAura stores those traces with a sampling-mode label so a mention rate is tied to a defined cohort, not a screenshot.</p>
-      <p class="blog-meta">17 August 2026 · 6 min read</p>
+      <p class="blog-meta">Updated 19 August 2026 · 6 min read</p>
     </header>
 
     <h2>What counts as a mention</h2>
@@ -152,6 +152,14 @@
     <h2>A mention rate is not a ranking promise</h2>
     <p>Answers vary by model version, region, and retrieval path. A higher mention rate on a fixed question set is evidence about that sample. It does not guarantee that ChatGPT will mention or rank the brand for every user.</p>
     <p>If the brand is missing across a stable cohort, the next question is why. Start with <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT does not mention my brand</a>.</p>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://platform.openai.com/docs/guides/latest-model" rel="noopener noreferrer">OpenAI model API guide</a> — developer APIs measure model knowledge unless search is enabled.</li>
+      <li><a href="https://platform.openai.com/docs/guides/tools-web-search" rel="noopener noreferrer">OpenAI web search tool</a> — retrieval-enabled API calls can return source URLs; the ChatGPT app is a different surface.</li>
+      <li><a href="https://schema.org/SoftwareApplication" rel="noopener noreferrer">Schema.org SoftwareApplication</a> — structured product facts that measurement should stay consistent with.</li>
+      <li><a href="https://github.com/500wango/citeaura" rel="noopener noreferrer">CiteAura source</a> — how this product stores labeled sample traces.</li>
+    </ul>
 
     <div class="blog-cta">
       <p>Set up a domain, keep the question set stable, and review labeled ChatGPT samples in one workspace.</p>

@@ -63,7 +63,7 @@
         "description": "How to find and fix robots.txt rules that block GPTBot from public product pages.",
         "url": "https://citeaura.com/blog/gptbot-blocked-by-robots-txt",
         "datePublished": "2026-08-17",
-        "dateModified": "2026-08-17",
+        "dateModified": "2026-08-19",
         "author": {
           "@type": "Organization",
           "name": "CiteAura",
@@ -116,7 +116,7 @@
       <span class="blog-kicker">Crawl access</span>
       <h1>GPTBot blocked by robots.txt: how to fix</h1>
       <p class="blog-lead">GPTBot is blocked by robots.txt when a Disallow rule matches the paths that state your product. Open the file at the site root, find the User-agent for GPTBot or a blanket * rule, and allow the public pages you want retrieved. After you deploy, request the file again and confirm the crawl. CiteAura flags blocked AI crawlers in the site audit so the fix is a ticket, not a guess.</p>
-      <p class="blog-meta">17 August 2026 · 6 min read</p>
+      <p class="blog-meta">Updated 19 August 2026 · 6 min read</p>
     </header>
 
     <h2>How to tell that GPTBot is blocked</h2>
@@ -154,6 +154,14 @@
 
     <h2>A crawl allow is not a ranking promise</h2>
     <p>Opening robots.txt lets a crawler request the page. It does not guarantee that ChatGPT will fetch, mention, cite, or rank the brand. Treat the fix as a prerequisite, then measure with a labeled cohort.</p>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI crawler documentation</a> — GPTBot, OAI-SearchBot, and ChatGPT-User tokens.</li>
+      <li><a href="https://www.robotstxt.org/robotstxt.html" rel="noopener noreferrer">The robots.txt specification</a> — how User-agent groups and Disallow/Allow matching work.</li>
+      <li><a href="https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt" rel="noopener noreferrer">Google robots.txt guidance</a> — longest-match path rules used by many crawlers.</li>
+      <li><a href="https://support.anthropic.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web" rel="noopener noreferrer">Anthropic crawler note</a> — ClaudeBot access is separate from the ChatGPT allow list.</li>
+    </ul>
 
     <div class="blog-cta">
       <p>Audit the live robots file, keep private routes closed, and verify GPTBot can reach the public product pages.</p>

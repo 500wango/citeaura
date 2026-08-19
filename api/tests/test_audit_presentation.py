@@ -91,6 +91,8 @@ def _audit(pages):
     ({"url": "https://example.com/en/send-to-global"}, "product_service"),
     ({"url": "https://example.com/en/starrycard"}, "product_service"),
     ({"url": "https://example.com/login"}, "auth_utility"),
+    ({"url": "https://example.com/llms.txt"}, "auth_utility"),
+    ({"url": "https://citeaura.com/blog/what-to-put-in-llms-txt"}, "article_news"),
 ])
 def test_classify_page_uses_page_function_not_industry(page, expected):
     assert audit_presentation.classify_page(page)["id"] == expected
@@ -118,6 +120,19 @@ def test_contact_page_suppresses_unrelated_long_form_and_block_findings():
         "role": page["role"], "issues": page["issues"],
         "findings": page["findings"], "site_findings": result["site_findings"],
     }, ensure_ascii=False))
+
+
+def test_llms_txt_is_excluded_as_a_machine_index_file():
+    url = "https://example.com/llms.txt"
+    result = audit_presentation.present_audit_data(
+        _audit([_raw_page(url, codes=ALL_ENGINE_CODES)]),
+        [_evidence(url, title="CiteAura", h1=[], h2=[], word_count=80, schema=[], external_links=0)],
+    )
+    page = result["pages"][0]
+    assert page["role"]["id"] == "auth_utility"
+    assert page["evaluation_status"] == "excluded"
+    assert page["findings"] == []
+    assert "Machine-readable index files" in page["evaluation_note"]
 
 
 @pytest.mark.parametrize(("url", "title", "schema", "expected", "suppressed"), [

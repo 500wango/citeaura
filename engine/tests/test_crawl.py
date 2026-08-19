@@ -144,6 +144,15 @@ class TestCrawlSelectionAndEvidence(unittest.TestCase):
         })
         self.assertEqual(page["h1"], ["First", "Second"])
 
+    def test_select_candidates_skips_llms_txt(self):
+        selected = crawl.select_candidates(
+            ["https://example.com/llms.txt", "https://example.com/docs", "https://example.com/pricing"],
+            "https://example.com",
+            8,
+        )
+        self.assertNotIn("https://example.com/llms.txt", selected)
+        self.assertIn("https://example.com/docs", selected)
+
     def test_role_quota_limits_help_pages(self):
         urls = ([f"https://example.com/help/topic-{i}" for i in range(12)]
                 + ["https://example.com/product", "https://example.com/pricing", "https://example.com/about"])
