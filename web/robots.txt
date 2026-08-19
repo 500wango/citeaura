@@ -56,6 +56,56 @@ Disallow: /admin/
 Disallow: /app/
 Disallow: /files/
 
+# AI crawlers: keep public product pages readable
+User-agent: GPTBot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: Anthropic-AI
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: Bytespider
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /app/
+Disallow: /files/
+
 User-agent: Sogou web spider
 Allow: /
 Disallow: /api/

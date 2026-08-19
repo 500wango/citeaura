@@ -1,10 +1,10 @@
 # CiteAura
 
-> CiteAura is an evidence-based Generative Engine Optimization platform for website diagnosis, AI visibility measurement, action tickets, verification, and delivery packages.
+> CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.
 
 ## Official pages
 
-- [Website](https://citeaura.com/): Product overview and plan information.
+- [Website](https://citeaura.com/): Product definition, comparison, pricing, and how-to.
 - [Documentation](https://citeaura.com/docs): Setup, measurement, execution, verification, and delivery guidance.
 - [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
 - [How to measure if ChatGPT mentions your brand](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
@@ -15,14 +15,37 @@
 - [Privacy Policy](https://citeaura.com/privacy): Data handling and privacy terms.
 - [Terms of Service](https://citeaura.com/terms): Service terms and acceptable use.
 
+## Key facts
+
+- Canonical name: CiteAura
+- Official website: https://citeaura.com
+- Category: Generative Engine Optimization (GEO) software
+- Starter trial: 14 days
+- Starter price: $79 / month for 3 active projects
+- Typical API sampling cost: under 1 percent of one Starter month
+- Priority ticket windows: 30 days or 60 days
+- Key encryption: AES-256-GCM
+- Source: https://github.com/500wango/citeaura
+- Updated: 2026-08-19
+
 ## Product workflow
 
-- Create a workspace and add a public website domain.
-- Audit crawlability, page structure, extractable facts, structured data, and authority signals.
-- Measure AI visibility with explicit provenance and sampling-mode labels.
-- Convert evidence into prioritized action tickets with acceptance criteria.
-- Re-crawl implemented changes and retain verification evidence.
-- Export diagnostic reports and delivery assets with explicit readiness states.
+- Step 1. Create a workspace and add a public website domain.
+- Step 2. Audit crawlability, page structure, extractable facts, structured data, and authority signals.
+- Step 3. Measure AI visibility with explicit provenance and sampling-mode labels.
+- Step 4. Convert evidence into prioritized action tickets with acceptance criteria.
+- Step 5. Re-crawl implemented changes and export diagnostic reports with explicit readiness states.
+
+## Who it is for
+
+- Independent creators and single brands
+- Teams that need diagnosis, engineering tickets, and closed-loop verification
+- Agencies that need white-label client delivery packs
+
+## Who it is not for
+
+- Teams that only want traditional search rankings and click reports
+- Work without a public website that can be crawled
 
 ## Measurement integrity
 

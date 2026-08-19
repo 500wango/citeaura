@@ -32,6 +32,12 @@ def test_landing_page_is_public_and_links_to_application():
     assert "model-ribbon-name\">DeepSeek</span>" in response.text
     assert "data-radar-bar=\"grok\"" in response.text
     assert 'data-i18n="landing.ops_enterprise_dd"' in response.text
+    assert "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations" in response.text
+    assert "id=\"about\"" in response.text
+    assert "CiteAura versus traditional SEO tools" in response.text
+    assert "Step 1." in response.text
+    assert "14 days" in response.text
+    assert "Updated 2026-08-19" in response.text
 
 
 def test_public_verification_pages_support_head_requests():
@@ -126,6 +132,9 @@ def test_seo_technical_files_are_served():
     assert "User-agent: Googlebot" in robots_res.text
     assert "Sitemap: https://citeaura.com/sitemap.xml" in robots_res.text
     assert "Allow: /blog" in robots_res.text
+    assert "User-agent: GPTBot" in robots_res.text
+    assert "User-agent: ClaudeBot" in robots_res.text
+    assert "User-agent: Google-Extended" in robots_res.text
 
     sitemap_res = client.get("/sitemap.xml")
     assert sitemap_res.status_code == 200
@@ -147,6 +156,8 @@ def test_seo_technical_files_are_served():
     assert "https://citeaura.com/blog" in llms_res.text
     assert "https://citeaura.com/app/" not in llms_res.text
     assert "API - Parametric knowledge" in llms_res.text
+    assert "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations" in llms_res.text
+    assert "14 days" in llms_res.text
     assert client.head("/llms.txt").status_code == 200
 
 

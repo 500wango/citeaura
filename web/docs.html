@@ -54,13 +54,36 @@
       {
         "@type": "TechArticle",
         "headline": "CiteAura Documentation & Getting Started Guide",
-        "description": "Comprehensive guide for setting up brand AI visibility audits, BYOK API keys, site diagnosis, action tickets, and verification.",
+        "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.",
+        "dateModified": "2026-08-19",
+        "datePublished": "2026-08-14",
         "url": "https://citeaura.com/docs",
         "publisher": {
           "@type": "Organization",
           "name": "CiteAura",
           "url": "https://citeaura.com"
         }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How to start a CiteAura diagnostic?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Create a workspace, add a public website, connect a model endpoint, run labeled sampling, then export the diagnostic pack after verification."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does CiteAura guarantee AI mentions?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. CiteAura does not guarantee AI mentions, rankings, or citations. It produces diagnosis, tickets, and verification evidence."
+            }
+          }
+        ]
       }
     ]
   }
@@ -507,6 +530,7 @@
         <nav class="docs-nav-section" aria-label="Workspace administration and support">
           <div class="docs-nav-heading">Manage &amp; Support</div>
           <a href="#administration" class="docs-nav-link">Workspace Administration</a>
+          <a href="#faq" class="docs-nav-link">FAQ</a>
           <a href="#troubleshooting" class="docs-nav-link">Jobs &amp; Troubleshooting</a>
         </nav>
         </div>
@@ -519,16 +543,43 @@
         <section id="quickstart">
           <span class="docs-badge">Getting Started</span>
           <h1>CiteAura Workspace Guide</h1>
-          <p>CiteAura turns a brand website into an evidence-based GEO workspace. It crawls the site, prepares measurement inputs, records AI model answers, produces project-specific action tickets, verifies implemented changes, and packages the evidence for delivery.</p>
+          <p>CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.</p>
+          <p>Updated 2026-08-19. This guide shows how to turn a public website into an evidence-based GEO workspace: crawl the site, record labeled AI answers, assign tickets, verify changes, and export a delivery pack.</p>
           <div class="docs-callout tip">
             <p><strong>New projects start automatically.</strong> After you submit a website, the initial pipeline is queued. Keep the project open to follow its stages in the job telemetry panel; you do not need to find a separate start button.</p>
+          </div>
+
+          <h2>Key facts</h2>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Fact</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Starter trial</td>
+                  <td>14 days</td>
+                </tr>
+                <tr>
+                  <td>Typical API sampling cost versus Starter</td>
+                  <td>under 1 percent of one month</td>
+                </tr>
+                <tr>
+                  <td>Priority ticket windows</td>
+                  <td>30 days or 60 days</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           
           <div class="docs-steps">
             <div class="docs-step-card">
               <div class="docs-step-num">1</div>
               <div class="docs-step-content">
-                <h4>Create a workspace and add a brand</h4>
+                <h4>Step 1. Create a workspace and add a brand</h4>
                 <p>Register at <a href="/app?auth=register" style="color:var(--accent);">citeaura.com/app</a>, then enter the canonical HTTPS URL for the brand. CiteAura creates the project and queues the initial crawl and analysis pipeline.</p>
               </div>
             </div>
@@ -536,7 +587,7 @@
             <div class="docs-step-card">
               <div class="docs-step-num">2</div>
               <div class="docs-step-content">
-                <h4>Review the measurement inputs</h4>
+                <h4>Step 2. Review the measurement inputs</h4>
                 <p>Open <strong>Diagnostics → Target Questions</strong> and <strong>Diagnostics → Brand Fact Library</strong>. Keep questions representative of real buyer intent and give material facts a source and verification date.</p>
               </div>
             </div>
@@ -544,7 +595,7 @@
             <div class="docs-step-card">
               <div class="docs-step-num">3</div>
               <div class="docs-step-content">
-                <h4>Connect model providers</h4>
+                <h4>Step 3. Connect model providers</h4>
                 <p>Open <strong>Settings → Model Keys (BYOK)</strong>. Configure one or more built-in providers, or add an OpenAI-compatible endpoint. Use <strong>Test</strong> to validate each saved key before sampling.</p>
               </div>
             </div>
@@ -552,7 +603,7 @@
             <div class="docs-step-card">
               <div class="docs-step-num">4</div>
               <div class="docs-step-content">
-                <h4>Run and inspect AI sampling</h4>
+                <h4>Step 4. Run and inspect AI sampling</h4>
                 <p>Choose <strong>Run AI Sample</strong> from Overview or <strong>Sample Matrix Now</strong> from Monitor. Review the exact prompt, raw answer, sampling mode, citations, and cohort before interpreting any score.</p>
               </div>
             </div>
@@ -560,7 +611,7 @@
             <div class="docs-step-card">
               <div class="docs-step-num">5</div>
               <div class="docs-step-content">
-                <h4>Execute, verify, and deliver</h4>
+                <h4>Step 5. Execute, verify, and deliver</h4>
                 <p>Prioritize evidence-backed tickets in <strong>Execution → Action Tickets</strong>, deploy the relevant assets, then run <strong>Verify Changes</strong>. Use <strong>Delivery → Client Delivery Packs</strong> to build the current handoff package.</p>
               </div>
             </div>
@@ -882,6 +933,14 @@
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section id="faq">
+          <h2>FAQ</h2>
+          <h3>How to start a CiteAura diagnostic?</h3>
+          <p>Create a workspace, add a public website, connect a model endpoint, run labeled sampling, then export the diagnostic pack after verification. Step 1 through Step 5 are listed in Quickstart.</p>
+          <h3>Does CiteAura guarantee AI mentions?</h3>
+          <p>No. CiteAura does not guarantee AI mentions, rankings, or citations. It produces diagnosis, tickets, and verification evidence.</p>
         </section>
 
         <!-- Troubleshooting -->
