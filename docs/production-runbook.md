@@ -10,7 +10,7 @@
 4. 保持 `PRODUCTION_PROXY_MODE=true`、`RATE_LIMIT_ENABLED=true` 和 `RATE_LIMIT_TRUST_PROXY_HEADERS=true`。默认每个用户或来源 IP 每分钟 120 个 API 请求，注册、登录和刷新每分钟 20 个；可通过 `RATE_LIMIT_*` 调整。
 5. 暂不开放支付时保持 `BILLING_ENABLED=false`，Stripe 配置可以留空。开放支付时改为 `true`，并在 Stripe Dashboard 创建订阅 Checkout Webhook；事件至少包括 `checkout.session.completed`、`checkout.session.async_payment_succeeded`、`customer.subscription.updated`、`customer.subscription.deleted`、`invoice.paid` 和 `invoice.payment_failed`，地址为 `https://DOMAIN/api/v1/billing/webhook`。
 6. 宿主机 Caddy 独占 `80/443` 并自动管理证书。CiteAura 默认仅监听 `127.0.0.1:18000`，可用 `APP_PORT` 调整。
-7. 暂不开放密码重置邮件时保持 `PASSWORD_RESET_EMAIL_ENABLED=false`，认证 SMTP 可以留空。开放时改为 `true` 并配置 `AUTH_SMTP_*` 全局发件账号。外链联络 SMTP 仍由各租户在工作台单独配置。
+7. 配置 `AUTH_SMTP_*` 全局发件账号后，CiteAura 会发送注册欢迎邮件、付款成功通知、密码重置、交付包分享和回归告警；密码重置仍由 `PASSWORD_RESET_EMAIL_ENABLED` 单独控制。SMTP 未配置时，欢迎/付款通知会记录跳过，且不会阻断注册或付款 Webhook。外链联络 SMTP 仍由各租户在工作台单独配置。
 8. 如果启用归档，填写 S3 或 R2 兼容对象存储配置。外链 SMTP 和 OIDC 凭证在租户工作台内配置，并由对应连接测试确认。
 
 ## 预检与部署
@@ -122,6 +122,13 @@ python3 scripts/workflow_acceptance.py --base-url https://your-domain.example --
 ## 付款验收
 
 用 Stripe 测试环境应在独立 staging 配置中完成。生产配置只接受 `sk_live_` 和 `whsec_`。订阅请求只创建 Checkout 会话，租户套餐必须在签名 Webhook 到达后才变为 Pro 或 Agency；重复 Webhook 应返回 `duplicate: true` 且不重复创建订阅。
+
+## 邮件通知验收
+
+- 用新的测试邮箱注册一次，确认收到 `Welcome to CiteAura`；重复注册应返回冲突且不再发送。
+- 在 Stripe 测试环境完成一次 Checkout，确认收到 `CiteAura payment successful`；重复投递同一个 Webhook event 不应重复发送。
+- 检查 API/Worker 日志中的 `welcome email delivery failed` 或 `payment email delivery failed`，并在 SMTP 服务商后台核对投递状态。
+- Stripe 官方收据和发票仍由 Stripe Dashboard 的 Customer emails 设置负责，不能用 CiteAura 应用邮件替代。
 
 ## 可选基础设施验收
 

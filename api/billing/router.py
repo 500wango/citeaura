@@ -5,7 +5,7 @@ import hashlib
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -17,9 +17,10 @@ from api.billing.limits import usage
 from api.billing.plans import PLANS, SUBSCRIBABLE_PLANS
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.billing import stripe as stripe_adapter
+from api.adapters import transactional_email
 from api.db import get_db
 from api.country import normalize_country_code
-from api.models import BillingEvent, PaymentTransaction, Subscription, Tenant, User
+from api.models import BillingEvent, Membership, PaymentTransaction, Subscription, Tenant, User
 from api.product_events import record_product_event
 
 
@@ -417,6 +418,72 @@ def _process_stripe_event(db, event):
     return False
 
 
+def _owner_email(db, tenant_id):
+    """返回租户第一个 owner 的邮箱。"""
+    row = (
+        db.query(User.email)
+        .join(Membership, Membership.user_id == User.id)
+        .filter(Membership.tenant_id == tenant_id, Membership.role == "owner")
+        .order_by(User.id)
+        .first()
+    )
+    return row[0] if row else None
+
+
+def _payment_email_payload(db, event, processed):
+    """仅为新处理的成功付款事件构造通知参数。"""
+    if not processed or event["type"] not in (
+        "checkout.session.completed",
+        "checkout.session.async_payment_succeeded",
+        "invoice.paid",
+    ):
+        return None
+    value = ((event.get("data") or {}).get("object") or {})
+    if event["type"].startswith("checkout.session"):
+        tenant_id, _, billing_interval, plan = _validated_selection(value)
+        amount_minor = value.get("amount_total")
+        currency = value.get("currency")
+    else:
+        provider_subscription_id = _stripe_id(value.get("subscription"))
+        parent = value.get("parent") if isinstance(value.get("parent"), dict) else {}
+        details = parent.get("subscription_details") if isinstance(parent.get("subscription_details"), dict) else {}
+        if not provider_subscription_id:
+            provider_subscription_id = _stripe_id(details.get("subscription"))
+        subscription = _subscription_row(db, provider_subscription_id)
+        if subscription is None:
+            return None
+        tenant_id = subscription.tenant_id
+        plan_code = subscription.plan
+        billing_interval = subscription.billing_interval
+        plan = _plan(plan_code)
+        amount_minor = value.get("amount_paid")
+        currency = value.get("currency")
+    email = _owner_email(db, tenant_id)
+    if not email:
+        return None
+    return {
+        "email": email,
+        "plan_name": plan["name"],
+        "billing_interval": billing_interval,
+        "amount_minor": amount_minor,
+        "currency": currency,
+        "payment_reference": event["id"],
+    }
+
+
+def _payment_notification_key(event):
+    """返回可跨 Checkout 和 invoice 事件复用的通知键。"""
+    event_type = event.get("type")
+    value = ((event.get("data") or {}).get("object") or {})
+    if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
+        invoice_id = _stripe_id(value.get("invoice"))
+        if invoice_id:
+            return f"stripe-payment:{invoice_id}"
+    if event_type == "invoice.paid" and value.get("id"):
+        return f"stripe-payment:{value['id']}"
+    return None
+
+
 @router.get("/usage")
 def billing_usage(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """返回当前租户试用/订阅用量。"""
@@ -612,7 +679,11 @@ def cancel_subscription(current_user: User = Depends(require_owner), db: Session
 
 
 @router.post("/webhook")
-async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+async def stripe_webhook(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     """验证 Stripe 签名并幂等同步订阅状态。"""
     _require_billing_enabled()
     payload = await request.body()
@@ -637,11 +708,20 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": str(exc)},
         ) from exc
+    payment_email = _payment_email_payload(db, event, processed)
+    notification_key = _payment_notification_key(event) if payment_email is not None else None
+    if notification_key and db.query(BillingEvent.id).filter(
+        BillingEvent.provider == "stripe",
+        BillingEvent.notification_key == notification_key,
+    ).first() is not None:
+        payment_email = None
+        notification_key = None
     db.add(BillingEvent(
         provider="stripe",
         event_id=event["id"],
         event_type=event["type"],
         payload_sha256=hashlib.sha256(payload).hexdigest(),
+        notification_key=notification_key,
     ))
     try:
         db.commit()
@@ -654,4 +734,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         if duplicate is None:
             raise
         return {"received": True, "duplicate": True, "processed": False}
+    if payment_email is not None:
+        background_tasks.add_task(
+            transactional_email.send_payment_success_email_safe,
+            **payment_email,
+        )
     return {"received": True, "duplicate": False, "processed": processed}

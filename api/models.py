@@ -314,6 +314,7 @@ class BillingEvent(Base):
     event_id = Column(String(255), nullable=False)
     event_type = Column(String(128), nullable=False)
     payload_sha256 = Column(String(64), nullable=False)
+    notification_key = Column(String(255), nullable=True, index=True)
     processed_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 

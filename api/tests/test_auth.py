@@ -84,6 +84,22 @@ def test_register_login_and_me(client):
     assert cookie_current.json()["user"]["email"] == "owner@example.com"
 
 
+def test_registration_schedules_welcome_email(client, monkeypatch):
+    sent = []
+    monkeypatch.setattr(
+        "api.auth.router.transactional_email.send_welcome_email_safe",
+        lambda *args: sent.append(args),
+    )
+
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": "welcome@example.com", "password": "correct-horse-battery"},
+    )
+
+    assert registered.status_code == 201
+    assert sent == [("welcome@example.com", "welcome", 1)]
+
+
 def test_refresh_token_rotation_detects_reuse(client):
     payload = {"email": "rotation@example.com", "password": "correct-horse-battery"}
     assert client.post("/api/v1/auth/register", json=payload).status_code == 201

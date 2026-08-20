@@ -326,6 +326,83 @@ def test_signed_webhook_activates_subscription_once(billing_client):
     assert usage["subscription"]["status"] == "active"
 
 
+def test_successful_checkout_schedules_one_payment_email(billing_client, monkeypatch):
+    client, session_factory = billing_client
+    sent = []
+    monkeypatch.setattr(
+        "api.billing.router.transactional_email.send_payment_success_email_safe",
+        lambda **kwargs: sent.append(kwargs),
+    )
+    _register(client, "payment-email@example.com")
+    with session_factory() as db:
+        tenant_id = db.query(Tenant).filter(Tenant.name == "payment-email").one().id
+    event = _stripe_event("evt_payment_email", "checkout.session.completed", {
+        "id": "cs_payment_email",
+        "created": int(time.time()),
+        "client_reference_id": str(tenant_id),
+        "customer": "cus_payment_email",
+        "subscription": "sub_payment_email",
+        "payment_status": "paid",
+        "currency": "usd",
+        "amount_total": 19900,
+        "metadata": {
+            "tenant_id": str(tenant_id),
+            "plan": "pro",
+            "billing_interval": "monthly",
+        },
+    })
+
+    assert _post_stripe_event(client, event).json()["processed"] is True
+    assert _post_stripe_event(client, event).json()["duplicate"] is True
+    assert sent == [{
+        "email": "payment-email@example.com",
+        "plan_name": "Pro",
+        "billing_interval": "monthly",
+        "amount_minor": 19900,
+        "currency": "usd",
+        "payment_reference": "evt_payment_email",
+    }]
+
+
+def test_checkout_and_initial_invoice_share_one_payment_email(billing_client, monkeypatch):
+    client, session_factory = billing_client
+    sent = []
+    monkeypatch.setattr(
+        "api.billing.router.transactional_email.send_payment_success_email_safe",
+        lambda **kwargs: sent.append(kwargs),
+    )
+    _register(client, "payment-dedup@example.com")
+    with session_factory() as db:
+        tenant_id = db.query(Tenant).filter(Tenant.name == "payment-dedup").one().id
+    checkout = _stripe_event("evt_dedup_checkout", "checkout.session.completed", {
+        "id": "cs_dedup",
+        "invoice": "in_dedup",
+        "created": int(time.time()),
+        "client_reference_id": str(tenant_id),
+        "customer": "cus_dedup",
+        "subscription": "sub_dedup",
+        "payment_status": "paid",
+        "currency": "usd",
+        "amount_total": 19900,
+        "metadata": {"tenant_id": str(tenant_id), "plan": "pro", "billing_interval": "monthly"},
+    })
+    invoice = _stripe_event("evt_dedup_invoice", "invoice.paid", {
+        "id": "in_dedup",
+        "subscription": "sub_dedup",
+        "currency": "usd",
+        "amount_paid": 19900,
+        "created": int(time.time()),
+    })
+
+    assert _post_stripe_event(client, checkout).json()["processed"] is True
+    assert _post_stripe_event(client, invoice).json()["processed"] is True
+    assert len(sent) == 1
+    with session_factory() as db:
+        events = db.query(BillingEvent).order_by(BillingEvent.id).all()
+        assert events[0].notification_key == "stripe-payment:in_dedup"
+        assert events[1].notification_key is None
+
+
 def test_invoice_payments_and_incremental_refunds_are_recorded_in_usd(billing_client):
     client, session_factory = billing_client
     _register(client, "refund-owner@example.com")

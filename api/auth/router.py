@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from api import config
 from api.auth import password_reset
+from api.adapters import transactional_email
 from api.adapters.engine import tenant_slug
 from api.auth.deps import get_current_user
 from api.auth.security import (
@@ -166,7 +167,12 @@ def token_response(
 
 
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
-def register(request: Request, payload: RegisterRequest, db: Session = Depends(get_db)):
+def register(
+    request: Request,
+    payload: RegisterRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     """创建用户、默认租户和 owner membership。"""
     if db.query(User.id).filter(User.email == payload.email).first() is not None:
         verify_password(payload.password, DUMMY_PASSWORD_HASH)
@@ -227,6 +233,12 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
         db.rollback()
         _error(status.HTTP_409_CONFLICT, "email_already_registered")
 
+    background_tasks.add_task(
+        transactional_email.send_welcome_email_safe,
+        user.email,
+        tenant.name,
+        user.id,
+    )
     return {
         "user": {"id": user.id, "email": user.email},
         "tenant": {
