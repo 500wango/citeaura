@@ -6,7 +6,7 @@
 
 - [Website](https://citeaura.com/): Product definition, comparison, pricing, and how-to.
 - [About CiteAura](https://citeaura.com/about): Product scope, evidence boundaries, and source specifications.
-- [Contact CiteAura](https://citeaura.com/contact): Privacy requests, workspace support, and public source links.
+- [Contact CiteAura](https://citeaura.com/contact): Privacy requests, workspace support, and product documentation.
 - [Documentation](https://citeaura.com/docs): Setup, measurement, execution, verification, and delivery guidance.
 - [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
 - [How to Measure ChatGPT Brand Mentions](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
@@ -27,7 +27,6 @@
 - Typical API sampling cost: under 1 percent of one Starter month
 - Priority ticket windows: 30 days or 60 days
 - Key encryption: AES-256-GCM
-- Source: https://github.com/500wango/citeaura
 - Updated: 2026-08-20
 
 ## Product workflow
