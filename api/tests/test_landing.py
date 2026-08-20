@@ -24,6 +24,8 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'class="nav-sign-in"' in response.text
     assert 'href="/privacy"' in response.text
     assert 'href="/terms"' in response.text
+    assert 'href="/about"' in response.text
+    assert 'href="/contact"' in response.text
     assert "$199" in response.text
     assert "$79" in response.text
     assert 'data-i18n="landing.pricing_note"' in response.text
@@ -40,11 +42,15 @@ def test_landing_page_is_public_and_links_to_application():
     assert "Step 1." in response.text
     assert "14 days" in response.text
     assert "Updated 2026-08-19" in response.text
+    assert "Sources and definitions:" in response.text
+    assert "<h3>Schema.org Knowledge Graph</h3>" in response.text
 
 
 def test_public_verification_pages_support_head_requests():
     for path in (
         "/",
+        "/about",
+        "/contact",
         "/privacy",
         "/terms",
         "/docs",
@@ -58,6 +64,27 @@ def test_public_verification_pages_support_head_requests():
         response = client.head(path)
         assert response.status_code == 200, path
         assert response.headers["content-type"].startswith("text/html"), path
+
+
+def test_about_and_contact_pages_expose_provenance_and_real_support_channel():
+    about = client.get("/about")
+    assert about.status_code == 200
+    assert "<h1>GEO diagnosis with evidence boundaries</h1>" in about.text
+    assert '"@type": "AboutPage"' in about.text
+    assert "does not guarantee a mention, ranking, or citation" in about.text
+    assert "OpenAI crawler documentation" in about.text
+
+    contact = client.get("/contact")
+    assert contact.status_code == 200
+    assert "<h1>Choose the right support channel</h1>" in contact.text
+    assert '"@type": "ContactPage"' in contact.text
+    assert 'mailto:privacy@citeaura.com' in contact.text
+    assert "do not send passwords" in contact.text
+
+    docs = client.get("/docs")
+    assert docs.status_code == 200
+    assert '"author": {' in docs.text
+    assert "Maintained by CiteAura Editorial Team" in docs.text
 
 
 def test_privacy_policy_has_no_removed_seo_integration_claims():
@@ -147,6 +174,8 @@ def test_seo_technical_files_are_served():
     assert "xml" in sitemap_res.headers["content-type"]
     assert "<loc>https://citeaura.com/</loc>" in sitemap_res.text
     assert "<loc>https://citeaura.com/docs</loc>" in sitemap_res.text
+    assert "<loc>https://citeaura.com/about</loc>" in sitemap_res.text
+    assert "<loc>https://citeaura.com/contact</loc>" in sitemap_res.text
     assert "<loc>https://citeaura.com/blog</loc>" in sitemap_res.text
     assert "<loc>https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand</loc>" in sitemap_res.text
     assert "<loc>https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand</loc>" in sitemap_res.text
@@ -159,6 +188,8 @@ def test_seo_technical_files_are_served():
     assert llms_res.headers["content-type"].startswith("text/plain")
     assert llms_res.text.startswith("# CiteAura\n")
     assert "https://citeaura.com/docs" in llms_res.text
+    assert "https://citeaura.com/about" in llms_res.text
+    assert "https://citeaura.com/contact" in llms_res.text
     assert "https://citeaura.com/blog" in llms_res.text
     assert "https://citeaura.com/app/" not in llms_res.text
     assert "API - Parametric knowledge" in llms_res.text
@@ -218,6 +249,7 @@ def test_blog_index_and_articles_are_static_html():
         assert page.text.count("<h1") == 1
         assert '"@type": "FAQPage"' in page.text
         assert 'class="blog-related"' in page.text
+        assert "By CiteAura Editorial Team" in page.text
         assert 'class="blog-cta"' in page.text
         assert 'class="btn btn-primary" href="/app?auth=register">Start free trial</a>' in page.text
         title = re.search(r"<title>([^<]+)</title>", page.text)

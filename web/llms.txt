@@ -5,6 +5,8 @@
 ## Official pages
 
 - [Website](https://citeaura.com/): Product definition, comparison, pricing, and how-to.
+- [About CiteAura](https://citeaura.com/about): Product scope, evidence boundaries, and source specifications.
+- [Contact CiteAura](https://citeaura.com/contact): Privacy requests, workspace support, and public source links.
 - [Documentation](https://citeaura.com/docs): Setup, measurement, execution, verification, and delivery guidance.
 - [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
 - [How to Measure ChatGPT Brand Mentions](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)

@@ -62,6 +62,12 @@
   font-family: var(--font-mono);
 }
 
+.blog-byline {
+  color: var(--muted);
+  font-size: var(--fs-2);
+  margin-top: var(--sp-2);
+}
+
 .blog-article h2 {
   font-size: var(--fs-5);
   margin-top: var(--sp-8);

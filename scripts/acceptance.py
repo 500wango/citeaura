@@ -42,6 +42,9 @@ def collect_checks(base_url, production=False):
             and "https://citeaura.com/docs" in llms.text,
             llms.status_code,
         )
+        for path, marker in (("/about", "About CiteAura"), ("/contact", "Contact CiteAura")):
+            page = _get(base_url, path)
+            check(f"public:{path}", page.status_code == 200 and marker in page.text, page.status_code)
         for asset in ("/site-assets/styles/tokens.css", "/site-assets/styles/landing.css", "/site-assets/landing.js", "/site-assets/product-audit.webp"):
             response = _get(base_url, asset)
             check(f"asset:{asset}", response.status_code == 200, response.status_code)

@@ -19,6 +19,10 @@ def test_acceptance_script_checks_public_surface(monkeypatch):
             return Response(body={"status": "ok"})
         if _url.endswith("/llms.txt"):
             return Response(text="# CiteAura\nhttps://citeaura.com/docs")
+        if _url.endswith("/about"):
+            return Response(text="About CiteAura")
+        if _url.endswith("/contact"):
+            return Response(text="Contact CiteAura")
         return Response(text=html)
 
     monkeypatch.setattr("scripts.acceptance.requests.get", fake_get)
@@ -36,6 +40,10 @@ def test_acceptance_script_fails_when_llms_manifest_is_missing(monkeypatch):
             return Response(body={"status": "ok"})
         if _url.endswith("/llms.txt"):
             return Response(status_code=404)
+        if _url.endswith("/about"):
+            return Response(text="About CiteAura")
+        if _url.endswith("/contact"):
+            return Response(text="Contact CiteAura")
         return Response(text=html)
 
     monkeypatch.setattr("scripts.acceptance.requests.get", fake_get)

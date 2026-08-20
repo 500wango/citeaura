@@ -26,6 +26,20 @@ def serve_landing_page():
     return FileResponse(WEB_ROOT / "index.html", media_type="text/html; charset=utf-8")
 
 
+@router.get("/about")
+@router.head("/about")
+def serve_about_page():
+    """返回 CiteAura 产品与证据边界说明页面。"""
+    return FileResponse(WEB_ROOT / "about.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/contact")
+@router.head("/contact")
+def serve_contact_page():
+    """返回 CiteAura 联系与隐私请求页面。"""
+    return FileResponse(WEB_ROOT / "contact.html", media_type="text/html; charset=utf-8")
+
+
 @router.get("/privacy")
 @router.head("/privacy")
 def serve_privacy_page():
