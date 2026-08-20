@@ -181,6 +181,9 @@ fi
     printf '%s {\n' "$DOMAIN"
     printf '    encode zstd gzip\n'
     printf '    reverse_proxy 127.0.0.1:%s\n' "$APP_PORT"
+    printf '}\n\n'
+    printf 'www.%s {\n' "$DOMAIN"
+    printf '    redir https://%s{uri} permanent\n' "$DOMAIN"
     printf '}\n'
 } >"$SITE_CANDIDATE"
 
@@ -200,14 +203,19 @@ CADDY_CHANGED=false
 if [[ "$SKIP_PUBLIC_CHECK" == false ]]; then
     PUBLIC_READY=false
     for _attempt in $(seq 1 18); do
-        if curl --fail --silent --show-error "https://${DOMAIN}/api/v1/health/ready" >/dev/null 2>&1; then
+        WWW_REDIRECT_TARGET="$(
+            curl --silent --show-error --head --output /dev/null --write-out '%{redirect_url}' \
+                "https://www.${DOMAIN}/sitemap.xml" 2>/dev/null || true
+        )"
+        if curl --fail --silent --show-error "https://${DOMAIN}/api/v1/health/ready" >/dev/null 2>&1 \
+            && [[ "$WWW_REDIRECT_TARGET" == "https://${DOMAIN}/sitemap.xml" ]]; then
             PUBLIC_READY=true
             break
         fi
         sleep 5
     done
     if [[ "$PUBLIC_READY" == false ]]; then
-        printf 'WARN: local deployment is healthy, but https://%s is not ready yet. Check DNS and Caddy logs.\n' "$DOMAIN" >&2
+        printf 'WARN: local deployment is healthy, but the canonical endpoint or www redirect is not ready yet. Check DNS and Caddy logs.\n' >&2
     fi
 fi
 

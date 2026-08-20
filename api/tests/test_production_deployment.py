@@ -55,6 +55,10 @@ def test_one_click_deploy_is_executable_and_documents_safe_caddy_update():
     assert "restoring the previous configuration" in text
     assert "restore_caddy 130" in text
     assert "restore_caddy 143" in text
+    assert "www.%s {\\n" in text
+    assert "redir https://%s{uri} permanent" in text
+    assert '"https://www.${DOMAIN}/sitemap.xml"' in text
+    assert '"https://${DOMAIN}/sitemap.xml"' in text
     assert "api worker beat nginx" not in text
 
 

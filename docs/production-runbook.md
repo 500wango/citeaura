@@ -49,9 +49,13 @@ make grant-plan-prod EMAIL=user@example.com PLAN=pro ENV_FILE=.env.production
 your-domain.example {
     reverse_proxy 127.0.0.1:18000
 }
+
+www.your-domain.example {
+    redir https://your-domain.example{uri} permanent
+}
 ```
 
-脚本会确保主 `/etc/caddy/Caddyfile` 包含 `import /etc/caddy/sites/*.caddy`，然后执行 Caddy validate 与 reload。自定义 Caddy 路径时使用 `--caddyfile` 和 `--site-dir`。仅更新容器、不修改 Caddy 时可继续运行 `scripts/deploy.sh`。
+脚本会确保主 `/etc/caddy/Caddyfile` 包含 `import /etc/caddy/sites/*.caddy`，然后执行 Caddy validate 与 reload。`www` 别名由 Caddy 完成 TLS，并永久跳转到 `DOMAIN` 对应的规范域名；公开检查同时验证该跳转，避免 CDN 连接到未配置 `www` 证书的源站时返回 525。自定义 Caddy 路径时使用 `--caddyfile` 和 `--site-dir`。仅更新容器、不修改 Caddy 时可继续运行 `scripts/deploy.sh`。
 
 ## GitHub 推送自动部署
 
