@@ -94,6 +94,43 @@ def test_preflight_allows_disabled_billing_and_password_reset_email():
     assert "Password reset email is disabled by PASSWORD_RESET_EMAIL_ENABLED=false" in warnings
 
 
+def test_preflight_rejects_mismatched_implicit_tls_configuration():
+    values = _valid_environment()
+    values.update({
+        "AUTH_SMTP_PORT": "465",
+        "AUTH_SMTP_SECURITY": "starttls",
+    })
+
+    errors, _warnings = validate_environment(values)
+
+    assert "AUTH_SMTP_PORT=465 requires AUTH_SMTP_SECURITY=ssl" in errors
+
+
+def test_preflight_rejects_ssl_on_submission_port():
+    values = _valid_environment()
+    values.update({
+        "AUTH_SMTP_PORT": "587",
+        "AUTH_SMTP_SECURITY": "ssl",
+    })
+
+    errors, _warnings = validate_environment(values)
+
+    assert "AUTH_SMTP_SECURITY=ssl requires AUTH_SMTP_PORT=465" in errors
+
+
+def test_preflight_checks_configured_smtp_when_password_reset_is_disabled():
+    values = _valid_environment()
+    values.update({
+        "PASSWORD_RESET_EMAIL_ENABLED": "false",
+        "AUTH_SMTP_PORT": "465",
+        "AUTH_SMTP_SECURITY": "starttls",
+    })
+
+    errors, _warnings = validate_environment(values)
+
+    assert "AUTH_SMTP_PORT=465 requires AUTH_SMTP_SECURITY=ssl" in errors
+
+
 def test_preflight_warns_about_removed_seo_integration_settings():
     values = _valid_environment()
     values["GOOGLE_OAUTH_CLIENT_ID"] = "unused-client"

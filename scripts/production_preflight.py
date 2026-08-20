@@ -136,6 +136,13 @@ def validate_environment(values):
             reset_ttl = 0
         if not 5 <= reset_ttl <= 1440:
             errors.append("PASSWORD_RESET_TTL_MINUTES must be an integer between 5 and 1440")
+    else:
+        warnings.append("Password reset email is disabled by PASSWORD_RESET_EMAIL_ENABLED=false")
+    smtp_configured = any(
+        values.get(key, "")
+        for key in ("AUTH_SMTP_HOST", "AUTH_SMTP_USERNAME", "AUTH_SMTP_PASSWORD", "AUTH_SMTP_FROM_EMAIL")
+    )
+    if password_reset_email_enabled or smtp_configured:
         if values.get("AUTH_SMTP_SECURITY", "").lower() not in ("starttls", "ssl"):
             errors.append("AUTH_SMTP_SECURITY must be starttls or ssl")
         try:
@@ -144,6 +151,10 @@ def validate_environment(values):
             smtp_port = 0
         if not 1 <= smtp_port <= 65535:
             errors.append("AUTH_SMTP_PORT must be an integer between 1 and 65535")
+        elif smtp_port == 465 and values.get("AUTH_SMTP_SECURITY", "").lower() != "ssl":
+            errors.append("AUTH_SMTP_PORT=465 requires AUTH_SMTP_SECURITY=ssl")
+        elif smtp_port != 465 and values.get("AUTH_SMTP_SECURITY", "").lower() == "ssl":
+            errors.append("AUTH_SMTP_SECURITY=ssl requires AUTH_SMTP_PORT=465")
         smtp_username = values.get("AUTH_SMTP_USERNAME", "")
         smtp_password = values.get("AUTH_SMTP_PASSWORD", "")
         if bool(smtp_username) != bool(smtp_password):
@@ -151,8 +162,6 @@ def validate_environment(values):
         from_email = values.get("AUTH_SMTP_FROM_EMAIL", "")
         if from_email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", from_email):
             errors.append("AUTH_SMTP_FROM_EMAIL must be a valid email address")
-    else:
-        warnings.append("Password reset email is disabled by PASSWORD_RESET_EMAIL_ENABLED=false")
     if billing_enabled:
         for key in ("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_CURRENCY"):
             if not values.get(key):
