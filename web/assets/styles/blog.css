@@ -132,6 +132,35 @@
   color: var(--ink-2);
 }
 
+.blog-faq {
+  margin-top: var(--sp-8);
+}
+
+.blog-faq h3 {
+  margin-top: var(--sp-5);
+}
+
+.blog-related {
+  margin-top: var(--sp-8);
+  padding: var(--sp-5);
+  border: 1px solid var(--divider);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.blog-related h2 {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-4);
+}
+
+.blog-related ul {
+  margin: 0 0 0 var(--sp-5);
+}
+
+.blog-related li {
+  margin-bottom: var(--sp-2);
+}
+
 .blog-list {
   display: flex;
   flex-direction: column;

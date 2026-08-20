@@ -1,3 +1,5 @@
+import re
+
 from fastapi.testclient import TestClient
 
 from api.main import app
@@ -176,27 +178,27 @@ def test_blog_index_and_articles_are_static_html():
     articles = (
         (
             "/blog/measure-if-chatgpt-mentions-your-brand",
-            "How to measure if ChatGPT mentions your brand",
+            "How to Measure ChatGPT Brand Mentions",
             "API · Model knowledge",
         ),
         (
             "/blog/why-chatgpt-does-not-mention-my-brand",
-            "Why ChatGPT does not mention my brand",
+            "Why ChatGPT Does Not Mention Your Brand",
             "API · Web-grounded retrieval",
         ),
         (
             "/blog/gptbot-blocked-by-robots-txt",
-            "GPTBot blocked by robots.txt: how to fix",
+            "GPTBot Blocked by robots.txt? Find and Fix the Rule",
             "User-agent: GPTBot",
         ),
         (
             "/blog/what-to-put-in-llms-txt",
-            "What to put in llms.txt for your brand",
+            "What to Put in llms.txt for Your Brand",
             "text/plain",
         ),
         (
             "/blog/white-label-geo-diagnostic-report",
-            "White-label GEO diagnostic report for agencies",
+            "White-Label GEO Diagnostic Reports for Agencies",
             "API · Model knowledge",
         ),
     )
@@ -209,6 +211,12 @@ def test_blog_index_and_articles_are_static_html():
         assert f'rel="canonical" href="https://citeaura.com{path}"' in page.text
         assert page.text.count('href="https://') >= 3
         assert "<h2>Sources</h2>" in page.text
+        assert page.text.count("<h1") == 1
+        assert '"@type": "FAQPage"' in page.text
+        assert 'class="blog-related"' in page.text
+        title = re.search(r"<title>([^<]+)</title>", page.text)
+        assert title is not None
+        assert 55 <= len(title.group(1)) <= 70
 
     assert client.get("/blog/not-a-real-slug").status_code == 404
 

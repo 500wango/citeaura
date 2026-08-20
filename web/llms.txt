@@ -7,11 +7,11 @@
 - [Website](https://citeaura.com/): Product definition, comparison, pricing, and how-to.
 - [Documentation](https://citeaura.com/docs): Setup, measurement, execution, verification, and delivery guidance.
 - [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
-- [How to measure if ChatGPT mentions your brand](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
-- [Why ChatGPT does not mention my brand](https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand)
-- [GPTBot blocked by robots.txt: how to fix](https://citeaura.com/blog/gptbot-blocked-by-robots-txt)
-- [What to put in llms.txt for your brand](https://citeaura.com/blog/what-to-put-in-llms-txt)
-- [White-label GEO diagnostic report for agencies](https://citeaura.com/blog/white-label-geo-diagnostic-report)
+- [How to Measure ChatGPT Brand Mentions](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
+- [Why ChatGPT Does Not Mention Your Brand](https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand)
+- [GPTBot Blocked by robots.txt? Find and Fix the Rule](https://citeaura.com/blog/gptbot-blocked-by-robots-txt)
+- [What to Put in llms.txt for Your Brand](https://citeaura.com/blog/what-to-put-in-llms-txt)
+- [White-Label GEO Diagnostic Reports for Agencies](https://citeaura.com/blog/white-label-geo-diagnostic-report)
 - [Privacy Policy](https://citeaura.com/privacy): Data handling and privacy terms.
 - [Terms of Service](https://citeaura.com/terms): Service terms and acceptable use.
 
@@ -26,7 +26,7 @@
 - Priority ticket windows: 30 days or 60 days
 - Key encryption: AES-256-GCM
 - Source: https://github.com/500wango/citeaura
-- Updated: 2026-08-19
+- Updated: 2026-08-20
 
 ## Product workflow
 

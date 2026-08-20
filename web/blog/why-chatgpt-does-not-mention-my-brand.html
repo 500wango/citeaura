@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Why ChatGPT does not mention my brand — CiteAura</title>
-  <meta name="description" content="Why ChatGPT does not mention my brand: extractability blocks, thin official facts, the wrong question set, and ordinary sampling noise.">
+  <title>Why ChatGPT Does Not Mention Your Brand: 4 Checks | CiteAura</title>
+  <meta name="description" content="Find why ChatGPT does not mention your brand: check crawl access, extractable HTML, official facts, and measurement noise.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/site-assets/theme-init.js"></script>
@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="/site-assets/styles/base.css?v=2.3">
   <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
   <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.5">
-  <link rel="stylesheet" href="/site-assets/styles/blog.css?v=1.0">
+  <link rel="stylesheet" href="/site-assets/styles/blog.css?v=1.1">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
   <link rel="canonical" href="https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
@@ -21,12 +21,12 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand">
-  <meta property="og:title" content="Why ChatGPT does not mention my brand — CiteAura">
-  <meta property="og:description" content="The usual site-level reasons ChatGPT skips a brand, and how to tell them apart from a one-off answer.">
+  <meta property="og:title" content="Why ChatGPT Does Not Mention Your Brand: 4 Checks | CiteAura">
+  <meta property="og:description" content="Check crawl access, extractable HTML, official facts, and measurement noise before changing your site.">
   <meta property="og:image" content="https://citeaura.com/site-assets/logo.png">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Why ChatGPT does not mention my brand — CiteAura">
+  <meta name="twitter:title" content="Why ChatGPT Does Not Mention Your Brand | CiteAura">
   <meta name="twitter:description" content="Extractability, thin facts, and noisy answers look the same until you separate them.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/logo.png">
 
@@ -52,18 +52,18 @@
           {
             "@type": "ListItem",
             "position": 3,
-            "name": "Why ChatGPT does not mention my brand",
+            "name": "Why ChatGPT Does Not Mention Your Brand",
             "item": "https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand"
           }
         ]
       },
       {
         "@type": "Article",
-        "headline": "Why ChatGPT does not mention my brand",
+        "headline": "Why ChatGPT Does Not Mention Your Brand",
         "description": "Common reasons ChatGPT skips a brand, and how to separate site extractability issues from sampling noise.",
         "url": "https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand",
         "datePublished": "2026-08-17",
-        "dateModified": "2026-08-19",
+        "dateModified": "2026-08-20",
         "author": {
           "@type": "Organization",
           "name": "CiteAura",
@@ -76,6 +76,36 @@
           "logo": "https://citeaura.com/site-assets/logo.png"
         },
         "mainEntityOfPage": "https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand"
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Does allowing GPTBot guarantee a ChatGPT mention?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Crawl access removes one obstacle, but it does not guarantee that a model will retrieve, mention, cite, or rank the brand."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is llms.txt enough to make a brand appear in AI answers?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. It is an optional official summary. The public HTML, crawl access, and consistency of the underlying facts still matter."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "When is a missing mention a measurement issue?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Treat it as a measurement issue when the same stable cohort produces variable answers. Inspect the site when the brand remains absent across comparable samples."
+            }
+          }
+        ]
       }
     ]
   }
@@ -114,9 +144,9 @@
 
     <header class="blog-header">
       <span class="blog-kicker">Diagnosis</span>
-      <h1>Why ChatGPT does not mention my brand</h1>
+      <h1>Why ChatGPT Does Not Mention Your Brand</h1>
       <p class="blog-lead">ChatGPT often skips a brand because the official site is hard to extract, public facts are thin or inconsistent, or the question never required that brand. A blocked crawler, a JavaScript-only homepage, or missing comparison copy can all produce the same unanswered result. CiteAura separates those site-level causes from sampling noise so you can tell a content problem from a one-off answer.</p>
-      <p class="blog-meta">Updated 19 August 2026 · 6 min read</p>
+      <p class="blog-meta">Updated 20 August 2026 · 6 min read</p>
     </header>
 
     <h2>Common reasons ChatGPT skips a brand</h2>
@@ -130,7 +160,7 @@
 
     <h2>Measurement noise is not a site defect</h2>
     <p>One ChatGPT reply can omit a well-documented brand. Before you rewrite the homepage, repeat the same questions and keep the sampling mode labeled: <strong>API · Model knowledge</strong>, <strong>API · Web-grounded retrieval</strong>, or <strong>Manual · Product surface</strong>.</p>
-    <p>If the brand is missing in one answer and present in the next, you are looking at variance. If it is missing across a stable cohort, inspect the site. <a href="/blog/measure-if-chatgpt-mentions-your-brand">How to measure if ChatGPT mentions your brand</a> covers that split.</p>
+    <p>If the brand is missing in one answer and present in the next, you are looking at variance. If it is missing across a stable cohort, inspect the site. <a href="/blog/measure-if-chatgpt-mentions-your-brand">How to Measure ChatGPT Brand Mentions</a> covers that split.</p>
 
     <h2>What to inspect on the public site first</h2>
     <ol>
@@ -149,6 +179,24 @@
 
     <h2>No mention guarantee</h2>
     <p>Fixing extractability and publishing clearer facts can change what a later sample observes. It does not guarantee that ChatGPT will mention, cite, or rank the brand. Treat a before/after only when the question set and sampling mode stayed comparable.</p>
+
+    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
+      <h2 id="faq-heading">FAQ: why ChatGPT skips a brand</h2>
+      <h3>Does allowing GPTBot guarantee a ChatGPT mention?</h3>
+      <p>No. Crawl access removes one obstacle, but it does not guarantee that a model will retrieve, mention, cite, or rank the brand.</p>
+      <h3>Is llms.txt enough to make a brand appear in AI answers?</h3>
+      <p>No. It is an optional official summary. The public HTML, crawl access, and consistency of the underlying facts still matter.</p>
+      <h3>When is a missing mention a measurement issue?</h3>
+      <p>Treat it as a measurement issue when the same stable cohort produces variable answers. Inspect the site when the brand remains absent across comparable samples.</p>
+    </section>
+
+    <aside class="blog-related" aria-labelledby="related-guides">
+      <h2 id="related-guides">Related guides</h2>
+      <ul>
+        <li><a href="/blog/measure-if-chatgpt-mentions-your-brand">How to measure ChatGPT brand mentions</a></li>
+        <li><a href="/blog/what-to-put-in-llms-txt">What belongs in llms.txt</a></li>
+      </ul>
+    </aside>
 
     <h2>Sources</h2>
     <ul>
