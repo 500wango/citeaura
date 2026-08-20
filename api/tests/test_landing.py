@@ -91,6 +91,10 @@ def test_landing_assets_are_served():
         assert response.status_code == 200
         assert response.headers["content-type"].startswith(content_type)
 
+    blog_css = client.get("/site-assets/styles/blog.css")
+    assert ".blog-article a:not(.btn)" in blog_css.text
+    assert ".blog-article a {" not in blog_css.text
+
 
 def test_i18n_catalogs_are_public():
     response = client.get("/i18n/en.json")
@@ -214,6 +218,8 @@ def test_blog_index_and_articles_are_static_html():
         assert page.text.count("<h1") == 1
         assert '"@type": "FAQPage"' in page.text
         assert 'class="blog-related"' in page.text
+        assert 'class="blog-cta"' in page.text
+        assert 'class="btn btn-primary" href="/app?auth=register">Start free trial</a>' in page.text
         title = re.search(r"<title>([^<]+)</title>", page.text)
         assert title is not None
         assert 55 <= len(title.group(1)) <= 70

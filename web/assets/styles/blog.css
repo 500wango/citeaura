@@ -96,7 +96,7 @@
   margin-bottom: var(--sp-2);
 }
 
-.blog-article a {
+.blog-article a:not(.btn) {
   color: var(--accent);
 }
 
