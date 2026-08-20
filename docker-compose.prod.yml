@@ -33,7 +33,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: api
-    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
     volumes:
       - citeaura_work:/app/work
     ports:

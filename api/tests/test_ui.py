@@ -55,6 +55,29 @@ def test_spa_is_served_with_citeaura_shell():
     assert response.headers["cache-control"] == "public, max-age=0, must-revalidate"
 
 
+def test_public_trailing_slash_redirect_uses_configured_canonical_url(monkeypatch):
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://citeaura.example")
+
+    response = TestClient(app).get("/docs/?utm_source=search", follow_redirects=False)
+
+    assert response.status_code == 308
+    assert response.headers["location"] == "https://citeaura.example/docs?utm_source=search"
+
+
+def test_private_application_trailing_slash_is_not_publicly_redirected():
+    response = TestClient(app).get("/app/", follow_redirects=False)
+
+    assert response.status_code == 200
+    assert "Location" not in response.headers
+
+
+def test_admin_shell_is_excluded_from_search_index():
+    response = TestClient(app).get("/admin/index.html")
+
+    assert response.status_code == 200
+    assert '<meta name="robots" content="noindex, nofollow">' in response.text
+
+
 def test_spa_static_modules_are_served():
     client = TestClient(app)
     for path in (

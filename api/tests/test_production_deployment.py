@@ -11,6 +11,7 @@ def test_production_compose_binds_api_to_loopback_and_profiles_nginx():
 
     assert "${ENV_FILE:-.env.production}" in compose
     assert '"127.0.0.1:${APP_PORT:-18000}:8000"' in compose
+    assert '"--proxy-headers", "--forwarded-allow-ips=*"' in compose
     assert 'profiles: ["standalone-nginx"]' in compose
     beat = compose.split("  beat:\n", 1)[1].split("\n  nginx:\n", 1)[0]
     assert "    command:" in beat

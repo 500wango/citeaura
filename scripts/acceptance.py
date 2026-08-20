@@ -8,8 +8,8 @@ from urllib.parse import urljoin
 import requests
 
 
-def _get(base_url, path):
-    return requests.get(urljoin(base_url.rstrip("/") + "/", path.lstrip("/")), timeout=15)
+def _get(base_url, path, **kwargs):
+    return requests.get(urljoin(base_url.rstrip("/") + "/", path.lstrip("/")), timeout=15, **kwargs)
 
 
 def collect_checks(base_url, production=False):
@@ -51,6 +51,13 @@ def collect_checks(base_url, production=False):
         health = _get(base_url, "/api/v1/health")
         check("health", health.status_code == 200 and health.json().get("status") == "ok", health.status_code)
         if production:
+            slash = _get(base_url, "/docs/", allow_redirects=False)
+            canonical_docs = urljoin(base_url.rstrip("/") + "/", "docs")
+            check(
+                "canonical_trailing_slash",
+                slash.status_code == 308 and slash.headers.get("location") == canonical_docs,
+                f"{slash.status_code} {slash.headers.get('location', '')}".strip(),
+            )
             ready = _get(base_url, "/api/v1/health/ready")
             check("production_readiness", ready.status_code == 200 and ready.json().get("status") == "ready", ready.status_code)
     except (OSError, requests.RequestException, ValueError) as exc:

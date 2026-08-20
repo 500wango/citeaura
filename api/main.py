@@ -1,10 +1,10 @@
 """FastAPI 应用入口。"""
 
 import time
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy.exc import IntegrityError
@@ -57,6 +57,30 @@ app.include_router(team_router)
 app.include_router(workspace_router)
 app.include_router(landing_router)
 app.include_router(ui_router)
+
+
+_NON_PUBLIC_SLASH_PREFIXES = ("/api/", "/app/", "/admin/", "/files/", "/site-assets/")
+
+
+def _public_canonical_redirect(request: Request):
+    """Build an HTTPS-safe canonical URL for public trailing-slash variants."""
+    path = request.url.path
+    if path == "/" or not path.endswith("/") or path.startswith(_NON_PUBLIC_SLASH_PREFIXES):
+        return None
+    base = urlsplit(config.public_base_url())
+    if not base.scheme or not base.netloc:
+        return None
+    target = urlunsplit((base.scheme, base.netloc, path.rstrip("/"), request.url.query, ""))
+    return RedirectResponse(url=target, status_code=308)
+
+
+@app.middleware("http")
+async def canonical_public_paths(request: Request, call_next):
+    """Keep public pages on one permanent, non-trailing-slash URL."""
+    redirect = _public_canonical_redirect(request)
+    if redirect is not None:
+        return redirect
+    return await call_next(request)
 
 
 @app.middleware("http")
