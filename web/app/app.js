@@ -49,9 +49,9 @@ export const TRACKS = [
     labelKey: 'nav.track_execution',
     defaultLabel: 'Execution',
     icon: 'list-checks',
-    defaultView: 'plan',
+    defaultView: 'assets',
     views: [
-      { id: 'plan', labelKey: 'nav.plan', defaultLabel: 'Action Tickets' },
+      { id: 'plan', labelKey: 'nav.plan', defaultLabel: 'Action Tickets', hidden: true },
       { id: 'workbench', labelKey: 'nav.workbench_view', defaultLabel: 'Sample Replay' },
       { id: 'assets', labelKey: 'nav.assets', defaultLabel: 'Assets & Templates' },
       { id: 'verify', labelKey: 'nav.verify', defaultLabel: 'Closed-Loop Verify' },
@@ -398,7 +398,7 @@ function renderAppShell() {
           <span class="subnav-title" style="margin-top:2px;">${t(currentTrackObj.labelKey, {}, currentTrackObj.defaultLabel)}</span>
         </div>
         <div class="subnav-list">
-          ${currentTrackObj.views.map((v) => {
+          ${currentTrackObj.views.filter((v) => !v.hidden).map((v) => {
             const isViewActive = v.id === state.currentRoute;
             return `
               <a href="#/${v.id}" class="subnav-item ${isViewActive ? 'is-active' : ''}">

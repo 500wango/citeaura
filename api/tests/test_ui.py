@@ -42,7 +42,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.11' in response.text
+    assert '/app/app.js?v=3.12' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -95,6 +95,14 @@ def test_citation_sources_view_has_no_legacy_seo_integrations():
     assert "views/integrations.js" not in app_js
     assert "getProjectTraffic" not in api_js
     assert client.get("/app/views/integrations.js").status_code == 404
+
+
+def test_action_tickets_are_reachable_without_cluttering_execution_navigation():
+    app_js = TestClient(app).get("/app/app.js").text
+
+    assert "defaultView: 'assets'" in app_js
+    assert "{ id: 'plan', labelKey: 'nav.plan', defaultLabel: 'Action Tickets', hidden: true }" in app_js
+    assert "views.filter((v) => !v.hidden)" in app_js
 
 
 def test_legacy_seo_integration_api_is_not_exposed():
