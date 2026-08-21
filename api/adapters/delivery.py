@@ -15,7 +15,7 @@ from api.adapters.branding import apply_delivery_branding
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
 from api.adapters.localization import localize_ticket, normalize_english_typography
-from api.adapters import action_scope, audit_presentation, brand_facts, brand_identity, global_scope, measurement
+from api.adapters import action_scope, audit_presentation, brand_facts, brand_identity, global_scope, measurement, product_insights, sampling_modes
 
 
 REQUIRED_DOCUMENTS = {
@@ -631,6 +631,179 @@ def _sample_modes(project_directory, metrics):
     }
 
 
+def _current_sample_rows(project_directory, config):
+    """读取最新合法样本，供客户报告复用与工作区相同的样本身份过滤。"""
+    directory = Path(project_directory) / "samples"
+    files = sorted(directory.glob("*.jsonl")) if directory.exists() else []
+    if not files:
+        return []
+    return [
+        row for row in geolib.read_jsonl(files[-1])
+        if global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
+    ]
+
+
+INSIGHT_MODE_NAMES = {
+    sampling_modes.MODE_API: "API - Parametric knowledge",
+    sampling_modes.MODE_SEARCH: "API - Search grounded",
+    sampling_modes.MODE_MANUAL: "Manual - Product interface",
+}
+
+
+def _insight_mode_name(value):
+    value = str(value or "")
+    if value in INSIGHT_MODE_NAMES:
+        return INSIGHT_MODE_NAMES[value]
+    if value.startswith("Mixed:"):
+        return value.replace("API·参数化知识", "API - Parametric knowledge").replace(
+            "API·联网检索", "API - Search grounded",
+        ).replace("人工·产品端", "Manual - Product interface")
+    return _safe_display(value, "Unlabeled sampling mode")
+
+
+def _interval_label(interval):
+    if not isinstance(interval, dict):
+        return "Not measured"
+    lower = interval.get("lower")
+    upper = interval.get("upper")
+    if lower is None or upper is None:
+        return "Not measured"
+    return f"{float(lower):.1%}–{float(upper):.1%}"
+
+
+def _insights_markdown(insights):
+    """把工作区洞察压缩成不夸大结论的英文交付摘要。"""
+    insights = insights if isinstance(insights, dict) else {}
+    prompt = insights.get("prompt_explorer") or {}
+    heatmap = insights.get("competitor_heatmap") or {}
+    alerts = insights.get("takeover_alerts") or []
+    campaigns = insights.get("campaign_proposals") or {}
+    lines = [
+        "## Prompt and Competitive Insights",
+        "",
+        "These observations are derived from the same current samples used by the workspace. "
+        "They prioritize follow-up work; they do not claim a ranking or forecast an outcome.",
+        "",
+        f"- Prompt Explorer: {prompt.get('measured_count', 0)} of {prompt.get('total_count', 0)} questions have valid samples; "
+        f"minimum per-question sample target: {prompt.get('minimum_samples', 3)}.",
+        f"- Competitive heatmap: {heatmap.get('sample_count', 0)} valid samples across "
+        f"{len(heatmap.get('cohorts') or [])} separate sampling cohorts.",
+        f"- Takeover candidates: {len(alerts)}; an alert requires at least five competitor hits "
+        "and separated Wilson 95% intervals in the same cohort.",
+        f"- Campaign proposals: {campaigns.get('total_count', 0)}; human approval is required and automatic publication is disabled.",
+        "",
+    ]
+    items = [item for item in prompt.get("items") or [] if isinstance(item, dict)]
+    items = [item for item in items if item.get("priority") not in ("probe", "monitor")][:8]
+    if items:
+        lines += [
+            "### Highest-priority prompts",
+            "",
+            "| Question | Priority | Samples | Mention rate | Wilson 95% interval | Reason |",
+            "|---|---|---:|---:|---|---|",
+        ]
+        for item in items:
+            question = _safe_display(item.get("text") or item.get("question"), "Configured question")
+            reasons = "; ".join(
+                _safe_display(reason, "Follow-up evidence is required")
+                for reason in (item.get("reasons") or [])[:2]
+            ) or "Follow-up evidence is required"
+            mention = item.get("mention")
+            lines.append(
+                f"| {_markdown_cell(question)} | {_markdown_cell(item.get('priority') or 'unclassified')} "
+                f"| {item.get('samples', 0)} | {_format_rate(mention)} "
+                f"| {_interval_label(item.get('mention_interval'))} | {_markdown_cell(reasons)} |"
+            )
+        lines.append("")
+    cohorts = [item for item in heatmap.get("cohorts") or [] if isinstance(item, dict)]
+    if cohorts:
+        lines += [
+            "### Measurement cohorts",
+            "",
+            "| Provider | Sampling mode | Samples |",
+            "|---|---|---:|",
+        ]
+        for cohort in cohorts:
+            lines.append(
+                f"| {_markdown_cell(_safe_display(cohort.get('engine_name') or cohort.get('engine_code'), 'Configured provider'))} "
+                f"| {_markdown_cell(_insight_mode_name(cohort.get('sampling_mode')))} | {cohort.get('samples', 0)} |"
+            )
+        lines.append("")
+    heatmap_questions = [
+        item for item in heatmap.get("questions") or []
+        if isinstance(item, dict) and int(item.get("samples") or 0) > 0
+    ]
+    entity_totals = {}
+    for question in heatmap_questions:
+        for competitor in question.get("competitors") or []:
+            if not isinstance(competitor, dict):
+                continue
+            name = str(competitor.get("name") or "").strip()
+            entity_totals[name] = entity_totals.get(name, 0) + int(competitor.get("hits") or 0)
+    competitor_names = [name for name, _ in sorted(entity_totals.items(), key=lambda pair: (-pair[1], pair[0])) if name][:5]
+    if heatmap_questions and competitor_names:
+        lines += [
+            "### Competitive heatmap",
+            "",
+            "Rates are shown per question aggregate; sampling cohorts remain separate above.",
+            "",
+            "| Question | Brand | " + " | ".join(_markdown_cell(_safe_display(name, "Competitor")) for name in competitor_names) + " |",
+            "|---|---:|" + "---:|" * len(competitor_names),
+        ]
+        for question in heatmap_questions[:8]:
+            cells = {str(item.get("name")): item for item in question.get("competitors") or [] if isinstance(item, dict)}
+            brand = question.get("brand") or {}
+            brand_value = _format_rate(brand.get("rate"))
+            row = [
+                _markdown_cell(_safe_display(question.get("text"), "Configured question")),
+                f"{brand_value} ({_interval_label(brand.get('interval'))})",
+            ]
+            for name in competitor_names:
+                cell = cells.get(name) or {}
+                row.append(f"{_format_rate(cell.get('rate'))} ({_interval_label(cell.get('interval'))})")
+            lines.append("| " + " | ".join(row) + " |")
+        lines.append("")
+    if alerts:
+        lines += ["### Takeover candidates", ""]
+        for alert in alerts[:8]:
+            question = _safe_display(alert.get("question"), "Configured question")
+            competitor = _safe_display(alert.get("competitor"), "Configured competitor")
+            lines.append(
+                f"- **{_markdown_cell(competitor)}** is a takeover candidate for **{_markdown_cell(question)}** "
+                f"on {_markdown_cell(_safe_display(alert.get('engine_name'), 'configured provider'))} "
+                f"({_markdown_cell(_insight_mode_name(alert.get('sampling_mode')))}); "
+                "review the raw answer before planning a change."
+            )
+        lines.append("")
+    counts = campaigns.get("counts") or {}
+    lines += [
+        "### Campaign proposal gate",
+        "",
+        f"- Blocked: {counts.get('blocked', 0)}; review required: {counts.get('review_required', 0)}; ready for approval: {counts.get('ready_for_approval', 0)}.",
+        "- Expected impact is a hypothesis only. Re-test with the same question set, provider, sampling mode, and measurement policy.",
+        "- No proposal authorizes publication; factual review, asset review, and explicit human approval remain required.",
+        "",
+    ]
+    proposal_items = [item for item in campaigns.get("items") or [] if isinstance(item, dict)][:6]
+    if proposal_items:
+        lines += [
+            "### Campaign proposals",
+            "",
+            "| Status | Target question | Next step |",
+            "|---|---|---|",
+        ]
+        for item in proposal_items:
+            target = item.get("target_question") or {}
+            next_step = item.get("next_step") or {}
+            lines.append(
+                f"| {_markdown_cell(item.get('status') or 'unclassified')} "
+                f"| {_markdown_cell(_safe_display(target.get('text'), 'Configured question'))} "
+                f"| {_markdown_cell(_safe_display(next_step.get('label'), 'Review evidence'))} |"
+            )
+        lines.append("")
+    return lines
+
+
 DIAGNOSIS_CATEGORY_ORDER = (
     "crawlability", "content", "extractability", "structure", "authority", "semantics", "coverage", "review",
 )
@@ -770,7 +943,7 @@ def _diagnosis_markdown(audit):
     return lines
 
 
-def _audit_markdown(project_slug, project_directory, name, site, audit, metrics):
+def _audit_markdown(project_slug, project_directory, name, site, audit, metrics, insights=None):
     site_data = audit.get("site") or {}
     coverage = audit.get("language_coverage") or {}
     grades = audit.get("applicable_grade_distribution") or audit.get("grade_distribution") or {}
@@ -917,6 +1090,7 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics)
                 f"| {_format_rate(item.get('own_domain_cite_rate'))} |"
             )
         lines.append("")
+    lines += _insights_markdown(insights)
     return "\n".join(lines)
 
 
@@ -936,16 +1110,27 @@ def _is_supporting_ticket(ticket):
     return False
 
 
+def _ticket_window_bucket(ticket):
+    window = str(ticket.get("window") or "").casefold()
+    if re.search(r"\b30\s*days?\b", window):
+        return "30 days"
+    if re.search(r"\b60\s*days?\b", window):
+        return "60 days"
+    if re.search(r"\b90\s*days?\b", window):
+        return "90 days"
+    return {"P0": "30 days", "P1": "60 days", "P2": "90 days"}.get(ticket.get("priority"), "90 days")
+
+
 def _append_execution_tickets(lines, tickets):
     if not tickets:
         lines += ["No tickets are currently assigned to this section.", ""]
         return
-    for priority, heading in (
-        ("P0", "0-30 Days: Foundation"),
-        ("P1", "30-60 Days: Visibility Gains"),
-        ("P2", "60-90 Days: Scale"),
+    for window, heading in (
+        ("30 days", "0-30 Days: Foundation"),
+        ("60 days", "30-60 Days: Visibility Gains"),
+        ("90 days", "60-90 Days: Scale"),
     ):
-        rows = [ticket for ticket in tickets if ticket["priority"] == priority]
+        rows = [ticket for ticket in tickets if _ticket_window_bucket(ticket) == window]
         if not rows:
             continue
         lines += [f"### {heading}", ""]
@@ -2694,7 +2879,12 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
     tickets = [_ticket_en(ticket) for ticket in task_data["tasks"] if isinstance(ticket, dict)]
     tickets.sort(key=lambda ticket: (ticket["priority"], ticket["id"]))
 
-    audit_markdown = _audit_markdown(project_slug, project_directory, name, site, display_audit, metrics)
+    sample_rows = _current_sample_rows(project_directory, config)
+    insights = product_insights.build(project_slug, sample_rows, config, blueprint)
+
+    audit_markdown = _audit_markdown(
+        project_slug, project_directory, name, site, display_audit, metrics, insights,
+    )
     execution_markdown = _execution_markdown(name, tickets, task_data)
     tickets_markdown = _tickets_markdown(name, tickets)
     verification_markdown = _verification_markdown(name, display_audit, verification, tickets)

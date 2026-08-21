@@ -74,6 +74,13 @@ def test_about_and_contact_pages_expose_provenance_and_real_support_channel():
     about = client.get("/about")
     assert about.status_code == 200
     assert "<h1>GEO diagnosis with evidence boundaries</h1>" in about.text
+    canonical_definition = (
+        "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves "
+        "brand citations, mentions, and visibility in generative AI engines, then closes the loop "
+        "with engineering tickets and verification."
+    )
+    assert canonical_definition in about.text
+    assert '"description": "' + canonical_definition in about.text
     assert '"@type": "AboutPage"' in about.text
     assert "does not guarantee a mention, ranking, or citation" in about.text
     assert "OpenAI crawler documentation" in about.text

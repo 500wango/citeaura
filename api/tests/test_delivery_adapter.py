@@ -173,6 +173,80 @@ def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypa
     assert delivery.delivery_language_violations(output) == []
 
 
+def test_delivery_execution_plan_uses_target_window_not_priority():
+    tickets = [
+        {
+            "id": "T-002", "priority": "P0", "window": "30 days", "title": "Build facts",
+            "owner": "Content", "package": "Knowledge base", "rationale": "Evidence",
+            "action": "Review facts", "acceptance": "Facts are approved", "prerequisites": [],
+            "execution_ready": False,
+        },
+        {
+            "id": "T-003", "priority": "P0", "window": "60 days", "title": "Build authority",
+            "owner": "Marketing", "package": "Authority", "rationale": "Sources",
+            "action": "Review sources", "acceptance": "Sources are approved", "prerequisites": [],
+            "execution_ready": False,
+        },
+    ]
+    text = delivery._execution_markdown(
+        "Example",
+        tickets,
+        {"baseline": {"applicable_avg_score": 100, "score_coverage": 1, "pages": 1}},
+    )
+    assert text.index("T-002") < text.index("### 30-60 Days: Visibility Gains")
+    assert text.index("T-003") > text.index("### 30-60 Days: Visibility Gains")
+    assert "### 60-90 Days: Scale" not in text
+
+
+def test_delivery_insights_render_as_english_evidence_summary():
+    text = "\n".join(delivery._insights_markdown({
+        "prompt_explorer": {
+            "measured_count": 1, "total_count": 1, "minimum_samples": 3,
+            "items": [{
+                "text": "Which GEO platform should a small team choose?", "priority": "high",
+                "samples": 5, "mention": 0, "mention_interval": {"lower": 0, "upper": 0.4345},
+                "reasons": ["Brand absent in the latest unprompted answers"],
+            }],
+        },
+        "competitor_heatmap": {
+            "sample_count": 5,
+            "entities": [
+                {"key": "brand", "name": "Example"},
+                {"key": "competitor:Rival", "name": "Rival"},
+            ],
+            "cohorts": [{
+                "engine_name": "OpenAI", "engine_code": "openai",
+                "sampling_mode": "API·参数化知识", "samples": 5,
+            }],
+            "questions": [{
+                "text": "Which GEO platform should a small team choose?", "samples": 5,
+                "brand": {"rate": 0, "interval": {"lower": 0, "upper": 0.4345}},
+                "competitors": [{
+                    "name": "Rival", "hits": 5, "rate": 1,
+                    "interval": {"lower": 0.5655, "upper": 1},
+                }],
+            }],
+        },
+        "takeover_alerts": [],
+        "campaign_proposals": {
+            "total_count": 1,
+            "counts": {"blocked": 1, "review_required": 0, "ready_for_approval": 0},
+            "items": [{
+                "status": "blocked",
+                "target_question": {"text": "Which GEO platform should a small team choose?"},
+                "next_step": {"label": "Collect comparable samples"},
+            }],
+        },
+    }))
+    assert "## Prompt and Competitive Insights" in text
+    assert "API - Parametric knowledge" in text
+    assert "0.0%–43.5%" in text
+    assert "### Competitive heatmap" in text
+    assert "Rival" in text
+    assert "### Campaign proposals" in text
+    assert "automatic publication is disabled" in text
+
+
 def test_delivery_audit_uses_page_role_applicability(tmp_path, monkeypatch):
     project, output = seed_delivery_project(tmp_path)
     audit = json.loads((project / "audit.json").read_text("utf-8"))
