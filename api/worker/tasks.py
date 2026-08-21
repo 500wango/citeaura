@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import time
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
@@ -12,10 +13,12 @@ from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 
+from api import config
 from api.adapters import baseline, brand_facts, global_scope, locking, measurement, regression_alerts, sampling_control, site_signals, ticket_workflow
 from api.adapters.delivery import ensure_delivery_contract, ensure_legacy_deliverables_contract
 from api.adapters.engine import (
     ENGINE_MAX_REPEAT,
+    _environment_name,
     geolib,
     job_log_path,
     load_custom_providers,
@@ -328,6 +331,54 @@ def _engine_funding(tenant_id, project_slug, allow_pool=True):
         db.close()
 
 
+class SamplingPlatformUnavailable(RuntimeError):
+    """显式请求的平台没有被 Worker funding 提供。"""
+
+    def __init__(self, missing, funding):
+        self.missing = tuple(sorted(set(missing)))
+        self.funding = funding
+        super().__init__("sampling_platform_unavailable:" + ",".join(self.missing))
+
+
+def _funding_diagnostic(tenant_id, project_slug, funding, custom_providers):
+    """生成不含密钥值的 Worker funding 诊断快照。"""
+    keys = funding.get("keys", {}) if isinstance(funding, dict) else {}
+    engine_codes = sorted(str(code) for code in keys)
+    env_names = []
+    for code in engine_codes:
+        try:
+            env_names.append(_environment_name(code))
+        except ValueError:
+            continue
+    tenant_directory = funding.get("tenant_directory_slug") if isinstance(funding, dict) else None
+    return {
+        "tenant_arg": str(tenant_id),
+        "tenant_id": funding.get("tenant_id") if isinstance(funding, dict) else None,
+        "tenant_directory_slug": tenant_directory,
+        "runtime_tenant": tenant_directory or str(tenant_id),
+        "project_slug": str(project_slug),
+        "source_revision": config.source_revision(),
+        "database_target_fingerprint": config.database_target_fingerprint(),
+        "funded_engine_codes": engine_codes,
+        "pool_engine_codes": sorted(str(code) for code in (funding.get("pool_codes", ()) if isinstance(funding, dict) else ())),
+        "custom_engine_codes": sorted(str(item.get("code")) for item in (custom_providers or []) if item.get("code")),
+        "injected_env_names": sorted(set(env_names)),
+    }
+
+
+def _validate_requested_platforms(platforms, funding):
+    """显式平台必须在 Worker funding 中，否则阻断本次采样。"""
+    if not platforms or not isinstance(funding, dict) or funding.get("tenant_id") is None:
+        return
+    if isinstance(platforms, str):
+        platforms = platforms.split(",")
+    requested = [str(code).strip().lower() for code in platforms if str(code).strip()]
+    funded = set(funding.get("keys", {})) | set(funding.get("pool_codes", ()))
+    missing = [code for code in requested if code not in funded]
+    if missing:
+        raise SamplingPlatformUnavailable(missing, funding)
+
+
 def _engine_custom_providers(tenant_id):
     """读取租户自定义供应商。数据库不可用时失败，避免静默丢掉供应商。"""
     db = SessionLocal()
@@ -365,16 +416,44 @@ def _sync_custom_provider_scope(project_slug, providers):
 def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_pool=True):
     """注入 BYOK/平台池密钥，并在退出时持久化平台代付逻辑调用。"""
     funding = _engine_funding(tenant_id, project_slug, allow_pool=allow_pool)
+    if funding.get("tenant_id") is None:
+        raise RuntimeError("worker_tenant_not_found")
     custom_providers = _engine_custom_providers(tenant_id)
+    runtime_tenant = funding.get("tenant_directory_slug") or str(tenant_id)
+    diagnostic = _funding_diagnostic(tenant_id, project_slug, funding, custom_providers)
+    logger.info(
+        "Worker funding resolved tenant_arg=%s tenant_id=%s tenant_directory_slug=%s "
+        "project_slug=%s source_revision=%s database_target_fingerprint=%s "
+        "funded_engine_codes=%s pool_engine_codes=%s custom_engine_codes=%s injected_env_names=%s",
+        diagnostic["tenant_arg"], diagnostic["tenant_id"], diagnostic["tenant_directory_slug"],
+        diagnostic["project_slug"], diagnostic["source_revision"],
+        diagnostic["database_target_fingerprint"], diagnostic["funded_engine_codes"],
+        diagnostic["pool_engine_codes"], diagnostic["custom_engine_codes"],
+        diagnostic["injected_env_names"],
+    )
     context_options = {"keys": funding["keys"]}
     if custom_providers:
         context_options["custom_providers"] = custom_providers
-    with with_tenant_context(str(tenant_id), project_slug, **context_options):
+    with with_tenant_context(runtime_tenant, project_slug, **context_options):
+        diagnostic["runtime_env_present"] = {
+            name: bool(os.environ.get(name)) for name in diagnostic["injected_env_names"]
+        }
+        logger.info(
+            "Worker funding runtime environment present source_revision=%s "
+            "database_target_fingerprint=%s runtime_env_present=%s",
+            diagnostic["source_revision"], diagnostic["database_target_fingerprint"],
+            diagnostic["runtime_env_present"],
+        )
+        if job_id is not None:
+            _append_job_event(
+                job_log_path(tenant_id, project_slug, job_id),
+                "funding resolved " + json.dumps(diagnostic, sort_keys=True, ensure_ascii=True),
+            )
         ensure_global_engine_scope(project_slug)
         _sync_custom_provider_scope(project_slug, custom_providers)
         with meter_platform_calls(funding["pool_codes"]) as counts:
             try:
-                yield
+                yield funding
             except BaseException:
                 raise
             finally:
@@ -748,14 +827,15 @@ def task_sample(
             return {"status": "ignored", "reason": "job_not_queued"}
         update = update or (lambda *args: None)
         update("sampling", 15)
-        with _funded_engine_context(tenant_id, project_slug, "sample", job_id=job_id):
+        with _funded_engine_context(tenant_id, project_slug, "sample", job_id=job_id) as worker_funding:
+            _validate_requested_platforms(platforms, worker_funding)
             global_scope.normalize_project(project_slug)
             result = sample.run(project_slug, platforms=platforms, repeat=repeat, limit=limit)
             if job_id is None:
                 _require_sampling_output(result, project_slug)
             else:
                 _require_sampling_output(result, project_slug, job_id=job_id)
-            funding = _engine_funding(tenant_id, project_slug)
+            funding = worker_funding or _engine_funding(tenant_id, project_slug)
             measurement.record_sampling(
                 project_slug,
                 source="api",
@@ -964,7 +1044,10 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
             action,
             job_id=job_id,
             allow_pool=action in PLATFORM_FUNDED_ACTIONS,
-        ):
+        ) as worker_funding:
+            if action == "sample":
+                requested_platforms = (params or {}).get("--platforms", (params or {}).get("platforms"))
+                _validate_requested_platforms(requested_platforms, worker_funding)
             global_scope.normalize_project(project_slug)
             if action in ("audit", "deliverables", "plan", "report", "deliver"):
                 site_signals.validate_project_signals(project_slug)

@@ -311,27 +311,42 @@ def protect_network_fetches():
         geolib.requests.sessions.Session.request = original_request
 
 
-def load_tenant_keys(db, tenant_id):
-    """从数据库解密当前租户的 Key，供 worker 注入环境变量。"""
+def resolve_tenant(db, tenant_id):
+    """按数据库 ID、名称或固定目录标识解析租户。"""
     from sqlalchemy import or_
 
-    from api.models import ApiKey, CustomProvider, Tenant
-    from api.settings.crypto import decrypt_key
+    from api.models import Tenant
 
+    tenant = None
     try:
         tenant = db.get(Tenant, int(tenant_id))
     except (TypeError, ValueError):
+        pass
+    if tenant is None:
         tenant = db.query(Tenant).filter(or_(
             Tenant.name == str(tenant_id),
             Tenant.directory_slug == str(tenant_id),
         )).first()
+    return tenant
+
+
+def load_tenant_keys(db, tenant_id):
+    """从数据库解密当前租户的 Key，供 worker 注入环境变量。"""
+    from api.models import ApiKey, CustomProvider
+    from api.settings.crypto import decrypt_key
+
+    tenant = resolve_tenant(db, tenant_id)
     if tenant is None:
         return {}
     rows = db.query(ApiKey).filter(
         ApiKey.tenant_id == tenant.id,
         ApiKey.engine_code.in_(tuple(ENGINE_KEY_ENV)),
     ).all()
-    keys = {row.engine_code: decrypt_key(row.encrypted_value) for row in rows}
+    keys = {
+        str(row.engine_code).strip().lower(): decrypt_key(row.encrypted_value)
+        for row in rows
+        if str(row.engine_code).strip().lower() in ENGINE_KEY_ENV
+    }
     custom_rows = db.query(CustomProvider).filter(CustomProvider.tenant_id == tenant.id).all()
     keys.update({row.code: decrypt_key(row.encrypted_api_key) for row in custom_rows})
     return keys
@@ -339,18 +354,10 @@ def load_tenant_keys(db, tenant_id):
 
 def load_custom_providers(db, tenant_id):
     """读取当前租户的自定义供应商配置（含仅供运行时使用的 Key）。"""
-    from sqlalchemy import or_
-
-    from api.models import CustomProvider, Tenant
+    from api.models import CustomProvider
     from api.settings.crypto import decrypt_key
 
-    try:
-        tenant = db.get(Tenant, int(tenant_id))
-    except (TypeError, ValueError):
-        tenant = db.query(Tenant).filter(or_(
-            Tenant.name == str(tenant_id),
-            Tenant.directory_slug == str(tenant_id),
-        )).first()
+    tenant = resolve_tenant(db, tenant_id)
     if tenant is None:
         return []
     rows = db.query(CustomProvider).filter(CustomProvider.tenant_id == tenant.id).order_by(CustomProvider.id).all()

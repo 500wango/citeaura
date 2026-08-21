@@ -7,15 +7,15 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from api import config
-from api.adapters.engine import ENGINE_KEY_ENV, load_tenant_keys
+from api.adapters.engine import ENGINE_KEY_ENV, load_tenant_keys, resolve_tenant
 from api.adapters import sampling_modes
 from api.db import SessionLocal
-from api.models import Job, PlatformUsage, PlatformUsageOutbox, Project, Tenant, UsageCounter
+from api.models import Job, PlatformUsage, PlatformUsageOutbox, Project, UsageCounter
 
 
 PAID_PLANS = frozenset(("starter", "pro", "agency", "enterprise"))
@@ -92,20 +92,17 @@ def public_catalog():
 
 
 def _tenant(db, tenant_id):
-    try:
-        return db.get(Tenant, int(tenant_id))
-    except (TypeError, ValueError):
-        return db.query(Tenant).filter(or_(
-            Tenant.name == str(tenant_id),
-            Tenant.directory_slug == str(tenant_id),
-        )).first()
+    return resolve_tenant(db, tenant_id)
 
 
 def resolve_funding(db, tenant_id, project_slug, allow_pool=True):
     """合并当前租户 BYOK 与项目平台池；相同引擎始终由 BYOK 覆盖。"""
     tenant = _tenant(db, tenant_id)
     if tenant is None:
-        return {"keys": {}, "pool_codes": frozenset(), "rates": {}, "tenant_id": None, "project_id": None}
+        return {
+            "keys": {}, "pool_codes": frozenset(), "rates": {},
+            "tenant_id": None, "tenant_directory_slug": None, "project_id": None,
+        }
     project = db.query(Project).filter(
         Project.tenant_id == tenant.id,
         Project.slug == project_slug,
@@ -127,6 +124,7 @@ def resolve_funding(db, tenant_id, project_slug, allow_pool=True):
         "pool_codes": pool_codes,
         "rates": {code: pool[code]["unit_price_cny_fen"] for code in pool_codes},
         "tenant_id": tenant.id,
+        "tenant_directory_slug": tenant.directory_slug,
         "project_id": project.id if project is not None else None,
     }
 

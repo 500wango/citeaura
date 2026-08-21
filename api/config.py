@@ -1,5 +1,6 @@
 """集中读取 CiteAura 环境变量配置。"""
 
+import hashlib
 import math
 import os
 import subprocess
@@ -7,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from dotenv import load_dotenv
+from sqlalchemy.engine import make_url
 
 
 load_dotenv()
@@ -132,6 +134,18 @@ def source_revision():
         return configured or "unknown"
     revision = result.stdout.strip()
     return revision or configured or "unknown"
+
+
+def database_target_fingerprint():
+    """返回不含凭据的数据库目标指纹，供 API/Worker 运行时诊断。"""
+    try:
+        parsed = make_url(database_url())
+        target = "|".join(str(item or "") for item in (
+            parsed.drivername, parsed.host, parsed.port, parsed.database,
+        ))
+    except Exception:  # noqa: BLE001 - 诊断信息不能阻断业务启动
+        target = "unknown"
+    return hashlib.sha256(target.encode("utf-8")).hexdigest()[:12]
 
 
 def work_root(default: Path):
