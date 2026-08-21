@@ -51,7 +51,7 @@ REVIEW_RESERVATION_TTL = timedelta(hours=2)
 PIPELINE_ACTIONS = {
     "crawl": {"label": "Crawl Website", "args": ["--max-pages"]},
     "audit": {"label": "Site Audit", "args": []},
-    "sample": {"label": "AI Sampling", "args": ["--limit", "--repeat", "--platforms"]},
+    "sample": {"label": "AI Sampling", "args": ["--limit", "--repeat", "--platforms", "--question-ids"]},
     "bootstrap": {"label": "Auto-bootstrap Baseline", "args": ["--skip-llm"]},
     "deliverables": {"label": "Generate Three Deliverables", "args": []},
     "plan": {"label": "Build Action Tickets", "args": []},
@@ -95,7 +95,7 @@ _ACTION_METHODS = {
 _ACTION_DEFAULTS = {
     "crawl": {"max_pages": None},
     "audit": {},
-    "sample": {"limit": None, "repeat": 1, "platforms": None},
+    "sample": {"limit": None, "repeat": 1, "platforms": None, "question_ids": None},
     "bootstrap": {"skip_llm": False},
     "deliverables": {},
     "plan": {},
@@ -118,7 +118,7 @@ _INTEGER_LIMITS = {
     "--draft-limit": (1, 100),
 }
 _FLAG_ARGS = {"--no-recrawl", "--draft", "--no-sample", "--skip-llm", "--no-llm"}
-_CSV_ARGS = {"--platforms", "--asset"}
+_CSV_ARGS = {"--platforms", "--asset", "--question-ids"}
 
 
 def _latest_metrics_path(project_slug):
@@ -857,6 +857,7 @@ def task_sample(
     limit: int | None = None,
     platforms: list[str] | None = None,
     repeat: int = 1,
+    question_ids: list[str] | None = None,
     job_id=None,
 ):
     """执行 API 采样和指标聚合。"""
@@ -870,7 +871,14 @@ def task_sample(
         with _funded_engine_context(tenant_id, project_slug, "sample", job_id=job_id) as worker_funding:
             _validate_requested_platforms(platforms, worker_funding)
             global_scope.normalize_project(project_slug)
-            result = sample.run(project_slug, platforms=platforms, repeat=repeat, limit=limit)
+            sample_kwargs = {
+                "platforms": platforms,
+                "repeat": repeat,
+                "limit": limit,
+            }
+            if question_ids:
+                sample_kwargs["question_ids"] = question_ids
+            result = sample.run(project_slug, **sample_kwargs)
             if job_id is None:
                 _require_sampling_output(result, project_slug)
             else:
@@ -882,6 +890,7 @@ def task_sample(
                 requested_platforms=platforms,
                 limit=limit,
                 repeat=repeat,
+                question_ids=question_ids,
                 job_id=job_id,
                 byok_codes=funding.get("keys", {}).keys(),
                 pool_codes=funding.get("pool_codes", ()),
@@ -1127,6 +1136,7 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                     project_slug,
                     source="api",
                     requested_platforms=(params or {}).get("--platforms"),
+                    question_ids=(params or {}).get("--question-ids"),
                     limit=(params or {}).get("--limit"),
                     repeat=(params or {}).get("--repeat", 1),
                     job_id=job_id,

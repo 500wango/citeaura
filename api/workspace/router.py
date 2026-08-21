@@ -60,6 +60,15 @@ class ProductSurfaceImportRequest(BaseModel):
     items: list[ProductSurfaceItem] = Field(min_length=1, max_length=100)
 
 
+class ExternalEvidenceRequest(BaseModel):
+    url: str = Field(min_length=1, max_length=2048)
+    source_type: str = Field(min_length=1, max_length=128)
+    fact_supported: str = Field(min_length=1, max_length=2000)
+    question_ids: list[str] = Field(default_factory=list, max_length=100)
+    reviewer: str = Field(default="", max_length=320)
+    observed_at: str | None = Field(default=None, max_length=64)
+
+
 def _error(status_code: int, message: str):
     raise HTTPException(status_code=status_code, detail={"error": message})
 
@@ -158,6 +167,31 @@ def update_project_facts(
 @router.get("/api/v1/projects/{project_id}/assets")
 def project_assets(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _call(db, current_user, project_id, workspace.asset_tree)
+
+
+@router.get("/api/v1/projects/{project_id}/evidence/external")
+def project_external_evidence(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return {"records": _call(db, current_user, project_id, workspace.external_evidence)}
+
+
+@router.post("/api/v1/projects/{project_id}/evidence/external", status_code=status.HTTP_201_CREATED)
+def add_project_external_evidence(
+    project_id: int,
+    payload: ExternalEvidenceRequest,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    _, project = _tenant_project(db, current_user, project_id)
+    _ensure_idle(db, project)
+    record = _call(
+        db,
+        current_user,
+        project_id,
+        workspace.add_external_evidence,
+        payload.model_dump(),
+        write=True,
+    )
+    return {"record": record}
 
 
 @router.get("/api/v1/projects/{project_id}/asset")

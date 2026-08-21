@@ -59,6 +59,9 @@ export default {
     const engines = (report && report.engines) || [];
     const quality = (report && report.report_quality) || project.report_quality || {};
     const qualityIssues = Array.isArray(quality.issues) ? quality.issues : [];
+    const readiness = quality.readiness || {};
+    const questionReadiness = readiness.question || {};
+    const attributionReadiness = readiness.attribution || {};
     const trend = (quality.measurement_quality && quality.measurement_quality.trend) || {};
     const trendNote = trend.status === 'noteworthy'
       ? `${trend.label || 'Trend'} ${trend.direction || ''} ${trend.delta_pp != null ? `${trend.delta_pp} pp` : ''}`.trim()
@@ -146,6 +149,22 @@ export default {
               </a>
             `).join('')}
           </div>` : ''}
+
+        <div class="card" style="gap:var(--sp-3);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Evidence readiness</h3>
+            <span class="tag ${quality.implementation_ready ? 'pill-good' : 'tag-dim'}">${quality.implementation_ready ? 'Implementation ready' : 'Implementation backlog'}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-3);">
+            ${[
+              ['Audit', readiness.audit?.label || 'Not measured'],
+              ['Measurement', readiness.measurement?.label || quality.measurement_quality?.confidence?.label || 'No baseline'],
+              ['Questions', questionReadiness.label || 'Not measured'],
+              ['Attribution', attributionReadiness.label || 'No comparable period'],
+            ].map(([label, value]) => `<div style="padding:var(--sp-3);border:1px solid var(--line);background:var(--page);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${label}</span><strong style="display:block;margin-top:4px;font-size:var(--fs-2);">${escapeHtml(value)}</strong></div>`).join('')}
+          </div>
+          ${questionReadiness.gaps?.length ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${questionReadiness.gaps.length} question${questionReadiness.gaps.length === 1 ? '' : 's'} need additional comparable samples. <a href="#/engines">Fill gaps</a></p>` : ''}
+        </div>
 
         <!-- Core Modules Column -->
         <div style="display:grid;grid-template-columns:minmax(0, 7fr) minmax(0, 5fr);gap:var(--sp-6);">

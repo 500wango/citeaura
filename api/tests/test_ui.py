@@ -112,6 +112,8 @@ def test_citation_sources_view_has_no_legacy_seo_integrations():
 
     assert "AI Citation Sources" in channels
     assert "Run Citation Sampling" in channels
+    assert "External evidence records" in channels
+    assert "addExternalEvidence" in channels
     assert "TabAPI" not in channels
     assert "getProjectTraffic" not in channels
     assert "SEO Integrations" not in app_js
@@ -257,6 +259,8 @@ def test_frontend_contracts_match_backend_request_models():
     assert "Switch to ${label" in billing
     assert "Upgrade to Pro" in billing
     assert "no need to wait" in billing
+    assert "Activation progress" in billing
+    assert "Platform-pool calls" in billing
     assert "project.questions" in overview
     assert 'href="#/questions"' in overview
     assert "project_questions_required" in overview

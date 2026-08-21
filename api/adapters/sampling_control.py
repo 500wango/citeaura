@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 
 from api.adapters.engine import geolib, load_custom_providers, with_tenant_context
-from api.adapters import sampling_modes
+from api.adapters import measurement, sampling_modes
 from api.billing.platform_pool import resolve_funding
 from api.models import Job, PlatformUsage, Project, Tenant
 from api.billing.limits import check_sample_run
@@ -75,11 +75,12 @@ def _project_pool_reservations(db, project_id):
     return {"calls": int(calls or 0), "cost_cny_fen": int(amount or 0)}
 
 
-def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, allow_pool=True):
+def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, question_ids=None, allow_pool=True):
     """按当前问题集和资金来源估算一次采样，不返回密钥。"""
     import sample
 
     requested = platforms
+    selected_question_ids = {str(value).strip() for value in (question_ids or []) if str(value).strip()}
     if isinstance(requested, str):
         requested = [item.strip() for item in requested.split(",") if item.strip()]
     funding = resolve_funding(db, tenant.id, project.slug, allow_pool=allow_pool)
@@ -115,12 +116,13 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, allow
                 source = "byok"
             else:
                 source = "unavailable"
-            question_count = len(sample.questions_for(config, code))
+            question_count = len(sample.questions_for(config, code, selected_question_ids or None))
             if limit:
                 question_count = min(question_count, int(limit))
             calls = question_count * int(repeat) if source != "unavailable" else 0
             unit_price = funding.get("rates", {}).get(code) if source == "platform_pool" else None
             estimated_cost = calls * int(unit_price) if unit_price is not None else None
+            model_id = provider.get("model_id") or provider.get("model")
             total_calls += calls
             if source == "platform_pool":
                 pool_calls += calls
@@ -130,8 +132,11 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, allow
             items.append({
                 "engine_code": code,
                 "engine_name": provider.get("name", code),
+                "provider_name": provider.get("name", code),
+                "model_id": model_id,
                 "sampling_mode": sampling_modes.for_provider(provider),
                 "source": source,
+                "funding_source": source,
                 "questions": question_count,
                 "repeat": int(repeat),
                 "calls": calls,
@@ -147,6 +152,8 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, allow
     paused = bool(project.pause_on_budget_exceeded and (call_limit_exceeded or budget_exceeded))
     return {
         "project_id": project.id,
+        "question_set_version": measurement.question_set_version(config),
+        "question_ids": sorted(selected_question_ids),
         "platforms": items,
         "estimate": {
             "calls": total_calls,

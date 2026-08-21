@@ -6,6 +6,7 @@ import { projects } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
+import { openModal } from '../components/modal.js';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -41,7 +42,10 @@ export default {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
     }
 
-    const report = await projects.getReport(projectId).catch(() => null);
+    const [report, externalEvidence] = await Promise.all([
+      projects.getReport(projectId).catch(() => null),
+      projects.getExternalEvidence(projectId).catch(() => []),
+    ]);
     const channels = report?.channels || [];
     const totalMentions = channels.reduce((sum, channel) => sum + Number(channel.count || 0), 0);
     const cohort = report?.sample_artifact || report?.date || null;
@@ -143,6 +147,16 @@ export default {
             </div>
           </div>
         `}
+        <section class="card" style="gap:var(--sp-3);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <div>
+              <h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">External evidence records</h2>
+              <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">Record real third-party sources and the facts they support. CiteAura does not invent or auto-verify external coverage.</p>
+            </div>
+            <button type="button" id="btn-add-external-evidence" class="btn btn-secondary btn-sm">Add evidence record</button>
+          </div>
+          ${externalEvidence.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>Source</th><th>Fact supported</th><th>Questions</th><th>Status</th></tr></thead><tbody>${externalEvidence.map((record) => `<tr><td><a href="${escapeHtml(record.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.url)}</a><div style="color:var(--muted);font-size:var(--fs-1);">${escapeHtml(record.source_type || '')}</div></td><td>${escapeHtml(record.fact_supported || '')}</td><td>${escapeHtml((record.question_ids || []).join(', ') || 'Not mapped')}</td><td><span class="tag tag-warn">Manual confirmation required</span></td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">No external evidence has been confirmed for this project.</p>'}
+        </section>
       </div>
     `;
   },
@@ -150,6 +164,37 @@ export default {
   mounted: (ctx) => {
     document.querySelectorAll('.btn-run-citation-sample').forEach((button) => {
       button.addEventListener('click', () => runCitationSample(ctx, button));
+    });
+    document.getElementById('btn-add-external-evidence')?.addEventListener('click', async () => {
+      openModal({
+        title: 'Add external evidence record',
+        content: `<div class="field"><label>Source URL</label><input id="external-url" class="input" type="url" placeholder="https://example.com/source"></div><div class="field"><label>Source type</label><input id="external-type" class="input" placeholder="Review platform, directory, encyclopedia"></div><div class="field"><label>Fact supported</label><textarea id="external-fact" class="input" rows="4" placeholder="Which verified fact does this source support?"></textarea></div><div class="field"><label>Question IDs</label><input id="external-questions" class="input" placeholder="q101, q102"></div><div class="field"><label>Reviewer</label><input id="external-reviewer" class="input" placeholder="Reviewer name or email"></div>`,
+        confirmText: 'Save record',
+        onConfirm: async () => {
+          const url = document.getElementById('external-url')?.value?.trim();
+          const sourceType = document.getElementById('external-type')?.value?.trim();
+          const fact = document.getElementById('external-fact')?.value?.trim();
+          if (!url || !sourceType || !fact) {
+            toast.error('URL, source type, and supported fact are required');
+            return false;
+          }
+          try {
+            await projects.addExternalEvidence(ctx.activeProjectId, {
+              url,
+              source_type: sourceType,
+              fact_supported: fact,
+              question_ids: (document.getElementById('external-questions')?.value || '').split(',').map((value) => value.trim()).filter(Boolean),
+              reviewer: document.getElementById('external-reviewer')?.value?.trim() || '',
+            });
+            toast.success('Evidence record saved');
+            await ctx.reloadCurrentView();
+            return true;
+          } catch (err) {
+            toast.error(err.detail || 'Failed to save evidence record');
+            return false;
+          }
+        },
+      });
     });
   },
 };

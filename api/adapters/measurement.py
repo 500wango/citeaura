@@ -95,6 +95,28 @@ def _cohort_signature(metrics):
     return sorted((code, modes.get(code)) for code in (platforms or {}))
 
 
+def _platform_comparisons(previous, current):
+    """Return comparable platform deltas with intervals from the two metrics."""
+    comparisons = []
+    codes = sorted(set((previous.get("platforms") or {})) & set((current.get("platforms") or {})))
+    for code in codes:
+        previous_rate, previous_n = _platform_mention(previous, code)
+        current_rate, current_n = _platform_mention(current, code)
+        if previous_rate is None or current_rate is None:
+            continue
+        comparisons.append({
+            "engine_code": code,
+            "previous_rate": round(previous_rate, 4),
+            "current_rate": round(current_rate, 4),
+            "delta_pp": round((current_rate - previous_rate) * 100, 2),
+            "previous_interval": wilson_interval(round(previous_rate * previous_n), previous_n),
+            "current_interval": wilson_interval(round(current_rate * current_n), current_n),
+            "previous_samples": previous_n,
+            "current_samples": current_n,
+        })
+    return comparisons
+
+
 def _weighted_mention(metrics):
     mentions = 0.0
     samples = 0
@@ -172,6 +194,13 @@ def sampling_quality(project_slug):
             "comparable": False,
             "comparison_reason": "No sampling data available yet",
             "trend": {"status": "unavailable", "label": "No trend data", "delta_pp": None},
+            "attribution": {
+                "status": "unavailable",
+                "ready": False,
+                "label": "No comparable period",
+                "method": "fixed question set, platform, model, and sampling mode",
+                "comparisons": [],
+            },
         }
 
     current = metrics[-1]
@@ -194,6 +223,13 @@ def sampling_quality(project_slug):
             "comparable": False,
             "comparison_reason": "Single baseline run, at least two periods required to determine trends",
             "trend": {"status": "unavailable", "label": "Single baseline", "delta_pp": None},
+            "attribution": {
+                "status": "insufficient_periods",
+                "ready": False,
+                "label": "Single baseline",
+                "method": "fixed question set, platform, model, and sampling mode",
+                "comparisons": [],
+            },
         }
 
     previous = metrics[-2]
@@ -215,6 +251,7 @@ def sampling_quality(project_slug):
         comparable, reason = False, "Missing valid visibility samples"
 
     delta = (current_rate - previous_rate) if comparable else None
+    platform_comparisons = _platform_comparisons(previous, current) if comparable else []
     if not comparable:
         trend = {"status": "not_comparable", "label": "Incomparable methodology", "delta_pp": None}
     elif min(current_n, previous_n) < MIN_COMPARABLE_SAMPLES:
@@ -246,6 +283,22 @@ def sampling_quality(project_slug):
             "z_score": round(z_score, 3) if math.isfinite(z_score) else None,
             "detail": "Statistical variance does not imply optimization attribution; evaluate with ticket deployment timelines and multi-period trends.",
         }
+    attribution_ready = bool(
+        comparable
+        and min(current_n, previous_n) >= MIN_COMPARABLE_SAMPLES
+        and min(confidence["platform_count"], previous_confidence["platform_count"]) >= MIN_REPRESENTATIVE_PLATFORMS
+    )
+    attribution = {
+        "status": "ready" if attribution_ready else ("not_comparable" if not comparable else "insufficient_evidence"),
+        "ready": attribution_ready,
+        "label": "Comparable measurement" if attribution_ready else (
+            "Methodology changed" if not comparable else "More comparable evidence required"
+        ),
+        "method": "fixed question set, platform, model, and sampling mode",
+        "comparisons": platform_comparisons,
+        "deployment_evidence_required": True,
+        "note": "A comparable delta is not proof of causation without ticket deployment evidence.",
+    }
     return {
         "available": True,
         "current": current_summary,
@@ -260,6 +313,7 @@ def sampling_quality(project_slug):
         "comparable": comparable,
         "comparison_reason": reason,
         "trend": trend,
+        "attribution": attribution,
     }
 
 
@@ -325,6 +379,7 @@ def record_sampling(
     *,
     source="api",
     requested_platforms=None,
+    question_ids=None,
     limit=None,
     repeat=1,
     job_id=None,
@@ -340,6 +395,11 @@ def record_sampling(
     requested = requested_platforms or config.get("platforms") or sorted(set(sample.PROVIDERS) | set(sample.MANUAL_ONLY))
     if isinstance(requested, str):
         requested = [item.strip() for item in requested.split(",") if item.strip()]
+    selected_questions = []
+    for value in question_ids or ():
+        value = str(value).strip()
+        if value and value not in selected_questions:
+            selected_questions.append(value)
     byok = set(byok_codes or ())
     pool = set(pool_codes or ())
     sample_files = sorted((geolib.project_dir(project_slug) / "samples").glob("*.jsonl"))
@@ -381,6 +441,7 @@ def record_sampling(
         "source": source,
         "question_set": qset,
         "requested_platforms": list(requested),
+        "requested_question_ids": selected_questions,
         "limit": limit,
         "repeat": repeat,
         "platforms": platforms,

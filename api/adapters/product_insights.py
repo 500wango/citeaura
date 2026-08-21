@@ -470,6 +470,33 @@ def _campaign_proposals(project_slug, prompt, heatmap, alerts, blueprint):
                 "automatic_publication": False,
             },
             "next_step": next_step,
+            "workflow": {
+                "evidence": {
+                    "status": "insufficient" if insufficient else "available",
+                    "samples": int(item.get("samples") or 0),
+                    "minimum": MIN_QUESTION_SAMPLES,
+                    "interval": item.get("mention_interval"),
+                },
+                "ticket": {
+                    "status": "linked" if related_tickets else "missing",
+                    "count": len(related_tickets),
+                    "route": "#/plan",
+                },
+                "asset": {
+                    "status": "linked" if related_assets else "missing",
+                    "count": len(related_assets),
+                    "route": f"#/assets?question={question_id}",
+                },
+                "review": {
+                    "status": "required" if (not facts["approved"] or asset_review) else "ready",
+                    "route": "#/facts" if not facts["approved"] else f"#/assets?question={question_id}",
+                },
+                "verification": {
+                    "status": "pending",
+                    "route": "#/verify",
+                    "condition": "Re-run the same question set, provider, model, sampling mode, and policy after deployment.",
+                },
+            },
         })
 
     counts = {name: sum(item["status"] == name for item in proposals) for name in (

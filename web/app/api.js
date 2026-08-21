@@ -174,6 +174,7 @@ export const projects = {
 
   estimateSample: (id, body = {}) => request(`/api/v1/projects/${encodeURIComponent(id)}/sample/estimate`, { method: 'POST', body }),
   triggerSample: (id, body = {}) => request(`/api/v1/projects/${encodeURIComponent(id)}/sample`, { method: 'POST', body }),
+  triggerSampleGaps: (id, body = {}) => request(`/api/v1/projects/${encodeURIComponent(id)}/sample/gaps`, { method: 'POST', body }),
 
   getReport: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/report`).then((data) => (
     data && data.report ? { ...data.report, report_quality: data.report_quality, date: data.date,
@@ -218,6 +219,8 @@ export const workspace = {
   getFacts: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/facts`),
   saveFacts: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/facts`, { method: 'PUT', body }),
   getAssets: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/assets`),
+  getExternalEvidence: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/evidence/external`), 'records', []),
+  addExternalEvidence: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/evidence/external`, { method: 'POST', body }),
   getAsset: (id, path) => request(`/api/v1/projects/${encodeURIComponent(id)}/asset?path=${encodeURIComponent(path)}`),
   saveAsset: (id, path, text) => request(`/api/v1/projects/${encodeURIComponent(id)}/asset`, { method: 'PUT', body: { path, text } }),
   getWorkbench: (id, qid = '') => request(`/api/v1/projects/${encodeURIComponent(id)}/workbench${qid ? `?qid=${encodeURIComponent(qid)}` : ''}`),

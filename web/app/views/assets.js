@@ -50,6 +50,7 @@ function renderCampaignProposals(campaigns) {
         const tickets = proposal.related_tickets || [];
         const linkedAssets = proposal.related_assets || [];
         const questionId = proposal.target_question?.id || '';
+        const workflow = proposal.workflow || {};
         const opportunity = promptEvidence.opportunity_score === null || promptEvidence.opportunity_score === undefined
           ? 'Evidence pending'
           : `Opportunity ${promptEvidence.opportunity_score}/100`;
@@ -81,6 +82,13 @@ function renderCampaignProposals(campaigns) {
                 ${linkedAssets.slice(0, 3).map((asset) => `<span class="tag tag-neutral">${escapeHtml(asset.path)} · ${escapeHtml(asset.status || '')}</span>`).join('')}
                 ${!tickets.length && !linkedAssets.length ? '<span class="muted">No linked implementation artifact yet</span>' : ''}
               </div>
+            </div>
+            <div class="campaign-proposal-links" aria-label="Campaign workflow">
+              <span class="tag ${workflow.evidence?.status === 'available' ? 'pill-good' : 'pill-warn'}">Evidence ${escapeHtml(workflow.evidence?.status || 'pending')}</span>
+              <span class="tag ${workflow.ticket?.status === 'linked' ? 'tag-neutral' : 'tag-dim'}">Ticket ${escapeHtml(workflow.ticket?.status || 'missing')}</span>
+              <span class="tag ${workflow.asset?.status === 'linked' ? 'tag-neutral' : 'tag-dim'}">Asset ${escapeHtml(workflow.asset?.status || 'missing')}</span>
+              <span class="tag ${workflow.review?.status === 'ready' ? 'pill-good' : 'pill-warn'}">Review ${escapeHtml(workflow.review?.status || 'required')}</span>
+              <span class="tag tag-dim">Verify pending</span>
             </div>
             <a class="btn btn-secondary btn-sm campaign-proposal-action" href="${escapeHtml(proposal.next_step?.route || '#/assets')}">${escapeHtml(proposal.next_step?.label || 'Review proposal')}</a>
           </div>

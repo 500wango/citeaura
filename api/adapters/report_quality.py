@@ -1,5 +1,6 @@
 """首份报告完整度和缺失项诊断。"""
 
+from api.adapters import brand_identity, global_scope
 from api.adapters.engine import geolib
 from api.adapters.measurement import MIN_COMPARABLE_SAMPLES, MIN_REPRESENTATIVE_PLATFORMS, sampling_quality
 
@@ -22,6 +23,34 @@ def assess(project_slug, has_sampling_access=False):
     tasks = geolib.read_json(directory / "tasks.json", {}) or {}
     measurement = sampling_quality(project_slug)
     issues = []
+
+    try:
+        config = geolib.load_config(project_slug)
+    except Exception:  # noqa: BLE001 - report completeness must survive a partial workspace
+        config = {}
+    sample_files = sorted((directory / "samples").glob("*.jsonl")) if (directory / "samples").exists() else []
+    current_rows = []
+    if sample_files:
+        current_rows = [
+            row for row in geolib.read_jsonl(sample_files[-1])
+            if row.get("ok") and global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
+        ]
+    question_counts = {}
+    for row in current_rows:
+        question_id = str(row.get("question_id") or "").strip()
+        if question_id:
+            question_counts[question_id] = question_counts.get(question_id, 0) + 1
+    question_ids = [
+        str(item.get("id")) for item in config.get("questions") or []
+        if isinstance(item, dict) and item.get("id")
+    ]
+    measured_questions = sum(1 for question_id in question_ids if question_counts.get(question_id, 0) > 0)
+    sufficient_questions = sum(
+        1 for question_id in question_ids
+        if question_counts.get(question_id, 0) >= 3
+    )
+    question_ready = bool(question_ids) and sufficient_questions == len(question_ids)
+    asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
 
     page_count = int(audit.get("page_count") or 0)
     site = audit.get("site") or {}
@@ -106,12 +135,69 @@ def assess(project_slug, has_sampling_access=False):
     else:
         level = "missing"
     diagnostic_ready = page_count > 0 and ticket_count > 0
+    asset_records = [
+        item for item in (asset_index.get("asset_records") or [])
+        if isinstance(item, dict)
+    ]
+    asset_summary = asset_index.get("summary") if isinstance(asset_index.get("summary"), dict) else {}
+    workflow_summary = asset_index.get("workflow_summary") if isinstance(asset_index.get("workflow_summary"), dict) else {}
+    ready_assets = int(asset_summary.get("ready") or 0) or sum(
+        item.get("status") in ("ready", "deployable") for item in asset_records
+    )
+    needs_review_assets = int(asset_summary.get("needs_review") or 0) or sum(
+        item.get("status") in ("needs_review", "review_required") for item in asset_records
+    )
+    template_assets = int(asset_summary.get("template") or 0) or int(workflow_summary.get("draft") or 0)
+    implementation_ready = bool(asset_index.get("implementation_ready")) or bool(
+        asset_records and all(item.get("status") in ("ready", "deployable") for item in asset_records)
+    )
+    readiness = {
+        "audit": {
+            "ready": bool(page_count and crawl_ratio >= 0.8 and not site.get("ai_bots_blocked")),
+            "label": "Site audit ready" if page_count else "Site audit pending",
+            "pages_crawled": pages_crawled,
+            "pages_ok": pages_ok,
+        },
+        "measurement": {
+            "ready": bool(confidence.get("sufficient")),
+            "label": confidence.get("label", "No baseline"),
+            "samples": successful,
+            "platforms": platform_count,
+        },
+        "question": {
+            "ready": question_ready,
+            "label": "Question-level evidence ready" if question_ready else "Per-question evidence still limited",
+            "total": len(question_ids),
+            "measured": measured_questions,
+            "sufficient": sufficient_questions,
+            "minimum_samples": 3,
+            "gaps": [
+                {"question_id": question_id, "samples": question_counts.get(question_id, 0), "required": 3}
+                for question_id in question_ids
+                if question_counts.get(question_id, 0) < 3
+            ],
+        },
+        "attribution": measurement.get("attribution") or {
+            "ready": False,
+            "status": "unavailable",
+            "label": "No comparable period",
+        },
+        "implementation": {
+            "ready": implementation_ready,
+            "label": "Implementation assets ready" if implementation_ready else "Implementation assets require review",
+            "ready_assets": ready_assets,
+            "needs_review": needs_review_assets,
+            "templates": template_assets,
+        },
+    }
     return {
         "score": score,
         "level": level,
         "effective_report": diagnostic_ready,
         "diagnostic_ready": diagnostic_ready,
         "measured_visibility": bool(confidence.get("sufficient")),
+        "implementation_ready": implementation_ready,
+        "readiness": readiness,
         "confidence": confidence,
         "components": {
             "site_audit": {"score": audit_score, "max": 35, "pages_ok": pages_ok, "pages_crawled": pages_crawled},

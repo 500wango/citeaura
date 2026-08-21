@@ -85,6 +85,7 @@ class SampleRequest(BaseModel):
     limit: int | None = Field(default=None, ge=1, le=1000)
     platforms: list[str] | None = None
     repeat: int = Field(default=1, ge=1, le=10)
+    question_ids: list[str] | None = Field(default=None, max_length=1000)
 
 
 class ProjectPreflight(BaseModel):
@@ -166,6 +167,7 @@ class SampleEstimateRequest(BaseModel):
     limit: int | None = Field(default=None, ge=1, le=1000)
     platforms: list[str] | None = None
     repeat: int = Field(default=1, ge=1, le=10)
+    question_ids: list[str] | None = Field(default=None, max_length=1000)
 
 
 def _error(status_code: int, message: str):
@@ -273,7 +275,12 @@ def _safe_request_json(action, params=None):
     """只保存动作白名单内的参数，避免把用户误传的密钥写入数据库。"""
     params = params or {}
     if action == "sample":
-        values = {"limit": params.get("limit"), "platforms": params.get("platforms"), "repeat": params.get("repeat", 1)}
+        values = {
+            "limit": params.get("limit"),
+            "platforms": params.get("platforms"),
+            "repeat": params.get("repeat", 1),
+            "question_ids": params.get("question_ids"),
+        }
     elif action in PIPELINE_ACTIONS:
         allowed = set(PIPELINE_ACTIONS[action].get("args", []))
         values = {}
@@ -311,6 +318,28 @@ def _require_project_questions(tenant: Tenant, project: Project):
         _error(status.HTTP_409_CONFLICT, "project_questions_required")
 
 
+def _normalize_sample_question_ids(tenant: Tenant, project: Project, payload: SampleRequest):
+    """验证问题级采样范围，避免把错误 ID 投递到 Worker 后才失败。"""
+    if not payload.question_ids:
+        return payload
+    with with_tenant_read_context(tenant, project.slug):
+        config = workspace.ensure_global_engine_scope(project.slug)
+    valid = {
+        str(question.get("id"))
+        for question in config.get("questions") or []
+        if isinstance(question, dict) and question.get("id")
+    }
+    selected = []
+    for value in payload.question_ids:
+        question_id = str(value).strip()
+        if question_id and question_id not in selected:
+            selected.append(question_id)
+    unknown = [question_id for question_id in selected if question_id not in valid]
+    if unknown:
+        _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "sample_question_not_found")
+    return payload.model_copy(update={"question_ids": selected or None})
+
+
 def _available_outputs(project_slug):
     directory = geolib.project_dir(project_slug)
     return {
@@ -342,6 +371,7 @@ def _dispatch_retry(task_name, tenant_name, project_slug, request, job_id, sourc
             limit=request.get("limit", request.get("--limit")),
             platforms=request.get("platforms", request.get("--platforms")),
             repeat=int(request.get("repeat", request.get("--repeat", 1)) or 1),
+            question_ids=request.get("question_ids", request.get("--question-ids")),
             job_id=job_id,
         )
     if source_action == "cycle":
@@ -476,6 +506,31 @@ def _include_configured_engines(db, tenant, engines):
     return rows
 
 
+def _provider_identity(code, item, config):
+    """Return one stable provider identity object for API/UI consumers."""
+    import sample
+
+    code = str(code or "")
+    item = item if isinstance(item, dict) else {}
+    config = config if isinstance(config, dict) else {}
+    labels = config.get("provider_labels") if isinstance(config.get("provider_labels"), dict) else {}
+    model_ids = config.get("provider_model_ids") if isinstance(config.get("provider_model_ids"), dict) else {}
+    provider = sample.PROVIDERS.get(code) or {}
+    provider_name = str(labels.get(code) or item.get("engine_name") or item.get("label") or provider.get("name") or code)
+    model_id = str(model_ids.get(code) or item.get("model_id") or provider.get("model") or "")
+    internal_custom = code == "custom" or code.startswith("custom_")
+    if internal_custom and not labels.get(code):
+        provider_name = "Configured OpenAI-compatible provider"
+    mode = item.get("sampling_mode") or sampling_modes.for_provider(provider)
+    return {
+        "engine_code": code,
+        "provider_name": provider_name,
+        "model_id": model_id or None,
+        "sampling_mode": mode,
+        "funding_source": item.get("source") or item.get("funding_source") or "unknown",
+    }
+
+
 def _current_sample_rows(project_slug, config=None):
     """读取当前问题集样本，统一过滤历史身份和市场残留。"""
     config = config or geolib.load_config(project_slug)
@@ -526,6 +581,11 @@ def _product_report(project_slug, metrics):
                     evidence["questions"].add(row["question"])
 
     measured = [item for item in engines if item["mention_rate"] is not None and item["sample_count"]]
+    for item in engines:
+        identity = _provider_identity(item.get("engine_code"), item, config)
+        item["provider_identity"] = identity
+        item["provider_name"] = identity["provider_name"]
+        item["model_id"] = identity["model_id"]
     measured_count = sum(item["sample_count"] for item in measured)
     mention_rate = (
         sum(item["mention_rate"] * item["sample_count"] for item in measured) / measured_count
@@ -704,6 +764,7 @@ def _sample_estimate(db, tenant, project, payload, enforce=False, allow_pool=Tru
             platforms=platforms,
             limit=payload.limit if payload else None,
             repeat=payload.repeat if payload else 1,
+            question_ids=payload.question_ids if payload else None,
             allow_pool=allow_pool,
         )
     except sampling_control.SamplingBudgetExceeded as exc:
@@ -713,6 +774,26 @@ def _sample_estimate(db, tenant, project, payload, enforce=False, allow_pool=Tru
         ) from exc
 
 
+def _normalize_sample_estimate_payload(tenant, project, payload):
+    payload = payload or SampleEstimateRequest()
+    if payload.question_ids:
+        sample_payload = SampleRequest(
+            limit=payload.limit,
+            platforms=payload.platforms,
+            repeat=payload.repeat,
+            question_ids=payload.question_ids,
+        )
+        payload = payload.model_copy(update={
+            "question_ids": _normalize_sample_question_ids(tenant, project, sample_payload).question_ids,
+        })
+    return payload
+
+
+def _validated_sample_estimate(db, tenant, project, payload, enforce=False, allow_pool=True):
+    payload = _normalize_sample_estimate_payload(tenant, project, payload)
+    return _sample_estimate(db, tenant, project, payload, enforce=enforce, allow_pool=allow_pool)
+
+
 def _reserve_sample_estimate(db, tenant, project, job, payload):
     try:
         return sampling_control.reserve(
@@ -720,6 +801,7 @@ def _reserve_sample_estimate(db, tenant, project, job, payload):
             platforms=payload.platforms if payload else None,
             limit=payload.limit if payload else None,
             repeat=payload.repeat if payload else 1,
+            question_ids=payload.question_ids if payload else None,
         )
     except sampling_control.SamplingBudgetExceeded as exc:
         raise HTTPException(
@@ -735,11 +817,15 @@ def _pipeline_sample_payload(params):
     platforms = value("platforms")
     if isinstance(platforms, str):
         platforms = [item.strip() for item in platforms.split(",") if item.strip()]
+    question_ids = value("question-ids")
+    if isinstance(question_ids, str):
+        question_ids = [item.strip() for item in question_ids.split(",") if item.strip()]
     try:
         return SampleEstimateRequest(
             limit=value("limit"),
             platforms=platforms,
             repeat=value("repeat", 1),
+            question_ids=question_ids,
         )
     except ValidationError as exc:
         raise HTTPException(
@@ -1137,7 +1223,7 @@ def sampling_budget(
     """返回项目预算、当月平台代付用量和默认采样估算。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    return _sample_estimate(db, tenant, project, SampleEstimateRequest())
+    return _validated_sample_estimate(db, tenant, project, SampleEstimateRequest())
 
 
 @router.put("/{project_id}/sampling-budget")
@@ -1154,7 +1240,7 @@ def update_sampling_budget(
     project.sample_call_limit = payload.sample_call_limit
     project.pause_on_budget_exceeded = payload.pause_on_budget_exceeded
     db.commit()
-    return _sample_estimate(db, tenant, project, SampleEstimateRequest())
+    return _validated_sample_estimate(db, tenant, project, SampleEstimateRequest())
 
 
 @router.post("/{project_id}/sample/estimate")
@@ -1167,7 +1253,7 @@ def estimate_project_sample(
     """在任务投递前按问题集、平台和轮次估算调用量。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    return _sample_estimate(db, tenant, project, payload or SampleEstimateRequest())
+    return _validated_sample_estimate(db, tenant, project, payload)
 
 
 @router.post("/{project_id}/schedule")
@@ -1186,7 +1272,7 @@ def update_project_schedule(
     else:
         check_sample_run(db, tenant, project)
         if project.monthly_budget_cny_fen is not None or project.sample_call_limit is not None:
-            _sample_estimate(db, tenant, project, SampleEstimateRequest(), enforce=True)
+            _validated_sample_estimate(db, tenant, project, SampleEstimateRequest(), enforce=True)
         if project.schedule_interval_days != payload.interval_days or project.schedule_next_run_at is None:
             project.schedule_next_run_at = datetime.now(timezone.utc) + timedelta(days=payload.interval_days)
         project.schedule_interval_days = payload.interval_days
@@ -1248,7 +1334,7 @@ def retry_project_job(
     if source.action in ("sample", "cycle", "autopilot", "serve"):
         if source.action not in ("autopilot", "serve") or not request_no_sample:
             check_sample_run(db, tenant, project)
-            estimate = _sample_estimate(
+            estimate = _validated_sample_estimate(
                 db,
                 tenant,
                 project,
@@ -1302,6 +1388,53 @@ def retry_project_job(
     }
 
 
+@router.post("/{project_id}/sample/gaps", status_code=status.HTTP_202_ACCEPTED)
+def sample_project_gaps(
+    project_id: int,
+    payload: SampleRequest | None = None,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    """只补采当前问题集中低于最低证据量的问题。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    payload = payload or SampleRequest()
+    with with_tenant_read_context(tenant, project.slug):
+        config_data = workspace.ensure_global_engine_scope(project.slug)
+        _, rows = _current_sample_rows(project.slug, config_data)
+        insights = product_insights.build(
+            project.slug,
+            rows,
+            config_data,
+            geolib.read_json(geolib.project_dir(project.slug) / "blueprint.json", None),
+        )
+    measured = {
+        str(item.get("id")): int(item.get("samples") or 0)
+        for item in (insights.get("prompt_explorer", {}).get("items") or [])
+        if isinstance(item, dict) and item.get("id")
+    }
+    requested = [str(value).strip() for value in (payload.question_ids or []) if str(value).strip()]
+    question_ids = requested or [
+        str(question.get("id"))
+        for question in config_data.get("questions") or []
+        if isinstance(question, dict)
+        and question.get("id")
+        and measured.get(str(question.get("id")), 0) < product_insights.MIN_QUESTION_SAMPLES
+    ]
+    question_ids = list(dict.fromkeys(question_ids))
+    if not question_ids:
+        return {"status": "no_gaps", "project_id": project.id, "question_ids": [], "estimate": None}
+    targeted = payload.model_copy(update={"question_ids": question_ids, "repeat": max(1, payload.repeat)})
+    result = sample_project(project_id, targeted, current_user, db)
+    if isinstance(result, dict):
+        result["gap_fill"] = {
+            "question_ids": question_ids,
+            "minimum_samples": product_insights.MIN_QUESTION_SAMPLES,
+            "previous_samples": {qid: measured.get(qid, 0) for qid in question_ids},
+        }
+    return result
+
+
 @router.post("/{project_id}/sample", status_code=status.HTTP_202_ACCEPTED)
 def sample_project(
     project_id: int,
@@ -1318,6 +1451,7 @@ def sample_project(
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     _require_project_questions(tenant, project)
     payload = payload or SampleRequest()
+    payload = _normalize_sample_question_ids(tenant, project, payload)
     if not payload.platforms:
         estimate_preview = _sample_estimate(db, tenant, project, payload, enforce=False)
         funded = [
@@ -1327,7 +1461,12 @@ def sample_project(
         ]
         if funded:
             payload = payload.model_copy(update={"platforms": funded})
-    request_values = {"limit": payload.limit, "platforms": payload.platforms, "repeat": payload.repeat}
+    request_values = {
+        "limit": payload.limit,
+        "platforms": payload.platforms,
+        "repeat": payload.repeat,
+        "question_ids": payload.question_ids,
+    }
     job = Job(project_id=project.id, action="sample", status="queued", stage="queued",
               request_json=_safe_request_json("sample", request_values))
     estimate = _reserve_sample_estimate(db, tenant, project, job, payload)
@@ -1352,6 +1491,7 @@ def sample_project(
             limit=payload.limit,
             platforms=payload.platforms,
             repeat=payload.repeat,
+            question_ids=payload.question_ids,
             job_id=job.id,
         )
         job.celery_task_id = getattr(task_result, "id", None)
@@ -1391,8 +1531,9 @@ def run_pipeline_action(
     if action in ("sample", "autopilot", "serve") and not no_sample:
         check_sample_run(db, tenant, project)
         sample_payload = _pipeline_sample_payload(params)
+        sample_payload = _normalize_sample_estimate_payload(tenant, project, sample_payload)
         if action != "sample":
-            estimate = _sample_estimate(
+            estimate = _validated_sample_estimate(
                 db, tenant, project, sample_payload,
                 enforce=True, allow_pool=False,
             )
@@ -1463,9 +1604,18 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
         metrics = geolib.read_json(metrics_path, None) if metrics_path else None
         engines = _product_report(project.slug, metrics)["engines"]
         engines = _include_configured_engines(db, tenant, engines)
-        measurement_quality = report_quality.assess(
+        config_data = geolib.load_config(project.slug)
+        for item in engines:
+            identity = _provider_identity(item.get("engine_code"), item, config_data)
+            item["provider_identity"] = identity
+            item["provider_name"] = identity["provider_name"]
+            item["model_id"] = identity["model_id"]
+        quality_payload = report_quality.assess(
             project.slug, _has_sampling_access(db, tenant, project),
-        )["measurement_quality"]
+        )
+        measurement_quality = quality_payload["measurement_quality"]
+        readiness = quality_payload.get("readiness") or {}
+        provider_observability = (metrics or {}).get("provider_observability") if metrics else None
     return {
         "project_id": project.id,
         "project_slug": project.slug,
@@ -1483,6 +1633,8 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
         "question_set_version": metrics.get("question_set_version") if metrics else None,
         "sample_summary": metrics.get("sample_summary") if metrics else None,
         "measurement_quality": measurement_quality,
+        "readiness": readiness,
+        "provider_observability": provider_observability,
     }
 
 

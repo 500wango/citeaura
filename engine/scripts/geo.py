@@ -236,7 +236,8 @@ def cmd_sample(a):
     import sample
 
     sample.run(a.slug, platforms=a.platforms.split(",") if a.platforms else None,
-               repeat=a.repeat, limit=a.limit)
+               repeat=a.repeat, limit=a.limit,
+               question_ids=(getattr(a, "question_ids", "") or "").split(",") or None)
 
 
 def cmd_sheet(a):

@@ -15,7 +15,7 @@ from api.adapters.branding import apply_delivery_branding
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
 from api.adapters.localization import localize_ticket, normalize_english_typography
-from api.adapters import action_scope, audit_presentation, brand_facts, brand_identity, global_scope, measurement, product_insights, sampling_modes
+from api.adapters import action_scope, audit_presentation, brand_facts, brand_identity, global_scope, measurement, product_insights, report_quality, sampling_modes
 
 
 REQUIRED_DOCUMENTS = {
@@ -775,6 +775,20 @@ def _insights_markdown(insights, platform_labels=None):
         f"- Campaign proposals: {campaigns.get('total_count', 0)}; human approval is required and automatic publication is disabled.",
         "",
     ]
+    readiness = insights.get("readiness") or {}
+    question_readiness = readiness.get("question") or {}
+    attribution = readiness.get("attribution") or {}
+    if readiness:
+        lines += [
+            "### Evidence readiness",
+            "",
+            f"- Overall measurement: **{_markdown_cell((readiness.get('measurement') or {}).get('label') or 'No baseline')}**.",
+            f"- Per-question evidence: **{_markdown_cell(question_readiness.get('label') or 'Not measured')}** "
+            f"({question_readiness.get('sufficient', 0)}/{question_readiness.get('total', 0)} questions at the minimum evidence target).",
+            f"- Attribution: **{_markdown_cell(attribution.get('label') or 'No comparable period')}**. "
+            "Comparable deltas require unchanged questions, providers, models, sampling modes, and measurement policy.",
+            "",
+        ]
     items = [item for item in prompt.get("items") or [] if isinstance(item, dict)]
     items = [item for item in items if item.get("priority") not in ("probe", "monitor")][:8]
     if items:
@@ -2967,6 +2981,7 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
 
     sample_rows = _current_sample_rows(project_directory, config)
     insights = product_insights.build(project_slug, sample_rows, config, blueprint)
+    insights["readiness"] = report_quality.assess(project_slug, has_sampling_access=True).get("readiness") or {}
 
     audit_markdown = _audit_markdown(
         project_slug, project_directory, name, site, display_audit, metrics, insights,

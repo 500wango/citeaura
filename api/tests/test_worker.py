@@ -120,6 +120,37 @@ def test_sample_task_normalizes_blueprint_after_recording_sampling(monkeypatch):
     ]
 
 
+def test_sample_task_forwards_question_scope_to_engine_and_manifest(monkeypatch):
+    captured = {}
+
+    @contextmanager
+    def fake_context(*args, **kwargs):
+        yield {"keys": {}, "pool_codes": ()}
+
+    def fake_sample_run(project_slug, **kwargs):
+        captured["run"] = {"project_slug": project_slug, **kwargs}
+        return {"sample_count": 1, "platforms": {"openai": {"samples": 1}}}
+
+    monkeypatch.setitem(sys.modules, "sample", types.SimpleNamespace(run=fake_sample_run))
+    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
+    monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks, "_require_sampling_output", lambda result, slug: result)
+    monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {"keys": {}, "pool_codes": ()})
+    monkeypatch.setattr(
+        tasks.measurement,
+        "record_sampling",
+        lambda slug, **kwargs: captured.update({"manifest": {"project_slug": slug, **kwargs}}),
+    )
+    monkeypatch.setattr(tasks.global_scope, "normalize_project", lambda slug: None)
+
+    tasks.task_sample.run(
+        "tenant-a", "example", platforms=["openai"], question_ids=["q101", "q102"],
+    )
+
+    assert captured["run"]["question_ids"] == ["q101", "q102"]
+    assert captured["manifest"]["question_ids"] == ["q101", "q102"]
+
+
 def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
     calls = []
 

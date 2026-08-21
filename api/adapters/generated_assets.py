@@ -247,12 +247,30 @@ def _visible_assets(assets, active_ids, omitted_schema, review_schema=None, fact
         if PLACEHOLDER_PATTERN.search(text):
             status = "review_required" if status == "deployable" else status
             issues.append("contains_incomplete_material")
+        question_id = None
+        question_match = QUESTION_ASSET_PATTERN.fullmatch(relative)
+        if question_match:
+            question_id = question_match.group(1)
+        fact_derived = relative in FACT_DERIVED_ASSET_PATHS or relative.startswith("jsonld/")
+        if status == "draft":
+            workflow_status = "draft"
+        elif facts_review_pending and fact_derived:
+            workflow_status = "facts_required"
+        elif status == "review_required":
+            workflow_status = "evidence_required" if "contains_incomplete_material" in issues else "review"
+        else:
+            workflow_status = "deployable"
         records.append({
             "path": relative,
             "size": path.stat().st_size,
             "group": relative.split("/", 1)[0] if "/" in relative else "Root",
             "status": status,
             "issues": issues,
+            "workflow_status": workflow_status,
+            "question_id": question_id,
+            "facts_required": bool(fact_derived and facts_review_pending),
+            "evidence_required": bool(status == "review_required" and not (fact_derived and facts_review_pending)),
+            "review_required": status == "review_required",
         })
     return records, excluded
 
@@ -269,6 +287,10 @@ def _write_index(assets, records, excluded):
         "deployable_assets": [record["path"] for record in records if record["status"] == "deployable"],
         "review_required_assets": [record["path"] for record in records if record["status"] == "review_required"],
         "draft_assets": [record["path"] for record in records if record["status"] == "draft"],
+        "workflow_summary": {
+            stage: sum(record.get("workflow_status") == stage for record in records)
+            for stage in ("facts_required", "evidence_required", "draft", "review", "deployable")
+        },
         "readiness": ("deployable" if records and all(record["status"] == "deployable" for record in records)
                       else "review_required"),
         "excluded": excluded,

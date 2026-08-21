@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from api import config
 from api.auth.deps import get_current_user, require_owner
-from api.billing.limits import usage
+from api.billing.limits import activation_funnel, usage
 from api.billing.plans import PLANS, SUBSCRIBABLE_PLANS
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.billing import stripe as stripe_adapter
@@ -492,6 +492,9 @@ def billing_usage(current_user: User = Depends(get_current_user), db: Session = 
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
     result = usage(db, tenant)
     result["platform_pool"] = usage_summary(db, tenant)
+    result["platform_pool_calls"] = result["platform_pool"].get("calls", 0)
+    result["platform_pool_cost_cny_fen"] = result["platform_pool"].get("cost_cny_fen", 0)
+    result["activation_funnel"] = activation_funnel(db, tenant)
     latest = (
         db.query(Subscription)
         .filter(Subscription.tenant_id == tenant.id)

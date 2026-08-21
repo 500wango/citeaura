@@ -343,6 +343,29 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
     assert "must be written in English" in non_english.json()["detail"]
     assert client.get(f"/api/v1/projects/{project_id}/facts", headers=headers).json()["text"] == "# Updated facts\n"
 
+    external = client.post(
+        f"/api/v1/projects/{project_id}/evidence/external",
+        headers=headers,
+        json={
+            "url": "https://directory.example/vendors/example",
+            "source_type": "directory",
+            "fact_supported": "Example is the official product name.",
+            "question_ids": ["q001"],
+            "reviewer": "owner@example.com",
+        },
+    )
+    assert external.status_code == 201
+    assert external.json()["record"]["status"] == "manual_confirmation_required"
+    evidence = client.get(f"/api/v1/projects/{project_id}/evidence/external", headers=headers)
+    assert evidence.status_code == 200
+    assert evidence.json()["records"][0]["question_ids"] == ["q001"]
+    invalid_external = client.post(
+        f"/api/v1/projects/{project_id}/evidence/external",
+        headers=headers,
+        json={"url": "file:///tmp/evidence", "source_type": "directory", "fact_supported": "Invalid."},
+    )
+    assert invalid_external.status_code == 400
+
     factcheck = [{"field": "price", "said": "unknown", "truth": "$10", "state": "被说错"}]
     assert client.put(
         f"/api/v1/projects/{project_id}/factcheck",

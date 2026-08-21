@@ -1,5 +1,6 @@
 """试用额度检查和用量汇总。"""
 
+import json
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
@@ -8,13 +9,101 @@ from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from api.models import Job, Project, Tenant, UsageCounter
+from api.models import Job, Membership, Project, Tenant, UsageCounter, User
 from api.billing.plans import PLANS
 
 
 TRIAL_PROJECT_LIMIT = 3
 TRIAL_SAMPLE_LIMIT_PER_PROJECT = 2
 SAMPLE_JOB_ACTIONS = ("sample", "sample-import", "cycle", "autopilot", "serve")
+ACTIVATION_STEPS = (
+    ("registration", "Registration"),
+    ("project_creation", "First project"),
+    ("first_audit", "First audit"),
+    ("first_sample", "First sample"),
+    ("first_delivery_pack", "First delivery pack"),
+    ("first_resample", "First re-sample"),
+)
+
+
+def _iso(value):
+    """把数据库时间转换为稳定的 API 字符串。"""
+    return value.isoformat() if value is not None else None
+
+
+def _job_payload(job):
+    try:
+        value = json.loads(job.request_json or "{}")
+    except (TypeError, ValueError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _job_sampled(job):
+    """判断成功 Job 是否实际包含一次采样，而不是只看 action 名称。"""
+    if job.action in ("sample", "sample-import", "cycle"):
+        return True
+    if job.action not in ("autopilot", "serve", "bootstrap"):
+        return False
+    payload = _job_payload(job)
+    return not bool(payload.get("no_sample") or payload.get("--no-sample"))
+
+
+def activation_funnel(db: Session, tenant: Tenant) -> dict:
+    """按已完成的真实工作区事实返回首次价值漏斗。"""
+    registration_at = (
+        db.query(func.min(User.created_at))
+        .join(Membership, Membership.user_id == User.id)
+        .filter(Membership.tenant_id == tenant.id)
+        .scalar()
+        or tenant.created_at
+    )
+    projects = db.query(Project).filter(Project.tenant_id == tenant.id).all()
+    project_ids = [project.id for project in projects]
+    jobs = []
+    if project_ids:
+        jobs = (
+            db.query(Job)
+            .filter(Job.project_id.in_(project_ids), Job.status == "done")
+            .order_by(Job.finished_at.asc(), Job.created_at.asc(), Job.id.asc())
+            .all()
+        )
+    completed_jobs = [job for job in jobs if job.finished_at or job.created_at]
+    audit_jobs = [
+        job for job in completed_jobs
+        if job.action in ("audit", "autopilot", "cycle", "serve", "bootstrap")
+    ]
+    sampled_jobs = [job for job in completed_jobs if _job_sampled(job)]
+    delivery_jobs = [job for job in completed_jobs if job.action == "deliver"]
+    completed_at = {
+        "registration": registration_at,
+        "project_creation": min((project.created_at for project in projects if project.created_at), default=None),
+        "first_audit": (audit_jobs[0].finished_at or audit_jobs[0].created_at) if audit_jobs else None,
+        "first_sample": (sampled_jobs[0].finished_at or sampled_jobs[0].created_at) if sampled_jobs else None,
+        "first_delivery_pack": (delivery_jobs[0].finished_at or delivery_jobs[0].created_at) if delivery_jobs else None,
+        "first_resample": (sampled_jobs[1].finished_at or sampled_jobs[1].created_at) if len(sampled_jobs) >= 2 else None,
+    }
+    steps = []
+    for key, label in ACTIVATION_STEPS:
+        timestamp = completed_at[key]
+        steps.append({
+            "key": key,
+            "label": label,
+            "status": "complete" if timestamp else "pending",
+            "completed": bool(timestamp),
+            "completed_at": _iso(timestamp),
+        })
+    completed_count = sum(item["completed"] for item in steps)
+    next_step = next((item for item in steps if not item["completed"]), None)
+    return {
+        "steps": steps,
+        "completed_steps": completed_count,
+        "total_steps": len(steps),
+        "progress_percent": round(completed_count / len(steps) * 100, 1),
+        "next_step": next_step["key"] if next_step else None,
+        "next_step_label": next_step["label"] if next_step else None,
+        "sample_runs_completed": len(sampled_jobs),
+    }
 
 
 def reconcile_usage_counter(db: Session, tenant: Tenant, now=None):
@@ -208,6 +297,11 @@ def usage(db: Session, tenant: Tenant) -> dict:
         or 0
     )
     lifetime_limit = TRIAL_PROJECT_LIMIT * TRIAL_SAMPLE_LIMIT_PER_PROJECT if trial else None
+    projects_limit = plan.get("projects")
+    platform_sample_remaining = (
+        max(0, lifetime_limit - lifetime_sample_runs)
+        if lifetime_limit is not None else None
+    )
     return {
         "plan": tenant.plan,
         "trial_ends_at": tenant.trial_ends_at,
@@ -215,12 +309,14 @@ def usage(db: Session, tenant: Tenant) -> dict:
         # 试用未结束也可随时付费升级；不要求等 14 天。
         "can_upgrade": trial,
         "projects_active": project_count,
-        "projects_limit": plan.get("projects"),
+        "projects_limit": projects_limit,
+        "projects_remaining": max(0, projects_limit - project_count) if projects_limit is not None else None,
         "sample_runs": sample_count,
         "sample_runs_limit_per_project": TRIAL_SAMPLE_LIMIT_PER_PROJECT if trial else None,
         "sample_runs_by_project": per_project,
         "sample_runs_lifetime": lifetime_sample_runs,
         "sample_runs_lifetime_limit": lifetime_limit,
+        "sample_runs_remaining": platform_sample_remaining,
         "sample_runs_remaining_by_project": {
             project_id: max(0, TRIAL_SAMPLE_LIMIT_PER_PROJECT - count)
             for project_id, count in per_project.items()

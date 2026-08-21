@@ -425,6 +425,47 @@ def update_distribution(project_slug: str, question_id: str, channel: str, enabl
     return distribution
 
 
+def external_evidence(project_slug: str):
+    """读取客户确认的外部来源记录；没有记录时明确返回空集合。"""
+    value = geolib.read_json(geolib.project_dir(project_slug) / "evidence" / "external.json", {}) or {}
+    records = value.get("records") if isinstance(value, dict) else value
+    return [item for item in (records or []) if isinstance(item, dict)]
+
+
+def add_external_evidence(project_slug: str, record: dict):
+    """追加一个可审计的外部证据记录，不抓取或推断来源内容。"""
+    url = str(record.get("url") or "").strip()
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError("external evidence URL must be a public http(s) URL without credentials")
+    source_type = str(record.get("source_type") or "").strip()
+    fact_supported = str(record.get("fact_supported") or "").strip()
+    if not source_type or len(source_type) > 128 or not fact_supported or len(fact_supported) > 2000:
+        raise ValueError("source_type and fact_supported are required")
+    question_ids = [
+        str(value).strip() for value in (record.get("question_ids") or [])
+        if str(value).strip()
+    ][:100]
+    item = {
+        "id": geolib.new_run_id("evidence"),
+        "url": url,
+        "source_type": source_type,
+        "fact_supported": fact_supported,
+        "question_ids": question_ids,
+        "reviewer": str(record.get("reviewer") or "").strip()[:320],
+        "observed_at": str(record.get("observed_at") or geolib.now_iso()),
+        "status": "manual_confirmation_required",
+        "created_at": geolib.now_iso(),
+    }
+    path = geolib.project_dir(project_slug) / "evidence" / "external.json"
+    with geolib.project_lock(project_slug):
+        current = external_evidence(project_slug)
+        current = [existing for existing in current if existing.get("url") != url]
+        current.append(item)
+        geolib.write_json(path, {"contract": "citeaura.external-evidence.v1", "records": current})
+    return item
+
+
 def read_content(project_slug: str, relative: str | None = None):
     base = geolib.project_dir(project_slug) / "content"
     if not relative:

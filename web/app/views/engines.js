@@ -20,9 +20,13 @@ export default {
     let enginesData = null;
     let samples = [];
     let sampleCohort = null;
+    let sampleEstimate = null;
 
     try {
-      enginesData = await projects.getEngines(projectId).catch(() => null);
+      [enginesData, sampleEstimate] = await Promise.all([
+        projects.getEngines(projectId).catch(() => null),
+        projects.estimateSample(projectId).catch(() => null),
+      ]);
       if (enginesData && String(enginesData.project_id) !== String(projectId)) {
         throw new Error('Project response mismatch');
       }
@@ -59,8 +63,13 @@ export default {
     grouped.other = engines.filter((eng) => modeKey(eng.sampling_mode) === 'other');
     const mq = (enginesData && enginesData.measurement_quality) || {};
     const confidence = mq.confidence || mq;
+    const readiness = (enginesData && enginesData.readiness) || {};
+    const questionReadiness = readiness.question || {};
+    const questionGaps = Array.isArray(questionReadiness.gaps) ? questionReadiness.gaps : [];
+    const providerObservability = enginesData?.provider_observability?.platforms || {};
     const limitations = confidence.limitations || mq.limitations || [];
     const trend = mq.trend || {};
+    const attribution = mq.attribution || {};
     const trendNote = trend.status === 'noteworthy'
       ? `${trend.label || 'Trend'} ${trend.delta_pp != null ? `(${trend.delta_pp} pp)` : ''}`
       : (trend.label || 'Single-round observation. Two comparable periods are required before calling a trend.');
@@ -84,8 +93,9 @@ export default {
                     <tr>
                       <td>
                         <div style="display:flex;align-items:center;gap:var(--sp-2);">
-                          <strong style="font-size:var(--fs-3);">${escapeHtml(eng.engine_name || eng.engine_code)}</strong>
+                          <strong style="font-size:var(--fs-3);">${escapeHtml(eng.provider_name || eng.engine_name || eng.engine_code)}</strong>
                           <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${escapeHtml(eng.engine_code || '')}</span>
+                          ${eng.model_id ? `<span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${escapeHtml(eng.model_id)}</span>` : ''}
                         </div>
                       </td>
                       <td>${samplingModeBadge(eng.sampling_mode)}</td>
@@ -106,6 +116,7 @@ export default {
                       <td data-num>${eng.sample_count || 0}</td>
                       <td>
                         ${statusPill(eng.sample_count ? 'good' : 'idle', eng.sample_count ? 'Measured' : 'Unmeasured')}
+                        ${providerObservability[eng.engine_code]?.failed ? `<span class="tag tag-dim">${providerObservability[eng.engine_code].failed} failed</span>` : ''}
                       </td>
                     </tr>
                   `).join('')}
@@ -135,6 +146,10 @@ export default {
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               <span>${t('engines.sample_now', {}, 'Sample Matrix Now')}</span>
             </button>
+            ${questionGaps.length ? `<button type="button" id="btn-fill-question-gaps" class="btn btn-secondary btn-sm">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Fill ${questionGaps.length} question gap${questionGaps.length === 1 ? '' : 's'}</span>
+            </button>` : ''}
           </div>
         </div>
 
@@ -143,6 +158,35 @@ export default {
           <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">
             ${escapeHtml(limitations.join(' '))} Configure at least two built-in engines and collect 20 samples before publishing a mention rate. Do not mix these rows into one score.
           </p>
+        </div>` : ''}
+
+        <div class="card" style="padding:var(--sp-4);border-color:var(--line);">
+          <div style="display:flex;justify-content:space-between;gap:var(--sp-4);align-items:flex-start;flex-wrap:wrap;">
+            <div>
+              <strong style="display:block;margin-bottom:6px;">Evidence readiness</strong>
+              <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">
+                ${escapeHtml(questionReadiness.label || 'Question-level evidence is not measured yet')}
+                ${questionReadiness.total ? ` · ${questionReadiness.sufficient || 0}/${questionReadiness.total} questions meet the minimum sample target` : ''}
+              </p>
+            </div>
+            ${questionGaps.length ? '<span class="tag tag-warn">Per-question evidence limited</span>' : '<span class="tag pill-good">Question evidence ready</span>'}
+          </div>
+        </div>
+
+        <div class="card" style="padding:var(--sp-4);border-color:var(--line);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <div><strong style="display:block;margin-bottom:4px;">Comparable period analysis</strong><span style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(attribution.label || 'No comparable period')} · ${escapeHtml(attribution.method || 'Fixed measurement identity required')}</span></div>
+            <span class="tag ${attribution.ready ? 'pill-good' : 'tag-dim'}">${attribution.ready ? 'Attribution-ready baseline' : 'Do not attribute yet'}</span>
+          </div>
+          ${attribution.comparisons?.length ? `<div class="tbl" style="overflow-x:auto;margin-top:var(--sp-3);"><table class="table"><thead><tr><th>Provider</th><th style="text-align:right;">Previous</th><th style="text-align:right;">Current</th><th style="text-align:right;">Delta</th></tr></thead><tbody>${attribution.comparisons.map((item) => `<tr><td>${escapeHtml(item.engine_code || '')}</td><td data-num>${Math.round(Number(item.previous_rate || 0) * 100)}%</td><td data-num>${Math.round(Number(item.current_rate || 0) * 100)}%</td><td data-num>${Number(item.delta_pp || 0).toFixed(1)} pp</td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:var(--sp-3) 0 0;color:var(--muted);font-size:var(--fs-2);">Run the same question set, providers, models, and sampling modes in a later period to unlock comparable deltas.</p>'}
+        </div>
+
+        ${sampleEstimate?.estimate ? `<div class="card" style="padding:var(--sp-4);border-color:var(--line);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <div><strong style="display:block;margin-bottom:4px;">Next sample estimate</strong><span style="font-size:var(--fs-2);color:var(--muted);">${Number(sampleEstimate.estimate.calls || 0)} calls · about ${Number(sampleEstimate.estimate.minutes || 0)} minutes · question set ${escapeHtml(sampleEstimate.question_set_version || 'current')}</span></div>
+            <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;"><span class="tag tag-neutral">BYOK ${Number(sampleEstimate.estimate.byok_calls || 0)}</span><span class="tag tag-neutral">Pool ${Number(sampleEstimate.estimate.platform_pool_calls || 0)}</span>${sampleEstimate.estimate.platform_pool_cost_cny_fen ? `<span class="tag tag-warn">Pool cost ¥${(Number(sampleEstimate.estimate.platform_pool_cost_cny_fen) / 100).toFixed(2)}</span>` : ''}</div>
+          </div>
+          <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-3);">${(sampleEstimate.platforms || []).map((item) => `<span class="tag tag-dim">${escapeHtml(item.provider_name || item.engine_name || item.engine_code)}${item.model_id ? ` · ${escapeHtml(item.model_id)}` : ''} · ${escapeHtml(item.funding_source || item.source || 'unavailable')}</span>`).join('')}</div>
         </div>` : ''}
 
         ${modeGroups.map((group) => `
@@ -303,6 +347,27 @@ export default {
           toast.error(t(err.error, {}, err.detail || 'Sampling task failed to start'));
         } finally {
           sampleBtn.disabled = false;
+        }
+      });
+    }
+
+    const gapBtn = document.getElementById('btn-fill-question-gaps');
+    if (gapBtn) {
+      gapBtn.addEventListener('click', async () => {
+        gapBtn.disabled = true;
+        try {
+          const res = await projects.triggerSampleGaps(projectId);
+          if (res?.status === 'no_gaps') {
+            toast.success('No question-level sampling gaps remain');
+          } else {
+            toast.success('Question-level gap sampling queued');
+            ctx.pollActiveJobs();
+            if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'sample');
+          }
+        } catch (err) {
+          toast.error(t(err.error, {}, err.detail || 'Question gap sampling failed to start'));
+        } finally {
+          gapBtn.disabled = false;
         }
       });
     }

@@ -69,6 +69,31 @@ def test_wilson_interval_keeps_small_samples_visibly_uncertain():
         measurement.wilson_interval(4, 3)
 
 
+def test_sampling_manifest_records_targeted_question_scope(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    with with_tenant_context("tenant", "project"):
+        directory = geolib.project_dir("project")
+        geolib.write_json(directory / "geo.json", {
+            "questions": [
+                {"id": "q101", "text": "What is Acme?", "market": "global"},
+                {"id": "q102", "text": "Which Acme plan fits?", "market": "global"},
+            ],
+            "platforms": ["openai"],
+        })
+        (directory / "samples").mkdir(parents=True)
+        (directory / "samples" / "2026-08-22.jsonl").write_text(
+            '{"platform":"openai","ok":true,"sample_mode":"api"}\n', "utf-8",
+        )
+        geolib.write_json(directory / "metrics" / "2026-08-22.json", {"platforms": {}})
+        manifest = measurement.record_sampling(
+            "project", requested_platforms=["openai"], question_ids=["q102", " q101 ", "q102"], job_id=42,
+        )
+
+    assert manifest["requested_question_ids"] == ["q102", "q101"]
+    assert manifest["question_set"]["version"]
+    assert manifest["platforms"][0]["engine_code"] == "openai"
+
+
 def test_product_insights_prioritize_prompt_gaps_and_keep_cohorts_separate(tmp_path, monkeypatch):
     monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
     config = {

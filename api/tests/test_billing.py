@@ -219,6 +219,37 @@ def test_trial_sample_limit_is_per_project(billing_client, monkeypatch):
     assert blocked_cycle.json()["error"] == "trial_limit_exceeded"
 
 
+def test_usage_reports_activation_funnel_from_completed_workspace_facts(billing_client, monkeypatch):
+    client, session_factory = billing_client
+    headers = _register(client, "activation-owner@example.com")
+    monkeypatch.setitem(__import__("sys").modules, "geo", types.SimpleNamespace(cmd_init=lambda args: None))
+    monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: types.SimpleNamespace(id="boot"))
+    created = client.post("/api/v1/projects", headers=headers, json={"url": "activation.example"})
+    assert created.status_code == 202
+    project_id = created.json()["project_id"]
+    with session_factory() as db:
+        bootstrap = db.query(Job).filter(Job.project_id == project_id).one()
+        bootstrap.status = "done"
+        bootstrap.finished_at = datetime.now(timezone.utc)
+        db.add_all([
+            Job(project_id=project_id, action="sample", status="done", finished_at=datetime.now(timezone.utc)),
+            Job(project_id=project_id, action="deliver", status="done", finished_at=datetime.now(timezone.utc)),
+            Job(project_id=project_id, action="cycle", status="done", finished_at=datetime.now(timezone.utc)),
+        ])
+        db.commit()
+
+    usage = client.get("/api/v1/billing/usage", headers=headers).json()
+    funnel = usage["activation_funnel"]
+    completed = {item["key"] for item in funnel["steps"] if item["completed"]}
+    assert completed == {
+        "registration", "project_creation", "first_audit", "first_sample", "first_delivery_pack", "first_resample",
+    }
+    assert funnel["progress_percent"] == 100.0
+    assert usage["projects_remaining"] == 2
+    assert usage["sample_runs_remaining"] == 4
+    assert usage["platform_pool_calls"] == 0
+
+
 def test_subscribe_creates_checkout_without_opening_limits(billing_client, monkeypatch):
     client, session_factory = billing_client
     headers = _register(client, "owner@example.com")

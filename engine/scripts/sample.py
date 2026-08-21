@@ -174,13 +174,14 @@ def label_of(platform: str) -> str:
     return platform
 
 
-def questions_for(cfg: dict, platform: str) -> list[dict]:
+def questions_for(cfg: dict, platform: str, question_ids: list[str] | None = None) -> list[dict]:
     """Route questions by market without mixing regional cohorts."""
     m = market_of(platform)
+    selected = {str(value).strip() for value in (question_ids or []) if str(value).strip()}
     out = []
     for q in G.normalize_question_ids(cfg.get("questions", [])):
         qm = q.get("market") or cfg.get("market", "cn")
-        if qm in ("both", m):
+        if qm in ("both", m) and (not selected or str(q.get("id")) in selected):
             out.append(q)
     return out
 
@@ -886,7 +887,13 @@ def _history_snapshot(slug: str, rows: list[dict]) -> dict:
 # ------------------------------------------------------------ Commands
 
 
-def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: int | None = None) -> dict:
+def run(
+    slug: str,
+    platforms: list[str] | None = None,
+    repeat: int = 1,
+    limit: int | None = None,
+    question_ids: list[str] | None = None,
+) -> dict:
     if not 1 <= repeat <= G.MAX_SAMPLE_REPEAT:
         raise ValueError(f"repeat must be between 1 and {G.MAX_SAMPLE_REPEAT}")
     if limit is not None and limit < 1:
@@ -896,6 +903,8 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
     if not cfg.get("questions"):
         G.die("geo.json is missing questions. Please populate questions first.")
 
+    selected_question_ids = [str(value).strip() for value in (question_ids or []) if str(value).strip()]
+    question_id_set = set(selected_question_ids)
     plats = list(dict.fromkeys(platforms or [p for p in cfg.get("platforms", []) if p in PROVIDERS]))
     unknown = [p for p in plats if p not in PROVIDERS]
     if unknown:
@@ -910,7 +919,7 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
 
     jobs = []
     for plat in runnable:
-        questions = questions_for(cfg, plat)
+        questions = questions_for(cfg, plat, selected_question_ids)
         if limit:
             questions = questions[:limit]
         if not questions:
@@ -925,7 +934,24 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
         G.info("No runnable platform has questions for its configured market.")
         return {}
     active_platforms = list(dict.fromkeys(job[0] for job in jobs))
-    identity = _run_identity(cfg, active_platforms, repeat, "api")
+    target_platforms = set(active_platforms)
+    prior_rows = []
+    sample_files = sorted((G.project_dir(slug) / "samples").glob("*.jsonl"))
+    if question_id_set and sample_files:
+        # Preserve the latest comparable observations, then append only the
+        # requested gap rows. Replacing the old rows would hide the evidence
+        # that caused the gap-fill request.
+        prior_rows = [
+            row for row in G.read_jsonl(sample_files[-1])
+            if not (
+                str(row.get("question_id") or "") in question_id_set
+                and str(row.get("platform") or "") in target_platforms
+            )
+        ]
+        active_platforms = list(dict.fromkeys(
+            [str(row.get("platform")) for row in prior_rows if row.get("platform")] + active_platforms
+        ))
+    identity = _run_identity(cfg, active_platforms, repeat, "api_gap_fill" if question_id_set else "api")
     pdir = G.project_dir(slug)
     path = pdir / "samples" / f"{identity['run_id']}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -979,6 +1005,10 @@ def run(slug: str, platforms: list[str] | None = None, repeat: int = 1, limit: i
     for job in jobs:
         by_plat.setdefault(job[0], []).append(job)
     with path.open("a", encoding="utf-8") as fh:  # Preserve completed samples on interruption.
+        for row in prior_rows:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        if prior_rows:
+            fh.flush()
         def worker(plat_jobs):
             nonlocal done
             out = []

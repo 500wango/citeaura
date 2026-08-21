@@ -5,6 +5,7 @@
 import { billing } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
+import { escapeHtml } from '../safe-html.js';
 
 const INTENT_PLAN_KEY = 'citeaura_intent_plan';
 const SUBSCRIBABLE = new Set(['starter', 'pro', 'agency']);
@@ -85,6 +86,12 @@ export default {
     const onTrial = currentPlan === 'trial';
     const trialExpired = Boolean(usage.trial_expired);
     const billingStatus = String(ctx.params?.billing || '').toLowerCase();
+    const funnel = usage.activation_funnel || {};
+    const funnelSteps = Array.isArray(funnel.steps) ? funnel.steps : [];
+    const projectsRemaining = usage.projects_remaining;
+    const sampleRemaining = usage.sample_runs_remaining;
+    const poolCalls = Number(usage.platform_pool_calls || usage.platform_pool?.calls || 0);
+    const poolCostFen = Number(usage.platform_pool_cost_cny_fen || usage.platform_pool?.cost_cny_fen || 0);
 
     const subscribeLabel = (code, label) => {
       if (currentPlan === code) return 'Current Plan';
@@ -146,6 +153,35 @@ export default {
               ${subscription.cancel_at_period_end ? '' : '<button type="button" id="btn-cancel-subscription" class="btn btn-danger btn-sm">Cancel at Period End</button>'}
             </div>` : ''}
         </div>
+
+        <section class="card" style="gap:var(--sp-4);" aria-labelledby="activation-funnel-title">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <div>
+              <h2 id="activation-funnel-title" style="font-size:var(--fs-4);font-weight:600;margin:0;">Activation progress</h2>
+              <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">Track the path from registration to a repeatable, evidence-backed delivery.</p>
+            </div>
+            <span class="tag ${funnel.completed_steps === funnel.total_steps && funnel.total_steps ? 'pill-good' : 'tag-accent'}">${Number(funnel.completed_steps || 0)} / ${Number(funnel.total_steps || 6)} complete</span>
+          </div>
+          <div style="height:6px;background:var(--line);border-radius:999px;overflow:hidden;" role="progressbar" aria-label="Activation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Number(funnel.progress_percent || 0)}">
+            <div style="height:100%;width:${Math.max(0, Math.min(100, Number(funnel.progress_percent || 0)))}%;background:var(--accent);border-radius:inherit;"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:var(--sp-2);">
+            ${funnelSteps.map((step) => `<div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2);border:1px solid var(--line);background:var(--page);border-radius:var(--r-md);"><span class="tag ${step.completed ? 'pill-good' : 'tag-dim'}" aria-label="${step.completed ? 'Complete' : 'Pending'}">${step.completed ? 'Done' : 'Next'}</span><span style="font-size:var(--fs-2);">${escapeHtml(step.label || step.key)}</span></div>`).join('')}
+          </div>
+          ${funnel.next_step_label ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Next: <strong style="color:var(--ink);">${escapeHtml(funnel.next_step_label)}</strong></p>` : '<p style="margin:0;color:var(--good);font-size:var(--fs-2);">Activation path complete for this workspace.</p>'}
+        </section>
+
+        <section class="card" style="gap:var(--sp-3);" aria-labelledby="usage-snapshot-title">
+          <div>
+            <h2 id="usage-snapshot-title" style="font-size:var(--fs-4);font-weight:600;margin:0;">Usage snapshot</h2>
+            <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">Current limits and platform-pool consumption are shown separately from BYOK usage.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:var(--sp-2);">
+            <div style="padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Projects remaining</span><strong style="font-size:var(--fs-4);">${projectsRemaining === null || projectsRemaining === undefined ? 'Unlimited' : projectsRemaining}</strong></div>
+            <div style="padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Sample runs remaining</span><strong style="font-size:var(--fs-4);">${sampleRemaining === null || sampleRemaining === undefined ? 'Unlimited' : sampleRemaining}</strong></div>
+            <div style="padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Platform-pool calls</span><strong style="font-size:var(--fs-4);">${poolCalls}</strong><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${poolCostFen ? `¥${(poolCostFen / 100).toFixed(2)} this month` : 'No pool cost this month'}</span></div>
+          </div>
+        </section>
 
         <!-- Pricing Plans Grid -->
         <div class="pricing-grid">
