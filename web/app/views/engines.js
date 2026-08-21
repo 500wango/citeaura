@@ -72,6 +72,7 @@ export default {
                     <th>${t('engines.col_engine', {}, 'Engine')}</th>
                     <th>${t('engines.col_mode', {}, 'Sampling Mode')}</th>
                     <th style="text-align:right;">${t('engines.col_mention_rate', {}, 'Mention Rate')}</th>
+                    <th style="text-align:right;">95% Interval</th>
                     <th style="text-align:right;">${t('engines.col_avg_rank', {}, 'Avg Rank')}</th>
                     <th style="text-align:right;">${t('engines.col_citation_share', {}, 'Citation Share')}</th>
                     <th style="text-align:right;">${t('engines.col_samples', {}, 'Samples')}</th>
@@ -90,6 +91,11 @@ export default {
                       <td>${samplingModeBadge(eng.sampling_mode)}</td>
                       <td data-num style="font-size:var(--fs-4);font-weight:700;color:var(--ink);">
                         ${eng.mention_rate !== null && eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : 'Unmeasured'}
+                      </td>
+                      <td data-num style="font-family:var(--font-mono);font-size:var(--fs-1);">
+                        ${eng.mention_interval
+                          ? `${Math.round(eng.mention_interval.lower * 100)}-${Math.round(eng.mention_interval.upper * 100)}%`
+                          : 'Unmeasured'}
                       </td>
                       <td data-num style="font-weight:600;">
                         ${eng.median_rank !== null && eng.median_rank !== undefined ? `#${Number(eng.median_rank).toFixed(1)}` : 'Unmeasured'}
@@ -180,17 +186,17 @@ export default {
                   (s, idx) => {
                     const matchedIdentity = s.analysis?.matched_identity?.text || s.analysis?.matched_identity?.value;
                     const mentionBadge = s.analysis?.brand_mentioned
-                      ? `<span class="tag pill-good">Mentioned${matchedIdentity ? ` via "${matchedIdentity}"` : ''}</span>`
+                      ? `<span class="tag pill-good">Mentioned${matchedIdentity ? ` via "${escapeHtml(matchedIdentity)}"` : ''}</span>`
                       : '<span class="tag tag-dim">Not Mentioned</span>';
                     return `
                 <div class="sample-replay-card">
                   <div class="sample-head">
-                    <div style="display:flex;align-items:center;gap:var(--sp-2);">
-                      <strong class="sample-model-tag">${s.platform_name || s.platform || 'AI Model'}</strong>
+                    <div style="display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;min-width:0;">
+                      <strong class="sample-model-tag">${escapeHtml(s.platform_name || s.platform || 'AI Model')}</strong>
                       ${samplingModeBadge(s.sample_mode === 'manual' || s.terminal === 'web' ? 'Manual - Product interface' : (s.search_enabled ? 'API - Search grounded' : 'API - Parametric knowledge'))}
                       ${mentionBadge}
                     </div>
-                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${s.date || ''}</span>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${escapeHtml(s.date || '')}</span>
                   </div>
 
                   <div class="sample-query">${escapeHtml(s.question || 'Question unavailable')}</div>
@@ -204,10 +210,10 @@ export default {
                       ${s.citations
                         .map(
                           (c) => {
-                            const url = typeof c === 'string' ? c : c.url;
+                            const url = String(typeof c === 'string' ? c : c.url || '');
                             return `
-                        <a href="${url}" target="_blank" rel="noopener noreferrer" class="tag tag-neutral num" style="text-decoration:none;">
-                          ${url.replace(/^https?:\/\//, '').slice(0, 32)}...
+                        <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="tag tag-neutral num" style="text-decoration:none;">
+                          ${escapeHtml(url.replace(/^https?:\/\//, '').slice(0, 32))}...
                         </a>
                       `; }
                         )

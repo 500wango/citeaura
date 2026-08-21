@@ -7,6 +7,7 @@ import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -17,16 +18,27 @@ export default {
 
     let config = {};
     let discovery = {};
+    let insights = {};
     try {
       const project = await projects.get(projectId).catch(() => null);
       config = await workspace.getConfig(projectId).catch(() => ({}));
       discovery = project?.competitor_discovery || {};
+      insights = project?.insights || {};
     } catch (e) {}
 
     const competitors = config.competitors || [];
     const discoveryByName = Object.fromEntries(
       (discovery.items || []).map((item) => [item.name, item]),
     );
+    const heatmap = insights.competitor_heatmap || {};
+    const entities = Array.isArray(heatmap.entities) ? heatmap.entities : [];
+    const cohorts = Array.isArray(heatmap.cohorts) ? heatmap.cohorts : [];
+    const heatmapQuestions = Array.isArray(heatmap.questions) ? heatmap.questions : [];
+    const alerts = Array.isArray(insights.takeover_alerts) ? insights.takeover_alerts : [];
+    const cellLabel = (cell) => {
+      if (!cell || cell.samples === 0 || cell.rate === null || cell.rate === undefined) return '—';
+      return `${Math.round(cell.rate * 100)}% (n=${cell.samples})`;
+    };
 
     return `
       <div class="app-view-container">
@@ -79,12 +91,12 @@ export default {
                       return `
                       <tr>
                         <td class="num" style="color:var(--muted);">${idx + 1}</td>
-                        <td><strong style="font-size:var(--fs-3);">${name}</strong></td>
-                        <td class="num" style="color:var(--muted);">${domain || '—'}</td>
-                        <td>${relationship === 'direct_competitor' ? 'Direct competitor' : relationship}</td>
-                        <td>${evidence}</td>
+                        <td><strong style="font-size:var(--fs-3);">${escapeHtml(name || '')}</strong></td>
+                        <td class="num" style="color:var(--muted);">${escapeHtml(domain || '—')}</td>
+                        <td>${escapeHtml(relationship === 'direct_competitor' ? 'Direct competitor' : relationship)}</td>
+                        <td>${escapeHtml(evidence)}</td>
                         <td style="text-align:right;">
-                          <button type="button" class="btn btn-ghost btn-sm btn-del-comp" data-comp="${name}" style="color:var(--bad);">
+                          <button type="button" class="btn btn-ghost btn-sm btn-del-comp" data-comp="${escapeHtml(name || '')}" style="color:var(--bad);">
                             ${t('common.remove', {}, 'Remove')}
                           </button>
                         </td>
@@ -105,6 +117,31 @@ export default {
                 })}
               </div>`
           }
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden;margin-top:var(--sp-4);">
+          <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);">
+            <div>
+              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0 0 4px;">Recommendation Heatmap</h3>
+              <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Question × entity × sampling cohort. API cohorts and product-surface observations stay separate.</p>
+            </div>
+            <span class="tag tag-neutral">${heatmap.sample_count || 0} valid samples</span>
+          </div>
+          ${alerts.length ? `<div style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--line);background:var(--bad-soft);color:var(--bad);font-size:var(--fs-2);"><strong>${alerts.length} takeover candidate${alerts.length === 1 ? '' : 's'}</strong> · Wilson 95% intervals are separated; inspect the replay before acting.</div>` : ''}
+          ${cohorts.length && entities.length && heatmapQuestions.length ? cohorts.map((cohort) => {
+            const cohortKey = cohort.key;
+            return `<div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
+              <div style="display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-3);"><strong>${escapeHtml(cohort.engine_name || cohort.engine_code)}</strong><span class="tag tag-dim">${escapeHtml(cohort.sampling_mode || '')}</span><span class="num" style="color:var(--muted);font-size:var(--fs-1);">n=${cohort.samples || 0}</span></div>
+              <div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>Prompt</th>${entities.map((entity) => `<th style="text-align:right;">${escapeHtml(entity.name)}</th>`).join('')}</tr></thead><tbody>${heatmapQuestions.map((question) => {
+                const cells = ((question.cohorts || []).find((item) => item.cohort === cohortKey) || {}).cells || {};
+                return `<tr><td style="min-width:260px;"><strong>${escapeHtml(question.text || question.id)}</strong><div class="num" style="color:var(--muted);font-size:var(--fs-1);">${escapeHtml(question.id || '')}</div></td>${entities.map((entity) => {
+                  const cell = cells[entity.key];
+                  const isAlert = alerts.some((alert) => alert.question_id === question.id && alert.cohort === cohortKey && ((alert.competitor === entity.name) || entity.key === 'brand'));
+                  return `<td data-num style="${isAlert ? 'color:var(--bad);font-weight:700;' : ''}">${cellLabel(cell)}</td>`;
+                }).join('')}</tr>`;
+              }).join('')}</tbody></table></div>
+            </div>`;
+          }).join('') : `<div style="padding:var(--sp-6);color:var(--muted);font-size:var(--fs-2);">Add competitors and run a sample to populate the recommendation heatmap.</div>`}
         </div>
       </div>
     `;

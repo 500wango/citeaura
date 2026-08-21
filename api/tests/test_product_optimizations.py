@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.adapters import engine as engine_adapter
-from api.adapters import measurement, preflight, report_quality, sampling_control, ticket_workflow
+from api.adapters import brand_facts, measurement, preflight, product_insights, report_quality, sampling_control, ticket_workflow
 from api.adapters.engine import geolib, with_tenant_context
 from api.db import Base
 from api.models import Project, Tenant
@@ -54,6 +54,124 @@ def test_measurement_quality_marks_noteworthy_and_incomparable_periods(tmp_path,
         assert result["comparable"] is False
         assert result["trend"]["status"] == "not_comparable"
         assert "Question set version changed" in result["comparison_reason"]
+
+
+def test_wilson_interval_keeps_small_samples_visibly_uncertain():
+    assert measurement.wilson_interval(3, 3) == {
+        "confidence_level": 0.95,
+        "successes": 3,
+        "samples": 3,
+        "lower": 0.4385,
+        "upper": 1,
+    }
+    assert measurement.wilson_interval(0, 0) is None
+    with pytest.raises(ValueError):
+        measurement.wilson_interval(4, 3)
+
+
+def test_product_insights_prioritize_prompt_gaps_and_keep_cohorts_separate(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    config = {
+        "brand": {"name": "Acme", "site": "https://acme.example", "aliases": []},
+        "market": "global",
+        "competitors": [{"name": "Rival", "aliases": [], "market": "global"}],
+        "questions": [{"id": "q001", "text": "Best proposal platform?", "market": "global", "group": "Recommendation"}],
+    }
+    rows = [{
+        "ok": True, "platform": "openai", "platform_name": "OpenAI", "search_enabled": False,
+        "question_id": "q001", "question": config["questions"][0]["text"], "brand_in_question": False,
+        "analysis": {"brand_mentioned": False, "competitors_mentioned": ["Rival"], "cited_domains": []},
+    } for _ in range(5)]
+    with with_tenant_context("tenant", "project"):
+        directory = geolib.project_dir("project")
+        geolib.write_json(directory / "geo.json", config)
+        blueprint = {"contents": [{
+            "id": "q001", "question": config["questions"][0]["text"],
+            "form": "Comparison guide", "group": "Recommendation", "status": "draft",
+        }]}
+        (directory / "content" / "facts.md").parent.mkdir(parents=True)
+        (directory / "content" / "facts.md").write_text(
+            f"# Brand facts\n\n{brand_facts.REVIEWED_MARKER}\n", "utf-8",
+        )
+        geolib.write_json(directory / "tasks.json", {"tasks": [{
+            "id": "T-101", "title": "Ship q001 comparison", "question_id": "q001",
+            "status": "todo", "priority": "P1",
+        }]})
+        geolib.write_json(directory / "assets" / "index.json", {"asset_records": [{
+            "path": "drafts/q001.md", "status": "draft", "issues": [],
+        }]})
+        result = product_insights.build("project", rows, config, blueprint)
+
+    prompt = result["prompt_explorer"]["items"][0]
+    assert prompt["priority"] == "high"
+    assert prompt["mention_interval"] == {
+        "confidence_level": 0.95,
+        "successes": 0,
+        "samples": 5,
+        "lower": 0,
+        "upper": 0.4345,
+    }
+    heatmap = result["competitor_heatmap"]
+    assert heatmap["cohorts"][0]["sampling_mode"] == "API·参数化知识"
+    assert heatmap["questions"][0]["competitors"][0]["rate"] == 1.0
+    assert result["takeover_alerts"][0]["status"] == "takeover_candidate"
+    campaign = result["campaign_proposals"]
+    assert campaign["counts"] == {"blocked": 0, "review_required": 0, "ready_for_approval": 1}
+    assert campaign["policy"] == {
+        "human_approval_required": True,
+        "automatic_publication": False,
+        "impact_claims": "hypothesis_only",
+    }
+    proposal = campaign["items"][0]
+    assert proposal["kind"] == "competitive_takeover"
+    assert proposal["status"] == "ready_for_approval"
+    assert proposal["target_question"]["id"] == "q001"
+    assert proposal["related_tickets"] == [{
+        "id": "T-101", "title": "Ship q001 comparison", "status": "todo", "priority": "P1",
+    }]
+    assert proposal["related_assets"][0]["path"] == "drafts/q001.md"
+    assert proposal["expected_impact"]["claim"] == "hypothesis"
+    assert proposal["expected_impact"]["cohort_baselines"][0]["sampling_mode"] == "API·参数化知识"
+    assert proposal["gates"]["automatic_publication"] is False
+
+
+def test_campaign_proposals_fail_closed_on_sampling_facts_and_asset_review(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    config = {
+        "brand": {"name": "Acme", "site": "https://acme.example"},
+        "questions": [{"id": "q001", "text": "Which platform is reliable?", "market": "global"}],
+    }
+    row = {
+        "ok": True, "platform": "openai", "question_id": "q001",
+        "question": config["questions"][0]["text"], "brand_in_question": False,
+        "analysis": {"brand_mentioned": False, "competitors_mentioned": []},
+    }
+    with with_tenant_context("tenant", "project"):
+        directory = geolib.project_dir("project")
+        geolib.write_json(directory / "geo.json", config)
+        blocked = product_insights.build("project", [row, row], config)
+        assert blocked["campaign_proposals"]["items"][0]["status"] == "blocked"
+        assert blocked["campaign_proposals"]["items"][0]["next_step"]["route"] == "#/engines"
+
+        (directory / "content" / "facts.md").parent.mkdir(parents=True)
+        (directory / "content" / "facts.md").write_text("# Brand facts\n", "utf-8")
+        review = product_insights.build("project", [row, row, row], config)
+        assert review["campaign_proposals"]["items"][0]["status"] == "review_required"
+        assert review["campaign_proposals"]["items"][0]["next_step"]["route"] == "#/facts"
+
+        (directory / "content" / "facts.md").write_text(
+            f"# Brand facts\n\n{brand_facts.REVIEWED_MARKER}\n", "utf-8",
+        )
+        geolib.write_json(directory / "assets" / "index.json", {"asset_records": [{
+            "path": "drafts/q001.md", "status": "review_required",
+            "issues": ["derived_from_unreviewed_brand_facts"],
+        }]})
+        asset_review = product_insights.build("project", [row, row, row], config)
+        proposal = asset_review["campaign_proposals"]["items"][0]
+        assert proposal["status"] == "review_required"
+        assert proposal["next_step"] == {
+            "label": "Resolve asset review gates", "route": "#/assets?question=q001",
+        }
 
 
 def test_report_quality_explains_crawl_sampling_and_delivery_gaps(tmp_path, monkeypatch):

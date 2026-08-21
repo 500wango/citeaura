@@ -419,8 +419,9 @@
 
 /* ---------- 1.4  ---------- */
 .app-view-container {
-  flex: 1;
-  overflow-y: auto;
+  flex: 0 0 auto;
+  min-height: 100%;
+  overflow: visible;
   padding: var(--sp-6) var(--sp-8);
   display: flex;
   flex-direction: column;
@@ -448,6 +449,61 @@
 }
 .view-desc { font-size: var(--fs-3); color: var(--muted); max-width: 72ch; line-height: 1.6; }
 .view-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+
+.campaign-proposals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.campaign-proposals-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+.campaign-proposals-head h2 { margin: 0; font-size: var(--fs-5); color: var(--ink); }
+.campaign-proposals-head p { margin: var(--sp-1) 0 0; color: var(--muted); font-size: var(--fs-2); }
+.campaign-proposal-counts { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.campaign-proposal-list { display: grid; gap: var(--sp-3); }
+.campaign-proposal {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  gap: var(--sp-5);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.campaign-proposal-main,
+.campaign-proposal-side { min-width: 0; }
+.campaign-proposal-title-row,
+.campaign-proposal-evidence,
+.campaign-proposal-links { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.campaign-proposal-id { color: var(--muted); font-size: var(--fs-1); }
+.campaign-proposal h3 { margin: var(--sp-2) 0 var(--sp-1); font-size: var(--fs-4); color: var(--ink); }
+.campaign-proposal-objective { margin: 0; color: var(--ink-2); font-size: var(--fs-2); line-height: 1.55; }
+.campaign-proposal-evidence { margin-top: var(--sp-3); color: var(--muted); font-size: var(--fs-1); }
+.campaign-proposal-evidence span { padding-right: var(--sp-2); border-right: 1px solid var(--line); }
+.campaign-proposal-evidence span:last-child { padding-right: 0; border-right: 0; }
+.campaign-proposal-side { display: flex; flex-direction: column; gap: var(--sp-3); }
+.campaign-proposal-side p { margin: var(--sp-1) 0 0; color: var(--muted); font-size: var(--fs-2); line-height: 1.5; }
+.campaign-proposal-label { color: var(--ink); font-size: var(--fs-1); font-weight: 700; text-transform: uppercase; }
+.campaign-proposal-links .muted { font-size: var(--fs-1); }
+.campaign-proposal-action { align-self: flex-start; margin-top: auto; }
+.campaign-proposals-empty {
+  padding: var(--sp-5);
+  border: 1px dashed var(--divider);
+  border-radius: var(--r-md);
+  color: var(--muted);
+  font-size: var(--fs-2);
+}
+.campaign-proposal-policy { margin: 0; color: var(--muted); font-size: var(--fs-1); line-height: 1.5; }
+
+@media (max-width: 760px) {
+  .campaign-proposal { grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
+  .campaign-proposal-side { border-top: 1px solid var(--line); padding-top: var(--sp-3); }
+}
 
 /* ==========================================================================
    2.  (Cards, Gauges, Matrices)

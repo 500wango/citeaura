@@ -16,31 +16,112 @@ function assetStatusLabel(status) {
   return status === 'deployable' ? 'Deployable' : status === 'review_required' ? 'Review required' : status === 'draft' ? 'Draft' : 'Unavailable';
 }
 
+function campaignStatus(status) {
+  if (status === 'ready_for_approval') return { label: 'Ready for approval', className: 'pill-good' };
+  if (status === 'review_required') return { label: 'Review required', className: 'pill-warn' };
+  return { label: 'Blocked', className: 'pill-bad' };
+}
+
+function percent(value) {
+  return value === null || value === undefined ? 'Unmeasured' : `${Math.round(Number(value) * 100)}%`;
+}
+
+function renderCampaignProposals(campaigns) {
+  const items = Array.isArray(campaigns?.items) ? campaigns.items : [];
+  const counts = campaigns?.counts || {};
+  return `
+    <section class="campaign-proposals" aria-labelledby="campaign-proposals-title">
+      <div class="campaign-proposals-head">
+        <div>
+          <h2 id="campaign-proposals-title">Campaign Proposals</h2>
+          <p>Evidence-backed interventions awaiting measurement, fact review, or human approval.</p>
+        </div>
+        <div class="campaign-proposal-counts" aria-label="Campaign proposal status counts">
+          <span class="tag pill-good">${counts.ready_for_approval || 0} ready</span>
+          <span class="tag pill-warn">${counts.review_required || 0} review</span>
+          <span class="tag pill-bad">${counts.blocked || 0} blocked</span>
+        </div>
+      </div>
+      ${items.length ? `<div class="campaign-proposal-list">${items.map((proposal) => {
+        const status = campaignStatus(proposal.status);
+        const promptEvidence = (proposal.evidence || []).find((item) => item.type === 'prompt_opportunity') || {};
+        const takeoverEvidence = (proposal.evidence || []).filter((item) => item.type === 'takeover_candidate');
+        const baselines = proposal.expected_impact?.cohort_baselines || [];
+        const tickets = proposal.related_tickets || [];
+        const linkedAssets = proposal.related_assets || [];
+        const questionId = proposal.target_question?.id || '';
+        const opportunity = promptEvidence.opportunity_score === null || promptEvidence.opportunity_score === undefined
+          ? 'Evidence pending'
+          : `Opportunity ${promptEvidence.opportunity_score}/100`;
+        return `<article class="campaign-proposal">
+          <div class="campaign-proposal-main">
+            <div class="campaign-proposal-title-row">
+              <span class="num campaign-proposal-id">${escapeHtml(questionId)}</span>
+              <span class="tag ${status.className}">${status.label}</span>
+              ${takeoverEvidence.length ? '<span class="tag tag-outline">Competitive gap</span>' : ''}
+            </div>
+            <h3>${escapeHtml(proposal.title || 'Campaign proposal')}</h3>
+            <p class="campaign-proposal-objective">${escapeHtml(proposal.objective || '')}</p>
+            <div class="campaign-proposal-evidence">
+              <span><strong>${escapeHtml(opportunity)}</strong></span>
+              <span>Aggregate mention ${escapeHtml(percent(promptEvidence.mention_rate))} · n=${Number(promptEvidence.samples || 0)}</span>
+              <span>${baselines.length} separate cohort baseline${baselines.length === 1 ? '' : 's'}</span>
+              ${takeoverEvidence.slice(0, 2).map((item) => `<span>${escapeHtml(item.competitor || 'Competitor')} · ${escapeHtml(item.engine_name || '')} · ${escapeHtml(item.sampling_mode || '')}</span>`).join('')}
+            </div>
+          </div>
+          <div class="campaign-proposal-side">
+            <div>
+              <span class="campaign-proposal-label">Expected impact</span>
+              <p>${escapeHtml(proposal.expected_impact?.statement || '')}</p>
+            </div>
+            <div>
+              <span class="campaign-proposal-label">Linked work</span>
+              <div class="campaign-proposal-links">
+                ${tickets.slice(0, 3).map((ticket) => `<span class="tag tag-neutral">${escapeHtml(ticket.id || 'Ticket')} · ${escapeHtml(ticket.status || '')}</span>`).join('')}
+                ${linkedAssets.slice(0, 3).map((asset) => `<span class="tag tag-neutral">${escapeHtml(asset.path)} · ${escapeHtml(asset.status || '')}</span>`).join('')}
+                ${!tickets.length && !linkedAssets.length ? '<span class="muted">No linked implementation artifact yet</span>' : ''}
+              </div>
+            </div>
+            <a class="btn btn-secondary btn-sm campaign-proposal-action" href="${escapeHtml(proposal.next_step?.route || '#/assets')}">${escapeHtml(proposal.next_step?.label || 'Review proposal')}</a>
+          </div>
+        </article>`;
+      }).join('')}</div>` : `<div class="campaign-proposals-empty">No proposals yet. Collect comparable samples to turn prompt gaps into reviewable work.</div>`}
+      <p class="campaign-proposal-policy">Impact remains a hypothesis until the same question, engine, sampling mode, and measurement policy are rerun after deployment. Publication always requires human approval.</p>
+    </section>`;
+}
+
 export default {
   render: async (ctx) => {
     const projectId = ctx.activeProjectId;
     if (!projectId) {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
     }
-    const assets = await workspace.getAssets(projectId).catch(() => []);
-    if (!assets.length) {
-      return `<div class="app-view-container">
-        <div class="view-header"><div class="view-title-group"><h1 class="view-title">Generated Assets</h1><p class="view-desc">Review text assets generated for this brand.</p></div></div>
-        ${renderEmpty({ title: 'No generated assets', description: 'Generate project-specific files from the current audit and facts library.' })}
-        <div class="view-actions" style="margin-top:var(--sp-3);"><button type="button" id="btn-generate-assets" class="btn btn-primary btn-sm">Generate assets</button></div>
-      </div>`;
-    }
-    const firstPath = assets[0].path;
-    const first = await workspace.getAsset(projectId, firstPath).catch(() => ({ path: firstPath, text: '' }));
+    const [assets, project] = await Promise.all([
+      workspace.getAssets(projectId).catch(() => []),
+      projects.get(projectId).catch(() => null),
+    ]);
+    const requestedQuestion = String(ctx.params?.question || '');
+    const requestedAsset = assets.find((item) => {
+      const filename = String(item.path || '').split('/').pop() || '';
+      return filename.split('.')[0] === requestedQuestion;
+    });
+    const firstPath = requestedAsset?.path || assets[0]?.path || '';
+    const first = firstPath
+      ? await workspace.getAsset(projectId, firstPath).catch(() => ({ path: firstPath, text: '' }))
+      : { path: '', text: '' };
+    const campaigns = project?.insights?.campaign_proposals || {};
     const reviewRequired = assets.filter((item) => item.status === 'review_required');
     return `
       <div class="app-view-container">
         <div class="view-header">
-          <div class="view-title-group"><h1 class="view-title">Generated Assets</h1><p class="view-desc">Review and edit files generated from the current project workspace.</p></div>
-          <div class="view-actions"><button type="button" id="btn-save-asset" class="btn btn-primary btn-sm">Save Asset</button></div>
+          <div class="view-title-group"><h1 class="view-title">Campaigns & Assets</h1><p class="view-desc">Review evidence-backed interventions, then prepare the assets required for implementation.</p></div>
+          <div class="view-actions">${assets.length
+            ? '<button type="button" id="btn-save-asset" class="btn btn-primary btn-sm">Save Asset</button>'
+            : '<button type="button" id="btn-generate-assets" class="btn btn-primary btn-sm">Generate assets</button>'}</div>
         </div>
+        ${renderCampaignProposals(campaigns)}
         ${reviewRequired.length ? `<div class="banner warn" style="margin-bottom:var(--sp-4);"><div><strong>Review required.</strong> ${reviewRequired.length} derived asset(s) cannot be published until the brand fact library and supporting evidence are approved.</div></div>` : ''}
-        <div class="card" style="gap:var(--sp-4);">
+        ${assets.length ? `<div class="card" style="gap:var(--sp-4);">
           <div class="field" style="margin:0;">
             <label for="asset-path">Asset file</label>
             <select id="asset-path" class="input">
@@ -49,9 +130,9 @@ export default {
           </div>
           <div class="field" style="margin:0;">
             <label for="asset-text">File contents</label>
-            <textarea id="asset-text" class="input" rows="24">${first.text || ''}</textarea>
+            <textarea id="asset-text" class="input" rows="24">${escapeHtml(first.text || '')}</textarea>
           </div>
-        </div>
+        </div>` : renderEmpty({ title: 'No generated assets', description: 'Generate project-specific files from the current audit and approved facts library.' })}
       </div>`;
   },
 

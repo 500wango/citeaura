@@ -2,7 +2,7 @@
  * Target questions
  */
 
-import { workspace } from '../api.js?v=3.4';
+import { workspace, projects } from '../api.js?v=3.4';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
@@ -18,15 +18,22 @@ export default {
 
     let questions = [];
     let expand = {};
+    let insights = {};
     try {
-      [questions, expand] = await Promise.all([
+      let project = null;
+      [questions, expand, project] = await Promise.all([
         workspace.getQuestions(projectId).catch(() => []),
         workspace.getExpand(projectId).catch(() => ({})),
+        projects.get(projectId).catch(() => null),
       ]);
+      insights = project?.insights || {};
     } catch (err) {
       console.error('Failed to load questions:', err);
     }
     const candidates = Array.isArray(expand?.candidates) ? expand.candidates : (Array.isArray(expand?.terms) ? expand.terms : []);
+    const explorer = insights.prompt_explorer || {};
+    const opportunityItems = Array.isArray(explorer.items) ? explorer.items : [];
+    const priorityLabel = { high: 'High opportunity', medium: 'Medium opportunity', needs_sampling: 'Needs sampling', probe: 'Brand probe', monitor: 'Monitor' };
 
     return `
       <div class="app-view-container">
@@ -42,6 +49,37 @@ export default {
               <span>${t('questions.add_btn', {}, 'Add Questions')}</span>
             </button>
           </div>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden;margin-bottom:var(--sp-4);">
+          <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);">
+            <div>
+              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0 0 4px;">Prompt Explorer</h3>
+              <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Prioritize unprompted prompts where visibility is missing, inconsistent, or competitor-led.</p>
+            </div>
+            <span class="tag tag-neutral">${explorer.measured_count || 0}/${explorer.total_count || 0} measured</span>
+          </div>
+          ${opportunityItems.length ? `<div class="tbl" style="overflow-x:auto;">
+            <table class="table">
+              <thead><tr>
+                <th>Prompt</th><th>Opportunity</th><th style="text-align:right;">Mention</th><th>Signals</th><th style="text-align:right;">Action</th>
+              </tr></thead>
+              <tbody>${opportunityItems.slice(0, 12).map((item) => {
+                const interval = item.mention_interval;
+                const mention = item.mention === null || item.mention === undefined ? 'Unmeasured' : `${Math.round(item.mention * 100)}%`;
+                const band = interval ? `${Math.round(interval.lower * 100)}-${Math.round(interval.upper * 100)}%` : '—';
+                const reasons = (item.reasons || []).slice(0, 2).join(' · ');
+                const score = item.opportunity_score === null || item.opportunity_score === undefined ? '—' : `${item.opportunity_score}/100`;
+                return `<tr>
+                  <td style="min-width:260px;"><strong>${escapeHtml(item.text || item.id || '')}</strong><div class="num" style="color:var(--muted);font-size:var(--fs-1);margin-top:3px;">${escapeHtml(item.id || '')} · ${escapeHtml(item.group || 'General')}</div></td>
+                  <td><span class="tag ${item.priority === 'high' ? 'pill-bad' : item.priority === 'medium' ? 'pill-warn' : 'tag-neutral'}">${escapeHtml(priorityLabel[item.priority] || item.priority || 'Review')}</span><div class="num" style="color:var(--muted);font-size:var(--fs-1);margin-top:3px;">${score}</div></td>
+                  <td data-num><strong>${mention}</strong><div class="num" style="color:var(--muted);font-size:var(--fs-1);">95% ${band} · n=${item.samples || 0}</div></td>
+                  <td style="min-width:230px;color:var(--muted);font-size:var(--fs-2);">${escapeHtml(reasons || 'No additional signal')}</td>
+                  <td style="text-align:right;"><a href="#/workbench?qid=${encodeURIComponent(item.id || '')}" class="btn btn-ghost btn-sm">Replay</a></td>
+                </tr>`;
+              }).join('')}</tbody>
+            </table>
+          </div>` : `<div style="padding:var(--sp-6);color:var(--muted);font-size:var(--fs-2);">Run a sample to populate prompt opportunities. Unmeasured prompts are not ranked.</div>`}
         </div>
 
         ${candidates.length ? `

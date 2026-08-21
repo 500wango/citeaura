@@ -42,11 +42,11 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.12' in response.text
+    assert '/app/app.js?v=3.13' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
-    assert "/site-assets/styles/app.css?v=3.3" in response.text
+    assert "/site-assets/styles/app.css?v=3.5" in response.text
     assert '<script src="/site-assets/theme-init.js"></script>' in response.text
     assert re.search(r"<script(?![^>]*\bsrc=)[^>]*>", response.text, re.IGNORECASE) is None
     policy = response.headers["content-security-policy"]
@@ -228,6 +228,12 @@ def test_frontend_contracts_match_backend_request_models():
     assert "official-site crawl" in facts
     assert "derived asset(s) cannot be published" in assets
     assert "derived_from_unreviewed_brand_facts" not in assets
+    assert "Campaign Proposals" in assets
+    assert "campaign_proposals" in assets
+    assert "ctx.params?.question" in assets
+    assert "Impact remains a hypothesis" in assets
+    assert "Publication always requires human approval" in assets
+    assert "escapeHtml(first.text || '')" in assets
     assert "Download diagnostic ZIP" in report
     assert "Download review ZIP" in report
     assert "Diagnostic pack ready" in report
@@ -292,6 +298,8 @@ def test_frontend_contracts_match_backend_request_models():
     engines = (root / "web/app/views/engines.js").read_text("utf-8")
     assert "Project response mismatch" in engines
     assert "Sample response project mismatch" in engines
+    assert "flex-wrap:wrap;min-width:0;" in engines
+    assert "escapeHtml(s.platform_name || s.platform || 'AI Model')" in engines
 
 
 def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():
@@ -311,6 +319,16 @@ def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():
     for path in (root / "web").rglob("*"):
         if path.suffix in (".html", ".js"):
             assert re.search(r"\bon(?:click|error|load)\s*=", path.read_text("utf-8"), re.IGNORECASE) is None
+
+
+def test_app_view_content_uses_outer_shell_as_the_vertical_scroll_container():
+    root = Path(__file__).resolve().parents[2]
+    app_css = (root / "web/assets/styles/app.css").read_text("utf-8")
+    view_rule = app_css.split(".app-view-container {", 1)[1].split("}", 1)[0]
+
+    assert "flex: 0 0 auto;" in view_rule
+    assert "min-height: 100%;" in view_rule
+    assert "overflow: visible;" in view_rule
 
 
 def test_ui_compatibility_route_remains_available():

@@ -28,7 +28,7 @@ from api.adapters.engine import (
     with_tenant_context,
 )
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import audit_presentation, brand_identity, delivery, delivery_share, framing, global_scope, preflight, report_quality, sampling_control, sampling_modes, ticket_workflow, workspace
+from api.adapters import audit_presentation, brand_identity, delivery, delivery_share, framing, global_scope, measurement, preflight, product_insights, report_quality, sampling_control, sampling_modes, ticket_workflow, workspace
 from api.adapters.network import NetworkTargetError, validate_outbound_url
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
@@ -392,6 +392,7 @@ def _engine_rows_by_mode(item, platform_rows):
             "engine_name": item.get("label") or item.get("platform"),
             "sampling_mode": sampling_modes.MODE_API,
             "mention_rate": item.get("mention"),
+            "mention_interval": None,
             "median_rank": item.get("pos_median"),
             "sample_count": item.get("samples", 0),
             "citation_share": item.get("cite_share"),
@@ -419,6 +420,7 @@ def _engine_rows_by_mode(item, platform_rows):
             "engine_name": item.get("label") or item.get("platform"),
             "sampling_mode": mode,
             "mention_rate": mention_rate,
+            "mention_interval": measurement.wilson_interval(len(mentioned), len(ok_rows)),
             "median_rank": sorted(ranks)[len(ranks) // 2] if ranks else None,
             "sample_count": len(ok_rows),
             "citation_share": item.get("cite_share") if len(grouped) == 1 else None,
@@ -461,6 +463,7 @@ def _include_configured_engines(db, tenant, engines):
             "engine_name": provider.get("name") or code,
             "sampling_mode": sampling_modes.for_provider(provider),
             "mention_rate": None,
+            "mention_interval": None,
             "median_rank": None,
             "sample_count": 0,
             "citation_share": None,
@@ -473,6 +476,18 @@ def _include_configured_engines(db, tenant, engines):
     return rows
 
 
+def _current_sample_rows(project_slug, config=None):
+    """读取当前问题集样本，统一过滤历史身份和市场残留。"""
+    config = config or geolib.load_config(project_slug)
+    project_directory = geolib.project_dir(project_slug)
+    sample_path = _latest_file(project_directory / "samples", "*.jsonl")
+    rows = [
+        row for row in (geolib.read_jsonl(sample_path) if sample_path else [])
+        if global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
+    ]
+    return sample_path, rows
+
+
 def _product_report(project_slug, metrics):
     """Normalize filesystem artifacts into the stable product report contract."""
     import analytics
@@ -480,12 +495,14 @@ def _product_report(project_slug, metrics):
     project_directory = geolib.project_dir(project_slug)
     config = geolib.load_config(project_slug)
     audit = audit_presentation.present_audit(project_slug)
-    sample_path = _latest_file(project_directory / "samples", "*.jsonl")
-    rows = [
-        row for row in (geolib.read_jsonl(sample_path) if sample_path else [])
-        if global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
-    ]
+    sample_path, rows = _current_sample_rows(project_slug, config)
     engine_rows = analytics.engines(project_slug, rows, metrics)
+    insights = product_insights.build(
+        project_slug,
+        rows,
+        config,
+        geolib.read_json(project_directory / "blueprint.json", None),
+    )
 
     engines = []
     citations = {}
@@ -533,6 +550,7 @@ def _product_report(project_slug, metrics):
         "engines": engines,
         "channels": channels,
         "audit": audit,
+        "insights": insights,
         "measured": bool(measured),
         "sample_artifact": sample_path.stem if sample_path else None,
     }
@@ -983,6 +1001,13 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
             detail = dashboard.project(project.slug)
             detail["questions"] = cfg.get("questions", [])
             detail["competitor_discovery"] = _competitor_discovery_payload(cfg)
+            _, current_rows = _current_sample_rows(project.slug, cfg)
+            detail["insights"] = product_insights.build(
+                project.slug,
+                current_rows,
+                cfg,
+                detail.get("blueprint"),
+            )
             detail["report_quality"] = report_quality.assess(project.slug, _has_sampling_access(db, tenant, project))
     except GeoEngineError:
         detail = {
@@ -990,6 +1015,28 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
             "brand": {},
             "questions": [],
             "competitor_discovery": _competitor_discovery_payload({}),
+            "insights": {
+                "prompt_explorer": {"items": [], "measured_count": 0, "total_count": 0, "minimum_samples": 3},
+                "competitor_heatmap": {"entities": [], "cohorts": [], "questions": [], "sample_count": 0},
+                "takeover_alerts": [],
+                "campaign_proposals": {
+                    "items": [],
+                    "counts": {"blocked": 0, "review_required": 0, "ready_for_approval": 0},
+                    "total_count": 0,
+                    "source_summary": {
+                        "prompt_candidates": 0,
+                        "takeover_candidates": 0,
+                        "tickets": 0,
+                        "assets": 0,
+                        "brand_facts": "missing",
+                    },
+                    "policy": {
+                        "human_approval_required": True,
+                        "automatic_publication": False,
+                        "impact_claims": "hypothesis_only",
+                    },
+                },
+            },
             "report_quality": {"score": 0, "level": "missing", "effective_report": False, "issues": []},
         }
     detail["project"] = {

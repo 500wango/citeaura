@@ -15,6 +15,28 @@ MIN_COMPARABLE_SAMPLES = 20
 MIN_REPRESENTATIVE_PLATFORMS = 2
 
 
+def wilson_interval(successes, samples):
+    """返回二项比例的 95% Wilson 置信区间；零样本不产生区间。"""
+    successes = int(successes)
+    samples = int(samples)
+    if samples < 0 or successes < 0 or successes > samples:
+        raise ValueError("successes must be between zero and samples")
+    if not samples:
+        return None
+    z = 1.96
+    rate = successes / samples
+    denominator = 1 + z ** 2 / samples
+    center = (rate + z ** 2 / (2 * samples)) / denominator
+    margin = z * math.sqrt((rate * (1 - rate) + z ** 2 / (4 * samples)) / samples) / denominator
+    return {
+        "confidence_level": 0.95,
+        "successes": successes,
+        "samples": samples,
+        "lower": round(max(0, center - margin), 4),
+        "upper": round(min(1, center + margin), 4),
+    }
+
+
 def question_set_version(config):
     return brand_identity.question_set_version(config)
 

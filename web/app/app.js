@@ -107,7 +107,7 @@ const VIEW_LOADERS = {
   facts: () => import('./views/facts.js?v=2.7'),
   plan: () => import('./views/plan.js?v=2.5'),
   workbench: () => import('./views/workbench.js?v=2.6'),
-  assets: () => import('./views/assets.js?v=2.6'),
+  assets: () => import('./views/assets.js?v=2.7'),
   outreach: () => import('./views/outreach.js?v=2.5'),
   publishing: () => import('./views/publishing.js?v=2.5'),
   verify: () => import('./views/verify.js?v=2.5'),
