@@ -1164,3 +1164,15 @@ def test_diagnosis_uses_word_count_ranges_and_hides_internal_provider_codes(tmp_
     rendered_line = next(row for row in acceptance.splitlines() if "| T-AUDIT-RENDERED-CONTENT |" in row or "| T-005 |" in row)
     assert "Current value: 0" not in rendered_line
     assert "Unmet" in rendered_line or "Current value: 2" in rendered_line
+
+
+def test_duplicate_platform_labels_are_disambiguated_in_delivery_report():
+    labels = delivery._platform_display_names({
+        "custom_2cbbade680b8": {"label": "DeepSeek"},
+        "deepseek": {"label": "DeepSeek"},
+    })
+
+    assert labels == {
+        "custom_2cbbade680b8": "DeepSeek (configured provider)",
+        "deepseek": "DeepSeek (API provider)",
+    }

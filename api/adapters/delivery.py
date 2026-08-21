@@ -607,6 +607,31 @@ def _platform_display_name(code, item, config=None):
     return _safe_display(code, "Configured provider")
 
 
+def _platform_display_names(platforms, config=None):
+    """为重名的 API 与自定义供应商生成无歧义的报告标签。"""
+    rows = [
+        (str(code or ""), _platform_display_name(code, item, config))
+        for code, item in (platforms or {}).items()
+    ]
+    counts = {}
+    for _, label in rows:
+        counts[label] = counts.get(label, 0) + 1
+    labels = {}
+    used = set()
+    for code, label in rows:
+        candidate = label
+        if counts.get(label, 0) > 1:
+            suffix = "configured provider" if _internal_provider_code(code) else "API provider"
+            candidate = f"{label} ({suffix})"
+            index = 2
+            while candidate in used:
+                candidate = f"{label} ({suffix} {index})"
+                index += 1
+        labels[code] = candidate
+        used.add(candidate)
+    return labels
+
+
 def _sample_modes(project_directory, metrics):
     date = str((metrics or {}).get("run_id") or (metrics or {}).get("date") or "")
     config = geolib.read_json(project_directory / "geo.json", {}) or {}
@@ -1080,9 +1105,10 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
             **provider_config,
             "provider_labels": _merged_provider_labels(project_directory, metrics, provider_config),
         }
+        display_names = _platform_display_names(platforms, provider_config)
         for code, item in platforms.items():
             code = str(code or "")
-            label = _platform_display_name(code, item, provider_config)
+            label = display_names.get(code) or _platform_display_name(code, item, provider_config)
             lines.append(
                 f"| {_markdown_cell(label)} | Global "
                 f"| {modes.get(code, 'API - Parametric knowledge')} | {item.get('samples', 0)} "
