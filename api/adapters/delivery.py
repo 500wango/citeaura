@@ -590,17 +590,74 @@ def _merged_provider_labels(project_directory, metrics=None, config=None):
     return labels
 
 
+def _merged_provider_model_ids(project_directory, metrics=None, config=None):
+    """合并自定义供应商的非敏感 model_id 元数据。"""
+    config = config if isinstance(config, dict) else geolib.read_json(Path(project_directory) / "geo.json", {}) or {}
+    model_ids = {
+        str(key): str(value).strip()
+        for key, value in (config.get("provider_model_ids") or {}).items()
+        if str(key).strip() and str(value).strip()
+    }
+    samples_dir = Path(project_directory) / "samples"
+    if samples_dir.is_dir():
+        for path in sorted(samples_dir.glob("*.jsonl")):
+            for row in geolib.read_jsonl(path):
+                if not isinstance(row, dict):
+                    continue
+                code = str(row.get("platform") or "")
+                raw_model = str(row.get("raw_model") or "").strip()
+                if code and raw_model and _internal_provider_code(code) and code not in model_ids:
+                    model_ids[code] = raw_model
+    observability = (metrics or {}).get("provider_observability") or {}
+    for code, item in (observability.get("platforms") or {}).items():
+        if str(code) in model_ids or not _internal_provider_code(code) or not isinstance(item, dict):
+            continue
+        models = [str(value).strip() for value in item.get("models") or [] if str(value).strip()]
+        if len(models) == 1:
+            model_ids[str(code)] = models[0]
+    return model_ids
+
+
 def _platform_display_name(code, item, config=None):
     item = item if isinstance(item, dict) else {}
     config = config if isinstance(config, dict) else {}
     labels = config.get("provider_labels") if isinstance(config.get("provider_labels"), dict) else {}
+    model_ids = config.get("provider_model_ids") if isinstance(config.get("provider_model_ids"), dict) else {}
+    model_id = str(model_ids.get(code) or "").strip()
+    if _internal_provider_code(code):
+        candidates = (labels.get(code), item.get("name"), item.get("label"))
+        name = next(
+            (
+                usable
+                for candidate in candidates
+                for usable in (_usable_provider_name(candidate),)
+                if usable and usable.casefold() not in {
+                    "configured provider",
+                    "configured openai-compatible provider",
+                }
+            ),
+            "",
+        )
+        if model_id:
+            base = name or "Configured OpenAI-compatible provider"
+            return _safe_display(f"{base} · {model_id}", "Configured OpenAI-compatible provider")
+        if name:
+            return _safe_display(name, "Configured OpenAI-compatible provider")
     for candidate in (item.get("label"), item.get("name"), labels.get(code)):
         name = _usable_provider_name(candidate)
+        if _internal_provider_code(code) and name.casefold() in {
+            "configured provider",
+            "configured openai-compatible provider",
+        }:
+            continue
         if name:
             return _safe_display(name, "Configured OpenAI-compatible provider")
     if _internal_provider_code(code) or _internal_provider_code(item.get("label")):
         named = [name for name in (_usable_provider_name(value) for value in labels.values()) if name]
         unique = list(dict.fromkeys(named))
+        if model_id:
+            base = unique[0] if len(unique) == 1 else "Configured OpenAI-compatible provider"
+            return _safe_display(f"{base} · {model_id}", "Configured OpenAI-compatible provider")
         if len(unique) == 1:
             return _safe_display(unique[0], "Configured OpenAI-compatible provider")
         return "Configured OpenAI-compatible provider"
@@ -1104,6 +1161,7 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
         provider_config = {
             **provider_config,
             "provider_labels": _merged_provider_labels(project_directory, metrics, provider_config),
+            "provider_model_ids": _merged_provider_model_ids(project_directory, metrics, provider_config),
         }
         display_names = _platform_display_names(platforms, provider_config)
         for code, item in platforms.items():

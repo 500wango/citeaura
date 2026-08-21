@@ -103,7 +103,11 @@ def test_funded_context_syncs_funded_global_and_custom_platforms(tmp_path, monke
     }
     saved = []
     current = dict(config)
-    provider = {"code": "custom_new", "name": "New Gateway"}
+    provider = {
+        "code": "custom_new",
+        "name": "New Gateway",
+        "model_id": "vendor/new-model",
+    }
     monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: tmp_path)
 
     def load_config(slug):
@@ -139,3 +143,27 @@ def test_funded_context_syncs_funded_global_and_custom_platforms(tmp_path, monke
 
     assert saved[-1]["platforms"] == ["openai", "deepseek", "custom_new"]
     assert "custom_old" not in saved[-1]["platforms"]
+    assert saved[-1]["provider_model_ids"] == {"custom_new": "vendor/new-model"}
+
+
+def test_sync_custom_provider_scope_persists_model_id_without_secret(tmp_path, monkeypatch):
+    config = {"platforms": ["openai", "custom_old"]}
+    saved = []
+    (tmp_path / "geo.json").write_text("{}", encoding="utf-8")
+    provider = {
+        "code": "custom_new",
+        "name": "New Gateway",
+        "model_id": "vendor/new-model",
+    }
+    monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: tmp_path)
+    monkeypatch.setattr(tasks.geolib, "load_config", lambda slug: dict(config))
+    monkeypatch.setattr(tasks.geolib, "save_config", lambda slug, value: saved.append(value))
+
+    tasks._sync_custom_provider_scope("citeaura-com", [provider])
+
+    assert saved == [{
+        "platforms": ["openai", "custom_new"],
+        "provider_labels": {"custom_new": "New Gateway"},
+        "provider_model_ids": {"custom_new": "vendor/new-model"},
+    }]
+    assert "api_key" not in saved[0]

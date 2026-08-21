@@ -404,11 +404,26 @@ def _sync_custom_provider_scope(project_slug, providers):
         if provider["code"] not in platforms:
             platforms.append(provider["code"])
     labels = {provider["code"]: provider["name"] for provider in providers if provider.get("name")}
-    changed = platforms != original or config.get("provider_labels") != labels
+    model_ids = {
+        provider["code"]: provider["model_id"]
+        for provider in providers
+        if provider.get("code") and provider.get("model_id")
+    }
+    changed = (
+        platforms != original
+        or config.get("provider_labels") != labels
+        or config.get("provider_model_ids") != model_ids
+    )
     if changed:
         config["platforms"] = platforms
         if labels:
             config["provider_labels"] = labels
+        else:
+            config.pop("provider_labels", None)
+        if model_ids:
+            config["provider_model_ids"] = model_ids
+        else:
+            config.pop("provider_model_ids", None)
         geolib.save_config(project_slug, config)
 
 

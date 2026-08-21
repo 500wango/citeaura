@@ -1168,11 +1168,25 @@ def test_diagnosis_uses_word_count_ranges_and_hides_internal_provider_codes(tmp_
 
 def test_duplicate_platform_labels_are_disambiguated_in_delivery_report():
     labels = delivery._platform_display_names({
-        "custom_2cbbade680b8": {"label": "DeepSeek"},
+        "custom_2cbbade680b8": {"label": "Starryblu OpenAI Proxy"},
         "deepseek": {"label": "DeepSeek"},
+    }, {
+        "provider_labels": {"custom_2cbbade680b8": "Starryblu OpenAI Proxy"},
+        "provider_model_ids": {"custom_2cbbade680b8": "deepseek-chat"},
     })
 
     assert labels == {
-        "custom_2cbbade680b8": "DeepSeek (configured provider)",
-        "deepseek": "DeepSeek (API provider)",
+        "custom_2cbbade680b8": "Starryblu OpenAI Proxy · deepseek-chat",
+        "deepseek": "DeepSeek",
     }
+
+
+def test_custom_provider_label_includes_model_id():
+    assert delivery._platform_display_name(
+        "custom_abc123",
+        {"label": "Configured provider"},
+        {
+            "provider_labels": {"custom_abc123": "Gateway"},
+            "provider_model_ids": {"custom_abc123": "vendor/model:exact"},
+        },
+    ) == "Gateway · vendor/model:exact"
