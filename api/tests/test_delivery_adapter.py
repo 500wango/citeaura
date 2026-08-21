@@ -247,6 +247,24 @@ def test_delivery_insights_render_as_english_evidence_summary():
     assert "automatic publication is disabled" in text
 
 
+def test_delivery_insights_use_user_facing_platform_labels():
+    text = "\n".join(delivery._insights_markdown({
+        "competitor_heatmap": {
+            "sample_count": 1,
+            "cohorts": [{
+                "engine_code": "custom_abc123",
+                "engine_name": "custom",
+                "sampling_mode": "api",
+                "samples": 1,
+            }],
+            "questions": [],
+        },
+    }, {"custom_abc123": "Gateway · vendor/model"}))
+
+    assert "Gateway · vendor/model" in text
+    assert "| custom |" not in text
+
+
 def test_delivery_audit_uses_page_role_applicability(tmp_path, monkeypatch):
     project, output = seed_delivery_project(tmp_path)
     audit = json.loads((project / "audit.json").read_text("utf-8"))

@@ -753,7 +753,7 @@ def _interval_label(interval):
     return f"{float(lower):.1%}–{float(upper):.1%}"
 
 
-def _insights_markdown(insights):
+def _insights_markdown(insights, platform_labels=None):
     """把工作区洞察压缩成不夸大结论的英文交付摘要。"""
     insights = insights if isinstance(insights, dict) else {}
     prompt = insights.get("prompt_explorer") or {}
@@ -806,8 +806,10 @@ def _insights_markdown(insights):
             "|---|---|---:|",
         ]
         for cohort in cohorts:
+            code = str(cohort.get("engine_code") or "")
+            label = (platform_labels or {}).get(code) or cohort.get("engine_name") or code
             lines.append(
-                f"| {_markdown_cell(_safe_display(cohort.get('engine_name') or cohort.get('engine_code'), 'Configured provider'))} "
+                f"| {_markdown_cell(_safe_display(label, 'Configured provider'))} "
                 f"| {_markdown_cell(_insight_mode_name(cohort.get('sampling_mode')))} | {cohort.get('samples', 0)} |"
             )
         lines.append("")
@@ -1144,6 +1146,13 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
     lines.append("- Observed changes do not establish optimization attribution; use deployment evidence and repeated comparable periods.")
     lines.append("")
     platforms = (metrics or {}).get("platforms") or {}
+    provider_config = geolib.read_json(project_directory / "geo.json", {}) or {}
+    provider_config = {
+        **provider_config,
+        "provider_labels": _merged_provider_labels(project_directory, metrics, provider_config),
+        "provider_model_ids": _merged_provider_model_ids(project_directory, metrics, provider_config),
+    }
+    display_names = _platform_display_names(platforms, provider_config)
     if not platforms:
         lines += [
             "AI visibility is not measured for this cycle. That is a disclosed measurement gap, not a missing diagnosis.",
@@ -1157,13 +1166,6 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
             "| Platform | Market | Sampling Mode | Samples | Mention Rate | Top 3 Rate | Official Domain Cited |",
             "|---|---|---|---:|---:|---:|---:|",
         ]
-        provider_config = geolib.read_json(project_directory / "geo.json", {}) or {}
-        provider_config = {
-            **provider_config,
-            "provider_labels": _merged_provider_labels(project_directory, metrics, provider_config),
-            "provider_model_ids": _merged_provider_model_ids(project_directory, metrics, provider_config),
-        }
-        display_names = _platform_display_names(platforms, provider_config)
         for code, item in platforms.items():
             code = str(code or "")
             label = display_names.get(code) or _platform_display_name(code, item, provider_config)
@@ -1174,7 +1176,7 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
                 f"| {_format_rate(item.get('own_domain_cite_rate'))} |"
             )
         lines.append("")
-    lines += _insights_markdown(insights)
+    lines += _insights_markdown(insights, display_names)
     return "\n".join(lines)
 
 
