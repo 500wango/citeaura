@@ -412,6 +412,27 @@ def _sync_custom_provider_scope(project_slug, providers):
         geolib.save_config(project_slug, config)
 
 
+def _sync_funded_engine_scope(project_slug, funded_codes):
+    """把当前 funding 中可运行的全局 API 引擎加入默认采样集合。"""
+    config_path = geolib.project_dir(project_slug) / "geo.json"
+    if not config_path.is_file():
+        return
+    config = geolib.load_config(project_slug)
+    funded = {
+        str(code).strip().lower()
+        for code in (funded_codes or ())
+        if str(code).strip()
+    }
+    original = list(config.get("platforms") or [])
+    platforms = list(original)
+    for code in sampling_control.BUILTIN_GLOBAL_SAMPLE_PLATFORMS:
+        if code in funded and code not in platforms:
+            platforms.append(code)
+    if platforms != original:
+        config["platforms"] = platforms
+        geolib.save_config(project_slug, config)
+
+
 @contextmanager
 def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_pool=True):
     """注入 BYOK/平台池密钥，并在退出时持久化平台代付逻辑调用。"""
@@ -450,6 +471,10 @@ def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_p
                 "funding resolved " + json.dumps(diagnostic, sort_keys=True, ensure_ascii=True),
             )
         ensure_global_engine_scope(project_slug)
+        _sync_funded_engine_scope(
+            project_slug,
+            set(funding.get("keys", {})) | set(funding.get("pool_codes", ())),
+        )
         _sync_custom_provider_scope(project_slug, custom_providers)
         with meter_platform_calls(funding["pool_codes"]) as counts:
             try:

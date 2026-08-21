@@ -72,3 +72,70 @@ def test_explicit_sampling_platform_without_worker_funding_is_blocked():
     }
     with pytest.raises(tasks.SamplingPlatformUnavailable, match="sampling_platform_unavailable:deepseek"):
         tasks._validate_requested_platforms(["deepseek", "custom_gateway"], funding)
+
+
+def test_sync_funded_engine_scope_adds_global_api_and_keeps_existing_platforms(tmp_path, monkeypatch):
+    config_path = tmp_path / "geo.json"
+    config_path.write_text("{}", encoding="utf-8")
+    config = {
+        "platforms": ["openai", "custom_old"],
+        "questions": [],
+    }
+    saved = []
+    monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: tmp_path)
+    monkeypatch.setattr(tasks.geolib, "load_config", lambda slug: dict(config))
+    monkeypatch.setattr(tasks.geolib, "save_config", lambda slug, value: saved.append(value))
+
+    tasks._sync_funded_engine_scope("citeaura-com", {"deepseek", "custom_new", "glm"})
+
+    assert saved == [{
+        "platforms": ["openai", "custom_old", "deepseek"],
+        "questions": [],
+    }]
+
+
+def test_funded_context_syncs_funded_global_and_custom_platforms(tmp_path, monkeypatch):
+    config_path = tmp_path / "geo.json"
+    config_path.write_text("{}", encoding="utf-8")
+    config = {
+        "platforms": ["openai", "custom_old"],
+        "questions": [],
+    }
+    saved = []
+    current = dict(config)
+    provider = {"code": "custom_new", "name": "New Gateway"}
+    monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: tmp_path)
+
+    def load_config(slug):
+        return current
+
+    def save_config(slug, value):
+        snapshot = dict(value)
+        current.clear()
+        current.update(snapshot)
+        saved.append(snapshot)
+
+    monkeypatch.setattr(tasks.geolib, "load_config", load_config)
+    monkeypatch.setattr(tasks.geolib, "save_config", save_config)
+    monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {
+        "keys": {"deepseek": "secret"},
+        "pool_codes": frozenset(),
+        "tenant_id": 1,
+        "tenant_directory_slug": "tenant-a",
+    })
+    monkeypatch.setattr(tasks, "_engine_custom_providers", lambda *args, **kwargs: [provider])
+    monkeypatch.setattr(tasks, "ensure_global_engine_scope", lambda slug: None)
+
+    @contextmanager
+    def empty_context():
+        yield
+
+    monkeypatch.setattr(tasks, "with_tenant_context", lambda *args, **kwargs: empty_context())
+    monkeypatch.setattr(tasks, "meter_platform_calls", lambda codes: empty_context())
+    monkeypatch.setattr(tasks, "record_usage", lambda *args, **kwargs: None)
+
+    with tasks._funded_engine_context("tenant-a", "citeaura-com", "sample"):
+        pass
+
+    assert saved[-1]["platforms"] == ["openai", "deepseek", "custom_new"]
+    assert "custom_old" not in saved[-1]["platforms"]
