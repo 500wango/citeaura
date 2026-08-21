@@ -317,16 +317,15 @@ def resolve_tenant(db, tenant_id):
 
     from api.models import Tenant
 
-    tenant = None
-    try:
-        tenant = db.get(Tenant, int(tenant_id))
-    except (TypeError, ValueError):
-        pass
+    tenant = db.query(Tenant).filter(or_(
+        Tenant.directory_slug == str(tenant_id),
+        Tenant.name == str(tenant_id),
+    )).first()
     if tenant is None:
-        tenant = db.query(Tenant).filter(or_(
-            Tenant.name == str(tenant_id),
-            Tenant.directory_slug == str(tenant_id),
-        )).first()
+        try:
+            tenant = db.get(Tenant, int(tenant_id))
+        except (TypeError, ValueError):
+            tenant = None
     return tenant
 
 
