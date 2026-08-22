@@ -3191,8 +3191,11 @@ def ensure_delivery_contract(project_slug: str, delivery_directory: Path | None 
     generated_assets.normalize_project_assets(project_slug, config=config)
     project_directory = geolib.project_dir(project_slug)
     delivery_directory = Path(delivery_directory) if delivery_directory else _latest_delivery(project_directory)
-    if delivery_directory is None or not delivery_directory.is_dir():
-        raise GeoEngineError("delivery directory was not generated")
+    if delivery_directory is None:
+        # The SaaS adapter owns the formal delivery path. The standalone
+        # engine CLI may still emit its own package, but SaaS jobs must be able
+        # to create a formal package without first writing legacy output here.
+        delivery_directory = project_directory / "delivery" / geolib.today()
     target = _delivery_target(project_directory, delivery_directory)
     target.parent.mkdir(parents=True, exist_ok=True)
     with geolib.project_lock(project_slug):

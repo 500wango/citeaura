@@ -44,7 +44,7 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
         yield
 
     def fake_autopilot(args):
-        calls.append(("autopilot", args.slug, args.skip_llm, args.no_sample, args.limit))
+        calls.append(("autopilot", args.slug, args.skip_llm, args.no_sample, args.limit, args.no_delivery))
 
     @contextmanager
     def fake_preserve(project_slug):
@@ -77,7 +77,7 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
         ("tenant-a", "example"),
         ("preserve", "example"),
         ("crawl-evidence", "example"),
-        ("autopilot", "example", True, True, None),
+        ("autopilot", "example", True, True, None, True),
         ("normalize", "example"),
         ("delivery", "example"),
         ("legacy-delivery", "example"),
@@ -160,7 +160,7 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
         yield
 
     def fake_serve(args):
-        calls.append(("serve", args.slug, args.max_pages, args.limit, args.no_sample, args.draft))
+        calls.append(("serve", args.slug, args.max_pages, args.limit, args.no_sample, args.draft, args.no_delivery))
 
     @contextmanager
     def fake_preserve(project_slug):
@@ -189,13 +189,39 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
     assert calls == [
         ("context", "tenant-a", "example", "serve", True),
         ("preserve", "example"),
-        ("serve", "example", 8, 3, False, True),
+        ("serve", "example", 8, 3, False, True, True),
         ("delivery", "example"),
     ]
     with pytest.raises(ValueError, match="unsupported pipeline action"):
         tasks._action_namespace("publish", {})
     with pytest.raises(ValueError, match="must be between 1 and 1000"):
         tasks._action_namespace("sample", {"limit": 0})
+
+
+def test_deliver_task_uses_saas_delivery_renderer(monkeypatch):
+    calls = []
+
+    @contextmanager
+    def fake_context(tenant_id, project_slug, keys=None):
+        calls.append(("context", tenant_id, project_slug, keys))
+        yield
+
+    monkeypatch.setattr(tasks, "with_tenant_context", fake_context)
+    monkeypatch.setattr(tasks, "_engine_keys", lambda tenant_id: {"openai": "runtime-only"})
+    monkeypatch.setattr(tasks.global_scope, "normalize_project", lambda slug: calls.append(("normalize", slug)))
+    monkeypatch.setattr(tasks.site_signals, "validate_project_signals", lambda slug: calls.append(("validate", slug)))
+    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)) or "/formal/path")
+    monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
+
+    result = tasks.task_deliver.run("tenant-a", "example")
+
+    assert result == "/formal/path"
+    assert calls == [
+        ("context", "tenant-a", "example", {"openai": "runtime-only"}),
+        ("normalize", "example"),
+        ("validate", "example"),
+        ("delivery", "example"),
+    ]
 
 
 def test_pipeline_deliverables_rebuilds_coverage_aware_legacy_artifacts(monkeypatch):

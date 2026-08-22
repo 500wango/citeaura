@@ -111,6 +111,15 @@ def cmd_bootstrap(a):
     bootstrap.run(a.slug, skip_llm=a.skip_llm)
 
 
+def _compile_standalone_delivery(slug, args):
+    """仅为独立 Engine CLI 编译 legacy delivery 包。"""
+    if getattr(args, "no_delivery", False):
+        return
+    import deliver
+
+    deliver.run(slug)
+
+
 def cmd_deliverables(a):
     import deliverables
 
@@ -176,7 +185,6 @@ def cmd_autopilot(a):
     import blueprint as BP
     import bootstrap
     import crawl as C
-    import deliver
     import deliverables as DV
     import generate
     import report as Rp
@@ -216,7 +224,7 @@ def cmd_autopilot(a):
         V.run(a.slug, recrawl=False)
     except Exception as e:  # noqa: BLE001
         G.info(f"Verification failed: {e}")
-    deliver.run(a.slug)
+    _compile_standalone_delivery(a.slug, a)
     G.info("Complete. Three deliverables compiled in deliverables/.")
 
 
@@ -391,7 +399,6 @@ def cmd_serve(a):
     """Run the complete service cycle in one command."""
     import audit as A
     import crawl as C
-    import deliver
     import generate
     import report as Rp
     import sample as S
@@ -428,7 +435,7 @@ def cmd_serve(a):
     G.info("═══ 7/7 Verify Previous Tickets ═══")
     V.run(a.slug, recrawl=False)
     G.info("═══ Compile Delivery Package ═══")
-    deliver.run(a.slug)
+    _compile_standalone_delivery(a.slug, a)
 
 
 def cmd_ui(a):

@@ -16,6 +16,18 @@ def args(url, **values):
 
 
 class GeoCliTest(unittest.TestCase):
+    def test_saas_pipeline_does_not_load_legacy_delivery_renderer(self):
+        args = types.SimpleNamespace(no_delivery=True)
+        with mock.patch.dict(sys.modules, {"deliver": None}):
+            self.assertIsNone(geo._compile_standalone_delivery("demo", args))
+
+    def test_standalone_pipeline_keeps_legacy_delivery_renderer(self):
+        renderer = types.SimpleNamespace(run=mock.Mock())
+        args = types.SimpleNamespace(no_delivery=False)
+        with mock.patch.dict(sys.modules, {"deliver": renderer}):
+            geo._compile_standalone_delivery("demo", args)
+        renderer.run.assert_called_once_with("demo")
+
     def test_init_rejects_non_http_and_missing_hosts(self):
         for url in ("ftp://example.com", "https:///missing", "http://[broken",
                     "https://user:pass@example.com"):

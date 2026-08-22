@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -171,6 +172,19 @@ def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypa
     assert "Add sitemap.xml and submit it to international search engines" in (output / "03-Ticket-Log.md").read_text("utf-8")
     assert "Current value: 1; target: at most 0." in (output / "04-Acceptance-Checklist.md").read_text("utf-8")
     assert delivery.delivery_language_violations(output) == []
+
+
+def test_delivery_contract_creates_formal_date_directory_without_legacy_output(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    shutil.rmtree(output)
+    _patch_project(monkeypatch, project)
+
+    result = delivery.ensure_delivery_contract("example")
+
+    assert result == project / "delivery" / "2026-07-31"
+    assert result.is_dir()
+    assert (result / "01-Audit-Report.md").is_file()
+    assert not (project / "deliverables").exists()
 
 
 def test_delivery_execution_plan_uses_target_window_not_priority():

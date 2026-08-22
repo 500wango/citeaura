@@ -107,8 +107,8 @@ _ACTION_DEFAULTS = {
     "verify": {"no_recrawl": False},
     "deliver": {},
     "sample-sheet": {},
-    "autopilot": {"no_sample": False, "limit": None, "skip_llm": False},
-    "serve": {"max_pages": None, "limit": None, "no_sample": False, "draft": False, "draft_limit": None},
+    "autopilot": {"no_sample": False, "limit": None, "skip_llm": False, "no_delivery": True},
+    "serve": {"max_pages": None, "limit": None, "no_sample": False, "draft": False, "draft_limit": None, "no_delivery": True},
 }
 
 _INTEGER_LIMITS = {
@@ -812,7 +812,9 @@ def task_bootstrap(
     """执行新项目的完整自动引导。"""
     import geo
 
-    args = SimpleNamespace(slug=project_slug, skip_llm=skip_llm, no_sample=no_sample, limit=None)
+    args = SimpleNamespace(
+        slug=project_slug, skip_llm=skip_llm, no_sample=no_sample, limit=None, no_delivery=True,
+    )
     started_at = datetime.now(timezone.utc)
     with _job_status(tenant_id, project_slug, job_action, job_id) as update:
         if update is _JOB_NOT_CLAIMED:
@@ -1083,16 +1085,15 @@ def task_verify(tenant_id: str, project_slug: str, job_id=None):
 @celery_app.task(name="citeaura.deliver")
 def task_deliver(tenant_id: str, project_slug: str, job_id=None):
     """生成客户交付包。"""
-    import deliver
-
     with _job_status(tenant_id, project_slug, "deliver", job_id) as claim:
         if claim is _JOB_NOT_CLAIMED:
             return {"status": "ignored", "reason": "job_not_queued"}
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             global_scope.normalize_project(project_slug)
             site_signals.validate_project_signals(project_slug)
-            delivery_directory = deliver.run(project_slug)
-            return str(ensure_delivery_contract(project_slug, delivery_directory))
+            # The SaaS adapter is the sole owner of the formal delivery path.
+            # Keep the engine CLI renderer independent for standalone users.
+            return str(ensure_delivery_contract(project_slug))
 
 
 @celery_app.task(name="citeaura.pipeline")
