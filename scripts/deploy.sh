@@ -17,7 +17,7 @@ if ! command -v python3 >/dev/null 2>&1; then
     printf 'Python 3 is required for production preflight.\n' >&2
     exit 1
 fi
-python3 scripts/production_preflight.py --env-file "$ENV_FILE" --tls-mode external
+python3 scripts/production_preflight.py --env-file "$ENV_FILE" --tls-mode external --migrate-legacy
 if ! command -v docker >/dev/null 2>&1; then
     printf 'Docker is required.\n' >&2
     exit 1

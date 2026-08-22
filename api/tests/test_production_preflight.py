@@ -1,6 +1,6 @@
 import base64
 
-from scripts.production_preflight import read_env, validate_environment
+from scripts.production_preflight import ensure_legacy_environment_defaults, read_env, validate_environment
 
 
 def _valid_environment():
@@ -43,6 +43,15 @@ def test_valid_production_environment_passes_with_optional_warnings():
     assert errors == []
     assert any("Platform-funded" in warning for warning in warnings)
     assert any("tenant-managed" in warning for warning in warnings)
+
+
+def test_preflight_migrates_missing_forwarded_proxy_default(tmp_path):
+    env_file = tmp_path / ".env.production"
+    env_file.write_text("DOMAIN=app.example\n", encoding="utf-8")
+
+    assert ensure_legacy_environment_defaults(env_file) == ["FORWARDED_ALLOW_IPS"]
+    assert read_env(env_file)["FORWARDED_ALLOW_IPS"] == "127.0.0.1"
+    assert ensure_legacy_environment_defaults(env_file) == []
 
 
 def test_preflight_rejects_invalid_forwarded_proxy_address():

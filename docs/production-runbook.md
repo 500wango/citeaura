@@ -24,7 +24,7 @@ scripts/one-click-deploy.sh --env-file .env.production
 scripts/acceptance.py --base-url https://your-domain.example --production
 ```
 
-`production_preflight.py` 不打印密钥值，会拒绝占位符、HTTP 公网地址和无效 AES Key。配置了认证 SMTP 时会校验端口与加密模式：`465` 只能配 `ssl`，`ssl` 只能配 `465`；`587` 应配 `starttls`。`BILLING_ENABLED=true` 时还会拒绝测试 Stripe Key，`PASSWORD_RESET_EMAIL_ENABLED=true` 时会校验认证 SMTP。脚本可重复执行，不会启动仓库内的 Nginx，也不会改动其他 Docker Compose 项目。
+`production_preflight.py` 不打印密钥值，会拒绝占位符、HTTP 公网地址和无效 AES Key。部署脚本带 `--migrate-legacy`，只会为旧环境文件补写非敏感的 `FORWARDED_ALLOW_IPS=127.0.0.1` 默认值；显式空值、通配符或非法代理地址仍会失败。配置了认证 SMTP 时会校验端口与加密模式：`465` 只能配 `ssl`，`ssl` 只能配 `465`；`587` 应配 `starttls`。`BILLING_ENABLED=true` 时还会拒绝测试 Stripe Key，`PASSWORD_RESET_EMAIL_ENABLED=true` 时会校验认证 SMTP。脚本可重复执行，不会启动仓库内的 Nginx，也不会改动其他 Docker Compose 项目。
 
 ## 平台管理员密码恢复
 

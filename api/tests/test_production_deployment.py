@@ -28,6 +28,7 @@ def test_deploy_script_leaves_tls_to_host_caddy():
     deploy = (ROOT / "scripts/deploy.sh").read_text("utf-8")
 
     assert "--tls-mode external" in deploy
+    assert "--migrate-legacy" in deploy
     assert 'APP_PORT="${APP_PORT:-18000}"' in deploy
     build = deploy.index("build api worker beat")
     repair_permissions = deploy.index("chown -R citeaura:citeaura /app/work")
@@ -57,6 +58,7 @@ def test_one_click_deploy_is_executable_and_documents_safe_caddy_update():
     result = subprocess.run([str(script), "--help"], check=True, capture_output=True, text=True)
     assert "configure the host Caddy" in result.stdout
     assert 'ENV_FILE="$ENV_FILE" "$SCRIPT_DIR/deploy.sh"' in text
+    assert "--migrate-legacy" in text
     assert "citeaura.candidate.caddy" in text
     assert "validate --config" in text
     assert "restoring the previous configuration" in text

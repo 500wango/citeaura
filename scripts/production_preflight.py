@@ -20,6 +20,7 @@ PLATFORM_KEYS = (
     "MINIMAX_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
     "XAI_API_KEY", "PERPLEXITY_API_KEY",
 )
+LEGACY_ENV_DEFAULTS = {"FORWARDED_ALLOW_IPS": "127.0.0.1"}
 
 
 def read_env(path):
@@ -39,6 +40,20 @@ def read_env(path):
             value = value[1:-1]
         values[key] = value
     return values
+
+
+def ensure_legacy_environment_defaults(path):
+    """Add non-secret defaults required by newer production deployments."""
+    text = path.read_text("utf-8")
+    values = read_env(path)
+    missing = [key for key in LEGACY_ENV_DEFAULTS if key not in values]
+    if not missing:
+        return []
+    suffix = "" if text.endswith("\n") else "\n"
+    suffix += "\n# Added by CiteAura deployment migration.\n"
+    suffix += "".join(f"{key}={LEGACY_ENV_DEFAULTS[key]}\n" for key in missing)
+    path.write_text(text + suffix, encoding="utf-8")
+    return missing
 
 
 def _placeholder(value):
@@ -252,21 +267,31 @@ def main(argv=None):
     parser.add_argument("--cert-dir", type=Path, default=Path("deploy/certs"))
     parser.add_argument("--tls-mode", choices=("local", "external"), default="local")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--migrate-legacy",
+        action="store_true",
+        help="Add safe non-secret defaults missing from older production env files",
+    )
     args = parser.parse_args(argv)
+    migrated = []
     try:
+        if args.migrate_legacy:
+            migrated = ensure_legacy_environment_defaults(args.env_file)
         values = read_env(args.env_file)
     except (OSError, ValueError) as exc:
-        result = {"ready": False, "errors": [str(exc)], "warnings": []}
+        result = {"ready": False, "errors": [str(exc)], "warnings": [], "migrated": migrated}
     else:
         errors, warnings = validate_environment(values)
         if args.tls_mode == "local":
             errors.extend(validate_certificate(args.cert_dir, values.get("DOMAIN", "")))
         else:
             warnings.append("TLS certificate validation is delegated to the external Caddy or CDN endpoint")
-        result = {"ready": not errors, "errors": errors, "warnings": warnings}
+        result = {"ready": not errors, "errors": errors, "warnings": warnings, "migrated": migrated}
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
+        for key in result["migrated"]:
+            print(f"INFO: added legacy production default {key}")
         for warning in result["warnings"]:
             print(f"WARN: {warning}")
         for error in result["errors"]:
