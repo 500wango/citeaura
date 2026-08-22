@@ -69,6 +69,73 @@ def test_wilson_interval_keeps_small_samples_visibly_uncertain():
         measurement.wilson_interval(4, 3)
 
 
+def test_question_cohort_evidence_requires_each_provider_mode_cohort():
+    config = {
+        "questions": [{"id": "q001", "text": "What is Acme?", "market": "global"}],
+    }
+    rows = [
+        {
+            "ok": True, "platform": "openai", "platform_name": "OpenAI",
+            "search_enabled": False, "question_id": "q001",
+            "analysis": {"brand_mentioned": False},
+        }
+        for _ in range(3)
+    ] + [
+        {
+            "ok": True, "platform": "deepseek", "platform_name": "DeepSeek",
+            "search_enabled": False, "question_id": "q001",
+            "analysis": {"brand_mentioned": False},
+        }
+    ]
+
+    result = measurement.question_cohort_evidence(rows, config)
+
+    assert result["total"] == 1
+    assert result["sufficient"] == 0
+    assert result["items"][0]["samples"] == 4
+    assert result["items"][0]["required"] == 6
+    assert result["items"][0]["missing_samples"] == 2
+    assert {cell["engine_code"] for cell in result["items"][0]["cohorts"]} == {"openai", "deepseek"}
+
+
+def test_sampling_receipt_exposes_success_and_missing_worker_funding(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    with with_tenant_context("tenant", "project"):
+        directory = geolib.project_dir("project")
+        run_id = "sample-20260822-receipt"
+        geolib.write_json(directory / "geo.json", {
+            "questions": [{"id": "q001", "text": "What is Acme?", "market": "global"}],
+            "platforms": ["openai", "deepseek"],
+        })
+        geolib.write_jsonl(directory / "samples" / f"{run_id}.jsonl", [
+            {
+                "run_id": run_id, "platform": "openai", "question_id": "q001",
+                "ok": True, "analysis": {"brand_mentioned": False},
+            },
+            {
+                "run_id": run_id, "platform": "openai", "question_id": "q001",
+                "ok": False, "error": "HTTP 429", "analysis": {},
+            },
+        ])
+        receipt = measurement.build_sampling_receipt(
+            "project",
+            result={"run_id": run_id, "question_set_version": "q-v1"},
+            requested_platforms=["openai", "deepseek"],
+            question_ids=["q001"],
+            repeat=2,
+            job_id=7,
+            funding={"keys": {"openai": "redacted"}, "pool_codes": ()},
+        )
+
+    assert receipt["status"] == "succeeded"
+    assert receipt["successful_samples"] == 1
+    assert receipt["failed_samples"] == 1
+    assert receipt["platforms"]["openai"]["status"] == "succeeded"
+    assert receipt["skipped_platforms"] == [{
+        "engine_code": "deepseek", "reason": "missing_worker_funding",
+    }]
+
+
 def test_sampling_manifest_records_targeted_question_scope(tmp_path, monkeypatch):
     monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
     with with_tenant_context("tenant", "project"):
@@ -92,6 +159,8 @@ def test_sampling_manifest_records_targeted_question_scope(tmp_path, monkeypatch
     assert manifest["requested_question_ids"] == ["q102", "q101"]
     assert manifest["question_set"]["version"]
     assert manifest["platforms"][0]["engine_code"] == "openai"
+    assert manifest["sampling_receipt"]["job_id"] == 42
+    assert "worker-only-secret" not in str(manifest["sampling_receipt"])
 
 
 def test_product_insights_prioritize_prompt_gaps_and_keep_cohorts_separate(tmp_path, monkeypatch):

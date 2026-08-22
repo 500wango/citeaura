@@ -1,6 +1,6 @@
 """首份报告完整度和缺失项诊断。"""
 
-from api.adapters import brand_identity, global_scope
+from api.adapters import brand_identity, global_scope, measurement
 from api.adapters.engine import geolib
 from api.adapters.measurement import MIN_COMPARABLE_SAMPLES, MIN_REPRESENTATIVE_PLATFORMS, sampling_quality
 
@@ -21,7 +21,7 @@ def assess(project_slug, has_sampling_access=False):
     metrics_path = _latest(directory / "metrics")
     metrics = geolib.read_json(metrics_path, {}) if metrics_path else {}
     tasks = geolib.read_json(directory / "tasks.json", {}) or {}
-    measurement = sampling_quality(project_slug)
+    measurement_quality = sampling_quality(project_slug)
     issues = []
 
     try:
@@ -35,21 +35,29 @@ def assess(project_slug, has_sampling_access=False):
             row for row in geolib.read_jsonl(sample_files[-1])
             if row.get("ok") and global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
         ]
-    question_counts = {}
-    for row in current_rows:
-        question_id = str(row.get("question_id") or "").strip()
-        if question_id:
-            question_counts[question_id] = question_counts.get(question_id, 0) + 1
     question_ids = [
         str(item.get("id")) for item in config.get("questions") or []
         if isinstance(item, dict) and item.get("id")
     ]
-    measured_questions = sum(1 for question_id in question_ids if question_counts.get(question_id, 0) > 0)
-    sufficient_questions = sum(
-        1 for question_id in question_ids
-        if question_counts.get(question_id, 0) >= 3
+    question_evidence = measurement.question_cohort_evidence(
+        current_rows,
+        config,
+        measurement.MIN_QUESTION_SAMPLES,
+        expected_cohorts=((metrics.get("provenance") or {}).get("platforms") or []),
     )
+    measured_questions = int(question_evidence.get("measured") or 0)
+    sufficient_questions = int(question_evidence.get("sufficient") or 0)
     question_ready = bool(question_ids) and sufficient_questions == len(question_ids)
+    if question_ids and not question_ready:
+        gap_count = len(question_evidence.get("gaps") or [])
+        missing = sum(int(item.get("missing_samples") or 0) for item in question_evidence.get("gaps") or [])
+        issues.append(_issue(
+            "question_evidence_limited",
+            "info",
+            f"{gap_count} question(s) are missing {missing} comparable provider/mode sample(s)",
+            "Fill cohort gaps before ranking content opportunities or attributing changes",
+            "engines",
+        ))
     asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
 
     page_count = int(audit.get("page_count") or 0)
@@ -72,8 +80,8 @@ def assess(project_slug, has_sampling_access=False):
             "Remove sitewide Disallow, retain restrictions only for admin or sensitive routes", "siteaudit",
         ))
 
-    current = measurement.get("current") or {}
-    confidence = measurement.get("confidence") or {}
+    current = measurement_quality.get("current") or {}
+    confidence = measurement_quality.get("confidence") or {}
     successful = int(current.get("successful") or 0)
     platform_count = int(confidence.get("platform_count") or 0)
     sample_coverage = min(1.0, successful / MIN_COMPARABLE_SAMPLES) if metrics else 0
@@ -166,18 +174,24 @@ def assess(project_slug, has_sampling_access=False):
         },
         "question": {
             "ready": question_ready,
-            "label": "Question-level evidence ready" if question_ready else "Per-question evidence still limited",
+            "label": "Question-level evidence ready" if question_ready else "Per-question cohort evidence still limited",
             "total": len(question_ids),
             "measured": measured_questions,
             "sufficient": sufficient_questions,
-            "minimum_samples": 3,
+            "minimum_samples": measurement.MIN_QUESTION_SAMPLES,
+            "cohorts": question_evidence.get("cohorts") or [],
             "gaps": [
-                {"question_id": question_id, "samples": question_counts.get(question_id, 0), "required": 3}
-                for question_id in question_ids
-                if question_counts.get(question_id, 0) < 3
+                {
+                    "question_id": item.get("id"),
+                    "samples": item.get("samples", 0),
+                    "required": item.get("required", measurement.MIN_QUESTION_SAMPLES),
+                    "missing_samples": item.get("missing_samples", measurement.MIN_QUESTION_SAMPLES),
+                    "cohorts": item.get("cohorts") or [],
+                }
+                for item in question_evidence.get("gaps") or []
             ],
         },
-        "attribution": measurement.get("attribution") or {
+        "attribution": measurement_quality.get("attribution") or {
             "ready": False,
             "status": "unavailable",
             "label": "No comparable period",
@@ -196,6 +210,7 @@ def assess(project_slug, has_sampling_access=False):
         "effective_report": diagnostic_ready,
         "diagnostic_ready": diagnostic_ready,
         "measured_visibility": bool(confidence.get("sufficient")),
+        "measurement_baseline_ready": bool(confidence.get("sufficient")),
         "implementation_ready": implementation_ready,
         "readiness": readiness,
         "confidence": confidence,
@@ -209,5 +224,5 @@ def assess(project_slug, has_sampling_access=False):
             "delivery": {"score": delivery_score, "max": 10, "available": has_delivery},
         },
         "issues": issues,
-        "measurement_quality": measurement,
+        "measurement_quality": measurement_quality,
     }

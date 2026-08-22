@@ -90,7 +90,7 @@ function renderCampaignProposals(campaigns) {
               <span class="tag ${workflow.review?.status === 'ready' ? 'pill-good' : 'pill-warn'}">Review ${escapeHtml(workflow.review?.status || 'required')}</span>
               <span class="tag tag-dim">Verify pending</span>
             </div>
-            <a class="btn btn-secondary btn-sm campaign-proposal-action" href="${escapeHtml(proposal.next_step?.route || '#/assets')}">${escapeHtml(proposal.next_step?.label || 'Review proposal')}</a>
+            <a class="btn btn-secondary btn-sm campaign-proposal-action" data-action="${escapeHtml(proposal.next_step?.action || '')}" data-question-id="${escapeHtml(questionId)}" href="${escapeHtml(proposal.next_step?.route || '#/assets')}">${escapeHtml(proposal.next_step?.label || 'Review proposal')}</a>
           </div>
         </article>`;
       }).join('')}</div>` : `<div class="campaign-proposals-empty">No proposals yet. Collect comparable samples to turn prompt gaps into reviewable work.</div>`}
@@ -161,6 +161,27 @@ export default {
       } catch (err) {
         toast.error(t(err.error, {}, err.detail || 'Failed to generate assets'));
       }
+    });
+    document.querySelectorAll('[data-action="fill_question_gap"]').forEach((button) => {
+      button.addEventListener('click', async (event) => {
+        event.preventDefault();
+        button.setAttribute('aria-busy', 'true');
+        try {
+          const questionId = button.dataset.questionId;
+          const res = await projects.triggerSampleGaps(projectId, questionId ? { question_ids: [questionId] } : {});
+          if (res?.status === 'no_gaps') {
+            toast.success('No comparable samples are missing for this question');
+          } else {
+            toast.success('Comparable question sampling queued');
+            ctx.pollActiveJobs();
+            if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'sample');
+          }
+        } catch (err) {
+          toast.error(t(err.error, {}, err.detail || 'Failed to queue comparable sampling'));
+        } finally {
+          button.removeAttribute('aria-busy');
+        }
+      });
     });
     document.getElementById('btn-save-asset')?.addEventListener('click', async () => {
       try {

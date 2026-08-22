@@ -4,6 +4,7 @@ import math
 from collections import Counter
 from datetime import datetime, timezone
 
+from api import config
 from api.adapters import brand_identity
 from api.adapters.engine import geolib
 from api.adapters.global_scope import is_global_sample
@@ -13,6 +14,7 @@ from api.adapters.sampling_modes import MODE_API, MODE_MANUAL, MODE_SEARCH, for_
 SCHEMA_VERSION = "1.0"
 MIN_COMPARABLE_SAMPLES = 20
 MIN_REPRESENTATIVE_PLATFORMS = 2
+MIN_QUESTION_SAMPLES = 3
 
 
 def wilson_interval(successes, samples):
@@ -41,8 +43,108 @@ def question_set_version(config):
     return brand_identity.question_set_version(config)
 
 
+def question_cohort_evidence(rows, config, minimum=MIN_QUESTION_SAMPLES, expected_cohorts=None):
+    """按问题和 provider+sampling mode 计算可执行的证据缺口。"""
+    config = config if isinstance(config, dict) else {}
+    minimum = max(1, int(minimum or MIN_QUESTION_SAMPLES))
+    questions = [
+        item for item in (config.get("questions") or [])
+        if isinstance(item, dict) and item.get("id")
+    ]
+    grouped = {}
+    cohorts = {}
+    for row in rows or ():
+        if not isinstance(row, dict) or not row.get("ok") or row.get("brand_in_question"):
+            continue
+        question_id = str(row.get("question_id") or "").strip()
+        platform = str(row.get("platform") or "").strip()
+        if not question_id or not platform:
+            continue
+        mode = for_row(row)
+        key = f"{mode}|{platform}"
+        grouped.setdefault((question_id, key), 0)
+        grouped[(question_id, key)] += 1
+        cohorts.setdefault(key, {
+            "key": key,
+            "engine_code": platform,
+            "engine_name": row.get("platform_name") or platform,
+            "sampling_mode": mode,
+        })
+
+    for expected in expected_cohorts or ():
+        if not isinstance(expected, dict):
+            continue
+        platform = str(expected.get("engine_code") or expected.get("platform") or "").strip()
+        mode = _normalize_mode(expected.get("sampling_mode"))
+        if not platform or not mode:
+            continue
+        key = f"{mode}|{platform}"
+        cohorts.setdefault(key, {
+            "key": key,
+            "engine_code": platform,
+            "engine_name": expected.get("engine_name") or expected.get("provider_name") or platform,
+            "sampling_mode": mode,
+            "funding_source": expected.get("funding_source") or expected.get("source"),
+        })
+
+    cohort_rows = [cohorts[key] for key in sorted(cohorts)]
+    items = []
+    gaps = []
+    for question in questions:
+        question_id = str(question["id"])
+        cells = []
+        missing = 0
+        for cohort in cohort_rows:
+            samples = int(grouped.get((question_id, cohort["key"]), 0))
+            gap = max(0, minimum - samples)
+            missing += gap
+            cells.append({
+                **cohort,
+                "samples": samples,
+                "required": minimum,
+                "missing": gap,
+                "sufficient": samples >= minimum,
+            })
+        total_samples = sum(cell["samples"] for cell in cells)
+        sufficient = bool(cells) and all(cell["sufficient"] for cell in cells)
+        item = {
+            "id": question_id,
+            "text": question.get("text") or "",
+            "samples": total_samples,
+            "required": minimum * len(cells) if cells else minimum,
+            "missing_samples": missing if cells else minimum,
+            "sufficient": sufficient,
+            "cohorts": cells,
+        }
+        items.append(item)
+        if not sufficient:
+            gaps.append(item)
+
+    return {
+        "minimum_samples": minimum,
+        "cohorts": cohort_rows,
+        "items": items,
+        "total": len(items),
+        "measured": sum(1 for item in items if item["samples"] > 0),
+        "sufficient": sum(1 for item in items if item["sufficient"]),
+        "gaps": gaps,
+    }
+
+
 def _mode(provider):
     return for_provider(provider)
+
+
+def _normalize_mode(value):
+    value = str(value or "").strip()
+    if value in (MODE_API, MODE_SEARCH, MODE_MANUAL):
+        return value
+    lowered = value.casefold()
+    if "search" in lowered or "ground" in lowered or "联网" in value:
+        return MODE_SEARCH
+    if "manual" in lowered or "product interface" in lowered or "人工" in value:
+        return MODE_MANUAL
+    return MODE_API
 
 
 def _sample_summary(project_slug):
@@ -76,6 +178,134 @@ def _metrics_summary(metrics):
         return {"total": total, "successful": successful, "failed": failed}
     total = int((metrics or {}).get("sample_count") or 0)
     return {"total": total, "successful": total, "failed": 0}
+
+
+def _run_rows(project_slug, run_id=None):
+    directory = geolib.project_dir(project_slug)
+    sample_directory = directory / "samples"
+    if run_id:
+        path = sample_directory / f"{run_id}.jsonl"
+    else:
+        files = sorted(sample_directory.glob("*.jsonl")) if sample_directory.exists() else []
+        path = files[-1] if files else None
+    rows = geolib.read_jsonl(path) if path and path.is_file() else []
+    if run_id:
+        rows = [row for row in rows if str(row.get("run_id") or "") == str(run_id)]
+    return rows
+
+
+def build_sampling_receipt(
+    project_slug,
+    *,
+    result=None,
+    requested_platforms=None,
+    question_ids=None,
+    limit=None,
+    repeat=1,
+    job_id=None,
+    funding=None,
+):
+    """从本轮样本生成不含密钥的 Worker 执行回执。"""
+    metrics = result if isinstance(result, dict) else {}
+    run_id = metrics.get("run_id")
+    rows = _run_rows(project_slug, run_id)
+    if not rows and run_id is None:
+        rows = _run_rows(project_slug)
+    requested = requested_platforms
+    if isinstance(requested, str):
+        requested = [item.strip() for item in requested.split(",") if item.strip()]
+    requested = list(dict.fromkeys(str(item).strip() for item in (requested or []) if str(item).strip()))
+    requested_questions = question_ids
+    if isinstance(requested_questions, str):
+        requested_questions = [item.strip() for item in requested_questions.split(",") if item.strip()]
+    requested_questions = list(dict.fromkeys(
+        str(item).strip() for item in (requested_questions or []) if str(item).strip()
+    ))
+    funded = set()
+    worker_diagnostic = {}
+    if isinstance(funding, dict):
+        funded.update(str(code) for code in (funding.get("keys") or {}))
+        funded.update(str(code) for code in (funding.get("pool_codes") or ()))
+        worker_diagnostic = funding.get("_worker_diagnostic") or {}
+    per_platform = {}
+    for row in rows:
+        code = str(row.get("platform") or "unknown")
+        item = per_platform.setdefault(code, {
+            "requested": code in requested,
+            "successful": 0,
+            "failed": 0,
+            "questions": {},
+            "errors": Counter(),
+            "model_ids": set(),
+            "sampling_modes": set(),
+            "engine_name": row.get("platform_name") or code,
+        })
+        question_id = str(row.get("question_id") or "")
+        if question_id:
+            cell = item["questions"].setdefault(question_id, {"successful": 0, "failed": 0})
+            cell["successful" if row.get("ok") else "failed"] += 1
+        if row.get("ok"):
+            item["successful"] += 1
+        else:
+            item["failed"] += 1
+            if row.get("error"):
+                item["errors"][str(row["error"])[:200]] += 1
+        if row.get("raw_model"):
+            item["model_ids"].add(str(row["raw_model"]))
+        item["sampling_modes"].add(for_row(row))
+    for item in per_platform.values():
+        item["status"] = "succeeded" if item["successful"] else "failed"
+        item["errors"] = [
+            {"message": message, "count": count}
+            for message, count in item["errors"].most_common(5)
+        ]
+        item["model_ids"] = sorted(item["model_ids"])
+        item["model_id"] = item["model_ids"][0] if len(item["model_ids"]) == 1 else None
+        item["sampling_modes"] = sorted(item["sampling_modes"])
+        item["sampling_mode"] = item["sampling_modes"][0] if len(item["sampling_modes"]) == 1 else None
+    skipped = []
+    for code in requested:
+        if code in per_platform:
+            continue
+        skipped.append({
+            "engine_code": code,
+            "reason": "missing_worker_funding" if code not in funded else "no_successful_samples",
+        })
+        per_platform[code] = {
+            "requested": True,
+            "successful": 0,
+            "failed": 0,
+            "questions": {},
+            "errors": [],
+            "model_ids": [],
+            "model_id": None,
+            "sampling_modes": [],
+            "sampling_mode": None,
+            "engine_name": code,
+            "status": "skipped",
+        }
+    successful = sum(int(item.get("successful") or 0) for item in per_platform.values())
+    failed = sum(int(item.get("failed") or 0) for item in per_platform.values())
+    receipt = {
+        "schema_version": "1.0",
+        "job_id": job_id,
+        "run_id": run_id,
+        "source_revision": config.source_revision(),
+        "question_set_version": _question_version(metrics),
+        "requested_platforms": requested,
+        "requested_question_ids": requested_questions,
+        "limit": limit,
+        "repeat": int(repeat or 1),
+        "funded_platforms": sorted(funded),
+        "worker": worker_diagnostic,
+        "successful_samples": successful,
+        "failed_samples": failed,
+        "skipped_platforms": skipped,
+        "status": "succeeded" if successful else ("failed" if failed else "skipped"),
+        "platforms": per_platform,
+        "completed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return receipt
 
 
 def _question_version(metrics):
@@ -385,6 +615,8 @@ def record_sampling(
     job_id=None,
     byok_codes=None,
     pool_codes=None,
+    result=None,
+    funding=None,
 ):
     """写入不含密钥的采样 manifest，并把摘要挂到最新 metrics。"""
     if not (geolib.project_dir(project_slug) / "geo.json").is_file():
@@ -446,6 +678,17 @@ def record_sampling(
         "repeat": repeat,
         "platforms": platforms,
     }
+    receipt = build_sampling_receipt(
+        project_slug,
+        result=result,
+        requested_platforms=requested,
+        question_ids=selected_questions,
+        limit=limit,
+        repeat=repeat,
+        job_id=job_id,
+        funding=funding or {"keys": dict.fromkeys(byok), "pool_codes": pool},
+    )
+    manifest["sampling_receipt"] = receipt
     directory = geolib.project_dir(project_slug) / "sampling-manifests"
     directory.mkdir(parents=True, exist_ok=True)
     suffix = str(job_id or datetime.now(timezone.utc).strftime("%H%M%S%f"))
@@ -462,5 +705,6 @@ def record_sampling(
         metrics["provenance"] = manifest
         metrics["question_set_version"] = qset["version"]
         metrics["sample_summary"] = _sample_summary(project_slug)
+        metrics["sampling_receipt"] = receipt
         geolib.write_json(metrics_files[-1], metrics)
     return manifest

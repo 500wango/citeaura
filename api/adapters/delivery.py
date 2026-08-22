@@ -767,7 +767,9 @@ def _insights_markdown(insights, platform_labels=None):
         "They prioritize follow-up work; they do not claim a ranking or forecast an outcome.",
         "",
         f"- Prompt Explorer: {prompt.get('measured_count', 0)} of {prompt.get('total_count', 0)} questions have valid samples; "
-        f"minimum per-question sample target: {prompt.get('minimum_samples', 3)}.",
+        f"minimum per-provider/mode sample target: {prompt.get('minimum_samples', 3)}.",
+        f"- Cohort evidence: {prompt.get('sufficient_count', 0)} of {prompt.get('total_count', 0)} questions meet the "
+        f"minimum in every observed provider/mode cohort; missing cohort samples remain blocked.",
         f"- Competitive heatmap: {heatmap.get('sample_count', 0)} valid samples across "
         f"{len(heatmap.get('cohorts') or [])} separate sampling cohorts.",
         f"- Takeover candidates: {len(alerts)}; an alert requires at least five competitor hits "
@@ -1189,6 +1191,41 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
                 f"| {_format_rate(item.get('mention_rate'))} | {_format_rate(item.get('top3_rate'))} "
                 f"| {_format_rate(item.get('own_domain_cite_rate'))} |"
             )
+        lines.append("")
+    receipt = (metrics or {}).get("sampling_receipt") or {}
+    if receipt:
+        lines += [
+            "### Worker sampling receipt",
+            "",
+            "This receipt records the asynchronous worker execution without exposing credentials.",
+            "",
+            f"- Status: **{_markdown_cell(receipt.get('status') or 'Not recorded')}**",
+            f"- Successful samples: **{receipt.get('successful_samples', 0)}**; failed: **{receipt.get('failed_samples', 0)}**",
+            f"- Requested platforms: **{', '.join(str(item) for item in receipt.get('requested_platforms') or []) or 'Not recorded'}**",
+            f"- Skipped platforms: **{', '.join(str(item.get('engine_code')) for item in receipt.get('skipped_platforms') or []) or 'None recorded'}**",
+        ]
+        worker = receipt.get("worker") or {}
+        if worker.get("runtime_env_present"):
+            missing_env = [
+                name for name, present in worker["runtime_env_present"].items() if not present
+            ]
+            lines.append(
+                f"- Worker runtime environment: **{'all injected variables present' if not missing_env else 'missing ' + ', '.join(missing_env)}**"
+            )
+        receipt_platforms = receipt.get("platforms") or {}
+        if receipt_platforms:
+            lines += [
+                "",
+                "| Worker platform | Model | Sampling mode | Status | Successful | Failed |",
+                "|---|---|---|---|---:|---:|",
+            ]
+            for code, item in sorted(receipt_platforms.items()):
+                modes = ", ".join(str(value) for value in item.get("sampling_modes") or []) or "Not recorded"
+                model = item.get("model_id") or ", ".join(str(value) for value in item.get("model_ids") or []) or "Not recorded"
+                lines.append(
+                    f"| {_markdown_cell(code)} | {_markdown_cell(model)} | {_markdown_cell(modes)} "
+                    f"| {_markdown_cell(item.get('status') or 'Not recorded')} | {item.get('successful', 0)} | {item.get('failed', 0)} |"
+                )
         lines.append("")
     lines += _insights_markdown(insights, display_names)
     return "\n".join(lines)
@@ -2840,7 +2877,8 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         "",
         f"- Pack type: {pack_kind}",
         f"- Pack status: {pack_status}",
-        f"- Visibility ready: {'yes' if visibility_ready else 'no'}",
+        f"- Measurement baseline ready: {'yes' if visibility_ready else 'no'}",
+        f"- Visibility claims: {'representative baseline available' if visibility_ready else 'limited or unmeasured; do not generalize'}",
         f"- Official website: {site}",
         f"- Delivery date: {delivery_date}",
         f"- Source revision: {source_revision}",
@@ -2980,7 +3018,13 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
     tickets.sort(key=lambda ticket: (ticket["priority"], ticket["id"]))
 
     sample_rows = _current_sample_rows(project_directory, config)
-    insights = product_insights.build(project_slug, sample_rows, config, blueprint)
+    insights = product_insights.build(
+        project_slug,
+        sample_rows,
+        config,
+        blueprint,
+        expected_cohorts=((metrics or {}).get("provenance") or {}).get("platforms") or [],
+    )
     insights["readiness"] = report_quality.assess(project_slug, has_sampling_access=True).get("readiness") or {}
 
     audit_markdown = _audit_markdown(

@@ -557,6 +557,7 @@ def _product_report(project_slug, metrics):
         rows,
         config,
         geolib.read_json(project_directory / "blueprint.json", None),
+        expected_cohorts=((metrics or {}).get("provenance") or {}).get("platforms") or [],
     )
 
     engines = []
@@ -1088,11 +1089,14 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
             detail["questions"] = cfg.get("questions", [])
             detail["competitor_discovery"] = _competitor_discovery_payload(cfg)
             _, current_rows = _current_sample_rows(project.slug, cfg)
+            metrics_path = _latest_file(geolib.project_dir(project.slug) / "metrics", "*.json")
+            latest_metrics = geolib.read_json(metrics_path, {}) if metrics_path else {}
             detail["insights"] = product_insights.build(
                 project.slug,
                 current_rows,
                 cfg,
                 detail.get("blueprint"),
+                expected_cohorts=((latest_metrics.get("provenance") or {}).get("platforms") or []),
             )
             detail["report_quality"] = report_quality.assess(project.slug, _has_sampling_access(db, tenant, project))
     except GeoEngineError:
@@ -1402,36 +1406,78 @@ def sample_project_gaps(
     with with_tenant_read_context(tenant, project.slug):
         config_data = workspace.ensure_global_engine_scope(project.slug)
         _, rows = _current_sample_rows(project.slug, config_data)
-        insights = product_insights.build(
-            project.slug,
-            rows,
-            config_data,
-            geolib.read_json(geolib.project_dir(project.slug) / "blueprint.json", None),
-        )
+    evidence = measurement.question_cohort_evidence(
+        rows, config_data, measurement.MIN_QUESTION_SAMPLES,
+    )
     measured = {
         str(item.get("id")): int(item.get("samples") or 0)
-        for item in (insights.get("prompt_explorer", {}).get("items") or [])
+        for item in evidence.get("items") or []
         if isinstance(item, dict) and item.get("id")
     }
     requested = [str(value).strip() for value in (payload.question_ids or []) if str(value).strip()]
     question_ids = requested or [
-        str(question.get("id"))
-        for question in config_data.get("questions") or []
-        if isinstance(question, dict)
-        and question.get("id")
-        and measured.get(str(question.get("id")), 0) < product_insights.MIN_QUESTION_SAMPLES
+        str(item.get("id"))
+        for item in evidence.get("gaps") or []
+        if isinstance(item, dict) and item.get("id")
     ]
     question_ids = list(dict.fromkeys(question_ids))
     if not question_ids:
-        return {"status": "no_gaps", "project_id": project.id, "question_ids": [], "estimate": None}
-    targeted = payload.model_copy(update={"question_ids": question_ids, "repeat": max(1, payload.repeat)})
+        return {
+            "status": "no_gaps", "project_id": project.id, "question_ids": [],
+            "estimate": None, "cohort_gaps": [],
+        }
+    targeted = payload.model_copy(update={
+        "question_ids": question_ids,
+        # sample.run replaces the targeted question/platform rows; using the
+        # full minimum gives every selected cohort a deterministic denominator.
+        "repeat": max(measurement.MIN_QUESTION_SAMPLES, payload.repeat),
+    })
+    estimate = _validated_sample_estimate(db, tenant, project, targeted)
+    if not targeted.platforms:
+        funded = [
+            item["engine_code"] for item in estimate.get("platforms") or []
+            if item.get("source") in ("byok", "platform_pool") and item.get("calls")
+        ]
+        if funded:
+            targeted = targeted.model_copy(update={"platforms": funded})
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "sampling_platform_unavailable",
+                    "message": "No funded API platform can fill the requested cohort gaps",
+                    "estimate": estimate,
+                },
+            )
+    expected_cohorts = [
+        item for item in estimate.get("platforms") or []
+        if item.get("source") in ("byok", "platform_pool") and item.get("calls")
+    ]
+    evidence = measurement.question_cohort_evidence(
+        rows, config_data, measurement.MIN_QUESTION_SAMPLES,
+        expected_cohorts=expected_cohorts,
+    )
+    cohort_gaps = [
+        {
+            "question_id": item.get("id"),
+            "samples": item.get("samples", 0),
+            "required": item.get("required", measurement.MIN_QUESTION_SAMPLES),
+            "missing_samples": item.get("missing_samples", measurement.MIN_QUESTION_SAMPLES),
+            "cohorts": item.get("cohorts") or [],
+        }
+        for item in evidence.get("gaps") or []
+        if item.get("id") in question_ids
+    ]
     result = sample_project(project_id, targeted, current_user, db)
     if isinstance(result, dict):
         result["gap_fill"] = {
             "question_ids": question_ids,
-            "minimum_samples": product_insights.MIN_QUESTION_SAMPLES,
+            "minimum_samples": measurement.MIN_QUESTION_SAMPLES,
             "previous_samples": {qid: measured.get(qid, 0) for qid in question_ids},
+            "cohort_gaps": cohort_gaps,
+            "target_platforms": targeted.platforms,
         }
+        result["estimate"] = result.get("estimate") or estimate
     return result
 
 
@@ -1632,6 +1678,7 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
         "provenance": metrics.get("provenance") if metrics else None,
         "question_set_version": metrics.get("question_set_version") if metrics else None,
         "sample_summary": metrics.get("sample_summary") if metrics else None,
+        "sampling_receipt": metrics.get("sampling_receipt") if metrics else None,
         "measurement_quality": measurement_quality,
         "readiness": readiness,
         "provider_observability": provider_observability,

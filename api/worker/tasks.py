@@ -474,6 +474,13 @@ def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_p
         diagnostic["runtime_env_present"] = {
             name: bool(os.environ.get(name)) for name in diagnostic["injected_env_names"]
         }
+        funding["_worker_diagnostic"] = {
+            "source_revision": diagnostic["source_revision"],
+            "database_target_fingerprint": diagnostic["database_target_fingerprint"],
+            "funded_engine_codes": diagnostic["funded_engine_codes"],
+            "injected_env_names": diagnostic["injected_env_names"],
+            "runtime_env_present": diagnostic["runtime_env_present"],
+        }
         logger.info(
             "Worker funding runtime environment present source_revision=%s "
             "database_target_fingerprint=%s runtime_env_present=%s",
@@ -815,7 +822,7 @@ def task_bootstrap(
         with _funded_engine_context(
             tenant_id, project_slug, job_action, job_id=job_id,
             allow_pool=job_action in PLATFORM_FUNDED_ACTIONS,
-        ):
+        ) as worker_funding:
             with global_scope.normalize_generated_outputs(project_slug):
                 with preserve_manual_tickets(project_slug):
                     with resilient_crawl_evidence(project_slug):
@@ -830,6 +837,7 @@ def task_bootstrap(
                 funding = _engine_funding(
                     tenant_id, project_slug, allow_pool=job_action in PLATFORM_FUNDED_ACTIONS,
                 )
+                latest_metrics = _latest_metrics(project_slug)
                 measurement.record_sampling(
                     project_slug,
                     source="api",
@@ -839,6 +847,8 @@ def task_bootstrap(
                     job_id=job_id,
                     byok_codes=funding.get("keys", {}).keys(),
                     pool_codes=funding.get("pool_codes", ()),
+                    result=latest_metrics,
+                    funding=worker_funding,
                 )
             _sync_claim_verification(project_slug)
             delivery_error = _safe_delivery_contract(project_slug)
@@ -894,6 +904,8 @@ def task_sample(
                 job_id=job_id,
                 byok_codes=funding.get("keys", {}).keys(),
                 pool_codes=funding.get("pool_codes", ()),
+                result=result,
+                funding=worker_funding or funding,
             )
             global_scope.normalize_project(project_slug)
             update("finalizing", 90)
@@ -912,7 +924,9 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
             return {"status": "ignored", "reason": "job_not_queued"}
         update = update or (lambda *args: None)
         update("crawl", 15)
-        with _funded_engine_context(tenant_id, project_slug, "cycle", job_id=job_id, allow_pool=True):
+        with _funded_engine_context(
+            tenant_id, project_slug, "cycle", job_id=job_id, allow_pool=True,
+        ) as worker_funding:
             global_scope.normalize_project(project_slug)
             with site_signals.semantic_site_signals(project_slug):
                 with global_scope.normalize_generated_outputs(project_slug):
@@ -921,12 +935,15 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
                 _latest_metrics(project_slug), project_slug, job_id=job_id, started_at=started_at,
             )
             funding = _engine_funding(tenant_id, project_slug, allow_pool=True)
+            latest_metrics = _latest_metrics(project_slug)
             measurement.record_sampling(
                 project_slug,
                 source="api",
                 job_id=job_id,
                 byok_codes=funding.get("keys", {}).keys(),
                 pool_codes=funding.get("pool_codes", ()),
+                result=latest_metrics,
+                funding=worker_funding,
             )
             update("finalizing", 90)
             return {"status": "done", "project_slug": project_slug}
@@ -1142,6 +1159,8 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                     job_id=job_id,
                     byok_codes=funding.get("keys", {}).keys(),
                     pool_codes=funding.get("pool_codes", ()),
+                    result=result if isinstance(result, dict) else _latest_metrics(project_slug),
+                    funding=worker_funding,
                 )
                 if action == "sample":
                     global_scope.normalize_project(project_slug)

@@ -158,7 +158,7 @@ export default {
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-3);">
             ${[
               ['Audit', readiness.audit?.label || 'Not measured'],
-              ['Measurement', readiness.measurement?.label || quality.measurement_quality?.confidence?.label || 'No baseline'],
+              ['Measurement baseline', readiness.measurement?.label || quality.measurement_quality?.confidence?.label || 'No baseline'],
               ['Questions', questionReadiness.label || 'Not measured'],
               ['Attribution', attributionReadiness.label || 'No comparable period'],
             ].map(([label, value]) => `<div style="padding:var(--sp-3);border:1px solid var(--line);background:var(--page);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${label}</span><strong style="display:block;margin-top:4px;font-size:var(--fs-2);">${escapeHtml(value)}</strong></div>`).join('')}

@@ -8,7 +8,7 @@ from api.adapters.engine import geolib
 
 
 MIN_ALERT_SAMPLES = 5
-MIN_QUESTION_SAMPLES = 3
+MIN_QUESTION_SAMPLES = measurement.MIN_QUESTION_SAMPLES
 MAX_CAMPAIGN_PROPOSALS = 12
 
 
@@ -79,7 +79,7 @@ def _question_rows(rows):
     return by_question
 
 
-def _prompt_explorer(project_slug, rows, blueprint, config):
+def _prompt_explorer(project_slug, rows, blueprint, config, expected_cohorts=None):
     import analytics
     import geolib
 
@@ -87,10 +87,21 @@ def _prompt_explorer(project_slug, rows, blueprint, config):
     expansion = geolib.read_json(geolib.project_dir(project_slug) / "expand.json", {}) or {}
     demand = expansion.get("q_demand") or {}
     question_rows = _question_rows(rows)
+    evidence = measurement.question_cohort_evidence(
+        rows, config, MIN_QUESTION_SAMPLES, expected_cohorts=expected_cohorts,
+    )
+    evidence_by_id = {item["id"]: item for item in evidence["items"]}
     items = []
     for item in questions:
         qid = item.get("id")
-        samples = int(item.get("samples") or 0)
+        cohort_evidence = evidence_by_id.get(str(qid)) or {
+            "samples": int(item.get("samples") or 0),
+            "required": MIN_QUESTION_SAMPLES,
+            "missing_samples": MIN_QUESTION_SAMPLES,
+            "sufficient": False,
+            "cohorts": [],
+        }
+        samples = int(cohort_evidence.get("samples") or 0)
         mention = item.get("mention")
         diagnosis = item.get("diagnosis") or {}
         signal = demand.get(qid) if isinstance(demand, dict) else None
@@ -105,8 +116,11 @@ def _prompt_explorer(project_slug, rows, blueprint, config):
         reasons = []
         if item.get("brand_probe"):
             reasons.append("Brand-named probe; keep separate from unprompted opportunity scoring")
-        elif samples < MIN_QUESTION_SAMPLES:
-            reasons.append(f"Only {samples} valid samples; collect at least {MIN_QUESTION_SAMPLES}")
+        elif not cohort_evidence.get("sufficient"):
+            reasons.append(
+                f"Evidence is incomplete across provider and sampling cohorts; "
+                f"collect {int(cohort_evidence.get('missing_samples') or MIN_QUESTION_SAMPLES)} more sample(s)"
+            )
         elif mention == 0:
             reasons.append("Brand absent in the latest unprompted answers")
         elif mention is not None and mention < 0.5:
@@ -119,14 +133,14 @@ def _prompt_explorer(project_slug, rows, blueprint, config):
             reasons.append("Search expansion found a new demand signal")
 
         score = None
-        if not item.get("brand_probe") and samples >= MIN_QUESTION_SAMPLES:
+        if not item.get("brand_probe") and cohort_evidence.get("sufficient"):
             competitor_rate = rival_rate
             gap = 1 - float(mention or 0)
             content_gap = 1 if item.get("content") != "ready" else 0
             score = round(100 * (0.55 * gap + 0.25 * competitor_rate + 0.20 * content_gap))
         if item.get("brand_probe"):
             priority = "probe"
-        elif samples < MIN_QUESTION_SAMPLES:
+        elif not cohort_evidence.get("sufficient"):
             priority = "needs_sampling"
         elif score >= 60:
             priority = "high"
@@ -138,6 +152,7 @@ def _prompt_explorer(project_slug, rows, blueprint, config):
             **item,
             "opportunity_score": score,
             "priority": priority,
+            "cohort_evidence": cohort_evidence,
             "demand": {
                 "terms": signal.get("terms") or [],
                 "roots": signal.get("roots") or [],
@@ -158,6 +173,8 @@ def _prompt_explorer(project_slug, rows, blueprint, config):
         "measured_count": sum(1 for item in items if item.get("samples")),
         "total_count": len(items),
         "minimum_samples": MIN_QUESTION_SAMPLES,
+        "cohorts": evidence.get("cohorts") or [],
+        "sufficient_count": evidence.get("sufficient", 0),
     }
 
 
@@ -370,7 +387,8 @@ def _campaign_proposals(project_slug, prompt, heatmap, alerts, blueprint):
         related_assets = _question_assets(assets, question_id)
         related_tickets = _question_tasks(tasks, question_id)
         content_plan = content_by_question.get(question_id) or {}
-        insufficient = int(item.get("samples") or 0) < MIN_QUESTION_SAMPLES
+        cohort_evidence = item.get("cohort_evidence") or {}
+        insufficient = not bool(cohort_evidence.get("sufficient"))
         asset_review = any(asset.get("status") == "review_required" for asset in related_assets)
         if insufficient or facts["status"] == "missing":
             status = "blocked"
@@ -397,7 +415,12 @@ def _campaign_proposals(project_slug, prompt, heatmap, alerts, blueprint):
             objective = "Create or improve a fact-grounded asset that directly answers this measured prompt gap."
 
         if insufficient:
-            next_step = {"label": "Collect comparable samples", "route": "#/engines"}
+            next_step = {
+                "label": "Collect comparable samples",
+                "route": "#/engines",
+                "action": "fill_question_gap",
+                "question_ids": [question_id],
+            }
         elif facts["status"] == "missing":
             next_step = {"label": "Create the brand fact library", "route": "#/facts"}
         elif not facts["approved"]:
@@ -419,6 +442,7 @@ def _campaign_proposals(project_slug, prompt, heatmap, alerts, blueprint):
             "samples": item.get("samples") or 0,
             "mention_rate": item.get("mention"),
             "mention_interval": item.get("mention_interval"),
+            "cohort_evidence": cohort_evidence,
             "reasons": item.get("reasons") or [],
             "scope": "question_aggregate_for_prioritization_only",
         }]
@@ -464,6 +488,7 @@ def _campaign_proposals(project_slug, prompt, heatmap, alerts, blueprint):
                     "actual": int(item.get("samples") or 0),
                     "met": not insufficient,
                 },
+                "cohort_evidence": cohort_evidence,
                 "brand_facts": facts,
                 "asset_review_required": asset_review,
                 "human_approval_required": True,
@@ -476,6 +501,7 @@ def _campaign_proposals(project_slug, prompt, heatmap, alerts, blueprint):
                     "samples": int(item.get("samples") or 0),
                     "minimum": MIN_QUESTION_SAMPLES,
                     "interval": item.get("mention_interval"),
+                    "cohort_evidence": cohort_evidence,
                 },
                 "ticket": {
                     "status": "linked" if related_tickets else "missing",
@@ -521,9 +547,11 @@ def _campaign_proposals(project_slug, prompt, heatmap, alerts, blueprint):
     }
 
 
-def build(project_slug, rows, config, blueprint=None):
+def build(project_slug, rows, config, blueprint=None, expected_cohorts=None):
     """返回不改变管线产物的产品洞察；没有样本时保留可渲染的空结构。"""
-    prompt = _prompt_explorer(project_slug, rows, blueprint, config)
+    prompt = _prompt_explorer(
+        project_slug, rows, blueprint, config, expected_cohorts=expected_cohorts,
+    )
     heatmap, alerts = _competitor_heatmap(config, rows)
     return {
         "prompt_explorer": prompt,

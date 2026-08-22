@@ -67,6 +67,7 @@ export default {
     const questionReadiness = readiness.question || {};
     const questionGaps = Array.isArray(questionReadiness.gaps) ? questionReadiness.gaps : [];
     const providerObservability = enginesData?.provider_observability?.platforms || {};
+    const samplingReceipt = enginesData?.sampling_receipt || null;
     const limitations = confidence.limitations || mq.limitations || [];
     const trend = mq.trend || {};
     const attribution = mq.attribution || {};
@@ -148,7 +149,7 @@ export default {
             </button>
             ${questionGaps.length ? `<button type="button" id="btn-fill-question-gaps" class="btn btn-secondary btn-sm">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-              <span>Fill ${questionGaps.length} question gap${questionGaps.length === 1 ? '' : 's'}</span>
+              <span>Fill ${questionGaps.length} cohort gap${questionGaps.length === 1 ? '' : 's'}</span>
             </button>` : ''}
           </div>
         </div>
@@ -166,12 +167,27 @@ export default {
               <strong style="display:block;margin-bottom:6px;">Evidence readiness</strong>
               <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">
                 ${escapeHtml(questionReadiness.label || 'Question-level evidence is not measured yet')}
-                ${questionReadiness.total ? ` · ${questionReadiness.sufficient || 0}/${questionReadiness.total} questions meet the minimum sample target` : ''}
+                ${questionReadiness.total ? ` · ${questionReadiness.sufficient || 0}/${questionReadiness.total} questions meet the minimum in every provider/mode cohort` : ''}
               </p>
             </div>
             ${questionGaps.length ? '<span class="tag tag-warn">Per-question evidence limited</span>' : '<span class="tag pill-good">Question evidence ready</span>'}
           </div>
         </div>
+
+        ${samplingReceipt ? `<div class="card" style="padding:var(--sp-4);border-color:var(--line);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <div>
+              <strong style="display:block;margin-bottom:4px;">Worker sampling receipt</strong>
+              <span style="font-size:var(--fs-2);color:var(--muted);">Asynchronous execution evidence; credentials are never shown.</span>
+            </div>
+            <span class="tag ${samplingReceipt.status === 'succeeded' ? 'pill-good' : 'tag-warn'}">${escapeHtml(samplingReceipt.status || 'Not recorded')}</span>
+          </div>
+          <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-3);">
+            <span class="tag tag-neutral">${Number(samplingReceipt.successful_samples || 0)} successful</span>
+            <span class="tag tag-dim">${Number(samplingReceipt.failed_samples || 0)} failed</span>
+            <span class="tag tag-dim">${Number((samplingReceipt.skipped_platforms || []).length)} skipped platforms</span>
+          </div>
+        </div>` : ''}
 
         <div class="card" style="padding:var(--sp-4);border-color:var(--line);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
