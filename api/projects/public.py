@@ -33,12 +33,15 @@ def download_shared_delivery(token: str, db: Session = Depends(get_db)):
         if not directory.is_dir():
             _error(status.HTTP_404_NOT_FOUND, "delivery_not_found")
         try:
-            directory = delivery.ensure_delivery_contract(project.slug, directory)
+            directory = delivery.validate_existing_delivery_contract(directory)
         except GeoEngineError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"error": "delivery_contract_invalid", "detail": str(exc)},
-            ) from exc
+            try:
+                directory = delivery.ensure_delivery_contract(project.slug, directory)
+            except GeoEngineError as rebuild_exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={"error": "delivery_contract_invalid", "detail": str(rebuild_exc)},
+                ) from rebuild_exc
         asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
         readiness = str(asset_index.get("readiness") or "unknown")
         package_kind = _delivery_package_kind(asset_index, readiness)

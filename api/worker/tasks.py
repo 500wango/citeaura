@@ -202,6 +202,131 @@ def _safe_delivery_contract(project_slug):
         return f"{type(exc).__name__}: {exc}"
 
 
+def _reserve_delivery_gap_sampling(tenant_id, project_slug, job_id, platforms, question_ids, repeat):
+    """为交付前自动补采复用当前交付 Job 的预算预留。"""
+    if job_id is None:
+        return None
+    db = SessionLocal()
+    try:
+        tenant = _tenant_record(db, tenant_id)
+        project = db.query(Project).filter(
+            Project.tenant_id == (tenant.id if tenant is not None else -1),
+            Project.slug == project_slug,
+        ).first() if tenant is not None else None
+        job = db.get(Job, int(job_id))
+        if tenant is None or project is None or job is None:
+            raise RuntimeError("delivery_job_not_found")
+        try:
+            estimate = sampling_control.reserve(
+                db,
+                tenant,
+                project,
+                job,
+                platforms=list(platforms),
+                repeat=int(repeat),
+                question_ids=list(question_ids),
+            )
+        except sampling_control.SamplingBudgetExceeded as exc:
+            raise RuntimeError(f"delivery_sampling_budget_exceeded:{exc.code}") from exc
+        db.commit()
+        return estimate
+    finally:
+        db.close()
+
+
+def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None):
+    """补齐当前 active funded cohort，并在仍缺证据时让交付失败关闭。"""
+    project_directory = geolib.project_dir(project_slug)
+    if not (project_directory / "geo.json").is_file():
+        return None
+    custom_providers = _engine_custom_providers(tenant_id)
+    with _funded_engine_context(
+        tenant_id,
+        project_slug,
+        "sample",
+        job_id=job_id,
+        allow_pool=True,
+    ) as funding:
+        state = measurement.delivery_question_evidence(
+            project_slug,
+            funding=funding,
+            custom_providers=custom_providers,
+        )
+        if not state.get("active_cohorts"):
+            # A diagnostic-only delivery remains valid without API funding.
+            return state
+        if state.get("needs_sampling"):
+            platforms = list(state.get("target_platforms") or [])
+            question_ids = list(state.get("target_question_ids") or [])
+            repeat = measurement.MIN_QUESTION_SAMPLES
+            if job_id is not None:
+                _append_job_event(
+                    job_log_path(tenant_id, project_slug, job_id),
+                    "delivery evidence gap-fill "
+                    + json.dumps({
+                        "platform_count": len(platforms),
+                        "question_count": len(question_ids),
+                        "repeat": repeat,
+                        "cohort_changed": bool(state.get("cohort_changed")),
+                    }, sort_keys=True),
+                )
+            _reserve_delivery_gap_sampling(
+                tenant_id,
+                project_slug,
+                job_id,
+                platforms,
+                question_ids,
+                repeat,
+            )
+            import sample
+
+            result = sample.run(
+                project_slug,
+                platforms=platforms,
+                repeat=repeat,
+                question_ids=question_ids,
+            )
+            _require_sampling_output(result, project_slug, job_id=job_id)
+            measurement.record_sampling(
+                project_slug,
+                source="api",
+                requested_platforms=platforms,
+                question_ids=question_ids,
+                repeat=repeat,
+                job_id=job_id,
+                byok_codes=(funding.get("keys") or {}).keys(),
+                pool_codes=funding.get("pool_codes", ()),
+                result=result,
+                funding=funding,
+            )
+            global_scope.normalize_project(project_slug)
+            state = measurement.delivery_question_evidence(
+                project_slug,
+                funding=funding,
+                custom_providers=custom_providers,
+            )
+            if job_id is not None:
+                _append_job_event(
+                    job_log_path(tenant_id, project_slug, job_id),
+                    "delivery evidence gap-fill complete "
+                    + json.dumps({
+                        "ready": bool(state.get("ready")),
+                        "measured_platform_count": len(state.get("measured_platforms") or []),
+                    }, sort_keys=True),
+                )
+        if not state.get("ready"):
+            evidence = state.get("evidence") or {}
+            missing = sum(
+                int(item.get("missing_samples") or 0)
+                for item in evidence.get("gaps") or []
+            )
+            raise RuntimeError(
+                "delivery_evidence_incomplete:"
+                f"{len(evidence.get('gaps') or [])} question(s), {missing} provider/mode sample(s) missing"
+            )
+        return state
+
+
 def _should_require_sampling_result(action, params):
     if action == "sample":
         return True
@@ -1123,9 +1248,20 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             global_scope.normalize_project(project_slug)
             site_signals.validate_project_signals(project_slug)
+            measurement_scope = _prepare_delivery_measurement(
+                tenant_id,
+                project_slug,
+                job_id=job_id,
+            )
             # The SaaS adapter is the sole owner of the formal delivery path.
             # Keep the engine CLI renderer independent for standalone users.
-            return str(ensure_delivery_contract(project_slug))
+            if measurement_scope is None:
+                return str(ensure_delivery_contract(project_slug))
+            return str(ensure_delivery_contract(
+                project_slug,
+                measurement_scope=measurement_scope,
+                require_question_evidence=bool(measurement_scope.get("active_cohorts")),
+            ))
 
 
 @celery_app.task(name="citeaura.pipeline")

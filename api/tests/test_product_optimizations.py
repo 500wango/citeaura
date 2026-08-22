@@ -98,6 +98,67 @@ def test_question_cohort_evidence_requires_each_provider_mode_cohort():
     assert {cell["engine_code"] for cell in result["items"][0]["cohorts"]} == {"openai", "deepseek"}
 
 
+def test_delivery_evidence_excludes_configured_but_unfunded_providers(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    with with_tenant_context("tenant", "project"):
+        directory = geolib.project_dir("project")
+        geolib.write_json(directory / "geo.json", {
+            "brand": {"name": "Acme", "site": "https://acme.example"},
+            "questions": [{"id": "q001", "text": "What is Acme?", "market": "global"}],
+            "platforms": ["openai", "deepseek", "claude"],
+        })
+        geolib.write_jsonl(directory / "samples" / "run.jsonl", [
+            {
+                "platform": "openai", "platform_name": "OpenAI", "market": "global",
+                "question_id": "q001", "question": "What is Acme?", "ok": True,
+                "search_enabled": False,
+            }
+            for _ in range(measurement.MIN_QUESTION_SAMPLES)
+        ])
+        state = measurement.delivery_question_evidence(
+            "project", funding={"keys": {"openai": "redacted"}, "pool_codes": ()},
+        )
+
+    assert [item["engine_code"] for item in state["active_cohorts"]] == ["openai"]
+    assert state["unfunded_platforms"] == ["claude", "deepseek"]
+    assert state["ready"] is True
+    assert state["needs_sampling"] is False
+
+
+def test_delivery_evidence_starts_new_cohort_when_provider_is_added(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    with with_tenant_context("tenant", "project"):
+        directory = geolib.project_dir("project")
+        geolib.write_json(directory / "geo.json", {
+            "brand": {"name": "Acme", "site": "https://acme.example"},
+            "questions": [{"id": "q001", "text": "What is Acme?", "market": "global"}],
+            "platforms": ["openai", "deepseek"],
+        })
+        rows = []
+        for platform in ("openai", "deepseek"):
+            rows.extend({
+                "platform": platform, "platform_name": platform.title(), "market": "global",
+                "question_id": "q001", "question": "What is Acme?", "ok": True,
+                "search_enabled": False,
+            } for _ in range(measurement.MIN_QUESTION_SAMPLES))
+        geolib.write_jsonl(directory / "samples" / "run.jsonl", rows)
+        geolib.write_json(directory / "metrics" / "run.json", {
+            "provenance": {"platforms": [{
+                "engine_code": "openai", "source": "byok",
+                "sampling_mode": "API·参数化知识", "model": "gpt-4o-mini",
+            }]},
+        })
+        state = measurement.delivery_question_evidence(
+            "project",
+            funding={"keys": {"openai": "redacted", "deepseek": "redacted"}, "pool_codes": ()},
+        )
+
+    assert state["cohort_changed"] is True
+    assert state["target_platforms"] == ["openai", "deepseek"]
+    assert state["target_question_ids"] == ["q001"]
+    assert state["ready"] is False
+
+
 def test_sampling_receipt_exposes_success_and_missing_worker_funding(tmp_path, monkeypatch):
     monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
     with with_tenant_context("tenant", "project"):

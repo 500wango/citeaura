@@ -1119,6 +1119,61 @@ def test_first_run_pack_is_customer_ready_without_manual_gates(tmp_path, monkeyp
     assert "## What to change" in audit
 
 
+def test_delivery_contract_fails_closed_for_incomplete_funded_question_cohorts(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    _patch_project(monkeypatch, project)
+    scope = {
+        "active_cohorts": [{"engine_code": "openai", "sampling_mode": "API - Parametric knowledge"}],
+        "ready": False,
+        "evidence": {
+            "gaps": [{"id": "q001", "missing_samples": 2}],
+        },
+    }
+
+    with pytest.raises(GeoEngineError, match="delivery_evidence_incomplete"):
+        delivery.ensure_delivery_contract(
+            "example",
+            output,
+            measurement_scope=scope,
+            require_question_evidence=True,
+        )
+
+    assert (output / "01-诊断报告.md").is_file()
+
+
+def test_delivery_manifest_normalizes_measurement_scope_to_english(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    _patch_project(monkeypatch, project)
+    scope = {
+        "active_cohorts": [{
+            "engine_code": "custom_provider",
+            "engine_name": "中文供应商",
+            "model": "中文模型",
+            "sampling_mode": "API·参数化知识",
+            "source": "byok",
+        }],
+        "configured_platforms": ["custom_provider"],
+        "funded_platforms": ["custom_provider"],
+        "measured_platforms": ["custom_provider"],
+        "ready": True,
+        "evidence": {"total": 1, "measured": 1, "sufficient": 1, "gaps": []},
+    }
+
+    delivery.ensure_delivery_contract(
+        "example",
+        output,
+        measurement_scope=scope,
+        require_question_evidence=True,
+    )
+
+    index = json.loads((output / "assets" / "index.json").read_text("utf-8"))
+    cohort = index["measurement_scope"]["active_cohorts"][0]
+    assert cohort["engine_name"] == "Configured provider"
+    assert cohort["model"] == "Configured provider"
+    assert cohort["sampling_mode"] == "API - Parametric knowledge"
+    assert delivery.delivery_language_violations(output) == []
+
+
 def test_delivery_promotes_machine_verified_facts_without_human_checkbox(tmp_path, monkeypatch):
     project, output = seed_delivery_project(tmp_path)
     config = json.loads((project / "geo.json").read_text("utf-8"))

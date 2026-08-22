@@ -131,6 +131,128 @@ def question_cohort_evidence(rows, config, minimum=MIN_QUESTION_SAMPLES, expecte
     }
 
 
+def delivery_question_evidence(project_slug, funding=None, custom_providers=None):
+    """按当前配置和实际 funding 返回交付前的问题级 cohort 状态。
+
+    历史 sampling provenance 会保留当时请求过但未运行的平台。交付资格不能
+    把这些 skipped 平台继续算入当前分母，因此这里仅把当前配置中有 funding
+    的 provider 作为 active measurement cohort。
+    """
+    directory = geolib.project_dir(project_slug)
+    config = geolib.load_config(project_slug) if (directory / "geo.json").is_file() else {}
+    config = config if isinstance(config, dict) else {}
+    import sample
+
+    funding = funding if isinstance(funding, dict) else {}
+    funded = {
+        str(code).strip().lower()
+        for code in (set(funding.get("keys") or {}) | set(funding.get("pool_codes") or ()))
+        if str(code).strip()
+    }
+    custom_by_code = {
+        str(item.get("code")): item
+        for item in (custom_providers or ())
+        if isinstance(item, dict) and item.get("code")
+    }
+    configured = list(dict.fromkeys(
+        str(code).strip().lower()
+        for code in (config.get("platforms") or [])
+        if str(code).strip()
+    ))
+    # The worker synchronizes newly funded global/custom providers into geo.json
+    # before this helper runs. Do not infer activity from every tenant key: a
+    # saved domestic or unused key must not silently become a global cohort.
+    active_codes = configured
+    expected = []
+    for code in active_codes:
+        if code not in funded:
+            continue
+        provider = sample.PROVIDERS.get(code) or custom_by_code.get(code)
+        if not isinstance(provider, dict):
+            continue
+        expected.append({
+            "engine_code": code,
+            "engine_name": provider.get("name") or code,
+            "model": provider.get("model_id") or provider.get("model"),
+            "sampling_mode": _mode(provider),
+            "source": "platform_pool" if code in set(funding.get("pool_codes") or ()) else "byok",
+        })
+
+    config_questions = {
+        str(item.get("id")): item for item in (config.get("questions") or [])
+        if isinstance(item, dict) and item.get("id")
+    }
+    sample_files = sorted((directory / "samples").glob("*.jsonl")) if (directory / "samples").exists() else []
+    rows = []
+    if sample_files:
+        rows = [
+            row for row in geolib.read_jsonl(sample_files[-1])
+            if isinstance(row, dict)
+            and row.get("ok")
+            and is_global_sample(row)
+            and brand_identity.is_current_sample(row, config)
+        ]
+    observed_modes = {}
+    for row in rows:
+        platform = str(row.get("platform") or "").strip()
+        if platform:
+            observed_modes.setdefault(platform, Counter())[for_row(row)] += 1
+    for item in expected:
+        modes = observed_modes.get(item["engine_code"])
+        if modes:
+            # Provider configuration advertises the preferred mode, while the
+            # receipt must use the mode actually returned by this run.
+            item["sampling_mode"] = modes.most_common(1)[0][0]
+    evidence = question_cohort_evidence(
+        rows,
+        config,
+        MIN_QUESTION_SAMPLES,
+        expected_cohorts=expected,
+    )
+    metrics_files = sorted((directory / "metrics").glob("*.json")) if (directory / "metrics").exists() else []
+    latest_metrics = geolib.read_json(metrics_files[-1], {}) if metrics_files else {}
+    previous_platforms = {
+        str(item.get("engine_code")): (
+            _normalize_mode(item.get("sampling_mode")),
+            item.get("model"),
+        )
+        for item in ((latest_metrics or {}).get("provenance") or {}).get("platforms") or []
+        if isinstance(item, dict)
+        and item.get("engine_code")
+        and item.get("source") in ("byok", "platform_pool")
+    }
+    current_platforms = {
+        str(item["engine_code"]): (_normalize_mode(item.get("sampling_mode")), item.get("model"))
+        for item in expected
+    }
+    cohort_changed = bool(previous_platforms and previous_platforms != current_platforms)
+    gaps = evidence.get("gaps") or []
+    target_question_ids = list(config_questions)
+    if not cohort_changed:
+        target_question_ids = [str(item.get("id")) for item in gaps if item.get("id")]
+    measured_platforms = sorted({
+        str(cell.get("engine_code"))
+        for item in evidence.get("items") or []
+        for cell in item.get("cohorts") or []
+        if int(cell.get("samples") or 0) > 0
+    })
+    configured_unfunded = sorted(set(configured) - funded)
+    return {
+        "question_set_version": question_set_version(config),
+        "configured_platforms": configured,
+        "funded_platforms": sorted(funded),
+        "active_cohorts": expected,
+        "measured_platforms": measured_platforms,
+        "unfunded_platforms": configured_unfunded,
+        "cohort_changed": cohort_changed,
+        "needs_sampling": bool(expected and target_question_ids),
+        "target_platforms": [item["engine_code"] for item in expected],
+        "target_question_ids": target_question_ids,
+        "ready": bool(expected) and not gaps and not cohort_changed,
+        "evidence": evidence,
+    }
+
+
 def _mode(provider):
     return for_provider(provider)
 

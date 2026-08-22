@@ -2047,14 +2047,17 @@ def download_delivery(
         if not directory.is_dir():
             _error(status.HTTP_404_NOT_FOUND, "delivery_not_found")
         try:
-            # Every customer download is rebuilt through the current SaaS
-            # contract. Legacy packages are never served as last-known-good.
-            directory = delivery.ensure_delivery_contract(project.slug, directory)
+            # Published formal packages are immutable snapshots. Legacy or
+            # incomplete directories are rebuilt through the SaaS contract.
+            directory = delivery.validate_existing_delivery_contract(directory)
         except GeoEngineError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"error": "delivery_contract_invalid", "detail": str(exc)},
-            ) from exc
+            try:
+                directory = delivery.ensure_delivery_contract(project.slug, directory)
+            except GeoEngineError as rebuild_exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={"error": "delivery_contract_invalid", "detail": str(rebuild_exc)},
+                ) from rebuild_exc
         asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
         readiness = str(asset_index.get("readiness") or "unknown")
         package_kind = _delivery_package_kind(asset_index, readiness)
@@ -2120,12 +2123,15 @@ def send_delivery_pack(
         if not directory.is_dir():
             _error(status.HTTP_404_NOT_FOUND, "delivery_not_found")
         try:
-            directory = delivery.ensure_delivery_contract(project.slug, directory)
+            directory = delivery.validate_existing_delivery_contract(directory)
         except GeoEngineError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"error": "delivery_contract_invalid", "detail": str(exc)},
-            ) from exc
+            try:
+                directory = delivery.ensure_delivery_contract(project.slug, directory)
+            except GeoEngineError as rebuild_exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={"error": "delivery_contract_invalid", "detail": str(rebuild_exc)},
+                ) from rebuild_exc
         asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
     if not (asset_index.get("diagnostic_ready") or asset_index.get("readiness") == "customer_ready"):
         _error(status.HTTP_409_CONFLICT, "delivery_not_sendable")

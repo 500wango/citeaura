@@ -273,6 +273,25 @@ def validate_delivery_language(delivery_directory):
     return Path(delivery_directory)
 
 
+def validate_existing_delivery_contract(delivery_directory):
+    """Validate an already published package without rewriting its snapshot."""
+    directory = Path(delivery_directory)
+    required = [
+        *(f"{number}-{name}.md" for number, name in REQUIRED_DOCUMENTS.items()),
+        *(f"{number}-{name}.html" for number, name in REQUIRED_DOCUMENTS.items()),
+        "03-Ticket-Log.csv",
+        "assets/index.json",
+    ]
+    missing = [name for name in required if not (directory / name).is_file()]
+    if missing:
+        raise GeoEngineError("delivery package is incomplete: " + ", ".join(missing))
+    asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
+    if (asset_index.get("quality_gate") or {}).get("status") != "passed":
+        raise GeoEngineError("delivery package quality gate is not passed")
+    validate_delivery_language(directory)
+    return directory
+
+
 def _latest_delivery(project_directory):
     directory = project_directory / "delivery"
     deliveries = sorted(
@@ -2748,7 +2767,7 @@ def _classify_pack_readiness(audit, summary, sampling, facts_review):
     }
 
 
-def _write_assets(project_slug, project_directory, directory, config, audit, blueprint):
+def _write_assets(project_slug, project_directory, directory, config, audit, blueprint, measurement_scope=None):
     source = project_directory / "assets"
     destination = directory / "assets"
     destination.mkdir(parents=True, exist_ok=True)
@@ -2825,6 +2844,45 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
         "summary": summary,
         "assets": records,
     }
+    if isinstance(measurement_scope, dict):
+        index["measurement_scope"] = {
+            "question_set_version": measurement_scope.get("question_set_version"),
+            "configured_platforms": list(measurement_scope.get("configured_platforms") or []),
+            "funded_platforms": list(measurement_scope.get("funded_platforms") or []),
+            "active_cohorts": [
+                {
+                    key: (
+                        _insight_mode_name(item.get(key))
+                        if key == "sampling_mode"
+                        else _safe_display(item.get(key), "Configured provider")
+                    )
+                    for key in ("engine_code", "engine_name", "model", "sampling_mode", "source")
+                    if item.get(key) is not None
+                }
+                for item in (measurement_scope.get("active_cohorts") or [])
+                if isinstance(item, dict)
+            ],
+            "measured_platforms": list(measurement_scope.get("measured_platforms") or []),
+            "unfunded_platforms": list(measurement_scope.get("unfunded_platforms") or []),
+            "cohort_changed": bool(measurement_scope.get("cohort_changed")),
+            "question_ready": bool(measurement_scope.get("ready")),
+            "minimum_question_samples": measurement.MIN_QUESTION_SAMPLES,
+            "question_evidence": {
+                "total": int((measurement_scope.get("evidence") or {}).get("total") or 0),
+                "measured": int((measurement_scope.get("evidence") or {}).get("measured") or 0),
+                "sufficient": int((measurement_scope.get("evidence") or {}).get("sufficient") or 0),
+                "gaps": [
+                    {
+                        "question_id": _safe_display(item.get("id"), "Configured question"),
+                        "samples": int(item.get("samples") or 0),
+                        "required": int(item.get("required") or 0),
+                        "missing_samples": int(item.get("missing_samples") or 0),
+                    }
+                    for item in (measurement_scope.get("evidence") or {}).get("gaps") or []
+                    if isinstance(item, dict) and item.get("id")
+                ],
+            },
+        }
     (destination / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", "utf-8")
     return index
 
@@ -2832,6 +2890,9 @@ def _write_assets(project_slug, project_directory, directory, config, audit, blu
 def validate_delivery_quality(directory, audit, tickets, asset_index):
     directory = Path(directory)
     issues = []
+    measurement_scope = asset_index.get("measurement_scope") or {}
+    if measurement_scope.get("active_cohorts") and not measurement_scope.get("question_ready"):
+        issues.append("Measurement cohort evidence is incomplete for the active funded providers")
     required = [
         *(f"{number}-{name}.md" for number, name in REQUIRED_DOCUMENTS.items()),
         *(f"{number}-{name}.html" for number, name in REQUIRED_DOCUMENTS.items()),
@@ -2961,6 +3022,16 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         f"- Action tickets: {len(tickets)}",
         f"- Channel coverage: {coverage.get('channel_covered', 0)}/{coverage.get('channel_total', 0)}",
     ]
+    measurement_scope = asset_index.get("measurement_scope") or {}
+    if measurement_scope:
+        question_evidence = measurement_scope.get("question_evidence") or {}
+        lines += [
+            f"- Active funded provider cohorts: {len(measurement_scope.get('active_cohorts') or [])}",
+            f"- Measured provider cohorts: {len(measurement_scope.get('measured_platforms') or [])}",
+            f"- Question evidence: {question_evidence.get('sufficient', 0)}/{question_evidence.get('total', 0)} questions meet the {measurement_scope.get('minimum_question_samples', measurement.MIN_QUESTION_SAMPLES)}-sample cohort target",
+        ]
+        if measurement_scope.get("unfunded_platforms"):
+            lines.append("- Configured providers without current funding are excluded from measured cohorts")
     if coverage.get("channel_manual"):
         lines.append(f"- Channels requiring manual confirmation: {coverage['channel_manual']}")
     lines += ["", pack_purpose, ""]
@@ -3066,7 +3137,14 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     (directory / "README.md").write_text(readme, "utf-8")
 
 
-def _build_delivery(project_slug, project_directory, directory, delivery_date):
+def _build_delivery(
+    project_slug,
+    project_directory,
+    directory,
+    delivery_date,
+    measurement_scope=None,
+    require_question_evidence=False,
+):
     config, audit, task_data, blueprint, metrics, verification, lint = _load_sources(project_directory)
     name, site = _identity(project_directory, project_slug, config, audit)
     display_audit = audit_presentation.present_audit_data(
@@ -3107,7 +3185,26 @@ def _build_delivery(project_slug, project_directory, directory, delivery_date):
     execution_markdown = _execution_markdown(name, tickets, task_data)
     tickets_markdown = _tickets_markdown(name, tickets)
     verification_markdown = _verification_markdown(name, display_audit, verification, tickets)
-    asset_index = _write_assets(project_slug, project_directory, directory, config, display_audit, blueprint)
+    asset_index = _write_assets(
+        project_slug,
+        project_directory,
+        directory,
+        config,
+        display_audit,
+        blueprint,
+        measurement_scope=measurement_scope,
+    )
+    if require_question_evidence and isinstance(measurement_scope, dict):
+        if measurement_scope.get("active_cohorts") and not measurement_scope.get("ready"):
+            missing = sum(
+                int(item.get("missing_samples") or 0)
+                for item in (measurement_scope.get("evidence") or {}).get("gaps") or []
+            )
+            raise GeoEngineError(
+                "delivery_evidence_incomplete: "
+                f"{len((measurement_scope.get('evidence') or {}).get('gaps') or [])} question(s), "
+                f"{missing} provider/mode sample(s) missing"
+            )
     risk_summary = _risk_summary(lint, asset_index)
     risk_markdown = _risk_markdown(name, lint, asset_index)
     build_map_markdown = _build_map_markdown(name, blueprint)
@@ -3257,7 +3354,13 @@ def ensure_legacy_deliverables_contract(project_slug: str, deliverables_director
     return target
 
 
-def ensure_delivery_contract(project_slug: str, delivery_directory: Path | None = None):
+def ensure_delivery_contract(
+    project_slug: str,
+    delivery_directory: Path | None = None,
+    *,
+    measurement_scope=None,
+    require_question_evidence=False,
+):
     """Rebuild a delivery package and fail closed unless every artifact is English-only."""
     config = global_scope.normalize_project(project_slug)
     from api.adapters import generated_assets
@@ -3278,7 +3381,14 @@ def ensure_delivery_contract(project_slug: str, delivery_directory: Path | None 
         try:
             if backup.exists() and not target.exists():
                 backup.rename(target)
-            _build_delivery(project_slug, project_directory, staging, target.name)
+            _build_delivery(
+                project_slug,
+                project_directory,
+                staging,
+                target.name,
+                measurement_scope=measurement_scope,
+                require_question_evidence=require_question_evidence,
+            )
             shutil.rmtree(backup, ignore_errors=True)
             if target.exists():
                 target.rename(backup)
