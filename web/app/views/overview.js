@@ -77,6 +77,16 @@ export default {
         ['bootstrap', 'autopilot'].includes(job.action) && ['queued', 'running'].includes(job.status)
       )))
     );
+    const diagnosticReady = Boolean(quality.diagnostic_ready || quality.effective_report);
+    const visibilityReady = Boolean(quality.measured_visibility || quality.measurement_baseline_ready);
+    const implementationReady = Boolean(quality.implementation_ready);
+    const firstValue = !diagnosticReady
+      ? { label: 'Diagnostic in progress', detail: 'CiteAura is crawling the site and building the first action plan.', route: activeJob ? 'overview' : (qualityIssues[0]?.route || 'siteaudit'), action: activeJob ? 'View job progress' : (qualityIssues[0]?.action || 'Continue setup') }
+      : !visibilityReady
+        ? { label: 'Diagnostic ready · AI visibility not measured', detail: 'Your technical findings and tickets are ready. Add BYOK or platform funding to measure AI answers.', route: qualityIssues.find((item) => item.code === 'api_key_missing') ? 'engine-settings' : 'engines', action: qualityIssues.find((item) => item.code === 'api_key_missing')?.action || 'Open visibility matrix' }
+        : !implementationReady
+          ? { label: 'Baseline ready · implementation review pending', detail: 'Review the highest-impact tickets and generated assets before deploying changes.', route: 'plan', action: 'Open highest-impact tickets' }
+          : { label: 'Implementation ready · verify the change', detail: 'Run a closed-loop check to capture before/after evidence and prepare the client pack.', route: 'verify', action: 'Start verification' };
 
     const kpiData = [
       { label: t('overview.kpi_mention_rate', {}, 'AI Mention Rate'), value: mentionRate, className: 'num', sub: trendNote },
@@ -137,6 +147,13 @@ export default {
 
         <!-- Key Metrics Bar -->
         ${renderKpis(kpiData)}
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;padding:var(--sp-4);border:1px solid var(--line);border-left:3px solid var(--brand);background:var(--deep);">
+          <div style="display:flex;flex-direction:column;gap:4px;max-width:720px;">
+            <strong style="font-size:var(--fs-3);">${escapeHtml(firstValue.label)}</strong>
+            <span style="color:var(--muted);font-size:var(--fs-2);line-height:1.5;">${escapeHtml(firstValue.detail)}</span>
+          </div>
+          <a href="#/${firstValue.route}" class="btn btn-primary btn-sm">${escapeHtml(firstValue.action)} <span aria-hidden="true">→</span></a>
+        </div>
         ${qualityIssues.length ? `
           <div class="card" style="gap:var(--sp-3);">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${quality.effective_report

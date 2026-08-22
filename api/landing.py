@@ -40,6 +40,13 @@ def serve_contact_page():
     return FileResponse(WEB_ROOT / "contact.html", media_type="text/html; charset=utf-8")
 
 
+@router.get("/sample-report")
+@router.head("/sample-report")
+def serve_sample_report():
+    """返回无需登录的示例诊断报告，帮助访客理解首次交付价值。"""
+    return FileResponse(WEB_ROOT / "sample-report.html", media_type="text/html; charset=utf-8")
+
+
 @router.get("/privacy")
 @router.head("/privacy")
 def serve_privacy_page():

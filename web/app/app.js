@@ -2,7 +2,7 @@
  * CiteAura 
  */
 
-import { auth, projects, onAuthFailure } from './api.js?v=3.4';
+import { auth, projects, onAuthFailure } from './api.js?v=3.5';
 import { t, loadCatalogs, getLocale, setLocale } from './i18n.js';
 import { toast } from './components/toast.js';
 import { setSafeHtml } from './safe-html.js';
@@ -91,11 +91,11 @@ export const TRACKS = [
 /* ----------  ---------- */
 const VIEW_LOADERS = {
   login: () => import('./views/auth-login.js?v=2.11'),
-  register: () => import('./views/auth-register.js?v=2.11'),
+  register: () => import('./views/auth-register.js?v=2.12'),
   'forgot-password': () => import('./views/auth-forgot.js?v=2.5'),
   'reset-password': () => import('./views/auth-reset.js?v=2.5'),
   invite: () => import('./views/auth-invite.js?v=2.5'),
-  onboarding: () => import('./views/onboarding.js?v=2.7'),
+  onboarding: () => import('./views/onboarding.js?v=2.8'),
   overview: () => import('./views/overview.js?v=2.7'),
   engines: () => import('./views/engines.js?v=2.6'),
   channels: () => import('./views/channels.js?v=2.6'),
@@ -105,17 +105,17 @@ const VIEW_LOADERS = {
   blueprint: () => import('./views/blueprint.js?v=1.0'),
   questions: () => import('./views/questions.js?v=2.6'),
   facts: () => import('./views/facts.js?v=2.7'),
-  plan: () => import('./views/plan.js?v=2.5'),
+  plan: () => import('./views/plan.js?v=2.6'),
   workbench: () => import('./views/workbench.js?v=2.6'),
   assets: () => import('./views/assets.js?v=2.7'),
   outreach: () => import('./views/outreach.js?v=2.5'),
   publishing: () => import('./views/publishing.js?v=2.5'),
   verify: () => import('./views/verify.js?v=2.5'),
-  report: () => import('./views/report.js?v=2.6'),
+  report: () => import('./views/report.js?v=2.7'),
   branding: () => import('./views/branding.js?v=2.5'),
   'project-settings': () => import('./views/project-settings.js?v=2.5'),
   'engine-settings': () => import('./views/engine-settings.js?v=2.9'),
-  automation: () => import('./views/automation.js?v=2.5'),
+  automation: () => import('./views/automation.js?v=2.6'),
   team: () => import('./views/team.js?v=2.5'),
   billing: () => import('./views/billing.js?v=2.8'),
   security: () => import('./views/security.js?v=2.5'),

@@ -153,7 +153,7 @@ class Project(Base):
     __table_args__ = (
         UniqueConstraint("tenant_id", "slug", name="uq_projects_tenant_slug"),
         CheckConstraint(
-            "schedule_interval_days IS NULL OR schedule_interval_days IN (7, 14, 30)",
+            "schedule_interval_days IS NULL OR schedule_interval_days IN (1, 7, 14, 30)",
             name="ck_projects_schedule_interval_days",
         ),
         CheckConstraint(

@@ -2,14 +2,14 @@
  *  (Plan & Playbook)
  */
 
-import { projects } from '../api.js?v=3.4';
+import { analytics, projects } from '../api.js?v=3.5';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
 import { escapeHtml } from '../safe-html.js';
-import { workspace } from '../api.js?v=3.4';
+import { workspace } from '../api.js?v=3.5';
 
 function ticketImpact(ticket) {
   const priority = String(ticket.priority || 'P1').toUpperCase();
@@ -203,6 +203,7 @@ export default {
     document.querySelectorAll('.ticket-item, .btn-edit-ticket').forEach((el) => {
       el.addEventListener('click', (e) => {
         const tid = el.getAttribute('data-tid');
+        analytics.track('ticket_opened', { source: 'action_plan' });
         if (tid) showTicketDetailModal(projectId, tid, ctx);
       });
     });

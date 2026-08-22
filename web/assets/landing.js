@@ -1,6 +1,15 @@
 /* CiteAura landing interactions: English-only locale, theme, pricing, and guided workspace preview. */
 fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', headers: { Accept: 'application/json' } }).catch(() => {});
 
+function trackPublicEvent(name, properties) {
+  fetch('/api/v1/events/product', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, properties: properties || {} })
+  }).catch(function () {});
+}
+
 (function () {
   'use strict';
 
@@ -351,6 +360,16 @@ fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', header
     var titleEl = $('.scan-domain-title');
     var submitBtn = $('.hero-scanner-btn');
     var resultBanner = $('#console-result-banner');
+    trackPublicEvent('public_audit_started', { source: 'landing_simulator' });
+    var auditPromise = fetch('/api/v1/public/audit', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://' + domain })
+    }).then(function (response) {
+      if (!response.ok) throw new Error('public_audit_failed');
+      return response.json();
+    }).catch(function () { return null; });
 
     if (resultBanner) resultBanner.classList.add('is-hidden');
     if (titleEl) titleEl.textContent = 'Preparing ' + domain + ' workspace...';
@@ -394,15 +413,18 @@ fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', header
       if (scannerOverlay) scannerOverlay.classList.remove('is-active');
       if (submitBtn) {
         submitBtn.classList.remove('is-loading');
-        submitBtn.textContent = 'Start Workspace Setup →';
+        submitBtn.textContent = 'Run free technical audit →';
       }
 
-      renderAuditResult(domain);
-      if (typeof onComplete === 'function') onComplete({});
+      auditPromise.then(function (audit) {
+        renderAuditResult(domain, audit);
+        trackPublicEvent('landing_cta_clicked', { source: 'landing_simulator', result: audit ? 'audit_ready' : 'preview_only' });
+        if (typeof onComplete === 'function') onComplete(audit || {});
+      });
     }, 1600);
   }
 
-  function renderAuditResult(domain) {
+  function renderAuditResult(domain, audit) {
     var input = $('.hero-scanner-input');
     if (input) input.value = domain;
 
@@ -426,7 +448,14 @@ fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', header
 
     if (banner) {
       if (domainEl) domainEl.textContent = domain;
-      if (gradeEl) gradeEl.textContent = 'Preview ready';
+      var isLiveAudit = audit && audit.kind === 'public_diagnostic_summary';
+      var badge = $('.banner-badge', banner);
+      var titlePrefix = $('#banner-title-prefix');
+      var openLabel = $('#banner-open-app-label');
+      if (badge) badge.textContent = isLiveAudit ? 'Live technical diagnostic · no AI sampling' : 'Preview only · continue in workspace';
+      if (titlePrefix) titlePrefix.textContent = isLiveAudit ? 'Technical diagnostic ready ·' : 'Setup preview loaded';
+      if (gradeEl) gradeEl.textContent = isLiveAudit ? String(audit.score || 0) + '/100' : 'Preview ready';
+      if (openLabel) openLabel.textContent = isLiveAudit ? 'Create workspace →' : 'Open Workspace →';
       if (actionBtn) {
         actionBtn.href = '/app#/onboarding?domain=' + encodeURIComponent(domain);
         actionBtn.addEventListener('click', function () {
@@ -437,6 +466,7 @@ fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', header
         });
       }
       banner.classList.remove('is-hidden');
+      if (isLiveAudit) trackPublicEvent('public_audit_completed', { source: 'landing_simulator' });
     }
   }
 
@@ -469,6 +499,11 @@ fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', header
         runPreview(domain);
       });
     }
+
+    var sampleLink = $('.hero-sample-link');
+    if (sampleLink) sampleLink.addEventListener('click', function () {
+      trackPublicEvent('sample_report_viewed', { source: 'landing' });
+    });
 
     $$('.console-tab-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {

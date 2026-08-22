@@ -103,6 +103,30 @@ def test_project_schedule_can_be_enabled_read_and_disabled(schedule_client):
     assert disabled.json()["schedule"]["next_run_at"] is None
 
 
+def test_daily_schedule_is_supported(schedule_client):
+    client, session_factory = schedule_client
+    tenant_id, headers = _register(client, "daily@example.com")
+    with session_factory() as db:
+        project = Project(
+            tenant_id=tenant_id,
+            slug="daily",
+            url="https://daily.example",
+            market="global",
+            status="ready",
+        )
+        db.add(project)
+        db.commit()
+        project_id = project.id
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/schedule",
+        headers=headers,
+        json={"interval_days": 1},
+    )
+    assert response.status_code == 200
+    assert response.json()["schedule"]["interval_days"] == 1
+
+
 def test_trial_limit_blocks_new_schedule(schedule_client):
     client, session_factory = schedule_client
     tenant_id, headers = _register(client, "limited@example.com")

@@ -19,6 +19,7 @@ def test_landing_page_is_public_and_links_to_application():
     assert "Mention Rate" in response.text
     assert "Citation Rate" in response.text
     assert "View a sample report" in response.text
+    assert 'href="/sample-report"' in response.text
     assert "AI search era" in response.text
     assert "Google Search Console" not in response.text
     assert 'href="/app"' in response.text
@@ -58,6 +59,7 @@ def test_public_verification_pages_support_head_requests():
         "/privacy",
         "/terms",
         "/docs",
+        "/sample-report",
         "/blog",
         "/blog/measure-if-chatgpt-mentions-your-brand",
         "/blog/why-chatgpt-does-not-mention-my-brand",
@@ -68,6 +70,11 @@ def test_public_verification_pages_support_head_requests():
         response = client.head(path)
         assert response.status_code == 200, path
         assert response.headers["content-type"].startswith("text/html"), path
+
+    sample = client.get("/sample-report")
+    assert sample.status_code == 200
+    assert "Example diagnostic pack" in sample.text
+    assert "all domain names, prompts, rates, and ticket outcomes" in sample.text
 
 
 def test_about_and_contact_pages_expose_provenance_and_real_support_channel():

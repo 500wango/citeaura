@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sample GEO Diagnostic Report | CiteAura</title>
+  <meta name="description" content="Explore an example CiteAura GEO diagnostic report with evidence, action tickets, and verification gates.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://citeaura.com/sample-report">
+  <script src="/site-assets/theme-init.js"></script>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/base.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.8">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <style>
+    .sample-page { min-height: 100vh; background: var(--page); color: var(--ink); }
+    .sample-header { border-bottom: 1px solid var(--line); background: color-mix(in oklch, var(--page) 92%, transparent); }
+    .sample-shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+    .sample-nav { min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .sample-brand { color: var(--ink); text-decoration: none; font: 800 20px/1 var(--font-display); }
+    .sample-nav-actions { display: flex; align-items: center; gap: 10px; }
+    .sample-hero { padding: 76px 0 44px; }
+    .sample-kicker { color: var(--brand); font: 700 12px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+    .sample-hero h1 { max-width: 780px; margin: 14px 0 16px; font: 800 clamp(34px, 5vw, 62px)/1.02 var(--font-display); letter-spacing: 0; }
+    .sample-hero p { max-width: 720px; margin: 0; color: var(--muted); font-size: 17px; line-height: 1.7; }
+    .sample-disclosure { margin-top: 24px; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--deep); color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .sample-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 28px 0 48px; }
+    .sample-kpi { padding: 18px; border: 1px solid var(--line); background: var(--surface); }
+    .sample-kpi strong { display: block; font: 800 30px/1 var(--font-mono); }
+    .sample-kpi span { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+    .sample-section { padding: 34px 0; border-top: 1px solid var(--line); }
+    .sample-section h2 { margin: 0 0 8px; font: 700 25px/1.2 var(--font-display); letter-spacing: 0; }
+    .sample-section > p { margin: 0 0 20px; color: var(--muted); line-height: 1.6; }
+    .sample-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); }
+    .sample-table th, .sample-table td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-size: 13px; line-height: 1.5; }
+    .sample-table th { color: var(--muted); font: 700 11px/1.2 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
+    .sample-table tr:last-child td { border-bottom: 0; }
+    .sample-status { display: inline-flex; align-items: center; gap: 6px; color: var(--good); font-weight: 700; }
+    .sample-status::before { width: 7px; height: 7px; border-radius: 50%; background: currentColor; content: ''; }
+    .sample-status.warn { color: var(--warn); }
+    .ticket-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .sample-ticket { padding: 16px; border: 1px solid var(--line); background: var(--surface); }
+    .sample-ticket-head { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font: 700 11px/1.2 var(--font-mono); }
+    .sample-ticket h3 { margin: 10px 0 8px; font-size: 15px; }
+    .sample-ticket p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .sample-cta { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 28px 0 70px; padding: 26px; background: var(--deep); border: 1px solid var(--line); }
+    .sample-cta h2 { margin: 0 0 6px; font-size: 22px; }
+    .sample-cta p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    @media (max-width: 720px) {
+      .sample-shell { width: min(100% - 28px, 1120px); }
+      .sample-nav-actions .btn-secondary { display: none; }
+      .sample-hero { padding-top: 48px; }
+      .sample-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .sample-table { display: block; overflow-x: auto; }
+      .ticket-list { grid-template-columns: 1fr; }
+      .sample-cta { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body class="sample-page">
+  <header class="sample-header">
+    <div class="sample-shell sample-nav">
+      <a class="sample-brand" href="/">CiteAura</a>
+      <div class="sample-nav-actions">
+        <a class="btn btn-secondary btn-sm" href="/">Back to site</a>
+        <a class="btn btn-primary btn-sm" href="/app?auth=register">Run your audit</a>
+      </div>
+    </div>
+  </header>
+  <main class="sample-shell">
+    <section class="sample-hero">
+      <div class="sample-kicker">Example diagnostic pack · Fictional workspace</div>
+      <h1>From an AI answer to an evidence-backed action plan.</h1>
+      <p>This sample shows how CiteAura turns a public-site crawl and a labeled AI baseline into prioritized tickets, acceptance checks, and a client-ready delivery pack.</p>
+      <div class="sample-disclosure"><strong>Example only:</strong> all domain names, prompts, rates, and ticket outcomes on this page are illustrative. A real workspace reports the sampled engines, sampling mode, raw answer replay, and evidence coverage that were actually measured.</div>
+    </section>
+
+    <section aria-label="Example summary">
+      <div class="sample-grid">
+        <div class="sample-kpi"><strong>76</strong><span>Technical audit score · example</span></div>
+        <div class="sample-kpi"><strong>18%</strong><span>AI mention rate · 24 labeled answers</span></div>
+        <div class="sample-kpi"><strong>4</strong><span>High-impact tickets created</span></div>
+        <div class="sample-kpi"><strong>3/4</strong><span>Acceptance checks passed</span></div>
+      </div>
+    </section>
+
+    <section class="sample-section">
+      <h2>1. Evidence scope</h2>
+      <p>The report keeps technical diagnosis separate from visibility measurement, so a customer can see what was checked and what remains unmeasured.</p>
+      <table class="sample-table">
+        <thead><tr><th>Evidence</th><th>Result</th><th>Sampling / source label</th><th>Recommended next step</th></tr></thead>
+        <tbody>
+          <tr><td>Public pages</td><td><span class="sample-status">18 eligible pages</span></td><td>Manual · product surface crawl</td><td>Use page-level findings to scope tickets.</td></tr>
+          <tr><td>AI answers</td><td><span class="sample-status warn">18% mention rate</span></td><td>API · web-grounded retrieval</td><td>Review raw answers and citation gaps before changing copy.</td></tr>
+          <tr><td>Machine files</td><td><span class="sample-status warn">llms.txt missing</span></td><td>Manual · public file check</td><td>Generate and review a machine-readable asset.</td></tr>
+          <tr><td>Competitor prompts</td><td><span class="sample-status warn">2 takeover gaps</span></td><td>API · parametric knowledge</td><td>Confirm competitor facts, then assign a playbook.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="sample-section">
+      <h2>2. Action tickets with acceptance gates</h2>
+      <p>Every recommendation has an owner, an evidence link, and a checker that can reopen the ticket after a regression.</p>
+      <div class="ticket-list">
+        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-014 · P0</span><span>Checker · robots</span></div><h3>Allow answer-engine crawlers on public docs</h3><p>Why: GPTBot and OAI-SearchBot are blocked at root. Acceptance: re-crawl confirms no blocking directive.</p></article>
+        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-021 · P1</span><span>Checker · JSON-LD</span></div><h3>Expose canonical product facts</h3><p>Why: the product page has no structured entity graph. Acceptance: JSON-LD parses and matches approved facts.</p></article>
+        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-025 · P1</span><span>Checker · llms.txt</span></div><h3>Publish a reviewed machine-ingestion file</h3><p>Why: no llms.txt was found. Acceptance: the file is reachable and linked from the delivery manifest.</p></article>
+        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-031 · P2</span><span>Checker · citation</span></div><h3>Close the highest-value citation gap</h3><p>Why: two target prompts cite third-party pages first. Acceptance: a comparable re-sample records the before/after delta.</p></article>
+      </div>
+    </section>
+
+    <section class="sample-section">
+      <h2>3. Delivery and verification</h2>
+      <p>The final pack contains an audit report, execution plan, ticket log, acceptance checklist, draft risks, and build map. The pack is marked diagnostic-ready until implementation evidence is complete.</p>
+      <table class="sample-table">
+        <thead><tr><th>Milestone</th><th>Status</th><th>What the customer receives</th></tr></thead>
+        <tbody>
+          <tr><td>Diagnostic ready</td><td><span class="sample-status">Complete</span></td><td>Scope, findings, provenance, and prioritized actions.</td></tr>
+          <tr><td>Visibility baseline</td><td><span class="sample-status warn">Limited</span></td><td>Comparable samples with explicit engine and mode labels.</td></tr>
+          <tr><td>Implementation ready</td><td><span class="sample-status warn">Review required</span></td><td>Generated assets remain human-reviewed until facts and content are approved.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="sample-cta">
+      <div><h2>See this workflow on your own domain.</h2><p>Start with a free technical diagnostic. Add model keys later for a full AI visibility baseline.</p></div>
+      <a class="btn btn-primary" href="/app?auth=register">Create free workspace <span aria-hidden="true">→</span></a>
+    </section>
+  </main>
+</body>
+</html>

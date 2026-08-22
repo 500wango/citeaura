@@ -126,6 +126,13 @@ export const auth = {
   acceptInvitation: (body) => request('/api/v1/team/invitations/accept', { method: 'POST', body }),
 };
 
+export const analytics = {
+  track: (name, properties = {}) => request('/api/v1/events/product', {
+    method: 'POST',
+    body: { name, properties },
+  }).catch(() => null),
+};
+
 /* ==========================================================================
    Projects 
    ========================================================================== */

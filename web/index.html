@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
   <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.8">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
-  <script defer src="/site-assets/landing.js?v=2.6"></script>
+  <script defer src="/site-assets/landing.js?v=2.7"></script>
   <link rel="canonical" href="https://citeaura.com/">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
@@ -247,9 +247,9 @@
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
                 <input type="text" class="hero-scanner-input" value="yourbrand.com" placeholder="Enter your domain (e.g. yourbrand.com)" aria-label="Website domain to audit">
               </div>
-              <button type="submit" class="btn btn-primary hero-scanner-btn" data-i18n="landing.scan_btn">Start Workspace Setup →</button>
+              <button type="submit" class="btn btn-primary hero-scanner-btn" data-i18n="landing.scan_btn">Run free technical audit →</button>
             </form>
-            <a class="hero-sample-link" href="/app?view=delivery" data-i18n="landing.hero_cta_secondary">View a sample report</a>
+            <a class="hero-sample-link" href="/sample-report" data-i18n="landing.hero_cta_secondary">View a sample report</a>
             <div class="hero-scanner-presets">
               <span data-i18n="landing.presets_label">Example domains:</span>
               <button type="button" class="preset-pill" data-domain="stripe.com">stripe.com</button>
@@ -323,10 +323,10 @@
               <div class="console-result-banner is-hidden" id="console-result-banner">
                 <div class="banner-info">
                   <span class="banner-badge">Preview only — continue in workspace</span>
-                  <span class="banner-title"><strong id="banner-domain-name">yourbrand.com</strong>: Setup preview loaded <span id="banner-grade-val">Preview ready</span></span>
+                  <span class="banner-title"><strong id="banner-domain-name">yourbrand.com</strong>: <span id="banner-title-prefix">Setup preview loaded</span> <span id="banner-grade-val">Preview ready</span></span>
                 </div>
                 <a href="/app" class="btn btn-primary btn-sm banner-action-btn" id="banner-open-app-btn">
-                  <span>Open Workspace →</span>
+                  <span id="banner-open-app-label">Open Workspace →</span>
                 </a>
               </div>
 

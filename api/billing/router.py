@@ -194,6 +194,13 @@ def _activate_checkout(db, value):
         country_code=tenant.acquisition_country_code,
         properties={"plan": plan_code, "billing_interval": billing_interval, "source": "checkout"},
     )
+    record_product_event(
+        db,
+        "checkout_succeeded",
+        tenant_id=tenant.id,
+        country_code=tenant.acquisition_country_code,
+        properties={"plan": plan_code, "billing_interval": billing_interval},
+    )
     return True
 
 

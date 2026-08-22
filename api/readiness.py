@@ -9,7 +9,7 @@ from api.settings.crypto import _master_key
 from api.worker.celery_app import celery_app
 
 
-EXPECTED_DB_REVISION = "0026_transactional_email_dedup"
+EXPECTED_DB_REVISION = "0027_daily_monitoring"
 
 
 def _worker_available():

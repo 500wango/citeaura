@@ -2,7 +2,7 @@
  * 
  */
 
-import { auth } from '../api.js?v=3.4';
+import { analytics, auth } from '../api.js?v=3.5';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 
@@ -61,6 +61,7 @@ export default {
   mounted: (ctx) => {
     const form = document.getElementById('register-form');
     if (!form) return;
+    analytics.track('signup_started', { source: 'register' });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();

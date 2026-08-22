@@ -918,6 +918,37 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                         country_code=tenant.acquisition_country_code if tenant is not None else None,
                         properties={"project_id": project.id, "job_id": job.id, "action": job.action},
                     )
+                    if job.action == "verify":
+                        record_product_event(
+                            db,
+                            "verify_completed",
+                            tenant_id=project.tenant_id,
+                            country_code=tenant.acquisition_country_code if tenant is not None else None,
+                            properties={"project_id": project.id, "job_id": job.id},
+                        )
+                    elif job.action == "deliver":
+                        record_product_event(
+                            db,
+                            "delivery_built",
+                            tenant_id=project.tenant_id,
+                            country_code=tenant.acquisition_country_code if tenant is not None else None,
+                            properties={"project_id": project.id, "job_id": job.id},
+                        )
+                    if job.action in ("bootstrap", "autopilot", "serve", "cycle", "audit"):
+                        try:
+                            request_values = json.loads(job.request_json or "{}")
+                        except (TypeError, ValueError):
+                            request_values = {}
+                        sampling_requested = job.action not in ("bootstrap",) and not bool(
+                            request_values.get("no_sample") or request_values.get("--no-sample")
+                        )
+                        record_product_event(
+                            db,
+                            "diagnostic_ready",
+                            tenant_id=project.tenant_id,
+                            country_code=tenant.acquisition_country_code if tenant is not None else None,
+                            properties={"project_id": project.id, "job_id": job.id, "sampling": sampling_requested},
+                        )
 
             try:
                 # Completion is the point at which a transient DB failure must not
@@ -1124,7 +1155,7 @@ def task_dispatch_schedules(now_iso=None):
                 .join(Tenant, Tenant.id == Project.tenant_id)
                 .filter(
                     Tenant.status == "active",
-                    Project.schedule_interval_days.in_((7, 14, 30)),
+                    Project.schedule_interval_days.in_((1, 7, 14, 30)),
                     Project.schedule_next_run_at.isnot(None),
                     Project.schedule_next_run_at <= now,
                 )
@@ -1139,7 +1170,7 @@ def task_dispatch_schedules(now_iso=None):
                 db.query(Project)
                 .filter(
                     Project.id == project_id,
-                    Project.schedule_interval_days.in_((7, 14, 30)),
+                    Project.schedule_interval_days.in_((1, 7, 14, 30)),
                     Project.schedule_next_run_at.isnot(None),
                     Project.schedule_next_run_at <= now,
                 )

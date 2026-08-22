@@ -2,7 +2,7 @@
  *  (Report & Deliveries)
  */
 
-import { projects } from '../api.js?v=3.6';
+import { analytics, projects } from '../api.js?v=3.7';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { gradeBadge, statusPill } from '../components/badge.js';
@@ -15,6 +15,7 @@ export default {
     if (!projectId) {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
     }
+    analytics.track('report_viewed', { view: 'delivery' });
 
     let report = null;
     let deliveries = [];
@@ -247,6 +248,9 @@ export default {
           },
         });
       });
+    });
+    document.querySelectorAll('a[download]').forEach((link) => {
+      link.addEventListener('click', () => analytics.track('delivery_downloaded', { view: 'delivery' }));
     });
   },
 };

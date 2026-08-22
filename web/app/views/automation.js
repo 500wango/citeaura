@@ -20,7 +20,7 @@ export default {
     } catch (e) {}
 
     const enabled = Boolean(schedule.enabled);
-    const intervalDays = [7, 14, 30].includes(schedule.interval_days) ? schedule.interval_days : 7;
+    const intervalDays = [1, 7, 14, 30].includes(schedule.interval_days) ? schedule.interval_days : 7;
     const alertOnRegression = schedule.alert_on_regression !== false;
     const alertEmailReady = Boolean(schedule.alert_email_ready);
 
@@ -56,6 +56,7 @@ export default {
           <div class="field" style="margin:0;">
             <label>${t('automation.interval_label', {}, 'Monitoring Recurrence Interval')}</label>
             <select id="schedule-interval" class="input">
+              <option value="1" ${intervalDays === 1 ? 'selected' : ''}>Daily (1 Day)</option>
               <option value="7" ${intervalDays === 7 ? 'selected' : ''}>Weekly (7 Days)</option>
               <option value="14" ${intervalDays === 14 ? 'selected' : ''}>Bi-Weekly (14 Days)</option>
               <option value="30" ${intervalDays === 30 ? 'selected' : ''}>Monthly (30 Days)</option>

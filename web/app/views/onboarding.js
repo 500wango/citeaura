@@ -2,9 +2,10 @@
  * Brand onboarding
  */
 
-import { projects } from '../api.js?v=3.4';
+import { analytics, projects } from '../api.js?v=3.5';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: () => {
@@ -35,14 +36,23 @@ export default {
 
             <div id="ob-preflight" class="card" style="display:none;background:var(--page);padding:var(--sp-3);gap:var(--sp-2);"></div>
 
-            <div class="card" style="background:var(--deep);padding:var(--sp-4);border-radius:var(--r-md);gap:var(--sp-2);">
-              <label style="display:flex;align-items:flex-start;gap:var(--sp-3);cursor:pointer;user-select:none;">
-                <input type="checkbox" id="ob-nosample" style="margin-top:2px;">
+            <div class="card" style="background:var(--deep);padding:var(--sp-4);border-radius:var(--r-md);gap:var(--sp-3);">
+              <div style="font-size:var(--fs-2);">
+                <strong style="color:var(--ink);">Choose your first result</strong>
+                <div style="color:var(--muted);margin-top:4px;">Start with a technical diagnostic now, or add model access for a full AI baseline.</div>
+              </div>
+              <label class="onboard-mode-option" style="display:flex;align-items:flex-start;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--brand);background:color-mix(in oklch, var(--brand) 8%, transparent);cursor:pointer;user-select:none;">
+                <input type="radio" name="ob-mode" value="audit" checked style="margin-top:3px;">
                 <div style="font-size:var(--fs-2);">
-                  <strong style="color:var(--ink);">${t('onboard.skip_sample_title', {}, 'Skip initial AI sampling')}</strong>
-                  <div style="color:var(--muted);margin-top:2px;">
-                    ${t('onboard.skip_sample_desc', {}, 'Run crawl, facts, and tickets only. Paid plans can sample the first matrix from the CiteAura platform pool without adding every API key.')}
-                  </div>
+                  <strong style="color:var(--ink);">Audit only · recommended</strong>
+                  <div style="color:var(--muted);margin-top:3px;">Crawl, facts, tickets, and a diagnostic-ready report. No model API key or platform-pool funding required.</div>
+                </div>
+              </label>
+              <label class="onboard-mode-option" style="display:flex;align-items:flex-start;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--line);background:var(--page);cursor:pointer;user-select:none;">
+                <input type="radio" name="ob-mode" value="baseline" style="margin-top:3px;">
+                <div style="font-size:var(--fs-2);">
+                  <strong style="color:var(--ink);">Full AI baseline</strong>
+                  <div style="color:var(--muted);margin-top:3px;">Run labeled AI sampling after preflight. Configure BYOK or an eligible platform pool before the job starts; provider charges remain visible to you.</div>
                 </div>
               </label>
             </div>
@@ -92,7 +102,8 @@ export default {
       e.preventDefault();
       const url = document.getElementById('ob-url').value.trim();
       const name = document.getElementById('ob-name').value.trim();
-      const no_sample = document.getElementById('ob-nosample').checked;
+      const selectedMode = document.querySelector('input[name="ob-mode"]:checked')?.value || 'audit';
+      const no_sample = selectedMode !== 'baseline';
       const submitBtn = document.getElementById('ob-submit');
       const preflightBox = document.getElementById('ob-preflight');
 
@@ -100,6 +111,7 @@ export default {
       submitBtn.innerHTML = `<span class="spin"></span> ${t('common.checking_site', {}, 'Checking site...')}`;
 
       try {
+        analytics.track(no_sample ? 'audit_only_selected' : 'full_baseline_selected', { source: 'onboarding' });
         const preflight = await projects.preflight({ url });
         const site = preflight?.site || {};
         if (preflightBox) {
@@ -107,8 +119,8 @@ export default {
           preflightBox.style.display = 'flex';
           preflightBox.innerHTML = checks.map((check) => (
             `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);font-size:var(--fs-2);">
-              <span>${check.name}</span>
-              <span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : (check.message || 'Failed')}</span>
+              <span>${escapeHtml(check.name || 'Site check')}</span>
+              <span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : escapeHtml(check.message || 'Failed')}</span>
             </div>`
           )).join('');
         }
@@ -119,7 +131,7 @@ export default {
         if (!no_sample && preflight && preflight.can_sample === false) {
           throw {
             error: 'sampling_not_configured',
-            detail: 'Configure a model API key — a built-in provider or a custom OpenAI-compatible endpoint — or skip initial sampling to create an audit-only project.',
+            detail: 'No model access is configured yet. Select Audit only to get the diagnostic now, or connect a BYOK key in Model Keys (BYOK) and retry the baseline.',
           };
         }
 
@@ -146,8 +158,9 @@ export default {
         }
       } catch (err) {
         if (err.error === 'sampling_not_configured') {
-          toast.error(err.detail);
-          ctx.navigate('#/engine-settings');
+          toast.info(err.detail);
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<span>${t('onboard.start_measurement', {}, 'Initialize Brand Pipeline')}</span>`;
           return;
         }
         toast.error(t(err.error, {}, err.detail || 'Failed to initialize brand'));

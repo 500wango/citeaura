@@ -144,8 +144,8 @@ class ScheduleRequest(BaseModel):
     @field_validator("interval_days")
     @classmethod
     def validate_interval_days(cls, value: int):
-        if value not in (0, 7, 14, 30):
-            raise ValueError("interval_days must be 0, 7, 14, or 30")
+        if value not in (0, 1, 7, 14, 30):
+            raise ValueError("interval_days must be 0, 1, 7, 14, or 30")
         return value
 
 
@@ -643,7 +643,7 @@ def _top_actions(tickets, limit=3):
 
 def _schedule_payload(project: Project):
     return {
-        "enabled": project.schedule_interval_days in (7, 14, 30),
+        "enabled": project.schedule_interval_days in (1, 7, 14, 30),
         "interval_days": project.schedule_interval_days or 0,
         "next_run_at": project.schedule_next_run_at,
         "last_enqueued_at": project.schedule_last_enqueued_at,
@@ -872,7 +872,31 @@ def project_preflight(
     full_questions = payload.question_count
     quick_calls = quick_questions * len(effective)
     full_calls = full_questions * len(effective)
-    site = preflight.run(payload.url)
+    try:
+        site = preflight.run(payload.url)
+    except (preflight.PreflightError, ValueError) as exc:
+        record_product_event(
+            db,
+            "preflight_failed",
+            tenant_id=tenant.id,
+            user_id=current_user.id,
+            country_code=tenant.acquisition_country_code,
+            properties={"error": type(exc).__name__},
+        )
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"error": "preflight_failed", "detail": str(exc)},
+        ) from exc
+    record_product_event(
+        db,
+        "preflight_completed",
+        tenant_id=tenant.id,
+        user_id=current_user.id,
+        country_code=tenant.acquisition_country_code,
+        properties={"ready": bool(site.get("ready")), "url_host": urlparse(payload.url).hostname},
+    )
+    db.commit()
     return {
         "site": site,
         "byok_engines": sorted(byok),
@@ -954,6 +978,14 @@ def create_project(
     record_product_event(
         db,
         "project_created",
+        tenant_id=tenant.id,
+        user_id=current_user.id,
+        country_code=tenant.acquisition_country_code,
+        properties={"project_id": project.id, "job_action": job_action},
+    )
+    record_product_event(
+        db,
+        "audit_only_selected" if no_sample else "full_baseline_selected",
         tenant_id=tenant.id,
         user_id=current_user.id,
         country_code=tenant.acquisition_country_code,
@@ -1922,6 +1954,15 @@ def update_ticket(
         _error(status.HTTP_404_NOT_FOUND, "ticket_not_found")
     except (GeoEngineError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "ticket_update_failed", "detail": str(exc)}) from exc
+    record_product_event(
+        db,
+        "ticket_updated",
+        tenant_id=tenant.id,
+        user_id=current_user.id,
+        country_code=tenant.acquisition_country_code,
+        properties={"project_id": project.id, "ticket_id": ticket_id, "status": changes.get("status")},
+    )
+    db.commit()
     return {"ticket": localize_tickets(ticket_workflow.enrich([ticket]))[0]}
 
 
@@ -1933,6 +1974,13 @@ def verify_project(project_id: int, current_user: User = Depends(require_editor)
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     job = Job(project_id=project.id, action="verify", status="queued", stage="queued", request_json="{}")
     db.add(job)
+    record_product_event(
+        db,
+        "verify_started",
+        tenant_id=project.tenant_id,
+        user_id=current_user.id,
+        properties={"project_id": project.id},
+    )
     project.status = "verifying"
     db.commit()
     db.refresh(job)
@@ -1976,6 +2024,13 @@ def deliver_project(project_id: int, current_user: User = Depends(require_editor
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     job = Job(project_id=project.id, action="deliver", status="queued", stage="queued", request_json="{}")
     db.add(job)
+    record_product_event(
+        db,
+        "delivery_started",
+        tenant_id=project.tenant_id,
+        user_id=current_user.id,
+        properties={"project_id": project.id},
+    )
     project.status = "delivering"
     db.commit()
     db.refresh(job)
@@ -2136,6 +2191,14 @@ def send_delivery_pack(
     if not (asset_index.get("diagnostic_ready") or asset_index.get("readiness") == "customer_ready"):
         _error(status.HTTP_409_CONFLICT, "delivery_not_sendable")
     share, token = delivery_share.create_share(db, project, current_user.id, delivery_date, recipient)
+    record_product_event(
+        db,
+        "delivery_shared",
+        tenant_id=tenant.id,
+        user_id=current_user.id,
+        country_code=tenant.acquisition_country_code,
+        properties={"project_id": project.id, "delivery_date": delivery_date, "email_sent": bool(recipient)},
+    )
     url = delivery_share.public_url(token)
     email_sent = False
     if recipient:
