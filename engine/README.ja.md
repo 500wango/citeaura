@@ -120,7 +120,7 @@ git pull        # データは work/ と .env にあり、どちらも gitignore
 python3 scripts/geo.py new --url https://example.com --market both
 ```
 
-`--market` は `cn` / `global` / `both`。9 ステップが自動実行されます：クロール → 監査 → ファクト/競合/質問の導出 → 全エンジンのサンプリング → チケット → 資産 → レポート → 自動検証 → 納品パッケージ（`work/<slug>/delivery/<date>/` に出力）。
+`--market` は `cn` / `global` / `both`。9 ステップが自動実行されます：クロール → 監査 → ファクト/競合/質問の導出 → 全エンジンのサンプリング → チケット → 資産 → レポート → 自動検証。エンジン成果物は `work/<slug>/deliverables/` に保存され、顧客向け正式パッケージは CiteAura アプリの納品操作だけが生成します。
 
 ### ルート B：ダッシュボードで順を追って（初回推奨）
 

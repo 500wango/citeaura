@@ -23,10 +23,20 @@ class GeoCliTest(unittest.TestCase):
 
     def test_standalone_pipeline_keeps_legacy_delivery_renderer(self):
         renderer = types.SimpleNamespace(run=mock.Mock())
-        args = types.SimpleNamespace(no_delivery=False)
+        args = types.SimpleNamespace(no_delivery=False, legacy_delivery=True)
         with mock.patch.dict(sys.modules, {"deliver": renderer}):
             geo._compile_standalone_delivery("demo", args)
         renderer.run.assert_called_once_with("demo")
+
+    def test_pipeline_does_not_write_legacy_delivery_by_default(self):
+        args = types.SimpleNamespace(no_delivery=False, legacy_delivery=False)
+        with mock.patch.dict(sys.modules, {"deliver": None}):
+            self.assertIsNone(geo._compile_standalone_delivery("demo", args))
+
+    def test_deliver_command_does_not_load_legacy_renderer_by_default(self):
+        args = types.SimpleNamespace(legacy_delivery=False)
+        with mock.patch.dict(sys.modules, {"deliver": None}):
+            self.assertIsNone(geo.cmd_deliver(args))
 
     def test_init_rejects_non_http_and_missing_hosts(self):
         for url in ("ftp://example.com", "https:///missing", "http://[broken",

@@ -15,6 +15,21 @@ import requests
 
 TERMINAL_JOB_STATUSES = frozenset(("done", "failed", "stopped", "interrupted"))
 SAMPLING_MODES = frozenset(("API - Parametric knowledge", "API - Search grounded", "Manual - Product interface"))
+DELIVERY_DOCUMENTS = (
+    "01-Audit-Report",
+    "02-Execution-Plan",
+    "03-Ticket-Log",
+    "04-Acceptance-Checklist",
+    "05-Draft-Risks",
+    "06-Build-Map",
+)
+LEGACY_DELIVERY_DOCUMENTS = frozenset((
+    "01-Diagnostic.html", "01-Diagnostic.md",
+    "02-Strategy.md",
+    "03-Tickets.html", "03-Tickets.md", "03-Tickets.csv",
+    "04-Verification.html", "04-Verification.md",
+    "06-Blueprint.html", "06-Blueprint.md",
+))
 
 
 class AcceptanceError(RuntimeError):
@@ -71,11 +86,22 @@ def _delivery_contract(content):
             names = bundle.namelist()
     except zipfile.BadZipFile as exc:
         raise AcceptanceError("delivery_zip_invalid") from exc
-    missing = [number for number in ("01", "02", "03", "04", "05", "06") if not any(
-        name.startswith(f"{number}-") for name in names
+    missing = [stem for stem in DELIVERY_DOCUMENTS if not any(
+        name in {f"{stem}.md", f"{stem}.html"} for name in names
     )]
-    if missing or "index.html" not in names or not any(name.startswith("assets/") for name in names):
+    legacy = sorted(
+        name for name in names
+        if name.rsplit("/", 1)[-1] in LEGACY_DELIVERY_DOCUMENTS
+    )
+    required = missing or "index.html" not in names or "03-Ticket-Log.csv" not in names or "assets/index.json" not in names
+    if required or legacy:
         detail = ",".join(missing) if missing else "index_or_assets"
+        if "03-Ticket-Log.csv" not in names:
+            detail = f"{detail},03-Ticket-Log.csv"
+        if "assets/index.json" not in names:
+            detail = f"{detail},assets/index.json"
+        if legacy:
+            detail = f"{detail},legacy:{','.join(legacy)}"
         raise AcceptanceError(f"delivery_contract_incomplete:{detail}")
     return names
 

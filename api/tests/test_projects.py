@@ -1,4 +1,5 @@
 import base64
+import io
 import json
 import sys
 import types
@@ -512,8 +513,46 @@ def test_delivery_download_rejects_noncompliant_legacy_package(project_client, m
         headers=headers,
     )
 
+    assert response.status_code == 409
+    assert "delivery_contract_invalid" in response.text
+
+
+def test_delivery_download_rebuilds_even_when_legacy_quality_gate_passed(project_client, monkeypatch, tmp_path):
+    client, _ = project_client
+    headers = _register(client, "owner@example.com")
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_init=lambda args: None))
+    monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *args, **kwargs: types.SimpleNamespace(id="task-1"))
+    created = client.post("/api/v1/projects", headers=headers, json={"url": "example.com"})
+    assert created.status_code == 202
+
+    output = tmp_path / "work" / "owner" / "example-com" / "delivery" / "2026-07-31"
+    (output / "assets").mkdir(parents=True)
+    (output / "index.html").write_text("legacy", "utf-8")
+    (output / "assets" / "index.json").write_text(
+        json.dumps({"quality_gate": {"status": "passed"}}), "utf-8",
+    )
+    calls = []
+
+    def rebuild(slug, directory):
+        calls.append((slug, directory))
+        (directory / "01-Audit-Report.html").write_text("formal", "utf-8")
+        (directory / "assets" / "index.json").write_text(
+            json.dumps({"diagnostic_ready": True, "source_revision": "current"}), "utf-8",
+        )
+        return directory
+
+    monkeypatch.setattr(project_router.delivery, "ensure_delivery_contract", rebuild)
+    response = client.get(
+        f"/api/v1/projects/{created.json()['project_id']}/deliveries/2026-07-31",
+        headers=headers,
+    )
+
     assert response.status_code == 200
-    assert response.headers.get("x-citeaura-delivery-readiness") == "last_known_good"
+    assert calls and calls[0][0] == "example-com"
+    assert response.headers["x-citeaura-source-revision"] == "current"
+    with zipfile.ZipFile(io.BytesIO(response.content)) as bundle:
+        assert "01-Audit-Report.html" in bundle.namelist()
+        assert "index.html" in bundle.namelist()
 
 
 def test_project_isolation_and_duplicate_rejection(project_client, monkeypatch):

@@ -8,6 +8,7 @@ from api.adapters import engine as engine_adapter
 from api.db import Base, get_db
 from api.main import app
 from api.models import Project, Tenant
+from api.projects import router as project_router
 
 
 def _client(tmp_path, monkeypatch):
@@ -60,6 +61,7 @@ def _seed_pack(tmp_path, tenant_slug, project_slug, date="2026-08-01"):
 
 def test_agency_can_create_and_download_sendable_pack(tmp_path, monkeypatch):
     client, session_factory = _client(tmp_path, monkeypatch)
+    monkeypatch.setattr(project_router.delivery, "ensure_delivery_contract", lambda slug, directory: directory)
     registered, headers = _register(client, "agency@example.com", "northstar")
     other, other_headers = _register(client, "other@example.com", "other")
     with session_factory() as db:

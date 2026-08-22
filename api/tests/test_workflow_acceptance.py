@@ -1,7 +1,7 @@
 import io
 import zipfile
 
-from scripts.workflow_acceptance import run_workflow
+from scripts.workflow_acceptance import AcceptanceError, _delivery_contract, run_workflow
 
 
 class Response:
@@ -56,9 +56,17 @@ class Session:
             output = io.BytesIO()
             with zipfile.ZipFile(output, "w") as bundle:
                 bundle.writestr("index.html", "delivery")
-                for number in ("01", "02", "03", "04", "05", "06"):
-                    bundle.writestr(f"{number}-document.md", number)
-                bundle.writestr("assets/llms.txt", "content")
+                for stem in (
+                    "01-Audit-Report",
+                    "02-Execution-Plan",
+                    "03-Ticket-Log",
+                    "04-Acceptance-Checklist",
+                    "05-Draft-Risks",
+                    "06-Build-Map",
+                ):
+                    bundle.writestr(f"{stem}.md", stem)
+                bundle.writestr("03-Ticket-Log.csv", "ID,Priority\n")
+                bundle.writestr("assets/index.json", "{}")
             return Response(content=output.getvalue())
         return Response(404, {"error": "not_found"})
 
@@ -95,3 +103,20 @@ def test_workflow_acceptance_reports_failed_worker_job_without_secrets():
     assert checks[-1]["passed"] is False
     assert "job_failed" in checks[-1]["detail"]
     assert "password-not-in-output" not in str(checks)
+
+
+def test_delivery_contract_rejects_legacy_document_names():
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w") as bundle:
+        bundle.writestr("index.html", "delivery")
+        for name in ("01-Diagnostic", "02-Strategy", "03-Tickets", "04-Verification", "05-Draft-Risks", "06-Blueprint"):
+            bundle.writestr(f"{name}.md", name)
+        bundle.writestr("03-Ticket-Log.csv", "ID,Priority\n")
+        bundle.writestr("assets/index.json", "{}")
+
+    try:
+        _delivery_contract(output.getvalue())
+    except AcceptanceError as exc:
+        assert "01-Audit-Report" in str(exc)
+    else:
+        raise AssertionError("legacy delivery names must fail the formal contract")

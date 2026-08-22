@@ -143,7 +143,7 @@ git pull        # 数据在 work/ 与 .env，均被 gitignore，升级不影响
 python3 scripts/geo.py new --url https://example.com --market both
 ```
 
-`--market` 取 `cn` / `global` / `both`。九步自动完成：抓站 → 体检 → 推导品牌事实/竞品/问题库 → 逐引擎采样 → 生成工单 → 产出资产 → 报告 → 自动验收 → 交付包。产出在 `work/<项目>/delivery/<日期>/`。
+`--market` 取 `cn` / `global` / `both`。九步自动完成：抓站 → 体检 → 推导品牌事实/竞品/问题库 → 逐引擎采样 → 生成工单 → 产出资产 → 报告 → 自动验收。引擎产物在 `work/<项目>/deliverables/`；只有 CiteAura 应用里的交付操作会生成客户正式交付包。
 
 ### 路线 B：看板逐步走（推荐首次使用）
 

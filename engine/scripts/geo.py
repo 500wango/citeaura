@@ -112,8 +112,8 @@ def cmd_bootstrap(a):
 
 
 def _compile_standalone_delivery(slug, args):
-    """仅为独立 Engine CLI 编译 legacy delivery 包。"""
-    if getattr(args, "no_delivery", False):
+    """仅在显式请求时为独立 Engine CLI 编译 legacy delivery 包。"""
+    if getattr(args, "no_delivery", False) or not getattr(args, "legacy_delivery", False):
         return
     import deliver
 
@@ -132,7 +132,6 @@ def cmd_new(a):
     import blueprint as BP
     import bootstrap
     import crawl as C
-    import deliver
     import deliverables as DV
     import generate
     import report as Rp
@@ -167,15 +166,16 @@ def cmd_new(a):
     G.info("═══ 8/9 Assets & Diagnostic Report ═══")
     generate.run(slug, with_draft=a.draft, draft_limit=a.draft_limit)
     Rp.run(slug)
-    G.info("═══ 9/9 Deliverables & Delivery Package ═══")
+    G.info("═══ 9/9 Engine Deliverables ═══")
     DV.run(slug)
     try:
         V.run(slug, recrawl=False)
     except Exception as e:  # noqa: BLE001
         G.info(f"Verification failed: {e}")
-    deliver.run(slug)
+    _compile_standalone_delivery(slug, a)
     G.info("")
-    G.info(f"Complete. Deliverables saved to work/{slug}/deliverables/:")
+    G.info(f"Complete. Engine artifacts saved to work/{slug}/deliverables/.")
+    G.info("Customer delivery packages are compiled by the CiteAura API; use the app download action.")
     G.info("")
 
 
@@ -225,7 +225,8 @@ def cmd_autopilot(a):
     except Exception as e:  # noqa: BLE001
         G.info(f"Verification failed: {e}")
     _compile_standalone_delivery(a.slug, a)
-    G.info("Complete. Three deliverables compiled in deliverables/.")
+    G.info("Complete. Engine artifacts compiled in deliverables/.")
+    G.info("Customer delivery packages are compiled by the CiteAura API; use the app download action.")
 
 
 def cmd_crawl(a):
@@ -339,6 +340,10 @@ def cmd_verify(a):
 
 
 def cmd_deliver(a):
+    if not getattr(a, "legacy_delivery", False):
+        G.info("Standalone legacy delivery is disabled by default.")
+        G.info("Use the CiteAura app delivery action to build the formal customer package.")
+        return
     import deliver
 
     deliver.run(a.slug)
@@ -434,8 +439,9 @@ def cmd_serve(a):
     Rp.run(a.slug)
     G.info("═══ 7/7 Verify Previous Tickets ═══")
     V.run(a.slug, recrawl=False)
-    G.info("═══ Compile Delivery Package ═══")
+    G.info("═══ Finish Engine Cycle ═══")
     _compile_standalone_delivery(a.slug, a)
+    G.info("Customer delivery packages are compiled by the CiteAura API; use the app download action.")
 
 
 def cmd_ui(a):
@@ -483,6 +489,8 @@ def main():
     s.add_argument("--draft", action="store_true")
     s.add_argument("--draft-limit", type=int, default=3, dest="draft_limit")
     s.add_argument("--force", action="store_true")
+    s.add_argument("--legacy-delivery", action="store_true", dest="legacy_delivery",
+                   help="Explicitly write the standalone legacy delivery package")
     s.set_defaults(func=cmd_new)
 
     s = sub.add_parser("autopilot", help="Run complete onboarding for an existing project")
@@ -490,6 +498,8 @@ def main():
     s.add_argument("--limit", type=int, default=None)
     s.add_argument("--no-sample", action="store_true", dest="no_sample")
     s.add_argument("--skip-llm", action="store_true", dest="skip_llm")
+    s.add_argument("--legacy-delivery", action="store_true", dest="legacy_delivery",
+                   help="Explicitly write the standalone legacy delivery package")
     s.set_defaults(func=cmd_autopilot)
 
     s = sub.add_parser("bootstrap", help="Derive brand facts, competitors, and questions")
@@ -567,8 +577,10 @@ def main():
                    help="Use the current audit without re-crawling")
     s.set_defaults(func=cmd_verify)
 
-    s = sub.add_parser("deliver", help="Compile the client delivery package")
+    s = sub.add_parser("deliver", help="Compile the standalone legacy package explicitly")
     s.add_argument("--slug", required=True)
+    s.add_argument("--legacy-delivery", action="store_true", dest="legacy_delivery",
+                   help="Write the standalone legacy delivery package")
     s.set_defaults(func=cmd_deliver)
 
     s = sub.add_parser("publish", help="Publish approved content to a configured destination")
@@ -596,6 +608,8 @@ def main():
     s.add_argument("--no-sample", action="store_true", dest="no_sample")
     s.add_argument("--draft", action="store_true", help="Generate additional article drafts")
     s.add_argument("--draft-limit", type=int, default=3, dest="draft_limit")
+    s.add_argument("--legacy-delivery", action="store_true", dest="legacy_delivery",
+                   help="Explicitly write the standalone legacy delivery package")
     s.set_defaults(func=cmd_serve)
 
     s = sub.add_parser("ui", help="Start the monitoring dashboard")

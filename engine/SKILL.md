@@ -18,7 +18,7 @@ description: >-
 从**诊断**到**交付**的完整链路，不只是给建议：
 
 ```
-抓取 → 体检 → AI答案采样 → 生成工单 → 产出资产 → 报告 → 自动验收 → 客户交付包
+抓取 → 体检 → AI答案采样 → 生成工单 → 产出资产 → 报告 → 自动验收 → CiteAura 应用生成客户正式交付包
 ```
 
 核心判断只有一句：**GEO 的终点不是排名，是 AI 答案里那句话是不是按你的口径说的。**
@@ -71,8 +71,9 @@ python3 scripts/geo.py ui        # 默认 http://127.0.0.1:8765
 python3 scripts/geo.py serve --slug <项目>
 ```
 
-抓取 → 体检 → 采样 → 工单 → 资产 → 报告 → 验收上期 → 打包交付，全做完。
-产出在 `work/<slug>/delivery/<日期>/`，可直接发客户。
+抓取 → 体检 → 采样 → 工单 → 资产 → 报告 → 验收上期，全做完。
+引擎产出在 `work/<slug>/deliverables/`；客户正式交付包必须从 CiteAura 应用的交付操作下载，不能直接发送 Engine 目录。
+`geo.py deliver` 默认不写客户包；仅为兼容旧单机流程时显式加 `--legacy-delivery`，该目录不属于 CiteAura 正式交付。
 
 首次接一个新客户走下面的步骤 0–2 做好底座，之后每期只跑这一条。
 
@@ -257,7 +258,7 @@ python3 scripts/geo.py status --slug <项目>     # 进度看板
 | `report` | Markdown + 自包含 HTML 报告，含 delta 与大盘对照 |
 | `verify` | 重抓并自动验收工单（`--no-recrawl` 用现有结果） |
 | `task` / `status` | 单条工单状态 / 项目看板 |
-| `deliver` | 打包客户交付物 |
+| `deliver` | 显式打包 standalone legacy 包（不作为 CiteAura 客户交付） |
 | `ui` | **全流程界面**：新建项目、配置、问题库、事实卡、一键运行、工单、资产、交付 |
 | `serve` | **全流程一条命令** |
 | `cycle` | 轻量循环（抓取→体检→采样→报告，不含工单与交付） |

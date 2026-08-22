@@ -3,8 +3,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from api.adapters import delivery_share
-from api.adapters.engine import geolib, with_tenant_read_context
+from api.adapters import delivery, delivery_share
+from api.adapters.engine import geolib, with_tenant_context
+from api.adapters.exceptions import GeoEngineError
 from api.db import get_db
 from api.models import Project, Tenant
 from api.projects.router import _delivery_package_kind, _stream_delivery_zip
@@ -27,10 +28,17 @@ def download_shared_delivery(token: str, db: Session = Depends(get_db)):
     tenant = db.get(Tenant, project.tenant_id) if project is not None else None
     if project is None or tenant is None or project.archived_at is not None:
         _error(status.HTTP_404_NOT_FOUND, "delivery_share_not_found")
-    with with_tenant_read_context(tenant, project.slug):
+    with with_tenant_context(tenant.directory_slug, project.slug):
         directory = geolib.project_dir(project.slug) / "delivery" / share.delivery_date
         if not directory.is_dir():
             _error(status.HTTP_404_NOT_FOUND, "delivery_not_found")
+        try:
+            directory = delivery.ensure_delivery_contract(project.slug, directory)
+        except GeoEngineError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": "delivery_contract_invalid", "detail": str(exc)},
+            ) from exc
         asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
         readiness = str(asset_index.get("readiness") or "unknown")
         package_kind = _delivery_package_kind(asset_index, readiness)

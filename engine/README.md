@@ -120,7 +120,7 @@ git pull        # your data lives in work/ and .env, both gitignored
 python3 scripts/geo.py new --url https://example.com --market both
 ```
 
-`--market` is `cn` / `global` / `both`. Nine steps run automatically: crawl → audit → derive facts/competitors/questions → sample every engine → tickets → assets → report → auto-verify → delivery package, landing in `work/<slug>/delivery/<date>/`.
+`--market` is `cn` / `global` / `both`. Nine steps run automatically: crawl → audit → derive facts/competitors/questions → sample every engine → tickets → assets → report → auto-verify. Engine artifacts land in `work/<slug>/deliverables/`; the CiteAura app's delivery action is the only path that creates a customer delivery package.
 
 ### Route B: dashboard walkthrough (recommended first time)
 
