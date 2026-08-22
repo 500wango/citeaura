@@ -19,6 +19,7 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
     task_time_limit=3600,
     task_soft_time_limit=3540,
+    worker_pool="prefork",
     task_serializer="json",
     result_serializer="json",
     accept_content=["json"],

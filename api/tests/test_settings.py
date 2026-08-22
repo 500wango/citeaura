@@ -71,6 +71,13 @@ def test_crypto_round_trip_and_api_key_lifecycle(settings_client):
     assert client.get("/api/v1/settings/keys", headers=headers).json() == {"keys": []}
 
 
+def test_corrupted_ciphertext_uses_value_error_contract():
+    encrypted = encrypt_key("sk-test-secret")
+    corrupted = encrypted[:-2] + ("A" if encrypted[-2] != "A" else "B") + encrypted[-1]
+    with pytest.raises(ValueError, match="invalid encrypted API key"):
+        decrypt_key(corrupted)
+
+
 def test_keys_are_tenant_isolated(settings_client):
     client = settings_client
     first = _headers(client, "first@example.com")

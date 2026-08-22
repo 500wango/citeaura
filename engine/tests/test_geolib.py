@@ -121,6 +121,23 @@ class TestJsonIO(unittest.TestCase):
             self.assertEqual(G.fetch_text("https://example.com/robots.txt", timeout=3), "robots")
         fetch.assert_called_once_with("https://example.com/robots.txt", timeout=3, retries=0)
 
+    def test_fetch_machine_file_requires_explicit_opt_in(self):
+        response = mock.Mock(
+            status_code=200,
+            headers={"Content-Type": "text/plain; charset=utf-8"},
+            url="https://example.com/robots.txt",
+            encoding="utf-8",
+        )
+        response.iter_content.return_value = [b"User-agent: *\nDisallow: /private"]
+        target = (G.urlparse("https://example.com/robots.txt"), ("93.184.216.34",))
+        with mock.patch.object(G, "_request_pinned", return_value=response), \
+             mock.patch.object(G, "_validate_fetch_target", return_value=target):
+            skipped = G.fetch("https://example.com/robots.txt", retries=0)
+            allowed = G.fetch("https://example.com/robots.txt", retries=0, allow_machine_file=True)
+        self.assertEqual(skipped["status"], 0)
+        self.assertEqual(allowed["status"], 200)
+        self.assertIn("Disallow: /private", allowed["html"])
+
     def test_fetch_closes_stream_and_enforces_exact_byte_limit(self):
         response = mock.Mock(
             status_code=200,

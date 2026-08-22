@@ -481,11 +481,16 @@ def ask_gemini(p: dict, key: str, question: str, timeout: int, want_search: bool
         headers = {"Content-Type": "application/json", "x-goog-api-key": key}
         for tool in ({"google_search": {}}, {"googleSearch": {}}):
             try:
-                r = requests.post(url, headers=headers, params={"key": key},
-                                  json={"contents": [{"role": "user",
-                                                      "parts": [{"text": question}]}],
-                                        "tools": [tool]},
-                                  timeout=timeout)
+                session = requests.Session()
+                session.trust_env = False
+                try:
+                    r = session.post(url, headers=headers,
+                                     json={"contents": [{"role": "user",
+                                                         "parts": [{"text": question}]}],
+                                           "tools": [tool]},
+                                     timeout=timeout)
+                finally:
+                    session.close()
                 if r.status_code != 200:
                     continue
                 data = r.json()
@@ -814,22 +819,23 @@ def confirm_competitors(slug: str, rows: list[dict]):
             eligible.add(name)
     if not eligible:
         return
-    cfg = G.load_config(slug)
-    confirmed = []
-    for c in cfg.get("competitors", []) or []:
-        if c.get("confirmed") is False and c.get("name") in eligible:
-            c["confirmed"] = True
-            c["confirmation"] = {
-                "method": "repeated_unprompted_samples",
-                "samples": len(evidence[c["name"]]),
-                "questions": len({r.get("question_id") or r.get("question") for r in evidence[c["name"]]}),
-                "platforms": len({r.get("platform") for r in evidence[c["name"]]}),
-                "confirmed_at": G.now_iso(),
-            }
-            confirmed.append(c["name"])
-    if confirmed:
-        G.save_config(slug, cfg)
-        G.info("  Competitors confirmed by sampling: " + ", ".join(confirmed))
+    with G.project_lock(slug):
+        cfg = G.load_config(slug)
+        confirmed = []
+        for c in cfg.get("competitors", []) or []:
+            if c.get("confirmed") is False and c.get("name") in eligible:
+                c["confirmed"] = True
+                c["confirmation"] = {
+                    "method": "repeated_unprompted_samples",
+                    "samples": len(evidence[c["name"]]),
+                    "questions": len({r.get("question_id") or r.get("question") for r in evidence[c["name"]]}),
+                    "platforms": len({r.get("platform") for r in evidence[c["name"]]}),
+                    "confirmed_at": G.now_iso(),
+                }
+                confirmed.append(c["name"])
+        if confirmed:
+            G.save_config(slug, cfg)
+            G.info("  Competitors confirmed by sampling: " + ", ".join(confirmed))
 
 
 def _run_identity(cfg: dict, platforms: list[str], repeat: int, source: str) -> dict:

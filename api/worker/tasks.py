@@ -621,9 +621,10 @@ def _database_connection_lost(exc):
     ))
 
 
-def _job_transaction(operation):
-    """用短会话更新 Job；断开的数据库连接可安全重放一次。"""
-    for attempt in range(2):
+def _job_transaction(operation, retries=2):
+    """用短会话更新 Job；断开的数据库连接可安全重放。"""
+    retries = max(1, int(retries))
+    for attempt in range(retries):
         db = SessionLocal()
         try:
             result = operation(db)
@@ -634,7 +635,7 @@ def _job_transaction(operation):
                 db.rollback()
             except SQLAlchemyError:
                 pass
-            if attempt == 0 and _database_connection_lost(exc):
+            if attempt + 1 < retries and _database_connection_lost(exc):
                 logger.warning("job status database connection lost; retrying with a fresh session")
                 continue
             raise
@@ -773,7 +774,7 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
         if tracked_job_id is not None:
             def mark_complete(db):
                 job = db.get(Job, tracked_job_id)
-                if job is None:
+                if job is None or job.status == "done":
                     return
                 project = db.get(Project, job.project_id)
                 job.status = "done"
@@ -793,7 +794,38 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                         properties={"project_id": project.id, "job_id": job.id, "action": job.action},
                     )
 
-            _job_transaction(mark_complete)
+            try:
+                # Completion is the point at which a transient DB failure must not
+                # leave the project occupied indefinitely. Retry more aggressively
+                # than progress updates, then persist an explicit failed state.
+                _job_transaction(mark_complete, retries=4)
+            except BaseException as completion_error:
+                _append_job_event(
+                    log_path,
+                    f"{action} completion status failed: {type(completion_error).__name__}: {completion_error}",
+                )
+
+                def mark_failed_after_completion(db):
+                    job = db.get(Job, tracked_job_id)
+                    if job is None or job.status == "done":
+                        return
+                    project = db.get(Project, job.project_id)
+                    job.status = "failed"
+                    job.stage = "failed"
+                    job.finished_at = datetime.now(timezone.utc)
+                    job.error = "completion_status_persist_failed"
+                    if project is not None:
+                        project.status = "failed"
+
+                try:
+                    _job_transaction(mark_failed_after_completion, retries=4)
+                except BaseException as fallback_error:
+                    logger.exception("Unable to persist failed state for completed Job %s", tracked_job_id)
+                    _append_job_event(
+                        log_path,
+                        f"completion failure state unavailable: {type(fallback_error).__name__}: {fallback_error}",
+                    )
+                raise
             if action in regression_alerts.SAMPLE_ACTIONS:
                 alert = regression_alerts.notify_if_needed(tenant_id, project_slug, action)
                 _append_job_event(log_path, f"regression alert {alert.get('status')}")

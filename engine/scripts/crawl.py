@@ -57,7 +57,7 @@ def discover_sitemap(root: str, limit: int = 300) -> list[str]:
     seen_maps = set()
     queue = [G.normalize_url(root, "/sitemap.xml"), G.normalize_url(root, "/sitemap_index.xml")]
 
-    robots = G.fetch_text(G.normalize_url(root, "/robots.txt"))
+    robots = G.fetch_text(G.normalize_url(root, "/robots.txt"), allow_machine_file=True)
     for m in re.findall(r"(?im)^\s*sitemap:\s*(\S+)", robots):
         candidate = G.normalize_url(root, unescape(m.strip()))
         if candidate and G.same_site(root, candidate):
@@ -69,7 +69,7 @@ def discover_sitemap(root: str, limit: int = 300) -> list[str]:
         if not sm or sm in seen_maps or not G.same_site(root, sm):
             continue
         seen_maps.add(sm)
-        xml = G.fetch_text(sm)
+        xml = G.fetch_text(sm, allow_machine_file=True)
         if not xml:
             continue
         locs = [G.normalize_url(root, unescape(value.strip()))
@@ -308,8 +308,8 @@ def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
 
     G.info(f"Crawling {root} (limit: {limit} pages)")
 
-    robots_txt = G.fetch_text(G.normalize_url(root, "/robots.txt"))
-    llms_txt = G.fetch_text(G.normalize_url(root, "/llms.txt"))
+    robots_txt = G.fetch_text(G.normalize_url(root, "/robots.txt"), allow_machine_file=True)
+    llms_txt = G.fetch_text(G.normalize_url(root, "/llms.txt"), allow_machine_file=True)
     sitemap_urls = discover_sitemap(root)
 
     home = (

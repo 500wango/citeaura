@@ -47,6 +47,7 @@ def test_checkout_sends_server_owned_price_and_metadata(monkeypatch):
     assert captured["data"]["success_url"].endswith("/app?billing=success")
     assert captured["data"]["cancel_url"].endswith("/app?billing=canceled")
     assert "#settings" not in captured["data"]["success_url"]
+    assert "allow_promotion_codes" not in captured["data"]
 
 
 def test_subscription_update_creates_price_and_immediately_invoices_proration(monkeypatch):

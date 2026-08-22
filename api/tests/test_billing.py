@@ -518,6 +518,65 @@ def test_invoice_can_arrive_before_checkout_session_webhook(billing_client):
         assert db.query(PaymentTransaction).one().amount_usd_cents == 19900
 
 
+def test_underpaid_first_invoice_does_not_activate_subscription(billing_client):
+    client, session_factory = billing_client
+    _register(client, "underpaid-invoice@example.com")
+    with session_factory() as db:
+        tenant_id = db.query(Tenant).filter(Tenant.name == "underpaid-invoice").one().id
+
+    invoice = _post_stripe_event(client, _stripe_event("evt_underpaid_invoice", "invoice.paid", {
+        "id": "in_underpaid",
+        "subscription": "sub_underpaid",
+        "customer": "cus_underpaid",
+        "currency": "usd",
+        "amount_paid": 1,
+        "created": int(time.time()),
+        "parent": {"subscription_details": {"metadata": {
+            "tenant_id": str(tenant_id),
+            "plan": "pro",
+            "billing_interval": "monthly",
+        }}},
+    }))
+
+    assert invoice.status_code == 200
+    assert invoice.json()["processed"] is False
+    with session_factory() as db:
+        assert db.query(Subscription).count() == 0
+        assert db.get(Tenant, tenant_id).plan == "trial"
+
+
+def test_underpaid_invoice_does_not_reactivate_existing_subscription(billing_client):
+    client, session_factory = billing_client
+    _register(client, "underpaid-renewal@example.com")
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "underpaid-renewal").one()
+        tenant.plan = "pro"
+        db.add(Subscription(
+            tenant_id=tenant.id,
+            plan="pro",
+            billing_interval="monthly",
+            amount_usd_cents=19900,
+            status="past_due",
+            provider="stripe",
+            provider_subscription_id="sub_underpaid_renewal",
+        ))
+        db.commit()
+
+    invoice = _post_stripe_event(client, _stripe_event("evt_underpaid_renewal", "invoice.paid", {
+        "id": "in_underpaid_renewal",
+        "subscription": "sub_underpaid_renewal",
+        "currency": "usd",
+        "amount_paid": 1,
+        "created": int(time.time()),
+    }))
+
+    assert invoice.status_code == 200
+    assert invoice.json()["processed"] is False
+    with session_factory() as db:
+        subscription = db.query(Subscription).one()
+        assert subscription.status == "past_due"
+
+
 def test_subscription_deleted_webhook_revokes_paid_plan(billing_client):
     client, session_factory = billing_client
     _register(client, "cancel-owner@example.com")

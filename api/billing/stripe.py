@@ -48,7 +48,6 @@ def create_checkout_session(tenant, user, plan, billing_interval, amount):
         "line_items[0][price_data][unit_amount]": str(amount),
         "line_items[0][price_data][recurring][interval]": interval,
         "line_items[0][price_data][product_data][name]": f"CiteAura {plan['name']}",
-        "allow_promotion_codes": "true",
         "billing_address_collection": "auto",
     }
     for key, value in metadata.items():

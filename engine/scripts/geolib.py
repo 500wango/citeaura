@@ -313,13 +313,16 @@ MACHINE_FILES = frozenset({
 })
 
 
-def is_fetchable(url: str) -> bool:
+def is_fetchable(url: str, allow_machine_file: bool = False) -> bool:
     if SKIP_EXT.search(url) or SKIP_PATH.search(url):
         return False
     tail = url.rstrip("/").rsplit("/", 1)[-1].lower()
-    if tail in {"download", "dl"} or tail in MACHINE_FILES:
+    if tail in {"download", "dl"}:
         return False
-    if tail == "llms.txt" or (tail.startswith("llms.") and tail.endswith(".txt")):
+    is_machine_file = tail in MACHINE_FILES or tail == "llms.txt" or (
+        tail.startswith("llms.") and tail.endswith(".txt")
+    )
+    if is_machine_file and not allow_machine_file:
         return False
     return True
 
@@ -352,9 +355,9 @@ def _request_pinned(session, url, parsed, addresses, **kwargs):
 
 
 
-def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
+def fetch(url: str, timeout: int = 12, retries: int = 1, allow_machine_file: bool = False) -> dict:
     """Fetch a bounded web document and return normalized response metadata."""
-    if not is_fetchable(url):
+    if not is_fetchable(url, allow_machine_file=allow_machine_file):
         return {"url": url, "final_url": url, "status": 0, "html": "", "content_type": "",
                 "elapsed": 0, "error": "Skipped: URL points to a download, media file, or static asset"}
     last = ""
@@ -440,8 +443,11 @@ def fetch(url: str, timeout: int = 12, retries: int = 1) -> dict:
     return {"url": url, "final_url": url, "status": 0, "html": "", "content_type": "", "elapsed": 0, "error": last}
 
 
-def fetch_text(url: str, timeout: int = 8) -> str:
-    result = fetch(url, timeout=timeout, retries=0)
+def fetch_text(url: str, timeout: int = 8, allow_machine_file: bool = False) -> str:
+    if allow_machine_file:
+        result = fetch(url, timeout=timeout, retries=0, allow_machine_file=True)
+    else:
+        result = fetch(url, timeout=timeout, retries=0)
     return result["html"] if result["status"] == 200 else ""
 
 

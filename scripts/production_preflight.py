@@ -3,6 +3,7 @@
 
 import argparse
 import base64
+import ipaddress
 import json
 import re
 import subprocess
@@ -64,7 +65,7 @@ def validate_environment(values):
         "PUBLIC_BASE_URL", "REDIS_URL", "REDIS_PASSWORD", "JWT_SECRET", "AES_KEY", "SESSION_COOKIE_SECURE",
         "RATE_LIMIT_ENABLED", "RATE_LIMIT_REQUESTS", "RATE_LIMIT_AUTH_REQUESTS",
         "RATE_LIMIT_WINDOW_SECONDS", "RATE_LIMIT_TRUST_PROXY_HEADERS",
-        "PRODUCTION_PROXY_MODE", "TRUST_CLOUDFLARE_COUNTRY_HEADER",
+        "PRODUCTION_PROXY_MODE", "TRUST_CLOUDFLARE_COUNTRY_HEADER", "FORWARDED_ALLOW_IPS",
     )
     for key in required:
         if not values.get(key):
@@ -113,6 +114,16 @@ def validate_environment(values):
         errors.append("RATE_LIMIT_ENABLED must be true")
     if values.get("RATE_LIMIT_TRUST_PROXY_HEADERS", "").lower() not in ("1", "true", "yes"):
         errors.append("RATE_LIMIT_TRUST_PROXY_HEADERS must be true behind the production proxy")
+    forwarded_allow_ips = values.get("FORWARDED_ALLOW_IPS", "").strip()
+    if not forwarded_allow_ips or forwarded_allow_ips == "*" or "*" in forwarded_allow_ips:
+        errors.append("FORWARDED_ALLOW_IPS must list explicit trusted proxy IPs or CIDRs")
+    else:
+        for entry in forwarded_allow_ips.split(","):
+            try:
+                ipaddress.ip_network(entry.strip(), strict=False)
+            except ValueError:
+                errors.append("FORWARDED_ALLOW_IPS must contain only valid IPs or CIDRs")
+                break
     if not production_proxy_mode:
         errors.append("PRODUCTION_PROXY_MODE must be true for the production proxy deployment")
     for key, maximum in (("RATE_LIMIT_REQUESTS", 1_000_000), ("RATE_LIMIT_AUTH_REQUESTS", 1_000_000), ("RATE_LIMIT_WINDOW_SECONDS", 3600)):

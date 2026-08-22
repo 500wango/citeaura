@@ -11,7 +11,7 @@ migrate:
 	alembic upgrade head
 
 worker:
-	celery -A api.worker.celery_app worker --loglevel=INFO
+	celery -A api.worker.celery_app worker --loglevel=INFO --pool=prefork
 
 beat:
 	celery -A api.worker.celery_app beat --loglevel=INFO --schedule=/tmp/citeaura-celerybeat-schedule

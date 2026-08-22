@@ -4,6 +4,7 @@ import base64
 import os
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.exceptions import InvalidTag
 
 from api import config
 
@@ -42,7 +43,7 @@ def decrypt_key(encoded: str) -> str:
             raise ValueError("ciphertext is too short")
         nonce, ciphertext = payload[:NONCE_SIZE], payload[NONCE_SIZE:]
         return AESGCM(_master_key()).decrypt(nonce, ciphertext, None).decode("utf-8")
-    except (ValueError, UnicodeError) as exc:
+    except (InvalidTag, ValueError, UnicodeError) as exc:
         raise ValueError("invalid encrypted API key") from exc
 
 

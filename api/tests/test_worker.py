@@ -462,6 +462,49 @@ def test_job_transaction_retries_closed_ssl_connection(monkeypatch):
     assert all(session.closed for session in sessions)
 
 
+def test_job_status_marks_completion_persistence_failure_as_failed(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'completion-failure.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with session_factory() as db:
+        tenant = Tenant(name="tenant-a", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="example",
+            url="https://example.com",
+            market="both",
+            status="processing",
+        )
+        db.add(project)
+        db.flush()
+        job = Job(project_id=project.id, action="sample", status="queued")
+        db.add(job)
+        db.commit()
+        job_id = job.id
+        project_id = project.id
+
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(tasks, "job_log_path", lambda *args: tmp_path / "logs" / "completion.log")
+    original_transaction = tasks._job_transaction
+
+    def fail_only_completion(operation, retries=2):
+        if operation.__name__ == "mark_complete":
+            raise RuntimeError("database unavailable")
+        return original_transaction(operation, retries=retries)
+
+    monkeypatch.setattr(tasks, "_job_transaction", fail_only_completion)
+    with pytest.raises(RuntimeError, match="database unavailable"):
+        with tasks._job_status("tenant-a", "example", "sample", job_id):
+            pass
+
+    with session_factory() as db:
+        assert db.get(Job, job_id).status == "failed"
+        assert db.get(Job, job_id).error == "completion_status_persist_failed"
+        assert db.get(Project, project_id).status == "failed"
+
+
 def test_job_status_uses_short_database_sessions(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{tmp_path / 'short-sessions.sqlite'}")
     Base.metadata.create_all(engine)

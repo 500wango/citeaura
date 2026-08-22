@@ -73,6 +73,12 @@ def rate_limit_trust_proxy_headers():
     return _enabled("RATE_LIMIT_TRUST_PROXY_HEADERS")
 
 
+def forwarded_allow_ips():
+    """Return the explicit proxy addresses trusted to supply forwarding headers."""
+    value = os.getenv("FORWARDED_ALLOW_IPS", "127.0.0.1")
+    return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
 def production_proxy_mode():
     """是否由可信生产反向代理承接公网流量。"""
     return _enabled("PRODUCTION_PROXY_MODE")
@@ -105,7 +111,9 @@ def aes_key():
 
 
 def session_cookie_secure():
-    return os.getenv("SESSION_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
+    # Production proxy mode always uses HTTPS; keep cookies Secure even if an
+    # incomplete environment file omitted the explicit flag.
+    return production_proxy_mode() or os.getenv("SESSION_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
 
 
 def oidc_allow_insecure_localhost():

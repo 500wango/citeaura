@@ -54,6 +54,12 @@ def test_config_reads_runtime_environment(monkeypatch, tmp_path):
     assert config.auth_smtp_settings()["security_mode"] == "ssl"
 
 
+def test_production_proxy_mode_forces_secure_cookies(monkeypatch):
+    monkeypatch.setenv("PRODUCTION_PROXY_MODE", "true")
+    monkeypatch.setenv("SESSION_COOKIE_SECURE", "false")
+    assert config.session_cookie_secure() is True
+
+
 def test_source_revision_prefers_deployment_environment(monkeypatch):
     monkeypatch.setenv("CITEAURA_SOURCE_REVISION", "abcdef123456")
     assert config.source_revision() == "abcdef123456"

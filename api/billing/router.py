@@ -292,6 +292,32 @@ def _update_invoice_status(db, value, paid):
             return False
         if not provider_subscription_id or db.get(Tenant, tenant_id) is None:
             return False
+    else:
+        plan_code = row.plan
+        billing_interval = row.billing_interval
+        try:
+            plan = _plan(plan_code)
+        except (StopIteration, KeyError):
+            return False
+    if paid:
+        try:
+            amount_paid = int(value.get("amount_paid"))
+        except (TypeError, ValueError):
+            amount_paid = -1
+        expected_amount = _payment_amount(plan, billing_interval)
+        if row is not None:
+            expected_amount = (
+                row.amount_usd_cents
+                if config.stripe_currency() == "usd"
+                else row.amount_cny_fen
+            )
+        if (
+            str(value.get("currency") or "").lower() != config.stripe_currency()
+            or expected_amount is None
+            or amount_paid != expected_amount
+        ):
+            return False
+    if row is None:
         row = Subscription(
             tenant_id=tenant_id,
             plan=plan_code,

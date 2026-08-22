@@ -8,10 +8,16 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_production_compose_binds_api_to_loopback_and_profiles_nginx():
     compose = (ROOT / "docker-compose.prod.yml").read_text("utf-8")
+    dockerfile = (ROOT / "Dockerfile").read_text("utf-8")
 
     assert "${ENV_FILE:-.env.production}" in compose
     assert '"127.0.0.1:${APP_PORT:-18000}:8000"' in compose
-    assert '"--proxy-headers", "--forwarded-allow-ips=*"' in compose
+    assert 'FORWARDED_ALLOW_IPS:-127.0.0.1' in compose
+    assert "--proxy-headers" in compose
+    assert "--pool=prefork" in (ROOT / "Dockerfile").read_text("utf-8")
+    assert "worker_pool=\"prefork\"" in (ROOT / "api/worker/celery_app.py").read_text("utf-8")
+    assert "requirements.lock" in dockerfile
+    assert "requirements.lock" in (ROOT / "docker-compose.yml").read_text("utf-8")
     assert 'profiles: ["standalone-nginx"]' in compose
     beat = compose.split("  beat:\n", 1)[1].split("\n  nginx:\n", 1)[0]
     assert "    command:" in beat

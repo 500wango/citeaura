@@ -49,9 +49,40 @@ class RateLimitDecision:
 
 def _source_ip(request):
     value = request.client.host if request.client else "unknown"
+    try:
+        peer = ipaddress.ip_address(str(value).strip())
+    except ValueError:
+        peer = None
     if config.rate_limit_trust_proxy_headers():
-        forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0]
-        value = request.headers.get("x-real-ip") or forwarded or value
+        trusted = []
+        for entry in config.forwarded_allow_ips():
+            try:
+                trusted.append(ipaddress.ip_network(entry, strict=False))
+            except ValueError:
+                continue
+
+        def is_trusted(candidate):
+            return any(candidate in network for network in trusted)
+
+        # Uvicorn has already validated the socket peer against
+        # --forwarded-allow-ips. Only then is the XFF chain authoritative.
+        if peer is not None and is_trusted(peer):
+            forwarded = [
+                item.strip()
+                for item in (request.headers.get("x-forwarded-for") or "").split(",")
+                if item.strip()
+            ]
+            for candidate in reversed(forwarded):
+                try:
+                    address = ipaddress.ip_address(candidate)
+                except ValueError:
+                    continue
+                if not is_trusted(address):
+                    return address.compressed
+        elif peer is not None:
+            # Proxy middleware rewrites request.client to the original source
+            # address. Do not let a client-provided header replace it.
+            return peer.compressed
     try:
         return ipaddress.ip_address(value.strip()).compressed
     except ValueError:

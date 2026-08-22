@@ -335,14 +335,18 @@ class TestAskWebSearch(unittest.TestCase):
                 },
             }],
         }
+        session = mock.Mock()
+        session.post.return_value = _Resp(200, payload)
         with mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}), \
-             mock.patch.object(S.requests, "post", return_value=_Resp(200, payload)) as post:
+             mock.patch.object(S.requests, "Session", return_value=session):
             result = S.ask("gemini", "Best tool?")
         self.assertTrue(result["ok"])
         self.assertTrue(result["searched"])
         self.assertEqual(result["citations"][0]["url"], "https://docs.example")
-        self.assertIn("generateContent", post.call_args.args[0])
-        self.assertIn("google_search", post.call_args.kwargs["json"]["tools"][0])
+        self.assertFalse(session.trust_env)
+        self.assertIn("generateContent", session.post.call_args.args[0])
+        self.assertIn("google_search", session.post.call_args.kwargs["json"]["tools"][0])
+        self.assertNotIn("key", session.post.call_args.kwargs)
 
     def test_grok_falls_back_to_live_search_parameters(self):
         chat = {

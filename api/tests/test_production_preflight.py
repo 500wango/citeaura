@@ -18,6 +18,7 @@ def _valid_environment():
         "RATE_LIMIT_AUTH_REQUESTS": "20",
         "RATE_LIMIT_WINDOW_SECONDS": "60",
         "RATE_LIMIT_TRUST_PROXY_HEADERS": "true",
+        "FORWARDED_ALLOW_IPS": "127.0.0.1",
         "PRODUCTION_PROXY_MODE": "true",
         "TRUST_CLOUDFLARE_COUNTRY_HEADER": "true",
         "BILLING_ENABLED": "true",
@@ -42,6 +43,15 @@ def test_valid_production_environment_passes_with_optional_warnings():
     assert errors == []
     assert any("Platform-funded" in warning for warning in warnings)
     assert any("tenant-managed" in warning for warning in warnings)
+
+
+def test_preflight_rejects_invalid_forwarded_proxy_address():
+    values = _valid_environment()
+    values["FORWARDED_ALLOW_IPS"] = "proxy.example"
+
+    errors, _warnings = validate_environment(values)
+
+    assert "FORWARDED_ALLOW_IPS must contain only valid IPs or CIDRs" in errors
 
 
 def test_preflight_rejects_placeholders_insecure_url_and_test_payments():

@@ -171,7 +171,7 @@ class TestCrawlSelectionAndEvidence(unittest.TestCase):
                 "<url><loc>https://evil.test/stolen</loc></url></urlset>"
             ),
         }
-        with mock.patch.object(G, "fetch_text", side_effect=lambda url, timeout=8: payloads.get(url, "")) as fetch:
+        with mock.patch.object(G, "fetch_text", side_effect=lambda url, timeout=8, allow_machine_file=False: payloads.get(url, "")) as fetch:
             urls = crawl.discover_sitemap(root)
         self.assertEqual(urls, ["https://example.com/a"])
         self.assertFalse(any(call.args[0].startswith("https://evil.test") for call in fetch.call_args_list))
