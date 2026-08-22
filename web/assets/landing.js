@@ -10,6 +10,12 @@ function trackPublicEvent(name, properties) {
   }).catch(function () {});
 }
 
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+}
+
 (function () {
   'use strict';
 
@@ -456,12 +462,24 @@ function trackPublicEvent(name, properties) {
       if (titlePrefix) titlePrefix.textContent = isLiveAudit ? 'Technical diagnostic ready ·' : 'Setup preview loaded';
       if (gradeEl) gradeEl.textContent = isLiveAudit ? String(audit.score || 0) + '/100' : 'Preview ready';
       if (openLabel) openLabel.textContent = isLiveAudit ? 'Create workspace →' : 'Open Workspace →';
+      var details = $('#banner-audit-details');
+      if (details) {
+        var checks = isLiveAudit && Array.isArray(audit.checks) ? audit.checks : [];
+        details.innerHTML = checks.slice(0, 5).map(function (check) {
+          return '<span class="audit-result-chip ' + (check.ok ? 'is-ok' : 'is-fail') + '">' +
+            (check.ok ? '✓ ' : '⚠ ') + escapeHtml(check.name || 'Site check') + '</span>';
+        }).join('');
+      }
       if (actionBtn) {
         actionBtn.href = '/app#/onboarding?domain=' + encodeURIComponent(domain);
         actionBtn.addEventListener('click', function () {
           try {
             localStorage.setItem('citeaura_pending_domain', domain);
             sessionStorage.setItem('citeaura_pending_domain', domain);
+            if (isLiveAudit && audit.audit_id) {
+              sessionStorage.setItem('citeaura_pending_audit_id', audit.audit_id);
+              sessionStorage.setItem('citeaura_pending_audit', JSON.stringify(audit));
+            }
           } catch(e){}
         });
       }

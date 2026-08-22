@@ -3,6 +3,7 @@
 import re
 import uuid
 import hashlib
+import json
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -32,7 +33,7 @@ from api.auth.security import (
 from api.country import request_country_code
 from api.analytics.router import request_visitor
 from api.db import get_db
-from api.models import Membership, PasswordResetToken, RefreshToken, Tenant, User
+from api.models import Membership, PasswordResetToken, PublicAudit, RefreshToken, Tenant, User
 from api.product_events import record_product_event
 from api.team.invitations import invitation_for_token, is_expired
 
@@ -45,6 +46,9 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     tenant_name: str | None = Field(default=None, max_length=128)
     invitation_token: str | None = Field(default=None, min_length=20, max_length=512)
+    audit_id: str | None = Field(default=None, min_length=16, max_length=64)
+    acquisition_source: str | None = Field(default=None, max_length=128)
+    acquisition_campaign: str | None = Field(default=None, max_length=128)
 
     @field_validator("email")
     @classmethod
@@ -180,6 +184,14 @@ def register(
 
     invitation = invitation_for_token(db, payload.invitation_token, for_update=True) if payload.invitation_token else None
     country_code = request_country_code(request)
+    public_audit = None
+    if payload.audit_id:
+        public_audit = db.query(PublicAudit).filter(
+            PublicAudit.audit_id == payload.audit_id,
+            PublicAudit.expires_at > datetime.now(timezone.utc),
+        ).first()
+        if public_audit is None:
+            _error(status.HTTP_400_BAD_REQUEST, "audit_handoff_expired")
     if payload.invitation_token:
         if invitation is None:
             _error(status.HTTP_400_BAD_REQUEST, "invitation_invalid")
@@ -224,6 +236,19 @@ def register(
             country_code=country_code,
             properties={"registration_kind": user.registration_kind},
         )
+        if payload.acquisition_source or payload.acquisition_campaign:
+            record_product_event(
+                db,
+                "signup_attribution",
+                tenant_id=tenant.id,
+                user_id=user.id,
+                anonymous_id=request_visitor(request),
+                country_code=country_code,
+                properties={
+                    "source": payload.acquisition_source or "direct",
+                    "campaign": payload.acquisition_campaign or "",
+                },
+            )
         if invitation:
             invitation.accepted_at = datetime.now(timezone.utc)
         db.commit()
@@ -248,6 +273,7 @@ def register(
             "trial_ends_at": tenant.trial_ends_at,
         },
         "role": role,
+        "audit": json.loads(public_audit.result_json) if public_audit is not None else None,
     }
 
 

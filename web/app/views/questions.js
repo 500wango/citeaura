@@ -2,7 +2,7 @@
  * Target questions
  */
 
-import { workspace, projects } from '../api.js?v=3.4';
+import { workspace, projects } from '../api.js?v=3.8';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
@@ -18,13 +18,15 @@ export default {
 
     let questions = [];
     let expand = {};
+    let research = {};
     let insights = {};
     try {
       let project = null;
-      [questions, expand, project] = await Promise.all([
+      [questions, expand, project, research] = await Promise.all([
         workspace.getQuestions(projectId).catch(() => []),
         workspace.getExpand(projectId).catch(() => ({})),
         projects.get(projectId).catch(() => null),
+        workspace.getPromptResearch(projectId).catch(() => ({})),
       ]);
       insights = project?.insights || {};
     } catch (err) {
@@ -33,6 +35,7 @@ export default {
     const candidates = Array.isArray(expand?.candidates) ? expand.candidates : (Array.isArray(expand?.terms) ? expand.terms : []);
     const explorer = insights.prompt_explorer || {};
     const opportunityItems = Array.isArray(explorer.items) ? explorer.items : [];
+    const researchItems = Array.isArray(research?.items) ? research.items : [];
     const priorityLabel = { high: 'High opportunity', medium: 'Medium opportunity', needs_sampling: 'Needs sampling', probe: 'Brand probe', monitor: 'Monitor' };
 
     return `
@@ -49,6 +52,17 @@ export default {
               <span>${t('questions.add_btn', {}, 'Add Questions')}</span>
             </button>
           </div>
+        </div>
+
+        <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <div>
+              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0 0 4px;">Prompt Research</h3>
+              <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Start from a brand, category, competitor, or URL. Review intent fan-out before adding prompts to the monitoring bank.</p>
+            </div>
+            <button type="button" id="btn-run-prompt-research" class="btn btn-primary btn-sm">Research prompts</button>
+          </div>
+          ${researchItems.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>Prompt candidate</th><th>Seed</th><th>Intent</th><th>Funnel stage</th><th style="text-align:right;">Action</th></tr></thead><tbody>${researchItems.slice(0, 18).map((item) => `<tr><td style="min-width:300px;"><strong>${escapeHtml(item.text || '')}</strong></td><td><span class="tag tag-dim">${escapeHtml(item.seed || '')}</span></td><td><span class="tag tag-neutral">${escapeHtml(item.intent || '')}</span></td><td>${escapeHtml(item.funnel_stage || '')}</td><td style="text-align:right;">${item.in_question_bank ? '<span class="tag pill-good">In bank</span>' : `<button type="button" class="btn btn-secondary btn-sm btn-add-research" data-text="${escapeHtml(item.text || '')}" data-intent="${escapeHtml(item.intent || '')}">Add to monitoring</button>`}</td></tr>`).join('')}</tbody></table></div>` : `<div style="padding:var(--sp-4);background:var(--page);color:var(--muted);font-size:var(--fs-2);">No research run yet. Generate a fan-out to discover the questions your buyers may ask.</div>`}
         </div>
 
         <div class="card" style="padding:0;overflow:hidden;margin-bottom:var(--sp-4);">
@@ -156,6 +170,28 @@ export default {
       await ctx.reloadCurrentView();
     };
 
+    const runResearch = () => {
+      openModal({
+        title: 'Research prompts',
+        content: `<div style="display:flex;flex-direction:column;gap:var(--sp-3);"><p style="font-size:var(--fs-2);color:var(--muted);margin:0;">Enter one seed per line. The project brand, category, competitors, and official URL are included automatically.</p><textarea id="research-seeds" class="input" rows="5" placeholder="AI visibility platform\nGEO software"></textarea></div>`,
+        confirmText: 'Generate fan-out',
+        onConfirm: async () => {
+          const seeds = (document.getElementById('research-seeds')?.value || '').split('\n').map((value) => value.trim()).filter(Boolean).slice(0, 20);
+          try {
+            await workspace.runPromptResearch(projectId, { seeds });
+            toast.success('Prompt research generated');
+            await ctx.reloadCurrentView();
+            return true;
+          } catch (err) {
+            toast.error(err.detail || 'Prompt research failed');
+            return false;
+          }
+        },
+      });
+    };
+
+    document.getElementById('btn-run-prompt-research')?.addEventListener('click', runResearch);
+
     const openAdd = () => {
       openModal({
         title: t('questions.modal_title', {}, 'Add Target Questions'),
@@ -194,6 +230,25 @@ export default {
           await addQuestions([button.getAttribute('data-text')]);
         } catch (err) {
           toast.error(err.detail || 'Failed to add candidate');
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-add-research').forEach((button) => {
+      button.addEventListener('click', async () => {
+        try {
+          await workspace.addQuestions(projectId, {
+            items: [{
+              text: button.getAttribute('data-text') || '',
+              market: 'global',
+              group: button.getAttribute('data-intent') || 'Research',
+              source: 'prompt_research',
+            }],
+          });
+          toast.success('Prompt added to monitoring bank');
+          await ctx.reloadCurrentView();
+        } catch (err) {
+          toast.error(err.detail || 'Failed to add prompt');
         }
       });
     });

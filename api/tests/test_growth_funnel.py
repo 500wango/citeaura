@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import ProductEvent
+from api.models import ProductEvent, PublicAudit
 from api.projects import public
 
 
@@ -72,3 +72,30 @@ def test_public_audit_rate_limit_is_per_anonymous_source(growth_client):
     blocked = client.post("/api/v1/public/audit", json={"url": "https://example-blocked.com"})
     assert blocked.status_code == 429
     assert blocked.json()["error"] == "public_audit_rate_limited"
+
+
+def test_public_audit_returns_handoff_id_and_persists_result(growth_client):
+    client, sessions = growth_client
+    response = client.post("/api/v1/public/audit", json={"url": "https://handoff.example"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["audit_id"]) == 32
+    with sessions() as db:
+        row = db.query(PublicAudit).filter(PublicAudit.audit_id == payload["audit_id"]).one()
+        assert "public_diagnostic_summary" in row.result_json
+
+
+def test_public_audit_handoff_is_accepted_during_registration(growth_client):
+    client, _ = growth_client
+    audit = client.post("/api/v1/public/audit", json={"url": "https://register-handoff.example"}).json()
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "handoff-owner@example.com",
+            "password": "correct-horse-battery",
+            "audit_id": audit["audit_id"],
+            "acquisition_source": "landing",
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["audit"]["audit_id"] == audit["audit_id"]

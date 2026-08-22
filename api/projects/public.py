@@ -2,8 +2,11 @@
 
 from collections import OrderedDict
 import hashlib
+import json
 import threading
 import time
+import uuid
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator
@@ -16,7 +19,7 @@ from api.adapters.engine import geolib, with_tenant_context
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import preflight
 from api.db import get_db
-from api.models import Project, Tenant
+from api.models import Project, PublicAudit, Tenant
 from api.product_events import record_product_event
 from api.projects.router import _delivery_package_kind, _stream_delivery_zip
 
@@ -85,6 +88,20 @@ def _cache_audit(url: str, result: dict):
             _AUDIT_CACHE.popitem(last=False)
 
 
+def _persist_audit(db, result, request):
+    """Create a handoff record for one public audit response."""
+    audit_id = uuid.uuid4().hex
+    payload = {**result, "audit_id": audit_id}
+    db.add(PublicAudit(
+        audit_id=audit_id,
+        url=result["url"],
+        anonymous_id=_client_key(request),
+        result_json=json.dumps(payload, ensure_ascii=False, sort_keys=True),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+    ))
+    return payload
+
+
 def _machine_signal(root: str, path: str, label: str) -> dict:
     """Fetch only bounded machine-file text and never return its contents."""
     url = root.rstrip("/") + path
@@ -124,7 +141,7 @@ def public_audit(payload: PublicAuditRequest, request: Request, db: Session = De
         )
     cached = _cached_audit(payload.url)
     if cached is not None:
-        result = {**cached, "cached": True}
+        result = _persist_audit(db, {**cached, "cached": True}, request)
         record_product_event(db, "public_audit_completed", anonymous_id=_client_key(request), properties={"url_host": urlparse(payload.url).hostname, "cached": True})
         db.commit()
         return result
@@ -154,6 +171,7 @@ def public_audit(payload: PublicAuditRequest, request: Request, db: Session = De
             "next_step": "Create a workspace to turn findings into tickets and verification runs",
         }
         _cache_audit(payload.url, result)
+        result = _persist_audit(db, result, request)
         record_product_event(db, "public_audit_completed", anonymous_id=_client_key(request), properties={"url_host": urlparse(payload.url).hostname, "score": result["score"]})
         db.commit()
         return result

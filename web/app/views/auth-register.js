@@ -2,7 +2,7 @@
  * 
  */
 
-import { analytics, auth } from '../api.js?v=3.5';
+import { analytics, auth } from '../api.js?v=3.8';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 
@@ -80,7 +80,26 @@ export default {
       submitBtn.innerHTML = `<span class="spin"></span> ${t('common.creating', {}, 'Creating...')}`;
 
       try {
-        await auth.register({ tenant_name, email, password });
+        let auditId = '';
+        let acquisitionSource = '';
+        let acquisitionCampaign = '';
+        try {
+          auditId = sessionStorage.getItem('citeaura_pending_audit_id') || '';
+          const params = new URLSearchParams(window.location.search);
+          acquisitionSource = params.get('utm_source') || document.referrer || '';
+          acquisitionCampaign = params.get('utm_campaign') || '';
+        } catch (e) {}
+        const registration = await auth.register({
+          tenant_name,
+          email,
+          password,
+          audit_id: auditId || undefined,
+          acquisition_source: acquisitionSource.slice(0, 128) || undefined,
+          acquisition_campaign: acquisitionCampaign.slice(0, 128) || undefined,
+        });
+        if (registration?.audit) {
+          try { sessionStorage.setItem('citeaura_pending_audit', JSON.stringify(registration.audit)); } catch (e) {}
+        }
         await auth.login({ email, password });
         await ctx.reloadSession();
         toast.success(t('auth.register_success', {}, 'Workspace created successfully'));
@@ -89,7 +108,7 @@ export default {
         try {
           intentPlan = String(sessionStorage.getItem('citeaura_intent_plan') || '').toLowerCase();
         } catch (e) {}
-        if (intentPlan && ['starter', 'pro', 'agency', 'enterprise'].includes(intentPlan)) {
+        if (intentPlan && ['lite', 'starter', 'pro', 'agency', 'enterprise'].includes(intentPlan)) {
           ctx.navigate(`#/billing?plan=${encodeURIComponent(intentPlan)}`);
         } else {
           ctx.navigate('#/onboarding');

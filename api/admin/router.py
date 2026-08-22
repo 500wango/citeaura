@@ -26,6 +26,7 @@ from api.models import (
     Tenant,
     User,
 )
+from api.billing.limits import activation_funnel
 
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
@@ -99,17 +100,14 @@ def _mrr_cents(subscription):
 
 
 def _tenant_activated(db, tenant_id):
-    event = db.query(ProductEvent.id).filter(
-        ProductEvent.tenant_id == tenant_id,
-        ProductEvent.name == "sample_completed",
-    ).first()
-    if event:
-        return True
-    return db.query(Job.id).join(Project, Project.id == Job.project_id).filter(
-        Project.tenant_id == tenant_id,
-        Job.status == "done",
-        Job.action.in_(ACTIVATION_ACTIONS),
-    ).first() is not None
+    tenant = db.get(Tenant, tenant_id)
+    if tenant is None:
+        return False
+    funnel = activation_funnel(db, tenant)
+    return any(
+        item.get("key") == "first_audit" and item.get("completed")
+        for item in funnel.get("steps") or []
+    )
 
 
 def _tenant_payload(db, tenant):

@@ -91,19 +91,19 @@ export const TRACKS = [
 /* ----------  ---------- */
 const VIEW_LOADERS = {
   login: () => import('./views/auth-login.js?v=2.11'),
-  register: () => import('./views/auth-register.js?v=2.12'),
+  register: () => import('./views/auth-register.js?v=2.13'),
   'forgot-password': () => import('./views/auth-forgot.js?v=2.5'),
   'reset-password': () => import('./views/auth-reset.js?v=2.5'),
   invite: () => import('./views/auth-invite.js?v=2.5'),
-  onboarding: () => import('./views/onboarding.js?v=2.8'),
-  overview: () => import('./views/overview.js?v=2.7'),
+  onboarding: () => import('./views/onboarding.js?v=2.9'),
+  overview: () => import('./views/overview.js?v=2.8'),
   engines: () => import('./views/engines.js?v=2.6'),
-  channels: () => import('./views/channels.js?v=2.6'),
+  channels: () => import('./views/channels.js?v=2.7'),
   competitors: () => import('./views/competitors.js?v=2.6'),
   siteaudit: () => import('./views/siteaudit.js?v=2.6'),
   gaps: () => import('./views/gaps.js?v=2.5'),
   blueprint: () => import('./views/blueprint.js?v=1.0'),
-  questions: () => import('./views/questions.js?v=2.6'),
+  questions: () => import('./views/questions.js?v=2.7'),
   facts: () => import('./views/facts.js?v=2.7'),
   plan: () => import('./views/plan.js?v=2.6'),
   workbench: () => import('./views/workbench.js?v=2.6'),
@@ -114,10 +114,10 @@ const VIEW_LOADERS = {
   report: () => import('./views/report.js?v=2.7'),
   branding: () => import('./views/branding.js?v=2.5'),
   'project-settings': () => import('./views/project-settings.js?v=2.5'),
-  'engine-settings': () => import('./views/engine-settings.js?v=2.9'),
+  'engine-settings': () => import('./views/engine-settings.js?v=3.0'),
   automation: () => import('./views/automation.js?v=2.6'),
   team: () => import('./views/team.js?v=2.5'),
-  billing: () => import('./views/billing.js?v=2.8'),
+  billing: () => import('./views/billing.js?v=2.9'),
   security: () => import('./views/security.js?v=2.5'),
   archive: () => import('./views/archive.js?v=2.5'),
 };
@@ -635,7 +635,7 @@ async function init() {
 }
 
 const INTENT_PLAN_KEY = 'citeaura_intent_plan';
-const ENTRY_PLANS = new Set(['starter', 'pro', 'agency', 'enterprise']);
+const ENTRY_PLANS = new Set(['lite', 'starter', 'pro', 'agency', 'enterprise']);
 
 function normalizeLegacyAuthLink() {
   const params = new URLSearchParams(location.search);

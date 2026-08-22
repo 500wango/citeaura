@@ -2,13 +2,13 @@
  *  (Billing & Plans)
  */
 
-import { billing } from '../api.js?v=3.4';
+import { billing } from '../api.js?v=3.8';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { escapeHtml } from '../safe-html.js';
 
 const INTENT_PLAN_KEY = 'citeaura_intent_plan';
-const SUBSCRIBABLE = new Set(['starter', 'pro', 'agency']);
+const SUBSCRIBABLE = new Set(['lite', 'starter', 'pro', 'agency']);
 
 function formatUsd(amount) {
   if (amount === null || amount === undefined) return 'Custom';
@@ -79,6 +79,7 @@ export default {
     const paymentDisabled = paymentAvailable && canUpgrade ? '' : 'disabled aria-disabled="true"';
     const paymentUnavailable = t('billing.payment_unavailable', {}, 'Payments unavailable');
     const starter = planByCode(plansData.plans, 'starter');
+    const lite = planByCode(plansData.plans, 'lite');
     const pro = planByCode(plansData.plans, 'pro');
     const agency = planByCode(plansData.plans, 'agency');
     const intentPlan = readIntentPlan(ctx.params);
@@ -185,6 +186,24 @@ export default {
 
         <!-- Pricing Plans Grid -->
         <div class="pricing-grid">
+          <!-- Lite -->
+          <article class="price-card ${intentPlan === 'lite' ? 'is-intent' : ''}">
+            <p class="plan-name">Lite</p>
+            <p class="price">
+              <strong class="price-val" data-m="${formatUsd(lite?.prices?.monthly?.usd)}" data-a="${formatUsd(lite?.prices?.annual?.usd)}">${formatUsd(lite?.prices?.monthly?.usd || 39)}</strong>
+              <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
+            </p>
+            <p class="plan-summary" data-m="One project, fast technical visibility baseline" data-a="${planSummary(lite, 'annual', 'One project, fast technical visibility baseline', 'About $31 / month billed annually')}">One project, fast technical visibility baseline</p>
+            <ul>
+              <li>${lite?.projects || 1} active project</li>
+              <li>Technical audit, tickets, and verification</li>
+              <li>BYOK sampling with transparent provider costs</li>
+            </ul>
+            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="lite" ${currentPlan === 'lite' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
+              ${subscribeLabel('lite', onTrial ? 'Start Lite' : 'Subscribe Lite')}
+            </button>
+          </article>
+
           <!-- Starter -->
           <article class="price-card ${intentPlan === 'starter' ? 'is-intent' : ''}">
             <p class="plan-name">Starter</p>

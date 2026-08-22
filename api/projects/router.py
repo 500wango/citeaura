@@ -10,7 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from starlette.background import BackgroundTask
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
@@ -28,14 +28,14 @@ from api.adapters.engine import (
     with_tenant_context,
 )
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import audit_presentation, brand_identity, delivery, delivery_share, framing, global_scope, measurement, preflight, product_insights, report_quality, sampling_control, sampling_modes, ticket_workflow, workspace
+from api.adapters import audit_presentation, brand_identity, delivery, delivery_share, export as report_export, framing, global_scope, measurement, preflight, product_insights, report_quality, sampling_control, sampling_modes, ticket_workflow, workspace
 from api.adapters.network import NetworkTargetError, validate_outbound_url
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_project_creation, check_sample_run
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.db import get_db
 from api import config
-from api.models import Job, Project, Tenant, User
+from api.models import Job, Project, PublicAudit, Tenant, User
 from api.product_events import record_product_event
 from api.worker.tasks import (
     PIPELINE_ACTIONS,
@@ -65,6 +65,7 @@ class ProjectCreate(BaseModel):
     name: str | None = Field(default=None, max_length=128)
     skip_llm: bool = False
     no_sample: bool = False
+    audit_id: str | None = Field(default=None, min_length=16, max_length=64)
 
     @field_validator("url")
     @classmethod
@@ -617,6 +618,24 @@ def _product_report(project_slug, metrics):
     }
 
 
+def _project_report_payload(db, tenant, project):
+    """读取一个项目的稳定报告契约，供浏览器和只读集成 API 共用。"""
+    with with_tenant_read_context(tenant, project.slug):
+        global_scope.normalize_project(project.slug)
+        path = _latest_file(geolib.project_dir(project.slug) / "metrics", "*.json")
+        if path is None:
+            _error(status.HTTP_404_NOT_FOUND, "report_not_found")
+        metrics = geolib.read_json(path, None)
+        product_report = _product_report(project.slug, metrics)
+        quality = report_quality.assess(project.slug, _has_sampling_access(db, tenant, project))
+    return {
+        "report": product_report,
+        "date": metrics.get("date") if metrics else None,
+        "sample_artifact": (metrics.get("run_id") or metrics.get("date")) if metrics else None,
+        "report_quality": quality,
+    }
+
+
 def _top_actions(tickets, limit=3):
     indexed = [(index, item) for index, item in enumerate(tickets or []) if isinstance(item, dict)]
     indexed = [pair for pair in indexed if pair[1].get("status") not in ("done", "wontfix")]
@@ -933,6 +952,19 @@ def create_project(
     except NetworkTargetError as exc:
         _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc))
     tenant = _tenant_for_user(db, current_user, for_update=True)
+    public_audit = None
+    audit_snapshot = None
+    if payload.audit_id:
+        public_audit = db.query(PublicAudit).filter(
+            PublicAudit.audit_id == payload.audit_id,
+            PublicAudit.expires_at > datetime.now(timezone.utc),
+        ).first()
+        if public_audit is None:
+            _error(status.HTTP_400_BAD_REQUEST, "audit_handoff_expired")
+        try:
+            audit_snapshot = json.loads(public_audit.result_json or "{}")
+        except (TypeError, ValueError):
+            audit_snapshot = None
     slug = geolib.slugify(payload.url)
     existing = db.query(Project).filter(Project.tenant_id == tenant.id, Project.slug == slug).first()
     if existing is not None and existing.archived_at is None and existing.status != "archived":
@@ -972,7 +1004,12 @@ def create_project(
         action=job_action,
         status="queued",
         stage="initializing",
-        request_json=json.dumps({"skip_llm": skip_llm, "no_sample": no_sample, "job_action": job_action}),
+        request_json=json.dumps({
+            "skip_llm": skip_llm,
+            "no_sample": no_sample,
+            "job_action": job_action,
+            "audit_id": payload.audit_id,
+        }),
     )
     db.add(job)
     record_product_event(
@@ -1026,6 +1063,10 @@ def create_project(
             db.commit()
             _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "project_init_failed")
 
+    if audit_snapshot:
+        with with_tenant_context(tenant.directory_slug, slug):
+            geolib.write_json(geolib.project_dir(slug) / "public_audit.json", audit_snapshot)
+
     project.status = "bootstrapping"
     job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
@@ -1055,6 +1096,7 @@ def create_project(
         "action": job_action,
         "slug": project.slug,
         "status": project.status,
+        "audit_id": payload.audit_id,
     }
 
 
@@ -1118,6 +1160,7 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
 
             cfg = workspace.ensure_global_engine_scope(project.slug)
             detail = dashboard.project(project.slug)
+            detail["public_audit"] = geolib.read_json(geolib.project_dir(project.slug) / "public_audit.json", None)
             detail["questions"] = cfg.get("questions", [])
             detail["competitor_discovery"] = _competitor_discovery_payload(cfg)
             _, current_rows = _current_sample_rows(project.slug, cfg)
@@ -1141,6 +1184,7 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
                 "prompt_explorer": {"items": [], "measured_count": 0, "total_count": 0, "minimum_samples": 3},
                 "competitor_heatmap": {"entities": [], "cohorts": [], "questions": [], "sample_count": 0},
                 "takeover_alerts": [],
+                "sentiment": {"sample_count": 0, "bands": [], "method": "heuristic answer context; inspect raw replay before making a claim"},
                 "campaign_proposals": {
                     "items": [],
                     "counts": {"blocked": 0, "review_required": 0, "ready_for_approval": 0},
@@ -1657,17 +1701,22 @@ def project_report(project_id: int, current_user: User = Depends(get_current_use
     """返回最新 metrics 报告。"""
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
-    with with_tenant_read_context(tenant, project.slug):
-        global_scope.normalize_project(project.slug)
-        path = _latest_file(geolib.project_dir(project.slug) / "metrics", "*.json")
-        if path is None:
-            _error(status.HTTP_404_NOT_FOUND, "report_not_found")
-        metrics = geolib.read_json(path, None)
-        product_report = _product_report(project.slug, metrics)
-        quality = report_quality.assess(project.slug, _has_sampling_access(db, tenant, project))
-    return {"report": product_report, "date": metrics.get("date") if metrics else None,
-            "sample_artifact": (metrics.get("run_id") or metrics.get("date")) if metrics else None,
-            "report_quality": quality}
+    return _project_report_payload(db, tenant, project)
+
+
+@router.get("/{project_id}/export.csv")
+def export_project_csv(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """下载当前可见度报告和引用信源的平面 CSV。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    payload = _project_report_payload(db, tenant, project)
+    response = Response(
+        content=report_export.report_csv(project.slug, payload["report"]),
+        media_type="text/csv; charset=utf-8",
+    )
+    response.headers["Content-Disposition"] = f'attachment; filename="citeaura-{project.slug}-report.csv"'
+    response.headers["X-CiteAura-Sampling-Mode"] = "labeled per provider row"
+    return response
 
 
 @router.get("/{project_id}/engines")

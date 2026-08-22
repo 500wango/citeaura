@@ -16,6 +16,13 @@ PLANS = {
         "projects": 3,
         "sample_runs": None,
     },
+    "lite": {
+        "name": "Lite",
+        "monthly_cny": 299,
+        "monthly_usd": 39,
+        "projects": 1,
+        "sample_runs": None,
+    },
     "pro": {
         "name": "Pro",
         "monthly_cny": 1499,
@@ -40,4 +47,4 @@ PLANS = {
 }
 
 
-SUBSCRIBABLE_PLANS = frozenset(("starter", "pro", "agency", "enterprise"))
+SUBSCRIBABLE_PLANS = frozenset(("lite", "starter", "pro", "agency", "enterprise"))

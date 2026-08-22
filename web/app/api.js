@@ -187,6 +187,7 @@ export const projects = {
     data && data.report ? { ...data.report, report_quality: data.report_quality, date: data.date,
       sample_artifact: data.sample_artifact } : null
   )),
+  exportCsv: (id) => `/api/v1/projects/${encodeURIComponent(id)}/export.csv`,
   getEngines: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/engines`),
   getFraming: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/framing`), 'framing', null),
   getSamples: (id, date) => request(`/api/v1/projects/${encodeURIComponent(id)}/samples/${encodeURIComponent(date)}`),
@@ -236,6 +237,8 @@ export const workspace = {
   getContent: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/content`),
   saveContent: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/content`, { method: 'PUT', body }),
   getExpand: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/expand`),
+  getPromptResearch: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/prompt-research`),
+  runPromptResearch: (id, body = {}) => request(`/api/v1/projects/${encodeURIComponent(id)}/prompt-research`, { method: 'POST', body }),
   addQuestions: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/questions`, { method: 'POST', body }),
   updateQuestion: (id, questionId, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/questions/${encodeURIComponent(questionId)}`, { method: 'PATCH', body }),
   deleteQuestion: (id, questionId) => request(`/api/v1/projects/${encodeURIComponent(id)}/questions/${encodeURIComponent(questionId)}`, { method: 'DELETE' }),
@@ -257,6 +260,9 @@ export const settings = {
   testCustomProvider: (body) => request('/api/v1/settings/keys/custom/test', { method: 'POST', body }),
   saveCustomProvider: (body) => request('/api/v1/settings/keys/custom', { method: 'PUT', body }),
   deleteCustomProvider: (code) => request(`/api/v1/settings/keys/custom/${encodeURIComponent(code)}`, { method: 'DELETE' }),
+  getApiTokens: () => fieldRequest(request('/api/v1/settings/api-tokens'), 'tokens', []),
+  createApiToken: (name) => request('/api/v1/settings/api-tokens', { method: 'POST', body: { name } }),
+  revokeApiToken: (id) => request(`/api/v1/settings/api-tokens/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };
 
 /* ==========================================================================

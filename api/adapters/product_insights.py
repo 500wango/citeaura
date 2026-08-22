@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from pathlib import Path
+import re
 
 from api.adapters import brand_facts, measurement, sampling_modes
 from api.adapters.engine import geolib
@@ -20,6 +21,34 @@ def _usable_rows(rows):
         and isinstance(row.get("analysis"), dict)
         and not row.get("brand_in_question")
     ]
+
+
+def _sentiment_summary(rows):
+    """Classify observed brand context into cautious, neutral, or enthusiastic bands."""
+    labels = {"enthusiastic": 0, "neutral": 0, "cautious": 0, "negative": 0}
+    positive_cues = re.compile(r"\b(best|excellent|great|leading|recommended|top|strong choice|reliable)\b", re.I)
+    for row in _usable_rows(rows):
+        analysis = row.get("analysis") or {}
+        negative = list(analysis.get("negative_cues") or [])
+        answer = str(row.get("answer") or "")
+        if negative and analysis.get("brand_mentioned"):
+            label = "negative"
+        elif negative:
+            label = "cautious"
+        elif analysis.get("brand_mentioned") and positive_cues.search(answer):
+            label = "enthusiastic"
+        else:
+            label = "neutral"
+        labels[label] += 1
+    total = sum(labels.values())
+    return {
+        "sample_count": total,
+        "bands": [
+            {"label": label, "count": count, "rate": round(count / total, 3) if total else None}
+            for label, count in labels.items()
+        ],
+        "method": "heuristic answer context; inspect raw replay before making a claim",
+    }
 
 
 def _entity_names(config):
@@ -557,6 +586,7 @@ def build(project_slug, rows, config, blueprint=None, expected_cohorts=None):
         "prompt_explorer": prompt,
         "competitor_heatmap": heatmap,
         "takeover_alerts": alerts,
+        "sentiment": _sentiment_summary(rows),
         "campaign_proposals": _campaign_proposals(
             project_slug, prompt, heatmap, alerts, blueprint,
         ),

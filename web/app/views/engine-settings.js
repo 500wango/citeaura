@@ -2,7 +2,7 @@
  *  (Engine Keys & BYOK)
  */
 
-import { settings } from '../api.js?v=3.4';
+import { settings } from '../api.js?v=3.8';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
@@ -141,10 +141,12 @@ export default {
   render: async (ctx) => {
     let configuredKeys = [];
     let customProviders = [];
+    let apiTokens = [];
     try {
-      [configuredKeys, customProviders] = await Promise.all([
+      [configuredKeys, customProviders, apiTokens] = await Promise.all([
         settings.getKeys().catch(() => []),
         settings.getCustomProviders().catch(() => []),
+        settings.getApiTokens().catch(() => []),
       ]);
     } catch (e) {}
 
@@ -241,11 +243,69 @@ export default {
             </table>
           </div>
         </div>
+
+        <section class="card" style="gap:var(--sp-3);margin-top:var(--sp-4);">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <div>
+              <h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">Public API & MCP access</h2>
+              <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;max-width:70ch;">Create a read-only token for reporting tools or an MCP client. Tokens are shown once, stored as hashes, and can be revoked by an owner.</p>
+            </div>
+            <button type="button" id="btn-create-api-token" class="btn btn-secondary btn-sm">Create read-only token</button>
+          </div>
+          ${apiTokens.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>Name</th><th>Prefix</th><th>Status</th><th>Last used</th><th style="text-align:right;">Action</th></tr></thead><tbody>${apiTokens.map((token) => `<tr><td>${escapeHtml(token.name)}</td><td class="num">${escapeHtml(token.prefix)}…</td><td><span class="tag ${token.revoked_at ? 'tag-dim' : 'pill-good'}">${token.revoked_at ? 'Revoked' : 'Active · read only'}</span></td><td class="num">${escapeHtml(token.last_used_at || 'Not used')}</td><td style="text-align:right;">${token.revoked_at ? '' : `<button type="button" class="btn btn-ghost btn-sm btn-revoke-api-token" data-id="${token.id}" style="color:var(--bad);">Revoke</button>`}</td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">No integration tokens created.</p>'}
+        </section>
       </div>
     `;
   },
 
   mounted: (ctx) => {
+    document.getElementById('btn-create-api-token')?.addEventListener('click', () => {
+      openModal({
+        title: 'Create read-only API token',
+        content: '<div class="field"><label for="api-token-name">Token name</label><input id="api-token-name" class="input" maxlength="64" placeholder="MCP reporting" required><div class="field-hint">Read-only access to project lists, visibility reports, CSV exports, and prompt research.</div></div>',
+        confirmText: 'Create token',
+        onConfirm: async () => {
+          const name = document.getElementById('api-token-name')?.value.trim();
+          if (!name) return false;
+          try {
+            const result = await settings.createApiToken(name);
+            openModal({
+              title: 'Copy your API token',
+              showFooter: false,
+              content: `<p style="margin:0 0 var(--sp-3);">This value will not be shown again.</p><textarea id="new-api-token" class="input" rows="3" readonly>${escapeHtml(result.token)}</textarea><div style="display:flex;justify-content:flex-end;margin-top:var(--sp-3);"><button type="button" id="btn-copy-api-token" class="btn btn-primary btn-sm">Copy token</button></div>`,
+            });
+            document.getElementById('btn-copy-api-token')?.addEventListener('click', async () => {
+              const value = document.getElementById('new-api-token')?.value || '';
+              try {
+                await navigator.clipboard.writeText(value);
+                toast.success('Token copied');
+              } catch (err) {
+                document.getElementById('new-api-token')?.select();
+                toast.success('Select and copy the token');
+              }
+            });
+            await ctx.reloadCurrentView();
+            return true;
+          } catch (err) {
+            toast.error(t(err.error, {}, err.detail || 'Failed to create API token'));
+            return false;
+          }
+        },
+      });
+    });
+
+    document.querySelectorAll('.btn-revoke-api-token').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        try {
+          await settings.revokeApiToken(btn.getAttribute('data-id'));
+          await ctx.reloadCurrentView();
+          toast.success('API token revoked');
+        } catch (err) {
+          toast.error(t(err.error, {}, err.detail || 'Failed to revoke API token'));
+        }
+      });
+    });
+
     document.getElementById('btn-add-custom-provider')?.addEventListener('click', () => {
       openModal({
         title: 'Add Custom Provider',

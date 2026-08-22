@@ -71,7 +71,9 @@ def activation_funnel(db: Session, tenant: Tenant) -> dict:
     completed_jobs = [job for job in jobs if job.finished_at or job.created_at]
     audit_jobs = [
         job for job in completed_jobs
-        if job.action in ("audit", "autopilot", "cycle", "serve", "bootstrap")
+        if job.action in (
+            "audit", "sample", "sample-import", "autopilot", "cycle", "serve", "bootstrap",
+        )
     ]
     sampled_jobs = [job for job in completed_jobs if _job_sampled(job)]
     delivery_jobs = [job for job in completed_jobs if job.action == "deliver"]

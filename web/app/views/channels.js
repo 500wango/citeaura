@@ -2,7 +2,7 @@
  * AI 联网采样引用信源。
  */
 
-import { projects } from '../api.js?v=3.4';
+import { projects } from '../api.js?v=3.8';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
@@ -42,13 +42,16 @@ export default {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
     }
 
-    const [report, externalEvidence] = await Promise.all([
+    const [report, externalEvidence, project] = await Promise.all([
       projects.getReport(projectId).catch(() => null),
       projects.getExternalEvidence(projectId).catch(() => []),
+      projects.get(projectId).catch(() => null),
     ]);
     const channels = report?.channels || [];
     const totalMentions = channels.reduce((sum, channel) => sum + Number(channel.count || 0), 0);
     const cohort = report?.sample_artifact || report?.date || null;
+    const ownHost = String(project?.url || '').replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '').toLowerCase();
+    const officialSource = channels.find((channel) => String(channel.domain || '').toLowerCase().replace(/^www\./, '') === ownHost);
 
     return `
       <div class="app-view-container">
@@ -63,6 +66,9 @@ export default {
             <a href="#/engines" class="btn btn-secondary btn-sm">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
               <span>${t('channels.review_samples', {}, 'Review Raw Citations')}</span>
+            </a>
+            <a href="${projects.exportCsv(projectId)}" class="btn btn-secondary btn-sm" download>
+              <span aria-hidden="true">↓</span><span>Download CSV</span>
             </a>
             <button type="button" class="btn btn-primary btn-sm btn-run-citation-sample">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -147,6 +153,13 @@ export default {
             </div>
           </div>
         `}
+        <section class="card" style="gap:var(--sp-3);border-left:3px solid ${officialSource ? 'var(--good)' : 'var(--warn)'};">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <div><h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">Official citation gap</h2><p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">This compares the latest web-enabled citation cohort with your official domain. It is a source observation, not a ranking guarantee.</p></div>
+            <span class="tag ${officialSource ? 'pill-good' : 'pill-warn'}">${officialSource ? `${officialSource.count || 0} mentions` : 'Not observed'}</span>
+          </div>
+          <div style="font-size:var(--fs-2);color:var(--muted);">Official domain: <strong style="color:var(--ink);">${escapeHtml(ownHost || 'Not recorded')}</strong>${officialSource ? ` · ${Number(officialSource.question_count || 0)} question contexts` : ' · add verified third-party evidence or review the source replay for the missing citation path.'}</div>
+        </section>
         <section class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <div>

@@ -53,6 +53,9 @@ class Tenant(Base):
     integration_credentials = relationship(
         "IntegrationCredential", back_populates="tenant", cascade="all, delete-orphan",
     )
+    api_access_tokens = relationship(
+        "ApiAccessToken", back_populates="tenant", cascade="all, delete-orphan",
+    )
 
     def __init__(self, **kwargs):
         if not kwargs.get("directory_slug"):
@@ -350,6 +353,44 @@ class ProductEvent(Base):
     country_code = Column(String(2), nullable=True, index=True)
     properties = Column(Text, nullable=False, default="{}", server_default="{}")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+
+
+class PublicAudit(Base):
+    """匿名公开审计结果，短期保存用于注册后的工作区继承。"""
+
+    __tablename__ = "public_audits"
+    __table_args__ = (
+        UniqueConstraint("audit_id", name="uq_public_audits_audit_id"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    audit_id = Column(String(64), nullable=False, index=True)
+    url = Column(String(2048), nullable=False)
+    anonymous_id = Column(String(64), nullable=True, index=True)
+    result_json = Column(Text, nullable=False, default="{}", server_default="{}")
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+
+
+class ApiAccessToken(Base):
+    """用于公共只读 API 和 MCP 的可撤销租户令牌，仅保存摘要。"""
+
+    __tablename__ = "api_access_tokens"
+    __table_args__ = (
+        UniqueConstraint("token_hash", name="uq_api_access_tokens_token_hash"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(64), nullable=False)
+    token_prefix = Column(String(16), nullable=False)
+    token_hash = Column(String(64), nullable=False)
+    scopes = Column(Text, nullable=False, default='["read"]', server_default='["read"]')
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+
+    tenant = relationship("Tenant", back_populates="api_access_tokens")
 
 
 class PlatformAdmin(Base):

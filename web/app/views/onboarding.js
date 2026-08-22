@@ -2,7 +2,7 @@
  * Brand onboarding
  */
 
-import { analytics, projects } from '../api.js?v=3.5';
+import { analytics, projects } from '../api.js?v=3.8';
 import { t } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { escapeHtml } from '../safe-html.js';
@@ -77,6 +77,7 @@ export default {
       const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
       const paramDomain = urlParams.get('domain');
       const pendingDomain = paramDomain || sessionStorage.getItem('citeaura_pending_domain') || localStorage.getItem('citeaura_pending_domain');
+      const pendingAudit = JSON.parse(sessionStorage.getItem('citeaura_pending_audit') || 'null');
 
       if (pendingDomain) {
         const clean = pendingDomain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
@@ -93,6 +94,13 @@ export default {
         toast.info(t('onboard.domain_loaded', {}, `Loaded target domain: ${clean}`));
         sessionStorage.removeItem('citeaura_pending_domain');
         localStorage.removeItem('citeaura_pending_domain');
+      }
+      if (pendingAudit && Array.isArray(pendingAudit.checks)) {
+        const preflightBox = document.getElementById('ob-preflight');
+        if (preflightBox) {
+          preflightBox.style.display = 'flex';
+          preflightBox.innerHTML = `<strong style="font-size:var(--fs-2);">Your public audit findings</strong>${pendingAudit.checks.slice(0, 6).map((check) => `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);font-size:var(--fs-2);"><span>${escapeHtml(check.name || 'Site check')}</span><span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : escapeHtml(check.message || 'Needs review')}</span></div>`).join('')}`;
+        }
       }
     } catch (e) {
       console.warn('Could not auto-fill domain:', e);
@@ -136,7 +144,8 @@ export default {
         }
 
         submitBtn.innerHTML = `<span class="spin"></span> ${t('common.initializing', {}, 'Initializing pipeline...')}`;
-        const res = await projects.create({ url, name: name || undefined, no_sample, skip_llm: false });
+        const auditId = sessionStorage.getItem('citeaura_pending_audit_id') || undefined;
+        const res = await projects.create({ url, name: name || undefined, no_sample, skip_llm: false, audit_id: auditId });
         toast.success(
           no_sample
             ? t('onboard.created_audit_only', {}, 'Brand pipeline started. Site audit will run without AI sampling.')
@@ -146,6 +155,8 @@ export default {
         if (res && res.project_id) {
           ctx.setActiveProject(res.project_id);
         }
+        sessionStorage.removeItem('citeaura_pending_audit_id');
+        sessionStorage.removeItem('citeaura_pending_audit');
         ctx.navigate('#/overview');
         if (res?.project_id && res?.job_id && typeof ctx.openTelemetry === 'function') {
           ctx.openTelemetry(res.job_id, res.action || (no_sample ? 'bootstrap' : 'autopilot'), {

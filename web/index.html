@@ -12,9 +12,9 @@
   <link rel="stylesheet" href="/site-assets/styles/tokens.css?v=2.3">
   <link rel="stylesheet" href="/site-assets/styles/base.css?v=2.3">
   <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
-  <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.8">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.9">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
-  <script defer src="/site-assets/landing.js?v=2.7"></script>
+  <script defer src="/site-assets/landing.js?v=2.8"></script>
   <link rel="canonical" href="https://citeaura.com/">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
@@ -324,6 +324,7 @@
                 <div class="banner-info">
                   <span class="banner-badge">Preview only — continue in workspace</span>
                   <span class="banner-title"><strong id="banner-domain-name">yourbrand.com</strong>: <span id="banner-title-prefix">Setup preview loaded</span> <span id="banner-grade-val">Preview ready</span></span>
+                  <div id="banner-audit-details" class="audit-result-chips" aria-live="polite"></div>
                 </div>
                 <a href="/app" class="btn btn-primary btn-sm banner-action-btn" id="banner-open-app-btn">
                   <span id="banner-open-app-label">Open Workspace →</span>
@@ -1053,6 +1054,18 @@
         </div>
         
         <div class="pricing-grid reveal-stagger">
+          <article class="price-card reveal">
+            <p class="plan-name">Lite</p>
+            <p class="price"><strong data-monthly="$39" data-annual="$374">$39</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
+            <p class="plan-summary" data-monthly="One project, fast technical visibility baseline" data-annual="About $31 / month billed annually">One project, fast technical visibility baseline</p>
+            <ul>
+              <li>1 active project</li>
+              <li>Technical audit, tickets, and verification</li>
+              <li>BYOK sampling with transparent provider costs</li>
+            </ul>
+            <a class="btn btn-secondary btn-block" href="/app?plan=lite">Start Lite</a>
+          </article>
+
           <article class="price-card reveal">
             <p class="plan-name">Starter</p>
             <p class="price"><strong data-monthly="$79" data-annual="$759">$79</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>

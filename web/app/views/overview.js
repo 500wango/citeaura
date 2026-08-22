@@ -2,7 +2,7 @@
  *  (Overview)
  */
 
-import { projects } from '../api.js?v=3.4';
+import { projects } from '../api.js?v=3.8';
 import { t } from '../i18n.js';
 import { confirmModal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
@@ -62,6 +62,8 @@ export default {
     const readiness = quality.readiness || {};
     const questionReadiness = readiness.question || {};
     const attributionReadiness = readiness.attribution || {};
+    const sentiment = project.insights?.sentiment || {};
+    const sentimentBands = Array.isArray(sentiment.bands) ? sentiment.bands : [];
     const trend = (quality.measurement_quality && quality.measurement_quality.trend) || {};
     const trendNote = trend.status === 'noteworthy'
       ? `${trend.label || 'Trend'} ${trend.direction || ''} ${trend.delta_pp != null ? `${trend.delta_pp} pp` : ''}`.trim()
@@ -147,6 +149,13 @@ export default {
 
         <!-- Key Metrics Bar -->
         ${renderKpis(kpiData)}
+        <div class="card" style="gap:var(--sp-3);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Brand sentiment context</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Heuristic labels from unprompted answer replays; inspect evidence before reporting.</p></div>
+            <span class="tag tag-dim">n=${Number(sentiment.sample_count || 0)}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:var(--sp-2);">${sentimentBands.map((band) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(band.label)}</span><strong style="font-size:var(--fs-4);">${band.rate == null ? '—' : `${Math.round(band.rate * 100)}%`}</strong></div>`).join('')}</div>
+        </div>
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;padding:var(--sp-4);border:1px solid var(--line);border-left:3px solid var(--brand);background:var(--deep);">
           <div style="display:flex;flex-direction:column;gap:4px;max-width:720px;">
             <strong style="font-size:var(--fs-3);">${escapeHtml(firstValue.label)}</strong>

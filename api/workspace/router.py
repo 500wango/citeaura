@@ -8,12 +8,13 @@ from sqlalchemy.orm import Session
 
 from api.adapters.engine import with_tenant_read_context
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import workspace
+from api.adapters import prompt_research, workspace
 from api.adapters.preflight import PreflightError, normalize_url
 from api.auth.deps import get_current_user, require_editor
 from api.billing.limits import check_sample_run
 from api.db import get_db
 from api.models import Job, Project, Tenant, User
+from api.product_events import record_product_event
 
 
 router = APIRouter(tags=["workspace"])
@@ -58,6 +59,11 @@ class ProductSurfaceItem(BaseModel):
 class ProductSurfaceImportRequest(BaseModel):
     platform: str = Field(min_length=2, max_length=64)
     items: list[ProductSurfaceItem] = Field(min_length=1, max_length=100)
+
+
+class PromptResearchRequest(BaseModel):
+    seeds: list[str] = Field(default_factory=list, max_length=20)
+    url: str | None = Field(default=None, max_length=2048)
 
 
 class ExternalEvidenceRequest(BaseModel):
@@ -298,6 +304,32 @@ def update_project_content(
 @router.get("/api/v1/projects/{project_id}/expand")
 def project_expansion(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _call(db, current_user, project_id, workspace.expansion)
+
+
+@router.get("/api/v1/projects/{project_id}/prompt-research")
+def get_prompt_research(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _call(db, current_user, project_id, prompt_research.read)
+
+
+@router.post("/api/v1/projects/{project_id}/prompt-research")
+def run_prompt_research(
+    project_id: int,
+    payload: PromptResearchRequest,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    _, project = _tenant_project(db, current_user, project_id)
+    _ensure_idle(db, project)
+    result = _call(db, current_user, project_id, prompt_research.research, payload.seeds, payload.url, write=True)
+    record_product_event(
+        db,
+        "prompt_research_completed",
+        tenant_id=project.tenant_id,
+        user_id=current_user.id,
+        properties={"project_id": project.id, "candidate_count": result.get("candidate_count", 0)},
+    )
+    db.commit()
+    return result
 
 
 @router.post("/api/v1/projects/{project_id}/questions")

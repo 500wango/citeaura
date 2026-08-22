@@ -99,6 +99,8 @@ def test_initial_schema_contains_all_tables():
         "refresh_tokens",
         "platform_usage_outbox",
         "delivery_shares",
+        "public_audits",
+        "api_access_tokens",
     }
     project_columns = {item["name"] for item in inspect(engine).get_columns("projects")}
     assert {

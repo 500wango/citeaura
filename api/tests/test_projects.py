@@ -132,7 +132,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     assert detail.json()["brand"]["name"] == "Example"
     assert detail.json()["questions"][0]["id"] == "q001"
     assert set(detail.json()["insights"]) == {
-        "prompt_explorer", "competitor_heatmap", "takeover_alerts", "campaign_proposals",
+        "prompt_explorer", "competitor_heatmap", "takeover_alerts", "sentiment", "campaign_proposals",
     }
     assert detail.json()["insights"]["prompt_explorer"]["total_count"] == 1
     campaigns = detail.json()["insights"]["campaign_proposals"]

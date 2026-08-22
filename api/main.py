@@ -13,6 +13,7 @@ from api import config
 from api.adapters.exceptions import DistributedLockError
 from api.admin.router import router as admin_router
 from api.analytics.router import router as analytics_router
+from api.integrations.router import router as integrations_router
 from api.auth.router import router as auth_router
 from api.auth.sso import router as sso_router
 from api.archive.router import router as archive_router
@@ -43,6 +44,7 @@ app.mount("/app", StaticFiles(directory=WEB_ROOT / "app", html=True), name="app"
 app.mount("/admin", StaticFiles(directory=WEB_ROOT / "admin", html=True), name="admin")
 app.include_router(admin_router)
 app.include_router(analytics_router)
+app.include_router(integrations_router)
 app.include_router(auth_router)
 app.include_router(sso_router)
 app.include_router(archive_router)
