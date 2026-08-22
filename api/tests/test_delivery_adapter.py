@@ -254,6 +254,7 @@ def test_delivery_insights_render_as_english_evidence_summary():
     }))
     assert "## Prompt and Competitive Insights" in text
     assert "API - Parametric knowledge" in text
+    assert "| Which GEO platform should a small team choose? | high | 5 | 0.0% |" in text
     assert "0.0%–43.5%" in text
     assert "### Competitive heatmap" in text
     assert "Rival" in text
@@ -277,6 +278,28 @@ def test_delivery_insights_use_user_facing_platform_labels():
 
     assert "Gateway · vendor/model" in text
     assert "| custom |" not in text
+
+
+def test_delivery_receipt_platform_codes_use_customer_labels():
+    labels = {"custom_abc123": "Gateway · vendor/model"}
+    assert delivery._receipt_platform_label(
+        "custom_abc123", labels, {}, {"provider_labels": labels},
+    ) == "Gateway · vendor/model"
+    assert delivery._receipt_platform_label("chatgpt", {}, {}, {}) == "ChatGPT"
+
+
+def test_delivery_execution_plan_normalizes_underscored_and_short_windows():
+    tickets = [
+        {"id": "T-001", "priority": "P1", "window": "30_days", "title": "One", "owner": "Content", "package": "A", "rationale": "R", "action": "A", "acceptance": "A", "prerequisites": [], "execution_ready": False},
+        {"id": "T-002", "priority": "P2", "window": "60d", "title": "Two", "owner": "Content", "package": "A", "rationale": "R", "action": "A", "acceptance": "A", "prerequisites": [], "execution_ready": False},
+    ]
+
+    text = delivery._execution_markdown(
+        "Example", tickets, {"baseline": {"applicable_avg_score": 100, "score_coverage": 1, "pages": 1}},
+    )
+
+    assert text.index("T-001") < text.index("### 30-60 Days: Visibility Gains")
+    assert text.index("T-002") > text.index("### 30-60 Days: Visibility Gains")
 
 
 def test_delivery_audit_uses_page_role_applicability(tmp_path, monkeypatch):

@@ -713,6 +713,33 @@ def _platform_display_names(platforms, config=None):
     return labels
 
 
+BUILTIN_PROVIDER_LABELS = {
+    "glm": "Zhipu GLM",
+    "doubao": "Doubao (Ark API)",
+    "deepseek": "DeepSeek",
+    "kimi": "Kimi",
+    "minimax": "MiniMax",
+    "gemini": "Gemini",
+    "openai": "OpenAI (ChatGPT)",
+    "claude": "Claude",
+    "grok": "Grok",
+    "perplexity": "Perplexity",
+    "chatgpt": "ChatGPT",
+    "claude_web": "Claude (product interface)",
+    "google_ai_overview": "Google AI Overviews",
+}
+
+
+def _receipt_platform_label(code, display_names, platforms, config):
+    """Render receipt platform codes as customer-facing provider labels."""
+    code = str(code or "")
+    if code in display_names:
+        return display_names[code]
+    if code in BUILTIN_PROVIDER_LABELS:
+        return BUILTIN_PROVIDER_LABELS[code]
+    return _platform_display_name(code, (platforms or {}).get(code) or {}, config)
+
+
 def _sample_modes(project_directory, metrics):
     date = str((metrics or {}).get("run_id") or (metrics or {}).get("date") or "")
     config = geolib.read_json(project_directory / "geo.json", {}) or {}
@@ -832,7 +859,7 @@ def _insights_markdown(insights, platform_labels=None):
             ) or "Follow-up evidence is required"
             mention = item.get("mention")
             lines.append(
-                f"| {_markdown_cell(_safe_display(item.get('priority'), 'Unclassified'))} "
+                f"| {_markdown_cell(question)} | {_markdown_cell(_safe_display(item.get('priority'), 'Unclassified'))} "
                 f"| {_safe_count(item.get('samples', 0), '0')} | {_format_rate(mention)} "
                 f"| {_interval_label(item.get('mention_interval'))} | {_markdown_cell(reasons)} |"
             )
@@ -1196,6 +1223,9 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
         "provider_model_ids": _merged_provider_model_ids(project_directory, metrics, provider_config),
     }
     display_names = _platform_display_names(platforms, provider_config)
+
+    def receipt_label(code):
+        return _receipt_platform_label(code, display_names, platforms, provider_config)
     if not platforms:
         lines += [
             "AI visibility is not measured for this cycle. That is a disclosed measurement gap, not a missing diagnosis.",
@@ -1228,8 +1258,8 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
             "",
             f"- Status: **{_markdown_cell(_safe_display(receipt.get('status'), 'Not recorded'))}**",
             f"- Successful samples: **{_safe_count(receipt.get('successful_samples', 0), '0')}**; failed: **{_safe_count(receipt.get('failed_samples', 0), '0')}**",
-            f"- Requested platforms: **{_markdown_cell(_safe_join_display(receipt.get('requested_platforms'), 'Configured provider'))}**",
-            f"- Skipped platforms: **{_markdown_cell(_safe_join_display([item.get('engine_code') for item in receipt.get('skipped_platforms') or [] if isinstance(item, dict)], 'None recorded'))}**",
+            f"- Requested platforms: **{_markdown_cell(_safe_join_display([receipt_label(item) for item in receipt.get('requested_platforms') or []], 'Configured provider'))}**",
+            f"- Skipped platforms: **{_markdown_cell(_safe_join_display([receipt_label(item.get('engine_code')) for item in receipt.get('skipped_platforms') or [] if isinstance(item, dict)], 'None recorded'))}**",
         ]
         worker = receipt.get("worker") or {}
         if worker.get("runtime_env_present"):
@@ -1258,9 +1288,7 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
                     "Not recorded",
                 )
                 platform_code = str(code or "")
-                platform_label = display_names.get(platform_code) or _platform_display_name(
-                    platform_code, platforms.get(platform_code) or {}, provider_config,
-                )
+                platform_label = receipt_label(platform_code)
                 lines.append(
                     f"| {_markdown_cell(platform_label)} | {_markdown_cell(model)} | {_markdown_cell(modes)} "
                     f"| {_markdown_cell(_safe_display(item.get('status'), 'Not recorded'))} "
@@ -1288,12 +1316,18 @@ def _is_supporting_ticket(ticket):
 
 
 def _ticket_window_bucket(ticket):
-    window = str(ticket.get("window") or "").casefold()
+    window = re.sub(r"[_-]+", " ", str(ticket.get("window") or "").casefold())
     if re.search(r"\b30\s*days?\b", window):
+        return "30 days"
+    if re.search(r"\b30\s*d\b", window):
         return "30 days"
     if re.search(r"\b60\s*days?\b", window):
         return "60 days"
+    if re.search(r"\b60\s*d\b", window):
+        return "60 days"
     if re.search(r"\b90\s*days?\b", window):
+        return "90 days"
+    if re.search(r"\b90\s*d\b", window):
         return "90 days"
     return {"P0": "30 days", "P1": "60 days", "P2": "90 days"}.get(ticket.get("priority"), "90 days")
 
