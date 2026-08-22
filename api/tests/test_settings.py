@@ -71,7 +71,8 @@ def test_crypto_round_trip_and_api_key_lifecycle(settings_client):
     assert client.get("/api/v1/settings/keys", headers=headers).json() == {"keys": []}
 
 
-def test_corrupted_ciphertext_uses_value_error_contract():
+def test_corrupted_ciphertext_uses_value_error_contract(monkeypatch):
+    monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"0" * 32).decode())
     encrypted = encrypt_key("sk-test-secret")
     corrupted = encrypted[:-2] + ("A" if encrypted[-2] != "A" else "B") + encrypted[-1]
     with pytest.raises(ValueError, match="invalid encrypted API key"):
