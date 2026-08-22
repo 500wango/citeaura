@@ -305,10 +305,34 @@ def _latest_verification(directory):
 
 def _safe_display(value, fallback):
     value = normalize_english_typography(str(value or "").strip())
-    return (
-        value if value and not _contains_disallowed_english(value)
-        else normalize_english_typography(str(fallback or ""))
-    )
+    fallback = normalize_english_typography(str(fallback or "").strip())
+    if value and not _contains_disallowed_english(value):
+        return value
+    if not fallback:
+        return ""
+    return fallback if not _contains_disallowed_english(fallback) else "Not recorded"
+
+
+def _safe_join_display(values, fallback):
+    """Join dynamic labels without allowing one invalid value into the package."""
+    if isinstance(values, (str, bytes)) or not values:
+        values = [values] if values else []
+    rendered = []
+    for value in values:
+        text = _safe_display(value, fallback)
+        if text and text not in rendered:
+            rendered.append(text)
+    return ", ".join(rendered) or fallback
+
+
+def _safe_count(value, fallback="Not measured"):
+    """Keep numeric counters numeric while replacing malformed localized values."""
+    if isinstance(value, bool):
+        return fallback
+    if isinstance(value, (int, float)):
+        return _format_number(value)
+    text = normalize_english_typography(str(value or "").strip())
+    return text if re.fullmatch(r"-?\d+(?:\.\d+)?", text) else fallback
 
 
 def _markdown_cell(value):
@@ -766,15 +790,15 @@ def _insights_markdown(insights, platform_labels=None):
         "These observations are derived from the same current samples used by the workspace. "
         "They prioritize follow-up work; they do not claim a ranking or forecast an outcome.",
         "",
-        f"- Prompt Explorer: {prompt.get('measured_count', 0)} of {prompt.get('total_count', 0)} questions have valid samples; "
-        f"minimum per-provider/mode sample target: {prompt.get('minimum_samples', 3)}.",
-        f"- Cohort evidence: {prompt.get('sufficient_count', 0)} of {prompt.get('total_count', 0)} questions meet the "
+        f"- Prompt Explorer: {_safe_count(prompt.get('measured_count', 0), '0')} of {_safe_count(prompt.get('total_count', 0), '0')} questions have valid samples; "
+        f"minimum per-provider/mode sample target: {_safe_count(prompt.get('minimum_samples', 3), '3')}.",
+        f"- Cohort evidence: {_safe_count(prompt.get('sufficient_count', 0), '0')} of {_safe_count(prompt.get('total_count', 0), '0')} questions meet the "
         f"minimum in every observed provider/mode cohort; missing cohort samples remain blocked.",
-        f"- Competitive heatmap: {heatmap.get('sample_count', 0)} valid samples across "
-        f"{len(heatmap.get('cohorts') or [])} separate sampling cohorts.",
-        f"- Takeover candidates: {len(alerts)}; an alert requires at least five competitor hits "
+        f"- Competitive heatmap: {_safe_count(heatmap.get('sample_count', 0), '0')} valid samples across "
+        f"{_safe_count(len(heatmap.get('cohorts') or []), '0')} separate sampling cohorts.",
+        f"- Takeover candidates: {_safe_count(len(alerts), '0')}; an alert requires at least five competitor hits "
         "and separated Wilson 95% intervals in the same cohort.",
-        f"- Campaign proposals: {campaigns.get('total_count', 0)}; human approval is required and automatic publication is disabled.",
+        f"- Campaign proposals: {_safe_count(campaigns.get('total_count', 0), '0')}; human approval is required and automatic publication is disabled.",
         "",
     ]
     readiness = insights.get("readiness") or {}
@@ -784,10 +808,10 @@ def _insights_markdown(insights, platform_labels=None):
         lines += [
             "### Evidence readiness",
             "",
-            f"- Overall measurement: **{_markdown_cell((readiness.get('measurement') or {}).get('label') or 'No baseline')}**.",
-            f"- Per-question evidence: **{_markdown_cell(question_readiness.get('label') or 'Not measured')}** "
-            f"({question_readiness.get('sufficient', 0)}/{question_readiness.get('total', 0)} questions at the minimum evidence target).",
-            f"- Attribution: **{_markdown_cell(attribution.get('label') or 'No comparable period')}**. "
+            f"- Overall measurement: **{_markdown_cell(_safe_display((readiness.get('measurement') or {}).get('label'), 'No baseline'))}**.",
+            f"- Per-question evidence: **{_markdown_cell(_safe_display(question_readiness.get('label'), 'Not measured'))}** "
+            f"({_safe_count(question_readiness.get('sufficient', 0), '0')}/{_safe_count(question_readiness.get('total', 0), '0')} questions at the minimum evidence target).",
+            f"- Attribution: **{_markdown_cell(_safe_display(attribution.get('label'), 'No comparable period'))}**. "
             "Comparable deltas require unchanged questions, providers, models, sampling modes, and measurement policy.",
             "",
         ]
@@ -808,8 +832,8 @@ def _insights_markdown(insights, platform_labels=None):
             ) or "Follow-up evidence is required"
             mention = item.get("mention")
             lines.append(
-                f"| {_markdown_cell(question)} | {_markdown_cell(item.get('priority') or 'unclassified')} "
-                f"| {item.get('samples', 0)} | {_format_rate(mention)} "
+                f"| {_markdown_cell(_safe_display(item.get('priority'), 'Unclassified'))} "
+                f"| {_safe_count(item.get('samples', 0), '0')} | {_format_rate(mention)} "
                 f"| {_interval_label(item.get('mention_interval'))} | {_markdown_cell(reasons)} |"
             )
         lines.append("")
@@ -826,7 +850,7 @@ def _insights_markdown(insights, platform_labels=None):
             label = (platform_labels or {}).get(code) or cohort.get("engine_name") or code
             lines.append(
                 f"| {_markdown_cell(_safe_display(label, 'Configured provider'))} "
-                f"| {_markdown_cell(_insight_mode_name(cohort.get('sampling_mode')))} | {cohort.get('samples', 0)} |"
+                f"| {_markdown_cell(_insight_mode_name(cohort.get('sampling_mode')))} | {_safe_count(cohort.get('samples', 0), '0')} |"
             )
         lines.append("")
     heatmap_questions = [
@@ -879,7 +903,7 @@ def _insights_markdown(insights, platform_labels=None):
     lines += [
         "### Campaign proposal gate",
         "",
-        f"- Blocked: {counts.get('blocked', 0)}; review required: {counts.get('review_required', 0)}; ready for approval: {counts.get('ready_for_approval', 0)}.",
+        f"- Blocked: {_safe_count(counts.get('blocked', 0), '0')}; review required: {_safe_count(counts.get('review_required', 0), '0')}; ready for approval: {_safe_count(counts.get('ready_for_approval', 0), '0')}.",
         "- Expected impact is a hypothesis only. Re-test with the same question set, provider, sampling mode, and measurement policy.",
         "- No proposal authorizes publication; factual review, asset review, and explicit human approval remain required.",
         "",
@@ -896,7 +920,7 @@ def _insights_markdown(insights, platform_labels=None):
             target = item.get("target_question") or {}
             next_step = item.get("next_step") or {}
             lines.append(
-                f"| {_markdown_cell(item.get('status') or 'unclassified')} "
+                f"| {_markdown_cell(_safe_display(item.get('status'), 'Unclassified'))} "
                 f"| {_markdown_cell(_safe_display(target.get('text'), 'Configured question'))} "
                 f"| {_markdown_cell(_safe_display(next_step.get('label'), 'Review evidence'))} |"
             )
@@ -1050,18 +1074,19 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
     site_score = audit.get("applicable_avg_score")
     partial_score = audit.get("partial_applicable_avg_score")
     score_coverage = audit.get("score_coverage")
-    evaluated_pages = int(audit.get("evaluated_page_count") or 0)
-    eligible_pages = int(audit.get("score_eligible_page_count") or 0)
+    evaluated_pages = _safe_count(audit.get("evaluated_page_count"), "0")
+    eligible_pages = _safe_count(audit.get("score_eligible_page_count"), "0")
     score_label = _score_result_label(site_score, partial_score)
-    audited_at = str(audit.get("audited_at") or geolib.today())[:10]
+    audited_at = _safe_display(str(audit.get("audited_at") or geolib.today())[:10], "Not recorded")
+    blocked_bots = _safe_join_display(site_data.get("ai_bots_blocked"), "Unlabeled crawler")
     lines = [
         f"# {name} GEO Diagnostic Report",
         "",
         f"- Official website: {site}",
         f"- Audit date: {audited_at}",
-        f"- Pages reviewed: {audit.get('page_count', 0)} "
-        f"({evaluated_pages} scored, {audit.get('not_scored_page_count', 0)} not scored, "
-        f"{audit.get('excluded_page_count', 0)} excluded)",
+        f"- Pages reviewed: {_safe_count(audit.get('page_count', 0), '0')} "
+        f"({evaluated_pages} scored, {_safe_count(audit.get('not_scored_page_count', 0), '0')} not scored, "
+        f"{_safe_count(audit.get('excluded_page_count', 0), '0')} excluded)",
         "",
         "This report tells you which website content currently hurts AI access, extraction, and mention, and what to change.",
         "",
@@ -1074,13 +1099,13 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
         "|---|---|",
         f"| sitemap.xml | {'Present' if site_data.get('has_sitemap') else 'Missing'} |",
         f"| llms.txt | {'Present' if site_data.get('has_llms_txt') else 'Missing'} |",
-        f"| AI crawlers blocked | {', '.join(site_data.get('ai_bots_blocked') or []) or 'None'} |",
-        f"| Accessible pages | {site_data.get('pages_ok', 0)}/{site_data.get('pages_crawled', 0)} |",
-        f"| English content pages (120+ words) | {coverage.get('en_pages', 0)} |",
+        f"| AI crawlers blocked | {blocked_bots if site_data.get('ai_bots_blocked') else 'None'} |",
+        f"| Accessible pages | {_safe_count(site_data.get('pages_ok', 0), '0')}/{_safe_count(site_data.get('pages_crawled', 0), '0')} |",
+        f"| English content pages (120+ words) | {_safe_count(coverage.get('en_pages', 0), 'Not measured')} |",
         "",
         f"- Applicable site score: **{score_label}**",
         f"- Scoring coverage: **{evaluated_pages}/{eligible_pages} eligible pages ({_format_rate(score_coverage)})**",
-        f"- Not scored: **{audit.get('not_scored_page_count', 0)}**; excluded: **{audit.get('excluded_page_count', 0)}**",
+        f"- Not scored: **{_safe_count(audit.get('not_scored_page_count', 0), '0')}**; excluded: **{_safe_count(audit.get('excluded_page_count', 0), '0')}**",
         "- Scoring method: only evidence-backed checks applicable to each page role are counted.",
         "- Unmeasured AI visibility and withheld site scores are disclosed below; they do not make this report incomplete.",
         "",
@@ -1089,10 +1114,10 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
         "| Grade | Pages |",
         "|---|---:|",
     ]
-    lines.extend(f"| {grade} | {grades.get(grade, 0)} |" for grade in "ABCD")
+    lines.extend(f"| {grade} | {_safe_count(grades.get(grade, 0), '0')} |" for grade in "ABCD")
     lines.extend([
-        f"| Not scored | {audit.get('not_scored_page_count', 0)} |",
-        f"| Excluded | {audit.get('excluded_page_count', 0)} |",
+        f"| Not scored | {_safe_count(audit.get('not_scored_page_count', 0), '0')} |",
+        f"| Excluded | {_safe_count(audit.get('excluded_page_count', 0), '0')} |",
     ])
     if audit.get("score_status") == "insufficient_coverage":
         lines += [
@@ -1125,7 +1150,7 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
             issues = _require_english(page.get("evaluation_note") or "Not scored", "audit evaluation note")
         issues = issues or "None"
         score = page.get("applicable_score")
-        grade = page.get("applicable_grade") or "-"
+        grade = _safe_display(page.get("applicable_grade"), "-")
         role = _require_english((page.get("role") or {}).get("label") or "Unclassified", "audit page role")
         evaluation = {
             "evaluated": "Evaluated",
@@ -1134,7 +1159,7 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
             "not_evaluated": "Not evaluated",
         }.get(page.get("evaluation_status"), "Not evaluated")
         lines.append(
-            f"| {_format_number(score) if score is not None else 'Not scored'} | {page.get('word_count', 0)} | {grade} "
+            f"| {_format_number(score) if score is not None else 'Not scored'} | {_safe_count(page.get('word_count', 0), 'Not measured')} | {grade} "
             f"| {_markdown_cell(role)} | {evaluation} | [{_markdown_cell(url)}]({_markdown_cell(url)}) "
             f"| {_markdown_cell(issues)} |"
         )
@@ -1147,16 +1172,18 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
     ]
     for gap in audit.get("block_gap") or []:
         block = BLOCK_NAMES.get(gap.get("block"), "Extraction block")
-        lines.append(f"| {block} | {gap.get('missing_pages', 0)}/{gap.get('total', 0)} |")
+        lines.append(
+            f"| {block} | {_safe_count(gap.get('missing_pages', 0), '0')}/{_safe_count(gap.get('total', 0), '0')} |"
+        )
 
     quality = measurement.sampling_quality(project_slug)
     confidence = quality.get("confidence") or {}
     lines += [
         "", "## AI Visibility Sampling", "",
-        f"**Confidence: {confidence.get('label', 'No baseline')}**", "",
+        f"**Confidence: {_safe_display(confidence.get('label'), 'No baseline')}**", "",
     ]
     for limitation in confidence.get("limitations") or []:
-        lines.append(f"- Limitation: {_require_english(limitation, 'sampling limitation')}")
+        lines.append(f"- Limitation: {_safe_display(limitation, 'Sampling limitation requires review')}")
     if not confidence.get("allows_global_conclusions"):
         lines.append("- Do not generalize these observations to global AI visibility or unsampled platforms.")
     lines.append("- Observed changes do not establish optimization attribution; use deployment evidence and repeated comparable periods.")
@@ -1177,7 +1204,7 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
     else:
         modes = _sample_modes(project_directory, metrics)
         lines += [
-            f"Sampling date: {metrics.get('date', 'Not recorded')}",
+            f"Sampling date: {_safe_display(metrics.get('date'), 'Not recorded')}",
             "",
             "| Platform | Market | Sampling Mode | Samples | Mention Rate | Top 3 Rate | Official Domain Cited |",
             "|---|---|---|---:|---:|---:|---:|",
@@ -1187,7 +1214,7 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
             label = display_names.get(code) or _platform_display_name(code, item, provider_config)
             lines.append(
                 f"| {_markdown_cell(label)} | Global "
-                f"| {modes.get(code, 'API - Parametric knowledge')} | {item.get('samples', 0)} "
+                f"| {_markdown_cell(_safe_display(modes.get(code), 'API - Parametric knowledge'))} | {_safe_count(item.get('samples', 0), '0')} "
                 f"| {_format_rate(item.get('mention_rate'))} | {_format_rate(item.get('top3_rate'))} "
                 f"| {_format_rate(item.get('own_domain_cite_rate'))} |"
             )
@@ -1199,18 +1226,19 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
             "",
             "This receipt records the asynchronous worker execution without exposing credentials.",
             "",
-            f"- Status: **{_markdown_cell(receipt.get('status') or 'Not recorded')}**",
-            f"- Successful samples: **{receipt.get('successful_samples', 0)}**; failed: **{receipt.get('failed_samples', 0)}**",
-            f"- Requested platforms: **{', '.join(str(item) for item in receipt.get('requested_platforms') or []) or 'Not recorded'}**",
-            f"- Skipped platforms: **{', '.join(str(item.get('engine_code')) for item in receipt.get('skipped_platforms') or []) or 'None recorded'}**",
+            f"- Status: **{_markdown_cell(_safe_display(receipt.get('status'), 'Not recorded'))}**",
+            f"- Successful samples: **{_safe_count(receipt.get('successful_samples', 0), '0')}**; failed: **{_safe_count(receipt.get('failed_samples', 0), '0')}**",
+            f"- Requested platforms: **{_markdown_cell(_safe_join_display(receipt.get('requested_platforms'), 'Configured provider'))}**",
+            f"- Skipped platforms: **{_markdown_cell(_safe_join_display([item.get('engine_code') for item in receipt.get('skipped_platforms') or [] if isinstance(item, dict)], 'None recorded'))}**",
         ]
         worker = receipt.get("worker") or {}
         if worker.get("runtime_env_present"):
             missing_env = [
                 name for name, present in worker["runtime_env_present"].items() if not present
             ]
+            missing = _safe_join_display(missing_env, "configured variable")
             lines.append(
-                f"- Worker runtime environment: **{'all injected variables present' if not missing_env else 'missing ' + ', '.join(missing_env)}**"
+                f"- Worker runtime environment: **{'all injected variables present' if not missing_env else 'missing ' + missing}**"
             )
         receipt_platforms = receipt.get("platforms") or {}
         if receipt_platforms:
@@ -1219,12 +1247,24 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
                 "| Worker platform | Model | Sampling mode | Status | Successful | Failed |",
                 "|---|---|---|---|---:|---:|",
             ]
-            for code, item in sorted(receipt_platforms.items()):
-                modes = ", ".join(str(value) for value in item.get("sampling_modes") or []) or "Not recorded"
-                model = item.get("model_id") or ", ".join(str(value) for value in item.get("model_ids") or []) or "Not recorded"
+            for code, raw_item in sorted(receipt_platforms.items(), key=lambda pair: str(pair[0])):
+                item = raw_item if isinstance(raw_item, dict) else {}
+                modes = _safe_join_display(
+                    [_insight_mode_name(value) for value in item.get("sampling_modes") or []],
+                    "Not recorded",
+                )
+                model = _safe_display(
+                    item.get("model_id") or _safe_join_display(item.get("model_ids"), ""),
+                    "Not recorded",
+                )
+                platform_code = str(code or "")
+                platform_label = display_names.get(platform_code) or _platform_display_name(
+                    platform_code, platforms.get(platform_code) or {}, provider_config,
+                )
                 lines.append(
-                    f"| {_markdown_cell(code)} | {_markdown_cell(model)} | {_markdown_cell(modes)} "
-                    f"| {_markdown_cell(item.get('status') or 'Not recorded')} | {item.get('successful', 0)} | {item.get('failed', 0)} |"
+                    f"| {_markdown_cell(platform_label)} | {_markdown_cell(model)} | {_markdown_cell(modes)} "
+                    f"| {_markdown_cell(_safe_display(item.get('status'), 'Not recorded'))} "
+                    f"| {_safe_count(item.get('successful', 0), '0')} | {_safe_count(item.get('failed', 0), '0')} |"
                 )
         lines.append("")
     lines += _insights_markdown(insights, display_names)

@@ -817,6 +817,77 @@ def test_delivery_normalizes_dynamic_cjk_punctuation_in_english_documents(tmp_pa
     assert delivery.delivery_language_violations(output) == []
 
 
+def test_delivery_falls_back_invalid_dynamic_audit_fields_to_english(tmp_path, monkeypatch):
+    project, output = seed_delivery_project(tmp_path)
+    audit = json.loads((project / "audit.json").read_text("utf-8"))
+    audit["audited_at"] = "2026-08-22中文日期"
+    audit["site"]["ai_bots_blocked"] = ["中文爬虫"]
+    audit["language_coverage"]["en_pages"] = "中文页数"
+    audit["pages"][0]["applicable_grade"] = "中文等级"
+    _write_json(project / "audit.json", audit)
+
+    metrics = json.loads((project / "metrics" / "2026-07-31.json").read_text("utf-8"))
+    metrics["date"] = "中文采样日期"
+    metrics["sampling_receipt"] = {
+        "status": "中文状态",
+        "successful_samples": 1,
+        "failed_samples": 0,
+        "requested_platforms": ["中文平台"],
+        "skipped_platforms": [{"engine_code": "中文代码"}],
+        "platforms": {
+            "openai": {
+                "model_id": "中文模型",
+                "sampling_modes": ["中文模式"],
+                "status": "中文状态",
+                "successful": 1,
+                "failed": 0,
+            },
+        },
+    }
+    _write_json(project / "metrics" / "2026-07-31.json", metrics)
+    _patch_project(monkeypatch, project)
+
+    delivery.ensure_delivery_contract("example", output)
+
+    report = (output / "01-Audit-Report.md").read_text("utf-8")
+    assert "| AI crawlers blocked | Unlabeled crawler |" in report
+    assert "| English content pages (120+ words) | Not measured |" in report
+    assert "Sampling date: Not recorded" in report
+    assert "- Status: **Not recorded**" in report
+    assert "中文" not in report
+    assert delivery.delivery_language_violations(output) == []
+
+
+def test_delivery_insights_fall_back_invalid_dynamic_labels_to_english():
+    text = "\n".join(delivery._insights_markdown({
+        "prompt_explorer": {
+            "measured_count": 1,
+            "total_count": 1,
+            "minimum_samples": 3,
+            "items": [{
+                "text": "What is Example?",
+                "priority": "中文优先级",
+                "samples": 1,
+                "mention": 0,
+                "reasons": ["中文原因"],
+            }],
+        },
+        "campaign_proposals": {
+            "total_count": 1,
+            "counts": {"blocked": 1, "review_required": 0, "ready_for_approval": 0},
+            "items": [{
+                "status": "中文状态",
+                "target_question": {"text": "What is Example?"},
+                "next_step": {"label": "中文下一步"},
+            }],
+        },
+    }))
+
+    assert "Unclassified" in text
+    assert "Follow-up evidence is required" in text
+    assert "中文" not in text
+
+
 def test_delivery_contract_fails_closed_for_custom_chinese_asset(tmp_path, monkeypatch):
     project, output = seed_delivery_project(tmp_path)
     _patch_project(monkeypatch, project)
