@@ -21,7 +21,7 @@ function escapeHtml(value) {
 
   var THEME_COLORS = { light: '#f7f9fa', dark: '#15181e' };
   var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
-  var state = { locale: 'en', theme: 'light', billing: 'monthly', catalog: {}, fallbackCatalog: {}, activeDomain: 'yourbrand.com' };
+  var state = { locale: 'en', theme: 'light', billing: 'monthly', catalog: {}, fallbackCatalog: {}, literalCatalog: {}, activeDomain: 'yourbrand.com' };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
@@ -54,11 +54,48 @@ function escapeHtml(value) {
     return Object.prototype.hasOwnProperty.call(state.catalog, key) ? state.catalog[key] : null;
   }
 
+  function localize(value, params) {
+    var text = String(value == null ? '' : value);
+    if (state.locale === 'en') return text;
+    var key = Object.keys(state.fallbackCatalog).find(function (candidate) {
+      return state.fallbackCatalog[candidate] === text;
+    });
+    var localized = key && state.catalog[key] != null
+      ? state.catalog[key]
+      : (key && state.locale !== 'en' ? '[[missing:' + key + ']]' : text);
+    Object.keys(params || {}).forEach(function (name) {
+      localized = localized.replace(new RegExp('\\{' + name + '\\}', 'g'), function () { return String(params[name]); });
+    });
+    return localized;
+  }
+
+  function localizeLegacyText() {
+    if (state.locale === 'en') return;
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function (node) {
+      if (node.parentElement && node.parentElement.closest('script,style,code,pre,[data-i18n]')) return;
+      var raw = node.nodeValue || '';
+      var trimmed = raw.trim();
+      if (!trimmed) return;
+      var translated = localize(trimmed);
+      if (translated !== trimmed) node.nodeValue = raw.replace(trimmed, translated);
+    });
+    $$('[title], [aria-label], [placeholder]').forEach(function (node) {
+      ['title', 'aria-label', 'placeholder'].forEach(function (attribute) {
+        var value = node.getAttribute(attribute);
+        var translated = localize(value);
+        if (translated !== value) node.setAttribute(attribute, translated);
+      });
+    });
+  }
+
   function applyI18n() {
     $$('[data-i18n]').forEach(function (node) {
       var key = node.getAttribute('data-i18n');
       var value = catalogValue(key);
-      if (value == null) value = state.fallbackCatalog[key];
+      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
       if (value != null) {
         if (node.tagName === 'TITLE') { document.title = value; return; }
         node.textContent = value;
@@ -69,23 +106,24 @@ function escapeHtml(value) {
     $$('[data-i18n-content]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-content');
       var value = catalogValue(key);
-      if (value == null) value = state.fallbackCatalog[key];
+      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
       if (value != null) node.setAttribute('content', value);
     });
     $$('[data-i18n-aria]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-aria');
       var value = catalogValue(key);
-      if (value == null) value = state.fallbackCatalog[key];
+      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
       if (value != null) node.setAttribute('aria-label', value);
     });
     $$('[data-i18n-alt]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-alt');
       var value = catalogValue(key);
-      if (value == null) value = state.fallbackCatalog[key];
+      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
       if (value != null) node.setAttribute('alt', value);
     });
     applyBilling();
     renderThemeControl();
+    localizeLegacyText();
   }
 
   function setLocale(locale) {
@@ -283,10 +321,10 @@ function escapeHtml(value) {
     }).catch(function () { return null; });
 
     if (resultBanner) resultBanner.classList.add('is-hidden');
-    if (titleEl) titleEl.textContent = 'Preparing ' + domain + ' workspace...';
+    if (titleEl) titleEl.textContent = localize('Preparing {domain} workspace...', { domain: domain });
     if (submitBtn) {
       submitBtn.classList.add('is-loading');
-      submitBtn.textContent = 'Preparing workspace preview...';
+      submitBtn.textContent = localize('Preparing workspace preview...');
     }
 
     if (scannerOverlay) {
@@ -294,11 +332,11 @@ function escapeHtml(value) {
     }
 
     var steps = [
-      { pct: 20, log: '▶ Capturing the requested domain: https://' + domain, delay: 50 },
-      { pct: 45, log: '● [1/4] Opening the guided setup flow and project shell...', delay: 260 },
-      { pct: 70, log: '● [2/4] Previewing example report, ticket, and asset views...', delay: 560 },
-      { pct: 88, log: '● [3/4] Saving the domain for workspace onboarding...', delay: 860 },
-      { pct: 100, log: '✔ [4/4] Preview ready. Run the full audit inside the app.', delay: 1160 }
+      { pct: 20, log: localize('▶ Capturing the requested domain: https://{domain}', { domain: domain }), delay: 50 },
+      { pct: 45, log: localize('● [1/4] Opening the guided setup flow and project shell...'), delay: 260 },
+      { pct: 70, log: localize('● [2/4] Previewing example report, ticket, and asset views...'), delay: 560 },
+      { pct: 88, log: localize('● [3/4] Saving the domain for workspace onboarding...'), delay: 860 },
+      { pct: 100, log: localize('✔ [4/4] Preview ready. Run the full audit inside the app.'), delay: 1160 }
     ];
 
     if (logBox) {
@@ -324,7 +362,7 @@ function escapeHtml(value) {
       if (scannerOverlay) scannerOverlay.classList.remove('is-active');
       if (submitBtn) {
         submitBtn.classList.remove('is-loading');
-        submitBtn.textContent = 'Run free technical audit →';
+        submitBtn.textContent = localize('Run free technical audit →');
       }
 
       auditPromise.then(function (audit) {
@@ -345,12 +383,12 @@ function escapeHtml(value) {
       var val = $('[data-radar-val="' + engine + '"]');
       var badge = $('[data-radar-badge="' + engine + '"]');
       if (bar) bar.style.width = preview.width;
-      if (val) val.textContent = preview.value;
-      if (badge) badge.textContent = preview.badge;
+      if (val) val.textContent = localize(preview.value);
+      if (badge) badge.textContent = localize(preview.badge);
     });
 
     var ping = $('.console-live-ping');
-    if (ping) ping.textContent = '● Example workspace preview · ' + domain;
+    if (ping) ping.textContent = localize('● Example workspace preview · {domain}', { domain: domain });
 
     var banner = $('#console-result-banner');
     var domainEl = $('#banner-domain-name');
@@ -363,16 +401,16 @@ function escapeHtml(value) {
       var badge = $('.banner-badge', banner);
       var titlePrefix = $('#banner-title-prefix');
       var openLabel = $('#banner-open-app-label');
-      if (badge) badge.textContent = isLiveAudit ? 'Live technical diagnostic · no AI sampling' : 'Preview only · continue in workspace';
-      if (titlePrefix) titlePrefix.textContent = isLiveAudit ? 'Technical diagnostic ready ·' : 'Setup preview loaded';
+      if (badge) badge.textContent = isLiveAudit ? localize('Live technical diagnostic · no AI sampling') : localize('Preview only · continue in workspace');
+      if (titlePrefix) titlePrefix.textContent = isLiveAudit ? localize('Technical diagnostic ready ·') : localize('Setup preview loaded');
       if (gradeEl) gradeEl.textContent = isLiveAudit ? String(audit.score || 0) + '/100' : 'Preview ready';
-      if (openLabel) openLabel.textContent = isLiveAudit ? 'Create workspace →' : 'Open Workspace →';
+      if (openLabel) openLabel.textContent = isLiveAudit ? localize('Create workspace →') : localize('Open Workspace →');
       var details = $('#banner-audit-details');
       if (details) {
         var checks = isLiveAudit && Array.isArray(audit.checks) ? audit.checks : [];
         details.innerHTML = checks.slice(0, 5).map(function (check) {
           return '<span class="audit-result-chip ' + (check.ok ? 'is-ok' : 'is-fail') + '">' +
-            (check.ok ? '✓ ' : '⚠ ') + escapeHtml(check.name || 'Site check') + '</span>';
+            (check.ok ? '✓ ' : '⚠ ') + escapeHtml(check.name || localize('Site check')) + '</span>';
         }).join('');
       }
       if (actionBtn) {
@@ -446,7 +484,7 @@ function escapeHtml(value) {
         if (code && navigator.clipboard) {
           navigator.clipboard.writeText(code.textContent).then(function () {
             var orig = copyBtn.textContent;
-            copyBtn.textContent = 'Copied!';
+            copyBtn.textContent = localize('Copied!');
             setTimeout(function () { copyBtn.textContent = orig; }, 2000);
           });
         }

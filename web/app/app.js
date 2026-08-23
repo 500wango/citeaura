@@ -3,7 +3,7 @@
  */
 
 import { auth, projects, onAuthFailure } from './api.js?v=3.5';
-import { t, loadCatalogs, getLocale, setLocale, detectLocale, SUPPORTED_LOCALES, LOCALE_LABELS } from './i18n.js';
+import { t, loadCatalogs, getLocale, setLocale, detectLocale, localizeRenderedText, SUPPORTED_LOCALES, LOCALE_LABELS } from './i18n.js';
 import { toast } from './components/toast.js';
 import { setSafeHtml } from './safe-html.js';
 import { openTelemetryModal } from './components/telemetry-modal.js?v=2.6';
@@ -273,7 +273,11 @@ async function renderApp() {
       const html = typeof view.render === 'function' ? await view.render(createContext()) : '';
       if (renderId !== renderSequence) return;
       setSafeHtml(appRoot, html);
+      localizeRenderedText(appRoot);
       if (typeof view.mounted === 'function') view.mounted(createContext());
+      // mounted() may append empty states, toasts, or modal labels after the
+      // initial render. Scan once more so legacy literals do not leak English.
+      localizeRenderedText(appRoot);
     }
     return;
   }
@@ -296,7 +300,9 @@ async function renderApp() {
       const html = typeof view.render === 'function' ? await view.render(context) : '';
       if (renderId !== renderSequence || context.activeProjectId !== state.activeProjectId) return;
       setSafeHtml(viewContainer, html);
+      localizeRenderedText(viewContainer);
       if (typeof view.mounted === 'function') view.mounted(createContext());
+      localizeRenderedText(viewContainer);
     } catch (err) {
       if (renderId !== renderSequence) return;
       console.error('Failed to mount view:', err);

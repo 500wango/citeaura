@@ -1,4 +1,4 @@
-"""Product message catalogs with English fallback."""
+"""Product message catalogs with explicit locale completeness."""
 
 import json
 from functools import lru_cache
@@ -30,7 +30,7 @@ def clear_catalog_cache():
 
 
 def resolve(message_id, locale=DEFAULT_LOCALE, catalogs=None):
-    """Resolve copy as locale -> English -> original id."""
+    """Resolve copy for one locale without hiding a missing translation."""
     if message_id is None:
         return message_id
     key = str(message_id)
@@ -41,10 +41,6 @@ def resolve(message_id, locale=DEFAULT_LOCALE, catalogs=None):
     current = catalogs.get(locale) or {}
     if key in current:
         return current[key]
-    if locale != DEFAULT_LOCALE:
-        english = catalogs.get(DEFAULT_LOCALE) or {}
-        if key in english:
-            return english[key]
     return key
 
 
@@ -59,9 +55,12 @@ def translate_map(entries, locale=DEFAULT_LOCALE, catalogs=None):
         if isinstance(mapping, dict):
             if locale in mapping and mapping[locale]:
                 result[key] = mapping[locale]
-            elif DEFAULT_LOCALE in mapping and mapping[DEFAULT_LOCALE]:
+            elif locale == DEFAULT_LOCALE and mapping.get(DEFAULT_LOCALE):
                 result[key] = mapping[DEFAULT_LOCALE]
             else:
+                # A non-English locale must not silently inherit English copy.
+                # Returning the stable message id keeps the gap visible to the
+                # caller and to the catalog completeness checks.
                 result[key] = resolve(key, locale, catalogs)
         else:
             result[key] = resolve(key, locale, catalogs)

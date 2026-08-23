@@ -1,6 +1,6 @@
-/**
- * Toast 
- */
+/** Toast notifications. */
+
+import { translateText } from '../i18n.js';
 
 let toastStack = null;
 
@@ -21,7 +21,7 @@ export function showToast(message, type = 'info', duration = 3500) {
   const root = getRoot();
   const el = document.createElement('div');
   el.className = `toast ${type === 'error' ? 'err' : type === 'success' ? 'good' : ''}`;
-  el.textContent = message;
+  el.textContent = translateText(message);
   root.appendChild(el);
 
   const timer = setTimeout(() => {

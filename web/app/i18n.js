@@ -1,6 +1,6 @@
 /**
- * CiteAura Internationalization Client (English Baseline)
- * Supports namespaced keys (e.g. 'overview.title', 'nav.diagnostics') with English resolution.
+ * CiteAura Internationalization Client.
+ * Every user-facing key must exist in every supported catalog.
  */
 
 export const SUPPORTED_LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
@@ -29,6 +29,7 @@ export const LOCALE_LABELS = {
 let currentLocale = 'en';
 let currentCatalog = {};
 let fallbackCatalog = {};
+let reverseFallbackCatalog = {};
 const subscribers = [];
 
 function normalizeLocale(locale) {
@@ -82,9 +83,17 @@ export async function loadCatalogs(locale = 'en') {
       fetch(`/i18n/${currentLocale}.json`),
     ]);
     fallbackCatalog = fallbackRes.ok ? await fallbackRes.json() : {};
+    reverseFallbackCatalog = Object.entries(fallbackCatalog).reduce((result, [key, value]) => {
+      if (typeof value === 'string' && !Object.prototype.hasOwnProperty.call(result, value)) result[value] = key;
+      return result;
+    }, {});
     currentCatalog = currentLocale === DEFAULT_LOCALE
       ? fallbackCatalog
       : (localeRes.ok ? await localeRes.json() : {});
+    if (currentLocale !== DEFAULT_LOCALE) {
+      const missing = Object.keys(fallbackCatalog).filter((key) => !Object.prototype.hasOwnProperty.call(currentCatalog, key));
+      if (missing.length) console.error(`Incomplete ${currentLocale} catalog: ${missing.length} missing keys`, missing);
+    }
   } catch (err) {
     console.warn('Failed to load locale catalog, using in-memory fallbacks', err);
   }
@@ -98,7 +107,8 @@ export async function setLocale(locale = DEFAULT_LOCALE) {
 }
 
 /**
- * Translate key with interpolation and fallback.
+ * Translate key with interpolation. English fallback is intentionally disabled
+ * for non-English locales so missing copy is visible in development and CI.
  * @param {string} key - Dot-delimited key (e.g. 'nav.overview')
  * @param {object} params - Interpolation parameters { count: 5 }
  * @param {string} fallback - Default English fallback text
@@ -107,11 +117,13 @@ export function t(key, params = {}, fallback = '') {
   if (!key) return fallback || '';
 
   let val = currentCatalog[key];
-  if (val === undefined || val === null) {
+  if ((val === undefined || val === null) && currentLocale === DEFAULT_LOCALE) {
     val = fallbackCatalog[key];
   }
   if (val === undefined || val === null) {
-    val = fallback !== undefined && fallback !== '' ? fallback : key;
+    val = currentLocale === DEFAULT_LOCALE && fallback !== undefined && fallback !== ''
+      ? fallback
+      : `[[missing:${key}]]`;
   }
 
   let text = String(val);
@@ -123,6 +135,37 @@ export function t(key, params = {}, fallback = '') {
   return text;
 }
 
+/** Translate a legacy literal while a view is being migrated to a stable key. */
+export function translateText(value) {
+  if (typeof value !== 'string' || currentLocale === DEFAULT_LOCALE) return value;
+  const key = reverseFallbackCatalog[value];
+  if (!key) return value;
+  return currentCatalog[key] || `[[missing:${key}]]`;
+}
+
+/** Localize exact legacy literals left in older view templates. */
+export function localizeRenderedText(root = document) {
+  if (currentLocale === DEFAULT_LOCALE || !root) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach((node) => {
+    if (node.parentElement?.closest('script,style,code,pre')) return;
+    const raw = node.nodeValue || '';
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+    const translated = translateText(trimmed);
+    if (translated !== trimmed) node.nodeValue = raw.replace(trimmed, translated);
+  });
+  root.querySelectorAll?.('[title],[aria-label],[placeholder]').forEach((node) => {
+    ['title', 'aria-label', 'placeholder'].forEach((attribute) => {
+      const value = node.getAttribute(attribute);
+      const translated = translateText(value);
+      if (translated !== value) node.setAttribute(attribute, translated);
+    });
+  });
+}
+
 export default {
   SUPPORTED_LOCALES,
   LOCALE_LABELS,
@@ -132,5 +175,7 @@ export default {
   loadCatalogs,
   setLocale,
   subscribeLocale,
+  translateText,
+  localizeRenderedText,
   t,
 };

@@ -1,7 +1,11 @@
-"""Locale catalog behavior and English fallback."""
+"""Locale catalog behavior and translation completeness."""
+
+import json
+import re
+from pathlib import Path
 
 from api.i18n import DEFAULT_LOCALE, SUPPORTED_LOCALES, detect_locale, normalize_locale, resolve
-from api.i18n.catalog import load_all_catalogs
+from api.i18n.catalog import load_all_catalogs, translate_map
 from api.adapters.localization import localize_ticket, normalize_english_typography
 
 
@@ -21,15 +25,179 @@ def test_normalize_and_detect_locale():
     assert detect_locale() == "en"
 
 
-def test_resolve_uses_locale_and_english_fallback():
+def test_resolve_uses_locale_without_silent_english_fallback():
     catalogs = load_all_catalogs()
     assert resolve("nav.cta", "en", catalogs) == "Start free trial"
     assert resolve("nav.cta", "zh", catalogs) == "开始免费试用"
     assert resolve("nav.cta", "ja", catalogs) == "無料トライアルを開始"
-    assert resolve("landing.hero_copy", "zh", catalogs) == resolve("landing.hero_copy", "en", catalogs)
+    assert resolve("landing.hero_copy", "zh", catalogs) != resolve("landing.hero_copy", "en", catalogs)
     assert resolve("unknown.chrome.key", "en", catalogs) == "unknown.chrome.key"
     assert "Chinese" not in resolve("统一一句话定义，四处逐字一致", "en", catalogs)
     assert "Standardize" in resolve("统一一句话定义，四处逐字一致", "en", catalogs)
+
+
+def test_translate_map_does_not_inherit_english_for_non_english_locale():
+    catalogs = {
+        "en": {"known": "Known English"},
+        "zh": {"known": "已知"},
+    }
+    entries = {
+        "known": {"en": "Known English", "zh": "已知"},
+        "missing": {"en": "English only"},
+    }
+    assert translate_map(entries, "zh", catalogs) == {"known": "已知", "missing": "missing"}
+    assert translate_map(entries, "en", catalogs) == {"known": "Known English", "missing": "English only"}
+
+
+def test_all_locale_catalogs_have_the_same_keys_and_placeholders():
+    catalogs = load_all_catalogs()
+    english_keys = set(catalogs["en"])
+    for locale in SUPPORTED_LOCALES:
+        assert set(catalogs[locale]) == english_keys, locale
+        if locale == "en":
+            continue
+        for key, source in catalogs["en"].items():
+            source_tokens = set(re.findall(r"\{[^{}]+\}", source))
+            translated_tokens = set(re.findall(r"\{[^{}]+\}", catalogs[locale][key]))
+            assert translated_tokens == source_tokens, (locale, key)
+
+
+def test_every_frontend_t_key_is_registered():
+    root = Path(__file__).resolve().parents[2] / "web" / "app"
+    keys = set()
+    for path in root.rglob("*.js"):
+        keys.update(re.findall(r"\bt\(\s*['\"]([^'\"]+)['\"]", path.read_text("utf-8")))
+    assert keys <= set(load_all_catalogs()["en"]), sorted(keys - set(load_all_catalogs()["en"]))
+
+
+def test_frontend_legacy_localize_literals_are_catalogued():
+    root = Path(__file__).resolve().parents[2]
+    catalog = load_all_catalogs()["en"]
+    catalog_values = set(catalog.values())
+    patterns = [
+        (root / "web" / "assets" / "landing.js", r"\blocalize\(\s*['\"]([^'\"]+)['\"]", "landing localize"),
+        (root / "web" / "app", r"\btranslateText\(\s*['\"]([^'\"]+)['\"]", "app translateText"),
+    ]
+    missing = []
+    for path, pattern, label in patterns:
+        paths = path.rglob("*.js") if path.is_dir() else [path]
+        for source in paths:
+            for literal in re.findall(pattern, source.read_text("utf-8")):
+                if literal not in catalog and literal not in catalog_values:
+                    missing.append(f"{label}: {source}:{literal}")
+    assert not missing, missing
+
+
+def test_non_english_catalogs_do_not_contain_known_machine_translation_artifacts():
+    forbidden = {
+        "zh": (
+            "审判", "车票", "签名", "发动机", "动作车票", "能见度", "14-day",
+            "教会网站", "演员", "机器人.txt", "出界核查", "快速报道", "代代代",
+            "传送包",
+        ),
+        "ja": (
+            "14-day", "Bi-Weekly", "キヤノン", "白い標識", "CABot",
+            "Mention-only", "Drafts",
+        ),
+        "ko": (
+            "이름 *", "공지사항", "제품정보", "Crawlability", "Inject ",
+            "Evidence-backed", "One-click", "Compile ", "Current English",
+            "맞은 측정", "주문 webhook", "적출", "matrix",
+        ),
+        "es": (
+            "Subscribe Pro", "Subscribe Agency", "14-day", "Perplejidad",
+            "Profundos Buscos", "Boletos", "billetes y paquetes",
+            "Tigres transparentes", "carreras de trabajo", "previsar",
+        ),
+        "fr": (
+            "Subscribe Pro", "Subscribe Agency", "14-day", "Current English",
+            "AI réponses", "Link client", "Package de", "recrawl",
+        ),
+        "de": (
+            "Subscribe Pro", "Subscribe Agency", "14-day", "Blueprint Recover",
+            "Kanalblaupausdruck", "Arbeitsbereichbesitzer", "Schauspieler",
+            "View Ergebnisse", "Save Fact", "Compile Executive",
+            "Single Source of Truth", "Pipeline-Running", "Offener Arbeitsbereich",
+            "Arbeitsplatz",
+        ),
+    }
+    catalogs = load_all_catalogs()
+    failures = []
+    for locale, needles in forbidden.items():
+        for key, value in catalogs[locale].items():
+            if any(needle in value for needle in needles):
+                failures.append((locale, key, value))
+    assert not failures, failures[:30]
+
+
+def test_non_english_catalogs_do_not_silently_copy_long_english_copy():
+    """Long English sentences are only valid in the English catalog or as identifiers."""
+    catalogs = load_all_catalogs()
+    failures = []
+    allowed_exact = {
+        "CiteAura", "GEO", "FAQ", "Meta AI", "Microsoft", "Copilot", "You", "You.com",
+        "AES-256-GCM", "Claude", "DeepSeek", "Gemini", "Grok", "OpenAI",
+        "Perplexity", "SSR", "WAF", "linear.app", "yourbrand.com", "Google",
+        "Mistral", "Le", "Chat", "Sonnet", "Opus", "Sol", "Terra", "Flash",
+        "Pro", "xAI", "Doubao", "App", "Web", "GPT", "Baidu", "AI", "Search",
+        "Google", "Overviews", "Mistral", "Le", "Chat", "Nano", "Sonar", "Research",
+        "content", "facts", "md", "Deep", "facts.md",
+    }
+    for locale in SUPPORTED_LOCALES:
+        if locale == "en":
+            continue
+        for key, value in catalogs[locale].items():
+            if value == catalogs["en"].get(key) and value not in allowed_exact:
+                words = re.findall(r"[A-Za-z]{2,}", value)
+                # Provider/model labels are product identifiers, not prose.
+                identifier_only = key.startswith("literal.") and words and all(word in allowed_exact for word in words)
+                if len(words) >= 3 and not identifier_only:
+                    failures.append((locale, key, value))
+    assert not failures, failures[:30]
+
+
+def test_non_english_catalogs_do_not_leak_translation_markers():
+    """Protected-term markers are an internal detail and must never reach the UI."""
+    catalogs = load_all_catalogs()
+    failures = []
+    for locale in SUPPORTED_LOCALES:
+        if locale == "en":
+            continue
+        for key, value in catalogs[locale].items():
+            if "§" in value or re.search(r"\bCA\d+\b", value):
+                failures.append((locale, key, value))
+    assert not failures, failures[:30]
+
+
+def test_latin_catalogs_do_not_expose_known_english_ui_residue():
+    """Keep ordinary English UI phrases out of the reviewed Latin catalogs."""
+    forbidden = {
+        "es": (
+            "Action:", "Save Asset", "Deploy Assets", "Prompt Coverage", "Prompt log",
+            "User Prompt:", "View Setup Preview", "Sitewide GEO Audit", "Campaigns",
+            "Libre AI Auditoría", "Percepción Gaps", "Effort: Med", "Copied!",
+            "Snapshot creado",
+        ),
+        "fr": (
+            "Action:", "Save Asset", "Deploy Assets", "Prompt Coverage", "Prompt log",
+            "User Prompt:", "View Setup Preview", "Sitewide GEO Audit", "Brand fact",
+            "Libre AI Vérification", "Current English", "Snapshot créé",
+        ),
+        "de": (
+            "Backup Snapshots", "Start Lite", "User Prompt:", "View Setup Preview",
+            "Sitewide GEO Audit", "Brand Fact Bibliothek", "Deploy Assets", "Save Asset",
+            "Current English", "Web-Based Retrieval", "Manual · Surface", "Snapshot erfolgreich",
+            "Snapshot erstellen",
+        ),
+    }
+    catalogs = load_all_catalogs()
+    failures = []
+    for locale, phrases in forbidden.items():
+        for key, value in catalogs[locale].items():
+            for phrase in phrases:
+                if phrase.casefold() in value.casefold():
+                    failures.append((locale, key, phrase, value))
+    assert not failures, failures[:30]
 
 
 def test_localize_ticket_uses_english_fallback():

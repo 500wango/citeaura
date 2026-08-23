@@ -1,7 +1,4 @@
-/**
- * 
- * ：
- */
+import { translateText } from '../i18n.js';
 
 export function renderEmpty({
   title = 'No data available',
@@ -11,6 +8,9 @@ export function renderEmpty({
   onAction = null,
   icon = '',
 } = {}) {
+  title = translateText(title);
+  description = translateText(description);
+  actionText = translateText(actionText);
   return `
     <div class="empty">
       ${icon ? `<div style="font-size:32px;margin-bottom:var(--sp-2);">${icon}</div>` : ''}
