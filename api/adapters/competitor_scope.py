@@ -190,7 +190,7 @@ def _review_item(item, relationship, reason):
         "name": _text(item.get("name")),
         "aliases": list(dict.fromkeys(_text(alias) for alias in item.get("aliases") or [] if _text(alias))),
         "domain": _url(item.get("official_url") or item.get("url") or item.get("domain")),
-        "market": "global",
+        "market": item.get("market") if item.get("market") in ("cn", "global", "both") else "both",
         "relationship": relationship or UNKNOWN,
         "benchmark_eligible": False,
         "exclusion_reason": reason,
@@ -235,7 +235,7 @@ def normalize_competitors(items, brand=None):
         item = selected[name_key]
         name = _text(item.get("name"))
         relationship = _relationship(item)
-        manual_direct = _manual_direct(item)
+        manual_direct = _manual_direct(item) or item.get("market") == "cn"
         if _known_model_platform(item) and not _model_product(brand) and not manual_direct:
             review.append(_review_item(item, ECOSYSTEM, "monitored_answer_engine_or_model_provider"))
             continue
@@ -254,7 +254,7 @@ def normalize_competitors(items, brand=None):
             "aliases": list(dict.fromkeys(
                 _text(alias) for alias in item.get("aliases") or [] if _text(alias) and _key(alias) != name_key
             )),
-            "market": "global",
+            "market": item.get("market") if item.get("market") in ("cn", "global", "both") else "both",
             "relationship": DIRECT,
             "relationship_source": source,
             "relationship_confidence": confidence,

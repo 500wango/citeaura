@@ -154,14 +154,19 @@ def delivery_question_evidence(project_slug, funding=None, custom_providers=None
         for item in (custom_providers or ())
         if isinstance(item, dict) and item.get("code")
     }
+    project_market = config.get("market") if config.get("market") in ("cn", "global", "both") else "both"
+
+    def market_matches(provider_market):
+        provider_market = provider_market or "both"
+        return project_market == "both" or provider_market in ("both", project_market)
     configured = list(dict.fromkeys(
         str(code).strip().lower()
         for code in (config.get("platforms") or [])
         if str(code).strip()
     ))
-    # The worker synchronizes newly funded global/custom providers into geo.json
-    # before this helper runs. Do not infer activity from every tenant key: a
-    # saved domestic or unused key must not silently become a global cohort.
+    # The worker synchronizes newly funded providers into geo.json before this
+    # helper runs. Do not infer activity from every tenant key: an unused key
+    # must not silently become a cohort outside the project's market.
     active_codes = configured
     expected = []
     for code in active_codes:
@@ -169,6 +174,8 @@ def delivery_question_evidence(project_slug, funding=None, custom_providers=None
             continue
         provider = sample.PROVIDERS.get(code) or custom_by_code.get(code)
         if not isinstance(provider, dict):
+            continue
+        if not market_matches(provider.get("market")):
             continue
         expected.append({
             "engine_code": code,
@@ -189,7 +196,7 @@ def delivery_question_evidence(project_slug, funding=None, custom_providers=None
             row for row in geolib.read_jsonl(sample_files[-1])
             if isinstance(row, dict)
             and row.get("ok")
-            and is_global_sample(row)
+            and is_global_sample(row, config)
             and brand_identity.is_current_sample(row, config)
         ]
     observed_modes = {}
@@ -275,7 +282,7 @@ def _sample_summary(project_slug):
     config = geolib.load_config(project_slug)
     rows = [
         row for row in geolib.read_jsonl(sample_files[-1])
-        if is_global_sample(row) and brand_identity.is_current_sample(row, config)
+        if is_global_sample(row, config) and brand_identity.is_current_sample(row, config)
     ] if sample_files else []
     per_platform = {}
     success = 0

@@ -32,6 +32,60 @@ def _metrics(date, version, mention_rate, samples=100, successful=100, failed=0,
     }
 
 
+def test_default_sample_platforms_respect_market_scope():
+    funding = {
+        "keys": {
+            code: f"{code}-key"
+            for code in (
+                "glm", "doubao", "kimi", "minimax",
+                "openai", "claude", "gemini", "grok", "perplexity", "deepseek",
+            )
+        },
+        "pool_codes": (),
+    }
+
+    cn = set(sampling_control.default_sample_platforms(funding, [], project_market="cn"))
+    global_ = set(sampling_control.default_sample_platforms(funding, [], project_market="global"))
+    both = set(sampling_control.default_sample_platforms(funding, [], project_market="both"))
+
+    assert cn == {"glm", "doubao", "kimi", "minimax"}
+    assert global_ == {"openai", "claude", "gemini", "grok", "perplexity", "deepseek"}
+    assert both == cn | global_
+
+
+def test_sampling_estimate_rejects_explicit_market_mismatch(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    engine = create_engine(f"sqlite:///{tmp_path / 'sampling-market.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine)
+    with session_factory() as db:
+        tenant = Tenant(name="tenant", plan="pro")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="cn-project",
+            url="https://example.cn",
+            market="cn",
+        )
+        db.add(project)
+        db.commit()
+        db.refresh(tenant)
+        db.refresh(project)
+        monkeypatch.setattr(sampling_control, "resolve_funding", lambda *args, **kwargs: {
+            "keys": {"openai": "byok-secret"},
+            "pool_codes": frozenset(),
+            "rates": {},
+        })
+
+        with pytest.raises(sampling_control.SamplingPlatformMarketMismatch) as exc_info:
+            sampling_control.estimate(db, tenant, project, platforms=["openai"])
+
+    assert exc_info.value.code == "sample_platform_market_mismatch"
+    assert exc_info.value.platforms == ("openai",)
+    assert exc_info.value.project_market == "cn"
+
+
 def test_measurement_quality_marks_noteworthy_and_incomparable_periods(tmp_path, monkeypatch):
     monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
     with with_tenant_context("tenant", "project"):

@@ -48,7 +48,7 @@ class CustomProviderPayload(BaseModel):
     base_url: str = Field(min_length=1, max_length=2048)
     api_key: str = Field(min_length=1, max_length=4096)
     model_id: str = Field(min_length=1, max_length=255)
-    market: str = Field(default="global", pattern="^global$")
+    market: str = Field(default="both", pattern="^(cn|global|both)$")
 
     @field_validator("name", "model_id", "api_key")
     @classmethod
@@ -98,7 +98,7 @@ def _provider_response(row: CustomProvider, include_key=False):
         "name": row.name,
         "base_url": row.base_url,
         "model_id": row.model_id,
-        "market": "global",
+        "market": row.market or "both",
         "masked": mask_key(decrypt_key(row.encrypted_api_key)),
         "sampling_mode": sampling_modes.MODE_API,
     }
@@ -209,7 +209,7 @@ def put_custom_provider(payload: CustomProviderPayload, current_user: User = Dep
     row.name = provider["name"]
     row.base_url = provider["base_url"]
     row.model_id = provider["model_id"]
-    row.market = "global"
+    row.market = provider["market"]
     row.encrypted_api_key = encrypt_key(provider["api_key"])
     db.commit()
     return {"provider": _provider_response(row)}

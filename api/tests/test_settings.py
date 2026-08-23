@@ -71,6 +71,25 @@ def test_crypto_round_trip_and_api_key_lifecycle(settings_client):
     assert client.get("/api/v1/settings/keys", headers=headers).json() == {"keys": []}
 
 
+def test_domestic_engine_keys_are_supported_and_isolated(settings_client):
+    client = settings_client
+    headers = _headers(client, "domestic-owner@example.com")
+    domestic = ("glm", "doubao", "kimi", "minimax")
+    for code in domestic:
+        saved = client.put(
+            "/api/v1/settings/keys",
+            headers=headers,
+            json={"engine_code": code, "key_value": f"{code}-test-secret"},
+        )
+        assert saved.status_code == 200
+        assert saved.json()["engine_code"] == code
+        assert f"{code}-test-secret" not in saved.text
+
+    listed = client.get("/api/v1/settings/keys", headers=headers)
+    assert listed.status_code == 200
+    assert {item["engine_code"] for item in listed.json()["keys"]} == set(domestic)
+
+
 def test_corrupted_ciphertext_uses_value_error_contract(monkeypatch):
     monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"0" * 32).decode())
     encrypted = encrypt_key("sk-test-secret")

@@ -18,10 +18,40 @@ class SamplingBudgetExceeded(ValueError):
         self.estimate = estimate
 
 
+class SamplingPlatformMarketMismatch(ValueError):
+    """显式请求的平台与项目市场不匹配。"""
+
+    code = "sample_platform_market_mismatch"
+
+    def __init__(self, platforms, project_market):
+        self.platforms = tuple(sorted(set(platforms)))
+        self.project_market = project_market
+        super().__init__(f"{self.code}:{','.join(self.platforms)}:{project_market}")
+
+
 BUILTIN_GLOBAL_SAMPLE_PLATFORMS = ("openai", "claude", "gemini", "grok", "perplexity", "deepseek")
+BUILTIN_CN_SAMPLE_PLATFORMS = ("glm", "doubao", "deepseek", "kimi", "minimax")
 
 
-def default_sample_platforms(funding, custom_providers, config_platforms=None):
+def _market_matches(provider_market, project_market):
+    provider_market = provider_market or "both"
+    project_market = project_market or "both"
+    return provider_market == "both" or project_market == "both" or provider_market == project_market
+
+
+def platform_matches_market(code, project_market, custom_providers=None):
+    """判断内置或租户自定义 API 平台是否属于项目市场。"""
+    import sample
+
+    custom = next(
+        (item for item in (custom_providers or []) if item.get("code") == code),
+        None,
+    )
+    provider = custom or sample.PROVIDERS.get(code) or {}
+    return _market_matches(provider.get("market"), project_market)
+
+
+def default_sample_platforms(funding, custom_providers, config_platforms=None, project_market="both"):
     """Prefer funded built-in APIs and saved custom endpoints, then geo.json."""
     import sample
 
@@ -33,12 +63,23 @@ def default_sample_platforms(funding, custom_providers, config_platforms=None):
         for provider in (custom_providers or [])
         if provider.get("code")
     ]
-    built_in = [code for code in BUILTIN_GLOBAL_SAMPLE_PLATFORMS if code in funded]
+    built_in = []
+    for code in BUILTIN_CN_SAMPLE_PLATFORMS + BUILTIN_GLOBAL_SAMPLE_PLATFORMS:
+        provider = sample.PROVIDERS.get(code) or {}
+        if code in funded and _market_matches(provider.get("market"), project_market):
+            built_in.append(code)
+    custom_codes = [
+        code for code in custom_codes
+        if platform_matches_market(code, project_market, custom_providers)
+    ]
     chosen = list(dict.fromkeys(built_in + custom_codes))
     if chosen:
         return chosen
     known = set(sample.PROVIDERS) | set(custom_codes)
-    return [code for code in (config_platforms or []) if code in known]
+    return [
+        code for code in (config_platforms or [])
+        if code in known and _market_matches((sample.PROVIDERS.get(code) or {}).get("market"), project_market)
+    ]
 
 
 def _month_range():
@@ -93,8 +134,19 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, quest
         }
         configured = [provider["code"] for provider in custom_providers]
         custom_codes = set(configured)
+        project_market = getattr(project, "market", None)
+        if project_market not in ("cn", "global", "both"):
+            project_market = config.get("market") if config.get("market") in ("cn", "global", "both") else "both"
+        if requested:
+            mismatched = [
+                code for code in requested
+                if not platform_matches_market(code, project_market, custom_providers)
+            ]
+            if mismatched:
+                raise SamplingPlatformMarketMismatch(mismatched, project_market)
         requested = list(dict.fromkeys(requested or default_sample_platforms(
             funding, custom_providers, list(config.get("platforms", [])) + configured,
+            project_market,
         )))
         items = []
         total_calls = 0

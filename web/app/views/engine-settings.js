@@ -8,6 +8,10 @@ import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 
 const AVAILABLE_ENGINES = [
+  { code: 'glm', name: 'Zhipu GLM', provider: 'Zhipu AI', market: 'CN' },
+  { code: 'doubao', name: 'Doubao', provider: 'Volcengine Ark', market: 'CN' },
+  { code: 'kimi', name: 'Kimi', provider: 'Moonshot AI', market: 'CN' },
+  { code: 'minimax', name: 'MiniMax', provider: 'MiniMax Platform', market: 'CN' },
   { code: 'openai', name: 'OpenAI', provider: 'OpenAI Platform' },
   { code: 'claude', name: 'Anthropic', provider: 'Anthropic Console' },
   { code: 'gemini', name: 'Google', provider: 'Google AI Studio' },
@@ -57,7 +61,7 @@ function customProviderPayload() {
     name: document.getElementById('custom-provider-name')?.value.trim() || '',
     base_url: document.getElementById('custom-provider-url')?.value.trim() || '',
     model_id: document.getElementById('custom-provider-model')?.value.trim() || '',
-    market: 'global',
+    market: 'both',
     api_key: document.getElementById('custom-provider-key')?.value.trim() || '',
   };
 }
@@ -192,7 +196,7 @@ export default {
                   return `
                     <tr>
                       <td>
-                        <strong>${eng.name}</strong>
+                        <strong>${eng.name}${eng.market ? ` <span class="tag tag-dim">${eng.market}</span>` : ''}</strong>
                         <div style="font-size:11px;color:var(--muted);">${eng.provider}</div>
                       </td>
                       <td><span class="num">${eng.code}</span></td>

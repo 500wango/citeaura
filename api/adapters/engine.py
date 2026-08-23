@@ -33,14 +33,21 @@ _MISSING = object()
 _CONTEXT_LOCK = threading.RLock()
 _NETWORK_GUARD_ACTIVE = ContextVar("citeaura_network_guard_active", default=False)
 ENGINE_KEY_ENV = {
+    "glm": "ZHIPUAI_API_KEY",
+    "doubao": "ARK_API_KEY",
     "gemini": "GEMINI_API_KEY",
     "openai": "OPENAI_API_KEY",
     "claude": "ANTHROPIC_API_KEY",
     "grok": "XAI_API_KEY",
     "perplexity": "PERPLEXITY_API_KEY",
     "deepseek": "DEEPSEEK_API_KEY",
+    "kimi": "MOONSHOT_API_KEY",
+    "minimax": "MINIMAX_API_KEY",
 }
-GLOBAL_LLM_PREFS = ("openai", "gemini", "claude", "grok", "perplexity", "deepseek")
+GLOBAL_LLM_PREFS = (
+    "glm", "doubao", "deepseek", "kimi", "minimax",
+    "openai", "gemini", "claude", "grok", "perplexity",
+)
 NETWORK_REDIRECT_STATUSES = frozenset((301, 302, 303, 307, 308))
 NETWORK_RETRY_STATUSES = frozenset((429, 500, 502, 503, 504))
 NETWORK_MAX_REDIRECTS = 5
@@ -366,7 +373,7 @@ def load_custom_providers(db, tenant_id):
             "name": row.name,
             "base_url": row.base_url,
             "model_id": row.model_id,
-            "market": "global",
+            "market": row.market or "both",
             "api_key": decrypt_key(row.encrypted_api_key),
         }
         for row in rows
@@ -419,7 +426,7 @@ def _custom_provider_context(providers):
         previous[code] = sample.PROVIDERS.get(code, _MISSING)
         sample.PROVIDERS[code] = {
             "name": provider["name"],
-            "market": "global",
+            "market": provider.get("market") or "both",
             "base": provider["base_url"],
             "model": provider["model_id"],
             "model_env": None,

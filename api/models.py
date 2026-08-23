@@ -173,7 +173,7 @@ class Project(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     slug = Column(String(128), nullable=False)
     url = Column(String(2048), nullable=False)
-    market = Column(String(16), nullable=False, default="global", server_default="global")
+    market = Column(String(16), nullable=False, default="both", server_default="both")
     status = Column(String(32), nullable=False, default="pending", server_default="pending")
     schedule_interval_days = Column(Integer, nullable=True)
     schedule_next_run_at = Column(DateTime(timezone=True), nullable=True, index=True)
@@ -225,7 +225,7 @@ class CustomProvider(Base):
     __tablename__ = "custom_providers"
     __table_args__ = (
         UniqueConstraint("tenant_id", "code", name="uq_custom_providers_tenant_code"),
-        CheckConstraint("market = 'global'", name="ck_custom_providers_market"),
+        CheckConstraint("market IN ('cn', 'global', 'both')", name="ck_custom_providers_market"),
     )
 
     id = Column(Integer, primary_key=True)
@@ -234,7 +234,7 @@ class CustomProvider(Base):
     name = Column(String(128), nullable=False)
     base_url = Column(String(2048), nullable=False)
     model_id = Column(String(255), nullable=False)
-    market = Column(String(16), nullable=False, default="global", server_default="global")
+    market = Column(String(16), nullable=False, default="both", server_default="both")
     encrypted_api_key = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 

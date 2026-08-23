@@ -65,7 +65,7 @@ export function subscribeLocale(callback) {
 }
 
 function notifySubscribers() {
-  subscribers.forEach((cb) => cb('en'));
+  subscribers.forEach((cb) => cb(currentLocale));
 }
 
 export async function loadCatalogs(locale = 'en') {

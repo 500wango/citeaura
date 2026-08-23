@@ -33,7 +33,7 @@ def assess(project_slug, has_sampling_access=False):
     if sample_files:
         current_rows = [
             row for row in geolib.read_jsonl(sample_files[-1])
-            if row.get("ok") and global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
+            if row.get("ok") and global_scope.is_global_sample(row, config) and brand_identity.is_current_sample(row, config)
         ]
     question_ids = [
         str(item.get("id")) for item in config.get("questions") or []

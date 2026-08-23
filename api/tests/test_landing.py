@@ -36,7 +36,7 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'data-i18n="landing.pricing_note"' in response.text
     assert "Scheduled re-sampling and email alerts on mention-rate drops" in response.text
     assert "One-click sendable white-label client pack" in response.text
-    assert "6 BYOK engines + custom" in response.text
+    assert "6 API engines + 9 product surfaces + custom" in response.text
     assert "5 BYOK engines + custom" not in response.text
     assert "model-ribbon-name\">DeepSeek</span>" in response.text
     assert "data-radar-bar=\"grok\"" in response.text
@@ -148,11 +148,12 @@ def test_i18n_catalogs_are_public():
     assert data["nav.cta"] == "Start free trial"
     assert data["landing.plan_pro_3"] == "Scheduled re-sampling and email alerts on mention-rate drops"
     assert data["landing.plan_agency_2"] == "One-click sendable white-label client pack"
-    assert data["nav.status"] == "6 BYOK engines + custom"
+    assert data["nav.status"] == "6 API engines + 9 product surfaces + custom"
     assert "DeepSeek" in data["landing.truth_engines_dd"]
     assert "landing.title" in data
-    assert client.get("/i18n/zh.json").status_code == 404
-    assert client.get("/i18n/ja.json").status_code == 404
+    assert client.get("/i18n/zh.json").status_code == 200
+    assert client.get("/i18n/ja.json").status_code == 200
+    assert client.get("/i18n/de.json").status_code == 200
 
 
 def test_landing_has_no_forbidden_brand_or_false_claims():
@@ -165,15 +166,14 @@ def test_landing_has_no_forbidden_brand_or_false_claims():
     assert "已通过 SOC 2" not in response.text
 
 
-def test_landing_js_is_english_only():
+def test_landing_js_supports_international_locales():
     response = client.get("/site-assets/landing.js")
     assert response.status_code == 200
     assert "localStorage.setItem('ulang'" in response.text
-    assert "initTypewriter()" in response.text
-    assert "Audit citations across 6 BYOK engines plus custom endpoints." in response.text
+    assert "function detectLocale()" in response.text
+    assert "var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de']" in response.text
     assert "fetch('/i18n/en.json')" in response.text
-    assert "zh-CN" not in response.text
-    assert "ja" not in response.text
+    assert "fetch('/i18n/' + state.locale + '.json')" in response.text
 
 
 def test_seo_technical_files_are_served():
@@ -288,8 +288,8 @@ def test_homepage_keeps_slogan_h1_and_links_guides():
     assert 'id="primary-nav"' in response.text
     assert 'href="/blog" data-i18n="nav.guides">Guides</a>' in response.text
     assert 'class="header-status-badge"' not in response.text
-    assert 'class="hero-status-badge"' in response.text
-    assert 'data-i18n="nav.status"' in response.text
+    assert 'class="hero-status-badge"' not in response.text
+    assert 'data-i18n="nav.status"' not in response.text
     assert 'id="blog"' in response.text
     assert 'href="/blog/measure-if-chatgpt-mentions-your-brand"' in response.text
     assert 'href="/blog/why-chatgpt-does-not-mention-my-brand"' in response.text

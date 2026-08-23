@@ -26,7 +26,7 @@ def test_unknown_chinese_manual_input_is_replaced_with_safe_english():
     assert translated == "[geo] Needs manual input: Additional material brand information requiring manual verification\n"
 
 
-def test_bootstrap_metadata_removes_domestic_questions(tmp_path, monkeypatch):
+def test_bootstrap_metadata_preserves_domestic_questions(tmp_path, monkeypatch):
     project = tmp_path / "example"
     project.mkdir()
     config = {
@@ -48,8 +48,8 @@ def test_bootstrap_metadata_removes_domestic_questions(tmp_path, monkeypatch):
         "Named customers, customer count, and verified outcome case studies",
     ]
     saved = json.loads((project / "geo.json").read_text("utf-8"))
-    assert saved["questions"] == []
-    assert saved["market"] == "global"
+    assert saved["questions"][0]["market"] == "cn"
+    assert saved["market"] == "both"
     assert saved["business_profile"]["id"] == "generic"
     assert saved["business_profile"]["confirmed"] is False
     assert saved["business_profile"]["review_required"] is True

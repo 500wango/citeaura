@@ -210,7 +210,10 @@ def _task_summary(tasks):
             for status in ("todo", "doing", "done", "blocked", "wontfix")
         },
         "by_package": {package: sum(task.get("package") == package for task in tasks) for package in packages},
-        "by_market": {"cn": 0, "global": len(tasks), "both": 0},
+        "by_market": {
+            market: sum(task.get("market") == market for task in tasks)
+            for market in ("cn", "global", "both")
+        },
         "auto_verifiable": sum(
             isinstance(task.get("acceptance"), dict) and task["acceptance"].get("type") == "auto"
             for task in tasks
@@ -258,7 +261,7 @@ def _scope_page_task(task, audit, check_id):
         "package": "Page technology" if package in ("crawlability", "semantics") else "Content matrix",
         "package_en": "Page technology" if package in ("crawlability", "semantics") else "Content matrix",
         "priority": priority,
-        "market": "global",
+        "market": task.get("market") if task.get("market") in ("cn", "global", "both") else "both",
         "affected": affected,
         "verification_cohort": cohort,
         "scope_original_check": _check(task),
@@ -287,7 +290,7 @@ def _synthetic_page_task(check_id, audit):
         "id": f"T-AUDIT-{check_id.replace('_', '-').upper()}",
         "priority": priority,
         "package": "Page technology" if package in ("crawlability", "semantics") else "Content matrix",
-        "market": "global",
+        "market": "both",
         "title": title,
         "why": "The role-aware audit found an applicable page-level gap that was absent from the raw engine task set.",
         "action": action,
@@ -343,7 +346,7 @@ def _synthetic_site_task(check, facts_approved=None):
         "id": "T-AUDIT-" + check.rsplit(".", 1)[-1].replace("_", "-").upper(),
         "priority": priority,
         "package": "Page technology" if check != "site.has_llms_txt" else "Knowledge base",
-        "market": "global",
+        "market": "both",
         "title": title,
         "why": "The role-aware site audit found this unresolved site-level gap.",
         "action": action,
@@ -370,7 +373,7 @@ def _sampling_task(quality):
         "id": "T-MEASUREMENT-BASELINE",
         "priority": "P0",
         "package": "Measurement loop",
-        "market": "global",
+        "market": "both",
         "title": "Establish a representative AI visibility baseline",
         "why": "Current sampling is insufficient for global performance conclusions or target-based optimization tickets.",
         "action": (

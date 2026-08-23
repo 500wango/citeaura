@@ -765,7 +765,7 @@ def _sample_modes(project_directory, metrics):
     rows = geolib.read_jsonl(project_directory / "samples" / f"{date}.jsonl") if date else []
     by_platform = {}
     for row in rows:
-        if not global_scope.is_global_sample(row) or not brand_identity.is_current_sample(row, config):
+        if not global_scope.is_global_sample(row, config) or not brand_identity.is_current_sample(row, config):
             continue
         platform = str(row.get("platform") or "")
         if not platform:
@@ -791,7 +791,7 @@ def _current_sample_rows(project_directory, config):
         return []
     return [
         row for row in geolib.read_jsonl(files[-1])
-        if global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
+        if global_scope.is_global_sample(row, config) and brand_identity.is_current_sample(row, config)
     ]
 
 
@@ -1692,7 +1692,7 @@ def _content_form(intent, question):
 def _build_map_markdown(name, blueprint):
     channels = [
         channel for channel in blueprint.get("channels") or []
-        if isinstance(channel, dict) and channel.get("market") == "global"
+        if isinstance(channel, dict) and channel.get("market") in ("global", "both", None)
     ]
     contents = [
         content for content in blueprint.get("contents") or []
@@ -1878,6 +1878,7 @@ def _project_json_asset(value, config, facts=None):
         for question in config.get("questions") or []
         if isinstance(question, dict)
         and question.get("market") in ("global", "both", None)
+        and not _contains_han(question.get("text"))
         and str(question.get("text") or "").strip()
         and not _contains_disallowed_english(question.get("text"))
     ]
@@ -3326,7 +3327,7 @@ def ensure_legacy_deliverables_contract(project_slug: str, deliverables_director
     )
     channels = [
         channel for channel in blueprint.get("channels") or []
-        if isinstance(channel, dict) and channel.get("market") == "global"
+        if isinstance(channel, dict) and channel.get("market") in ("global", "both", None)
     ]
     coverage = global_scope.summarize_channel_coverage(channels)
 

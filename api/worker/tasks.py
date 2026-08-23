@@ -491,8 +491,8 @@ def _funding_diagnostic(tenant_id, project_slug, funding, custom_providers):
     }
 
 
-def _validate_requested_platforms(platforms, funding):
-    """显式平台必须在 Worker funding 中，否则阻断本次采样。"""
+def _validate_requested_platforms(platforms, funding, project_market=None):
+    """显式平台必须有 funding 且属于项目市场，否则阻断本次采样。"""
     if not platforms or not isinstance(funding, dict) or funding.get("tenant_id") is None:
         return
     if isinstance(platforms, str):
@@ -502,6 +502,13 @@ def _validate_requested_platforms(platforms, funding):
     missing = [code for code in requested if code not in funded]
     if missing:
         raise SamplingPlatformUnavailable(missing, funding)
+    if project_market in ("cn", "global", "both"):
+        mismatched = [
+            code for code in requested
+            if not sampling_control.platform_matches_market(code, project_market)
+        ]
+        if mismatched:
+            raise sampling_control.SamplingPlatformMarketMismatch(mismatched, project_market)
 
 
 def _engine_custom_providers(tenant_id):
@@ -553,7 +560,7 @@ def _sync_custom_provider_scope(project_slug, providers):
 
 
 def _sync_funded_engine_scope(project_slug, funded_codes):
-    """把当前 funding 中可运行的全局 API 引擎加入默认采样集合。"""
+    """把当前 funding 中可运行、符合项目市场的 API 引擎加入默认集合。"""
     config_path = geolib.project_dir(project_slug) / "geo.json"
     if not config_path.is_file():
         return
@@ -565,7 +572,15 @@ def _sync_funded_engine_scope(project_slug, funded_codes):
     }
     original = list(config.get("platforms") or [])
     platforms = list(original)
-    for code in sampling_control.BUILTIN_GLOBAL_SAMPLE_PLATFORMS:
+    config_market = config.get("market") if config.get("market") in ("cn", "global", "both") else "global"
+    builtin_codes = sampling_control.BUILTIN_CN_SAMPLE_PLATFORMS + sampling_control.BUILTIN_GLOBAL_SAMPLE_PLATFORMS
+    import sample
+    for code in builtin_codes:
+        provider_market = (sample.PROVIDERS.get(code) or {}).get("market")
+        if config_market == "cn" and provider_market == "global":
+            continue
+        if config_market == "global" and provider_market == "cn":
+            continue
         if code in funded and code not in platforms:
             platforms.append(code)
     if platforms != original:
@@ -1069,8 +1084,14 @@ def task_sample(
         update = update or (lambda *args: None)
         update("sampling", 15)
         with _funded_engine_context(tenant_id, project_slug, "sample", job_id=job_id) as worker_funding:
-            _validate_requested_platforms(platforms, worker_funding)
             global_scope.normalize_project(project_slug)
+            config_path = geolib.project_dir(project_slug) / "geo.json"
+            project_config = geolib.read_json(config_path, {}) if config_path.is_file() else {}
+            _validate_requested_platforms(
+                platforms,
+                worker_funding,
+                project_market=project_config.get("market"),
+            )
             sample_kwargs = {
                 "platforms": platforms,
                 "repeat": repeat,
@@ -1313,8 +1334,15 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
         ) as worker_funding:
             if action == "sample":
                 requested_platforms = (params or {}).get("--platforms", (params or {}).get("platforms"))
-                _validate_requested_platforms(requested_platforms, worker_funding)
             global_scope.normalize_project(project_slug)
+            if action == "sample":
+                config_path = geolib.project_dir(project_slug) / "geo.json"
+                project_config = geolib.read_json(config_path, {}) if config_path.is_file() else {}
+                _validate_requested_platforms(
+                    requested_platforms,
+                    worker_funding,
+                    project_market=project_config.get("market"),
+                )
             if action in ("audit", "deliverables", "plan", "report", "deliver"):
                 site_signals.validate_project_signals(project_slug)
             with global_scope.normalize_generated_outputs(project_slug):

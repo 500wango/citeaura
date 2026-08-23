@@ -236,17 +236,17 @@ def _validated_questions(questions):
             raise ValueError("each question must be an object")
         qid = str(item.get("id") or "").strip()
         text = str(item.get("text") or "").strip()
-        market = item.get("market", "global")
+        market = item.get("market", "both")
         group = str(item.get("group") or "Recommendation").strip() or "Recommendation"
         if not re.fullmatch(r"q\d{3,6}", qid) or qid in used_ids:
             raise ValueError("question ids must be unique qNNN values")
         if not text or len(text) > 1000:
             raise ValueError("question text is required and must not exceed 1000 characters")
-        if global_scope.contains_han(text):
-            raise ValueError("question text must not contain Chinese characters")
-        if market != "global":
-            raise ValueError("question market must be global")
-        validated.append({**item, "id": qid, "text": text, "market": "global", "group": group})
+        if market == "global" and global_scope.contains_han(text):
+            raise ValueError("global question text must not contain Chinese characters")
+        if market not in ("cn", "global", "both"):
+            raise ValueError("question market must be cn, global, or both")
+        validated.append({**item, "id": qid, "text": text, "market": market, "group": group})
         used_ids.add(qid)
     return validated
 
@@ -256,7 +256,7 @@ def read_config(project_slug: str) -> dict:
 
 
 def ensure_global_engine_scope(project_slug: str) -> dict:
-    """把历史项目及已有产物归一为国际市场。"""
+    """兼容旧调用点，归一化多市场项目及已有产物。"""
     return global_scope.normalize_project(project_slug)
 
 
@@ -274,7 +274,8 @@ def update_config(project_slug: str, updates: dict) -> dict:
             raise ValueError("project slug cannot be changed")
         current.update(updates)
         current["slug"] = project_slug
-        current["market"] = "global"
+        if current.get("market") not in ("cn", "global", "both"):
+            current["market"] = "both"
         if "url" in updates:
             current.setdefault("brand", {})["site"] = updates["url"]
         if "questions" in current:
@@ -383,7 +384,7 @@ def workbench(project_slug: str, question_id: str):
             "sampled_at": row.get("ts"),
         }
         for row in rows
-        if global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
+        if global_scope.is_global_sample(row, config) and brand_identity.is_current_sample(row, config)
         if not question_id or row.get("question_id") == question_id
     ]
     result["sample_date"] = files[-1].stem if files else None
@@ -504,14 +505,14 @@ def add_questions(project_slug: str, items: list):
         added = []
         for item in items:
             text = str(item.get("text") or "").strip()
-            market = item.get("market", "global")
+            market = item.get("market", "both")
             group = str(item.get("group") or "Scenario").strip() or "Scenario"
             if not text or len(text) > 1000:
                 raise ValueError("question text is required and must not exceed 1000 characters")
-            if global_scope.contains_han(text):
-                raise ValueError("question text must not contain Chinese characters")
-            if market != "global":
-                raise ValueError("question market must be global")
+            if market == "global" and global_scope.contains_han(text):
+                raise ValueError("global question text must not contain Chinese characters")
+            if market not in ("cn", "global", "both"):
+                raise ValueError("question market must be cn, global, or both")
             if text in existing:
                 continue
             number = 101
@@ -521,7 +522,7 @@ def add_questions(project_slug: str, items: list):
             question = {
                 "id": f"q{number:03d}",
                 "group": group,
-                "market": "global",
+                "market": market,
                 "text": text,
                 "source": str(item.get("source") or "manual"),
             }
@@ -549,9 +550,12 @@ def update_question(project_slug: str, question_id: str, changes: dict):
             text = str(changes.get("text") or "").strip()
             if not text or len(text) > 1000:
                 raise ValueError("question text is required and must not exceed 1000 characters")
-            if global_scope.contains_han(text):
-                raise ValueError("question text must not contain Chinese characters")
             current["text"] = text
+        if "market" in changes:
+            market = str(changes.get("market") or "").strip()
+            if market not in ("cn", "global", "both"):
+                raise ValueError("question market must be cn, global, or both")
+            current["market"] = market
         if "group" in changes and changes.get("group"):
             current["group"] = str(changes.get("group")).strip()
         geolib.save_config(project_slug, config)
@@ -723,7 +727,7 @@ def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced
             "id": ticket_id,
             "priority": "P1",
             "package": "External Evidence",
-            "market": "global",
+            "market": config.get("market") if config.get("market") in ("cn", "global", "both") else "both",
             "kind": "offsite",
             "source": "manual",
             "title": f"Promote {hostname} page to enrich brand facts",
@@ -749,7 +753,7 @@ def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced
         tickets.append(ticket)
         data.setdefault("slug", project_slug)
         data.setdefault("generated_at", geolib.now_iso())
-        data["market"] = "global"
+        data["market"] = config.get("market") if config.get("market") in ("cn", "global", "both") else "both"
         data.setdefault("baseline", {})
         data["tasks"] = tickets
         engine_tasks.save(project_slug, data)

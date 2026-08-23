@@ -66,6 +66,7 @@ class ProjectCreate(BaseModel):
     skip_llm: bool = False
     no_sample: bool = False
     audit_id: str | None = Field(default=None, min_length=16, max_length=64)
+    market: str = Field(default="both", pattern="^(cn|global|both)$")
 
     @field_validator("url")
     @classmethod
@@ -93,6 +94,7 @@ class ProjectPreflight(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
     question_count: int = Field(default=30, ge=1, le=1000)
     platforms: list[str] | None = None
+    market: str = Field(default="both", pattern="^(cn|global|both)$")
 
     @field_validator("url")
     @classmethod
@@ -539,7 +541,7 @@ def _current_sample_rows(project_slug, config=None):
     sample_path = _latest_file(project_directory / "samples", "*.jsonl")
     rows = [
         row for row in (geolib.read_jsonl(sample_path) if sample_path else [])
-        if global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
+        if global_scope.is_global_sample(row, config) and brand_identity.is_current_sample(row, config)
     ]
     return sample_path, rows
 
@@ -693,7 +695,7 @@ def _competitor_discovery_payload(config):
             "name": name.strip(),
             "aliases": [alias for alias in aliases if isinstance(alias, str) and alias],
             "alias_review": [item for item in alias_review if isinstance(item, dict)],
-            "market": "global",
+            "market": competitor.get("market") if competitor.get("market") in ("cn", "global", "both") else "both",
             "relationship": competitor.get("relationship") or "direct_competitor",
             "relationship_confidence": competitor.get("relationship_confidence") or "needs_review",
             "relationship_review_required": competitor.get("relationship_review_required") is not False,
@@ -771,11 +773,7 @@ def _sample_estimate(db, tenant, project, payload, enforce=False, allow_pool=Tru
 
     platforms = payload.platforms if payload else None
     custom_codes = {provider["code"] for provider in load_custom_providers(db, tenant.id)}
-    if platforms and any(
-        code in global_scope.DOMESTIC_PLATFORM_CODES
-        or (code not in sample.PROVIDERS and code not in custom_codes)
-        for code in platforms
-    ):
+    if platforms and any(code not in sample.PROVIDERS and code not in custom_codes for code in platforms):
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "sample_platform_must_have_api")
     function = sampling_control.ensure_allowed if enforce else sampling_control.estimate
     try:
@@ -787,6 +785,15 @@ def _sample_estimate(db, tenant, project, payload, enforce=False, allow_pool=Tru
             question_ids=payload.question_ids if payload else None,
             allow_pool=allow_pool,
         )
+    except sampling_control.SamplingPlatformMarketMismatch as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error": exc.code,
+                "platforms": list(exc.platforms),
+                "project_market": exc.project_market,
+            },
+        ) from exc
     except sampling_control.SamplingBudgetExceeded as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -823,6 +830,15 @@ def _reserve_sample_estimate(db, tenant, project, job, payload):
             repeat=payload.repeat if payload else 1,
             question_ids=payload.question_ids if payload else None,
         )
+    except sampling_control.SamplingPlatformMarketMismatch as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error": exc.code,
+                "platforms": list(exc.platforms),
+                "project_market": exc.project_market,
+            },
+        ) from exc
     except sampling_control.SamplingBudgetExceeded as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -870,20 +886,34 @@ def project_preflight(
 
     custom_providers = load_custom_providers(db, tenant.id)
     custom_codes = {provider["code"] for provider in custom_providers}
-    available = set(sample.PROVIDERS) - global_scope.DOMESTIC_PLATFORM_CODES
+    available = set(sample.PROVIDERS)
     byok = set(load_tenant_keys(db, tenant.id))
     catalog = public_catalog() if tenant.plan in PAID_PLANS else []
     pool_codes = {item["engine_code"] for item in catalog}
     funding = {"keys": {code: True for code in byok}, "pool_codes": pool_codes}
     requested = list(dict.fromkeys(payload.platforms or sampling_control.default_sample_platforms(
-        funding, custom_providers, sorted(available | custom_codes),
+        funding, custom_providers, sorted(available | custom_codes), payload.market,
     )))
     invalid = sorted(set(requested) - available - custom_codes)
     if invalid:
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "unsupported_api_platform")
+    mismatched = [
+        code for code in requested
+        if not sampling_control.platform_matches_market(code, payload.market, custom_providers)
+    ]
+    if mismatched:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error": sampling_control.SamplingPlatformMarketMismatch.code,
+                "platforms": sorted(set(mismatched)),
+                "project_market": payload.market,
+            },
+        )
     effective = [
         code for code in requested
         if code in byok or code in pool_codes or code in custom_codes
+        if sampling_control.platform_matches_market(code, payload.market, custom_providers)
     ]
     pool_only = [code for code in effective if code in pool_codes and code not in byok]
     prices = {item["engine_code"]: item["unit_price_cny_fen"] for item in catalog}
@@ -923,7 +953,7 @@ def project_preflight(
         "manual_only": [
             {"engine_code": code, "name": name, "sampling_mode": sampling_modes.MODE_MANUAL, "market": market}
             for code, (name, market) in sorted(sample.MANUAL_ONLY.items())
-            if market == "global"
+            if market in ("cn", "global", "both")
         ],
         "requested_platforms": requested,
         "effective_platforms": effective,
@@ -976,7 +1006,7 @@ def create_project(
     if existing is not None:
         project = existing
         project.url = payload.url
-        project.market = "global"
+        project.market = payload.market
         project.status = "initializing"
         project.archived_at = None
         project.schedule_interval_days = None
@@ -986,7 +1016,7 @@ def create_project(
             tenant_id=tenant.id,
             slug=slug,
             url=payload.url,
-            market="global",
+            market=payload.market,
             status="initializing",
         )
         db.add(project)
@@ -1040,7 +1070,7 @@ def create_project(
                 url=payload.url,
                 name=payload.name.strip() if payload.name else None,
                 slug=slug,
-                market="global",
+                market=payload.market,
                 max_pages=25,
                 force=False,
             )
@@ -1819,13 +1849,13 @@ def project_samples(
         all_rows = geolib.read_jsonl(path)
         rows = [
             row for row in all_rows
-            if global_scope.is_global_sample(row) and brand_identity.is_current_sample(row, config)
+            if global_scope.is_global_sample(row, config) and brand_identity.is_current_sample(row, config)
         ]
         excluded = [row for row in all_rows if row not in rows]
         exclusion_reasons = {}
         for row in excluded:
             reason = row.get("sample_exclusion_reason") or (
-                "market_or_language_mismatch" if not global_scope.is_global_sample(row)
+                "market_or_language_mismatch" if not global_scope.is_global_sample(row, config)
                 else brand_identity.sample_exclusion_reason(row, config) or "not_in_current_cohort"
             )
             exclusion_reasons[reason] = exclusion_reasons.get(reason, 0) + 1

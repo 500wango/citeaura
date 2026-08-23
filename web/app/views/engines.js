@@ -318,6 +318,9 @@ export default {
               <option value="meta_ai">Meta AI</option>
               <option value="you_com">You.com</option>
               <option value="mistral_le_chat">Mistral Le Chat</option>
+              <option value="nano_ai">Nano AI Search (360)</option>
+              <option value="baidu">Baidu AI Search</option>
+              <option value="doubao_app">Doubao App / Web</option>
             </select>
           </div>
           <div class="field"><label>Question</label>

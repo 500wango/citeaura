@@ -101,7 +101,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-1"))
 
     create_schema = client.app.openapi()["components"]["schemas"]["ProjectCreate"]
-    assert "market" not in create_schema["properties"]
+    assert create_schema["properties"]["market"]["default"] == "both"
 
     created = client.post(
         "/api/v1/projects",

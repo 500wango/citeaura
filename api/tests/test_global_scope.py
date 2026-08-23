@@ -25,7 +25,7 @@ def _engine_global_blueprint():
     }
 
 
-def test_mixed_historical_config_is_normalized_to_global():
+def test_mixed_historical_config_preserves_market_scope():
     config = {
         "market": "both",
         "platforms": ["glm", "deepseek", "openai", "chatgpt", "custom_gateway"],
@@ -50,12 +50,12 @@ def test_mixed_historical_config_is_normalized_to_global():
 
     normalized = global_scope.normalize_config_data(config)
 
-    assert normalized["market"] == "global"
-    assert normalized["platforms"] == ["deepseek", "openai", "chatgpt", "custom_gateway"]
-    assert [question["id"] for question in normalized["questions"]] == ["q101", "q901"]
-    assert all(question["market"] == "global" for question in normalized["questions"])
-    assert normalized["questions"][1]["group"] == "brand_verification"
-    assert [item["name"] for item in normalized["competitors"]] == ["Global Rival", "Universal Rival"]
+    assert normalized["market"] == "both"
+    assert normalized["platforms"] == ["glm", "deepseek", "openai", "chatgpt", "custom_gateway"]
+    assert [question["id"] for question in normalized["questions"]] == ["q001", "q101", "q901", "q902"]
+    assert {question["market"] for question in normalized["questions"]} == {"cn", "global", "both"}
+    assert normalized["questions"][2]["group"] == "brand_verification"
+    assert [item["name"] for item in normalized["competitors"]] == ["Domestic Rival", "Global Rival", "Universal Rival"]
 
 
 def test_blueprint_and_tasks_remove_domestic_recommendations():
@@ -88,29 +88,31 @@ def test_blueprint_and_tasks_remove_domestic_recommendations():
         ],
     })
 
-    assert [channel["id"] for channel in blueprint["channels"]] == ["wikipedia", "review", "reddit", "youtube"]
+    assert [channel["id"] for channel in blueprint["channels"]] == ["baike", "wikipedia", "review", "reddit", "youtube"]
     assert blueprint["coverage"] == {
-        "channel_all_total": 4,
-        "channel_total": 4,
-        "channel_covered": 1,
+        "channel_all_total": 5,
+        "channel_total": 5,
+        "channel_covered": 2,
         "channel_observed": 0,
         "channel_manual": 0,
-        "channel_rate": 0.25,
-        "p0p1_total": 4,
-        "p0p1_covered": 1,
+        "channel_rate": 0.4,
+        "p0p1_total": 5,
+        "p0p1_covered": 2,
         "p0p1_manual": 0,
-        "content_total": 1,
+        "content_total": 2,
         "content_done": 1,
-        "content_rate": 1.0,
-        "content_gap": 0,
+        "content_rate": 0.5,
+        "content_gap": 1,
     }
     roadmap = "\n".join(item for phase in blueprint["roadmap"] for item in phase["items"])
     assert all(name in roadmap for name in ("Wikipedia", "G2 / Capterra / Product Hunt", "Reddit / Hacker News", "YouTube"))
-    assert [task["id"] for task in tasks["tasks"]] == ["T-002", "T-003"]
-    assert "Google and Bing" in tasks["tasks"][0]["action"]
-    assert tasks["tasks"][1]["title"] == "Assess independent-source notability before encyclopedia work"
-    assert "If the threshold is not met" in tasks["tasks"][1]["action"]
-    assert all(task["market"] == "global" for task in tasks["tasks"])
+    assert [task["id"] for task in tasks["tasks"]] == ["T-001", "T-002", "T-003"]
+    assert tasks["tasks"][0]["market"] == "cn"
+    assert tasks["tasks"][1]["title"] == "Add sitemap.xml and submit it to international search engines"
+    assert "Google and Bing" in tasks["tasks"][1]["action"]
+    assert tasks["tasks"][2]["title"] == "Assess independent-source notability before encyclopedia work"
+    assert "If the threshold is not met" in tasks["tasks"][2]["action"]
+    assert {task["market"] for task in tasks["tasks"]} == {"cn", "both"}
 
 
 def test_channel_strategy_is_selected_per_project_profile():
@@ -433,15 +435,15 @@ def test_project_normalization_updates_files(tmp_path, monkeypatch):
     config = json.loads((project / "geo.json").read_text("utf-8"))
     metrics = json.loads((project / "metrics" / "2026-08-13.json").read_text("utf-8"))
     blueprint = json.loads((project / "blueprint.json").read_text("utf-8"))
-    assert config["questions"] == []
+    assert config["questions"][0]["market"] == "cn"
     assert config["platforms"] == ["deepseek", "openai"]
-    assert list(metrics["platforms"]) == ["openai"]
-    assert metrics["question_count"] == 0
-    assert metrics["sample_count"] == 2
-    assert metrics["sample_summary"]["successful"] == 2
+    assert list(metrics["platforms"]) == ["deepseek", "openai"]
+    assert metrics["question_count"] == 1
+    assert metrics["sample_count"] == 3
+    assert metrics["sample_summary"]["successful"] == 3
     assert metrics["provenance"]["requested_platforms"] == ["deepseek", "openai"]
     assert metrics["provenance"]["platforms"] == [{"engine_code": "deepseek"}, {"engine_code": "openai"}]
-    assert metrics["provenance"]["question_set"]["count"] == 0
+    assert metrics["provenance"]["question_set"]["count"] == 1
     channels = {channel["id"]: channel for channel in blueprint["channels"]}
     assert channels["official_en"]["coverage_status"] == "brand_cited"
     assert channels["review"]["coverage_status"] == "brand_cited"

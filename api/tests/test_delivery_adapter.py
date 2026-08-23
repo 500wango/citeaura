@@ -477,7 +477,7 @@ def test_delivery_contract_removes_domestic_questions_and_channels(tmp_path, mon
     assert "这个品牌是什么" not in build_map
     assert "Baidu" not in build_map
     assert not (output / "assets" / "outlines" / "q001.md").exists()
-    assert json.loads((project / "geo.json").read_text("utf-8"))["questions"] == []
+    assert json.loads((project / "geo.json").read_text("utf-8"))["questions"][0]["market"] == "cn"
     assert delivery.delivery_language_violations(output) == []
 
 

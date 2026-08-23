@@ -101,7 +101,7 @@ def _latest_samples(project_slug, config):
     path = files[-1]
     return path, [
         row for row in geolib.read_jsonl(path)
-        if is_global_sample(row) and brand_identity.is_current_sample(row, config)
+        if is_global_sample(row, config) and brand_identity.is_current_sample(row, config)
     ]
 
 

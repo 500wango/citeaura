@@ -1,4 +1,4 @@
-"""把引擎产物约束为 CiteAura 的国际市场范围。"""
+"""把引擎产物归一到 CiteAura 的多市场产品范围。"""
 
 import hashlib
 import re
@@ -20,6 +20,7 @@ GLOBAL_PLATFORM_CODES = frozenset((
     "chatgpt", "claude_web", "google_ai_overview", "google_ai_mode", "copilot",
     "gemini_web", "meta_ai", "you_com", "mistral_le_chat",
 ))
+SUPPORTED_PLATFORM_CODES = DOMESTIC_PLATFORM_CODES | GLOBAL_PLATFORM_CODES
 
 GROUP_NAMES = {
     "推荐": "recommendation",
@@ -671,7 +672,7 @@ def _latest_channel_evidence(project_slug):
     brand_cited = set()
     citation_domains_available = False
     for item in (metrics.get("platforms") or {}).values():
-        if not isinstance(item, dict) or item.get("market") not in ("global", "both", None):
+        if not isinstance(item, dict) or item.get("market") not in ("cn", "global", "both", None):
             continue
         if "top_cited_domains" not in item:
             continue
@@ -689,7 +690,7 @@ def _profile_channels(profile, existing, *, cited_domains=None, observed_domains
     existing_by_id = {
         str(channel.get("id")): channel
         for channel in existing
-        if isinstance(channel, dict) and channel.get("market") == "global"
+        if isinstance(channel, dict) and channel.get("market") in ("cn", "global", "both", None)
     }
     rows = []
     for channel_id, name, priority in CHANNEL_STRATEGIES[profile["id"]]:
@@ -708,7 +709,7 @@ def _profile_channels(profile, existing, *, cited_domains=None, observed_domains
             "id": channel_id,
             "name": name,
             "priority": priority,
-            "market": "global",
+            "market": "both",
             "covered": coverage_status in ("brand_cited", "covered"),
             "coverage_status": coverage_status,
             "coverage_evidence": coverage_evidence if coverage_status in ("brand_cited", "covered") else [],
@@ -718,17 +719,23 @@ def _profile_channels(profile, existing, *, cited_domains=None, observed_domains
     return rows
 
 
-def is_global_sample(row):
-    return (
-        isinstance(row, dict)
-        and row.get("platform") not in DOMESTIC_PLATFORM_CODES
-        and row.get("market") in ("global", "both", None)
-        and not contains_han(row.get("question"))
-    )
+def is_global_sample(row, config=None):
+    """兼容旧调用点，按项目市场筛选当前支持的样本。"""
+    if not isinstance(row, dict) or not row.get("platform"):
+        return False
+    row_market = row.get("market")
+    if row_market not in ("cn", "global", "both", None):
+        return False
+    project_market = (config or {}).get("market") if isinstance(config, dict) else None
+    if project_market == "cn":
+        return row_market in ("cn", "both", None)
+    if project_market == "global":
+        return row_market in ("global", "both", None)
+    return True
 
 
 def normalize_questions(questions, *, strict=False):
-    """只保留英文或其他非汉字的国际问题。"""
+    """保留中文、全球和双市场问题，确保每条问题都有合法市场。"""
     if not isinstance(questions, list):
         if strict:
             raise ValueError("questions must be an array")
@@ -746,14 +753,11 @@ def normalize_questions(questions, *, strict=False):
             if strict:
                 raise ValueError("question text is required")
             continue
-        if contains_han(text):
+        if market not in ("cn", "global", "both", None):
             if strict:
-                raise ValueError("question text must not contain Chinese characters")
+                raise ValueError("question market must be cn, global, or both")
             continue
-        if market == "cn" or market not in ("global", "both"):
-            if strict:
-                raise ValueError("question market must be global")
-            continue
+        market = market or "both"
         question_id = str(item.get("id") or "").strip().lower()
         if strict and (not re.fullmatch(r"q\d{3,6}", question_id) or question_id in seen_ids):
             raise ValueError("question id must be a unique q followed by 3-6 digits")
@@ -762,7 +766,7 @@ def normalize_questions(questions, *, strict=False):
         normalized.append({
             **item,
             "text": text,
-            "market": "global",
+            "market": market,
             "group": GROUP_NAMES.get(item.get("group"), item.get("group") or "recommendation"),
         })
     return geolib.normalize_question_ids(normalized)
@@ -771,11 +775,11 @@ def normalize_questions(questions, *, strict=False):
 def _normalize_competitors(competitors):
     normalized = []
     for item in competitors if isinstance(competitors, list) else []:
-        if not isinstance(item, dict) or item.get("market") == "cn":
+        if not isinstance(item, dict):
             continue
-        if item.get("market") not in ("global", "both", None):
+        if item.get("market") not in ("cn", "global", "both", None):
             continue
-        normalized.append({**item, "market": "global"})
+        normalized.append({**item, "market": item.get("market") or "both"})
     return normalized
 
 
@@ -783,9 +787,9 @@ def _normalize_platforms(platforms):
     normalized = []
     for code in platforms if isinstance(platforms, list) else []:
         code = str(code or "").strip()
-        if not code or code in DOMESTIC_PLATFORM_CODES:
+        if not code:
             continue
-        if code in GLOBAL_PLATFORM_CODES or code.startswith("custom_"):
+        if code in SUPPORTED_PLATFORM_CODES or code.startswith("custom_"):
             if code not in normalized:
                 normalized.append(code)
     return normalized
@@ -793,7 +797,7 @@ def _normalize_platforms(platforms):
 
 def normalize_config_data(config):
     current = deepcopy(config) if isinstance(config, dict) else {}
-    current["market"] = "global"
+    current["market"] = current.get("market") if current.get("market") in ("cn", "global", "both") else "both"
     current["questions"] = normalize_questions(current.get("questions"))
     current["competitors"] = _normalize_competitors(current.get("competitors"))
     current["platforms"] = _normalize_platforms(current.get("platforms"))
@@ -820,10 +824,10 @@ def normalize_blueprint_data(blueprint, *, profile=None, cited_domains=None, obs
         {
             **channel,
             "name": GLOBAL_CHANNEL_NAMES.get(channel.get("id"), channel.get("name")),
-            "market": "global",
+            "market": channel.get("market") or "both",
         }
         for channel in current.get("channels", [])
-        if isinstance(channel, dict) and channel.get("market") == "global"
+        if isinstance(channel, dict) and channel.get("market") in ("cn", "global", "both", None)
     ]
     profile = profile if isinstance(profile, dict) and profile.get("id") in CHANNEL_STRATEGIES else None
     channels = _profile_channels(
@@ -876,7 +880,7 @@ def normalize_blueprint_data(blueprint, *, profile=None, cited_domains=None, obs
     ]
     return {
         **current,
-        "market": "global",
+        "market": current.get("market") if current.get("market") in ("cn", "global", "both") else "both",
         **({"channel_strategy": profile} if profile else {}),
         "channels": channels,
         "contents": contents,
@@ -921,7 +925,10 @@ def _task_summary(tasks):
         "by_priority": {priority: count(priority=priority) for priority in ("P0", "P1", "P2")},
         "by_status": {state: count(status=state) for state in ("todo", "doing", "done", "blocked", "wontfix")},
         "by_package": {package: count(package=package) for package in packages},
-        "by_market": {"cn": 0, "global": len(tasks), "both": 0},
+        "by_market": {
+            market: sum(task.get("market") == market for task in tasks)
+            for market in ("cn", "global", "both")
+        },
         "auto_verifiable": sum(
             isinstance(task.get("acceptance"), dict) and task["acceptance"].get("type") == "auto"
             for task in tasks
@@ -933,9 +940,12 @@ def normalize_tasks_data(data):
     current = deepcopy(data) if isinstance(data, dict) else {}
     normalized = []
     for task in current.get("tasks", []):
-        if not isinstance(task, dict) or task.get("market") == "cn":
+        if not isinstance(task, dict):
             continue
-        task = {**task, "market": "global"}
+        task = {
+            **task,
+            "market": task.get("market") if task.get("market") in ("cn", "global", "both") else "both",
+        }
         replacement = TASK_COPY.get(task.get("title"))
         if replacement:
             task.update({key: value for key, value in replacement.items() if key != "acceptance"})
@@ -947,7 +957,7 @@ def normalize_tasks_data(data):
         normalized.append(task)
     return {
         **current,
-        "market": "global",
+        "market": current.get("market") if current.get("market") in ("cn", "global", "both") else "both",
         "tasks": normalized,
         "summary": _task_summary(normalized),
     }
@@ -1000,8 +1010,10 @@ def normalize_audit(project_slug):
             import audit as engine_audit
 
             current = engine_audit.run(project_slug)
-        if current.get("market") != "global":
-            current["market"] = "global"
+        config = geolib.load_config(project_slug)
+        market = config.get("market") if config.get("market") in ("cn", "global", "both") else "both"
+        if current.get("market") != market:
+            current["market"] = market
             geolib.write_json(path, current)
         return current
 
@@ -1039,11 +1051,10 @@ def normalize_metrics(project_slug, question_count=None, config=None):
         for path in metrics_paths:
             current = geolib.read_json(path, {}) or {}
             platforms = {
-                code: {**item, "market": "global"}
+                code: {**item, "market": item.get("market") or "both"}
                 for code, item in (current.get("platforms") or {}).items()
-                if code not in DOMESTIC_PLATFORM_CODES
-                and isinstance(item, dict)
-                and item.get("market") in ("global", "both", None)
+                if isinstance(item, dict)
+                and item.get("market") in ("cn", "global", "both", None)
             }
             normalized = {**current, "platforms": platforms}
             artifact = str(current.get("run_id") or current.get("date") or "")
@@ -1053,7 +1064,7 @@ def normalize_metrics(project_slug, question_count=None, config=None):
 
                 rows = [
                     row for row in geolib.read_jsonl(sample_path)
-                    if is_global_sample(row) and brand_identity.is_current_sample(row, config)
+                    if is_global_sample(row, config) and brand_identity.is_current_sample(row, config)
                 ]
                 rows = engine_sample.dedup_rows(rows)
                 successful = [row for row in rows if row.get("ok")]
@@ -1084,14 +1095,8 @@ def normalize_metrics(project_slug, question_count=None, config=None):
             provenance = normalized.get("provenance")
             if isinstance(provenance, dict):
                 provenance = deepcopy(provenance)
-                provenance["requested_platforms"] = [
-                    code for code in provenance.get("requested_platforms", [])
-                    if code not in DOMESTIC_PLATFORM_CODES
-                ]
-                provenance["platforms"] = [
-                    item for item in provenance.get("platforms", [])
-                    if isinstance(item, dict) and item.get("engine_code") not in DOMESTIC_PLATFORM_CODES
-                ]
+                provenance["requested_platforms"] = list(provenance.get("requested_platforms", []))
+                provenance["platforms"] = list(provenance.get("platforms", []))
                 if isinstance(provenance.get("question_set"), dict) and question_count is not None:
                     provenance["question_set"] = {
                         **provenance["question_set"],
@@ -1157,7 +1162,11 @@ def normalize_generated_outputs(project_slug):
         result = original_audit(slug, *args, **kwargs)
         if slug != project_slug or not isinstance(result, dict):
             return result
-        normalized = {**result, "market": "global"}
+        config = geolib.load_config(project_slug)
+        normalized = {
+            **result,
+            "market": config.get("market") if config.get("market") in ("cn", "global", "both") else "both",
+        }
         if normalized != result:
             geolib.write_json(geolib.project_dir(project_slug) / "audit.json", normalized)
         return normalized
@@ -1178,7 +1187,11 @@ def normalize_generated_outputs(project_slug):
         configured = geolib.load_config(project_slug)
         configured_brand = configured.get("brand") if isinstance(configured.get("brand"), dict) else {}
         profile = {**configured_brand, **(brand if isinstance(brand, dict) else {})}
-        return competitor_scope.discover_competitors(engine_bootstrap._ask_json, profile, "global")
+        return competitor_scope.discover_competitors(
+            engine_bootstrap._ask_json,
+            profile,
+            configured.get("market") if configured.get("market") in ("cn", "global", "both") else "both",
+        )
 
     def render_brand_facts(slug, data):
         return brand_facts.render_facts(slug, data) if slug == project_slug else original_render_facts(slug, data)
