@@ -122,8 +122,8 @@ export default {
         <div class="card" style="padding:0;overflow:hidden;margin-top:var(--sp-4);">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);">
             <div>
-              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0 0 4px;">Recommendation Heatmap</h3>
-              <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Question × entity × sampling cohort. API cohorts and product-surface observations stay separate.</p>
+              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0 0 4px;">${t('competitors.heatmap_title', {}, 'Recommendation Heatmap')}</h3>
+              <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('competitors.heatmap_desc', {}, 'Question × entity × sampling cohort. API cohorts and product-surface observations stay separate.')}</p>
             </div>
             <span class="tag tag-neutral">${heatmap.sample_count || 0} valid samples</span>
           </div>
@@ -132,7 +132,7 @@ export default {
             const cohortKey = cohort.key;
             return `<div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
               <div style="display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-3);"><strong>${escapeHtml(cohort.engine_name || cohort.engine_code)}</strong><span class="tag tag-dim">${escapeHtml(cohort.sampling_mode || '')}</span><span class="num" style="color:var(--muted);font-size:var(--fs-1);">n=${cohort.samples || 0}</span></div>
-              <div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>Prompt</th>${entities.map((entity) => `<th style="text-align:right;">${escapeHtml(entity.name)}</th>`).join('')}</tr></thead><tbody>${heatmapQuestions.map((question) => {
+              <div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('questions.col_prompt', {}, 'Prompt')}</th>${entities.map((entity) => `<th style="text-align:right;">${escapeHtml(entity.name)}</th>`).join('')}</tr></thead><tbody>${heatmapQuestions.map((question) => {
                 const cells = ((question.cohorts || []).find((item) => item.cohort === cohortKey) || {}).cells || {};
                 return `<tr><td style="min-width:260px;"><strong>${escapeHtml(question.text || question.id)}</strong><div class="num" style="color:var(--muted);font-size:var(--fs-1);">${escapeHtml(question.id || '')}</div></td>${entities.map((entity) => {
                   const cell = cells[entity.key];
@@ -141,7 +141,7 @@ export default {
                 }).join('')}</tr>`;
               }).join('')}</tbody></table></div>
             </div>`;
-          }).join('') : `<div style="padding:var(--sp-6);color:var(--muted);font-size:var(--fs-2);">Add competitors and run a sample to populate the recommendation heatmap.</div>`}
+          }).join('') : `<div style="padding:var(--sp-6);color:var(--muted);font-size:var(--fs-2);">${t('competitors.heatmap_empty', {}, 'Add competitors and run a sample to populate the recommendation heatmap.')}</div>`}
         </div>
       </div>
     `;

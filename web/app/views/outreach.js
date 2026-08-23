@@ -117,13 +117,13 @@ export default {
         content: `
           <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
             <div class="field" style="margin:0;">
-              <label>Offsite Ticket</label>
+              <label>${t('outreach.offsite_ticket_label', {}, 'Offsite Ticket')}</label>
               <select id="outreach-ticket" class="input">
                 ${offsiteTickets.map((ticket) => `<option value="${ticket.id}">${ticket.ask_text || ticket.title || ticket.id}</option>`).join('')}
               </select>
             </div>
             <div class="field" style="margin:0;">
-              <label>Recipient Email</label>
+              <label>${t('outreach.recipient_email_label', {}, 'Recipient Email')}</label>
               <input type="email" id="outreach-recipient" class="input" required>
             </div>
           </div>
@@ -151,25 +151,25 @@ export default {
       const content = `
         <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
           <div class="field" style="margin:0;">
-            <label>SMTP Host *</label>
+            <label>${t('outreach.smtp_host_label', {}, 'SMTP Host *')}</label>
             <input type="text" id="smtp-host" class="input" placeholder="smtp.mailgun.org" required>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);">
             <div class="field" style="margin:0;">
-              <label>Port</label>
+              <label>${t('outreach.smtp_port_label', {}, 'Port')}</label>
               <input type="number" id="smtp-port" class="input" value="587">
             </div>
             <div class="field" style="margin:0;">
-              <label>From Email *</label>
+              <label>${t('outreach.smtp_from_label', {}, 'From Email *')}</label>
               <input type="email" id="smtp-from" class="input" placeholder="outreach@yourbrand.com">
             </div>
           </div>
           <div class="field" style="margin:0;">
-            <label>Username / API Key</label>
+            <label>${t('outreach.smtp_user_label', {}, 'Username / API Key')}</label>
             <input type="text" id="smtp-user" class="input" placeholder="postmaster@yourdomain.com">
           </div>
           <div class="field" style="margin:0;">
-            <label>Password / Secret</label>
+            <label>${t('outreach.smtp_pass_label', {}, 'Password / Secret')}</label>
             <input type="password" id="smtp-pass" class="input" placeholder="••••••••">
           </div>
         </div>

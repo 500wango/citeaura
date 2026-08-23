@@ -155,7 +155,7 @@ export default {
         `}
         <section class="card" style="gap:var(--sp-3);border-left:3px solid ${officialSource ? 'var(--good)' : 'var(--warn)'};">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
-            <div><h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">Official citation gap</h2><p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">This compares the latest web-enabled citation cohort with your official domain. It is a source observation, not a ranking guarantee.</p></div>
+            <div><h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('channels.official_citation_gap', {}, 'Official citation gap')}</h2><p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">${t('channels.official_citation_gap_desc', {}, 'This compares the latest web-enabled citation cohort with your official domain. It is a source observation, not a ranking guarantee.')}</p></div>
             <span class="tag ${officialSource ? 'pill-good' : 'pill-warn'}">${officialSource ? `${officialSource.count || 0} mentions` : 'Not observed'}</span>
           </div>
           <div style="font-size:var(--fs-2);color:var(--muted);">Official domain: <strong style="color:var(--ink);">${escapeHtml(ownHost || 'Not recorded')}</strong>${officialSource ? ` · ${Number(officialSource.question_count || 0)} question contexts` : ' · add verified third-party evidence or review the source replay for the missing citation path.'}</div>
@@ -163,12 +163,12 @@ export default {
         <section class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <div>
-              <h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">External evidence records</h2>
-              <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">Record real third-party sources and the facts they support. CiteAura does not invent or auto-verify external coverage.</p>
+              <h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('channels.external_evidence_title', {}, 'External evidence records')}</h2>
+              <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">${t('channels.external_evidence_desc', {}, 'Record real third-party sources and the facts they support. CiteAura does not invent or auto-verify external coverage.')}</p>
             </div>
-            <button type="button" id="btn-add-external-evidence" class="btn btn-secondary btn-sm">Add evidence record</button>
+            <button type="button" id="btn-add-external-evidence" class="btn btn-secondary btn-sm">${t('channels.add_evidence_record', {}, 'Add evidence record')}</button>
           </div>
-          ${externalEvidence.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>Source</th><th>Fact supported</th><th>Questions</th><th>Status</th></tr></thead><tbody>${externalEvidence.map((record) => `<tr><td><a href="${escapeHtml(record.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.url)}</a><div style="color:var(--muted);font-size:var(--fs-1);">${escapeHtml(record.source_type || '')}</div></td><td>${escapeHtml(record.fact_supported || '')}</td><td>${escapeHtml((record.question_ids || []).join(', ') || 'Not mapped')}</td><td><span class="tag tag-warn">Manual confirmation required</span></td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">No external evidence has been confirmed for this project.</p>'}
+          ${externalEvidence.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('channels.col_source', {}, 'Source')}</th><th>${t('channels.col_fact_supported', {}, 'Fact supported')}</th><th>${t('channels.col_questions', {}, 'Questions')}</th><th>${t('common.status', {}, 'Status')}</th></tr></thead><tbody>${externalEvidence.map((record) => `<tr><td><a href="${escapeHtml(record.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.url)}</a><div style="color:var(--muted);font-size:var(--fs-1);">${escapeHtml(record.source_type || '')}</div></td><td>${escapeHtml(record.fact_supported || '')}</td><td>${escapeHtml((record.question_ids || []).join(', ') || 'Not mapped')}</td><td><span class="tag tag-warn">${t('channels.manual_confirmation_required', {}, 'Manual confirmation required')}</span></td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('channels.no_external_evidence', {}, 'No external evidence has been confirmed for this project.')}</p>'}
         </section>
       </div>
     `;

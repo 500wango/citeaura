@@ -151,7 +151,7 @@ export default {
         ${renderKpis(kpiData)}
         <div class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
-            <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Brand sentiment context</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Heuristic labels from unprompted answer replays; inspect evidence before reporting.</p></div>
+            <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('overview.sentiment_context_title', {}, 'Brand sentiment context')}</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${t('overview.sentiment_context_desc', {}, 'Heuristic labels from unprompted answer replays; inspect evidence before reporting.')}</p></div>
             <span class="tag tag-dim">n=${Number(sentiment.sample_count || 0)}</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:var(--sp-2);">${sentimentBands.map((band) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(band.label)}</span><strong style="font-size:var(--fs-4);">${band.rate == null ? '—' : `${Math.round(band.rate * 100)}%`}</strong></div>`).join('')}</div>
@@ -178,8 +178,8 @@ export default {
 
         <div class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
-            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Evidence readiness</h3>
-            <span class="tag ${quality.implementation_ready ? 'pill-good' : 'tag-dim'}">${quality.implementation_ready ? 'Implementation ready' : 'Implementation backlog'}</span>
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('engines.evidence_readiness_title', {}, 'Evidence readiness')}</h3>
+            <span class="tag ${quality.implementation_ready ? 'pill-good' : 'tag-dim'}">${quality.implementation_ready ? t('overview.implementation_ready', {}, 'Implementation ready') : t('overview.implementation_backlog', {}, 'Implementation backlog')}</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-3);">
             ${[
@@ -189,7 +189,7 @@ export default {
               ['Attribution', attributionReadiness.label || 'No comparable period'],
             ].map(([label, value]) => `<div style="padding:var(--sp-3);border:1px solid var(--line);background:var(--page);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${label}</span><strong style="display:block;margin-top:4px;font-size:var(--fs-2);">${escapeHtml(value)}</strong></div>`).join('')}
           </div>
-          ${questionReadiness.gaps?.length ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${questionReadiness.gaps.length} question${questionReadiness.gaps.length === 1 ? '' : 's'} need additional comparable samples. <a href="#/engines">Fill gaps</a></p>` : ''}
+          ${questionReadiness.gaps?.length ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${questionReadiness.gaps.length} question${questionReadiness.gaps.length === 1 ? '' : 's'} need additional comparable samples. <a href="#/engines">${t('overview.fill_gaps', {}, 'Fill gaps')}</a></p>` : ''}
         </div>
 
         <!-- Core Modules Column -->

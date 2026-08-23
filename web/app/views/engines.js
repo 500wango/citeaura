@@ -141,7 +141,7 @@ export default {
               <span>${t('engines.configure_keys', {}, 'Configure API Keys')}</span>
             </a>
             <button type="button" id="btn-import-surface" class="btn btn-secondary btn-sm">
-              <span>Log product-surface answer</span>
+              <span>${t('engines.log_surface_answer', {}, 'Log product-surface answer')}</span>
             </button>
             <button type="button" id="btn-trigger-sample" class="btn btn-primary btn-sm">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -155,7 +155,7 @@ export default {
         </div>
 
         ${limitations.length ? `<div class="card" style="padding:var(--sp-4);border-color:var(--line);">
-          <strong style="display:block;margin-bottom:6px;">Measurement is a limited baseline</strong>
+          <strong style="display:block;margin-bottom:6px;">${t('engines.measurement_limited_title', {}, 'Measurement is a limited baseline')}</strong>
           <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">
             ${escapeHtml(limitations.join(' '))} Configure at least two built-in engines and collect 20 samples before publishing a mention rate. Do not mix these rows into one score.
           </p>
@@ -164,20 +164,20 @@ export default {
         <div class="card" style="padding:var(--sp-4);border-color:var(--line);">
           <div style="display:flex;justify-content:space-between;gap:var(--sp-4);align-items:flex-start;flex-wrap:wrap;">
             <div>
-              <strong style="display:block;margin-bottom:6px;">Evidence readiness</strong>
+              <strong style="display:block;margin-bottom:6px;">${t('engines.evidence_readiness_title', {}, 'Evidence readiness')}</strong>
               <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">
                 ${escapeHtml(questionReadiness.label || 'Question-level evidence is not measured yet')}
                 ${questionReadiness.total ? ` · ${questionReadiness.sufficient || 0}/${questionReadiness.total} questions meet the minimum in every provider/mode cohort` : ''}
               </p>
             </div>
-            ${questionGaps.length ? '<span class="tag tag-warn">Per-question evidence limited</span>' : '<span class="tag pill-good">Question evidence ready</span>'}
+            ${questionGaps.length ? '<span class="tag tag-warn">${t('engines.per_question_evidence_limited', {}, 'Per-question evidence limited')}</span>' : '<span class="tag pill-good">${t('engines.question_evidence_ready', {}, 'Question evidence ready')}</span>'}
           </div>
         </div>
 
         ${samplingReceipt ? `<div class="card" style="padding:var(--sp-4);border-color:var(--line);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <div>
-              <strong style="display:block;margin-bottom:4px;">Worker sampling receipt</strong>
+              <strong style="display:block;margin-bottom:4px;">${t('engines.worker_sampling_receipt', {}, 'Worker sampling receipt')}</strong>
               <span style="font-size:var(--fs-2);color:var(--muted);">Asynchronous execution evidence; credentials are never shown.</span>
             </div>
             <span class="tag ${samplingReceipt.status === 'succeeded' ? 'pill-good' : 'tag-warn'}">${escapeHtml(samplingReceipt.status || 'Not recorded')}</span>
@@ -191,15 +191,15 @@ export default {
 
         <div class="card" style="padding:var(--sp-4);border-color:var(--line);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
-            <div><strong style="display:block;margin-bottom:4px;">Comparable period analysis</strong><span style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(attribution.label || 'No comparable period')} · ${escapeHtml(attribution.method || 'Fixed measurement identity required')}</span></div>
+            <div><strong style="display:block;margin-bottom:4px;">${t('engines.comparable_period_title', {}, 'Comparable period analysis')}</strong><span style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(attribution.label || 'No comparable period')} · ${escapeHtml(attribution.method || 'Fixed measurement identity required')}</span></div>
             <span class="tag ${attribution.ready ? 'pill-good' : 'tag-dim'}">${attribution.ready ? 'Attribution-ready baseline' : 'Do not attribute yet'}</span>
           </div>
-          ${attribution.comparisons?.length ? `<div class="tbl" style="overflow-x:auto;margin-top:var(--sp-3);"><table class="table"><thead><tr><th>Provider</th><th style="text-align:right;">Previous</th><th style="text-align:right;">Current</th><th style="text-align:right;">Delta</th></tr></thead><tbody>${attribution.comparisons.map((item) => `<tr><td>${escapeHtml(item.engine_code || '')}</td><td data-num>${Math.round(Number(item.previous_rate || 0) * 100)}%</td><td data-num>${Math.round(Number(item.current_rate || 0) * 100)}%</td><td data-num>${Number(item.delta_pp || 0).toFixed(1)} pp</td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:var(--sp-3) 0 0;color:var(--muted);font-size:var(--fs-2);">Run the same question set, providers, models, and sampling modes in a later period to unlock comparable deltas.</p>'}
+          ${attribution.comparisons?.length ? `<div class="tbl" style="overflow-x:auto;margin-top:var(--sp-3);"><table class="table"><thead><tr><th>${t('engines.col_provider', {}, 'Provider')}</th><th style="text-align:right;">${t('engines.col_previous', {}, 'Previous')}</th><th style="text-align:right;">${t('engines.col_current', {}, 'Current')}</th><th style="text-align:right;">${t('engines.col_delta', {}, 'Delta')}</th></tr></thead><tbody>${attribution.comparisons.map((item) => `<tr><td>${escapeHtml(item.engine_code || '')}</td><td data-num>${Math.round(Number(item.previous_rate || 0) * 100)}%</td><td data-num>${Math.round(Number(item.current_rate || 0) * 100)}%</td><td data-num>${Number(item.delta_pp || 0).toFixed(1)} pp</td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:var(--sp-3) 0 0;color:var(--muted);font-size:var(--fs-2);">Run the same question set, providers, models, and sampling modes in a later period to unlock comparable deltas.</p>'}
         </div>
 
         ${sampleEstimate?.estimate ? `<div class="card" style="padding:var(--sp-4);border-color:var(--line);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
-            <div><strong style="display:block;margin-bottom:4px;">Next sample estimate</strong><span style="font-size:var(--fs-2);color:var(--muted);">${Number(sampleEstimate.estimate.calls || 0)} calls · about ${Number(sampleEstimate.estimate.minutes || 0)} minutes · question set ${escapeHtml(sampleEstimate.question_set_version || 'current')}</span></div>
+            <div><strong style="display:block;margin-bottom:4px;">${t('engines.next_sample_estimate', {}, 'Next sample estimate')}</strong><span style="font-size:var(--fs-2);color:var(--muted);">${Number(sampleEstimate.estimate.calls || 0)} calls · about ${Number(sampleEstimate.estimate.minutes || 0)} minutes · question set ${escapeHtml(sampleEstimate.question_set_version || 'current')}</span></div>
             <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;"><span class="tag tag-neutral">BYOK ${Number(sampleEstimate.estimate.byok_calls || 0)}</span><span class="tag tag-neutral">Pool ${Number(sampleEstimate.estimate.platform_pool_calls || 0)}</span>${sampleEstimate.estimate.platform_pool_cost_cny_fen ? `<span class="tag tag-warn">Pool cost ¥${(Number(sampleEstimate.estimate.platform_pool_cost_cny_fen) / 100).toFixed(2)}</span>` : ''}</div>
           </div>
           <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-3);">${(sampleEstimate.platforms || []).map((item) => `<span class="tag tag-dim">${escapeHtml(item.provider_name || item.engine_name || item.engine_code)}${item.model_id ? ` · ${escapeHtml(item.model_id)}` : ''} · ${escapeHtml(item.funding_source || item.source || 'unavailable')}</span>`).join('')}</div>

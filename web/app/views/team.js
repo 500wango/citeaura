@@ -71,7 +71,7 @@ export default {
                           ? `<button type="button" class="btn btn-ghost btn-sm btn-remove-member" data-id="${m.user_id || m.id}" style="color:var(--bad);">
                               ${t('common.remove', {}, 'Remove')}
                             </button>`
-                          : '<span style="font-size:11px;color:var(--muted);">Workspace Owner</span>'
+                          : '<span style="font-size:11px;color:var(--muted);">${t('team.workspace_owner', {}, 'Workspace Owner')}</span>'
                       }
                     </td>
                   </tr>
@@ -95,10 +95,10 @@ export default {
               <table class="table">
                 <thead>
                   <tr>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th style="text-align:right;">Action</th>
+                    <th>${t('common.email', {}, 'Email')}</th>
+                    <th>${t('common.role', {}, 'Role')}</th>
+                    <th>${t('common.status', {}, 'Status')}</th>
+                    <th style="text-align:right;">${t('common.action', {}, 'Action')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -142,9 +142,9 @@ export default {
             <div class="field" style="margin:0;">
               <label>Role</label>
               <select id="invite-role-select" class="input">
-                <option value="editor" selected>Editor (Can execute projects & tickets)</option>
-                <option value="viewer">Viewer (Read-only access)</option>
-                <option value="owner">Owner (Full administrative rights)</option>
+                <option value="editor" selected>${t('team.role_editor_desc', {}, 'Editor (Can execute projects & tickets)')}</option>
+                <option value="viewer">${t('team.role_viewer_desc', {}, 'Viewer (Read-only access)')}</option>
+                <option value="owner">${t('team.role_owner_desc', {}, 'Owner (Full administrative rights)')}</option>
               </select>
             </div>
           </div>

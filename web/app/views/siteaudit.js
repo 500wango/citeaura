@@ -31,9 +31,9 @@ function renderFindings(page) {
     return `<span class="tag tag-dim">${escapeHtml(page.evaluation_note || 'Excluded from public-content scoring')}</span>`;
   }
   if (page.evaluation_status === 'not_evaluated') {
-    return '<span class="tag tag-dim">Insufficient crawl evidence</span>';
+    return '<span class="tag tag-dim">${t('siteaudit.insufficient_crawl_evidence', {}, 'Insufficient crawl evidence')}</span>';
   }
-  return '<span class="tag tag-dim">No applicable gaps detected</span>';
+  return '<span class="tag tag-dim">${t('siteaudit.no_applicable_gaps', {}, 'No applicable gaps detected')}</span>';
 }
 
 export default {
@@ -55,7 +55,7 @@ export default {
       ? (audit.applicable_avg_score ?? null)
       : (audit.avg_score ?? audit.score ?? null);
     const grade = usesApplicableScore ? audit.applicable_grade : (report && report.grade);
-    const scoreUnavailableLabel = usesApplicableScore ? 'Not scored' : 'Unmeasured';
+    const scoreUnavailableLabel = usesApplicableScore ? t('siteaudit.not_scored', {}, 'Not scored') : t('common.unmeasured', {}, 'Unmeasured');
     const summary = audit.check_summary || {};
     const siteFindings = Array.isArray(audit.site_findings) ? audit.site_findings : [];
 
@@ -92,7 +92,7 @@ export default {
             <span style="color:var(--muted);font-size:11px;">${summary.excluded_pages || 0} utility pages excluded from content scoring</span>
           </div>
           <div class="card" style="gap:var(--sp-2);">
-            <span class="kicker">Applicable Checks</span>
+            <span class="kicker">${t('siteaudit.applicable_checks', {}, 'Applicable Checks')}</span>
             <span class="num" style="font-size:var(--fs-7);font-weight:700;">${summary.passed || 0} / ${summary.evaluated || 0}</span>
             <span style="color:var(--muted);font-size:11px;">${summary.not_evaluated || 0} not evaluated / ${summary.not_applicable || 0} not applicable</span>
           </div>
@@ -101,7 +101,7 @@ export default {
         ${siteFindings.length ? `
           <div class="card" style="gap:var(--sp-3);">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);">
-              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Site-level Findings</h3>
+              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('siteaudit.site_level_findings', {}, 'Site-level Findings')}</h3>
               <span class="tag tag-dim">${siteFindings.length} detected</span>
             </div>
             <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">

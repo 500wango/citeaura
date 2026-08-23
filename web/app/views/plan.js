@@ -91,7 +91,7 @@ export default {
                 ${
                   quickWins.length
                     ? quickWins.map((ticket) => renderTicketCard(ticket)).join('')
-                    : `<p style="color:var(--muted);font-size:12px;">No tickets in this quadrant</p>`
+                    : `<p style="color:var(--muted);font-size:12px;">${t('plan.no_tickets_in_quadrant', {}, 'No tickets in this quadrant')}</p>`
                 }
               </div>
             </div>
@@ -106,7 +106,7 @@ export default {
                 ${
                   strategic.length
                     ? strategic.map((ticket) => renderTicketCard(ticket)).join('')
-                    : `<p style="color:var(--muted);font-size:12px;">No tickets in this quadrant</p>`
+                    : `<p style="color:var(--muted);font-size:12px;">${t('plan.no_tickets_in_quadrant', {}, 'No tickets in this quadrant')}</p>`
                 }
               </div>
             </div>
@@ -121,7 +121,7 @@ export default {
                 ${
                   lowHanging.length
                     ? lowHanging.map((ticket) => renderTicketCard(ticket)).join('')
-                    : `<p style="color:var(--muted);font-size:12px;">No tickets in this quadrant</p>`
+                    : `<p style="color:var(--muted);font-size:12px;">${t('plan.no_tickets_in_quadrant', {}, 'No tickets in this quadrant')}</p>`
                 }
               </div>
             </div>
@@ -136,7 +136,7 @@ export default {
                 ${
                   deprioritize.length
                     ? deprioritize.map((ticket) => renderTicketCard(ticket)).join('')
-                    : `<p style="color:var(--muted);font-size:12px;">No tickets in this quadrant</p>`
+                    : `<p style="color:var(--muted);font-size:12px;">${t('plan.no_tickets_in_quadrant', {}, 'No tickets in this quadrant')}</p>`
                 }
               </div>
             </div>
@@ -257,20 +257,20 @@ async function showTicketDetailModal(projectId, tid, ctx) {
     <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
       <div>
         <h4 style="font-size:var(--fs-4);font-weight:700;margin:0 0 var(--sp-1) 0;">${escapeHtml(title)}</h4>
-        <p style="color:var(--muted);font-size:var(--fs-2);margin:0;"><strong>Why:</strong> ${escapeHtml(why || 'No rationale recorded.')}</p>
-        ${action ? `<div style="margin-top:var(--sp-2);padding:var(--sp-2) var(--sp-3);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);font-size:var(--fs-1);color:var(--ink);"><strong style="color:var(--accent);">Action:</strong> ${escapeHtml(action)}</div>` : ''}
-        ${acceptance ? `<div style="margin-top:var(--sp-1);font-size:var(--fs-2);"><strong>Acceptance:</strong> ${escapeHtml(acceptance)} ${ticket.acceptance?.type ? `(${escapeHtml(ticket.acceptance.type)})` : ''}</div>` : ''}
+        <p style="color:var(--muted);font-size:var(--fs-2);margin:0;"><strong>${t('plan.why_label', {}, 'Why:')}</strong> ${escapeHtml(why || 'No rationale recorded.')}</p>
+        ${action ? `<div style="margin-top:var(--sp-2);padding:var(--sp-2) var(--sp-3);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);font-size:var(--fs-1);color:var(--ink);"><strong style="color:var(--accent);">${t('plan.action_label', {}, 'Action:')}</strong> ${escapeHtml(action)}</div>` : ''}
+        ${acceptance ? `<div style="margin-top:var(--sp-1);font-size:var(--fs-2);"><strong>${t('plan.acceptance_label', {}, 'Acceptance:')}</strong> ${escapeHtml(acceptance)} ${ticket.acceptance?.type ? `(${escapeHtml(ticket.acceptance.type)})` : ''}</div>` : ''}
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);">
         <div class="field" style="margin:0;">
           <label>${t('plan.col_status', {}, 'Status')}</label>
           <select id="edit-ticket-status" class="input">
-            <option value="todo" ${ticket.status === 'todo' ? 'selected' : ''}>To Do</option>
-            <option value="doing" ${ticket.status === 'doing' ? 'selected' : ''}>In Progress</option>
-            <option value="done" ${ticket.status === 'done' ? 'selected' : ''}>Done / Completed</option>
-            <option value="blocked" ${ticket.status === 'blocked' ? 'selected' : ''}>Blocked</option>
-            <option value="wontfix" ${ticket.status === 'wontfix' ? 'selected' : ''}>Won't fix</option>
+            <option value="todo" ${ticket.status === 'todo' ? 'selected' : ''}>${t('plan.status_todo', {}, 'To Do')}</option>
+            <option value="doing" ${ticket.status === 'doing' ? 'selected' : ''}>${t('plan.status_doing', {}, 'In Progress')}</option>
+            <option value="done" ${ticket.status === 'done' ? 'selected' : ''}>${t('plan.status_done', {}, 'Done / Completed')}</option>
+            <option value="blocked" ${ticket.status === 'blocked' ? 'selected' : ''}>${t('plan.status_blocked', {}, 'Blocked')}</option>
+            <option value="wontfix" ${ticket.status === 'wontfix' ? 'selected' : ''}>${t('plan.status_wontfix', {}, "Won't fix")}</option>
           </select>
         </div>
         <div class="field" style="margin:0;">

@@ -54,7 +54,7 @@ export default {
             </div>
 
             <div class="field" style="margin:0;">
-              <label>Client Secret</label>
+              <label>${t('security.client_secret', {}, 'Client Secret')}</label>
               <input type="password" id="sso-client-secret" class="input" placeholder="••••••••••••••••">
             </div>
 
@@ -76,10 +76,10 @@ export default {
                 <table class="table">
                   <thead>
                     <tr>
-                      <th>Event</th>
-                      <th>Actor</th>
+                      <th>${t('security.col_event', {}, 'Event')}</th>
+                      <th>${t('security.col_actor', {}, 'Actor')}</th>
                       <th>IP</th>
-                      <th>Time</th>
+                      <th>${t('security.col_time', {}, 'Time')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -101,7 +101,7 @@ export default {
             `
                 : `
               <div style="padding:var(--sp-6);font-size:var(--fs-2);color:var(--muted);text-align:center;">
-                No security audit alerts logged in this session.
+                ${t('security.no_audit_events', {}, 'No security audit alerts logged in this session.')}
               </div>
             `
             }

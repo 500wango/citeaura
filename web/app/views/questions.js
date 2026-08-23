@@ -57,26 +57,26 @@ export default {
         <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <div>
-              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0 0 4px;">Prompt Research</h3>
-              <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Start from a brand, category, competitor, or URL. Review intent fan-out before adding prompts to the monitoring bank.</p>
+              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0 0 4px;">${t('questions.research_title', {}, 'Prompt Research')}</h3>
+              <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('questions.research_desc', {}, 'Start from a brand, category, competitor, or URL. Review intent fan-out before adding prompts to the monitoring bank.')}</p>
             </div>
-            <button type="button" id="btn-run-prompt-research" class="btn btn-primary btn-sm">Research prompts</button>
+            <button type="button" id="btn-run-prompt-research" class="btn btn-primary btn-sm">${t('questions.research_btn', {}, 'Research prompts')}</button>
           </div>
-          ${researchItems.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>Prompt candidate</th><th>Seed</th><th>Intent</th><th>Funnel stage</th><th style="text-align:right;">Action</th></tr></thead><tbody>${researchItems.slice(0, 18).map((item) => `<tr><td style="min-width:300px;"><strong>${escapeHtml(item.text || '')}</strong></td><td><span class="tag tag-dim">${escapeHtml(item.seed || '')}</span></td><td><span class="tag tag-neutral">${escapeHtml(item.intent || '')}</span></td><td>${escapeHtml(item.funnel_stage || '')}</td><td style="text-align:right;">${item.in_question_bank ? '<span class="tag pill-good">In bank</span>' : `<button type="button" class="btn btn-secondary btn-sm btn-add-research" data-text="${escapeHtml(item.text || '')}" data-intent="${escapeHtml(item.intent || '')}">Add to monitoring</button>`}</td></tr>`).join('')}</tbody></table></div>` : `<div style="padding:var(--sp-4);background:var(--page);color:var(--muted);font-size:var(--fs-2);">No research run yet. Generate a fan-out to discover the questions your buyers may ask.</div>`}
+          ${researchItems.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('questions.col_candidate', {}, 'Prompt candidate')}</th><th>${t('questions.col_seed', {}, 'Seed')}</th><th>${t('questions.col_intent', {}, 'Intent')}</th><th>${t('questions.col_funnel_stage', {}, 'Funnel stage')}</th><th style="text-align:right;">${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${researchItems.slice(0, 18).map((item) => `<tr><td style="min-width:300px;"><strong>${escapeHtml(item.text || '')}</strong></td><td><span class="tag tag-dim">${escapeHtml(item.seed || '')}</span></td><td><span class="tag tag-neutral">${escapeHtml(item.intent || '')}</span></td><td>${escapeHtml(item.funnel_stage || '')}</td><td style="text-align:right;">${item.in_question_bank ? '<span class="tag pill-good">${t('questions.in_bank', {}, 'In bank')}</span>' : `<button type="button" class="btn btn-secondary btn-sm btn-add-research" data-text="${escapeHtml(item.text || '')}" data-intent="${escapeHtml(item.intent || '')}">${t('questions.add_to_monitoring', {}, 'Add to monitoring')}</button>`}</td></tr>`).join('')}</tbody></table></div>` : `<div style="padding:var(--sp-4);background:var(--page);color:var(--muted);font-size:var(--fs-2);">No research run yet. Generate a fan-out to discover the questions your buyers may ask.</div>`}
         </div>
 
         <div class="card" style="padding:0;overflow:hidden;margin-bottom:var(--sp-4);">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);">
             <div>
-              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0 0 4px;">Prompt Explorer</h3>
-              <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Prioritize unprompted prompts where visibility is missing, inconsistent, or competitor-led.</p>
+              <h3 style="font-size:var(--fs-4);font-weight:600;margin:0 0 4px;">${t('questions.explorer_title', {}, 'Prompt Explorer')}</h3>
+              <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('questions.explorer_desc', {}, 'Prioritize unprompted prompts where visibility is missing, inconsistent, or competitor-led.')}</p>
             </div>
             <span class="tag tag-neutral">${explorer.measured_count || 0}/${explorer.total_count || 0} measured</span>
           </div>
           ${opportunityItems.length ? `<div class="tbl" style="overflow-x:auto;">
             <table class="table">
               <thead><tr>
-                <th>Prompt</th><th>Opportunity</th><th style="text-align:right;">Mention</th><th>Signals</th><th style="text-align:right;">Action</th>
+                <th>${t('questions.col_prompt', {}, 'Prompt')}</th><th>${t('questions.col_opportunity', {}, 'Opportunity')}</th><th style="text-align:right;">${t('questions.col_mention', {}, 'Mention')}</th><th>${t('questions.col_signals', {}, 'Signals')}</th><th style="text-align:right;">${t('common.action', {}, 'Action')}</th>
               </tr></thead>
               <tbody>${opportunityItems.slice(0, 12).map((item) => {
                 const interval = item.mention_interval;
@@ -98,8 +98,8 @@ export default {
 
         ${candidates.length ? `
           <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);">
-            <strong>Expansion candidates</strong>
-            <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Confirm a candidate to add it to the evaluation bank.</p>
+            <strong>${t('questions.expansion_candidates', {}, 'Expansion candidates')}</strong>
+            <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('questions.confirm_candidate_desc', {}, 'Confirm a candidate to add it to the evaluation bank.')}</p>
             ${candidates.slice(0, 12).map((item) => {
               const text = item.text || item.question || item.term || item;
               return `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);align-items:center;">

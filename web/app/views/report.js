@@ -68,11 +68,11 @@ export default {
         <div class="card" style="gap:var(--sp-4);">
           <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:var(--sp-3);">
             <div style="display:flex;align-items:center;gap:var(--sp-3);">
-              ${overallGrade ? gradeBadge(overallGrade) : '<span class="tag tag-dim">Unmeasured</span>'}
+              ${overallGrade ? gradeBadge(overallGrade) : `<span class="tag tag-dim">${t('common.unmeasured', {}, 'Unmeasured')}</span>`}
               ${statusPill(confidence && confidence.sufficient ? 'good' : 'warning', confidenceLabel)}
               <div>
                 <strong style="font-size:var(--fs-4);">${t('report.exec_summary', {}, 'Pack snapshot')}</strong>
-                <div style="color:var(--muted);font-size:var(--fs-2);">${trendNote} · <a href="#/engines">Open visibility matrix</a></div>
+                <div style="color:var(--muted);font-size:var(--fs-2);">${trendNote} · <a href="#/engines">${t('report.open_matrix_link', {}, 'Open visibility matrix')}</a></div>
               </div>
             </div>
             <div class="num" style="font-size:var(--fs-7);font-weight:700;color:var(--ink);">
@@ -83,17 +83,17 @@ export default {
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:var(--sp-4);">
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
               <span class="kicker">01 · Audit</span>
-              <strong style="font-size:var(--fs-2);margin-top:2px;">Full GEO Audit Deck</strong>
-              <span style="font-size:11px;color:var(--muted);margin-top:2px;">Crawlability & model blockers</span>
+              <strong style="font-size:var(--fs-2);margin-top:2px;">${t('report.deck_title', {}, 'Full GEO Audit Deck')}</strong>
+              <span style="font-size:11px;color:var(--muted);margin-top:2px;">${t('report.deck_desc', {}, 'Crawlability & model blockers')}</span>
             </div>
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
               <span class="kicker">02 · Action</span>
-              <strong style="font-size:var(--fs-2);margin-top:2px;">Action Tickets</strong>
+              <strong style="font-size:var(--fs-2);margin-top:2px;">${t('nav.plan', {}, 'Action Tickets')}</strong>
               <span style="font-size:11px;color:var(--muted);margin-top:2px;">Impact × Effort roadmap</span>
             </div>
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
               <span class="kicker">03 · Assets</span>
-              <strong style="font-size:var(--fs-2);margin-top:2px;">Asset readiness</strong>
+              <strong style="font-size:var(--fs-2);margin-top:2px;">${t('report.asset_readiness_title', {}, 'Asset readiness')}</strong>
               <span style="font-size:11px;color:var(--muted);margin-top:2px;">${assetTotals.ready} ready · ${assetTotals.needs_review} review · ${assetTotals.template} templates</span>
             </div>
           </div>

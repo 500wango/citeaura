@@ -11,7 +11,7 @@ const INTENT_PLAN_KEY = 'citeaura_intent_plan';
 const SUBSCRIBABLE = new Set(['lite', 'starter', 'pro', 'agency']);
 
 function formatUsd(amount) {
-  if (amount === null || amount === undefined) return 'Custom';
+  if (amount === null || amount === undefined) return t('landing.plan_ent_price', {}, 'Custom');
   return '$' + String(amount);
 }
 
@@ -25,7 +25,7 @@ function planSummary(plan, interval, fallbackMonthly, fallbackAnnual) {
     const yearly = plan.prices?.annual?.usd;
     const months = plan.prices?.annual?.months || 12;
     if (typeof yearly === 'number' && months > 0) {
-      return 'About $' + Math.round(yearly / months) + ' / month billed annually';
+      return `About $${Math.round(yearly / months)} / month billed annually`;
     }
   }
   return fallbackMonthly;
@@ -95,10 +95,10 @@ export default {
     const poolCostFen = Number(usage.platform_pool_cost_cny_fen || usage.platform_pool?.cost_cny_fen || 0);
 
     const subscribeLabel = (code, label) => {
-      if (currentPlan === code) return 'Current Plan';
+      if (currentPlan === code) return t('billing.current_plan', {}, 'Current Plan');
       if (!paymentAvailable) return paymentUnavailable;
-      if (!canUpgrade) return 'Plan change unavailable';
-      if (activeSubscription) return `Switch to ${label.replace(/^(?:Subscribe|Upgrade to)\s+/, '')}`;
+      if (!canUpgrade) return t('billing.plan_change_unavailable', {}, 'Plan change unavailable');
+      if (activeSubscription) return t('billing.switch_to', { plan: label.replace(/^(?:Subscribe|Upgrade to)\s+/, '') }, `Switch to ${label.replace(/^(?:Subscribe|Upgrade to)\s+/, '')}`);
       return label;
     };
 
@@ -144,22 +144,22 @@ export default {
               </div>
             </div>
             <div class="seg" id="billing-interval-toggle">
-              <button type="button" class="seg-opt is-active" data-int="monthly" ${paymentAvailable ? '' : 'disabled aria-disabled="true"'}>Monthly</button>
-              <button type="button" class="seg-opt" data-int="annual" ${paymentAvailable ? '' : 'disabled aria-disabled="true"'}>Annual (Save ~20%)</button>
+              <button type="button" class="seg-opt is-active" data-int="monthly" ${paymentAvailable ? '' : 'disabled aria-disabled="true"'}>${t('landing.billing_monthly', {}, 'Monthly')}</button>
+              <button type="button" class="seg-opt" data-int="annual" ${paymentAvailable ? '' : 'disabled aria-disabled="true"'}>${t('landing.billing_annual', {}, 'Annual · save ~20%')}</button>
             </div>
           </div>
           ${subscription && ['active', 'trialing', 'past_due'].includes(subscription.status) ? `
             <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
-              <span style="font-size:var(--fs-2);color:var(--muted);">${subscription.cancel_at_period_end ? 'Cancellation scheduled for the end of the current billing period.' : 'Your subscription is active.'}</span>
-              ${subscription.cancel_at_period_end ? '' : '<button type="button" id="btn-cancel-subscription" class="btn btn-danger btn-sm">Cancel at Period End</button>'}
+              <span style="font-size:var(--fs-2);color:var(--muted);">${subscription.cancel_at_period_end ? t('billing.cancel_scheduled', {}, 'Cancellation scheduled for the end of the current billing period.') : t('billing.subscription_active', {}, 'Your subscription is active.')}</span>
+              ${subscription.cancel_at_period_end ? '' : `<button type="button" id="btn-cancel-subscription" class="btn btn-danger btn-sm">${t('billing.cancel_period_end', {}, 'Cancel at Period End')}</button>`}
             </div>` : ''}
         </div>
 
         <section class="card" style="gap:var(--sp-4);" aria-labelledby="activation-funnel-title">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <div>
-              <h2 id="activation-funnel-title" style="font-size:var(--fs-4);font-weight:600;margin:0;">Activation progress</h2>
-              <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">Track the path from registration to a repeatable, evidence-backed delivery.</p>
+              <h2 id="activation-funnel-title" style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('billing.activation_title', {}, 'Activation progress')}</h2>
+              <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">${t('billing.activation_desc', {}, 'Track the path from registration to a repeatable, evidence-backed delivery.')}</p>
             </div>
             <span class="tag ${funnel.completed_steps === funnel.total_steps && funnel.total_steps ? 'pill-good' : 'tag-accent'}">${Number(funnel.completed_steps || 0)} / ${Number(funnel.total_steps || 6)} complete</span>
           </div>
@@ -169,18 +169,18 @@ export default {
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:var(--sp-2);">
             ${funnelSteps.map((step) => `<div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2);border:1px solid var(--line);background:var(--page);border-radius:var(--r-md);"><span class="tag ${step.completed ? 'pill-good' : 'tag-dim'}" aria-label="${step.completed ? 'Complete' : 'Pending'}">${step.completed ? 'Done' : 'Next'}</span><span style="font-size:var(--fs-2);">${escapeHtml(step.label || step.key)}</span></div>`).join('')}
           </div>
-          ${funnel.next_step_label ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Next: <strong style="color:var(--ink);">${escapeHtml(funnel.next_step_label)}</strong></p>` : '<p style="margin:0;color:var(--good);font-size:var(--fs-2);">Activation path complete for this workspace.</p>'}
+          ${funnel.next_step_label ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Next: <strong style="color:var(--ink);">${escapeHtml(funnel.next_step_label)}</strong></p>` : `<p style="margin:0;color:var(--good);font-size:var(--fs-2);">${t('billing.activation_complete', {}, 'Activation path complete for this workspace.')}</p>`}
         </section>
 
         <section class="card" style="gap:var(--sp-3);" aria-labelledby="usage-snapshot-title">
           <div>
-            <h2 id="usage-snapshot-title" style="font-size:var(--fs-4);font-weight:600;margin:0;">Usage snapshot</h2>
-            <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">Current limits and platform-pool consumption are shown separately from BYOK usage.</p>
+            <h2 id="usage-snapshot-title" style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('billing.usage_title', {}, 'Usage snapshot')}</h2>
+            <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">${t('billing.usage_desc', {}, 'Current limits and platform-pool consumption are shown separately from BYOK usage.')}</p>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:var(--sp-2);">
-            <div style="padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Projects remaining</span><strong style="font-size:var(--fs-4);">${projectsRemaining === null || projectsRemaining === undefined ? 'Unlimited' : projectsRemaining}</strong></div>
-            <div style="padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Sample runs remaining</span><strong style="font-size:var(--fs-4);">${sampleRemaining === null || sampleRemaining === undefined ? 'Unlimited' : sampleRemaining}</strong></div>
-            <div style="padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Platform-pool calls</span><strong style="font-size:var(--fs-4);">${poolCalls}</strong><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${poolCostFen ? `¥${(poolCostFen / 100).toFixed(2)} this month` : 'No pool cost this month'}</span></div>
+            <div style="padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${t('billing.projects_remaining', {}, 'Projects remaining')}</span><strong style="font-size:var(--fs-4);">${projectsRemaining === null || projectsRemaining === undefined ? t('billing.unlimited', {}, 'Unlimited') : projectsRemaining}</strong></div>
+            <div style="padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${t('billing.samples_remaining', {}, 'Sample runs remaining')}</span><strong style="font-size:var(--fs-4);">${sampleRemaining === null || sampleRemaining === undefined ? t('billing.unlimited', {}, 'Unlimited') : sampleRemaining}</strong></div>
+            <div style="padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${t('billing.pool_calls', {}, 'Platform-pool calls')}</span><strong style="font-size:var(--fs-4);">${poolCalls}</strong><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${poolCostFen ? t('billing.pool_cost_month', { cost: (poolCostFen / 100).toFixed(2) }, `¥${(poolCostFen / 100).toFixed(2)} this month`) : t('billing.pool_cost_none', {}, 'No pool cost this month')}</span></div>
           </div>
         </section>
 
@@ -193,14 +193,14 @@ export default {
               <strong class="price-val" data-m="${formatUsd(lite?.prices?.monthly?.usd)}" data-a="${formatUsd(lite?.prices?.annual?.usd)}">${formatUsd(lite?.prices?.monthly?.usd || 39)}</strong>
               <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
             </p>
-            <p class="plan-summary" data-m="One project, fast technical visibility baseline" data-a="${planSummary(lite, 'annual', 'One project, fast technical visibility baseline', 'About $31 / month billed annually')}">One project, fast technical visibility baseline</p>
+            <p class="plan-summary" data-m="${t('landing.plan_lite_summary', {}, 'One project, fast technical visibility baseline')}" data-a="${t('landing.plan_lite_summary_annual', {}, 'About $31 / month billed annually')}">${t('landing.plan_lite_summary', {}, 'One project, fast technical visibility baseline')}</p>
             <ul>
-              <li>${lite?.projects || 1} active project</li>
-              <li>Technical audit, tickets, and verification</li>
-              <li>BYOK sampling with transparent provider costs</li>
+              <li>1 ${t('landing.plan_lite_1', {}, '1 active project')}</li>
+              <li>${t('landing.plan_lite_2', {}, 'Technical audit, tickets, and verification')}</li>
+              <li>${t('landing.plan_lite_3', {}, 'BYOK sampling with transparent provider costs')}</li>
             </ul>
             <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="lite" ${currentPlan === 'lite' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
-              ${subscribeLabel('lite', onTrial ? 'Start Lite' : 'Subscribe Lite')}
+              ${subscribeLabel('lite', onTrial ? t('landing.plan_lite_cta', {}, 'Start Lite') : 'Subscribe Lite')}
             </button>
           </article>
 
@@ -211,11 +211,11 @@ export default {
               <strong class="price-val" data-m="${formatUsd(starter?.prices?.monthly?.usd)}" data-a="${formatUsd(starter?.prices?.annual?.usd)}">${formatUsd(starter?.prices?.monthly?.usd || 79)}</strong>
               <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
             </p>
-            <p class="plan-summary" data-m="Ideal for indie makers & single brands" data-a="${planSummary(starter, 'annual', 'Ideal for indie makers & single brands', 'About $63 / month billed annually')}">Ideal for indie makers & single brands</p>
+            <p class="plan-summary" data-m="${t('landing.plan_starter_summary', {}, 'Ideal for indie makers & single brands')}" data-a="${t('landing.plan_starter_summary_annual', {}, 'About $63 / month billed annually')}">${t('landing.plan_starter_summary', {}, 'Ideal for indie makers & single brands')}</p>
             <ul>
-              <li>${starter?.projects || 3} active projects</li>
-              <li>13 standard action tickets & verification runs</li>
-              <li>Full reports & customer delivery packs</li>
+              <li>${t('landing.plan_starter_1', {}, '3 active projects')}</li>
+              <li>${t('landing.plan_starter_2', {}, '13 standard action tickets & verification runs')}</li>
+              <li>${t('landing.plan_starter_3', {}, 'Full reports & customer delivery packs')}</li>
             </ul>
             <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="starter" ${currentPlan === 'starter' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
               ${subscribeLabel('starter', 'Subscribe Starter')}
@@ -224,20 +224,20 @@ export default {
 
           <!-- Pro (Featured) -->
           <article class="price-card price-card-featured ${intentPlan === 'pro' ? 'is-intent' : ''}">
-            <p class="plan-badge">Most popular</p>
+            <p class="plan-badge">${t('landing.plan_pro_badge', {}, 'Most popular')}</p>
             <p class="plan-name">Pro</p>
             <p class="price">
               <strong class="price-val" data-m="${formatUsd(pro?.prices?.monthly?.usd)}" data-a="${formatUsd(pro?.prices?.annual?.usd)}">${formatUsd(pro?.prices?.monthly?.usd || 199)}</strong>
               <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
             </p>
-            <p class="plan-summary" data-m="Continuous multi-model tracking for growth brands" data-a="${planSummary(pro, 'annual', 'Continuous multi-model tracking for growth brands', 'About $159 / month billed annually')}">Continuous multi-model tracking for growth brands</p>
+            <p class="plan-summary" data-m="${t('landing.plan_pro_summary', {}, 'Continuous multi-model tracking for growth brands')}" data-a="${t('landing.plan_pro_summary_annual', {}, 'About $159 / month billed annually')}">${t('landing.plan_pro_summary', {}, 'Continuous multi-model tracking for growth brands')}</p>
             <ul>
-              <li>${pro?.projects || 10} active projects</li>
-              <li>Unlimited BYOK sampling</li>
-              <li>Scheduled re-sampling and email alerts on mention-rate drops</li>
+              <li>${t('landing.plan_pro_1', {}, '10 active projects')}</li>
+              <li>${t('landing.plan_pro_2', {}, 'Unlimited BYOK sampling')}</li>
+              <li>${t('landing.plan_pro_3', {}, 'Scheduled re-sampling and email alerts on mention-rate drops')}</li>
             </ul>
             <button type="button" class="btn btn-primary btn-block btn-subscribe" data-plan="pro" ${currentPlan === 'pro' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
-              ${subscribeLabel('pro', onTrial ? 'Upgrade to Pro' : 'Subscribe Pro')}
+              ${subscribeLabel('pro', onTrial ? 'Upgrade to Pro' : t('landing.plan_pro_cta', {}, 'Subscribe Pro'))}
             </button>
           </article>
 
@@ -248,29 +248,29 @@ export default {
               <strong class="price-val" data-m="${formatUsd(agency?.prices?.monthly?.usd)}" data-a="${formatUsd(agency?.prices?.annual?.usd)}">${formatUsd(agency?.prices?.monthly?.usd || 499)}</strong>
               <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
             </p>
-            <p class="plan-summary" data-m="Parallel client delivery for digital agencies" data-a="${planSummary(agency, 'annual', 'Parallel client delivery for digital agencies', 'About $399 / month billed annually')}">Parallel client delivery for digital agencies</p>
+            <p class="plan-summary" data-m="${t('landing.plan_agency_summary', {}, 'Parallel client delivery for digital agencies')}" data-a="${t('landing.plan_agency_summary_annual', {}, 'About $416 / month billed annually')}">${t('landing.plan_agency_summary', {}, 'Parallel client delivery for digital agencies')}</p>
             <ul>
-              <li>${agency?.projects || 30} active projects</li>
-              <li>One-click sendable white-label client pack</li>
-              <li>Team multi-role permissions & white-label delivery branding</li>
+              <li>${t('landing.plan_agency_1', {}, '30 active projects')}</li>
+              <li>${t('landing.plan_agency_2', {}, 'One-click sendable white-label client pack')}</li>
+              <li>${t('landing.plan_agency_3', {}, 'Team multi-role permissions & white-label delivery branding')}</li>
             </ul>
             <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="agency" ${currentPlan === 'agency' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
-              ${subscribeLabel('agency', onTrial ? 'Upgrade to Agency' : 'Subscribe Agency')}
+              ${subscribeLabel('agency', onTrial ? 'Upgrade to Agency' : t('landing.plan_agency_cta', {}, 'Subscribe Agency'))}
             </button>
           </article>
 
           <!-- Enterprise -->
           <article class="price-card ${intentPlan === 'enterprise' ? 'is-intent' : ''}">
             <p class="plan-name">Enterprise</p>
-            <p class="price"><strong>Custom</strong></p>
-            <p class="plan-summary">Organization-scale private deployment</p>
+            <p class="price"><strong>${t('landing.plan_ent_price', {}, 'Custom')}</strong></p>
+            <p class="plan-summary">${t('landing.plan_ent_summary', {}, 'Organization-scale private deployment')}</p>
             <ul>
-              <li>Dedicated private deploy & custom SLA</li>
-              <li>Enterprise OIDC SSO & audit events</li>
-              <li>Custom data retention & dedicated support</li>
+              <li>${t('landing.plan_ent_1', {}, 'Dedicated private deploy & custom SLA')}</li>
+              <li>${t('landing.plan_ent_2', {}, 'Enterprise OIDC SSO & audit events')}</li>
+              <li>${t('landing.plan_ent_3', {}, 'Custom data retention & dedicated support team')}</li>
             </ul>
             <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="enterprise">
-              Contact Sales
+              ${t('billing.contact_sales', {}, 'Contact Sales')}
             </button>
           </article>
         </div>
@@ -285,7 +285,7 @@ export default {
 
     const startCheckout = async (plan, button) => {
       if (plan === 'enterprise') {
-        toast.info('Please contact sales@citeaura.com for enterprise plans.');
+        toast.info(t('billing.contact_sales_tip', {}, 'Please contact sales@citeaura.com for enterprise plans.'));
         clearIntentPlan();
         return;
       }
@@ -320,42 +320,43 @@ export default {
       }
     });
 
-    const toggle = document.getElementById('billing-interval-toggle');
-    toggle?.querySelectorAll('.seg-opt').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (btn.disabled) return;
-        currentInterval = btn.getAttribute('data-int');
-        toggle.querySelectorAll('.seg-opt').forEach((b) => b.classList.remove('is-active'));
-        btn.classList.add('is-active');
-
-        document.querySelectorAll('.price-val').forEach((pv) => {
-          pv.textContent = currentInterval === 'annual' ? pv.getAttribute('data-a') : pv.getAttribute('data-m');
-        });
-        document.querySelectorAll('.price-period').forEach((pp) => {
-          pp.textContent = currentInterval === 'annual' ? pp.getAttribute('data-a') : pp.getAttribute('data-m');
-        });
-        document.querySelectorAll('.plan-summary').forEach((item) => {
-          item.textContent = currentInterval === 'annual' ? item.getAttribute('data-a') : item.getAttribute('data-m');
-        });
-      });
-    });
-
     document.querySelectorAll('.btn-subscribe').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const plan = btn.getAttribute('data-plan');
-        await startCheckout(plan, btn);
+      btn.addEventListener('click', (e) => {
+        const plan = e.currentTarget.dataset.plan;
+        startCheckout(plan, e.currentTarget);
       });
     });
 
-    // 落地页 /app?plan=pro 或注册意图：试用用户立即发起结账，无需等试用结束。
+    const toggle = document.getElementById('billing-interval-toggle');
+    toggle?.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-int]');
+      if (!btn) return;
+      toggle.querySelectorAll('.seg-opt').forEach((b) => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      currentInterval = btn.dataset.int;
+
+      document.querySelectorAll('.price-card').forEach((card) => {
+        const valEl = card.querySelector('.price-val');
+        const periodEl = card.querySelector('.price-period');
+        const summaryEl = card.querySelector('.plan-summary');
+        if (!valEl) return;
+        if (currentInterval === 'annual') {
+          valEl.textContent = valEl.dataset.a || valEl.textContent;
+          if (periodEl) periodEl.textContent = periodEl.dataset.a || '/ year';
+          if (summaryEl && summaryEl.dataset.a) summaryEl.textContent = summaryEl.dataset.a;
+        } else {
+          valEl.textContent = valEl.dataset.m || valEl.textContent;
+          if (periodEl) periodEl.textContent = periodEl.dataset.m || '/ month';
+          if (summaryEl && summaryEl.dataset.m) summaryEl.textContent = summaryEl.dataset.m;
+        }
+      });
+    });
+
     if (intentPlan && SUBSCRIBABLE.has(intentPlan) && !autoCheckoutStarted) {
-      const target = document.querySelector(`.btn-subscribe[data-plan="${intentPlan}"]`);
-      if (target && !target.disabled) {
-        autoCheckoutStarted = true;
-        startCheckout(intentPlan, target);
-      } else if (intentPlan === 'enterprise') {
-        clearIntentPlan();
-        toast.info('Please contact sales@citeaura.com for enterprise plans.');
+      autoCheckoutStarted = true;
+      const targetBtn = document.querySelector(`.btn-subscribe[data-plan="${intentPlan}"]`);
+      if (targetBtn && !targetBtn.disabled) {
+        startCheckout(intentPlan, targetBtn);
       }
     }
   },

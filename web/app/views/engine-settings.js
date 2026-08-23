@@ -224,14 +224,14 @@ export default {
                   <tr data-provider-kind="custom">
                     <td>
                       <strong>${escapeHtml(provider.name)}</strong>
-                      <div style="font-size:11px;color:var(--muted);">Third-party / OpenAI-compatible</div>
+                      <div style="font-size:11px;color:var(--muted);">${t('engine_settings.third_party_label', {}, 'Third-party / OpenAI-compatible')}</div>
                     </td>
                     <td>
                       <span class="num">${escapeHtml(provider.code)}</span>
                       <div class="num" style="font-size:11px;color:var(--muted);margin-top:var(--sp-1);word-break:break-all;">Base URL: ${escapeHtml(provider.base_url)}</div>
                       <div class="num" style="font-size:11px;color:var(--muted);word-break:break-all;">Model ID: ${escapeHtml(provider.model_id)}</div>
                     </td>
-                    <td><span class="tag pill-good">Encrypted & Active</span></td>
+                    <td><span class="tag pill-good">${t('engine_settings.encrypted_active', {}, 'Encrypted & Active')}</span></td>
                     <td style="text-align:right;">
                       <div style="display:inline-flex;gap:var(--sp-2);">
                         <button type="button" class="btn btn-secondary btn-sm btn-edit-custom"
@@ -251,12 +251,12 @@ export default {
         <section class="card" style="gap:var(--sp-3);margin-top:var(--sp-4);">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <div>
-              <h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">Public API & MCP access</h2>
-              <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;max-width:70ch;">Create a read-only token for reporting tools or an MCP client. Tokens are shown once, stored as hashes, and can be revoked by an owner.</p>
+              <h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('engine_settings.mcp_access_title', {}, 'Public API & MCP access')}</h2>
+              <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;max-width:70ch;">${t('engine_settings.mcp_access_desc', {}, 'Create a read-only token for reporting tools or an MCP client. Tokens are shown once, stored as hashes, and can be revoked by an owner.')}</p>
             </div>
-            <button type="button" id="btn-create-api-token" class="btn btn-secondary btn-sm">Create read-only token</button>
+            <button type="button" id="btn-create-api-token" class="btn btn-secondary btn-sm">${t('engine_settings.create_token_btn', {}, 'Create read-only token')}</button>
           </div>
-          ${apiTokens.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>Name</th><th>Prefix</th><th>Status</th><th>Last used</th><th style="text-align:right;">Action</th></tr></thead><tbody>${apiTokens.map((token) => `<tr><td>${escapeHtml(token.name)}</td><td class="num">${escapeHtml(token.prefix)}…</td><td><span class="tag ${token.revoked_at ? 'tag-dim' : 'pill-good'}">${token.revoked_at ? 'Revoked' : 'Active · read only'}</span></td><td class="num">${escapeHtml(token.last_used_at || 'Not used')}</td><td style="text-align:right;">${token.revoked_at ? '' : `<button type="button" class="btn btn-ghost btn-sm btn-revoke-api-token" data-id="${token.id}" style="color:var(--bad);">Revoke</button>`}</td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">No integration tokens created.</p>'}
+          ${apiTokens.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('common.name', {}, 'Name')}</th><th>${t('engine_settings.col_prefix', {}, 'Prefix')}</th><th>${t('common.status', {}, 'Status')}</th><th>${t('engine_settings.col_last_used', {}, 'Last used')}</th><th style="text-align:right;">${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${apiTokens.map((token) => `<tr><td>${escapeHtml(token.name)}</td><td class="num">${escapeHtml(token.prefix)}…</td><td><span class="tag ${token.revoked_at ? 'tag-dim' : 'pill-good'}">${token.revoked_at ? 'Revoked' : 'Active · read only'}</span></td><td class="num">${escapeHtml(token.last_used_at || 'Not used')}</td><td style="text-align:right;">${token.revoked_at ? '' : `<button type="button" class="btn btn-ghost btn-sm btn-revoke-api-token" data-id="${token.id}" style="color:var(--bad);">Revoke</button>`}</td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('engine_settings.no_tokens', {}, 'No integration tokens created.')}</p>'}
         </section>
       </div>
     `;

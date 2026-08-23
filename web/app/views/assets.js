@@ -13,17 +13,17 @@ function escapeHtml(value) {
 }
 
 function assetStatusLabel(status) {
-  return status === 'deployable' ? 'Deployable' : status === 'review_required' ? 'Review required' : status === 'draft' ? 'Draft' : 'Unavailable';
+  return status === 'deployable' ? t('common.deployable', {}, 'Deployable') : status === 'review_required' ? t('common.review_required', {}, 'Review required') : status === 'draft' ? t('common.draft', {}, 'Draft') : t('common.unavailable', {}, 'Unavailable');
 }
 
 function campaignStatus(status) {
-  if (status === 'ready_for_approval') return { label: 'Ready for approval', className: 'pill-good' };
-  if (status === 'review_required') return { label: 'Review required', className: 'pill-warn' };
-  return { label: 'Blocked', className: 'pill-bad' };
+  if (status === 'ready_for_approval') return { label: t('assets.ready_for_approval', {}, 'Ready for approval'), className: 'pill-good' };
+  if (status === 'review_required') return { label: t('assets.review_required', {}, 'Review required'), className: 'pill-warn' };
+  return { label: t('assets.blocked', {}, 'Blocked'), className: 'pill-bad' };
 }
 
 function percent(value) {
-  return value === null || value === undefined ? 'Unmeasured' : `${Math.round(Number(value) * 100)}%`;
+  return value === null || value === undefined ? t('common.unmeasured', {}, 'Unmeasured') : `${Math.round(Number(value) * 100)}%`;
 }
 
 function renderCampaignProposals(campaigns) {
@@ -33,8 +33,8 @@ function renderCampaignProposals(campaigns) {
     <section class="campaign-proposals" aria-labelledby="campaign-proposals-title">
       <div class="campaign-proposals-head">
         <div>
-          <h2 id="campaign-proposals-title">Campaign Proposals</h2>
-          <p>Evidence-backed interventions awaiting measurement, fact review, or human approval.</p>
+          <h2 id="campaign-proposals-title">${t('assets.proposals_title', {}, 'Campaign Proposals')}</h2>
+          <p>${t('assets.proposals_desc', {}, 'Evidence-backed interventions awaiting measurement, fact review, or human approval.')}</p>
         </div>
         <div class="campaign-proposal-counts" aria-label="Campaign proposal status counts">
           <span class="tag pill-good">${counts.ready_for_approval || 0} ready</span>
@@ -59,7 +59,7 @@ function renderCampaignProposals(campaigns) {
             <div class="campaign-proposal-title-row">
               <span class="num campaign-proposal-id">${escapeHtml(questionId)}</span>
               <span class="tag ${status.className}">${status.label}</span>
-              ${takeoverEvidence.length ? '<span class="tag tag-outline">Competitive gap</span>' : ''}
+              ${takeoverEvidence.length ? `<span class="tag tag-outline">${t('assets.competitive_gap', {}, 'Competitive gap')}</span>` : ''}
             </div>
             <h3>${escapeHtml(proposal.title || 'Campaign proposal')}</h3>
             <p class="campaign-proposal-objective">${escapeHtml(proposal.objective || '')}</p>
@@ -72,15 +72,15 @@ function renderCampaignProposals(campaigns) {
           </div>
           <div class="campaign-proposal-side">
             <div>
-              <span class="campaign-proposal-label">Expected impact</span>
+              <span class="campaign-proposal-label">${t('assets.expected_impact', {}, 'Expected impact')}</span>
               <p>${escapeHtml(proposal.expected_impact?.statement || '')}</p>
             </div>
             <div>
-              <span class="campaign-proposal-label">Linked work</span>
+              <span class="campaign-proposal-label">${t('assets.linked_work', {}, 'Linked work')}</span>
               <div class="campaign-proposal-links">
                 ${tickets.slice(0, 3).map((ticket) => `<span class="tag tag-neutral">${escapeHtml(ticket.id || 'Ticket')} · ${escapeHtml(ticket.status || '')}</span>`).join('')}
                 ${linkedAssets.slice(0, 3).map((asset) => `<span class="tag tag-neutral">${escapeHtml(asset.path)} · ${escapeHtml(asset.status || '')}</span>`).join('')}
-                ${!tickets.length && !linkedAssets.length ? '<span class="muted">No linked implementation artifact yet</span>' : ''}
+                ${!tickets.length && !linkedAssets.length ? `<span class="muted">${t('assets.no_linked_work', {}, 'No linked implementation artifact yet')}</span>` : ''}
               </div>
             </div>
             <div class="campaign-proposal-links" aria-label="Campaign workflow">
@@ -88,13 +88,13 @@ function renderCampaignProposals(campaigns) {
               <span class="tag ${workflow.ticket?.status === 'linked' ? 'tag-neutral' : 'tag-dim'}">Ticket ${escapeHtml(workflow.ticket?.status || 'missing')}</span>
               <span class="tag ${workflow.asset?.status === 'linked' ? 'tag-neutral' : 'tag-dim'}">Asset ${escapeHtml(workflow.asset?.status || 'missing')}</span>
               <span class="tag ${workflow.review?.status === 'ready' ? 'pill-good' : 'pill-warn'}">Review ${escapeHtml(workflow.review?.status || 'required')}</span>
-              <span class="tag tag-dim">Verify pending</span>
+              <span class="tag tag-dim">${t('assets.verify_pending', {}, 'Verify pending')}</span>
             </div>
             <a class="btn btn-secondary btn-sm campaign-proposal-action" data-action="${escapeHtml(proposal.next_step?.action || '')}" data-question-id="${escapeHtml(questionId)}" href="${escapeHtml(proposal.next_step?.route || '#/assets')}">${escapeHtml(proposal.next_step?.label || 'Review proposal')}</a>
           </div>
         </article>`;
-      }).join('')}</div>` : `<div class="campaign-proposals-empty">No proposals yet. Collect comparable samples to turn prompt gaps into reviewable work.</div>`}
-      <p class="campaign-proposal-policy">Impact remains a hypothesis until the same question, engine, sampling mode, and measurement policy are rerun after deployment. Publication always requires human approval.</p>
+      }).join('')}</div>` : `<div class="campaign-proposals-empty">${t('assets.no_proposals', {}, 'No proposals yet. Collect comparable samples to turn prompt gaps into reviewable work.')}</div>`}
+      <p class="campaign-proposal-policy">${t('assets.policy_note', {}, 'Impact remains a hypothesis until the same question, engine, sampling mode, and measurement policy are rerun after deployment. Publication always requires human approval.')}</p>
     </section>`;
 }
 
@@ -122,10 +122,10 @@ export default {
     return `
       <div class="app-view-container">
         <div class="view-header">
-          <div class="view-title-group"><h1 class="view-title">Campaigns & Assets</h1><p class="view-desc">Review evidence-backed interventions, then prepare the assets required for implementation.</p></div>
+          <div class="view-title-group"><h1 class="view-title">${t('assets.title', {}, 'Campaigns & Assets')}</h1><p class="view-desc">${t('assets.library_desc', {}, 'Review evidence-backed interventions, then prepare the assets required for implementation.')}</p></div>
           <div class="view-actions">${assets.length
-            ? '<button type="button" id="btn-save-asset" class="btn btn-primary btn-sm">Save Asset</button>'
-            : '<button type="button" id="btn-generate-assets" class="btn btn-primary btn-sm">Generate assets</button>'}</div>
+            ? `<button type="button" id="btn-save-asset" class="btn btn-primary btn-sm">${t('common.save', {}, 'Save Asset')}</button>`
+            : `<button type="button" id="btn-generate-assets" class="btn btn-primary btn-sm">${t('assets.generate_btn', {}, 'Generate assets')}</button>`}</div>
         </div>
         ${renderCampaignProposals(campaigns)}
         ${reviewRequired.length ? `<div class="banner warn" style="margin-bottom:var(--sp-4);"><div><strong>Review required.</strong> ${reviewRequired.length} derived asset(s) cannot be published until the brand fact library and supporting evidence are approved.</div></div>` : ''}
