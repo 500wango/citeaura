@@ -1498,5 +1498,16 @@
   "facts.review_required": "Review required.",
   "facts.save_btn": "Save Fact Library",
   "questions.col_prompt": "Prompt",
-  "telemetry.title": "Live Execution Telemetry"
+  "telemetry.title": "Live Execution Telemetry",
+  "billing.upgrade_to_pro": "Upgrade to Pro",
+  "billing.upgrade_to_agency": "Upgrade to Agency",
+  "billing.per_month": "/ month",
+  "billing.per_year": "/ year",
+  "billing.active_projects": "Active projects: {active} / {max}",
+  "billing.trial_samples": "Trial samples: {used} / {limit} lifetime · {per_project} per project",
+  "billing.trial_ended_upgrade": "Trial ended — upgrade now to restore full access.",
+  "billing.trial_ends_notice": "Trial ends {date}. You can upgrade to Pro or higher anytime — no need to wait.",
+  "billing.trial_upgrade_anytime": "You can upgrade to Pro or higher anytime during the trial.",
+  "billing.payment_received": "Payment received. Your plan unlocks as soon as Stripe confirms the subscription.",
+  "billing.checkout_canceled": "Checkout was canceled. You can resume any plan below — no need to wait for the trial to end."
 }

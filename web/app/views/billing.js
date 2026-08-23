@@ -195,7 +195,7 @@ export default {
             </p>
             <p class="plan-summary" data-m="${t('landing.plan_lite_summary', {}, 'One project, fast technical visibility baseline')}" data-a="${t('landing.plan_lite_summary_annual', {}, 'About $31 / month billed annually')}">${t('landing.plan_lite_summary', {}, 'One project, fast technical visibility baseline')}</p>
             <ul>
-              <li>1 ${t('landing.plan_lite_1', {}, '1 active project')}</li>
+              <li>${t('landing.plan_lite_1', {}, '1 active project')}</li>
               <li>${t('landing.plan_lite_2', {}, 'Technical audit, tickets, and verification')}</li>
               <li>${t('landing.plan_lite_3', {}, 'BYOK sampling with transparent provider costs')}</li>
             </ul>
