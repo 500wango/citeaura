@@ -57,3 +57,37 @@ def test_tenant_directory_slug_migration_backfills_collisions_deterministically(
         )).scalars())
 
     assert rows == ["acme-co", "acme-co-00000002"]
+
+
+def test_restore_market_scope_drops_legacy_provider_check_before_backfill():
+    migration = importlib.import_module("api.migrations.versions.0030_restore_market_scope")
+    engine = sa.create_engine("sqlite:///:memory:")
+    metadata = sa.MetaData()
+    sa.Table(
+        "projects",
+        metadata,
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("market", sa.String(16), server_default="global", nullable=False),
+    )
+    providers = sa.Table(
+        "custom_providers",
+        metadata,
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("market", sa.String(16), server_default="global", nullable=False),
+        sa.CheckConstraint("market = 'global'", name="ck_custom_providers_market"),
+    )
+    metadata.create_all(engine)
+
+    with engine.begin() as connection:
+        connection.execute(providers.insert(), {"id": 1, "market": "global"})
+        migration.op = Operations(MigrationContext.configure(connection))
+        migration.upgrade()
+        connection.execute(providers.insert(), [
+            {"id": 2, "market": "cn"},
+            {"id": 3, "market": "both"},
+        ])
+        markets = list(connection.execute(
+            sa.select(providers.c.market).order_by(providers.c.id)
+        ).scalars())
+
+    assert markets == ["both", "cn", "both"]
