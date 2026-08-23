@@ -223,7 +223,7 @@ h1 {
 .radar-engine-name {
   display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0;
   font-weight: 600; font-size: var(--fs-3); color: var(--ink);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .radar-badge {
   flex: none; font-family: var(--font-mono); font-size: 10px; font-weight: 600;
@@ -240,7 +240,8 @@ h1 {
   font-family: var(--font-mono); font-size: var(--fs-1); color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
-.radar-meta-row strong { color: var(--muted); font-weight: 500; }
+.radar-meta-row span { min-width: 0; overflow-wrap: anywhere; }
+.radar-meta-row strong { color: var(--muted); font-weight: 500; flex: none; }
 
 /* tickets preview */
 .tickets-preview-list { display: grid; gap: var(--sp-2); }

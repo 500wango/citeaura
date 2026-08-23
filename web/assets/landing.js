@@ -75,7 +75,7 @@ function escapeHtml(value) {
     var nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
     nodes.forEach(function (node) {
-      if (node.parentElement && node.parentElement.closest('script,style,code,pre,[data-i18n]')) return;
+      if (node.parentElement && node.parentElement.closest('script,style,code,pre,[data-i18n],.plan-name')) return;
       var raw = node.nodeValue || '';
       var trimmed = raw.trim();
       if (!trimmed) return;

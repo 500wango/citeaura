@@ -12,9 +12,9 @@
   <link rel="stylesheet" href="/site-assets/styles/tokens.css?v=3.0">
   <link rel="stylesheet" href="/site-assets/styles/base.css?v=3.0">
   <link rel="stylesheet" href="/site-assets/styles/components.css?v=3.0">
-  <link rel="stylesheet" href="/site-assets/styles/landing.css?v=3.0">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css?v=3.1">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
-  <script defer src="/site-assets/landing.js?v=3.0"></script>
+  <script defer src="/site-assets/landing.js?v=3.1"></script>
   <link rel="canonical" href="https://citeaura.com/">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
@@ -341,7 +341,7 @@
                       <div class="radar-bar-fill" data-radar-bar="deepseek" style="width: 68%"></div>
                     </div>
                     <div class="radar-meta-row">
-                      <span>API · Parametric knowledge example</span>
+                      <span data-i18n="landing.mode_parametric">API · Model knowledge</span>
                       <strong data-radar-val="deepseek">Prompt log</strong>
                     </div>
                   </div>
@@ -641,7 +641,7 @@
                   <td>Official facts index</td>
                   <td><a href="/llms.txt">/llms.txt</a></td>
                   <td>Sitemap-focused</td>
-                  <td>Rarely published</td>
+                  <td data-i18n="landing.compare_rarely_published">Rarely published</td>
                 </tr>
                 <tr>
                   <td>Limitation</td>
@@ -655,29 +655,34 @@
         </article>
 
         <article class="extract-card extract-card-wide">
-          <h2 id="howto-title">How to run a CiteAura diagnostic</h2>
+          <h2 id="howto-title" data-i18n="landing.howto_title">How to run a CiteAura diagnostic</h2>
           <ol class="extract-steps">
             <li>
-              <strong>Step 1.</strong> Add the official website URL and create a workspace.
+              <strong data-i18n="landing.howto_1_label">Step 1.</strong>
+              <span data-i18n="landing.howto_1_body">Add the official website URL and create a workspace.</span>
             </li>
             <li>
-              <strong>Step 2.</strong> Review extracted brand facts and the target question set.
+              <strong data-i18n="landing.howto_2_label">Step 2.</strong>
+              <span data-i18n="landing.howto_2_body">Review extracted brand facts and the target question set.</span>
             </li>
             <li>
-              <strong>Step 3.</strong> Connect a built-in model key or a custom OpenAI-compatible endpoint.
+              <strong data-i18n="landing.howto_3_label">Step 3.</strong>
+              <span data-i18n="landing.howto_3_body">Connect a built-in model key or a custom OpenAI-compatible endpoint.</span>
             </li>
             <li>
-              <strong>Step 4.</strong> Sample labeled engines and read the site audit plus tickets.
+              <strong data-i18n="landing.howto_4_label">Step 4.</strong>
+              <span data-i18n="landing.howto_4_body">Sample labeled engines and read the site audit plus tickets.</span>
             </li>
             <li>
-              <strong>Step 5.</strong> Implement changes, verify, and export the diagnostic pack.
+              <strong data-i18n="landing.howto_5_label">Step 5.</strong>
+              <span data-i18n="landing.howto_5_body">Implement changes, verify, and export the diagnostic pack.</span>
             </li>
           </ol>
           <p class="extract-note">
-            Sources and definitions:
-            <a href="/docs#measurement">CiteAura measurement documentation</a>,
-            <a href="https://platform.openai.com/docs/bots">OpenAI crawler documentation</a>,
-            <a href="https://schema.org/SoftwareApplication">Schema.org SoftwareApplication</a>.
+            <span data-i18n="landing.howto_note">Sources and definitions:</span>
+            <a href="/docs#measurement" data-i18n="landing.howto_docs">CiteAura measurement documentation</a>,
+            <a href="https://platform.openai.com/docs/bots" data-i18n="landing.howto_openai">OpenAI crawler documentation</a>,
+            <a href="https://schema.org/SoftwareApplication" data-i18n="landing.howto_schema">Schema.org SoftwareApplication</a>.
           </p>
         </article>
       </div>

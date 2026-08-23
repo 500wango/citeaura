@@ -46,6 +46,9 @@ def test_landing_page_is_public_and_links_to_application():
     assert "id=\"about\"" in response.text
     assert "CiteAura versus traditional SEO tools" in response.text
     assert "Step 1." in response.text
+    assert 'data-i18n="landing.howto_title"' in response.text
+    assert 'data-i18n="landing.howto_1_body"' in response.text
+    assert 'data-i18n="landing.compare_rarely_published"' in response.text
     assert "14 days" in response.text
     assert "Updated 2026-08-19" in response.text
     assert "Sources and definitions:" in response.text

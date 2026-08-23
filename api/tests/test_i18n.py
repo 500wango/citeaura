@@ -109,6 +109,7 @@ def test_non_english_catalogs_do_not_contain_known_machine_translation_artifacts
             "审判", "车票", "签名", "发动机", "动作车票", "能见度", "14-day",
             "教会网站", "演员", "机器人.txt", "出界核查", "快速报道", "代代代",
             "传送包", "门票", "票价", "模式提供者", "未知模式", "点即时", "点入时",
+            "很少出版", "努力:", "努力：", "Lite 版",
         ),
         "ja": (
             "14-day", "Bi-Weekly", "キヤノン", "白い標識", "CABot",
@@ -154,7 +155,8 @@ def test_non_english_catalogs_do_not_silently_copy_long_english_copy():
         "AES-256-GCM", "Claude", "DeepSeek", "Gemini", "Grok", "OpenAI",
         "Perplexity", "SSR", "WAF", "linear.app", "yourbrand.com", "Google",
         "Mistral", "Le", "Chat", "Sonnet", "Opus", "Sol", "Terra", "Flash",
-        "Pro", "xAI", "Doubao", "App", "Web", "GPT", "Baidu", "AI", "Search",
+        "Pro", "Lite", "Starter", "Agency", "Enterprise",
+        "xAI", "Doubao", "App", "Web", "GPT", "Baidu", "AI", "Search",
         "Google", "Overviews", "Mistral", "Le", "Chat", "Nano", "Sonar", "Research",
         "content", "facts", "md", "Deep", "facts.md",
     }
@@ -263,6 +265,22 @@ def test_localize_ticket_dynamic_titles():
     loc_score = localize_ticket(t_score)
     assert loc_score["title_en"] == "Raise average site audit score from 28.6 to 70"
     assert "Average site score is below 70" in loc_score["desc_en"]
+
+
+def test_landing_howto_plan_names_and_effort_copy():
+    catalogs = load_all_catalogs()
+    for locale, catalog in catalogs.items():
+        assert catalog["landing.howto_title"]
+        assert catalog["landing.howto_1_body"]
+        assert catalog["literal.f3c6f4e8a322"] == "Lite"
+        assert catalog["literal.438226dccf6d"] == "Starter"
+        assert catalog["literal.66d0c5e6b170"] == "Pro"
+        assert catalog["literal.5c47e26c6ad2"] == "Agency"
+        assert catalog["literal.b4afff317fb1"] == "Enterprise"
+    assert catalogs["zh"]["landing.compare_rarely_published"] == "很少发布"
+    assert catalogs["zh"]["landing.howto_1_body"].startswith("填写")
+    assert "努力" not in catalogs["zh"]["literal.db96722f2117"]
+    assert catalogs["zh"]["literal.db96722f2117"] == "工作量：低"
 
 
 def test_sampling_mode_faq_quotes_canonical_badges():

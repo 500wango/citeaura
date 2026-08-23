@@ -1664,5 +1664,21 @@
   "plan.role_engineering": "Engineering",
   "archive.restore_success": "Project restored successfully",
   "engine_settings.testing": "Testing...",
-  "engine_settings.testing_status": "Testing endpoint, API Key, and Model ID..."
+  "engine_settings.testing_status": "Testing endpoint, API Key, and Model ID...",
+  "landing.howto_title": "How to run a CiteAura diagnostic",
+  "landing.howto_1_label": "Step 1.",
+  "landing.howto_1_body": "Add the official website URL and create a workspace.",
+  "landing.howto_2_label": "Step 2.",
+  "landing.howto_2_body": "Review extracted brand facts and the target question set.",
+  "landing.howto_3_label": "Step 3.",
+  "landing.howto_3_body": "Connect a built-in model key or a custom OpenAI-compatible endpoint.",
+  "landing.howto_4_label": "Step 4.",
+  "landing.howto_4_body": "Sample labeled engines and read the site audit plus tickets.",
+  "landing.howto_5_label": "Step 5.",
+  "landing.howto_5_body": "Implement changes, verify, and export the diagnostic pack.",
+  "landing.howto_note": "Sources and definitions:",
+  "landing.howto_docs": "CiteAura measurement documentation",
+  "landing.howto_openai": "OpenAI crawler documentation",
+  "landing.howto_schema": "Schema.org SoftwareApplication",
+  "landing.compare_rarely_published": "Rarely published"
 }
