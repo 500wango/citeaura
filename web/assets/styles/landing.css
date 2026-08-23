@@ -51,7 +51,7 @@
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
   border-bottom: 1px solid var(--glass-border);
-  transition: all var(--dur-med) var(--ease-out);
+  transition: box-shadow var(--dur-med) var(--ease-out), background-color var(--dur-med) var(--ease-out);
 }
 .site-header.scrolled {
   box-shadow: 0 4px 30px oklch(0 0 0 / 0.12), inset 0 -1px 0 var(--glass-border);
@@ -124,7 +124,7 @@
   font-weight: 600;
   text-decoration: none;
   border-radius: var(--r-md);
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
 .nav-sign-in:hover {
   color: var(--ink);
@@ -137,16 +137,16 @@
 .lang-btn {
   min-height: 28px; padding: 2px var(--sp-2); border-radius: var(--r-sm);
   color: var(--muted); font-size: var(--fs-1); font-weight: 500;
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 .lang-btn:hover { color: var(--ink); }
 .lang-btn.is-active { background: var(--surface); color: var(--ink); box-shadow: var(--sh-sm); font-weight: 600; }
 
 .theme-toggle {
   display: grid; place-items: center;
-  width: 34px; height: 34px; border: 1px solid var(--divider); border-radius: var(--r-md);
+  width: 40px; height: 40px; border: 1px solid var(--divider); border-radius: var(--r-md);
   background: var(--surface); color: var(--muted);
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
 .theme-toggle:hover { color: var(--ink); border-color: var(--accent); transform: rotate(15deg); }
 [data-theme="light"] .icon-sun { display: none; }
@@ -154,7 +154,7 @@
 
 .nav-menu-toggle {
   display: none; align-items: center; justify-content: center;
-  width: 36px; height: 36px;
+  width: 44px; height: 44px;
   border: 1px solid var(--divider); border-radius: var(--r-md);
   background: var(--surface); color: var(--ink);
 }
@@ -223,7 +223,7 @@
   box-shadow: 0 0 20px color-mix(in oklch, var(--accent) 20%, transparent);
   color: var(--ink); font-size: var(--fs-2); font-weight: 600;
   text-decoration: none;
-  transition: all var(--dur-med) var(--ease-out);
+  transition: border-color var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out), transform var(--dur-med) var(--ease-out);
   opacity: 0; animation: hero-fade-up 0.6s var(--ease-out) 0.1s forwards;
 }
 .hero-badge-pill:hover {
@@ -293,10 +293,16 @@
   font-size: var(--fs-1); color: var(--faint);
 }
 .preset-pill {
+  position: relative;
   padding: 2px 8px; border-radius: var(--r-sm);
   background: var(--deep); border: 1px solid var(--line);
   color: var(--muted); cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.preset-pill::after {
+  content: ""; position: absolute;
+  left: -4px; right: -4px; top: 50%; transform: translateY(-50%);
+  height: 40px;
 }
 .preset-pill:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -332,7 +338,7 @@
   background: var(--surface);
   border: 1px solid var(--divider);
   box-shadow: var(--sh-lg), 0 20px 60px oklch(0 0 0 / 0.2), 0 0 40px oklch(0.52 0.14 196 / 0.15);
-  transition: all var(--dur-med) var(--ease-out);
+  transition: box-shadow var(--dur-med) var(--ease-out), border-color var(--dur-med) var(--ease-out);
 }
 .console-frame:hover {
   box-shadow: var(--sh-lg), 0 30px 80px oklch(0 0 0 / 0.25), 0 0 60px oklch(0.52 0.14 196 / 0.25);
@@ -359,7 +365,7 @@
   padding: 3px 10px; border-radius: var(--r-sm);
   font-size: var(--fs-1); font-weight: 500; color: var(--muted);
   background: transparent; border: none; cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 .console-tab-btn.is-active {
   background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: var(--sh-sm);
@@ -429,6 +435,7 @@
 }
 .scan-pct {
   font-family: var(--font-mono); font-size: var(--fs-5); font-weight: 800;
+  font-variant-numeric: tabular-nums;
   color: var(--accent);
 }
 
@@ -517,15 +524,21 @@
 }
 
 .console-panel { display: none; }
-.console-panel.is-active { display: block; animation: panel-fade 0.3s var(--ease-out); }
-@keyframes panel-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.console-panel.is-active {
+  display: block;
+  opacity: 1; transform: translateY(0);
+  transition: opacity var(--dur-med) var(--ease-out), transform var(--dur-med) var(--ease-out);
+}
+@starting-style {
+  .console-panel.is-active { opacity: 0; transform: translateY(6px); }
+}
 
 /*  1：AI  */
 .radar-grid { display: flex; flex-direction: column; gap: var(--sp-3); }
 .radar-card {
   padding: var(--sp-3) var(--sp-4); border-radius: var(--r-lg);
   background: var(--surface); border: 1px solid var(--line);
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
 .radar-card:hover {
   border-color: var(--accent);
@@ -559,6 +572,7 @@
 .radar-meta-row {
   display: flex; align-items: center; justify-content: space-between;
   margin-top: var(--sp-1); font-size: var(--fs-1); color: var(--faint); font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 /*  2：13  */
@@ -623,7 +637,7 @@
   padding: 3px var(--sp-2);
   border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface);
   color: var(--muted); font-family: var(--font-mono); font-size: var(--fs-1); white-space: nowrap;
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 .mode-chip:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 10px color-mix(in oklch, var(--accent) 30%, transparent); }
 
@@ -648,7 +662,7 @@
   display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
   padding: var(--sp-3) var(--sp-3); border-radius: var(--r-lg);
   background: var(--page); border: 1px solid var(--line);
-  text-align: left; transition: all var(--dur-med) var(--ease-out);
+  transition: transform var(--dur-med) var(--ease-out), border-color var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out);
 }
 .model-ribbon-card:hover {
   transform: translateY(-2px);
@@ -683,7 +697,7 @@
   position: relative; padding: var(--sp-5); border-radius: var(--r-xl);
   background: var(--page); border: 1px solid var(--line);
   box-shadow: var(--sh-sm);
-  transition: all var(--dur-med) var(--ease-out);
+  transition: border-color var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out), transform var(--dur-med) var(--ease-out);
 }
 .truth-pillar-card:hover {
   border-color: var(--accent);
@@ -721,7 +735,7 @@
   background: var(--surface); border: 1px solid var(--divider);
   box-shadow: var(--sh-sm);
   display: flex; flex-direction: column;
-  transition: all var(--dur-med) var(--ease-out);
+  transition: transform var(--dur-med) var(--ease-out), border-color var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out);
 }
 .workflow-card:hover {
   transform: translateY(-4px);
@@ -764,7 +778,7 @@
   border-radius: var(--r-xl);
   background: var(--surface); border: 1px solid var(--divider);
   box-shadow: var(--sh-lg);
-  transition: all var(--dur-med) var(--ease-out);
+  transition: border-color var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out), transform var(--dur-med) var(--ease-out);
 }
 .shot-frame:hover {
   border-color: var(--accent);
@@ -804,7 +818,7 @@
   background: var(--page); border: 1px solid var(--line);
   box-shadow: var(--sh-sm);
   display: flex; flex-direction: column;
-  transition: all var(--dur-med) var(--ease-out);
+  transition: border-color var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out), transform var(--dur-med) var(--ease-out);
 }
 .ticket-full-card:hover {
   border-color: var(--accent);
@@ -846,7 +860,7 @@
   padding: var(--sp-6); border-radius: var(--r-xl);
   background: var(--surface); border: 1px solid var(--divider);
   box-shadow: var(--sh-sm);
-  transition: all var(--dur-med) var(--ease-out);
+  transition: border-color var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out), transform var(--dur-med) var(--ease-out);
 }
 .operations-list > div:hover {
   border-color: var(--accent);
@@ -879,7 +893,7 @@
   background: var(--surface); border: 1px solid var(--divider);
   box-shadow: var(--sh-md);
   display: flex; flex-direction: column;
-  transition: all var(--dur-med) var(--ease-out);
+  transition: transform var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out);
 }
 .price-card:hover {
   transform: translateY(-4px);
@@ -943,7 +957,7 @@
 .faq-list details {
   border-radius: var(--r-xl); background: var(--surface); border: 1px solid var(--divider);
   box-shadow: var(--sh-sm); overflow: hidden;
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 .faq-list details[open] {
   border-color: var(--accent);
@@ -986,7 +1000,7 @@
   border: 1px solid var(--divider);
   box-shadow: var(--sh-sm);
   text-decoration: none;
-  transition: all var(--dur-med) var(--ease-out);
+  transition: transform var(--dur-med) var(--ease-out), border-color var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out);
 }
 .blog-preview-card:hover {
   transform: translateY(-3px);
@@ -1117,7 +1131,6 @@
 .reveal {
   opacity: 0; transform: translateY(20px);
   transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
-  will-change: opacity, transform;
 }
 .reveal.is-visible {
   opacity: 1; transform: translateY(0);

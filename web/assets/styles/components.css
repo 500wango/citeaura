@@ -34,7 +34,7 @@
               box-shadow var(--dur-fast) var(--ease-out);
   user-select: none; white-space: nowrap;
 }
-.btn:active { transform: translateY(1px) scale(0.98); }
+.btn:active { transform: translateY(1px) scale(0.96); }
 .btn:disabled, .btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .btn-primary {
