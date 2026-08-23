@@ -424,6 +424,7 @@ def _engine_rows_by_mode(item, platform_rows):
             "engine_code": item.get("platform"),
             "engine_name": item.get("label") or item.get("platform"),
             "sampling_mode": sampling_modes.MODE_API,
+            "sampling_mode_code": sampling_modes.CODE_PARAMETRIC,
             "mention_rate": item.get("mention"),
             "mention_interval": None,
             "median_rank": item.get("pos_median"),
@@ -452,6 +453,7 @@ def _engine_rows_by_mode(item, platform_rows):
             "engine_code": item.get("platform"),
             "engine_name": item.get("label") or item.get("platform"),
             "sampling_mode": mode,
+            "sampling_mode_code": sampling_modes.code_for_label(mode),
             "mention_rate": mention_rate,
             "mention_interval": measurement.wilson_interval(len(mentioned), len(ok_rows)),
             "median_rank": sorted(ranks)[len(ranks) // 2] if ranks else None,
@@ -495,6 +497,7 @@ def _include_configured_engines(db, tenant, engines):
             "engine_code": code,
             "engine_name": provider.get("name") or code,
             "sampling_mode": sampling_modes.for_provider(provider),
+            "sampling_mode_code": sampling_modes.code_for_provider(provider),
             "mention_rate": None,
             "mention_interval": None,
             "median_rank": None,
@@ -530,6 +533,7 @@ def _provider_identity(code, item, config):
         "provider_name": provider_name,
         "model_id": model_id or None,
         "sampling_mode": mode,
+        "sampling_mode_code": item.get("sampling_mode_code") or sampling_modes.code_for_label(mode),
         "funding_source": item.get("source") or item.get("funding_source") or "unknown",
     }
 
@@ -951,7 +955,7 @@ def project_preflight(
         "byok_engines": sorted(byok),
         "pool_engines": sorted(pool_codes),
         "manual_only": [
-            {"engine_code": code, "name": name, "sampling_mode": sampling_modes.MODE_MANUAL, "market": market}
+            {"engine_code": code, "name": name, "sampling_mode": sampling_modes.MODE_MANUAL, "sampling_mode_code": sampling_modes.CODE_MANUAL, "market": market}
             for code, (name, market) in sorted(sample.MANUAL_ONLY.items())
             if market in ("cn", "global", "both")
         ],

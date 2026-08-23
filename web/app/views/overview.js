@@ -3,7 +3,7 @@
  */
 
 import { projects } from '../api.js?v=3.8';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { confirmModal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { renderKpis } from '../components/kpi.js';
@@ -52,7 +52,8 @@ export default {
       })}</div>`;
     }
 
-    const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : 'Unmeasured';
+    const unmeasured = t('common.unmeasured', {}, 'Unmeasured');
+    const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : unmeasured;
     const overallGrade = report && report.grade;
     const totalTickets = Array.isArray(tickets) ? tickets.length : 0;
     const doneTickets = Array.isArray(tickets) ? tickets.filter((item) => item.status === 'done').length : 0;
@@ -67,7 +68,7 @@ export default {
     const trend = (quality.measurement_quality && quality.measurement_quality.trend) || {};
     const trendNote = trend.status === 'noteworthy'
       ? `${trend.label || 'Trend'} ${trend.direction || ''} ${trend.delta_pp != null ? `${trend.delta_pp} pp` : ''}`.trim()
-      : (trend.label || 'Single-round observation; two comparable periods are required before calling a trend');
+      : (trend.label || t('overview.trend_single', {}, 'Single-round observation; two comparable periods are required before calling a trend'));
     const measuredEngines = engines.filter((item) => item.sample_count);
     const priorityRank = { P0: 0, P1: 1, P2: 2 };
     const hasQuestions = Array.isArray(project.questions) && project.questions.length > 0;
@@ -83,18 +84,40 @@ export default {
     const visibilityReady = Boolean(quality.measured_visibility || quality.measurement_baseline_ready);
     const implementationReady = Boolean(quality.implementation_ready);
     const firstValue = !diagnosticReady
-      ? { label: 'Diagnostic in progress', detail: 'CiteAura is crawling the site and building the first action plan.', route: activeJob ? 'overview' : (qualityIssues[0]?.route || 'siteaudit'), action: activeJob ? 'View job progress' : (qualityIssues[0]?.action || 'Continue setup') }
+      ? {
+          label: t('overview.next_diagnostic_label', {}, 'Diagnostic in progress'),
+          detail: t('overview.next_diagnostic_detail', {}, 'CiteAura is crawling the site and building the first action plan.'),
+          route: activeJob ? 'overview' : (qualityIssues[0]?.route || 'siteaudit'),
+          action: activeJob
+            ? t('overview.next_diagnostic_action', {}, 'View job progress')
+            : t('overview.action_next', {}, qualityIssues[0]?.action || 'Continue setup'),
+        }
       : !visibilityReady
-        ? { label: 'Diagnostic ready · AI visibility not measured', detail: 'Your technical findings and tickets are ready. Add BYOK or platform funding to measure AI answers.', route: qualityIssues.find((item) => item.code === 'api_key_missing') ? 'engine-settings' : 'engines', action: qualityIssues.find((item) => item.code === 'api_key_missing')?.action || 'Open visibility matrix' }
+        ? {
+            label: t('overview.next_visibility_label', {}, 'Diagnostic ready · AI visibility not measured'),
+            detail: t('overview.next_visibility_detail', {}, 'Your technical findings and tickets are ready. Add BYOK or platform funding to measure AI answers.'),
+            route: qualityIssues.find((item) => item.code === 'api_key_missing') ? 'engine-settings' : 'engines',
+            action: t('overview.next_visibility_action', {}, qualityIssues.find((item) => item.code === 'api_key_missing')?.action || 'Open visibility matrix'),
+          }
         : !implementationReady
-          ? { label: 'Baseline ready · implementation review pending', detail: 'Review the highest-impact tickets and generated assets before deploying changes.', route: 'plan', action: 'Open highest-impact tickets' }
-          : { label: 'Implementation ready · verify the change', detail: 'Run a closed-loop check to capture before/after evidence and prepare the client pack.', route: 'verify', action: 'Start verification' };
+          ? {
+              label: t('overview.next_implementation_label', {}, 'Baseline ready · implementation review pending'),
+              detail: t('overview.next_implementation_detail', {}, 'Review the highest-impact tickets and generated assets before deploying changes.'),
+              route: 'plan',
+              action: t('overview.next_implementation_action', {}, 'Open highest-impact tickets'),
+            }
+          : {
+              label: t('overview.next_verify_label', {}, 'Implementation ready · verify the change'),
+              detail: t('overview.next_verify_detail', {}, 'Run a closed-loop check to capture before/after evidence and prepare the client pack.'),
+              route: 'verify',
+              action: t('overview.next_verify_action', {}, 'Start verification'),
+            };
 
     const kpiData = [
       { label: t('overview.kpi_mention_rate', {}, 'AI Mention Rate'), value: mentionRate, className: 'num', sub: trendNote },
-      { label: t('overview.kpi_grade', {}, 'Technical Audit Grade'), value: overallGrade ? gradeBadge(overallGrade) : 'Unmeasured' },
-      { label: t('overview.kpi_tickets', {}, 'Action Tickets'), value: `${doneTickets} / ${totalTickets}`, sub: `${totalTickets - doneTickets} pending` },
-      { label: t('overview.kpi_engines', {}, 'Measured Engines'), value: String(measuredEngines.length), sub: `${engines.length} in matrix` },
+      { label: t('overview.kpi_grade', {}, 'Technical Audit Grade'), value: overallGrade ? gradeBadge(overallGrade) : unmeasured },
+      { label: t('overview.kpi_tickets', {}, 'Action Tickets'), value: `${doneTickets} / ${totalTickets}`, sub: t('overview.tickets_pending', { count: totalTickets - doneTickets }, `${totalTickets - doneTickets} pending`) },
+      { label: t('overview.kpi_engines', {}, 'Measured Engines'), value: String(measuredEngines.length), sub: t('overview.engines_in_matrix', { count: engines.length }, `${engines.length} in matrix`) },
     ];
 
     return `
@@ -104,7 +127,7 @@ export default {
           <div class="view-title-group">
             <div style="display:flex;align-items:center;gap:var(--sp-2);">
               <h1 class="view-title">${project.name || project.slug}</h1>
-              ${overallGrade ? gradeBadge(overallGrade) : '<span class="tag tag-dim">Unmeasured</span>'}
+              ${overallGrade ? gradeBadge(overallGrade) : `<span class="tag tag-dim">${unmeasured}</span>`}
             </div>
             <div class="view-desc">
               <a href="${project.url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:4px;color:var(--muted);text-decoration:none;">
@@ -171,7 +194,7 @@ export default {
             ${qualityIssues.map((issue) => `
               <a href="#/${issue.route || 'overview'}" style="display:flex;justify-content:space-between;gap:var(--sp-3);text-decoration:none;">
                 <span>${escapeHtml(issue.message)}</span>
-                <span style="font-size:var(--fs-2);">${escapeHtml(issue.action || 'Open')} →</span>
+                <span style="font-size:var(--fs-2);">${escapeHtml(issue.action || t('common.open', {}, 'Open'))} →</span>
               </a>
             `).join('')}
           </div>` : ''}
@@ -183,13 +206,13 @@ export default {
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-3);">
             ${[
-              ['Audit', readiness.audit?.label || 'Not measured'],
-              ['Measurement baseline', readiness.measurement?.label || quality.measurement_quality?.confidence?.label || 'No baseline'],
-              ['Questions', questionReadiness.label || 'Not measured'],
-              ['Attribution', attributionReadiness.label || 'No comparable period'],
-            ].map(([label, value]) => `<div style="padding:var(--sp-3);border:1px solid var(--line);background:var(--page);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${label}</span><strong style="display:block;margin-top:4px;font-size:var(--fs-2);">${escapeHtml(value)}</strong></div>`).join('')}
+              [t('overview.readiness_audit', {}, 'Audit'), readiness.audit?.label || t('overview.not_measured', {}, 'Not measured')],
+              [t('overview.readiness_measurement', {}, 'Measurement baseline'), readiness.measurement?.label || quality.measurement_quality?.confidence?.label || t('overview.no_baseline', {}, 'No baseline')],
+              [t('overview.readiness_questions', {}, 'Questions'), questionReadiness.label || t('overview.not_measured', {}, 'Not measured')],
+              [t('overview.readiness_attribution', {}, 'Attribution'), attributionReadiness.label || t('overview.no_comparable', {}, 'No comparable period')],
+            ].map(([label, value]) => `<div style="padding:var(--sp-3);border:1px solid var(--line);background:var(--page);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(label)}</span><strong style="display:block;margin-top:4px;font-size:var(--fs-2);">${escapeHtml(value)}</strong></div>`).join('')}
           </div>
-          ${questionReadiness.gaps?.length ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${questionReadiness.gaps.length} question${questionReadiness.gaps.length === 1 ? '' : 's'} need additional comparable samples. <a href="#/engines">${t('overview.fill_gaps', {}, 'Fill gaps')}</a></p>` : ''}
+          ${questionReadiness.gaps?.length ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('overview.question_gaps', { count: questionReadiness.gaps.length }, `${questionReadiness.gaps.length} questions need additional comparable samples.`)} <a href="#/engines">${t('overview.fill_gaps', {}, 'Fill gaps')}</a></p>` : ''}
         </div>
 
         <!-- Core Modules Column -->
@@ -212,11 +235,11 @@ export default {
                   <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--sp-2) var(--sp-3);background:var(--page);border:1px solid var(--line);border-radius:var(--r-md);">
                     <div style="display:flex;flex-direction:column;gap:2px;">
                       <span style="font-weight:600;font-size:var(--fs-2);">${escapeHtml(eng.engine_name || eng.engine_code)}</span>
-                      <div>${samplingModeBadge(eng.sampling_mode)}</div>
+                      <div>${samplingModeBadge(eng.sampling_mode_code || eng.sampling_mode)}</div>
                     </div>
                     <div style="display:flex;align-items:center;gap:var(--sp-4);">
                       <div class="num" style="font-size:var(--fs-4);font-weight:700;color:var(--ink);">
-                        ${eng.mention_rate !== null && eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : 'Unmeasured'}
+                        ${eng.mention_rate !== null && eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : unmeasured}
                       </div>
                     </div>
                   </div>
@@ -245,7 +268,7 @@ export default {
                   .sort((left, right) => (priorityRank[left.priority] ?? 99) - (priorityRank[right.priority] ?? 99))
                   .slice(0, 5)
                   .map((ticket) => {
-                    const title = ticket.title_en || ticket.title || ticket.name || ticket.id;
+                    const title = t(ticket.title, {}, ticket.title_en || ticket.title || ticket.name || ticket.id);
                     return `
                   <a class="ticket-item" href="#/plan" style="text-decoration:none;">
                     <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -253,9 +276,9 @@ export default {
                       ${statusPill(ticket.status)}
                     </div>
                     <div class="ticket-item-meta">
-                      <span>Priority: <strong>${escapeHtml(ticket.priority || 'P1')}</strong></span>
+                      <span>${t('common.priority', {}, 'Priority')}: <strong>${escapeHtml(ticket.priority || 'P1')}</strong></span>
                       <span>·</span>
-                      <span>Effort: <strong>${escapeHtml(ticket.effort || 'M')}</strong></span>
+                      <span>${t('common.effort', {}, 'Effort')}: <strong>${escapeHtml(ticket.effort || 'M')}</strong></span>
                     </div>
                   </a>
                 `;
@@ -325,11 +348,13 @@ export default {
           const minutes = Number(estimate?.estimate?.minutes || 0);
           const poolCostFen = Number(estimate?.estimate?.platform_pool_cost_cny_fen || 0);
           const estimateText = calls > 0
-            ? `${calls} model call${calls === 1 ? '' : 's'}${minutes ? `, approximately ${minutes} minute${minutes === 1 ? '' : 's'}` : ''}`
-            : 'no billable model calls with the current provider configuration';
-          const poolCostText = poolCostFen > 0 ? ` Estimated CiteAura platform-pool cost: CNY ${(poolCostFen / 100).toFixed(2)}.` : '';
+            ? t('overview.autopilot_estimate_calls', { calls, minutes: minutes || 0 }, `${calls} model calls, approximately ${minutes} minutes`)
+            : t('overview.autopilot_estimate_none', {}, 'no billable model calls with the current provider configuration');
+          const poolCostText = poolCostFen > 0
+            ? t('overview.autopilot_pool_cost', { cost: (poolCostFen / 100).toFixed(2) }, ` Estimated CiteAura platform-pool cost: CNY ${(poolCostFen / 100).toFixed(2)}.`)
+            : '';
           const confirmed = await confirmModal(
-            `This will rerun the full 8-stage pipeline and refresh crawl data, AI samples, reports, assets, and the delivery pack. Manually maintained action tickets are preserved. Current estimate: ${estimateText}.${poolCostText} BYOK usage is billed directly by your model provider.`,
+            t('overview.autopilot_confirm_body', { estimate: estimateText, pool: poolCostText }, `This will rerun the full 8-stage pipeline and refresh crawl data, AI samples, reports, assets, and the delivery pack. Manually maintained action tickets are preserved. Current estimate: ${estimateText}.${poolCostText} BYOK usage is billed directly by your model provider.`),
             {
               title: t('overview.autopilot_confirm_title', {}, 'Rerun Autopilot?'),
               confirmText: t('overview.autopilot_confirm_action', {}, 'Start Autopilot'),
@@ -356,7 +381,7 @@ export default {
             });
           }
         } catch (err) {
-          toast.error(t(err.error, {}, err.detail || 'Failed to start Autopilot'));
+          toast.error(tError(err));
           autopilotBtn.disabled = false;
           if (autopilotLabel) autopilotLabel.textContent = t('overview.action_rerun_autopilot', {}, 'Rerun Autopilot');
         }
@@ -379,7 +404,7 @@ export default {
             ctx.navigate('#/questions');
             return;
           }
-          toast.error(t(err.error, {}, err.detail || 'Failed to trigger sampling'));
+          toast.error(tError(err));
         } finally {
           sampleBtn.disabled = false;
         }
@@ -398,7 +423,7 @@ export default {
             ctx.openTelemetry(res.job_id, 'verify');
           }
         } catch (err) {
-          toast.error(t(err.error, {}, err.detail || 'Failed to trigger verification'));
+          toast.error(tError(err));
         } finally {
           verifyBtn.disabled = false;
         }

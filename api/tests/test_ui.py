@@ -42,7 +42,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.15' in response.text
+    assert '/app/app.js?v=3.16' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -122,12 +122,12 @@ def test_citation_sources_view_has_no_legacy_seo_integrations():
     assert client.get("/app/views/integrations.js").status_code == 404
 
 
-def test_action_tickets_are_reachable_without_cluttering_execution_navigation():
+def test_action_tickets_are_listed_in_execution_navigation():
     app_js = TestClient(app).get("/app/app.js").text
 
     assert "defaultView: 'assets'" in app_js
-    assert "{ id: 'plan', labelKey: 'nav.plan', defaultLabel: 'Action Tickets', hidden: true }" in app_js
-    assert "views.filter((v) => !v.hidden)" in app_js
+    assert "{ id: 'plan', labelKey: 'nav.plan', defaultLabel: 'Action Tickets' }" in app_js
+    assert "hidden: true" not in app_js.split("labelKey: 'nav.plan'")[1].split("},", 1)[0]
 
 
 def test_legacy_seo_integration_api_is_not_exposed():
@@ -215,8 +215,9 @@ def test_frontend_contracts_match_backend_request_models():
     assert "invitation_token: token" in invite
     assert "{ url, ask_text, influenced_questions }" in plan
     assert "{ code: 'openai'" in engines
-    assert "Testing endpoint, API Key, and Model ID..." in engines
-    assert "provider_http_401" in engines
+    assert "engine_settings.testing_status" in engines
+    from api.i18n.catalog import load_all_catalogs
+    assert "provider_http_401" in load_all_catalogs()["en"]
     assert "audit.applicable_avg_score" in siteaudit
     assert "audit.presentation_version" in siteaudit
     assert "p.applicable_score" in siteaudit
@@ -257,7 +258,7 @@ def test_frontend_contracts_match_backend_request_models():
     assert "plansData.payment?.enabled" in billing
     assert "can_upgrade" in billing
     assert "activeSubscription" in billing
-    assert "Switch to ${label" in billing
+    assert "Switch to ${planName" in billing
     assert "Upgrade to Pro" in billing
     assert "no need to wait" in billing
     assert "Activation progress" in billing
@@ -287,10 +288,10 @@ def test_frontend_contracts_match_backend_request_models():
     app_js = (root / "web/app/app.js").read_text("utf-8")
     assert "citeaura_intent_plan" in app_js
     assert "ENTRY_PLANS" in app_js
-    assert "engine-settings.js?v=3.0" in app_js
-    assert "engines.js?v=2.6" in app_js
-    assert "workbench.js?v=2.6" in app_js
-    assert "overview.js?v=2.8" in app_js
+    assert "engine-settings.js?v=3.1" in app_js
+    assert "engines.js?v=2.7" in app_js
+    assert "workbench.js?v=2.7" in app_js
+    assert "overview.js?v=2.9" in app_js
     assert "onboarding.js?v=2.9" in app_js
     assert "facts.js?v=2.7" in app_js
     assert "telemetry-modal.js?v=2.6" in app_js

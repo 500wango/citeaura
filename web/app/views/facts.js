@@ -1,5 +1,5 @@
 import { workspace } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
 
@@ -100,7 +100,7 @@ export default {
         await workspace.saveFacts(projectId, { text, approve });
         toast.success(t('facts.saved_success', {}, 'Brand fact library saved'));
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to save fact library'));
+        toast.error(tError(err));
       }
     });
   },

@@ -1,5 +1,5 @@
 import { workspace, projects } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
 
@@ -159,7 +159,7 @@ export default {
         ctx.pollActiveJobs();
         if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'generate');
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to generate assets'));
+        toast.error(tError(err));
       }
     });
     document.querySelectorAll('[data-action="fill_question_gap"]').forEach((button) => {
@@ -177,7 +177,7 @@ export default {
             if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'sample');
           }
         } catch (err) {
-          toast.error(t(err.error, {}, err.detail || 'Failed to queue comparable sampling'));
+          toast.error(tError(err));
         } finally {
           button.removeAttribute('aria-busy');
         }
@@ -188,7 +188,7 @@ export default {
         await workspace.saveAsset(projectId, pathSelect.value, editor.value);
         toast.success('Asset saved');
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to save asset'));
+        toast.error(tError(err));
       }
     });
   },

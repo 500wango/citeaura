@@ -51,8 +51,8 @@ export const TRACKS = [
     icon: 'list-checks',
     defaultView: 'assets',
     views: [
-      { id: 'plan', labelKey: 'nav.plan', defaultLabel: 'Action Tickets', hidden: true },
-      { id: 'workbench', labelKey: 'nav.workbench_view', defaultLabel: 'Sample Replay' },
+      { id: 'plan', labelKey: 'nav.plan', defaultLabel: 'Action Tickets' },
+      { id: 'workbench', labelKey: 'nav.workbench_view', defaultLabel: 'Interactive Workbench' },
       { id: 'assets', labelKey: 'nav.assets', defaultLabel: 'Assets & Templates' },
       { id: 'verify', labelKey: 'nav.verify', defaultLabel: 'Closed-Loop Verify' },
     ],
@@ -96,8 +96,8 @@ const VIEW_LOADERS = {
   'reset-password': () => import('./views/auth-reset.js?v=2.5'),
   invite: () => import('./views/auth-invite.js?v=2.5'),
   onboarding: () => import('./views/onboarding.js?v=2.9'),
-  overview: () => import('./views/overview.js?v=2.8'),
-  engines: () => import('./views/engines.js?v=2.6'),
+  overview: () => import('./views/overview.js?v=2.9'),
+  engines: () => import('./views/engines.js?v=2.7'),
   channels: () => import('./views/channels.js?v=2.7'),
   competitors: () => import('./views/competitors.js?v=2.6'),
   siteaudit: () => import('./views/siteaudit.js?v=2.6'),
@@ -105,21 +105,21 @@ const VIEW_LOADERS = {
   blueprint: () => import('./views/blueprint.js?v=1.0'),
   questions: () => import('./views/questions.js?v=2.7'),
   facts: () => import('./views/facts.js?v=2.7'),
-  plan: () => import('./views/plan.js?v=2.6'),
-  workbench: () => import('./views/workbench.js?v=2.6'),
+  plan: () => import('./views/plan.js?v=2.7'),
+  workbench: () => import('./views/workbench.js?v=2.7'),
   assets: () => import('./views/assets.js?v=2.7'),
-  outreach: () => import('./views/outreach.js?v=2.5'),
+  outreach: () => import('./views/outreach.js?v=2.6'),
   publishing: () => import('./views/publishing.js?v=2.5'),
   verify: () => import('./views/verify.js?v=2.5'),
   report: () => import('./views/report.js?v=2.7'),
   branding: () => import('./views/branding.js?v=2.5'),
   'project-settings': () => import('./views/project-settings.js?v=2.5'),
-  'engine-settings': () => import('./views/engine-settings.js?v=3.0'),
-  automation: () => import('./views/automation.js?v=2.6'),
-  team: () => import('./views/team.js?v=2.5'),
-  billing: () => import('./views/billing.js?v=2.9'),
+  'engine-settings': () => import('./views/engine-settings.js?v=3.1'),
+  automation: () => import('./views/automation.js?v=2.7'),
+  team: () => import('./views/team.js?v=2.6'),
+  billing: () => import('./views/billing.js?v=3.0'),
   security: () => import('./views/security.js?v=2.5'),
-  archive: () => import('./views/archive.js?v=2.5'),
+  archive: () => import('./views/archive.js?v=2.6'),
 };
 
 const PUBLIC_ROUTES = ['login', 'register', 'forgot-password', 'reset-password', 'invite'];
@@ -387,7 +387,7 @@ function renderAppShell() {
         </div>
 
         <div class="rail-bottom">
-          <button type="button" class="theme-toggle" id="app-theme-btn" title="Toggle Theme">
+          <button type="button" class="theme-toggle" id="app-theme-btn" title="${document.documentElement.dataset.theme === 'dark' ? t('theme.to_light', {}, 'Switch to light theme') : t('theme.to_dark', {}, 'Switch to dark theme')}">
             <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
             <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           </button>
@@ -422,7 +422,7 @@ function renderAppShell() {
             <!--  -->
             <div class="project-switcher">
               <button type="button" class="project-selector-btn" id="project-dropdown-btn">
-                <span style="font-weight:700;">${activeProj ? (activeProj.name || activeProj.slug) : 'Select Brand'}</span>
+                <span style="font-weight:700;">${activeProj ? (activeProj.name || activeProj.slug) : t('common.select_brand', {}, 'Select Brand')}</span>
                 ${activeProj && activeProj.url ? `<span class="domain-hint">${activeProj.url.replace(/^https?:\/\//, '')}</span>` : ''}
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
@@ -458,9 +458,9 @@ function renderAppShell() {
               ${SUPPORTED_LOCALES.map((locale) => `<option value="${locale}" ${locale === getLocale() ? 'selected' : ''}>${LOCALE_LABELS[locale]}</option>`).join('')}
             </select>
             <!-- Docs / Help Guide -->
-            <a href="/docs" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-sm" style="display:flex;align-items:center;gap:6px;text-decoration:none;font-weight:600;color:var(--ink-2);" title="Open Documentation & Getting Started Guide">
+            <a href="/docs" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-sm" style="display:flex;align-items:center;gap:6px;text-decoration:none;font-weight:600;color:var(--ink-2);" title="${t('nav.docs_title', {}, 'Open Documentation & Getting Started Guide')}">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span>Docs</span>
+              <span>${t('nav.docs', {}, 'Docs')}</span>
             </a>
 
             <!-- User Menu -->
@@ -474,7 +474,7 @@ function renderAppShell() {
               <div class="user-dropdown" id="user-dropdown-menu" style="display:none;">
                 <div class="user-dropdown-info">
                   <div class="user-dropdown-email">${state.user?.email || ''}</div>
-                  <div class="user-dropdown-tenant">${state.tenant?.name || 'Personal Workspace'} · ${state.tenant?.plan || 'trial'}</div>
+                  <div class="user-dropdown-tenant">${state.tenant?.name || t('common.personal_workspace', {}, 'Personal Workspace')} · ${state.tenant?.plan || 'trial'}</div>
                 </div>
                 <a href="#/team" class="user-dropdown-item">${t('nav.team', {}, 'Team & Members')}</a>
                 <a href="#/billing" class="user-dropdown-item">${t('nav.billing', {}, 'Subscription & Billing')}</a>
@@ -532,7 +532,7 @@ function bindAppShellEvents() {
     } catch (e) {}
     state.clearSession();
     stopJobPolling();
-    toast.success('Signed out');
+    toast.success(t('auth.signed_out', {}, 'Signed out'));
     location.hash = '#/login';
   });
 
@@ -541,6 +541,12 @@ function bindAppShellEvents() {
     const isDark = document.documentElement.dataset.theme === 'dark';
     const nextTheme = isDark ? 'light' : 'dark';
     document.documentElement.dataset.theme = nextTheme;
+    const themeBtn = document.getElementById('app-theme-btn');
+    if (themeBtn) {
+      themeBtn.title = nextTheme === 'dark'
+        ? t('theme.to_light', {}, 'Switch to light theme')
+        : t('theme.to_dark', {}, 'Switch to dark theme');
+    }
     try {
       localStorage.setItem('utheme', nextTheme);
     } catch (e) {}

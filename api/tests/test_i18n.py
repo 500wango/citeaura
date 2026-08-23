@@ -66,8 +66,23 @@ def test_every_frontend_t_key_is_registered():
     root = Path(__file__).resolve().parents[2] / "web" / "app"
     keys = set()
     for path in root.rglob("*.js"):
-        keys.update(re.findall(r"\bt\(\s*['\"]([^'\"]+)['\"]", path.read_text("utf-8")))
+        text = path.read_text("utf-8")
+        keys.update(re.findall(r"\bt\(\s*['\"]([^'\"]+)['\"]", text))
+        keys.update(re.findall(r"\btError\(\s*err\s*,\s*['\"]([^'\"]+)['\"]", text))
     assert keys <= set(load_all_catalogs()["en"]), sorted(keys - set(load_all_catalogs()["en"]))
+
+
+def test_workspace_navigation_keys_cover_all_track_items():
+    app_js = (Path(__file__).resolve().parents[2] / "web" / "app" / "app.js").read_text("utf-8")
+    track_block = re.search(r"export const TRACKS = \[.*?\n\];", app_js, re.S)
+    assert track_block, "TRACKS export not found in app.js"
+    required = set(re.findall(r"labelKey:\s*'([^']+)'", track_block.group(0)))
+    assert "nav.blueprint" in required
+    assert "nav.plan" in required
+    catalogs = load_all_catalogs()
+    for locale, catalog in catalogs.items():
+        assert required <= set(catalog), (locale, sorted(required - set(catalog)))
+        assert catalog["nav.blueprint"] not in {"", "[[missing:nav.blueprint]]"}
 
 
 def test_frontend_legacy_localize_literals_are_catalogued():
@@ -93,7 +108,7 @@ def test_non_english_catalogs_do_not_contain_known_machine_translation_artifacts
         "zh": (
             "审判", "车票", "签名", "发动机", "动作车票", "能见度", "14-day",
             "教会网站", "演员", "机器人.txt", "出界核查", "快速报道", "代代代",
-            "传送包",
+            "传送包", "门票", "票价", "模式提供者", "未知模式", "点即时", "点入时",
         ),
         "ja": (
             "14-day", "Bi-Weekly", "キヤノン", "白い標識", "CABot",
@@ -118,7 +133,7 @@ def test_non_english_catalogs_do_not_contain_known_machine_translation_artifacts
             "Kanalblaupausdruck", "Arbeitsbereichbesitzer", "Schauspieler",
             "View Ergebnisse", "Save Fact", "Compile Executive",
             "Single Source of Truth", "Pipeline-Running", "Offener Arbeitsbereich",
-            "Arbeitsplatz",
+            "Arbeitsplatz", "Musteranbieter", "Aktionskarten", "Standard-Action-Tickets",
         ),
     }
     catalogs = load_all_catalogs()
@@ -248,6 +263,31 @@ def test_localize_ticket_dynamic_titles():
     loc_score = localize_ticket(t_score)
     assert loc_score["title_en"] == "Raise average site audit score from 28.6 to 70"
     assert "Average site score is below 70" in loc_score["desc_en"]
+
+
+def test_sampling_mode_faq_quotes_canonical_badges():
+    catalogs = load_all_catalogs()
+    for locale, catalog in catalogs.items():
+        for key in ("landing.mode_parametric", "landing.mode_search", "landing.mode_manual"):
+            assert catalog[key] in catalog["landing.faq_1_a"], (locale, key, catalog[key])
+    assert catalogs["zh"]["landing.mode_manual"] == "人工 · 产品端"
+    assert catalogs["zh"]["landing.mode_parametric"] in catalogs["zh"]["landing.faq_1_a"]
+    assert "API · 模型知识" not in catalogs["zh"]["landing.faq_1_a"]
+
+
+def test_api_error_codes_are_catalogued():
+    catalog = load_all_catalogs()["en"]
+    for key in (
+        "error.generic",
+        "trial_limit_exceeded",
+        "email_already_registered",
+        "project_job_already_running",
+        "insufficient_role",
+        "network_error",
+        "session_expired",
+    ):
+        assert key in catalog
+        assert catalog[key]
 
 
 def test_english_typography_normalization_preserves_measurement_symbols_and_urls():

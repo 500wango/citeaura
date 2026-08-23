@@ -3,7 +3,7 @@
  */
 
 import { settings } from '../api.js?v=3.8';
-import { t } from '../i18n.js';
+import { t, tError, hasCatalogKey } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 
@@ -34,22 +34,22 @@ function customProviderForm(provider = null) {
   return `
     <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
       <div class="field" style="margin:0;">
-        <label for="custom-provider-name">Provider Name *</label>
+        <label for="custom-provider-name">${t('engine_settings.provider_name_label', {}, 'Provider Name')} *</label>
         <input type="text" id="custom-provider-name" class="input" placeholder="My model gateway" maxlength="128" value="${name}" ${editing ? 'readonly' : ''} required>
       </div>
       <div class="field" style="margin:0;">
-        <label for="custom-provider-url">Base URL *</label>
+        <label for="custom-provider-url">${t('engine_settings.base_url_label', {}, 'Base URL')} *</label>
         <input type="url" id="custom-provider-url" class="input" placeholder="https://gateway.example.com/v1" value="${baseUrl}" required>
-        <div class="field-hint">OpenAI-compatible HTTPS endpoint. Do not include /chat/completions.</div>
+        <div class="field-hint">${t('engine_settings.base_url_hint', {}, 'OpenAI-compatible HTTPS endpoint. Do not include /chat/completions.')}</div>
       </div>
       <div class="field" style="margin:0;">
-        <label for="custom-provider-model">Model ID *</label>
+        <label for="custom-provider-model">${t('engine_settings.model_id_label', {}, 'Model ID')} *</label>
         <input type="text" id="custom-provider-model" class="input" placeholder="provider/model-name" maxlength="255" value="${modelId}" required>
       </div>
       <div class="field" style="margin:0;">
-        <label for="custom-provider-key">API Key *</label>
+        <label for="custom-provider-key">${t('engine_settings.api_key_label', {}, 'API Key')} *</label>
         <input type="password" id="custom-provider-key" class="input" placeholder="sk-••••••••••••••••" required>
-        <div class="field-hint">The connection is tested before the encrypted configuration is saved.</div>
+        <div class="field-hint">${t('engine_settings.key_test_hint', {}, 'The connection is tested before the encrypted configuration is saved.')}</div>
       </div>
       <div id="custom-provider-status" role="status" aria-live="polite" style="min-height:20px;font-size:var(--fs-2);color:var(--muted);"></div>
     </div>
@@ -68,21 +68,8 @@ function customProviderPayload() {
 
 function customProviderErrorMessage(err) {
   const diagnostic = err?.detail || err?.data?.detail || err?.error;
-  const messages = {
-    provider_http_400: 'The provider rejected the request. Verify the Base URL and exact Model ID.',
-    provider_http_401: 'Authentication failed. Verify the API Key.',
-    provider_http_403: 'The API Key cannot access this model.',
-    provider_http_404: 'The endpoint or Model ID was not found.',
-    provider_http_429: 'The provider rate limit or account quota was reached.',
-    provider_timeout: 'The provider did not respond before the connection test timed out.',
-    provider_request_failed: 'The provider returned an invalid response or could not be reached.',
-    network_error: 'CiteAura could not reach the server. Check the network and try again.',
-  };
-  if (messages[diagnostic]) return messages[diagnostic];
-  if (typeof diagnostic === 'string' && diagnostic.startsWith('provider_http_')) {
-    return `The provider returned HTTP ${diagnostic.slice('provider_http_'.length)}.`;
-  }
-  return 'Failed to connect custom provider.';
+  if (typeof diagnostic === 'string' && hasCatalogKey(diagnostic)) return t(diagnostic);
+  return tError(err, 'custom_provider_connection_failed');
 }
 
 async function saveCustomProvider(ctx, successMessage) {
@@ -107,11 +94,11 @@ async function saveCustomProvider(ctx, successMessage) {
   if (confirmButton) {
     confirmButton.disabled = true;
     confirmButton.setAttribute('aria-busy', 'true');
-    confirmButton.innerHTML = '<span class="spin"></span><span>Testing...</span>';
+    confirmButton.innerHTML = `<span class="spin"></span><span>${t('engine_settings.testing', {}, 'Testing...')}</span>`;
   }
   if (status) {
     status.style.color = 'var(--muted)';
-    status.textContent = 'Testing endpoint, API Key, and Model ID...';
+    status.textContent = t('engine_settings.testing_status', {}, 'Testing endpoint, API Key, and Model ID...');
   }
 
   let saved = false;
@@ -291,7 +278,7 @@ export default {
             await ctx.reloadCurrentView();
             return true;
           } catch (err) {
-            toast.error(t(err.error, {}, err.detail || 'Failed to create API token'));
+            toast.error(tError(err));
             return false;
           }
         },
@@ -305,7 +292,7 @@ export default {
           await ctx.reloadCurrentView();
           toast.success('API token revoked');
         } catch (err) {
-          toast.error(t(err.error, {}, err.detail || 'Failed to revoke API token'));
+          toast.error(tError(err));
         }
       });
     });
@@ -342,7 +329,7 @@ export default {
           await ctx.reloadCurrentView();
           toast.success('Custom provider removed');
         } catch (err) {
-          toast.error(t(err.error, {}, err.detail || 'Failed to remove custom provider'));
+          toast.error(tError(err));
         }
       });
     });
@@ -374,7 +361,7 @@ export default {
               toast.success(`${name} API key encrypted and saved`);
               return true;
             } catch (err) {
-              toast.error(t(err.error, {}, err.detail || 'Failed to save key'));
+              toast.error(tError(err));
               return false;
             }
           },
@@ -391,7 +378,7 @@ export default {
           await settings.testKey(code);
           toast.success('Key connection test passed!');
         } catch (err) {
-          toast.error(t(err.error, {}, err.detail || 'Key test failed'));
+          toast.error(tError(err));
         } finally {
           btn.disabled = false;
           btn.innerHTML = t('engine_settings.test_key', {}, 'Test');
@@ -407,7 +394,7 @@ export default {
           await ctx.reloadCurrentView();
           toast.success('Key removed');
         } catch (err) {
-          toast.error(t(err.error, {}, err.detail || 'Failed to remove key'));
+          toast.error(tError(err));
         }
       });
     });

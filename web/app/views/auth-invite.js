@@ -3,7 +3,7 @@
  */
 
 import { auth } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 
 export default {
@@ -115,7 +115,7 @@ export default {
         await ctx.reloadSession();
         ctx.navigate('#/overview');
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to accept invitation'));
+        toast.error(tError(err));
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<span>${t('auth.accept_invite_btn', {}, 'Accept Invitation & Join')}</span>`;

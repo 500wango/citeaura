@@ -101,6 +101,7 @@ def _provider_response(row: CustomProvider, include_key=False):
         "market": row.market or "both",
         "masked": mask_key(decrypt_key(row.encrypted_api_key)),
         "sampling_mode": sampling_modes.MODE_API,
+        "sampling_mode_code": sampling_modes.CODE_PARAMETRIC,
     }
     if include_key:
         result["api_key"] = decrypt_key(row.encrypted_api_key)
@@ -176,6 +177,7 @@ def test_custom_provider(payload: CustomProviderPayload, current_user: User = De
             "code": provider["code"],
             "model": provider["model_id"],
             "sampling_mode": sampling_modes.MODE_API,
+            "sampling_mode_code": sampling_modes.CODE_PARAMETRIC,
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": None if result.get("ok") else _safe_provider_error(result.get("error")),
         }
@@ -185,6 +187,7 @@ def test_custom_provider(payload: CustomProviderPayload, current_user: User = De
             "code": provider["code"],
             "model": provider["model_id"],
             "sampling_mode": sampling_modes.MODE_API,
+            "sampling_mode_code": sampling_modes.CODE_PARAMETRIC,
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": _safe_provider_error(exc),
         }
@@ -294,6 +297,7 @@ def test_key(engine_code: str, current_user: User = Depends(require_owner), db: 
             "engine": engine_code,
             "model": sample.model_for(engine_code),
             "sampling_mode": sampling_modes.for_provider(sample.PROVIDERS[engine_code]),
+            "sampling_mode_code": sampling_modes.code_for_provider(sample.PROVIDERS[engine_code]),
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": error,
         }
@@ -303,6 +307,7 @@ def test_key(engine_code: str, current_user: User = Depends(require_owner), db: 
             "engine": engine_code,
             "model": None,
             "sampling_mode": sampling_modes.MODE_API,
+            "sampling_mode_code": sampling_modes.CODE_PARAMETRIC,
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": _safe_provider_error(exc),
         }

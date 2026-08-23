@@ -3,9 +3,11 @@
  */
 
 import { billing } from '../api.js?v=3.8';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { escapeHtml } from '../safe-html.js';
+
+const PLAN_NAMES = { lite: 'Lite', starter: 'Starter', pro: 'Pro', agency: 'Agency' };
 
 const INTENT_PLAN_KEY = 'citeaura_intent_plan';
 const SUBSCRIBABLE = new Set(['lite', 'starter', 'pro', 'agency']);
@@ -72,7 +74,7 @@ export default {
     const currentPlan = usage.plan || 'trial';
     const subscription = usage.subscription || null;
     const activeProjects = usage.projects_active || 0;
-    const maxProjects = usage.projects_limit || 3;
+    const maxProjects = usage.projects_limit;
     const paymentAvailable = Boolean(plansData.payment?.enabled && plansData.payment?.configured);
     const activeSubscription = ['active', 'trialing', 'past_due'].includes(subscription?.status);
     const canUpgrade = usage.can_upgrade !== false;
@@ -95,10 +97,11 @@ export default {
     const poolCostFen = Number(usage.platform_pool_cost_cny_fen || usage.platform_pool?.cost_cny_fen || 0);
 
     const subscribeLabel = (code, label) => {
+      const planName = PLAN_NAMES[code] || code;
       if (currentPlan === code) return t('billing.current_plan', {}, 'Current Plan');
       if (!paymentAvailable) return paymentUnavailable;
       if (!canUpgrade) return t('billing.plan_change_unavailable', {}, 'Plan change unavailable');
-      if (activeSubscription) return t('billing.switch_to', { plan: label.replace(/^(?:Subscribe|Upgrade to)\s+/, '') }, `Switch to ${label.replace(/^(?:Subscribe|Upgrade to)\s+/, '')}`);
+      if (activeSubscription) return t('billing.switch_to', { plan: planName }, `Switch to ${planName}`);
       return label;
     };
 
@@ -115,11 +118,11 @@ export default {
 
         ${billingStatus === 'success' ? `
           <div class="banner good" style="margin-bottom:var(--sp-4);">
-            Payment received. Your plan unlocks as soon as Stripe confirms the subscription.
+            ${t('billing.payment_received', {}, 'Payment received. Your plan unlocks as soon as Stripe confirms the subscription.')}
           </div>` : ''}
         ${billingStatus === 'canceled' ? `
           <div class="banner warn" style="margin-bottom:var(--sp-4);">
-            Checkout was canceled. You can resume any plan below — no need to wait for the trial to end.
+            ${t('billing.checkout_canceled', {}, 'Checkout was canceled. You can resume any plan below — no need to wait for the trial to end.')}
           </div>` : ''}
 
         <!-- Current Plan Status Card -->
@@ -131,15 +134,15 @@ export default {
               </span>
               <div>
                 <strong>${t('billing.current_plan', {}, 'Active Plan')}</strong>
-                <div style="font-size:var(--fs-2);color:var(--muted);">Active projects: ${activeProjects} / ${maxProjects === null || maxProjects === undefined ? '∞' : maxProjects}</div>
-                ${onTrial ? `<div style="font-size:var(--fs-2);color:var(--muted);">Trial samples: ${usage.sample_runs_lifetime || 0} / ${usage.sample_runs_lifetime_limit || 6} lifetime · ${usage.sample_runs_limit_per_project || 2} per project</div>` : ''}
+                <div style="font-size:var(--fs-2);color:var(--muted);">${t('billing.active_projects', { active: activeProjects, max: maxProjects === null || maxProjects === undefined ? '∞' : maxProjects }, `Active projects: ${activeProjects} / ${maxProjects === null || maxProjects === undefined ? '∞' : maxProjects}`)}</div>
+                ${onTrial ? `<div style="font-size:var(--fs-2);color:var(--muted);">${t('billing.trial_samples', { used: usage.sample_runs_lifetime || 0, limit: usage.sample_runs_lifetime_limit || 6, per_project: usage.sample_runs_limit_per_project || 2 }, `Trial samples: ${usage.sample_runs_lifetime || 0} / ${usage.sample_runs_lifetime_limit || 6} lifetime · ${usage.sample_runs_limit_per_project || 2} per project`)}</div>` : ''}
                 ${onTrial ? `
                   <div style="font-size:var(--fs-2);color:var(--muted);margin-top:2px;">
                     ${trialExpired
-                      ? 'Trial ended — upgrade now to restore full access.'
+                      ? t('billing.trial_ended_upgrade', {}, 'Trial ended — upgrade now to restore full access.')
                       : (trialEndsLabel
-                        ? `Trial ends ${trialEndsLabel}. You can upgrade to Pro or higher anytime — no need to wait.`
-                        : 'You can upgrade to Pro or higher anytime during the trial.')}
+                        ? t('billing.trial_ends_notice', { date: trialEndsLabel }, `Trial ends ${trialEndsLabel}. You can upgrade to Pro or higher anytime — no need to wait.`)
+                        : t('billing.trial_upgrade_anytime', {}, 'You can upgrade to Pro or higher anytime during the trial.'))}
                   </div>` : ''}
               </div>
             </div>
@@ -161,15 +164,18 @@ export default {
               <h2 id="activation-funnel-title" style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('billing.activation_title', {}, 'Activation progress')}</h2>
               <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">${t('billing.activation_desc', {}, 'Track the path from registration to a repeatable, evidence-backed delivery.')}</p>
             </div>
-            <span class="tag ${funnel.completed_steps === funnel.total_steps && funnel.total_steps ? 'pill-good' : 'tag-accent'}">${Number(funnel.completed_steps || 0)} / ${Number(funnel.total_steps || 6)} complete</span>
+            <span class="tag ${funnel.completed_steps === funnel.total_steps && funnel.total_steps ? 'pill-good' : 'tag-accent'}">${t('billing.funnel.complete_count', { done: Number(funnel.completed_steps || 0), total: Number(funnel.total_steps || 6) }, `${Number(funnel.completed_steps || 0)} / ${Number(funnel.total_steps || 6)} complete`)}</span>
           </div>
-          <div style="height:6px;background:var(--line);border-radius:999px;overflow:hidden;" role="progressbar" aria-label="Activation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Number(funnel.progress_percent || 0)}">
+          <div style="height:6px;background:var(--line);border-radius:999px;overflow:hidden;" role="progressbar" aria-label="${t('billing.activation_title', {}, 'Activation progress')}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Number(funnel.progress_percent || 0)}">
             <div style="height:100%;width:${Math.max(0, Math.min(100, Number(funnel.progress_percent || 0)))}%;background:var(--accent);border-radius:inherit;"></div>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:var(--sp-2);">
-            ${funnelSteps.map((step) => `<div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2);border:1px solid var(--line);background:var(--page);border-radius:var(--r-md);"><span class="tag ${step.completed ? 'pill-good' : 'tag-dim'}" aria-label="${step.completed ? 'Complete' : 'Pending'}">${step.completed ? 'Done' : 'Next'}</span><span style="font-size:var(--fs-2);">${escapeHtml(step.label || step.key)}</span></div>`).join('')}
+            ${funnelSteps.map((step) => {
+              const stepLabel = t(`billing.funnel.${step.key}`, {}, step.label || step.key);
+              return `<div style="display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2);border:1px solid var(--line);background:var(--page);border-radius:var(--r-md);"><span class="tag ${step.completed ? 'pill-good' : 'tag-dim'}" aria-label="${step.completed ? t('common.done', {}, 'Done') : t('common.next', {}, 'Next')}">${step.completed ? t('common.done', {}, 'Done') : t('common.next', {}, 'Next')}</span><span style="font-size:var(--fs-2);">${escapeHtml(stepLabel)}</span></div>`;
+            }).join('')}
           </div>
-          ${funnel.next_step_label ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Next: <strong style="color:var(--ink);">${escapeHtml(funnel.next_step_label)}</strong></p>` : `<p style="margin:0;color:var(--good);font-size:var(--fs-2);">${t('billing.activation_complete', {}, 'Activation path complete for this workspace.')}</p>`}
+          ${funnel.next_step ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('billing.funnel.next', { step: t(`billing.funnel.${funnel.next_step}`, {}, funnel.next_step_label || funnel.next_step) }, `Next: ${funnel.next_step_label || funnel.next_step}`)}</p>` : `<p style="margin:0;color:var(--good);font-size:var(--fs-2);">${t('billing.activation_complete', {}, 'Activation path complete for this workspace.')}</p>`}
         </section>
 
         <section class="card" style="gap:var(--sp-3);" aria-labelledby="usage-snapshot-title">
@@ -191,7 +197,7 @@ export default {
             <p class="plan-name">Lite</p>
             <p class="price">
               <strong class="price-val" data-m="${formatUsd(lite?.prices?.monthly?.usd)}" data-a="${formatUsd(lite?.prices?.annual?.usd)}">${formatUsd(lite?.prices?.monthly?.usd || 39)}</strong>
-              <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
+              <span class="price-period" data-m="${t('billing.per_month', {}, '/ month')}" data-a="${t('billing.per_year', {}, '/ year')}">${t('billing.per_month', {}, '/ month')}</span>
             </p>
             <p class="plan-summary" data-m="${t('landing.plan_lite_summary', {}, 'One project, fast technical visibility baseline')}" data-a="${t('landing.plan_lite_summary_annual', {}, 'About $31 / month billed annually')}">${t('landing.plan_lite_summary', {}, 'One project, fast technical visibility baseline')}</p>
             <ul>
@@ -200,7 +206,7 @@ export default {
               <li>${t('landing.plan_lite_3', {}, 'BYOK sampling with transparent provider costs')}</li>
             </ul>
             <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="lite" ${currentPlan === 'lite' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
-              ${subscribeLabel('lite', onTrial ? t('landing.plan_lite_cta', {}, 'Start Lite') : 'Subscribe Lite')}
+              ${subscribeLabel('lite', onTrial ? t('landing.plan_lite_cta', {}, 'Start Lite') : t('billing.subscribe_lite', {}, 'Subscribe Lite'))}
             </button>
           </article>
 
@@ -209,7 +215,7 @@ export default {
             <p class="plan-name">Starter</p>
             <p class="price">
               <strong class="price-val" data-m="${formatUsd(starter?.prices?.monthly?.usd)}" data-a="${formatUsd(starter?.prices?.annual?.usd)}">${formatUsd(starter?.prices?.monthly?.usd || 79)}</strong>
-              <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
+              <span class="price-period" data-m="${t('billing.per_month', {}, '/ month')}" data-a="${t('billing.per_year', {}, '/ year')}">${t('billing.per_month', {}, '/ month')}</span>
             </p>
             <p class="plan-summary" data-m="${t('landing.plan_starter_summary', {}, 'Ideal for indie makers & single brands')}" data-a="${t('landing.plan_starter_summary_annual', {}, 'About $63 / month billed annually')}">${t('landing.plan_starter_summary', {}, 'Ideal for indie makers & single brands')}</p>
             <ul>
@@ -218,7 +224,7 @@ export default {
               <li>${t('landing.plan_starter_3', {}, 'Full reports & customer delivery packs')}</li>
             </ul>
             <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="starter" ${currentPlan === 'starter' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
-              ${subscribeLabel('starter', 'Subscribe Starter')}
+              ${subscribeLabel('starter', t('billing.subscribe_starter', {}, 'Subscribe Starter'))}
             </button>
           </article>
 
@@ -228,7 +234,7 @@ export default {
             <p class="plan-name">Pro</p>
             <p class="price">
               <strong class="price-val" data-m="${formatUsd(pro?.prices?.monthly?.usd)}" data-a="${formatUsd(pro?.prices?.annual?.usd)}">${formatUsd(pro?.prices?.monthly?.usd || 199)}</strong>
-              <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
+              <span class="price-period" data-m="${t('billing.per_month', {}, '/ month')}" data-a="${t('billing.per_year', {}, '/ year')}">${t('billing.per_month', {}, '/ month')}</span>
             </p>
             <p class="plan-summary" data-m="${t('landing.plan_pro_summary', {}, 'Continuous multi-model tracking for growth brands')}" data-a="${t('landing.plan_pro_summary_annual', {}, 'About $159 / month billed annually')}">${t('landing.plan_pro_summary', {}, 'Continuous multi-model tracking for growth brands')}</p>
             <ul>
@@ -237,7 +243,7 @@ export default {
               <li>${t('landing.plan_pro_3', {}, 'Scheduled re-sampling and email alerts on mention-rate drops')}</li>
             </ul>
             <button type="button" class="btn btn-primary btn-block btn-subscribe" data-plan="pro" ${currentPlan === 'pro' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
-              ${subscribeLabel('pro', onTrial ? 'Upgrade to Pro' : t('landing.plan_pro_cta', {}, 'Subscribe Pro'))}
+              ${subscribeLabel('pro', onTrial ? t('billing.upgrade_to_pro', {}, 'Upgrade to Pro') : t('landing.plan_pro_cta', {}, 'Subscribe Pro'))}
             </button>
           </article>
 
@@ -246,7 +252,7 @@ export default {
             <p class="plan-name">Agency</p>
             <p class="price">
               <strong class="price-val" data-m="${formatUsd(agency?.prices?.monthly?.usd)}" data-a="${formatUsd(agency?.prices?.annual?.usd)}">${formatUsd(agency?.prices?.monthly?.usd || 499)}</strong>
-              <span class="price-period" data-m="/ month" data-a="/ year">/ month</span>
+              <span class="price-period" data-m="${t('billing.per_month', {}, '/ month')}" data-a="${t('billing.per_year', {}, '/ year')}">${t('billing.per_month', {}, '/ month')}</span>
             </p>
             <p class="plan-summary" data-m="${t('landing.plan_agency_summary', {}, 'Parallel client delivery for digital agencies')}" data-a="${t('landing.plan_agency_summary_annual', {}, 'About $416 / month billed annually')}">${t('landing.plan_agency_summary', {}, 'Parallel client delivery for digital agencies')}</p>
             <ul>
@@ -255,7 +261,7 @@ export default {
               <li>${t('landing.plan_agency_3', {}, 'Team multi-role permissions & white-label delivery branding')}</li>
             </ul>
             <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="agency" ${currentPlan === 'agency' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
-              ${subscribeLabel('agency', onTrial ? 'Upgrade to Agency' : t('landing.plan_agency_cta', {}, 'Subscribe Agency'))}
+              ${subscribeLabel('agency', onTrial ? t('billing.upgrade_to_agency', {}, 'Upgrade to Agency') : t('landing.plan_agency_cta', {}, 'Subscribe Agency'))}
             </button>
           </article>
 
@@ -298,24 +304,24 @@ export default {
           window.location.assign(res.checkout_url);
           return;
         }
-        toast.success(`Subscribed to ${plan.toUpperCase()}!`);
+        toast.success(t('billing.subscribe_success', { plan: plan.toUpperCase() }, `Subscribed to ${plan.toUpperCase()}.`));
         ctx.navigate('#/billing');
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Subscription failed'));
+        toast.error(tError(err));
         if (button) button.disabled = false;
       }
     };
 
     document.getElementById('btn-cancel-subscription')?.addEventListener('click', async () => {
       const button = document.getElementById('btn-cancel-subscription');
-      if (!window.confirm('Schedule cancellation at the end of the current billing period?')) return;
+      if (!window.confirm(t('billing.cancel_confirm', {}, 'Schedule cancellation at the end of the current billing period?'))) return;
       button.disabled = true;
       try {
         await billing.cancel();
-        toast.success('Cancellation scheduled for the end of the current billing period.');
+        toast.success(t('billing.cancel_scheduled', {}, 'Cancellation scheduled for the end of the current billing period.'));
         await ctx.reloadCurrentView?.();
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Cancellation failed'));
+        toast.error(tError(err));
         button.disabled = false;
       }
     });
@@ -342,11 +348,11 @@ export default {
         if (!valEl) return;
         if (currentInterval === 'annual') {
           valEl.textContent = valEl.dataset.a || valEl.textContent;
-          if (periodEl) periodEl.textContent = periodEl.dataset.a || '/ year';
+          if (periodEl) periodEl.textContent = periodEl.dataset.a || t('billing.per_year', {}, '/ year');
           if (summaryEl && summaryEl.dataset.a) summaryEl.textContent = summaryEl.dataset.a;
         } else {
           valEl.textContent = valEl.dataset.m || valEl.textContent;
-          if (periodEl) periodEl.textContent = periodEl.dataset.m || '/ month';
+          if (periodEl) periodEl.textContent = periodEl.dataset.m || t('billing.per_month', {}, '/ month');
           if (summaryEl && summaryEl.dataset.m) summaryEl.textContent = summaryEl.dataset.m;
         }
       });

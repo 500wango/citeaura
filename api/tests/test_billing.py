@@ -219,6 +219,41 @@ def test_trial_sample_limit_is_per_project(billing_client, monkeypatch):
     assert blocked_cycle.json()["error"] == "trial_limit_exceeded"
 
 
+def test_no_sample_autopilot_does_not_consume_trial_quota(billing_client, monkeypatch):
+    client, session_factory = billing_client
+    headers = _register(client, "nosample-owner@example.com")
+
+    def fake_init(args):
+        from api.adapters.engine import geolib
+
+        geolib.write_json(geolib.project_dir(args.slug) / "geo.json", {
+            "brand": {"name": "Example", "site": args.url},
+            "market": "both",
+            "questions": [{"id": "q901", "text": "What is Example?", "market": "both"}],
+        })
+
+    monkeypatch.setitem(__import__("sys").modules, "geo", types.SimpleNamespace(cmd_init=fake_init))
+    monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: types.SimpleNamespace(id="boot"))
+    created = client.post("/api/v1/projects", headers=headers, json={"url": "nosample.example"})
+    project_id = created.json()["project_id"]
+    monkeypatch.setattr(project_router.task_sample, "delay", lambda *a, **kw: types.SimpleNamespace(id="sample"))
+
+    with session_factory() as db:
+        db.query(Job).filter(Job.project_id == project_id, Job.action == "bootstrap").one().status = "done"
+        db.add(Job(
+            project_id=project_id,
+            action="autopilot",
+            status="done",
+            request_json=json.dumps({"no_sample": True}),
+        ))
+        db.commit()
+
+    usage = client.get("/api/v1/billing/usage", headers=headers).json()
+    assert usage["sample_runs_lifetime"] == 0
+    response = client.post(f"/api/v1/projects/{project_id}/sample", headers=headers)
+    assert response.status_code == 202
+
+
 def test_usage_reports_activation_funnel_from_completed_workspace_facts(billing_client, monkeypatch):
     client, session_factory = billing_client
     headers = _register(client, "activation-owner@example.com")

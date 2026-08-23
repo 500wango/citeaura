@@ -106,6 +106,12 @@ export async function setLocale(locale = DEFAULT_LOCALE) {
   await loadCatalogs(locale);
 }
 
+export function hasCatalogKey(key) {
+  if (!key) return false;
+  if (Object.prototype.hasOwnProperty.call(currentCatalog, key)) return true;
+  return currentLocale === DEFAULT_LOCALE && Object.prototype.hasOwnProperty.call(fallbackCatalog, key);
+}
+
 /**
  * Translate key with interpolation. English fallback is intentionally disabled
  * for non-English locales so missing copy is visible in development and CI.
@@ -133,6 +139,15 @@ export function t(key, params = {}, fallback = '') {
     });
   }
   return text;
+}
+
+export function tError(err, fallbackKey = 'error.generic') {
+  const code = typeof err?.error === 'string' ? err.error.trim() : '';
+  if (code && hasCatalogKey(code)) return t(code);
+  if (code && hasCatalogKey(`error.${code}`)) return t(`error.${code}`);
+  if (fallbackKey && hasCatalogKey(fallbackKey)) return t(fallbackKey);
+  if (currentLocale === DEFAULT_LOCALE && err?.detail) return String(err.detail);
+  return t('error.generic', {}, 'Request failed');
 }
 
 /** Translate a legacy literal while a view is being migrated to a stable key. */
@@ -177,5 +192,7 @@ export default {
   subscribeLocale,
   translateText,
   localizeRenderedText,
+  hasCatalogKey,
+  tError,
   t,
 };

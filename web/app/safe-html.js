@@ -67,3 +67,13 @@ export function escapeHtml(value) {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 }
+
+export function safeHttpUrl(value) {
+  const compact = String(value || '').replace(/[\u0000-\u0020\u007f]+/g, '').trim();
+  if (!compact) return '';
+  try {
+    const parsed = new URL(compact);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+  } catch (e) {}
+  return '';
+}

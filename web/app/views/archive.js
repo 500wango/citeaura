@@ -3,7 +3,8 @@
  */
 
 import { archive } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
+import { escapeHtml } from '../safe-html.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
@@ -98,23 +99,23 @@ export default {
 
     document.getElementById('btn-create-snapshot')?.addEventListener('click', () => {
       openModal({
-        title: 'Create Project Snapshot',
+        title: t('archive.create_modal_title', {}, 'Create Project Snapshot'),
         content: `
           <div class="field" style="margin:0;">
-            <label>Snapshot Note / Description</label>
+            <label>${t('archive.note_label', {}, 'Snapshot Note / Description')}</label>
             <input type="text" id="snap-note" class="input" placeholder="e.g. Baseline before Q3 re-architecture">
           </div>
         `,
-        confirmText: 'Create Snapshot',
+        confirmText: t('archive.create_btn', {}, 'Create Snapshot'),
         onConfirm: async () => {
           const note = document.getElementById('snap-note')?.value.trim();
           try {
             await archive.create(projectId, note);
-            toast.success('Snapshot created successfully');
+            toast.success(t('archive.create_success', {}, 'Snapshot created successfully'));
             ctx.navigate('#/archive');
             return true;
           } catch (err) {
-            toast.error(t(err.error, {}, err.detail || 'Failed to create snapshot'));
+            toast.error(tError(err));
             return false;
           }
         },
@@ -125,34 +126,34 @@ export default {
       btn.addEventListener('click', () => {
         const snapId = btn.getAttribute('data-id');
         openModal({
-          title: 'Confirm Snapshot Restoration',
+          title: t('archive.restore_modal_title', {}, 'Confirm Snapshot Restoration'),
           content: `
             <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
               <div class="banner warn">
-                <strong>Warning:</strong> Restoring this snapshot will overwrite current project workspace files with data from <code>${snapId}</code>.
+                ${escapeHtml(t('archive.restore_warning', { id: snapId }, `Warning: Restoring this snapshot will overwrite current project workspace files with data from ${snapId}.`))}
               </div>
               <div class="field" style="margin-top:var(--sp-2);">
-                <label>Type <code>RESTORE ${snapId}</code> to confirm:</label>
-                <input type="text" id="confirm-restore-text" class="input" placeholder="RESTORE ${snapId}">
+                <label>${t('archive.restore_type_label', { phrase: `RESTORE ${snapId}` }, `Type RESTORE ${snapId} to confirm:`)}</label>
+                <input type="text" id="confirm-restore-text" class="input" placeholder="RESTORE ${escapeHtml(snapId)}">
               </div>
             </div>
           `,
-          confirmText: 'Restore Snapshot',
+          confirmText: t('archive.restore_btn', {}, 'Restore'),
           isDanger: true,
           onConfirm: async () => {
             const val = document.getElementById('confirm-restore-text')?.value.trim();
             if (val !== `RESTORE ${snapId}`) {
-              toast.error('Confirmation text does not match');
+              toast.error(t('archive.restore_mismatch', {}, 'Confirmation text does not match'));
               return false;
             }
 
             try {
               await archive.restore(projectId, snapId, val);
-              toast.success('Project restored successfully');
+              toast.success(t('archive.restore_success', {}, 'Project restored successfully'));
               ctx.navigate('#/overview');
               return true;
             } catch (err) {
-              toast.error(t(err.error, {}, err.detail || 'Restoration failed'));
+              toast.error(tError(err));
               return false;
             }
           },

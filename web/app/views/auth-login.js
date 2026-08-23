@@ -3,7 +3,7 @@
  */
 
 import { auth } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 
 export default {
@@ -76,7 +76,7 @@ export default {
           ctx.navigate('#/overview');
         }
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Incorrect email or password'));
+        toast.error(tError(err));
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<span>${t('auth.login_btn', {}, 'Sign In')}</span>`;

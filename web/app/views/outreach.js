@@ -3,7 +3,7 @@
  */
 
 import { outreach, projects } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
@@ -139,7 +139,7 @@ export default {
             ctx.navigate(`#/outreach?updated=${Date.now()}`);
             return true;
           } catch (err) {
-            toast.error(t(err.error, {}, err.detail || 'Failed to create outreach draft'));
+            toast.error(tError(err));
             return false;
           }
         },
@@ -194,7 +194,7 @@ export default {
             ctx.navigate('#/outreach');
             return true;
           } catch (err) {
-            toast.error(t(err.error, {}, err.detail || 'Failed to save SMTP settings'));
+            toast.error(tError(err));
             return false;
           }
         },
@@ -213,18 +213,18 @@ export default {
         const content = `
           <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
             <div class="banner warn">
-              <strong>Human Confirmation Required:</strong> Emails are sent live to recipients. Please verify the destination and message accuracy.
+              ${t('outreach.human_confirm', {}, 'Human Confirmation Required: Emails are sent live to recipients. Please verify the destination and message accuracy.')}
             </div>
             <div>
-              <span style="font-size:12px;color:var(--muted);">Recipient:</span>
+              <span style="font-size:12px;color:var(--muted);">${t('outreach.recipient_label', {}, 'Recipient')}:</span>
               <strong style="display:block;font-size:var(--fs-3);">${rec}</strong>
             </div>
             <div>
-              <span style="font-size:12px;color:var(--muted);">Subject:</span>
+              <span style="font-size:12px;color:var(--muted);">${t('outreach.subject_label', {}, 'Subject')}:</span>
               <div style="font-size:var(--fs-2);font-weight:600;">${sub}</div>
             </div>
             <div class="field" style="margin-top:var(--sp-2);">
-              <label>Type <code>SEND ${draftId}</code> to confirm dispatch:</label>
+              <label>${t('archive.restore_type_label', { phrase: `SEND ${draftId}` }, `Type SEND ${draftId} to confirm dispatch:`)}</label>
               <input type="text" id="confirm-send-text" class="input" placeholder="SEND ${draftId}">
             </div>
           </div>
@@ -238,7 +238,7 @@ export default {
           onConfirm: async () => {
             const inputVal = document.getElementById('confirm-send-text')?.value.trim();
             if (inputVal !== `SEND ${draftId}`) {
-              toast.error('Confirmation text does not match');
+              toast.error(t('archive.restore_mismatch', {}, 'Confirmation text does not match'));
               return false;
             }
 
@@ -252,7 +252,7 @@ export default {
               ctx.navigate('#/outreach');
               return true;
             } catch (err) {
-              toast.error(t(err.error, {}, err.detail || 'Failed to dispatch draft'));
+              toast.error(tError(err));
               return false;
             }
           },

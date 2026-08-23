@@ -3,7 +3,7 @@
  */
 
 import { sso } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 
 export default {
@@ -121,7 +121,7 @@ export default {
         await sso.saveConfig({ issuer_url, client_id, client_secret });
         toast.success('SSO configuration saved successfully');
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to save SSO configuration'));
+        toast.error(tError(err));
       }
     });
   },

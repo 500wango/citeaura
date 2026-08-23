@@ -3,7 +3,7 @@
  */
 
 import { projects } from '../api.js?v=3.6';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
 
@@ -56,10 +56,10 @@ export default {
           <div class="field" style="margin:0;">
             <label>${t('automation.interval_label', {}, 'Monitoring Recurrence Interval')}</label>
             <select id="schedule-interval" class="input">
-              <option value="1" ${intervalDays === 1 ? 'selected' : ''}>Daily (1 Day)</option>
-              <option value="7" ${intervalDays === 7 ? 'selected' : ''}>Weekly (7 Days)</option>
-              <option value="14" ${intervalDays === 14 ? 'selected' : ''}>Bi-Weekly (14 Days)</option>
-              <option value="30" ${intervalDays === 30 ? 'selected' : ''}>Monthly (30 Days)</option>
+              <option value="1" ${intervalDays === 1 ? 'selected' : ''}>${t('automation.interval_daily', {}, 'Daily (1 Day)')}</option>
+              <option value="7" ${intervalDays === 7 ? 'selected' : ''}>${t('automation.interval_weekly', {}, 'Weekly (7 Days)')}</option>
+              <option value="14" ${intervalDays === 14 ? 'selected' : ''}>${t('automation.interval_biweekly', {}, 'Bi-Weekly (14 Days)')}</option>
+              <option value="30" ${intervalDays === 30 ? 'selected' : ''}>${t('automation.interval_monthly', {}, 'Monthly (30 Days)')}</option>
             </select>
           </div>
 
@@ -93,7 +93,7 @@ export default {
         await projects.updateSchedule(projectId, { enabled, interval_days, alert_on_regression });
         toast.success(t('automation.saved_success', {}, 'Schedule updated successfully'));
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to update schedule'));
+        toast.error(tError(err));
       }
     });
   },

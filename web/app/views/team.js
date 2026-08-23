@@ -3,7 +3,7 @@
  */
 
 import { team } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 
@@ -71,7 +71,7 @@ export default {
                           ? `<button type="button" class="btn btn-ghost btn-sm btn-remove-member" data-id="${m.user_id || m.id}" style="color:var(--bad);">
                               ${t('common.remove', {}, 'Remove')}
                             </button>`
-                          : '<span style="font-size:11px;color:var(--muted);">${t('team.workspace_owner', {}, 'Workspace Owner')}</span>'
+                          : `<span style="font-size:11px;color:var(--muted);">${t('team.workspace_owner', {}, 'Workspace Owner')}</span>`
                       }
                     </td>
                   </tr>
@@ -111,7 +111,7 @@ export default {
                       <td><span class="tag ${inv.status === 'pending' ? 'tag-accent' : 'tag-dim'}">${inv.status}</span></td>
                       <td style="text-align:right;">
                         <button type="button" class="btn btn-ghost btn-sm btn-revoke-inv" data-id="${inv.id}" style="color:var(--bad);" ${inv.status === 'pending' ? '' : 'disabled'}>
-                          Revoke
+                          ${t('team.revoke', {}, 'Revoke')}
                         </button>
                       </td>
                     </tr>
@@ -136,11 +136,11 @@ export default {
         content: `
           <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
             <div class="field" style="margin:0;">
-              <label>Work Email *</label>
+              <label>${t('team.email_label', {}, 'Work Email')} *</label>
               <input type="email" id="invite-email-input" class="input" placeholder="colleague@company.com" required>
             </div>
             <div class="field" style="margin:0;">
-              <label>Role</label>
+              <label>${t('common.role', {}, 'Role')}</label>
               <select id="invite-role-select" class="input">
                 <option value="editor" selected>${t('team.role_editor_desc', {}, 'Editor (Can execute projects & tickets)')}</option>
                 <option value="viewer">${t('team.role_viewer_desc', {}, 'Viewer (Read-only access)')}</option>
@@ -162,7 +162,7 @@ export default {
             ctx.navigate(`#/team?updated=${Date.now()}`);
             return true;
           } catch (err) {
-            toast.error(t(err.error, {}, err.detail || 'Failed to create invitation'));
+            toast.error(tError(err));
             return false;
           }
         },

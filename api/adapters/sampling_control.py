@@ -187,6 +187,7 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, quest
                 "provider_name": provider.get("name", code),
                 "model_id": model_id,
                 "sampling_mode": sampling_modes.for_provider(provider),
+                "sampling_mode_code": sampling_modes.code_for_provider(provider),
                 "source": source,
                 "funding_source": source,
                 "questions": question_count,

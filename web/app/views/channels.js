@@ -3,7 +3,7 @@
  */
 
 import { projects } from '../api.js?v=3.8';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
 import { openModal } from '../components/modal.js';
@@ -29,7 +29,7 @@ async function runCitationSample(ctx, button) {
       ctx.openTelemetry(result.job_id, 'sample');
     }
   } catch (err) {
-    toast.error(t(err.error, {}, err.detail || 'Sampling task failed to start'));
+    toast.error(tError(err));
   } finally {
     button.disabled = false;
   }

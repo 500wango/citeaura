@@ -3,7 +3,7 @@
  */
 
 import { workspace, projects } from '../api.js?v=3.8';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty, bindEmptyAction } from '../components/empty.js';
@@ -214,7 +214,7 @@ export default {
             await addQuestions(lines);
             return true;
           } catch (err) {
-            toast.error(t(err.error, {}, err.detail || 'Failed to add questions'));
+            toast.error(tError(err));
             return false;
           }
         },

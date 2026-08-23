@@ -3,7 +3,7 @@
  */
 
 import { workspace, projects } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
@@ -193,7 +193,7 @@ export default {
               ctx.navigate('#/competitors');
               return true;
             } catch (err) {
-              toast.error(t(err.error, {}, err.detail || 'Failed to add competitor'));
+              toast.error(tError(err));
               return false;
             }
           },
@@ -212,7 +212,7 @@ export default {
           toast.success(t('competitors.removed_success', {}, 'Competitor removed'));
           ctx.navigate('#/competitors');
         } catch (err) {
-          toast.error(t(err.error, {}, err.detail || 'Failed to remove competitor'));
+          toast.error(tError(err));
         }
       });
     });

@@ -381,6 +381,7 @@ def workbench(project_slug: str, question_id: str):
             "matched_identity": (row.get("analysis") or {}).get("matched_identity"),
             "citations": row.get("citations") or [],
             "sampling_mode": sampling_modes.for_row(row),
+            "sampling_mode_code": sampling_modes.code_for_row(row),
             "sampled_at": row.get("ts"),
         }
         for row in rows

@@ -1,5 +1,5 @@
 import { projects, workspace } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { confirmModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
@@ -40,7 +40,7 @@ export default {
         toast.success(t('project_settings.updated', {}, 'Project settings updated'));
         await ctx.reloadProjects();
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to update project settings'));
+        toast.error(tError(err));
       }
     });
     document.getElementById('btn-delete-project')?.addEventListener('click', async () => {
@@ -52,7 +52,7 @@ export default {
         await ctx.reloadProjects();
         ctx.navigate('#/overview');
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to archive project'));
+        toast.error(tError(err));
       }
     });
   },

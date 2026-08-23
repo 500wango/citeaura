@@ -3,7 +3,7 @@
  */
 
 import { projects } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { gradeBadge } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
@@ -186,7 +186,7 @@ export default {
         ctx.pollActiveJobs();
         if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'audit');
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to start site audit'));
+        toast.error(tError(err));
       } finally {
         if (button) button.disabled = false;
       }

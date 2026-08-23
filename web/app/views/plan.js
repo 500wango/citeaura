@@ -3,13 +3,19 @@
  */
 
 import { analytics, projects } from '../api.js?v=3.5';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
 import { escapeHtml } from '../safe-html.js';
 import { workspace } from '../api.js?v=3.5';
+
+function localizedTicketField(ticket, field, enField, fallback = '') {
+  const source = ticket?.[field] || ticket?.[enField] || fallback;
+  if (!source) return '';
+  return t(source, {}, ticket?.[enField] || source);
+}
 
 function ticketImpact(ticket) {
   const priority = String(ticket.priority || 'P1').toUpperCase();
@@ -220,8 +226,8 @@ export default {
 
 function renderTicketCard(ticket) {
   const isDone = ticket.status === 'done';
-  const title = ticket.title_en || ticket.title || ticket.name || ticket.id;
-  const role = ticket.owner_en || ticket.role || ticket.owner || 'Engineering';
+  const title = localizedTicketField(ticket, 'title', 'title_en', ticket.name || ticket.id);
+  const role = localizedTicketField(ticket, 'owner', 'owner_en', ticket.role || t('plan.role_engineering', {}, 'Engineering'));
   return `
     <div class="ticket-item ${isDone ? 'is-done' : ''}" data-tid="${escapeHtml(ticket.id)}">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-2);">
@@ -244,11 +250,11 @@ async function showTicketDetailModal(projectId, tid, ctx) {
 
   const ticket = tickets.find((t) => String(t.id) === String(tid)) || { id: tid };
 
-  const title = ticket.title_en || ticket.title || ticket.name || ticket.id;
-  const why = ticket.why_en || ticket.why || ticket.desc_en || ticket.desc || ticket.description || '';
-  const action = ticket.action_en || ticket.action || '';
-  const role = ticket.owner_en || ticket.role_en || ticket.owner || ticket.role || 'Engineering';
-  const acceptance = ticket.acceptance?.desc_en || ticket.acceptance?.desc || '';
+  const title = localizedTicketField(ticket, 'title', 'title_en', ticket.name || ticket.id);
+  const why = localizedTicketField(ticket, 'why', 'why_en', ticket.desc_en || ticket.desc || ticket.description || '');
+  const action = localizedTicketField(ticket, 'action', 'action_en');
+  const role = localizedTicketField(ticket, 'owner', 'owner_en', ticket.role_en || ticket.role || t('plan.role_engineering', {}, 'Engineering'));
+  const acceptance = localizedTicketField(ticket.acceptance || {}, 'desc', 'desc_en');
   const notes = Array.isArray(ticket.notes)
     ? ticket.notes.map((item) => item?.text || item?.note || '').filter(Boolean).join('\n')
     : (ticket.note || '');
@@ -257,7 +263,7 @@ async function showTicketDetailModal(projectId, tid, ctx) {
     <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
       <div>
         <h4 style="font-size:var(--fs-4);font-weight:700;margin:0 0 var(--sp-1) 0;">${escapeHtml(title)}</h4>
-        <p style="color:var(--muted);font-size:var(--fs-2);margin:0;"><strong>${t('plan.why_label', {}, 'Why:')}</strong> ${escapeHtml(why || 'No rationale recorded.')}</p>
+        <p style="color:var(--muted);font-size:var(--fs-2);margin:0;"><strong>${t('plan.why_label', {}, 'Why:')}</strong> ${escapeHtml(why || t('plan.no_rationale', {}, 'No rationale recorded.'))}</p>
         ${action ? `<div style="margin-top:var(--sp-2);padding:var(--sp-2) var(--sp-3);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);font-size:var(--fs-1);color:var(--ink);"><strong style="color:var(--accent);">${t('plan.action_label', {}, 'Action:')}</strong> ${escapeHtml(action)}</div>` : ''}
         ${acceptance ? `<div style="margin-top:var(--sp-1);font-size:var(--fs-2);"><strong>${t('plan.acceptance_label', {}, 'Acceptance:')}</strong> ${escapeHtml(acceptance)} ${ticket.acceptance?.type ? `(${escapeHtml(ticket.acceptance.type)})` : ''}</div>` : ''}
       </div>
@@ -300,7 +306,7 @@ async function showTicketDetailModal(projectId, tid, ctx) {
         await ctx.reloadCurrentView();
         return true;
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to update ticket'));
+        toast.error(tError(err));
         return false;
       }
     },
@@ -353,7 +359,7 @@ async function showCreateTicketModal(projectId, ctx) {
         await ctx.reloadCurrentView();
         return true;
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to create ticket'));
+        toast.error(tError(err));
         return false;
       }
     },

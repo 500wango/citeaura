@@ -3,7 +3,7 @@
  */
 
 import { analytics, projects } from '../api.js?v=3.7';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { gradeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
@@ -201,7 +201,7 @@ export default {
           ctx.pollActiveJobs();
           if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'deliver');
         } catch (err) {
-          toast.error(t(err.error, {}, err.detail || 'Failed to start delivery pack compilation'));
+          toast.error(tError(err));
         } finally {
           generateBtn.disabled = false;
         }
@@ -238,7 +238,7 @@ export default {
               );
               return true;
             } catch (err) {
-              toast.error(t(err.error, {}, err.detail || 'Could not create a client link'));
+              toast.error(tError(err));
               if (err.data?.url) {
                 const urlBox = document.getElementById('pack-share-url');
                 if (urlBox) urlBox.textContent = err.data.url;

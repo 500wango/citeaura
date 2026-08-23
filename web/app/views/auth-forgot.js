@@ -3,7 +3,7 @@
  */
 
 import { auth } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 
 export default {
@@ -56,7 +56,7 @@ export default {
         toast.success(t('auth.reset_email_sent', {}, 'Password reset instructions sent. Please check your inbox.'));
         ctx.navigate('#/login');
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to request password reset'));
+        toast.error(tError(err));
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<span>${t('auth.send_reset_link', {}, 'Send Reset Link')}</span>`;

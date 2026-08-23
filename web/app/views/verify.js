@@ -1,5 +1,5 @@
 import { projects } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
 import { escapeHtml } from '../safe-html.js';
@@ -87,7 +87,7 @@ export default {
         ctx.pollActiveJobs();
         if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'verify');
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || t('verify.queued_failed', {}, 'Failed to trigger verification')));
+        toast.error(tError(err, 'verify.queued_failed'));
       }
     });
   },

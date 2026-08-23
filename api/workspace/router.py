@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from api.adapters.engine import with_tenant_read_context
 from api.adapters.exceptions import GeoEngineError
-from api.adapters import prompt_research, workspace
+from api.adapters import prompt_research, sampling_modes, workspace
 from api.adapters.preflight import PreflightError, normalize_url
 from api.auth.deps import get_current_user, require_editor
 from api.billing.limits import check_sample_run
@@ -493,5 +493,6 @@ def import_product_surface_samples(
         "job_id": job.id,
         "date": metrics.get("date"),
         "sample_count": metrics.get("sample_count", 0),
-        "sampling_mode": "Manual · Product surface",
+        "sampling_mode": sampling_modes.MODE_MANUAL,
+        "sampling_mode_code": sampling_modes.CODE_MANUAL,
     }

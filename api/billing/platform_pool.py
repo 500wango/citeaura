@@ -86,6 +86,7 @@ def public_catalog():
             "engine_code": code,
             "engine_name": provider.get("name", code),
             "sampling_mode": sampling_modes.for_provider(provider),
+            "sampling_mode_code": sampling_modes.code_for_provider(provider),
             "unit_price_cny_fen": item["unit_price_cny_fen"],
         })
     return catalog

@@ -4,7 +4,7 @@
 
 import { projects, workspace } from '../api.js?v=3.5';
 import { openModal } from '../components/modal.js';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { samplingModeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
@@ -99,7 +99,7 @@ export default {
                           ${eng.model_id ? `<span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${escapeHtml(eng.model_id)}</span>` : ''}
                         </div>
                       </td>
-                      <td>${samplingModeBadge(eng.sampling_mode)}</td>
+                      <td>${samplingModeBadge(eng.sampling_mode_code || eng.sampling_mode)}</td>
                       <td data-num style="font-size:var(--fs-4);font-weight:700;color:var(--ink);">
                         ${eng.mention_rate !== null && eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : 'Unmeasured'}
                       </td>
@@ -253,7 +253,7 @@ export default {
                   <div class="sample-head">
                     <div style="display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;min-width:0;">
                       <strong class="sample-model-tag">${escapeHtml(s.platform_name || s.platform || 'AI Model')}</strong>
-                      ${samplingModeBadge(s.sample_mode === 'manual' || s.terminal === 'web' ? 'Manual - Product interface' : (s.search_enabled ? 'API - Search grounded' : 'API - Parametric knowledge'))}
+                      ${samplingModeBadge(s.sampling_mode_code || (s.sample_mode === 'manual' || s.terminal === 'web' ? 'manual' : (s.search_enabled ? 'search' : 'parametric')))}
                       ${mentionBadge}
                     </div>
                     <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${escapeHtml(s.date || '')}</span>
@@ -369,7 +369,7 @@ export default {
             ctx.navigate('#/questions');
             return;
           }
-          toast.error(t(err.error, {}, err.detail || 'Sampling task failed to start'));
+          toast.error(tError(err));
         } finally {
           sampleBtn.disabled = false;
         }
@@ -390,7 +390,7 @@ export default {
             if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'sample');
           }
         } catch (err) {
-          toast.error(t(err.error, {}, err.detail || 'Question gap sampling failed to start'));
+          toast.error(tError(err));
         } finally {
           gapBtn.disabled = false;
         }

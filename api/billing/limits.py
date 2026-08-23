@@ -49,6 +49,20 @@ def _job_sampled(job):
     return not bool(payload.get("no_sample") or payload.get("--no-sample"))
 
 
+def _count_sampled_jobs(db, *, project_id=None, tenant_id=None, created_from=None, created_to=None):
+    """按 `_job_sampled` 统计未失败的采样 Job，忽略 no_sample 管线。"""
+    query = db.query(Job).filter(Job.action.in_(SAMPLE_JOB_ACTIONS), Job.status != "failed")
+    if tenant_id is not None:
+        query = query.join(Project, Project.id == Job.project_id).filter(Project.tenant_id == tenant_id)
+    if project_id is not None:
+        query = query.filter(Job.project_id == project_id)
+    if created_from is not None:
+        query = query.filter(Job.created_at >= created_from)
+    if created_to is not None:
+        query = query.filter(Job.created_at < created_to)
+    return sum(1 for job in query.all() if _job_sampled(job))
+
+
 def activation_funnel(db: Session, tenant: Tenant) -> dict:
     """按已完成的真实工作区事实返回首次价值漏斗。"""
     registration_at = (
@@ -122,18 +136,11 @@ def reconcile_usage_counter(db: Session, tenant: Tenant, now=None):
         Project.archived_at.is_(None),
         Project.status != "archived",
     ).scalar() or 0
-    sample_runs = (
-        db.query(func.count(Job.id))
-        .join(Project, Project.id == Job.project_id)
-        .filter(
-            Project.tenant_id == tenant.id,
-            Job.action.in_(SAMPLE_JOB_ACTIONS),
-            Job.status != "failed",
-            Job.created_at >= month_start,
-            Job.created_at < next_month,
-        )
-        .scalar()
-        or 0
+    sample_runs = _count_sampled_jobs(
+        db,
+        tenant_id=tenant.id,
+        created_from=month_start,
+        created_to=next_month,
     )
     values = {
         "tenant_id": tenant.id,
@@ -212,25 +219,10 @@ def check_sample_run(db: Session, tenant: Tenant, project: Project):
     """检查单项目和整个试用生命周期的采样次数。"""
     if not _trial_active(tenant):
         return
-    count = (
-        db.query(func.count(Job.id))
-        .filter(Job.project_id == project.id, Job.action.in_(SAMPLE_JOB_ACTIONS), Job.status != "failed")
-        .scalar()
-        or 0
-    )
+    count = _count_sampled_jobs(db, project_id=project.id)
     if count >= TRIAL_SAMPLE_LIMIT_PER_PROJECT:
         _raise_limit(f"trial sample limit is {TRIAL_SAMPLE_LIMIT_PER_PROJECT} per project")
-    tenant_count = (
-        db.query(func.count(Job.id))
-        .join(Project, Project.id == Job.project_id)
-        .filter(
-            Project.tenant_id == tenant.id,
-            Job.action.in_(SAMPLE_JOB_ACTIONS),
-            Job.status != "failed",
-        )
-        .scalar()
-        or 0
-    )
+    tenant_count = _count_sampled_jobs(db, tenant_id=tenant.id)
     lifetime_limit = TRIAL_PROJECT_LIMIT * TRIAL_SAMPLE_LIMIT_PER_PROJECT
     if tenant_count >= lifetime_limit:
         _raise_limit(f"trial sample lifetime limit is {lifetime_limit} per workspace")
@@ -255,27 +247,16 @@ def usage(db: Session, tenant: Tenant) -> dict:
         Project.status != "archived",
     ).all()
     project_ids = [row[0] for row in projects]
-    sample_count = (
-        db.query(func.count(Job.id))
-        .join(Project, Project.id == Job.project_id)
-        .filter(
-            Project.tenant_id == tenant.id,
-            Job.action.in_(SAMPLE_JOB_ACTIONS),
-            Job.status != "failed",
-            Job.created_at >= month_start,
-            Job.created_at < next_month,
-        )
-        .scalar()
-        or 0
+    sample_count = _count_sampled_jobs(
+        db,
+        tenant_id=tenant.id,
+        created_from=month_start,
+        created_to=next_month,
     )
-    per_project = {}
-    for project_id in project_ids:
-        per_project[str(project_id)] = (
-            db.query(func.count(Job.id))
-            .filter(Job.project_id == project_id, Job.action.in_(SAMPLE_JOB_ACTIONS), Job.status != "failed")
-            .scalar()
-            or 0
-        )
+    per_project = {
+        str(project_id): _count_sampled_jobs(db, project_id=project_id)
+        for project_id in project_ids
+    }
     trial = tenant.plan == "trial"
     plan = PLANS.get(tenant.plan) or {}
     trial_ends_at = tenant.trial_ends_at
@@ -287,17 +268,7 @@ def usage(db: Session, tenant: Tenant) -> dict:
         if ends_at.tzinfo is None:
             ends_at = ends_at.replace(tzinfo=timezone.utc)
         trial_expired = datetime.now(timezone.utc) > ends_at
-    lifetime_sample_runs = (
-        db.query(func.count(Job.id))
-        .join(Project, Project.id == Job.project_id)
-        .filter(
-            Project.tenant_id == tenant.id,
-            Job.action.in_(SAMPLE_JOB_ACTIONS),
-            Job.status != "failed",
-        )
-        .scalar()
-        or 0
-    )
+    lifetime_sample_runs = _count_sampled_jobs(db, tenant_id=tenant.id)
     lifetime_limit = TRIAL_PROJECT_LIMIT * TRIAL_SAMPLE_LIMIT_PER_PROJECT if trial else None
     projects_limit = plan.get("projects")
     platform_sample_remaining = (

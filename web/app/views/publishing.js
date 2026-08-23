@@ -3,7 +3,7 @@
  */
 
 import { publishing } from '../api.js?v=3.4';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
@@ -130,7 +130,7 @@ function showPublisherModal(projectId, publisher, ctx) {
         ctx.navigate(`#/publishing?updated=${Date.now()}`);
         return true;
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Failed to save publishing settings'));
+        toast.error(tError(err));
         return false;
       }
     },

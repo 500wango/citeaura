@@ -3,7 +3,7 @@
  */
 
 import { analytics, auth } from '../api.js?v=3.8';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 
 export default {
@@ -114,7 +114,7 @@ export default {
           ctx.navigate('#/onboarding');
         }
       } catch (err) {
-        toast.error(t(err.error, {}, err.detail || 'Registration failed'));
+        toast.error(tError(err));
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<span>${t('auth.register_btn', {}, 'Create Workspace')}</span>`;

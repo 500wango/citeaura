@@ -3,7 +3,7 @@
  */
 
 import { analytics, projects } from '../api.js?v=3.8';
-import { t } from '../i18n.js';
+import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { escapeHtml } from '../safe-html.js';
 
@@ -174,7 +174,7 @@ export default {
           submitBtn.innerHTML = `<span>${t('onboard.start_measurement', {}, 'Initialize Brand Pipeline')}</span>`;
           return;
         }
-        toast.error(t(err.error, {}, err.detail || 'Failed to initialize brand'));
+        toast.error(tError(err));
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<span>${t('onboard.start_measurement', {}, 'Initialize Brand Pipeline')}</span>`;
       }
