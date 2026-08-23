@@ -27,6 +27,7 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'data-i18n="landing.mode_search"' in response.text
     assert 'data-i18n="landing.mode_manual"' in response.text
     assert 'class="nav-sign-in"' in response.text
+    assert '<a href="#tickets" data-i18n="nav.tickets">Action Tickets</a>' not in response.text
     assert 'href="/privacy"' in response.text
     assert 'href="/terms"' in response.text
     assert 'href="/about"' in response.text
@@ -101,6 +102,7 @@ def test_about_and_contact_pages_expose_provenance_and_real_support_channel():
 
     docs = client.get("/docs")
     assert docs.status_code == 200
+    assert 'href="/#tickets"' not in docs.text
     assert '"author": {' in docs.text
     assert "Maintained by CiteAura Editorial Team" in docs.text
 
