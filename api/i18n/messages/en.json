@@ -1248,5 +1248,11 @@
   "landing.tab_assets": "Deploy Assets",
   "landing.models_head": "Continuous Multi-Model Matrix Measurement",
   "landing.final_desc": "Start your 14-day free trial and set up your first brand workspace for evidence-based AI visibility work.",
-  "landing.final_secondary": "View setup preview"
+  "landing.final_secondary": "View setup preview",
+  "landing.plan_lite_summary": "One project, fast technical visibility baseline",
+  "landing.plan_lite_summary_annual": "About $31 / month billed annually",
+  "landing.plan_lite_1": "1 active project",
+  "landing.plan_lite_2": "Technical audit, tickets, and verification",
+  "landing.plan_lite_3": "BYOK sampling with transparent provider costs",
+  "landing.plan_lite_cta": "Start Lite"
 }

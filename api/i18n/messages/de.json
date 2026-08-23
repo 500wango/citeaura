@@ -1248,5 +1248,11 @@
   "landing.tab_assets": "Bereitstellungs-Assets",
   "landing.models_head": "Kontinuierliche Messung der Multi-Modell-Matrix",
   "landing.final_desc": "Starten Sie Ihre kostenlose 14-Tage-Testversion und richten Sie Ihren ersten Marken-Arbeitsbereich für evidenzbasierte KI-Sichtbarkeit ein.",
-  "landing.final_secondary": "Einrichtungsvorschau ansehen"
+  "landing.final_secondary": "Einrichtungsvorschau ansehen",
+  "landing.plan_lite_summary": "Ein Projekt, schnelle Baseline für technische Sichtbarkeit",
+  "landing.plan_lite_summary_annual": "Etwa 31 $ / Monat bei jährlicher Abrechnung",
+  "landing.plan_lite_1": "1 aktives Projekt",
+  "landing.plan_lite_2": "Technisches Audit, Tickets und Verifizierung",
+  "landing.plan_lite_3": "BYOK-Sampling mit transparenten Providerkosten",
+  "landing.plan_lite_cta": "Lite starten"
 }

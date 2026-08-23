@@ -1248,5 +1248,11 @@
   "landing.tab_assets": "デプロイ用アセット",
   "landing.models_head": "継続的なマルチモデルマトリクス測定",
   "landing.final_desc": "14日間の無料トライアルを開始し、エビデンスに基づくAI視認性向上のためのブランドワークスペースを開設しましょう。",
-  "landing.final_secondary": "設定プレビューを見る"
+  "landing.final_secondary": "設定プレビューを見る",
+  "landing.plan_lite_summary": "1プロジェクト、迅速な技術監査とAI視認性ベースラインの構築",
+  "landing.plan_lite_summary_annual": "年額請求で月額約31ドル",
+  "landing.plan_lite_1": "アクティブプロジェクト 1 件",
+  "landing.plan_lite_2": "技術監査、チケット、検証",
+  "landing.plan_lite_3": "BYOK サンプリング（プロバイダー直接課金・中間マージンなし）",
+  "landing.plan_lite_cta": "Lite を開始"
 }

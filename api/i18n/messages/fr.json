@@ -1248,5 +1248,11 @@
   "landing.tab_assets": "Actifs à déployer",
   "landing.models_head": "Mesure continue de la matrice multimodèle",
   "landing.final_desc": "Commencez votre essai gratuit de 14 jours et configurez votre premier espace de travail pour optimiser votre visibilité IA sur des bases factuelles.",
-  "landing.final_secondary": "Voir l'aperçu de configuration"
+  "landing.final_secondary": "Voir l'aperçu de configuration",
+  "landing.plan_lite_summary": "Un projet, référence rapide de visibilité technique",
+  "landing.plan_lite_summary_annual": "Environ 31 $ / mois facturé annuellement",
+  "landing.plan_lite_1": "1 projet actif",
+  "landing.plan_lite_2": "Audit technique, tickets et vérification",
+  "landing.plan_lite_3": "Échantillonnage BYOK avec coûts transparents des fournisseurs",
+  "landing.plan_lite_cta": "Commencer Lite"
 }
