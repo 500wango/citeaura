@@ -312,6 +312,12 @@ export default {
               <option value="chatgpt">ChatGPT Search</option>
               <option value="claude_web">Claude.ai</option>
               <option value="google_ai_overview">Google AI Overviews</option>
+              <option value="google_ai_mode">Google AI Mode</option>
+              <option value="copilot">Microsoft Copilot</option>
+              <option value="gemini_web">Gemini Web</option>
+              <option value="meta_ai">Meta AI</option>
+              <option value="you_com">You.com</option>
+              <option value="mistral_le_chat">Mistral Le Chat</option>
             </select>
           </div>
           <div class="field"><label>Question</label>

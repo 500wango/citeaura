@@ -147,6 +147,12 @@ MANUAL_ONLY = {
     "chatgpt": ("ChatGPT Search", "global"),
     "claude_web": ("Claude Web Search", "global"),
     "google_ai_overview": ("Google AI Overviews", "global"),
+    "google_ai_mode": ("Google AI Mode", "global"),
+    "copilot": ("Microsoft Copilot", "global"),
+    "gemini_web": ("Gemini Web", "global"),
+    "meta_ai": ("Meta AI", "global"),
+    "you_com": ("You.com", "global"),
+    "mistral_le_chat": ("Mistral Le Chat", "global"),
 }
 
 MAX_IMPORT_BYTES = 4_000_000

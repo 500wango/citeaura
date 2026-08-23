@@ -2,7 +2,7 @@
 
 import re
 import unicodedata
-from api.i18n import resolve
+from api.i18n import SUPPORTED_LOCALES, resolve
 
 
 _CJK_PUNCTUATION = str.maketrans({
@@ -155,7 +155,7 @@ def localize_ticket(ticket):
     package = ticket.get("package") or ticket.get("category")
     owner = ticket.get("owner") or ticket.get("role")
 
-    for locale in ("en",):
+    for locale in SUPPORTED_LOCALES:
         result[f"title_{locale}"] = _localize_text(title, locale)
         result[f"desc_{locale}"] = _localize_text(desc, locale)
         if why:
@@ -173,7 +173,7 @@ def localize_ticket(ticket):
     acc = ticket.get("acceptance")
     if isinstance(acc, dict) and "desc" in acc:
         acc_copy = dict(acc)
-        for locale in ("en",):
+        for locale in SUPPORTED_LOCALES:
             acc_copy[f"desc_{locale}"] = _localize_text(acc.get("desc"), locale)
         result["acceptance"] = acc_copy
 

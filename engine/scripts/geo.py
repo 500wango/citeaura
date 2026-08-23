@@ -29,9 +29,13 @@ except ModuleNotFoundError as e:
 
 DEFAULT_PLATFORMS = {
     "cn": ["glm", "doubao", "deepseek", "kimi", "minimax", "nano_ai", "baidu"],
-    "global": ["gemini", "openai", "claude", "grok", "perplexity", "deepseek", "chatgpt"],
+    "global": ["gemini", "openai", "claude", "grok", "perplexity", "deepseek", "chatgpt",
+               "claude_web", "google_ai_overview", "google_ai_mode", "copilot", "gemini_web",
+               "meta_ai", "you_com", "mistral_le_chat"],
     "both": ["glm", "doubao", "deepseek", "kimi", "minimax", "nano_ai", "baidu",
-             "gemini", "openai", "claude", "grok", "perplexity", "chatgpt"],
+             "gemini", "openai", "claude", "grok", "perplexity", "chatgpt", "claude_web",
+             "google_ai_overview", "google_ai_mode", "copilot", "gemini_web", "meta_ai",
+             "you_com", "mistral_le_chat"],
 }
 
 

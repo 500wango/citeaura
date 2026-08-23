@@ -3,11 +3,27 @@
  * Supports namespaced keys (e.g. 'overview.title', 'nav.diagnostics') with English resolution.
  */
 
-export const SUPPORTED_LOCALES = ['en'];
+export const SUPPORTED_LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
 export const DEFAULT_LOCALE = 'en';
 
 const HTML_LANG_MAP = {
   en: 'en',
+  zh: 'zh-CN',
+  ja: 'ja',
+  ko: 'ko',
+  es: 'es',
+  fr: 'fr',
+  de: 'de',
+};
+
+export const LOCALE_LABELS = {
+  en: 'English',
+  zh: '简体中文',
+  ja: '日本語',
+  ko: '한국어',
+  es: 'Español',
+  fr: 'Français',
+  de: 'Deutsch',
 };
 
 let currentLocale = 'en';
@@ -15,12 +31,29 @@ let currentCatalog = {};
 let fallbackCatalog = {};
 const subscribers = [];
 
+function normalizeLocale(locale) {
+  const value = String(locale || '').trim().toLowerCase().replace('_', '-');
+  const primary = value.split('-', 1)[0];
+  return SUPPORTED_LOCALES.includes(primary) ? primary : DEFAULT_LOCALE;
+}
+
 export function detectLocale() {
-  return 'en';
+  const query = new URLSearchParams(window.location.search).get('lang');
+  if (query) return normalizeLocale(query);
+  try {
+    const stored = localStorage.getItem('ulang');
+    if (stored) return normalizeLocale(stored);
+  } catch (e) {}
+  const browser = Array.isArray(navigator.languages) ? navigator.languages : [navigator.language];
+  for (const value of browser) {
+    const locale = normalizeLocale(value);
+    if (locale !== DEFAULT_LOCALE || String(value || '').toLowerCase().startsWith('en')) return locale;
+  }
+  return DEFAULT_LOCALE;
 }
 
 export function getLocale() {
-  return 'en';
+  return currentLocale;
 }
 
 export function subscribeLocale(callback) {
@@ -36,29 +69,32 @@ function notifySubscribers() {
 }
 
 export async function loadCatalogs(locale = 'en') {
-  currentLocale = 'en';
+  currentLocale = normalizeLocale(locale);
   try {
-    localStorage.setItem('ulang', 'en');
+    localStorage.setItem('ulang', currentLocale);
   } catch (e) {}
 
-  document.documentElement.lang = 'en';
+  document.documentElement.lang = HTML_LANG_MAP[currentLocale] || 'en';
 
   try {
-    const res = await fetch('/i18n/en.json');
-    if (res.ok) {
-      currentCatalog = await res.json();
-      fallbackCatalog = currentCatalog;
-    }
+    const [fallbackRes, localeRes] = await Promise.all([
+      fetch('/i18n/en.json'),
+      fetch(`/i18n/${currentLocale}.json`),
+    ]);
+    fallbackCatalog = fallbackRes.ok ? await fallbackRes.json() : {};
+    currentCatalog = currentLocale === DEFAULT_LOCALE
+      ? fallbackCatalog
+      : (localeRes.ok ? await localeRes.json() : {});
   } catch (err) {
-    console.warn('Failed to load English catalog, using in-memory fallbacks', err);
+    console.warn('Failed to load locale catalog, using in-memory fallbacks', err);
   }
 
-  notifySubscribers();
+  notifySubscribers(currentLocale);
   return currentCatalog;
 }
 
-export async function setLocale(locale = 'en') {
-  await loadCatalogs('en');
+export async function setLocale(locale = DEFAULT_LOCALE) {
+  await loadCatalogs(locale);
 }
 
 /**
@@ -89,6 +125,7 @@ export function t(key, params = {}, fallback = '') {
 
 export default {
   SUPPORTED_LOCALES,
+  LOCALE_LABELS,
   DEFAULT_LOCALE,
   detectLocale,
   getLocale,

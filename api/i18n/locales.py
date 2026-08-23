@@ -1,9 +1,25 @@
 """Supported product locales and normalization rules."""
 
-SUPPORTED_LOCALES = ("en",)
+SUPPORTED_LOCALES = ("en", "zh", "ja", "ko", "es", "fr", "de")
 DEFAULT_LOCALE = "en"
-LOCALE_HTML_LANG = {"en": "en"}
-LOCALE_LABELS = {"en": "EN"}
+LOCALE_HTML_LANG = {
+    "en": "en",
+    "zh": "zh-CN",
+    "ja": "ja",
+    "ko": "ko",
+    "es": "es",
+    "fr": "fr",
+    "de": "de",
+}
+LOCALE_LABELS = {
+    "en": "English",
+    "zh": "简体中文",
+    "ja": "日本語",
+    "ko": "한국어",
+    "es": "Español",
+    "fr": "Français",
+    "de": "Deutsch",
+}
 
 
 def normalize_locale(value, default=DEFAULT_LOCALE):

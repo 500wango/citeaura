@@ -3,7 +3,7 @@
  */
 
 import { auth, projects, onAuthFailure } from './api.js?v=3.5';
-import { t, loadCatalogs, getLocale, setLocale } from './i18n.js';
+import { t, loadCatalogs, getLocale, setLocale, detectLocale, SUPPORTED_LOCALES, LOCALE_LABELS } from './i18n.js';
 import { toast } from './components/toast.js';
 import { setSafeHtml } from './safe-html.js';
 import { openTelemetryModal } from './components/telemetry-modal.js?v=2.6';
@@ -447,6 +447,10 @@ function renderAppShell() {
           </div>
 
           <div class="header-right">
+            <label class="sr-only" for="app-locale">${t('lang.label', {}, 'Language')}</label>
+            <select id="app-locale" class="input" style="width:auto;min-width:116px;padding:6px 28px 6px 9px;font-size:var(--fs-2);" aria-label="${t('lang.label', {}, 'Language')}">
+              ${SUPPORTED_LOCALES.map((locale) => `<option value="${locale}" ${locale === getLocale() ? 'selected' : ''}>${LOCALE_LABELS[locale]}</option>`).join('')}
+            </select>
             <!-- Docs / Help Guide -->
             <a href="/docs" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-sm" style="display:flex;align-items:center;gap:6px;text-decoration:none;font-weight:600;color:var(--ink-2);" title="Open Documentation & Getting Started Guide">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -535,6 +539,12 @@ function bindAppShellEvents() {
       localStorage.setItem('utheme', nextTheme);
     } catch (e) {}
   });
+
+  document.getElementById('app-locale')?.addEventListener('change', async (event) => {
+    const locale = event.target.value;
+    await setLocale(locale);
+    await renderApp();
+  });
 }
 
 /* ----------  ---------- */
@@ -622,7 +632,7 @@ document.addEventListener('click', () => {
 /* ----------  ---------- */
 async function init() {
   normalizeLegacyAuthLink();
-  await loadCatalogs();
+  await loadCatalogs(detectLocale());
 
   onAuthFailure(() => {
     state.clearSession();

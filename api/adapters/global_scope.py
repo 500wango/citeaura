@@ -17,7 +17,8 @@ DOMESTIC_PLATFORM_CODES = frozenset((
 ))
 GLOBAL_PLATFORM_CODES = frozenset((
     "gemini", "openai", "claude", "grok", "perplexity", "deepseek",
-    "chatgpt", "claude_web", "google_ai_overview",
+    "chatgpt", "claude_web", "google_ai_overview", "google_ai_mode", "copilot",
+    "gemini_web", "meta_ai", "you_com", "mistral_le_chat",
 ))
 
 GROUP_NAMES = {
