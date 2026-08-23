@@ -1,4 +1,4 @@
-/* CiteAura landing interactions: English-only locale, theme, pricing, and guided workspace preview. */
+/* CiteAura landing interactions: locale, theme, pricing, and guided workspace preview. */
 fetch('/api/v1/events/landing', { method: 'POST', credentials: 'include', headers: { Accept: 'application/json' } }).catch(() => {});
 
 function trackPublicEvent(name, properties) {
@@ -20,15 +20,33 @@ function escapeHtml(value) {
   'use strict';
 
   var THEME_COLORS = { light: '#f7f9fa', dark: '#15181e' };
-  var state = { locale: 'en', theme: 'light', billing: 'monthly', catalog: {}, activeDomain: 'yourbrand.com' };
+  var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
+  var state = { locale: 'en', theme: 'light', billing: 'monthly', catalog: {}, fallbackCatalog: {}, activeDomain: 'yourbrand.com' };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 
   /* ================================================================
-      English-only product locale
+      Product locale
      ================================================================ */
+  function normalizeLocale(value) {
+    var raw = String(value || '').toLowerCase().replace('_', '-');
+    var primary = raw.split('-')[0];
+    return LOCALES.indexOf(primary) >= 0 ? primary : 'en';
+  }
+
   function detectLocale() {
+    var query = new URLSearchParams(location.search).get('lang');
+    if (query) return normalizeLocale(query);
+    try {
+      var stored = localStorage.getItem('ulang');
+      if (stored) return normalizeLocale(stored);
+    } catch (e) {}
+    var languages = navigator.languages || [navigator.language];
+    for (var i = 0; i < languages.length; i += 1) {
+      var locale = normalizeLocale(languages[i]);
+      if (locale !== 'en' || String(languages[i] || '').toLowerCase().indexOf('en') === 0) return locale;
+    }
     return 'en';
   }
 
@@ -38,7 +56,9 @@ function escapeHtml(value) {
 
   function applyI18n() {
     $$('[data-i18n]').forEach(function (node) {
-      var value = catalogValue(node.getAttribute('data-i18n'));
+      var key = node.getAttribute('data-i18n');
+      var value = catalogValue(key);
+      if (value == null) value = state.fallbackCatalog[key];
       if (value != null) {
         if (node.tagName === 'TITLE') { document.title = value; return; }
         node.textContent = value;
@@ -47,29 +67,43 @@ function escapeHtml(value) {
     var title = catalogValue('landing.title');
     if (title) document.title = title;
     $$('[data-i18n-content]').forEach(function (node) {
-      var value = catalogValue(node.getAttribute('data-i18n-content'));
+      var key = node.getAttribute('data-i18n-content');
+      var value = catalogValue(key);
+      if (value == null) value = state.fallbackCatalog[key];
       if (value != null) node.setAttribute('content', value);
     });
     $$('[data-i18n-aria]').forEach(function (node) {
-      var value = catalogValue(node.getAttribute('data-i18n-aria'));
+      var key = node.getAttribute('data-i18n-aria');
+      var value = catalogValue(key);
+      if (value == null) value = state.fallbackCatalog[key];
       if (value != null) node.setAttribute('aria-label', value);
     });
     $$('[data-i18n-alt]').forEach(function (node) {
-      var value = catalogValue(node.getAttribute('data-i18n-alt'));
+      var key = node.getAttribute('data-i18n-alt');
+      var value = catalogValue(key);
+      if (value == null) value = state.fallbackCatalog[key];
       if (value != null) node.setAttribute('alt', value);
     });
     applyBilling();
     renderThemeControl();
   }
 
-  function setLocale() {
-    state.locale = 'en';
-    document.documentElement.lang = 'en';
-    try { localStorage.setItem('ulang', 'en'); } catch (e) {}
-    fetch('/i18n/en.json')
-      .then(function (r) { return r.ok ? r.json() : {}; })
-      .then(function (data) { state.catalog = data || {}; applyI18n(); })
-      .catch(function () { state.catalog = {}; applyI18n(); });
+  function setLocale(locale) {
+    state.locale = normalizeLocale(locale);
+    document.documentElement.lang = state.locale === 'zh' ? 'zh-CN' : state.locale;
+    try { localStorage.setItem('ulang', state.locale); } catch (e) {}
+    var selector = $('#site-locale');
+    if (selector) selector.value = state.locale;
+    Promise.all([
+      fetch('/i18n/en.json').then(function (r) { return r.ok ? r.json() : {}; }),
+      fetch('/i18n/' + state.locale + '.json').then(function (r) { return r.ok ? r.json() : {}; }),
+    ])
+      .then(function (catalogs) {
+        state.fallbackCatalog = catalogs[0] || {};
+        state.catalog = state.locale === 'en' ? state.fallbackCatalog : (catalogs[1] || {});
+        applyI18n();
+      })
+      .catch(function () { state.catalog = {}; state.fallbackCatalog = {}; applyI18n(); });
   }
 
   /* ================================================================
@@ -134,6 +168,12 @@ function escapeHtml(value) {
         toggle.setAttribute('aria-expanded', 'false');
       });
     });
+  }
+
+  function initLocale() {
+    var selector = $('#site-locale');
+    if (!selector) return;
+    selector.addEventListener('change', function () { setLocale(selector.value); });
   }
 
   function initHeaderScroll() {
@@ -203,145 +243,10 @@ function escapeHtml(value) {
   /* ================================================================
      Hero
      ================================================================ */
-  var TYPED_SENTENCES = {
-    en: [
-      'Audit citations across 6 BYOK engines plus custom endpoints.',
-      'Turn AI audits into 13 actionable engineering tickets.',
-      'Close knowledge gaps and competitor blind spots.',
-      'Review before and after evidence with repeatable verification runs.',
-      'Export client-ready white-label delivery packs.'
-    ]
-  };
-
-  function initTypewriter() {
-    var el = $('.hero-typed');
-    if (!el) return;
-    var sentences = TYPED_SENTENCES[state.locale] || TYPED_SENTENCES.en;
-    var sentIdx = 0;
-    var charIdx = 0;
-    var isDeleting = false;
-    var speed = 35;
-    var pauseEnd = 2200;
-    var pauseStart = 500;
-
-    function tick() {
-      var current = sentences[sentIdx];
-      if (!isDeleting) {
-        charIdx++;
-        el.textContent = current.substring(0, charIdx);
-        if (charIdx === current.length) {
-          isDeleting = true;
-          setTimeout(tick, pauseEnd);
-          return;
-        }
-        speed = 25 + Math.random() * 20;
-      } else {
-        charIdx--;
-        el.textContent = current.substring(0, charIdx);
-        if (charIdx === 0) {
-          isDeleting = false;
-          sentIdx = (sentIdx + 1) % sentences.length;
-          setTimeout(tick, pauseStart);
-          return;
-        }
-        speed = 15;
-      }
-      setTimeout(tick, speed);
-    }
-    setTimeout(tick, 1000);
-  }
-
-  /* ================================================================
+/* ================================================================
      Hero  (Canvas Particle & Constellation)
      ================================================================ */
-  function initParticles() {
-    var canvas = $('.hero-particles');
-    if (!canvas || !canvas.getContext) return;
-    var ctx = canvas.getContext('2d');
-    var particles = [];
-    var PARTICLE_COUNT = 45;
-    var MAX_DIST = 120;
-    var animId;
-    var mouse = { x: -1000, y: -1000 };
-
-    function resize() {
-      var hero = canvas.parentElement;
-      if (!hero) return;
-      canvas.width = hero.offsetWidth;
-      canvas.height = hero.offsetHeight;
-    }
-
-    function createParticle() {
-      return {
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        r: 1.5 + Math.random() * 2,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        hue: Math.random() > 0.4 ? 196 : 260
-      };
-    }
-
-    function init() {
-      resize();
-      particles = [];
-      for (var i = 0; i < PARTICLE_COUNT; i++) particles.push(createParticle());
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      var dpr = window.devicePixelRatio || 1;
-
-      // 
-      for (var i = 0; i < particles.length; i++) {
-        var p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0) p.x = canvas.width;
-        if (p.x > canvas.width) p.x = 0;
-        if (p.y < 0) p.y = canvas.height;
-        if (p.y > canvas.height) p.y = 0;
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = 'oklch(0.65 0.14 ' + p.hue + ' / 0.45)';
-        ctx.fill();
-
-        for (var j = i + 1; j < particles.length; j++) {
-          var p2 = particles[j];
-          var dx = p.x - p2.x;
-          var dy = p.y - p2.y;
-          var dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < MAX_DIST) {
-            var alpha = (1 - dist / MAX_DIST) * 0.2;
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = 'oklch(0.65 0.14 ' + p.hue + ' / ' + alpha + ')';
-            ctx.lineWidth = 0.8;
-            ctx.stroke();
-          }
-        }
-      }
-      animId = requestAnimationFrame(draw);
-    }
-
-    init();
-    draw();
-    window.addEventListener('resize', resize, { passive: true });
-    window.addEventListener('mousemove', function (e) {
-      var rect = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - rect.left;
-      mouse.y = e.clientY - rect.top;
-    }, { passive: true });
-
-    document.addEventListener('visibilitychange', function () {
-      if (document.hidden) cancelAnimationFrame(animId);
-      else draw();
-    });
-  }
-
-  /* ================================================================
+/* ================================================================
       Example workspace preview
      ================================================================ */
   var PREVIEW_BARS = {
@@ -550,22 +455,7 @@ function escapeHtml(value) {
   }
 
   /* ================================================================
-      (Mouse Spotlight)
-     ================================================================ */
-  function initMouseGlow() {
-    var cards = $$('.price-card, .operations-list > div, .truth-pillar-card, .ticket-full-card, .workflow-card');
-    cards.forEach(function (card) {
-      card.addEventListener('mousemove', function (e) {
-        var rect = card.getBoundingClientRect();
-        var x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1);
-        var y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1);
-        card.style.setProperty('--mouse-x', x + '%');
-        card.style.setProperty('--mouse-y', y + '%');
-      });
-    });
-  }
-
-  /* ================================================================
+      /* ================================================================
      
      ================================================================ */
   function init() {
@@ -574,11 +464,9 @@ function escapeHtml(value) {
     initHeaderScroll();
     initBilling();
     initReveal();
-    initTypewriter();
-    initParticles();
     initSimulator();
-    initMouseGlow();
-    setLocale();
+    initLocale();
+    setLocale(detectLocale());
   }
 
   if (document.readyState === 'loading') {

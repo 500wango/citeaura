@@ -1,67 +1,66 @@
-/* CiteAura  token ——  /  /  /  / 。
-   ：:root ，[data-theme="dark"] 。 OKLCH。 */
+/* CiteAura design tokens —— Clay 暖纸/陶土色系。明暗两套，OKLCH→hex 已固化。 */
 
 :root {
   color-scheme: light;
 
-  /* ---- ： teal ---- */
-  --accent: oklch(0.52 0.10 196);
-  --accent-strong: oklch(0.45 0.095 196);
-  --accent-soft: oklch(0.945 0.025 196);
-  --accent-line: oklch(0.82 0.05 196);
-  --on-accent: oklch(0.99 0.005 196);
+  /* ---- 主色：Clay 陶土 ---- */
+  --accent: #b0552a;
+  --accent-strong: #96431f;
+  --accent-soft: #f6e7dc;
+  --accent-line: #e0bfa8;
+  --on-accent: #ffffff;
 
-  /* ----  ---- */
-  --page: oklch(0.984 0.005 205);
-  --surface: oklch(0.997 0.002 205);
-  --deep: oklch(0.962 0.007 205);
-  --ink: oklch(0.24 0.02 212);
-  --ink-2: oklch(0.40 0.018 212);
-  --muted: oklch(0.50 0.015 212);
-  --faint: oklch(0.60 0.012 212);
-  --line: oklch(0.925 0.007 205);
-  --divider: oklch(0.885 0.008 205);
+  /* ---- 中性：暖纸 ---- */
+  --page: #f8f5ef;
+  --surface: #fffdf9;
+  --deep: #efe9de;
+  --ink: #2b2620;
+  --ink-2: #544a3c;
+  --muted: #7d7160;
+  --faint: #a39683;
+  --line: #e5ded1;
+  --divider: #d2c7b4;
 
-  /* ----  ---- */
-  --good: oklch(0.55 0.11 165);
-  --good-soft: oklch(0.94 0.03 165);
-  --warn: oklch(0.58 0.12 68);
-  --warn-soft: oklch(0.95 0.04 82);
-  --bad: oklch(0.54 0.17 27);
-  --bad-soft: oklch(0.945 0.03 27);
+  /* ---- 语义色（暖调）---- */
+  --good: #3e7d5a;
+  --good-soft: #e6f1ea;
+  --warn: #b0700f;
+  --warn-soft: #f7ecd9;
+  --bad: #bf4043;
+  --bad-soft: #f7e4e4;
   --info: var(--accent);
   --info-soft: var(--accent-soft);
 
-  /* ---- （，） ---- */
-  --chart-1: oklch(0.60 0.11 195);
-  --chart-2: oklch(0.70 0.13 70);
-  --chart-3: oklch(0.55 0.11 250);
-  --chart-4: oklch(0.60 0.15 15);
-  --chart-5: oklch(0.62 0.12 150);
-  --chart-6: oklch(0.52 0.11 300);
+  /* ---- 图表（暖调序列）---- */
+  --chart-1: #b0552a;
+  --chart-2: #8a6d3b;
+  --chart-3: #3e7d5a;
+  --chart-4: #5b6ee1;
+  --chart-5: #9c4a4a;
+  --chart-6: #6b5b8e;
 
-  /* ----  ---- */
-  --sh-sm: 0 1px 2px oklch(0.24 0.02 212 / 0.06), 0 0 0 1px oklch(0.24 0.02 212 / 0.04);
-  --sh-md: 0 4px 16px oklch(0.24 0.02 212 / 0.10), 0 0 0 1px oklch(0.24 0.02 212 / 0.05);
-  --sh-lg: 0 16px 48px oklch(0.24 0.02 212 / 0.16), 0 0 0 1px oklch(0.24 0.02 212 / 0.06);
+  /* ---- 阴影（暖黑）---- */
+  --sh-sm: 0 1px 2px rgba(43, 38, 32, 0.06), 0 0 0 1px rgba(43, 38, 32, 0.04);
+  --sh-md: 0 4px 16px rgba(43, 38, 32, 0.10), 0 0 0 1px rgba(43, 38, 32, 0.05);
+  --sh-lg: 0 16px 48px rgba(43, 38, 32, 0.14), 0 0 0 1px rgba(43, 38, 32, 0.06);
 
-  /* ----  ---- */
+  /* ---- 字体 ---- */
   --font-display: "Space Grotesk", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "Yu Gothic", "Noto Sans JP", sans-serif;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "Yu Gothic", "Noto Sans JP", "Meiryo", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "PingFang SC", "Noto Sans CJK SC", monospace;
 
-  /* ---- （ ≈ 1.3） ---- */
-  --fs-1: 0.75rem;    /* 12px / */
-  --fs-2: 0.8125rem;  /* 13px  */
-  --fs-3: 0.875rem;   /* 14px  */
-  --fs-4: 1rem;       /* 16px  */
-  --fs-5: 1.25rem;    /* 20px */
-  --fs-6: 1.5625rem;  /* 25px */
-  --fs-7: 2rem;       /* 32px */
-  --fs-8: 2.625rem;   /* 42px */
-  --fs-9: 3.5rem;     /* 56px  */
+  /* ---- 字阶 ---- */
+  --fs-1: 0.75rem;
+  --fs-2: 0.8125rem;
+  --fs-3: 0.875rem;
+  --fs-4: 1rem;
+  --fs-5: 1.25rem;
+  --fs-6: 1.5625rem;
+  --fs-7: 2rem;
+  --fs-8: 2.625rem;
+  --fs-9: 3.5rem;
 
-  /* ---- （4 ：1-4-9 ） ---- */
+  /* ---- 间距（4 基准）---- */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -75,20 +74,20 @@
   --sp-11: 96px;
   --sp-12: 144px;
 
-  /* ----  ---- */
+  /* ---- 圆角 ---- */
   --r-sm: 6px;
   --r-md: 8px;
   --r-lg: 12px;
   --r-xl: 16px;
   --r-pill: 999px;
 
-  /* ----  ---- */
+  /* ---- 布局 ---- */
   --shell: 1200px;
   --header-h: 64px;
   --rail-w: 76px;
   --panel-w: 232px;
 
-  /* ----  ---- */
+  /* ---- 动效 ---- */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -97,82 +96,76 @@
   --dur-slow: 400ms;
   --dur-hero: 800ms;
 
-  /* ----  ---- */
-  --grad-hero: radial-gradient(120% 120% at 50% -10%, oklch(0.96 0.035 196 / 0.8) 0%, oklch(0.98 0.015 250 / 0.5) 45%, var(--page) 100%);
-  --grad-accent: linear-gradient(135deg, oklch(0.48 0.14 196), oklch(0.52 0.16 265));
-  --grad-accent-vivid: linear-gradient(135deg, oklch(0.55 0.18 190) 0%, oklch(0.52 0.20 260) 50%, oklch(0.58 0.18 310) 100%);
-  --grad-card-hover: linear-gradient(135deg, oklch(0.52 0.12 196 / 0.06), oklch(0.55 0.14 260 / 0.06));
-  --grad-glow: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), oklch(0.52 0.14 196 / 0.10), transparent 45%);
-  --grad-mesh: radial-gradient(at 10% 20%, oklch(0.52 0.14 196 / 0.15) 0px, transparent 50%),
-               radial-gradient(at 90% 10%, oklch(0.55 0.18 260 / 0.12) 0px, transparent 50%),
-               radial-gradient(at 50% 80%, oklch(0.60 0.16 160 / 0.10) 0px, transparent 50%);
+  /* ---- 装饰变量（名称保留供 app 引用，值已扁平化）---- */
+  --grad-hero: radial-gradient(90% 60% at 50% -10%, rgba(176, 85, 42, 0.05), transparent 70%);
+  --grad-accent: linear-gradient(135deg, #b0552a, #b0552a);
+  --grad-accent-vivid: linear-gradient(135deg, #b0552a, #96431f);
+  --grad-card-hover: linear-gradient(135deg, rgba(176, 85, 42, 0.05), rgba(176, 85, 42, 0.03));
+  --grad-glow: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(176, 85, 42, 0.06), transparent 45%);
+  --grad-mesh: none;
 
-  /* ----  ---- */
-  --glass-bg: color-mix(in oklch, var(--page) 75%, transparent);
-  --glass-panel: color-mix(in oklch, var(--surface) 80%, transparent);
-  --glass-border: color-mix(in oklch, var(--divider) 60%, transparent);
-  --glass-border-glow: linear-gradient(135deg, oklch(0.52 0.14 196 / 0.4), oklch(0.55 0.16 260 / 0.15) 50%, transparent);
+  --glass-bg: var(--page);
+  --glass-panel: var(--surface);
+  --glass-border: var(--line);
+  --glass-border-glow: none;
 
-  /* ---- / ---- */
-  --glow-dot: oklch(0.52 0.14 196 / 0.20);
-  --glow-dot-2: oklch(0.55 0.18 260 / 0.16);
-  --glow-dot-3: oklch(0.60 0.16 160 / 0.14);
+  --glow-dot: rgba(176, 85, 42, 0.18);
+  --glow-dot-2: rgba(176, 85, 42, 0.12);
+  --glow-dot-3: rgba(62, 125, 90, 0.14);
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --accent: oklch(0.74 0.12 192);
-  --accent-strong: oklch(0.82 0.12 192);
-  --accent-soft: oklch(0.28 0.05 196);
-  --accent-line: oklch(0.42 0.07 196);
-  --on-accent: oklch(0.14 0.02 196);
+  --accent: #e08a5e;
+  --accent-strong: #eba078;
+  --accent-soft: #33201a;
+  --accent-line: #5c3520;
+  --on-accent: #2a130a;
 
-  --page: oklch(0.15 0.015 220);
-  --surface: oklch(0.19 0.018 220);
-  --deep: oklch(0.12 0.012 220);
-  --ink: oklch(0.96 0.006 210);
-  --ink-2: oklch(0.85 0.010 210);
-  --muted: oklch(0.72 0.012 210);
-  --faint: oklch(0.58 0.012 210);
-  --line: oklch(0.26 0.015 220);
-  --divider: oklch(0.32 0.016 220);
+  --page: #181512;
+  --surface: #201c17;
+  --deep: #282219;
+  --ink: #f1ece4;
+  --ink-2: #d0c6b6;
+  --muted: #9d917e;
+  --faint: #6e6455;
+  --line: #2f2921;
+  --divider: #473e30;
 
-  --good: oklch(0.76 0.14 165);
-  --good-soft: oklch(0.28 0.06 165);
-  --warn: oklch(0.80 0.13 78);
-  --warn-soft: oklch(0.30 0.06 75);
-  --bad: oklch(0.72 0.16 25);
-  --bad-soft: oklch(0.28 0.07 25);
+  --good: #6fbf8f;
+  --good-soft: #1d2e24;
+  --warn: #dfa940;
+  --warn-soft: #30260f;
+  --bad: #e0777a;
+  --bad-soft: #341c1c;
 
-  --chart-1: oklch(0.74 0.12 195);
-  --chart-2: oklch(0.80 0.14 72);
-  --chart-3: oklch(0.72 0.13 250);
-  --chart-4: oklch(0.74 0.15 15);
-  --chart-5: oklch(0.76 0.13 150);
-  --chart-6: oklch(0.70 0.12 300);
+  --chart-1: #e08a5e;
+  --chart-2: #c9a55e;
+  --chart-3: #6fbf8f;
+  --chart-4: #8b97ec;
+  --chart-5: #d97f7f;
+  --chart-6: #a493c9;
 
-  --sh-sm: 0 1px 2px oklch(0 0 0 / 0.6), 0 0 0 1px oklch(1 0 0 / 0.08);
-  --sh-md: 0 4px 20px oklch(0 0 0 / 0.65), 0 0 0 1px oklch(1 0 0 / 0.10);
-  --sh-lg: 0 16px 52px oklch(0 0 0 / 0.75), 0 0 0 1px oklch(1 0 0 / 0.12);
+  --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --sh-md: 0 4px 20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --sh-lg: 0 16px 52px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.10);
 
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
-  --grad-hero: radial-gradient(120% 120% at 50% -10%, oklch(0.25 0.06 196 / 0.9) 0%, oklch(0.18 0.04 260 / 0.6) 45%, var(--page) 100%);
-  --grad-accent: linear-gradient(135deg, oklch(0.74 0.12 192), oklch(0.72 0.15 260));
-  --grad-accent-vivid: linear-gradient(135deg, oklch(0.78 0.14 190) 0%, oklch(0.74 0.18 260) 50%, oklch(0.80 0.16 310) 100%);
-  --grad-card-hover: linear-gradient(135deg, oklch(0.74 0.12 192 / 0.08), oklch(0.72 0.15 260 / 0.08));
-  --grad-glow: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), oklch(0.74 0.12 192 / 0.12), transparent 45%);
-  --grad-mesh: radial-gradient(at 10% 20%, oklch(0.74 0.12 192 / 0.18) 0px, transparent 50%),
-               radial-gradient(at 90% 10%, oklch(0.72 0.16 260 / 0.15) 0px, transparent 50%),
-               radial-gradient(at 50% 80%, oklch(0.76 0.14 165 / 0.12) 0px, transparent 50%);
+  --grad-hero: radial-gradient(90% 60% at 50% -10%, rgba(224, 138, 94, 0.06), transparent 70%);
+  --grad-accent: linear-gradient(135deg, #e08a5e, #e08a5e);
+  --grad-accent-vivid: linear-gradient(135deg, #e08a5e, #c96f43);
+  --grad-card-hover: linear-gradient(135deg, rgba(224, 138, 94, 0.07), rgba(224, 138, 94, 0.04));
+  --grad-glow: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(224, 138, 94, 0.07), transparent 45%);
+  --grad-mesh: none;
 
-  --glass-bg: color-mix(in oklch, var(--page) 70%, transparent);
-  --glass-panel: color-mix(in oklch, var(--surface) 75%, transparent);
-  --glass-border: color-mix(in oklch, var(--divider) 45%, transparent);
-  --glass-border-glow: linear-gradient(135deg, oklch(0.74 0.12 192 / 0.5), oklch(0.72 0.15 260 / 0.25) 50%, transparent);
+  --glass-bg: var(--page);
+  --glass-panel: var(--surface);
+  --glass-border: var(--line);
+  --glass-border-glow: none;
 
-  --glow-dot: oklch(0.74 0.12 192 / 0.22);
-  --glow-dot-2: oklch(0.72 0.15 260 / 0.18);
-  --glow-dot-3: oklch(0.76 0.14 165 / 0.16);
+  --glow-dot: rgba(224, 138, 94, 0.18);
+  --glow-dot-2: rgba(224, 138, 94, 0.12);
+  --glow-dot-3: rgba(111, 191, 143, 0.14);
 }
