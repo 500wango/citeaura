@@ -133,6 +133,9 @@ def test_landing_assets_are_served():
         ("/site-assets/product-audit-en.webp", "image/webp"),
         ("/site-assets/product-plan-en.webp", "image/webp"),
         ("/site-assets/product-assets-en.webp", "image/webp"),
+        ("/site-assets/product-audit-clay.webp", "image/webp"),
+        ("/site-assets/product-plan-clay.webp", "image/webp"),
+        ("/site-assets/product-assets-clay.webp", "image/webp"),
     ):
         response = client.get(path)
         assert response.status_code == 200
@@ -141,6 +144,16 @@ def test_landing_assets_are_served():
     blog_css = client.get("/site-assets/styles/blog.css")
     assert ".blog-article a:not(.btn)" in blog_css.text
     assert ".blog-article a {" not in blog_css.text
+
+
+def test_product_gallery_uses_current_clay_visual_assets():
+    response = client.get("/")
+    assert 'src="/site-assets/product-audit-clay.webp"' in response.text
+    assert 'src="/site-assets/product-plan-clay.webp"' in response.text
+    assert 'src="/site-assets/product-assets-clay.webp"' in response.text
+    assert 'src="/site-assets/product-audit-en.webp"' not in response.text
+    assert 'src="/site-assets/product-plan-en.webp"' not in response.text
+    assert 'src="/site-assets/product-assets-en.webp"' not in response.text
 
 
 def test_i18n_catalogs_are_public():
