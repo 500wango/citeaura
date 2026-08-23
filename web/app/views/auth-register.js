@@ -45,7 +45,7 @@ export default {
               <span>${t('auth.register_btn', {}, 'Create Workspace')}</span>
             </button>
             <p style="font-size:var(--fs-1);color:var(--muted);text-align:center;margin:var(--sp-2) 0 0 0;line-height:1.5;">
-              By signing up, you agree to our <a href="/terms" target="_blank" style="color:var(--accent);text-decoration:underline;">Terms of Service</a> and <a href="/privacy" target="_blank" style="color:var(--accent);text-decoration:underline;">Privacy Policy</a>.
+              ${t('auth.by_signing_up', {}, 'By signing up, you agree to our')} <a href="/terms" target="_blank" style="color:var(--accent);text-decoration:underline;">${t('nav.terms', {}, 'Terms of Service')}</a> ${t('common.and', {}, 'and')} <a href="/privacy" target="_blank" style="color:var(--accent);text-decoration:underline;">${t('nav.privacy', {}, 'Privacy Policy')}</a>.
             </p>
           </form>
 

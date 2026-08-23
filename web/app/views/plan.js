@@ -329,7 +329,7 @@ async function showCreateTicketModal(projectId, ctx) {
       </div>
       <div class="field" style="margin:0;">
         <label>${t('plan.influenced_questions_label', {}, 'Influenced questions')} *</label>
-        <div id="new-t-questions" style="max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:var(--sp-2);">${questionOptions || '<span style="color:var(--muted);">Add questions first.</span>'}</div>
+        <div id="new-t-questions" style="max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:var(--sp-2);">${questionOptions || `<span style="color:var(--muted);">${t('plan.add_questions_first', {}, 'Add questions first.')}</span>`}</div>
       </div>
     </div>
   `;

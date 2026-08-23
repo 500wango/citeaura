@@ -38,21 +38,21 @@ export default {
 
             <div class="card" style="background:var(--deep);padding:var(--sp-4);border-radius:var(--r-md);gap:var(--sp-3);">
               <div style="font-size:var(--fs-2);">
-                <strong style="color:var(--ink);">Choose your first result</strong>
-                <div style="color:var(--muted);margin-top:4px;">Start with a technical diagnostic now, or add model access for a full AI baseline.</div>
+                <strong style="color:var(--ink);">${t('onboard.choose_result_title', {}, 'Choose your first result')}</strong>
+                <div style="color:var(--muted);margin-top:4px;">${t('onboard.choose_result_desc', {}, 'Start with a technical diagnostic now, or add model access for a full AI baseline.')}</div>
               </div>
               <label class="onboard-mode-option" style="display:flex;align-items:flex-start;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--brand);background:color-mix(in oklch, var(--brand) 8%, transparent);cursor:pointer;user-select:none;">
                 <input type="radio" name="ob-mode" value="audit" checked style="margin-top:3px;">
                 <div style="font-size:var(--fs-2);">
-                  <strong style="color:var(--ink);">Audit only · recommended</strong>
-                  <div style="color:var(--muted);margin-top:3px;">Crawl, facts, tickets, and a diagnostic-ready report. No model API key or platform-pool funding required.</div>
+                  <strong style="color:var(--ink);">${t('onboard.mode_audit_title', {}, 'Audit only · recommended')}</strong>
+                  <div style="color:var(--muted);margin-top:3px;">${t('onboard.mode_audit_desc', {}, 'Crawl, facts, tickets, and a diagnostic-ready report. No model API key or platform-pool funding required.')}</div>
                 </div>
               </label>
               <label class="onboard-mode-option" style="display:flex;align-items:flex-start;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--line);background:var(--page);cursor:pointer;user-select:none;">
                 <input type="radio" name="ob-mode" value="baseline" style="margin-top:3px;">
                 <div style="font-size:var(--fs-2);">
-                  <strong style="color:var(--ink);">Full AI baseline</strong>
-                  <div style="color:var(--muted);margin-top:3px;">Run labeled AI sampling after preflight. Configure BYOK or an eligible platform pool before the job starts; provider charges remain visible to you.</div>
+                  <strong style="color:var(--ink);">${t('onboard.mode_baseline_title', {}, 'Full AI baseline')}</strong>
+                  <div style="color:var(--muted);margin-top:3px;">${t('onboard.mode_baseline_desc', {}, 'Run labeled AI sampling after preflight. Configure BYOK or an eligible platform pool before the job starts; provider charges remain visible to you.')}</div>
                 </div>
               </label>
             </div>
@@ -99,7 +99,7 @@ export default {
         const preflightBox = document.getElementById('ob-preflight');
         if (preflightBox) {
           preflightBox.style.display = 'flex';
-          preflightBox.innerHTML = `<strong style="font-size:var(--fs-2);">Your public audit findings</strong>${pendingAudit.checks.slice(0, 6).map((check) => `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);font-size:var(--fs-2);"><span>${escapeHtml(check.name || 'Site check')}</span><span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : escapeHtml(check.message || 'Needs review')}</span></div>`).join('')}`;
+          preflightBox.innerHTML = `<strong style="font-size:var(--fs-2);">${t('onboard.audit_findings_title', {}, 'Your public audit findings')}</strong>${pendingAudit.checks.slice(0, 6).map((check) => `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);font-size:var(--fs-2);"><span>${escapeHtml(check.name || 'Site check')}</span><span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : escapeHtml(check.message || 'Needs review')}</span></div>`).join('')}`;
         }
       }
     } catch (e) {

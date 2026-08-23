@@ -131,13 +131,13 @@ export default {
         ${reviewRequired.length ? `<div class="banner warn" style="margin-bottom:var(--sp-4);"><div><strong>Review required.</strong> ${reviewRequired.length} derived asset(s) cannot be published until the brand fact library and supporting evidence are approved.</div></div>` : ''}
         ${assets.length ? `<div class="card" style="gap:var(--sp-4);">
           <div class="field" style="margin:0;">
-            <label for="asset-path">Asset file</label>
+            <label for="asset-path">${t('assets.file_label', {}, 'Asset file')}</label>
             <select id="asset-path" class="input">
               ${assets.map((item) => `<option value="${escapeHtml(item.path)}" ${item.path === first.path ? 'selected' : ''}>${escapeHtml(item.path)} · ${assetStatusLabel(item.status)}</option>`).join('')}
             </select>
           </div>
           <div class="field" style="margin:0;">
-            <label for="asset-text">File contents</label>
+            <label for="asset-text">${t('assets.contents_label', {}, 'File contents')}</label>
             <textarea id="asset-text" class="input" rows="24">${escapeHtml(first.text || '')}</textarea>
           </div>
         </div>` : renderEmpty({ title: 'No generated assets', description: 'Generate project-specific files from the current audit and approved facts library.' })}

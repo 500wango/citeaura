@@ -62,7 +62,7 @@ export default {
             </div>
             <button type="button" id="btn-run-prompt-research" class="btn btn-primary btn-sm">${t('questions.research_btn', {}, 'Research prompts')}</button>
           </div>
-          ${researchItems.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('questions.col_candidate', {}, 'Prompt candidate')}</th><th>${t('questions.col_seed', {}, 'Seed')}</th><th>${t('questions.col_intent', {}, 'Intent')}</th><th>${t('questions.col_funnel_stage', {}, 'Funnel stage')}</th><th style="text-align:right;">${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${researchItems.slice(0, 18).map((item) => `<tr><td style="min-width:300px;"><strong>${escapeHtml(item.text || '')}</strong></td><td><span class="tag tag-dim">${escapeHtml(item.seed || '')}</span></td><td><span class="tag tag-neutral">${escapeHtml(item.intent || '')}</span></td><td>${escapeHtml(item.funnel_stage || '')}</td><td style="text-align:right;">${item.in_question_bank ? '<span class="tag pill-good">${t('questions.in_bank', {}, 'In bank')}</span>' : `<button type="button" class="btn btn-secondary btn-sm btn-add-research" data-text="${escapeHtml(item.text || '')}" data-intent="${escapeHtml(item.intent || '')}">${t('questions.add_to_monitoring', {}, 'Add to monitoring')}</button>`}</td></tr>`).join('')}</tbody></table></div>` : `<div style="padding:var(--sp-4);background:var(--page);color:var(--muted);font-size:var(--fs-2);">No research run yet. Generate a fan-out to discover the questions your buyers may ask.</div>`}
+          ${researchItems.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('questions.col_candidate', {}, 'Prompt candidate')}</th><th>${t('questions.col_seed', {}, 'Seed')}</th><th>${t('questions.col_intent', {}, 'Intent')}</th><th>${t('questions.col_funnel_stage', {}, 'Funnel stage')}</th><th style="text-align:right;">${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${researchItems.slice(0, 18).map((item) => `<tr><td style="min-width:300px;"><strong>${escapeHtml(item.text || '')}</strong></td><td><span class="tag tag-dim">${escapeHtml(item.seed || '')}</span></td><td><span class="tag tag-neutral">${escapeHtml(item.intent || '')}</span></td><td>${escapeHtml(item.funnel_stage || '')}</td><td style="text-align:right;">${item.in_question_bank ? '<span class="tag pill-good">${t('questions.in_bank', {}, 'In bank')}</span>' : `<button type="button" class="btn btn-secondary btn-sm btn-add-research" data-text="${escapeHtml(item.text || '')}" data-intent="${escapeHtml(item.intent || '')}">${t('questions.add_to_monitoring', {}, 'Add to monitoring')}</button>`}</td></tr>`).join('')}</tbody></table></div>` : `<div style="padding:var(--sp-4);background:var(--page);color:var(--muted);font-size:var(--fs-2);">${t('questions.no_research_yet', {}, 'No research run yet. Generate a fan-out to discover the questions your buyers may ask.')}</div>`}
         </div>
 
         <div class="card" style="padding:0;overflow:hidden;margin-bottom:var(--sp-4);">
@@ -89,11 +89,11 @@ export default {
                   <td><span class="tag ${item.priority === 'high' ? 'pill-bad' : item.priority === 'medium' ? 'pill-warn' : 'tag-neutral'}">${escapeHtml(priorityLabel[item.priority] || item.priority || 'Review')}</span><div class="num" style="color:var(--muted);font-size:var(--fs-1);margin-top:3px;">${score}</div></td>
                   <td data-num><strong>${mention}</strong><div class="num" style="color:var(--muted);font-size:var(--fs-1);">95% ${band} · n=${item.samples || 0}</div></td>
                   <td style="min-width:230px;color:var(--muted);font-size:var(--fs-2);">${escapeHtml(reasons || 'No additional signal')}</td>
-                  <td style="text-align:right;"><a href="#/workbench?qid=${encodeURIComponent(item.id || '')}" class="btn btn-ghost btn-sm">Replay</a></td>
+                  <td style="text-align:right;"><a href="#/workbench?qid=${encodeURIComponent(item.id || '')}" class="btn btn-ghost btn-sm">${t('questions.replay_btn', {}, 'Replay')}</a></td>
                 </tr>`;
               }).join('')}</tbody>
             </table>
-          </div>` : `<div style="padding:var(--sp-6);color:var(--muted);font-size:var(--fs-2);">Run a sample to populate prompt opportunities. Unmeasured prompts are not ranked.</div>`}
+          </div>` : `<div style="padding:var(--sp-6);color:var(--muted);font-size:var(--fs-2);">${t('questions.run_sample_hint', {}, 'Run a sample to populate prompt opportunities. Unmeasured prompts are not ranked.')}</div>`}
         </div>
 
         ${candidates.length ? `
@@ -104,7 +104,7 @@ export default {
               const text = item.text || item.question || item.term || item;
               return `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);align-items:center;">
                 <span>${escapeHtml(text)}</span>
-                <button type="button" class="btn btn-secondary btn-sm btn-accept-expand" data-text="${escapeHtml(text)}">Add</button>
+                <button type="button" class="btn btn-secondary btn-sm btn-accept-expand" data-text="${escapeHtml(text)}">${t('common.add', {}, 'Add')}</button>
               </div>`;
             }).join('')}
           </div>` : ''}
@@ -120,7 +120,7 @@ export default {
                     <th>ID</th>
                     <th>${t('questions.col_question', {}, 'Question / Query')}</th>
                     <th>${t('questions.col_intent', {}, 'Intent / Category')}</th>
-                    <th>Source</th>
+                    <th>${t('questions.col_source', {}, 'Source')}</th>
                     <th style="text-align:right;">${t('common.action', {}, 'Actions')}</th>
                   </tr>
                 </thead>
@@ -134,7 +134,7 @@ export default {
                       <td><span class="tag tag-neutral">${escapeHtml(q.category || q.group || q.intent || 'General')}</span></td>
                       <td><span class="tag tag-dim">${escapeHtml(q.source || 'generated')}</span></td>
                       <td style="text-align:right;display:flex;gap:var(--sp-2);justify-content:flex-end;">
-                        <a href="#/workbench?qid=${encodeURIComponent(q.id || '')}" class="btn btn-ghost btn-sm">Replay</a>
+                        <a href="#/workbench?qid=${encodeURIComponent(q.id || '')}" class="btn btn-ghost btn-sm">${t('questions.replay_btn', {}, 'Replay')}</a>
                         <button type="button" class="btn btn-ghost btn-sm btn-edit-question" data-id="${escapeHtml(q.id || '')}" data-text="${escapeHtml(q.text || q.question || '')}">Edit</button>
                         <button type="button" class="btn btn-ghost btn-sm btn-del-question" data-id="${escapeHtml(q.id || '')}" style="color:var(--bad);">Remove</button>
                       </td>
@@ -172,9 +172,9 @@ export default {
 
     const runResearch = () => {
       openModal({
-        title: 'Research prompts',
+        title: t('questions.research_btn', {}, 'Research prompts'),
         content: `<div style="display:flex;flex-direction:column;gap:var(--sp-3);"><p style="font-size:var(--fs-2);color:var(--muted);margin:0;">Enter one seed per line. The project brand, category, competitors, and official URL are included automatically.</p><textarea id="research-seeds" class="input" rows="5" placeholder="AI visibility platform\nGEO software"></textarea></div>`,
-        confirmText: 'Generate fan-out',
+        confirmText: t('questions.generate_fanout_btn', {}, 'Generate fan-out'),
         onConfirm: async () => {
           const seeds = (document.getElementById('research-seeds')?.value || '').split('\n').map((value) => value.trim()).filter(Boolean).slice(0, 20);
           try {

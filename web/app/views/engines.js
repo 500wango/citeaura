@@ -247,7 +247,7 @@ export default {
                     const matchedIdentity = s.analysis?.matched_identity?.text || s.analysis?.matched_identity?.value;
                     const mentionBadge = s.analysis?.brand_mentioned
                       ? `<span class="tag pill-good">Mentioned${matchedIdentity ? ` via "${escapeHtml(matchedIdentity)}"` : ''}</span>`
-                      : '<span class="tag tag-dim">Not Mentioned</span>';
+                      : '<span class="tag tag-dim">${t('common.not_mentioned', {}, 'Not Mentioned')}</span>';
                     return `
                 <div class="sample-replay-card">
                   <div class="sample-head">
@@ -266,7 +266,7 @@ export default {
                     s.citations && s.citations.length
                       ? `
                     <div class="sample-citations">
-                      <span style="color:var(--muted);font-weight:600;">Citations:</span>
+                      <span style="color:var(--muted);font-weight:600;">${t('engines.citations_label', {}, 'Citations:')}</span>
                       ${s.citations
                         .map(
                           (c) => {

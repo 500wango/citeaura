@@ -44,7 +44,7 @@ export default {
               <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);">
                 <strong style="font-size:var(--fs-4);">${name}</strong>
                 <span class="tag ${publisher.ready ? 'pill-good' : 'tag-dim'}">
-                  ${publisher.ready ? 'Ready' : 'Setup required'}
+                  ${publisher.ready ? t('common.ready', {}, 'Ready') : t('publishing.setup_required', {}, 'Setup required')}
                 </span>
               </div>
               <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${note}</p>

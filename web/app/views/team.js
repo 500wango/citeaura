@@ -174,10 +174,10 @@ export default {
         const id = btn.getAttribute('data-id');
         try {
           await team.revokeInvitation(id);
-          toast.success('Invitation revoked');
+          toast.success(t('team.invite_revoked', {}, 'Invitation revoked'));
           ctx.navigate('#/team');
         } catch (err) {
-          toast.error('Failed to revoke invitation');
+          toast.error(t('team.revoke_failed', {}, 'Failed to revoke invitation'));
         }
       });
     });
@@ -197,10 +197,10 @@ function showInvitationLink(url) {
     content: `
       <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
         <div class="field" style="margin:0;">
-          <label>Invitation Link</label>
+          <label>${t('team.invitation_link_label', {}, 'Invitation Link')}</label>
           <input type="text" id="created-invite-url" class="input" value="${url}" readonly>
         </div>
-        <button type="button" id="copy-created-invite" class="btn btn-primary">Copy Link</button>
+        <button type="button" id="copy-created-invite" class="btn btn-primary">${t('common.copy_link', {}, 'Copy Link')}</button>
       </div>
     `,
   });
@@ -208,10 +208,10 @@ function showInvitationLink(url) {
     const input = result.box.querySelector('#created-invite-url');
     try {
       await navigator.clipboard.writeText(input.value);
-      toast.success('Invitation link copied');
+      toast.success(t('team.invite_copied', {}, 'Invitation link copied'));
     } catch (e) {
       input.select();
-      toast.error('Copy failed. Select and copy the link manually.');
+      toast.error(t('team.copy_failed_manual', {}, 'Copy failed. Select and copy the link manually.'));
     }
   });
 }

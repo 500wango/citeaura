@@ -202,7 +202,7 @@ export default {
                       <td><span class="num">${eng.code}</span></td>
                       <td>
                         <span class="tag ${isSet ? 'pill-good' : 'tag-dim'}">
-                          ${isSet ? 'Encrypted & Active' : 'Unconfigured'}
+                          ${isSet ? t('engine_settings.encrypted_active', {}, 'Encrypted & Active') : t('engine_settings.unconfigured', {}, 'Unconfigured')}
                         </span>
                       </td>
                       <td style="text-align:right;">
@@ -312,9 +312,9 @@ export default {
 
     document.getElementById('btn-add-custom-provider')?.addEventListener('click', () => {
       openModal({
-        title: 'Add Custom Provider',
+        title: t('engine_settings.add_custom_provider_title', {}, 'Add Custom Provider'),
         content: customProviderForm(),
-        confirmText: 'Test & Save',
+        confirmText: t('engine_settings.test_and_save_btn', {}, 'Test & Save'),
         onConfirm: () => saveCustomProvider(ctx, 'Custom provider connected and saved'),
       });
     });
@@ -327,9 +327,9 @@ export default {
           model_id: btn.getAttribute('data-model-id'),
         };
         openModal({
-          title: 'Edit Custom Provider',
+          title: t('engine_settings.edit_custom_provider_title', {}, 'Edit Custom Provider'),
           content: customProviderForm(provider),
-          confirmText: 'Test & Save',
+          confirmText: t('engine_settings.test_and_save_btn', {}, 'Test & Save'),
           onConfirm: () => saveCustomProvider(ctx, 'Custom provider connected and updated'),
         });
       });
@@ -353,17 +353,17 @@ export default {
         const name = btn.getAttribute('data-name');
 
         openModal({
-          title: `Configure ${name}`,
+          title: t('engine_settings.configure_provider_title', { name }, `Configure ${name}`),
           content: `
             <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
               <div class="field" style="margin:0;">
-                <label>API Key *</label>
+                <label>${t('engine_settings.api_key_label', {}, 'API Key')} *</label>
                 <input type="password" id="input-api-key" class="input" placeholder="sk-••••••••••••••••" required>
-                <div class="field-hint">Encrypted with AES-256-GCM. Plaintext is never returned in API responses.</div>
+                <div class="field-hint">${t('engine_settings.encryption_hint', {}, 'Encrypted with AES-256-GCM. Plaintext is never returned in API responses.')}</div>
               </div>
             </div>
           `,
-          confirmText: 'Save Key',
+          confirmText: t('engine_settings.save_key_btn', {}, 'Save Key'),
           onConfirm: async () => {
             const keyValue = document.getElementById('input-api-key')?.value.trim();
             if (!keyValue) return false;

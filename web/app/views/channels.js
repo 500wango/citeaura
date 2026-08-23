@@ -120,14 +120,14 @@ export default {
                         <td><strong class="num" style="font-size:var(--fs-3);color:var(--ink);">${escapeHtml(channel.domain)}</strong></td>
                         <td>
                           <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                            ${engines.length ? engines.map((engine) => `<span class="tag tag-neutral">${escapeHtml(engine)}</span>`).join('') : '<span class="tag tag-dim">Unknown model</span>'}
+                            ${engines.length ? engines.map((engine) => `<span class="tag tag-neutral">${escapeHtml(engine)}</span>`).join('') : '<span class="tag tag-dim">${t('channels.unknown_model', {}, 'Unknown model')}</span>'}
                           </div>
                         </td>
                         <td style="max-width:340px;">
                           ${questions.length ? `
                             <div style="font-size:var(--fs-2);color:var(--ink);line-height:1.45;overflow-wrap:anywhere;">${escapeHtml(questions[0])}</div>
                             ${questionCount > 1 ? `<span style="font-size:var(--fs-1);color:var(--muted);">+${questionCount - 1} more question${questionCount === 2 ? '' : 's'}</span>` : ''}
-                          ` : '<span style="color:var(--muted);">Question unavailable</span>'}
+                          ` : '<span style="color:var(--muted);">${t('channels.question_unavailable', {}, 'Question unavailable')}</span>'}
                         </td>
                         <td data-num style="font-weight:700;text-align:right;">${Number(channel.count || 0)}</td>
                         <td data-num style="text-align:right;">${share.toFixed(1)}%</td>
@@ -156,7 +156,7 @@ export default {
         <section class="card" style="gap:var(--sp-3);border-left:3px solid ${officialSource ? 'var(--good)' : 'var(--warn)'};">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <div><h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('channels.official_citation_gap', {}, 'Official citation gap')}</h2><p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">${t('channels.official_citation_gap_desc', {}, 'This compares the latest web-enabled citation cohort with your official domain. It is a source observation, not a ranking guarantee.')}</p></div>
-            <span class="tag ${officialSource ? 'pill-good' : 'pill-warn'}">${officialSource ? `${officialSource.count || 0} mentions` : 'Not observed'}</span>
+            <span class="tag ${officialSource ? 'pill-good' : 'pill-warn'}">${officialSource ? `${officialSource.count || 0} mentions` : t('channels.not_observed', {}, 'Not observed')}</span>
           </div>
           <div style="font-size:var(--fs-2);color:var(--muted);">Official domain: <strong style="color:var(--ink);">${escapeHtml(ownHost || 'Not recorded')}</strong>${officialSource ? ` · ${Number(officialSource.question_count || 0)} question contexts` : ' · add verified third-party evidence or review the source replay for the missing citation path.'}</div>
         </section>
@@ -180,9 +180,9 @@ export default {
     });
     document.getElementById('btn-add-external-evidence')?.addEventListener('click', async () => {
       openModal({
-        title: 'Add external evidence record',
-        content: `<div class="field"><label>Source URL</label><input id="external-url" class="input" type="url" placeholder="https://example.com/source"></div><div class="field"><label>Source type</label><input id="external-type" class="input" placeholder="Review platform, directory, encyclopedia"></div><div class="field"><label>Fact supported</label><textarea id="external-fact" class="input" rows="4" placeholder="Which verified fact does this source support?"></textarea></div><div class="field"><label>Question IDs</label><input id="external-questions" class="input" placeholder="q101, q102"></div><div class="field"><label>Reviewer</label><input id="external-reviewer" class="input" placeholder="Reviewer name or email"></div>`,
-        confirmText: 'Save record',
+        title: t('channels.add_evidence_modal_title', {}, 'Add external evidence record'),
+        content: `<div class="field"><label>${t('channels.source_url', {}, 'Source URL')}</label><input id="external-url" class="input" type="url" placeholder="https://example.com/source"></div><div class="field"><label>${t('channels.source_type', {}, 'Source type')}</label><input id="external-type" class="input" placeholder="Review platform, directory, encyclopedia"></div><div class="field"><label>${t('channels.col_fact_supported', {}, 'Fact supported')}</label><textarea id="external-fact" class="input" rows="4" placeholder="Which verified fact does this source support?"></textarea></div><div class="field"><label>${t('channels.question_ids', {}, 'Question IDs')}</label><input id="external-questions" class="input" placeholder="q101, q102"></div><div class="field"><label>${t('channels.reviewer', {}, 'Reviewer')}</label><input id="external-reviewer" class="input" placeholder="Reviewer name or email"></div>`,
+        confirmText: t('channels.save_record', {}, 'Save record'),
         onConfirm: async () => {
           const url = document.getElementById('external-url')?.value?.trim();
           const sourceType = document.getElementById('external-type')?.value?.trim();
