@@ -1,5 +1,6 @@
-"""Public landing pages and the English message catalog."""
+"""Public landing pages and the message catalogs."""
 
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -124,6 +125,20 @@ def serve_i18n_catalog(locale: str):
     catalogs = load_all_catalogs()
     return JSONResponse(
         catalogs.get(code) or {},
+        media_type="application/json; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.get("/i18n/public/{locale}.json")
+def serve_public_i18n_catalog(locale: str):
+    """Serve the public-page catalog kept separate from product UI copy."""
+    code = normalize_locale(locale, default="")
+    path = MESSAGES_DIR / "public" / f"{code}.json"
+    if code != "zh" or not path.is_file():
+        raise HTTPException(status_code=404, detail={"error": "locale_not_found"})
+    return JSONResponse(
+        json.loads(path.read_text("utf-8")),
         media_type="application/json; charset=utf-8",
         headers={"Cache-Control": "public, max-age=86400"},
     )

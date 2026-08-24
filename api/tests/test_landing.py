@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -173,6 +174,25 @@ def test_i18n_catalogs_are_public():
     assert client.get("/i18n/de.json").status_code == 200
 
 
+def test_public_zh_catalog_covers_docs_and_guides():
+    response = client.get("/i18n/public/zh.json")
+    assert response.status_code == 200
+    catalog = response.json()
+    assert catalog["public.meta.docs_title"].startswith("CiteAura 文档")
+    assert catalog["public.g2.sec1_h2"] == "ChatGPT 跳过品牌的常见原因"
+
+    root = Path(__file__).resolve().parents[2] / "web"
+    pages = [root / "docs.html", root / "blog" / "index.html", *sorted((root / "blog").glob("*.html"))]
+    for page in pages:
+        keys = set(re.findall(r'data-i18n(?:-[a-z]+)*="([^"]+)"', page.read_text("utf-8")))
+        missing = sorted(key for key in keys if key.startswith("public.") and key not in catalog)
+        assert not missing, (page, missing)
+
+    assert "public.g2.sec1_h2" in (root / "blog" / "why-chatgpt-does-not-mention-my-brand.html").read_text("utf-8")
+    assert "public.docs.admin_brand_use" in (root / "docs.html").read_text("utf-8")
+    assert client.get("/i18n/public/en.json").status_code == 404
+
+
 def test_landing_has_no_forbidden_brand_or_false_claims():
     response = client.get("/")
     lowered = response.text.lower()
@@ -287,7 +307,7 @@ def test_blog_index_and_articles_are_static_html():
         assert "By CiteAura Editorial Team" in page.text
         assert 'class="blog-cta"' in page.text
         assert 'href="/app?auth=register"' in page.text and "Start free trial</a>" in page.text
-        title = re.search(r"<title>([^<]+)</title>", page.text)
+        title = re.search(r"<title(?:\s[^>]*)?>([^<]+)</title>", page.text)
         assert title is not None
         assert 55 <= len(title.group(1)) <= 70
 

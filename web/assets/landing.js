@@ -120,7 +120,7 @@ function escapeHtml(value) {
       if (value != null) node.innerHTML = value;
     });
     var title = catalogValue('landing.title');
-    if (title) document.title = title;
+    if (title && !document.querySelector('title[data-i18n]')) document.title = title;
     $$('[data-i18n-content]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-content');
       var value = catalogValue(key);
@@ -139,6 +139,18 @@ function escapeHtml(value) {
       if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
       if (value != null) node.setAttribute('alt', value);
     });
+    $$('[data-i18n-placeholder]').forEach(function (node) {
+      var key = node.getAttribute('data-i18n-placeholder');
+      var value = catalogValue(key);
+      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
+      if (value != null) node.setAttribute('placeholder', value);
+    });
+    $$('[data-i18n-title]').forEach(function (node) {
+      var key = node.getAttribute('data-i18n-title');
+      var value = catalogValue(key);
+      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
+      if (value != null) node.setAttribute('title', value);
+    });
     applyBilling();
     renderThemeControl();
     localizeLegacyText();
@@ -150,15 +162,19 @@ function escapeHtml(value) {
     try { localStorage.setItem('ulang', state.locale); } catch (e) {}
     var selector = $('#site-locale');
     if (selector) selector.value = state.locale;
-      Promise.all(state.locale === 'en'
-        ? [fetch('/i18n/en.json').then(function (r) { return r.ok ? r.json() : {}; })]
-        : [
-          fetch('/i18n/en.json').then(function (r) { return r.ok ? r.json() : {}; }),
-          fetch('/i18n/' + state.locale + '.json').then(function (r) { return r.ok ? r.json() : {}; }),
-        ])
+      var catalogRequests = [
+        fetch('/i18n/en.json').then(function (r) { return r.ok ? r.json() : {}; }),
+      ];
+      if (state.locale !== 'en') {
+        catalogRequests.push(fetch('/i18n/' + state.locale + '.json').then(function (r) { return r.ok ? r.json() : {}; }));
+      }
+      if (state.locale === 'zh') {
+        catalogRequests.push(fetch('/i18n/public/zh.json').then(function (r) { return r.ok ? r.json() : {}; }));
+      }
+      Promise.all(catalogRequests)
       .then(function (catalogs) {
         state.fallbackCatalog = catalogs[0] || {};
-        state.catalog = state.locale === 'en' ? state.fallbackCatalog : (catalogs[1] || {});
+        state.catalog = state.locale === 'en' ? state.fallbackCatalog : Object.assign({}, catalogs[1] || {}, catalogs[2] || {});
         state.reverseMap = {};
         Object.keys(state.fallbackCatalog).forEach(function (k) {
           var val = state.fallbackCatalog[k];
