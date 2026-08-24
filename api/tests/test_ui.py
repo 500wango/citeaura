@@ -135,6 +135,11 @@ def test_citation_sources_view_has_no_legacy_seo_integrations():
     assert "Run Citation Sampling" in channels
     assert "External evidence records" in channels
     assert "addExternalEvidence" in channels
+    assert "import { projects, workspace } from '../api.js?v=3.8';" in channels
+    assert "workspace.getExternalEvidence(projectId)" in channels
+    assert "workspace.addExternalEvidence(ctx.activeProjectId" in channels
+    assert "projects.getExternalEvidence" not in channels
+    assert "projects.addExternalEvidence" not in channels
     assert "TabAPI" not in channels
     assert "getProjectTraffic" not in channels
     assert "SEO Integrations" not in app_js

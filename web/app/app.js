@@ -100,7 +100,7 @@ const VIEW_LOADERS = {
   onboarding: () => import('./views/onboarding.js?v=2.9'),
   overview: () => import('./views/overview.js?v=2.9'),
   engines: () => import('./views/engines.js?v=2.8'),
-  channels: () => import('./views/channels.js?v=2.8'),
+  channels: () => import('./views/channels.js?v=2.9'),
   competitors: () => import('./views/competitors.js?v=2.6'),
   siteaudit: () => import('./views/siteaudit.js?v=2.6'),
   gaps: () => import('./views/gaps.js?v=2.5'),

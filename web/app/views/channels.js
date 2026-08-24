@@ -2,7 +2,7 @@
  * AI 联网采样引用信源。
  */
 
-import { projects } from '../api.js?v=3.8';
+import { projects, workspace } from '../api.js?v=3.8';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
@@ -44,7 +44,7 @@ export default {
 
     const [report, externalEvidence, project] = await Promise.all([
       projects.getReport(projectId).catch(() => null),
-      projects.getExternalEvidence(projectId).catch(() => []),
+      workspace.getExternalEvidence(projectId).catch(() => []),
       projects.get(projectId).catch(() => null),
     ]);
     const channels = report?.channels || [];
@@ -192,7 +192,7 @@ export default {
             return false;
           }
           try {
-            await projects.addExternalEvidence(ctx.activeProjectId, {
+            await workspace.addExternalEvidence(ctx.activeProjectId, {
               url,
               source_type: sourceType,
               fact_supported: fact,
