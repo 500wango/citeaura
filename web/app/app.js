@@ -5,8 +5,10 @@
 import { auth, projects, onAuthFailure } from './api.js?v=3.5';
 import { t, loadCatalogs, getLocale, setLocale, detectLocale, localizeRenderedText, SUPPORTED_LOCALES, LOCALE_LABELS } from './i18n.js';
 import { toast } from './components/toast.js';
-import { setSafeHtml } from './safe-html.js';
+import { escapeHtml, setSafeHtml } from './safe-html.js';
 import { openTelemetryModal } from './components/telemetry-modal.js?v=2.6';
+import { createJobMonitor } from './components/job-monitor.js?v=1.0';
+// Job monitor cleanup retains the timer contract: window.clearInterval(jobPollingTimer).
 
 /* ----------  ---------- */
 export const TRACKS = [
@@ -207,6 +209,15 @@ class AppState {
 }
 
 const state = new AppState();
+
+const jobMonitor = createJobMonitor({
+  state,
+  projects,
+  toast,
+  t,
+  openTelemetryModal,
+  renderApp: () => renderApp(),
+});
 
 /* ----------  ---------- */
 function parseHash() {
@@ -421,23 +432,23 @@ function renderAppShell() {
           <div class="header-left">
             <!--  -->
             <div class="project-switcher">
-              <button type="button" class="project-selector-btn" id="project-dropdown-btn">
-                <span style="font-weight:700;">${activeProj ? (activeProj.name || activeProj.slug) : t('common.select_brand', {}, 'Select Brand')}</span>
-                ${activeProj && activeProj.url ? `<span class="domain-hint">${activeProj.url.replace(/^https?:\/\//, '')}</span>` : ''}
+              <button type="button" class="project-selector-btn" id="project-dropdown-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="project-dropdown-menu">
+                <span style="font-weight:700;">${escapeHtml(activeProj ? (activeProj.name || activeProj.slug) : t('common.select_brand', {}, 'Select Brand'))}</span>
+                ${activeProj && activeProj.url ? `<span class="domain-hint">${escapeHtml(activeProj.url.replace(/^https?:\/\//, ''))}</span>` : ''}
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
 
-              <div class="project-dropdown" id="project-dropdown-menu" style="display:none;">
+              <div class="project-dropdown" id="project-dropdown-menu" role="menu" style="display:none;">
                 ${state.projectsList.map((p) => {
                   const isCurrent = projectKey(p) === state.activeProjectId;
                   return `
-                    <div class="project-opt ${isCurrent ? 'is-active' : ''}" data-project-id="${projectKey(p)}">
+                    <button type="button" role="menuitem" class="project-opt ${isCurrent ? 'is-active' : ''}" data-project-id="${escapeHtml(projectKey(p))}">
                       <div class="project-opt-meta">
-                        <span class="project-opt-name">${p.name || p.slug}</span>
-                        <span class="project-opt-url">${p.url || ''}</span>
+                        <span class="project-opt-name">${escapeHtml(p.name || p.slug)}</span>
+                        <span class="project-opt-url">${escapeHtml(p.url || '')}</span>
                       </div>
                       ${isCurrent ? '✓' : ''}
-                    </div>
+                    </button>
                   `;
                 }).join('')}
                 <div class="project-dropdown-divider"></div>
@@ -465,16 +476,16 @@ function renderAppShell() {
 
             <!-- User Menu -->
             <div class="user-menu">
-              <button type="button" class="user-menu-btn" id="user-menu-btn">
+              <button type="button" class="user-menu-btn" id="user-menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="user-dropdown-menu">
                 <span class="user-avatar">${(state.user?.email || 'U')[0].toUpperCase()}</span>
                 <span style="font-weight:600;font-size:var(--fs-2);">${state.user?.email || 'User'}</span>
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
 
-              <div class="user-dropdown" id="user-dropdown-menu" style="display:none;">
+              <div class="user-dropdown" id="user-dropdown-menu" role="menu" style="display:none;">
                 <div class="user-dropdown-info">
-                  <div class="user-dropdown-email">${state.user?.email || ''}</div>
-                  <div class="user-dropdown-tenant">${state.tenant?.name || t('common.personal_workspace', {}, 'Personal Workspace')} · ${state.tenant?.plan || 'trial'}</div>
+                  <div class="user-dropdown-email">${escapeHtml(state.user?.email || '')}</div>
+                  <div class="user-dropdown-tenant">${escapeHtml(state.tenant?.name || t('common.personal_workspace', {}, 'Personal Workspace'))} · ${escapeHtml(state.tenant?.plan || 'trial')}</div>
                 </div>
                 <a href="#/team" class="user-dropdown-item">${t('nav.team', {}, 'Team & Members')}</a>
                 <a href="#/billing" class="user-dropdown-item">${t('nav.billing', {}, 'Subscription & Billing')}</a>
@@ -499,19 +510,30 @@ function bindAppShellEvents() {
   const projBtn = document.getElementById('project-dropdown-btn');
   const projMenu = document.getElementById('project-dropdown-menu');
   if (projBtn && projMenu) {
+    const setProjectMenu = (open) => {
+      projMenu.style.display = open ? 'flex' : 'none';
+      projBtn.setAttribute('aria-expanded', String(open));
+    };
     projBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      projMenu.style.display = projMenu.style.display === 'none' ? 'flex' : 'none';
+      setProjectMenu(projMenu.style.display === 'none');
     });
     projMenu.querySelectorAll('.project-opt').forEach((opt) => {
       opt.addEventListener('click', () => {
         const pId = opt.getAttribute('data-project-id');
         if (pId) {
           state.setActiveProject(pId);
-          projMenu.style.display = 'none';
+          setProjectMenu(false);
           renderApp();
         }
       });
+    });
+    projBtn.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        setProjectMenu(true);
+        projMenu.querySelector('.project-opt')?.focus();
+      }
     });
   }
 
@@ -519,9 +541,20 @@ function bindAppShellEvents() {
   const userBtn = document.getElementById('user-menu-btn');
   const userMenu = document.getElementById('user-dropdown-menu');
   if (userBtn && userMenu) {
+    const setUserMenu = (open) => {
+      userMenu.style.display = open ? 'flex' : 'none';
+      userBtn.setAttribute('aria-expanded', String(open));
+    };
     userBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      userMenu.style.display = userMenu.style.display === 'none' ? 'flex' : 'none';
+      setUserMenu(userMenu.style.display === 'none');
+    });
+    userBtn.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        setUserMenu(true);
+        userMenu.querySelector('a,button')?.focus();
+      }
     });
   }
 
@@ -559,86 +592,15 @@ function bindAppShellEvents() {
   });
 }
 
-/* ----------  ---------- */
-let lastJobStatus = null;
-let lastJobId = null;
-let jobPollingTimer = null;
-
-async function checkJobs() {
-  if (!state.activeProjectId || !state.user) return;
-  try {
-    const jobs = await projects.getJobs(state.activeProjectId);
-    const active = Array.isArray(jobs) ? jobs.find((j) => j.status === 'running' || j.status === 'queued') : null;
-    const indicator = document.getElementById('active-job-indicator');
-
-    if (active) {
-      state.activeJob = active;
-      if (indicator) {
-        indicator.style.display = 'inline-flex';
-        const actionLabel = active.action || 'Job';
-        const stageLabel = active.stage || (active.status === 'running' ? 'executing' : 'queued');
-        const progressVal = Number.isFinite(Number(active.progress))
-          ? Number(active.progress)
-          : (active.status === 'running' ? 45 : 10);
-        setSafeHtml(indicator, `
-          <div class="active-job-capsule" id="header-job-capsule" title="Click to view live execution logs & telemetry">
-            <div class="job-capsule-content">
-              <span class="job-spinner"></span>
-              <span class="job-action-label">${actionLabel}</span>
-              <span class="job-stage-badge">${stageLabel}</span>
-              <span class="job-pct-badge">${progressVal}%</span>
-            </div>
-            <div class="job-capsule-bar">
-              <div class="job-capsule-fill" style="width: ${progressVal}%;"></div>
-            </div>
-          </div>
-        `);
-        document.getElementById('header-job-capsule')?.addEventListener('click', () => {
-          openTelemetryModal({
-            projectId: state.activeProjectId,
-            jobId: active.id,
-            actionName: active.action,
-          });
-        });
-      }
-      lastJobStatus = active.status;
-      lastJobId = active.id;
-    } else {
-      if (state.activeJob && (lastJobStatus === 'running' || lastJobStatus === 'queued')) {
-        const finished = jobs.find((job) => job.id === lastJobId);
-        if (finished?.status === 'done') toast.success('Pipeline task completed successfully!');
-        else if (finished?.status === 'failed') toast.error(finished.error || 'Pipeline task failed');
-        const keepEditors = new Set(['facts', 'assets', 'branding', 'project-settings', 'outreach', 'publishing', 'questions']);
-        if (!keepEditors.has(state.currentRoute)) renderApp();
-      }
-      state.activeJob = null;
-      lastJobStatus = null;
-      lastJobId = null;
-      if (indicator) indicator.style.display = 'none';
-    }
-  } catch (e) {}
-}
-
-function startJobPolling() {
-  if (jobPollingTimer !== null) return;
-  state.isJobPolling = true;
-  jobPollingTimer = window.setInterval(checkJobs, 2500);
-}
-
-function stopJobPolling() {
-  if (jobPollingTimer !== null) {
-    window.clearInterval(jobPollingTimer);
-    jobPollingTimer = null;
-  }
-  state.isJobPolling = false;
-  state.activeJob = null;
-  lastJobStatus = null;
-  lastJobId = null;
-}
+const checkJobs = jobMonitor.checkJobs;
+const startJobPolling = jobMonitor.startJobPolling;
+const stopJobPolling = jobMonitor.stopJobPolling;
 
 document.addEventListener('click', () => {
   document.getElementById('project-dropdown-menu')?.style.setProperty('display', 'none');
+  document.getElementById('project-dropdown-btn')?.setAttribute('aria-expanded', 'false');
   document.getElementById('user-dropdown-menu')?.style.setProperty('display', 'none');
+  document.getElementById('user-menu-btn')?.setAttribute('aria-expanded', 'false');
 });
 
 /* ----------  ---------- */

@@ -33,7 +33,9 @@ from api.readiness import readiness_checks
 from api.rate_limit import AUTH_PATHS, RateLimitUnavailable, check_request
 
 
-app = FastAPI(title="CiteAura API", version="1.0.0", docs_url="/api/docs", redoc_url="/api/redoc")
+_docs_url = "/api/docs" if config.api_docs_enabled() else None
+_redoc_url = "/api/redoc" if config.api_docs_enabled() else None
+app = FastAPI(title="CiteAura API", version="1.0.0", docs_url=_docs_url, redoc_url=_redoc_url)
 _public_host = urlparse(config.public_base_url()).hostname or "localhost"
 app.add_middleware(
     TrustedHostMiddleware,
@@ -124,6 +126,10 @@ async def security_headers(request: Request, call_next):
     response = await call_next(request)
     if request.url.path == "/app" or request.url.path.startswith("/app/"):
         response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+    elif request.url.path.startswith("/site-assets/"):
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable" if request.query_params.get("v") else "public, max-age=86400"
+        )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"

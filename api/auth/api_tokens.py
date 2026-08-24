@@ -2,7 +2,7 @@
 
 import hashlib
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -11,6 +11,7 @@ from api.models import ApiAccessToken, Tenant
 
 
 TOKEN_PREFIX = "ca_"
+LAST_USED_WRITE_INTERVAL = timedelta(minutes=15)
 
 
 def _hash(value: str) -> str:
@@ -43,8 +44,13 @@ def resolve(db: Session, raw: str | None):
     ).first()
     if row is None:
         return None
-    row.last_used_at = datetime.now(timezone.utc)
-    db.commit()
+    now = datetime.now(timezone.utc)
+    last_used = row.last_used_at
+    if last_used is None or (last_used.tzinfo is None and now - last_used.replace(tzinfo=timezone.utc) >= LAST_USED_WRITE_INTERVAL) or (
+        last_used is not None and last_used.tzinfo is not None and now - last_used >= LAST_USED_WRITE_INTERVAL
+    ):
+        row.last_used_at = now
+        db.commit()
     return row
 
 

@@ -112,14 +112,15 @@ def _machine_signal(root: str, path: str, label: str) -> dict:
             "path": path,
             "present": bool(body),
             "status": 200 if body else 0,
+            "_body": body,
         }
     except (OSError, ValueError, GeoEngineError) as exc:
         return {"key": label, "path": path, "present": False, "status": 0, "error": type(exc).__name__}
 
 
-def _robots_blocked(root: str) -> list[str]:
+def _robots_blocked(root: str, text: str | None = None) -> list[str]:
     try:
-        text = geolib.fetch_text(root.rstrip("/") + "/robots.txt", timeout=5, allow_machine_file=True)
+        text = text if text is not None else geolib.fetch_text(root.rstrip("/") + "/robots.txt", timeout=5, allow_machine_file=True)
     except (OSError, ValueError, GeoEngineError):
         return []
     try:
@@ -147,10 +148,20 @@ def public_audit(payload: PublicAuditRequest, request: Request, db: Session = De
         return result
     try:
         site = preflight.run(payload.url, timeout=6.0)
-        signals = [_machine_signal(payload.url, "/robots.txt", "robots"),
+        machine_files = site.get("_machine_files") if isinstance(site.get("_machine_files"), dict) else {}
+        robots_file = machine_files.get("robots") if isinstance(machine_files.get("robots"), dict) else None
+        robots_signal = {
+            "key": "robots",
+            "path": "/robots.txt",
+            "present": bool(robots_file and robots_file.get("body")),
+            "status": robots_file.get("status", 0) if robots_file else 0,
+            "_body": robots_file.get("body", "") if robots_file else "",
+        } if robots_file is not None else _machine_signal(payload.url, "/robots.txt", "robots")
+        signals = [robots_signal,
                    _machine_signal(payload.url, "/sitemap.xml", "sitemap"),
                    _machine_signal(payload.url, "/llms.txt", "llms_txt")]
-        blocked = _robots_blocked(payload.url)
+        robots_signal = next((item for item in signals if item.get("key") == "robots"), {})
+        blocked = _robots_blocked(payload.url, robots_signal.get("_body"))
         checks = list(site.get("checks") or [])
         present = {item["key"]: bool(item["present"]) for item in signals}
         checks.extend([
@@ -178,7 +189,10 @@ def public_audit(payload: PublicAuditRequest, request: Request, db: Session = De
     except (preflight.PreflightError, ValueError) as exc:
         record_product_event(db, "public_audit_failed", anonymous_id=_client_key(request), properties={"error": type(exc).__name__})
         db.commit()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"error": "public_audit_failed", "detail": str(exc)}) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"error": "public_audit_failed", "detail": str(exc)},
+        ) from exc
 
 
 def _error(status_code, message):

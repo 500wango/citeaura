@@ -12,6 +12,13 @@ from urllib.parse import urlparse
 
 from api import config as app_config
 from api.adapters.branding import apply_delivery_branding
+from api.adapters.delivery_language import (
+    _contains_disallowed_english,
+    _contains_han,
+    _json_language_violation,
+    delivery_language_violations,
+    validate_delivery_language,
+)
 from api.adapters.engine import geolib
 from api.adapters.exceptions import GeoEngineError
 from api.adapters.localization import localize_ticket, normalize_english_typography
@@ -27,15 +34,6 @@ REQUIRED_DOCUMENTS = {
     "06": "Build-Map",
 }
 
-HAN_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\U00020000-\U0002fa1f]")
-CJK_TYPOGRAPHY_PATTERN = re.compile(
-    r"[\u3000-\u303f\ufe10-\ufe1f\ufe30-\ufe4f\uff01-\uff65\uffe0-\uffe6]"
-)
-UNICODE_ESCAPE_PATTERN = re.compile(r"\\u([0-9a-fA-F]{4})")
-LONG_UNICODE_ESCAPE_PATTERN = re.compile(r"\\U([0-9a-fA-F]{8})")
-SURROGATE_PAIR_PATTERN = re.compile(r"[\ud800-\udbff][\udc00-\udfff]")
-SURROGATE_PATTERN = re.compile(r"[\ud800-\udfff]")
-TEXT_SUFFIXES = frozenset((".md", ".html", ".csv", ".json", ".txt", ".xml", ".js", ".css"))
 PLACEHOLDER_PATTERN = re.compile(
     r"(?i)(\[\s*add\b|<\s*add\b|<\s*(?:section|path|column|value|url)\s*>|\b(?:todo|tbd)\b|replace every bracketed placeholder|configured global target question)"
 )
@@ -184,93 +182,6 @@ EXPLICIT_SCHEMA_FIELD_GROUPS = {
     "Product": (("sku", "mpn", "gtin", "gtin8", "gtin12", "gtin13", "gtin14"),),
     "Service": (("service_type",),),
 }
-
-
-def _decoded_text(value):
-    text = str(value or "")
-    for _ in range(3):
-        decoded = html.unescape(text)
-        if decoded == text:
-            break
-        text = decoded
-    def decode_long_escape(match):
-        codepoint = int(match.group(1), 16)
-        return chr(codepoint) if codepoint <= 0x10FFFF else match.group(0)
-
-    text = LONG_UNICODE_ESCAPE_PATTERN.sub(decode_long_escape, text)
-    text = UNICODE_ESCAPE_PATTERN.sub(lambda match: chr(int(match.group(1), 16)), text)
-    text = SURROGATE_PAIR_PATTERN.sub(
-        lambda match: chr(
-            0x10000
-            + (ord(match.group(0)[0]) - 0xD800) * 0x400
-            + ord(match.group(0)[1])
-            - 0xDC00
-        ),
-        text,
-    )
-    return text
-
-
-def _contains_han(value):
-    return bool(HAN_PATTERN.search(_decoded_text(value)))
-
-
-def _contains_disallowed_english(value):
-    text = _decoded_text(value)
-    return bool(
-        HAN_PATTERN.search(text)
-        or CJK_TYPOGRAPHY_PATTERN.search(text)
-        or SURROGATE_PATTERN.search(text)
-    )
-
-
-def _json_language_violation(value):
-    if isinstance(value, dict):
-        return any(
-            _contains_disallowed_english(key) or _json_language_violation(item)
-            for key, item in value.items()
-        )
-    if isinstance(value, list):
-        return any(_json_language_violation(item) for item in value)
-    return isinstance(value, str) and _contains_disallowed_english(value)
-
-
-def delivery_language_violations(delivery_directory):
-    """Return paths containing Han text or unnormalized CJK/fullwidth typography."""
-    directory = Path(delivery_directory)
-    violations = set()
-    for path in sorted(directory.rglob("*")):
-        relative = path.relative_to(directory)
-        if any(_contains_disallowed_english(part) for part in relative.parts):
-            violations.add(relative.as_posix())
-        if not path.is_file():
-            continue
-        try:
-            text = path.read_text("utf-8")
-        except UnicodeDecodeError:
-            if path.suffix.lower() in TEXT_SUFFIXES:
-                violations.add(relative.as_posix())
-            continue
-        if _contains_disallowed_english(text):
-            violations.add(relative.as_posix())
-            continue
-        if path.suffix.lower() == ".json":
-            try:
-                value = json.loads(text)
-            except json.JSONDecodeError:
-                violations.add(relative.as_posix())
-                continue
-            if _json_language_violation(value):
-                violations.add(relative.as_posix())
-    return sorted(violations)
-
-
-def validate_delivery_language(delivery_directory):
-    """Reject a package if any path or decoded text violates the English contract."""
-    violations = delivery_language_violations(delivery_directory)
-    if violations:
-        raise GeoEngineError("delivery contains non-English content: " + ", ".join(violations))
-    return Path(delivery_directory)
 
 
 def validate_existing_delivery_contract(delivery_directory):
@@ -2706,186 +2617,35 @@ def _asset_record(destination, delivery_path, *, facts_review_pending=False):
 
 
 def _classify_pack_readiness(audit, summary, sampling, facts_review):
-    """拆开诊断终稿与可发布落地资产。
+    """兼容入口：资产就绪分类由 delivery_assets 负责。"""
+    from api.adapters.delivery_assets import classify_pack_readiness
 
-    首轮只要审计合同成立，就是可发给客户的诊断终稿。提纲、待核验文案、
-    未测可见度、未达覆盖率的站点分，记为落地 backlog，不挡诊断包。
-    """
-    audit = audit if isinstance(audit, dict) else {}
-    summary = summary if isinstance(summary, dict) else {}
-    sampling = sampling if isinstance(sampling, dict) else {}
-    facts_review = facts_review if isinstance(facts_review, dict) else {}
-    confidence = sampling.get("confidence") or {}
-    page_count = int(audit.get("page_count") or 0)
-
-    implementation_backlog = []
-    needs_review = int(summary.get("needs_review") or 0)
-    templates = int(summary.get("template") or 0)
-    if needs_review:
-        implementation_backlog.append(
-            f"{needs_review} implementation asset(s) require factual or editorial review before publication"
-        )
-    if templates:
-        implementation_backlog.append(
-            f"{templates} template asset(s) are implementation outlines, not finished publishable pages"
-        )
-    if not confidence.get("sufficient"):
-        label = str(confidence.get("label") or "unmeasured")
-        implementation_backlog.append(
-            f"AI visibility is {label.lower()}; representative 20/2 sampling is required "
-            "only before publishing measured mention rates"
-        )
-    if audit.get("score_status") and audit.get("score_status") != "reported":
-        implementation_backlog.append(
-            "Site score is withheld until scoring coverage reaches the reporting threshold"
-        )
-    if facts_review.get("available") and not facts_review.get("approved"):
-        implementation_backlog.append(
-            "Brand facts are site-extracted and not yet approved for publication-derived assets"
-        )
-
-    diagnostic_blockers = []
-    if page_count < 1:
-        diagnostic_blockers.append("Audit has no crawled pages")
-
-    implementation_ready = not implementation_backlog and int(summary.get("ready") or 0) > 0
-    visibility_ready = bool(confidence.get("sufficient"))
-    diagnostic_ready = not diagnostic_blockers
-    if implementation_ready:
-        pack_kind = "implementation"
-    elif diagnostic_ready:
-        pack_kind = "diagnostic"
-    else:
-        pack_kind = "review"
-    return {
-        "pack_kind": pack_kind,
-        "readiness": "customer_ready" if diagnostic_ready else "review_required",
-        "diagnostic_ready": diagnostic_ready,
-        "visibility_ready": visibility_ready,
-        "implementation_ready": implementation_ready,
-        "readiness_issues": diagnostic_blockers,
-        "implementation_backlog": implementation_backlog,
-    }
+    return classify_pack_readiness(audit, summary, sampling, facts_review)
 
 
 def _write_assets(project_slug, project_directory, directory, config, audit, blueprint, measurement_scope=None):
-    source = project_directory / "assets"
-    destination = directory / "assets"
-    destination.mkdir(parents=True, exist_ok=True)
-    made = []
-    facts, facts_text = _facts_delivery_data(project_slug, project_directory, config)
-    _write_facts_asset(destination, facts, facts_text, made)
-    generated = render_english_generated_assets(
+    """兼容入口：资产清单编排由 delivery_assets 负责。"""
+    from api.adapters.delivery_assets import AssetOperations, write_asset_index
+
+    return write_asset_index(
         project_slug,
         project_directory,
-        source,
-        destination,
+        directory,
         config,
         audit,
         blueprint,
+        measurement_scope=measurement_scope,
+        operations=AssetOperations(
+            facts_delivery_data=_facts_delivery_data,
+            write_facts_asset=_write_facts_asset,
+            render_generated_assets=render_english_generated_assets,
+            copy_drafts=_copy_drafts,
+            copy_other_assets=_copy_other_assets,
+            asset_record=_asset_record,
+            insight_mode_name=_insight_mode_name,
+            safe_display=_safe_display,
+        ),
     )
-    made.extend(generated["paths"])
-    schema_decisions = generated["schema_decisions"]
-    _copy_drafts(source, destination, blueprint, made)
-    _copy_other_assets(source, destination, blueprint, made)
-    facts_review_pending = bool(facts_text) and not bool(facts.get("approved") or facts.get("reviewed"))
-    records = [
-        _asset_record(destination, path, facts_review_pending=facts_review_pending)
-        for path in sorted(set(made))
-    ]
-    decisions_by_path = {item["path"]: item for item in schema_decisions}
-    for record in records:
-        decision_path = record["path"].removeprefix("templates/")
-        decision = decisions_by_path.get(decision_path)
-        if not decision:
-            continue
-        decision["path"] = record["path"]
-        if decision.get("requires_review"):
-            record["issues"].append("Schema applicability is inferred and requires confirmation")
-            if record["status"] == "ready":
-                record["status"] = "needs_review"
-    records.sort(key=lambda item: (item["status"], item["path"]))
-    summary = {
-        status: sum(item["status"] == status for item in records)
-        for status in ("ready", "needs_review", "template")
-    }
-    sampling = measurement.sampling_quality(project_slug)
-    confidence = sampling.get("confidence") or {}
-    facts_review = {
-        "available": bool(facts_text),
-        "approved": bool(facts.get("approved") or facts.get("reviewed")),
-        "machine_verified": bool((facts.get("verification") or {}).get("publication_ready")) and not bool(facts.get("reviewed")),
-    }
-    classification = _classify_pack_readiness(audit, summary, sampling, facts_review)
-    index = {
-        "generated_at": geolib.now_iso(),
-        "source_revision": app_config.source_revision(),
-        "language": "English",
-        "pack_kind": classification["pack_kind"],
-        "readiness": classification["readiness"],
-        "diagnostic_ready": classification["diagnostic_ready"],
-        "visibility_ready": classification["visibility_ready"],
-        "implementation_ready": classification["implementation_ready"],
-        "readiness_issues": classification["readiness_issues"],
-        "implementation_backlog": classification["implementation_backlog"],
-        "report_confidence": confidence,
-        "audit_confidence": {
-            "status": audit.get("score_status"),
-            "score_coverage": audit.get("score_coverage"),
-            "minimum_score_coverage": audit.get("minimum_score_coverage"),
-            "evaluated_pages": audit.get("evaluated_page_count"),
-            "eligible_pages": audit.get("score_eligible_page_count"),
-        },
-        "facts_review": facts_review,
-        "schema_selection": {
-            "policy": "Specialized Schema.org types require project evidence",
-            "included": [item for item in schema_decisions if item["status"] == "included"],
-            "omitted": [item for item in schema_decisions if item["status"] == "omitted"],
-        },
-        "summary": summary,
-        "assets": records,
-    }
-    if isinstance(measurement_scope, dict):
-        index["measurement_scope"] = {
-            "question_set_version": measurement_scope.get("question_set_version"),
-            "configured_platforms": list(measurement_scope.get("configured_platforms") or []),
-            "funded_platforms": list(measurement_scope.get("funded_platforms") or []),
-            "active_cohorts": [
-                {
-                    key: (
-                        _insight_mode_name(item.get(key))
-                        if key == "sampling_mode"
-                        else _safe_display(item.get(key), "Configured provider")
-                    )
-                    for key in ("engine_code", "engine_name", "model", "sampling_mode", "source")
-                    if item.get(key) is not None
-                }
-                for item in (measurement_scope.get("active_cohorts") or [])
-                if isinstance(item, dict)
-            ],
-            "measured_platforms": list(measurement_scope.get("measured_platforms") or []),
-            "unfunded_platforms": list(measurement_scope.get("unfunded_platforms") or []),
-            "cohort_changed": bool(measurement_scope.get("cohort_changed")),
-            "question_ready": bool(measurement_scope.get("ready")),
-            "minimum_question_samples": measurement.MIN_QUESTION_SAMPLES,
-            "question_evidence": {
-                "total": int((measurement_scope.get("evidence") or {}).get("total") or 0),
-                "measured": int((measurement_scope.get("evidence") or {}).get("measured") or 0),
-                "sufficient": int((measurement_scope.get("evidence") or {}).get("sufficient") or 0),
-                "gaps": [
-                    {
-                        "question_id": _safe_display(item.get("id"), "Configured question"),
-                        "samples": int(item.get("samples") or 0),
-                        "required": int(item.get("required") or 0),
-                        "missing_samples": int(item.get("missing_samples") or 0),
-                    }
-                    for item in (measurement_scope.get("evidence") or {}).get("gaps") or []
-                    if isinstance(item, dict) and item.get("id")
-                ],
-            },
-        }
-    (destination / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", "utf-8")
-    return index
 
 
 def validate_delivery_quality(directory, audit, tickets, asset_index):

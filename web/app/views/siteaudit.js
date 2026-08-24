@@ -31,9 +31,9 @@ function renderFindings(page) {
     return `<span class="tag tag-dim">${escapeHtml(page.evaluation_note || 'Excluded from public-content scoring')}</span>`;
   }
   if (page.evaluation_status === 'not_evaluated') {
-    return '<span class="tag tag-dim">${t('siteaudit.insufficient_crawl_evidence', {}, 'Insufficient crawl evidence')}</span>';
+    return `<span class="tag tag-dim">${t('siteaudit.insufficient_crawl_evidence', {}, 'Insufficient crawl evidence')}</span>`;
   }
-  return '<span class="tag tag-dim">${t('siteaudit.no_applicable_gaps', {}, 'No applicable gaps detected')}</span>';
+  return `<span class="tag tag-dim">${t('siteaudit.no_applicable_gaps', {}, 'No applicable gaps detected')}</span>`;
 }
 
 export default {

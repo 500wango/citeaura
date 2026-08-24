@@ -4,6 +4,7 @@
 
 import { projects } from '../api.js?v=3.4';
 import { setSafeHtml } from '../safe-html.js';
+import { t, translateText } from '../i18n.js';
 import { toast } from './toast.js';
 
 let activeStreamTimer = null;
@@ -23,36 +24,36 @@ let currentOnClose = null;
 let currentOnComplete = null;
 
 const AUTOPILOT_STAGES = [
-  { key: 'crawl', label: 'Crawl Website' },
-  { key: 'audit', label: 'Site Audit' },
-  { key: 'baseline', label: 'Brand, Competitors & Questions' },
-  { key: 'sampling', label: 'AI Sampling' },
-  { key: 'tickets', label: 'Action Tickets & Blueprint' },
-  { key: 'assets', label: 'Assets & Diagnostic Report' },
-  { key: 'deliverables', label: 'Core Deliverables' },
-  { key: 'verification', label: 'Verification & Delivery Pack' },
+  { key: 'crawl', labelKey: 'telemetry.stage.crawl_website', label: 'Crawl Website' },
+  { key: 'audit', labelKey: 'telemetry.stage.site_audit', label: 'Site Audit' },
+  { key: 'baseline', labelKey: 'telemetry.stage.brand_questions', label: 'Brand, Competitors & Questions' },
+  { key: 'sampling', labelKey: 'telemetry.stage.ai_sampling', label: 'AI Sampling' },
+  { key: 'tickets', labelKey: 'telemetry.stage.action_blueprint', label: 'Action Tickets & Blueprint' },
+  { key: 'assets', labelKey: 'telemetry.stage.assets_report', label: 'Assets & Diagnostic Report' },
+  { key: 'deliverables', labelKey: 'telemetry.stage.core_deliverables', label: 'Core Deliverables' },
+  { key: 'verification', labelKey: 'telemetry.stage.verification_pack', label: 'Verification & Delivery Pack' },
 ];
 
 const STAGE_MAP = {
   autopilot: AUTOPILOT_STAGES,
   bootstrap: AUTOPILOT_STAGES,
   sample: [
-    { key: 'init', label: 'Key & Environment Setup' },
-    { key: 'questions', label: 'Question Routing' },
-    { key: 'sampling', label: 'Model Sampling' },
-    { key: 'finalizing', label: 'Metrics Archive' },
+    { key: 'init', labelKey: 'telemetry.stage.key_environment', label: 'Key & Environment Setup' },
+    { key: 'questions', labelKey: 'telemetry.stage.question_routing', label: 'Question Routing' },
+    { key: 'sampling', labelKey: 'telemetry.stage.model_sampling', label: 'Model Sampling' },
+    { key: 'finalizing', labelKey: 'telemetry.stage.metrics_archive', label: 'Metrics Archive' },
   ],
   verify: [
-    { key: 'init', label: 'Environment Setup' },
-    { key: 'crawl', label: 'Site Crawl' },
-    { key: 'audit', label: 'Acceptance Check' },
-    { key: 'finalizing', label: 'Report Generation' },
+    { key: 'init', labelKey: 'telemetry.stage.environment_setup', label: 'Environment Setup' },
+    { key: 'crawl', labelKey: 'telemetry.stage.site_crawl', label: 'Site Crawl' },
+    { key: 'audit', labelKey: 'telemetry.stage.acceptance_check', label: 'Acceptance Check' },
+    { key: 'finalizing', labelKey: 'telemetry.stage.report_generation', label: 'Report Generation' },
   ],
   default: [
-    { key: 'init', label: 'Initialization' },
-    { key: 'crawl', label: 'Data Collection' },
-    { key: 'processing', label: 'Processing' },
-    { key: 'finalizing', label: 'Finalizing Results' },
+    { key: 'init', labelKey: 'telemetry.stage.initialization', label: 'Initialization' },
+    { key: 'crawl', labelKey: 'telemetry.stage.data_collection', label: 'Data Collection' },
+    { key: 'processing', labelKey: 'telemetry.stage.processing', label: 'Processing' },
+    { key: 'finalizing', labelKey: 'telemetry.stage.finalizing_results', label: 'Finalizing Results' },
   ],
 };
 
@@ -63,7 +64,7 @@ function formatElapsed(seconds) {
 }
 
 function translateLogLine(text) {
-  return String(text || '');
+  return translateText(String(text || ''));
 }
 
 function escapeHtml(value) {
@@ -136,7 +137,7 @@ function startElapsedTimer() {
   elapsedTimer = setInterval(() => {
     const timer = document.getElementById('tel-timer-badge');
     if (timer && startTime) {
-      timer.textContent = `Elapsed ${formatElapsed(Math.floor((Date.now() - startTime) / 1000))}`;
+      timer.textContent = t('telemetry.elapsed', { seconds: formatElapsed(Math.floor((Date.now() - startTime) / 1000)) }, 'Elapsed {seconds}s');
     }
   }, 1000);
 }
@@ -154,7 +155,7 @@ function bindBackgroundButton() {
 function renderBackgroundAction() {
   const actionsContainer = document.getElementById('tel-actions-container');
   if (!actionsContainer) return;
-  setSafeHtml(actionsContainer, '<button type="button" class="btn btn-secondary btn-sm" id="tel-close-bottom-btn">Run in Background</button>');
+  setSafeHtml(actionsContainer, `<button type="button" class="btn btn-secondary btn-sm" id="tel-close-bottom-btn">${t('telemetry.run_bg', {}, 'Run in Background')}</button>`);
   bindBackgroundButton();
 }
 
@@ -196,9 +197,9 @@ function resetForRetry(jobId) {
   const liveDot = document.querySelector('.telemetry-live-dot');
   if (jobLabel) jobLabel.textContent = `Job #${jobId}`;
   if (progressBar) progressBar.style.width = '5%';
-  if (subtitle) subtitle.textContent = 'Retry queued. Waiting for a worker...';
-  if (statusText) statusText.textContent = 'Retry running in Celery worker queue';
-  if (activity) activity.textContent = 'Waiting for the retry worker to start';
+  if (subtitle) subtitle.textContent = t('telemetry.retry_waiting', {}, 'Retry queued. Waiting for a worker...');
+  if (statusText) statusText.textContent = t('telemetry.retry_running', {}, 'Retry running in Celery worker queue');
+  if (activity) activity.textContent = t('telemetry.retry_worker_waiting', {}, 'Waiting for the retry worker to start');
   if (liveDot) liveDot.classList.remove('is-done', 'is-failed');
   if (term) {
     const divider = document.createElement('div');
@@ -217,19 +218,19 @@ async function retryCurrentJob() {
   const button = document.getElementById('tel-retry-btn');
   if (button) {
     button.disabled = true;
-    button.textContent = 'Queueing retry...';
+    button.textContent = t('telemetry.queue_retry', {}, 'Queueing retry...');
   }
   try {
     const retry = await projects.retryJob(currentProjectId, currentJobId);
     const nextJobId = retry?.job_id || retry?.job?.id;
     if (!nextJobId) throw new Error('Retry response did not include a job ID');
-    toast.success('Job retry queued');
+    toast.success(t('telemetry.retry_queued', {}, 'Job retry queued'));
     resetForRetry(nextJobId);
   } catch (error) {
-    toast.error(error.detail || error.message || 'Failed to retry job');
+    toast.error(error.detail || error.message || t('telemetry.retry_failed', {}, 'Failed to retry job'));
     if (button) {
       button.disabled = false;
-      button.textContent = 'Retry Job';
+      button.textContent = t('telemetry.retry', {}, 'Retry Job');
     }
   }
 }
@@ -245,7 +246,10 @@ export function openTelemetryModal({
 
   currentProjectId = projectId;
   currentJobId = jobId;
-  currentStages = STAGE_MAP[String(actionName).toLowerCase()] || STAGE_MAP.default;
+  currentStages = (STAGE_MAP[String(actionName).toLowerCase()] || STAGE_MAP.default).map((stage) => ({
+    ...stage,
+    label: t(stage.labelKey, {}, stage.label),
+  }));
   currentStageIndex = 0;
   highestProgress = 5;
   logOffset = 0;
@@ -275,16 +279,16 @@ export function openTelemetryModal({
                 <span aria-hidden="true">·</span>
                 <span id="tel-job-id">Job #${escapeHtml(jobId)}</span>
               </div>
-              <div class="telemetry-subtitle" id="tel-header-subtitle">Connecting to the live worker...</div>
+              <div class="telemetry-subtitle" id="tel-header-subtitle">${t('telemetry.connecting', {}, 'Connecting to the live worker...')}</div>
             </div>
           </div>
           <div class="telemetry-controls">
-            <span class="telemetry-timer" id="tel-timer-badge">Elapsed 0s</span>
-            <button type="button" class="btn btn-ghost btn-sm" id="tel-autoscroll-btn" title="Toggle automatic log scrolling">
-              <span id="tel-autoscroll-text">Auto-scroll: On</span>
+            <span class="telemetry-timer" id="tel-timer-badge">${t('telemetry.elapsed', { seconds: '0' }, 'Elapsed {seconds}s')}</span>
+            <button type="button" class="btn btn-ghost btn-sm" id="tel-autoscroll-btn" title="${t('telemetry.toggle_scroll', {}, 'Toggle automatic log scrolling')}">
+              <span id="tel-autoscroll-text">${t('telemetry.auto_scroll_on', {}, 'Auto-scroll: On')}</span>
             </button>
-            <button type="button" class="btn btn-ghost btn-sm" id="tel-copy-btn" title="Copy full log">Copy log</button>
-            <button type="button" class="telemetry-close-btn" id="tel-close-btn" title="Run in background" aria-label="Run in background">
+            <button type="button" class="btn btn-ghost btn-sm" id="tel-copy-btn" title="${t('telemetry.copy_log', {}, 'Copy full log')}">${t('telemetry.copy_log', {}, 'Copy log')}</button>
+            <button type="button" class="telemetry-close-btn" id="tel-close-btn" title="${t('telemetry.run_bg', {}, 'Run in background')}" aria-label="${t('telemetry.run_bg', {}, 'Run in background')}">
               <img src="/site-assets/icons/x.svg" width="18" height="18" alt="">
             </button>
           </div>
@@ -299,17 +303,17 @@ export function openTelemetryModal({
           `).join('')}
         </div>
 
-        <div class="telemetry-progress-track" role="progressbar" aria-label="Pipeline progress" aria-valuemin="0" aria-valuemax="100">
+        <div class="telemetry-progress-track" role="progressbar" aria-label="${t('telemetry.pipeline_progress', {}, 'Pipeline progress')}" aria-valuemin="0" aria-valuemax="100">
           <div class="telemetry-progress-bar" id="tel-progress-bar" style="width:5%"></div>
         </div>
 
         <div class="telemetry-activity" aria-live="polite">
-          <span class="telemetry-activity-label">Current activity</span>
-          <span class="telemetry-activity-text" id="tel-current-activity">Waiting for the first worker update</span>
+          <span class="telemetry-activity-label">${t('telemetry.current_activity', {}, 'Current activity')}</span>
+          <span class="telemetry-activity-text" id="tel-current-activity">${t('telemetry.waiting_worker', {}, 'Waiting for the first worker update')}</span>
         </div>
 
-        <div class="telemetry-terminal" id="tel-terminal" role="log" aria-live="polite" aria-label="Live pipeline log">
-          <div class="term-log-row term-brand">Connecting to CiteAura GEO Engine log stream...</div>
+        <div class="telemetry-terminal" id="tel-terminal" role="log" aria-live="polite" aria-label="${t('telemetry.live_pipeline_log', {}, 'Live pipeline log')}">
+          <div class="term-log-row term-brand">${escapeHtml(t('telemetry.connecting_engine_log', {}, 'Connecting to CiteAura GEO Engine log stream...'))}</div>
         </div>
 
         <div class="telemetry-footer">
@@ -318,7 +322,7 @@ export function openTelemetryModal({
             <span id="tel-status-text">Task running in Celery worker queue</span>
           </div>
           <div class="tel-actions" id="tel-actions-container">
-            <button type="button" class="btn btn-secondary btn-sm" id="tel-close-bottom-btn">Run in Background</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="tel-close-bottom-btn">${t('telemetry.run_bg', {}, 'Run in Background')}</button>
           </div>
         </div>
       </div>
@@ -337,14 +341,16 @@ export function openTelemetryModal({
   const scrollText = document.getElementById('tel-autoscroll-text');
   scrollButton?.addEventListener('click', () => {
     autoScroll = !autoScroll;
-    if (scrollText) scrollText.textContent = `Auto-scroll: ${autoScroll ? 'On' : 'Off'}`;
+    if (scrollText) scrollText.textContent = autoScroll
+      ? t('telemetry.auto_scroll_on', {}, 'Auto-scroll: On')
+      : t('telemetry.auto_scroll_off', {}, 'Auto-scroll: Off');
     scrollButton.classList.toggle('is-dim', !autoScroll);
   });
 
   document.getElementById('tel-copy-btn')?.addEventListener('click', () => {
     const terminal = document.getElementById('tel-terminal');
     if (terminal && navigator.clipboard) {
-      navigator.clipboard.writeText(terminal.innerText).then(() => toast.success('Log copied to clipboard'));
+      navigator.clipboard.writeText(terminal.innerText).then(() => toast.success(t('telemetry.copied', {}, 'Log copied to clipboard')));
     }
   });
 
@@ -399,7 +405,7 @@ async function fetchLogChunk(token) {
     if (progressTrack) progressTrack.setAttribute('aria-valuenow', String(highestProgress));
 
     if (subtitle) {
-      const stageLabel = currentStages[currentStageIndex]?.label || job.stage || 'Executing';
+      const stageLabel = currentStages[currentStageIndex]?.label || job.stage || t('telemetry.executing', {}, 'Executing');
       subtitle.textContent = `${stageLabel} · ${highestProgress}% · ${job.status}`;
     }
     updateStepperUI(currentStageIndex, highestProgress, job.status);
@@ -407,10 +413,10 @@ async function fetchLogChunk(token) {
     if (job.status === 'done') {
       stopTimers();
       liveDot?.classList.add('is-done');
-      if (statusText) statusText.textContent = `Task completed in ${formatElapsed(Math.floor((Date.now() - startTime) / 1000))}`;
-      if (activity) activity.textContent = 'Pipeline complete. Results are ready to review.';
+      if (statusText) statusText.textContent = `${t('telemetry.completed_in', {}, 'Task completed in {seconds}s').replace('{seconds}', formatElapsed(Math.floor((Date.now() - startTime) / 1000)))}`;
+      if (activity) activity.textContent = t('telemetry.results_ready', {}, 'Pipeline complete. Results are ready to review.');
       if (actionsContainer) {
-        setSafeHtml(actionsContainer, '<button type="button" class="btn btn-primary btn-sm" id="tel-view-result-btn">View Results</button>');
+        setSafeHtml(actionsContainer, `<button type="button" class="btn btn-primary btn-sm" id="tel-view-result-btn">${t('telemetry.view_results', {}, 'View Results')}</button>`);
         document.getElementById('tel-view-result-btn')?.addEventListener('click', () => {
           closeTelemetryModal();
           if (location.hash !== '#/overview') location.hash = '#/overview';
@@ -426,21 +432,21 @@ async function fetchLogChunk(token) {
     } else if (job.status === 'failed') {
       stopTimers();
       liveDot?.classList.add('is-failed');
-      const errorMessage = job.error || 'Check the log for details';
-      if (statusText) statusText.textContent = `Task failed: ${errorMessage}`;
-      if (subtitle) subtitle.textContent = `${currentStages[currentStageIndex]?.label || 'Pipeline'} · failed`;
+      const errorMessage = job.error || t('telemetry.check_log', {}, 'Check the log for details');
+      if (statusText) statusText.textContent = `${t('telemetry.task_failed', {}, 'Task failed')}: ${errorMessage}`;
+      if (subtitle) subtitle.textContent = `${currentStages[currentStageIndex]?.label || t('telemetry.pipeline', {}, 'Pipeline')} · ${t('telemetry.failed', {}, 'failed')}`;
       if (activity) activity.textContent = errorMessage;
       if (terminal && job.error && !job.log?.includes(job.error)) {
         const row = document.createElement('div');
         row.className = 'term-log-row term-error';
-        row.textContent = `Error: ${job.error}`;
+        row.textContent = `${t('telemetry.error_prefix', {}, 'Error')}: ${job.error}`;
         terminal.appendChild(row);
         terminal.scrollTop = terminal.scrollHeight;
       }
       if (actionsContainer) {
         const retryAction = job.can_retry
-          ? '<button type="button" class="btn btn-danger btn-sm" id="tel-retry-btn">Retry Job</button>'
-          : '<button type="button" class="btn btn-secondary btn-sm" id="tel-close-bottom-btn">Close</button>';
+          ? `<button type="button" class="btn btn-danger btn-sm" id="tel-retry-btn">${t('telemetry.retry', {}, 'Retry Job')}</button>`
+          : `<button type="button" class="btn btn-secondary btn-sm" id="tel-close-bottom-btn">${t('common.close', {}, 'Close')}</button>`;
         setSafeHtml(actionsContainer, retryAction);
         if (job.can_retry) document.getElementById('tel-retry-btn')?.addEventListener('click', retryCurrentJob);
         else bindBackgroundButton();
@@ -449,7 +455,7 @@ async function fetchLogChunk(token) {
   } catch (error) {
     if (token === streamToken) {
       const subtitle = document.getElementById('tel-header-subtitle');
-      if (subtitle) subtitle.textContent = 'Live updates temporarily unavailable. Retrying...';
+      if (subtitle) subtitle.textContent = t('telemetry.live_updates_unavailable', {}, 'Live updates temporarily unavailable. Retrying...');
     }
     console.warn('Telemetry log fetch error:', error);
   } finally {

@@ -151,7 +151,14 @@ export const projects = {
   triggerAction: (id, action, body = {}) =>
     request(`/api/v1/projects/${encodeURIComponent(id)}/actions/${encodeURIComponent(action)}`, { method: 'POST', body }),
 
-  getJobs: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/jobs`), 'jobs', []),
+  getJobs: (id, options = {}) => {
+    const query = new URLSearchParams();
+    if (options.limit) query.set('limit', String(options.limit));
+    const beforeId = options.beforeId ?? options.before_id;
+    if (beforeId) query.set('before_id', String(beforeId));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/jobs${suffix}`), 'jobs', []);
+  },
   getJob: (id, jobId, offset) =>
     fieldRequest(
       request(`/api/v1/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}${offset !== undefined && offset !== null ? `?offset=${offset}` : ''}`),

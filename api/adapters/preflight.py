@@ -62,7 +62,7 @@ def run(url: str, timeout: float = 8.0) -> dict:
             _check("homepage", False, "DNS unavailable", action="Verify homepage returns HTTP 2xx once DNS is resolved"),
             _check("robots", False, "DNS unavailable", action="Verify /robots.txt once DNS is resolved"),
         ])
-        return {"url": normalized, "checks": checks, "ready": False}
+        return {"url": normalized, "checks": checks, "ready": False, "_machine_files": {}}
 
     homepage = None
     try:
@@ -97,18 +97,45 @@ def run(url: str, timeout: float = 8.0) -> dict:
             homepage.close()
 
     robots_url = normalized + "/robots.txt"
+    robots_status = 0
+    robots_body = ""
+    response = None
     try:
         response = requests.get(robots_url, timeout=timeout, allow_redirects=False, stream=True)
+        robots_status = response.status_code
+        iter_content = getattr(response, "iter_content", None)
+        if callable(iter_content):
+            chunks = []
+            size = 0
+            for chunk in iter_content(chunk_size=8192):
+                if not chunk:
+                    continue
+                remaining = (128 * 1024) - size
+                piece = chunk[:remaining]
+                chunks.append(piece.encode("utf-8") if isinstance(piece, str) else bytes(piece))
+                size += len(chunks[-1])
+                if size >= 128 * 1024:
+                    break
+            robots_body = b"".join(chunks).decode("utf-8", errors="replace")
+        else:
+            robots_body = str(getattr(response, "text", "") or "")[:128 * 1024]
         checks.append(_check(
-            "robots", 200 <= response.status_code < 400 or response.status_code == 404,
-            "robots.txt accessible" if response.status_code != 404 else "robots.txt not provided",
-            action="Ensure /robots.txt is accessible and does not block AI crawlers sitewide", status=response.status_code,
+            "robots", 200 <= robots_status < 400 or robots_status == 404,
+            "robots.txt accessible" if robots_status != 404 else "robots.txt not provided",
+            action="Ensure /robots.txt is accessible and does not block AI crawlers sitewide", status=robots_status,
         ))
-        response.close()
     except requests.RequestException as exc:
         checks.append(_check(
             "robots", False, "robots.txt connection failed", action="Inspect /robots.txt route, WAF, and origin server availability",
             error=type(exc).__name__,
         ))
+    finally:
+        if response is not None:
+            response.close()
 
-    return {"url": normalized, "checks": checks, "ready": all(item["ok"] for item in checks if item["name"] != "robots")}
+    return {
+        "url": normalized,
+        "checks": checks,
+        "ready": all(item["ok"] for item in checks if item["name"] != "robots"),
+        "_machine_files": {"robots": {"status": robots_status, "body": robots_body}},
+    }

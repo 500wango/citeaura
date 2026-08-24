@@ -31,26 +31,21 @@ def _iso(value):
     return value.isoformat() if value is not None else None
 
 
-def _job_payload(job):
-    try:
-        value = json.loads(job.request_json or "{}")
-    except (TypeError, ValueError):
-        return {}
-    return value if isinstance(value, dict) else {}
-
-
-def _job_sampled(job):
-    """判断成功 Job 是否实际包含一次采样，而不是只看 action 名称。"""
-    if job.action in ("sample", "sample-import", "cycle"):
+def _row_sampled(action, request_json):
+    """判断轻量查询行是否包含实际采样。"""
+    if action in ("sample", "sample-import"):
         return True
-    if job.action not in ("autopilot", "serve", "bootstrap"):
+    if action not in ("cycle", "autopilot", "serve", "bootstrap"):
         return False
-    payload = _job_payload(job)
+    try:
+        payload = json.loads(request_json or "{}")
+    except (TypeError, ValueError):
+        payload = {}
     return not bool(payload.get("no_sample") or payload.get("--no-sample"))
 
 
 def _count_sampled_jobs(db, *, project_id=None, tenant_id=None, created_from=None, created_to=None):
-    """按 `_job_sampled` 统计未失败的采样 Job，忽略 no_sample 管线。"""
+    """按动作参数统计未失败的采样 Job，忽略 no_sample 管线。"""
     query = db.query(Job).filter(Job.action.in_(SAMPLE_JOB_ACTIONS), Job.status != "failed")
     if tenant_id is not None:
         query = query.join(Project, Project.id == Job.project_id).filter(Project.tenant_id == tenant_id)
@@ -60,7 +55,11 @@ def _count_sampled_jobs(db, *, project_id=None, tenant_id=None, created_from=Non
         query = query.filter(Job.created_at >= created_from)
     if created_to is not None:
         query = query.filter(Job.created_at < created_to)
-    return sum(1 for job in query.all() if _job_sampled(job))
+    direct_count = query.filter(Job.action.in_(("sample", "sample-import"))).count()
+    conditional_rows = query.filter(Job.action.in_(("cycle", "autopilot", "serve", "bootstrap"))).with_entities(
+        Job.action, Job.request_json,
+    ).all()
+    return direct_count + sum(1 for action, request_json in conditional_rows if _row_sampled(action, request_json))
 
 
 def activation_funnel(db: Session, tenant: Tenant) -> dict:
@@ -72,12 +71,12 @@ def activation_funnel(db: Session, tenant: Tenant) -> dict:
         .scalar()
         or tenant.created_at
     )
-    projects = db.query(Project).filter(Project.tenant_id == tenant.id).all()
-    project_ids = [project.id for project in projects]
+    project_ids = [row[0] for row in db.query(Project.id).filter(Project.tenant_id == tenant.id).all()]
+    project_created_at = db.query(func.min(Project.created_at)).filter(Project.tenant_id == tenant.id).scalar()
     jobs = []
     if project_ids:
         jobs = (
-            db.query(Job)
+            db.query(Job.action, Job.request_json, Job.finished_at, Job.created_at)
             .filter(Job.project_id.in_(project_ids), Job.status == "done")
             .order_by(Job.finished_at.asc(), Job.created_at.asc(), Job.id.asc())
             .all()
@@ -89,15 +88,16 @@ def activation_funnel(db: Session, tenant: Tenant) -> dict:
             "audit", "sample", "sample-import", "autopilot", "cycle", "serve", "bootstrap",
         )
     ]
-    sampled_jobs = [job for job in completed_jobs if _job_sampled(job)]
+    sampled_jobs = [job for job in completed_jobs if _row_sampled(job.action, job.request_json)]
     delivery_jobs = [job for job in completed_jobs if job.action == "deliver"]
+    job_time = lambda job: job.finished_at or job.created_at
     completed_at = {
         "registration": registration_at,
-        "project_creation": min((project.created_at for project in projects if project.created_at), default=None),
-        "first_audit": (audit_jobs[0].finished_at or audit_jobs[0].created_at) if audit_jobs else None,
-        "first_sample": (sampled_jobs[0].finished_at or sampled_jobs[0].created_at) if sampled_jobs else None,
-        "first_delivery_pack": (delivery_jobs[0].finished_at or delivery_jobs[0].created_at) if delivery_jobs else None,
-        "first_resample": (sampled_jobs[1].finished_at or sampled_jobs[1].created_at) if len(sampled_jobs) >= 2 else None,
+        "project_creation": project_created_at,
+        "first_audit": job_time(audit_jobs[0]) if audit_jobs else None,
+        "first_sample": job_time(sampled_jobs[0]) if sampled_jobs else None,
+        "first_delivery_pack": job_time(delivery_jobs[0]) if delivery_jobs else None,
+        "first_resample": job_time(sampled_jobs[1]) if len(sampled_jobs) >= 2 else None,
     }
     steps = []
     for key, label in ACTIVATION_STEPS:

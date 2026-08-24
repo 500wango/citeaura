@@ -78,10 +78,15 @@ export async function loadCatalogs(locale = 'en') {
   document.documentElement.lang = HTML_LANG_MAP[currentLocale] || 'en';
 
   try {
-    const [fallbackRes, localeRes] = await Promise.all([
-      fetch('/i18n/en.json'),
-      fetch(`/i18n/${currentLocale}.json`),
-    ]);
+    const requests = currentLocale === DEFAULT_LOCALE
+      ? [fetch('/i18n/en.json', { cache: 'force-cache' })]
+      : [
+        fetch('/i18n/en.json', { cache: 'force-cache' }),
+        fetch(`/i18n/${currentLocale}.json`, { cache: 'force-cache' }),
+      ];
+    const responses = await Promise.all(requests);
+    const fallbackRes = responses[0];
+    const localeRes = responses[1] || fallbackRes;
     fallbackCatalog = fallbackRes.ok ? await fallbackRes.json() : {};
     reverseFallbackCatalog = Object.entries(fallbackCatalog).reduce((result, [key, value]) => {
       if (typeof value === 'string' && !Object.prototype.hasOwnProperty.call(result, value)) result[value] = key;

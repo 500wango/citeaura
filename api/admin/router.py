@@ -88,6 +88,56 @@ def _active_subscription(db, tenant_id):
     ).order_by(Subscription.started_at.desc(), Subscription.id.desc()).first()
 
 
+def _active_subscription_map(db, tenant_ids):
+    """一次读取租户当前订阅，避免管理概览按租户 N+1 查询。"""
+    tenant_ids = [int(value) for value in tenant_ids if value is not None]
+    if not tenant_ids:
+        return {}
+    rows = db.query(Subscription).filter(
+        Subscription.tenant_id.in_(tenant_ids),
+        Subscription.status.in_(ACTIVE_SUBSCRIPTION_STATUSES),
+    ).order_by(Subscription.started_at.desc(), Subscription.id.desc()).all()
+    result = {}
+    for row in rows:
+        result.setdefault(row.tenant_id, row)
+    return result
+
+
+def _activated_tenant_ids(db, tenant_ids):
+    """批量计算完成过首个审计/采样动作的租户。"""
+    tenant_ids = [int(value) for value in tenant_ids if value is not None]
+    if not tenant_ids:
+        return set()
+    rows = db.query(Project.tenant_id).join(Job, Job.project_id == Project.id).filter(
+        Project.tenant_id.in_(tenant_ids),
+        Job.status == "done",
+        Job.action.in_(("audit", "sample", "sample-import", "autopilot", "cycle", "serve", "bootstrap")),
+    ).distinct().all()
+    return {row[0] for row in rows}
+
+
+def _converted_tenant_ids(db, tenants, end):
+    """一次读取试用期内的订阅，再按租户截止日判断转化。"""
+    tenant_ids = [tenant.id for tenant in tenants]
+    if not tenant_ids:
+        return set()
+    rows = db.query(Subscription).filter(
+        Subscription.tenant_id.in_(tenant_ids),
+        Subscription.status.in_(ACTIVE_SUBSCRIPTION_STATUSES + ("canceled",)),
+    ).all()
+    result = set()
+    deadlines = {
+        tenant.id: _utc(tenant.created_at) + timedelta(days=14)
+        for tenant in tenants
+        if _utc(tenant.created_at) <= end - timedelta(days=14)
+    }
+    for row in rows:
+        deadline = deadlines.get(row.tenant_id)
+        if deadline is not None and _utc(row.started_at) <= deadline:
+            result.add(row.tenant_id)
+    return result
+
+
 def _is_paid(subscription):
     return subscription is not None and subscription.status == "active"
 
@@ -110,34 +160,61 @@ def _tenant_activated(db, tenant_id):
     )
 
 
-def _tenant_payload(db, tenant):
-    members = db.query(func.count(Membership.user_id)).filter(Membership.tenant_id == tenant.id).scalar() or 0
-    projects = db.query(func.count(Project.id)).filter(Project.tenant_id == tenant.id).scalar() or 0
-    latest_job = db.query(Job).join(Project, Project.id == Job.project_id).filter(
-        Project.tenant_id == tenant.id,
-    ).order_by(Job.id.desc()).first()
-    owner = db.query(User).join(Membership, Membership.user_id == User.id).filter(
-        Membership.tenant_id == tenant.id,
+def _tenant_payload_batch(db, tenants):
+    """按分页批量预加载租户列表所需的关联数据。"""
+    tenant_ids = [tenant.id for tenant in tenants]
+    if not tenant_ids:
+        return []
+    member_counts = dict(db.query(Membership.tenant_id, func.count(Membership.user_id)).filter(
+        Membership.tenant_id.in_(tenant_ids),
+    ).group_by(Membership.tenant_id).all())
+    project_counts = dict(db.query(Project.tenant_id, func.count(Project.id)).filter(
+        Project.tenant_id.in_(tenant_ids),
+    ).group_by(Project.tenant_id).all())
+    owner_rows = db.query(Membership.tenant_id, User).join(User, User.id == Membership.user_id).filter(
+        Membership.tenant_id.in_(tenant_ids),
         Membership.role == "owner",
-    ).order_by(User.id).first()
-    subscription = _active_subscription(db, tenant.id)
-    return {
-        "id": tenant.id,
-        "name": tenant.name,
-        "status": tenant.status,
-        "plan": tenant.plan,
-        "country_code": tenant.acquisition_country_code,
-        "country_source": tenant.country_source,
-        "owner_email": owner.email if owner else None,
-        "members": members,
-        "projects": projects,
-        "activated": _tenant_activated(db, tenant.id),
-        "mrr_usd_cents": _mrr_cents(subscription) if _is_paid(subscription) else 0,
-        "subscription_status": subscription.status if subscription else None,
-        "trial_ends_at": tenant.trial_ends_at,
-        "latest_job_at": latest_job.finished_at or latest_job.started_at if latest_job else None,
-        "created_at": tenant.created_at,
-    }
+    ).order_by(Membership.tenant_id.asc(), User.id.asc()).all()
+    owners = {}
+    for tenant_id, owner in owner_rows:
+        owners.setdefault(tenant_id, owner)
+    latest_job_ids = db.query(func.max(Job.id)).join(Project, Project.id == Job.project_id).filter(
+        Project.tenant_id.in_(tenant_ids),
+    ).group_by(Project.tenant_id).subquery()
+    latest_jobs = db.query(Job, Project.tenant_id).join(Project, Project.id == Job.project_id).filter(
+        Job.id.in_(latest_job_ids),
+    ).all()
+    latest_by_tenant = {tenant_id: job for job, tenant_id in latest_jobs}
+    subscriptions = _active_subscription_map(db, tenant_ids)
+    activated_ids = _activated_tenant_ids(db, tenant_ids)
+    result = []
+    for tenant in tenants:
+        subscription = subscriptions.get(tenant.id)
+        latest_job = latest_by_tenant.get(tenant.id)
+        owner = owners.get(tenant.id)
+        result.append({
+            "id": tenant.id,
+            "name": tenant.name,
+            "status": tenant.status,
+            "plan": tenant.plan,
+            "country_code": tenant.acquisition_country_code,
+            "country_source": tenant.country_source,
+            "owner_email": owner.email if owner else None,
+            "members": member_counts.get(tenant.id, 0),
+            "projects": project_counts.get(tenant.id, 0),
+            "activated": tenant.id in activated_ids,
+            "mrr_usd_cents": _mrr_cents(subscription) if _is_paid(subscription) else 0,
+            "subscription_status": subscription.status if subscription else None,
+            "trial_ends_at": tenant.trial_ends_at,
+            "latest_job_at": latest_job.finished_at or latest_job.started_at if latest_job else None,
+            "created_at": tenant.created_at,
+        })
+    return result
+
+
+def _tenant_payload(db, tenant):
+    """兼容单租户调用，并复用分页批量实现。"""
+    return _tenant_payload_batch(db, [tenant])[0]
 
 
 @router.post("/auth/login")
@@ -224,23 +301,13 @@ def overview(
         all_tenant_query = all_tenant_query.filter(Tenant.acquisition_country_code == code)
     period_tenants = tenant_query.all()
     all_tenants = all_tenant_query.all()
-    current_subscriptions = []
-    for tenant in all_tenants:
-        subscription = _active_subscription(db, tenant.id)
-        if subscription:
-            current_subscriptions.append(subscription)
+    subscription_map = _active_subscription_map(db, [tenant.id for tenant in all_tenants])
+    current_subscriptions = list(subscription_map.values())
     paid_subscriptions = [item for item in current_subscriptions if _is_paid(item)]
-    activated = sum(1 for tenant in period_tenants if _tenant_activated(db, tenant.id))
+    activated_ids = _activated_tenant_ids(db, [tenant.id for tenant in period_tenants])
+    activated = len(activated_ids)
     matured = [tenant for tenant in period_tenants if _utc(tenant.created_at) <= end - timedelta(days=14)]
-    converted = 0
-    for tenant in matured:
-        deadline = _utc(tenant.created_at) + timedelta(days=14)
-        if db.query(Subscription.id).filter(
-            Subscription.tenant_id == tenant.id,
-            Subscription.started_at <= deadline,
-            Subscription.status.in_(ACTIVE_SUBSCRIPTION_STATUSES + ("canceled",)),
-        ).first():
-            converted += 1
+    converted = len(_converted_tenant_ids(db, matured, end))
     checkout_query = db.query(ProductEvent.tenant_id).filter(
         ProductEvent.name == "checkout_started",
         ProductEvent.created_at >= start,
@@ -251,11 +318,11 @@ def overview(
             Tenant.acquisition_country_code == country.upper(),
         )
     checkout_tenants = {row[0] for row in checkout_query.distinct().all() if row[0] is not None}
-    paid_checkout = sum(1 for tenant_id in checkout_tenants if db.query(Subscription.id).filter(
-        Subscription.tenant_id == tenant_id,
+    paid_checkout = db.query(func.count(func.distinct(Subscription.tenant_id))).filter(
+        Subscription.tenant_id.in_(checkout_tenants or {-1}),
         Subscription.started_at >= start,
         Subscription.started_at <= end,
-    ).first())
+    ).scalar() or 0
     job_query = db.query(Job).filter(Job.started_at >= start, Job.started_at <= end)
     current_job_query = db.query(Job)
     if country:
@@ -265,8 +332,8 @@ def overview(
         current_job_query = current_job_query.join(Project, Project.id == Job.project_id).join(Tenant, Tenant.id == Project.tenant_id).filter(
             Tenant.acquisition_country_code == country.upper(),
         )
-    jobs = job_query.all()
-    failed_jobs = sum(1 for job in jobs if job.status == "failed")
+    jobs_total = job_query.count()
+    failed_jobs = job_query.filter(Job.status == "failed").count()
     visitors_query = db.query(ProductEvent).filter(
         ProductEvent.name == "landing_view",
         ProductEvent.created_at >= start,
@@ -331,9 +398,9 @@ def overview(
             "checkout_conversion_rate": _ratio(paid_checkout, len(checkout_tenants)),
         },
         "operations": {
-            "jobs": len(jobs),
+            "jobs": jobs_total,
             "failed_jobs": failed_jobs,
-            "job_failure_rate": _ratio(failed_jobs, len(jobs)),
+            "job_failure_rate": _ratio(failed_jobs, jobs_total),
             "queued_jobs": current_job_query.filter(Job.status == "queued").count(),
             "running_jobs": current_job_query.filter(Job.status == "running").count(),
         },
@@ -348,33 +415,26 @@ def countries(
 ):
     start, end = _range(days)
     rows = []
+    grouped_tenants = {}
     grouped = db.query(Tenant.acquisition_country_code, func.count(Tenant.id)).filter(
         Tenant.created_at >= start,
         Tenant.created_at <= end,
     ).group_by(Tenant.acquisition_country_code).order_by(func.count(Tenant.id).desc()).all()
+    period_tenants = db.query(Tenant).filter(Tenant.created_at >= start, Tenant.created_at <= end).all()
+    period_tenant_ids = [tenant.id for tenant in period_tenants]
+    subscription_map = _active_subscription_map(db, period_tenant_ids)
+    activated_ids = _activated_tenant_ids(db, period_tenant_ids)
+    matured = [tenant for tenant in period_tenants if _utc(tenant.created_at) <= end - timedelta(days=14)]
+    matured_ids = {tenant.id for tenant in matured}
+    converted_ids = _converted_tenant_ids(db, matured, end)
+    for tenant in period_tenants:
+        grouped_tenants.setdefault(tenant.acquisition_country_code, []).append(tenant)
     for country_code, registered in grouped:
-        tenants = db.query(Tenant).filter(
-            Tenant.created_at >= start,
-            Tenant.created_at <= end,
-            Tenant.acquisition_country_code == country_code if country_code else Tenant.acquisition_country_code.is_(None),
-        ).all()
-        activated = sum(1 for tenant in tenants if _tenant_activated(db, tenant.id))
-        paid = []
-        matured = []
-        converted = 0
-        for tenant in tenants:
-            subscription = _active_subscription(db, tenant.id)
-            if subscription:
-                paid.append(subscription)
-            if _utc(tenant.created_at) <= end - timedelta(days=14):
-                matured.append(tenant)
-                deadline = _utc(tenant.created_at) + timedelta(days=14)
-                if db.query(Subscription.id).filter(
-                    Subscription.tenant_id == tenant.id,
-                    Subscription.started_at <= deadline,
-                    Subscription.status.in_(ACTIVE_SUBSCRIPTION_STATUSES + ("canceled",)),
-                ).first():
-                    converted += 1
+        tenants = grouped_tenants.get(country_code, [])
+        paid = [subscription_map[tenant.id] for tenant in tenants if tenant.id in subscription_map]
+        activated = sum(1 for tenant in tenants if tenant.id in activated_ids)
+        country_matured = [tenant for tenant in tenants if tenant.id in matured_ids]
+        converted = sum(1 for tenant in country_matured if tenant.id in converted_ids)
         rows.append({
             "country_code": country_code,
             "registered": registered,
@@ -382,9 +442,9 @@ def countries(
             "activation_rate": _ratio(activated, registered),
             "paid_current": sum(1 for item in paid if _is_paid(item)),
             "mrr_usd_cents": sum(_mrr_cents(item) for item in paid if _is_paid(item)),
-            "matured_trials": len(matured),
+            "matured_trials": len(country_matured),
             "converted_trials": converted,
-            "trial_to_paid_rate": _ratio(converted, len(matured)),
+            "trial_to_paid_rate": _ratio(converted, len(country_matured)),
         })
     return {"range": {"days": days, "start": start, "end": end}, "countries": rows}
 
@@ -407,14 +467,22 @@ def users(
     if user_status:
         query = query.filter(User.status == user_status)
     total = query.count()
+    users_page = query.order_by(User.created_at.desc(), User.id.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    user_ids = [user.id for user in users_page]
+    memberships_by_user = {}
+    membership_rows = db.query(Membership, Tenant).join(Tenant, Tenant.id == Membership.tenant_id).filter(
+        Membership.user_id.in_(user_ids or {-1}),
+    ).all()
+    tenant_ids = {tenant.id for _, tenant in membership_rows}
+    subscription_map = _active_subscription_map(db, tenant_ids)
+    for membership, tenant in membership_rows:
+        memberships_by_user.setdefault(membership.user_id, []).append((membership, tenant))
     items = []
-    for user in query.order_by(User.created_at.desc(), User.id.desc()).offset((page - 1) * per_page).limit(per_page).all():
-        memberships = db.query(Membership, Tenant).join(Tenant, Tenant.id == Membership.tenant_id).filter(
-            Membership.user_id == user.id,
-        ).all()
+    for user in users_page:
+        memberships = memberships_by_user.get(user.id, [])
         paid_workspaces = []
         for membership, tenant in memberships:
-            subscription = _active_subscription(db, tenant.id)
+            subscription = subscription_map.get(tenant.id)
             if _is_paid(subscription):
                 paid_workspaces.append({"id": tenant.id, "name": tenant.name, "plan": subscription.plan})
         items.append({
@@ -478,7 +546,7 @@ def tenants(
         query = query.filter(Tenant.status == tenant_status)
     total = query.count()
     rows = query.order_by(Tenant.created_at.desc(), Tenant.id.desc()).offset((page - 1) * per_page).limit(per_page).all()
-    return {"items": [_tenant_payload(db, tenant) for tenant in rows], "pagination": {"page": page, "per_page": per_page, "total": total}}
+    return {"items": _tenant_payload_batch(db, rows), "pagination": {"page": page, "per_page": per_page, "total": total}}
 
 
 @router.patch("/tenants/{tenant_id}/status")
@@ -515,12 +583,20 @@ def subscriptions(
     if subscription_status:
         query = query.filter(Subscription.status == subscription_status)
     total = query.count()
+    rows = query.order_by(Subscription.updated_at.desc(), Subscription.id.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    tenant_map = {tenant.id: tenant for tenant in db.query(Tenant).filter(
+        Tenant.id.in_({row.tenant_id for row in rows} or {-1}),
+    ).all()}
+    payments_by_subscription = {}
+    payment_rows = db.query(PaymentTransaction).filter(
+        PaymentTransaction.subscription_id.in_({row.id for row in rows} or {-1}),
+    ).order_by(PaymentTransaction.occurred_at.desc(), PaymentTransaction.id.desc()).all()
+    for payment in payment_rows:
+        payments_by_subscription.setdefault(payment.subscription_id, payment)
     items = []
-    for row in query.order_by(Subscription.updated_at.desc(), Subscription.id.desc()).offset((page - 1) * per_page).limit(per_page).all():
-        tenant = db.get(Tenant, row.tenant_id)
-        latest_payment = db.query(PaymentTransaction).filter(PaymentTransaction.subscription_id == row.id).order_by(
-            PaymentTransaction.occurred_at.desc(), PaymentTransaction.id.desc(),
-        ).first()
+    for row in rows:
+        tenant = tenant_map.get(row.tenant_id)
+        latest_payment = payments_by_subscription.get(row.id)
         items.append({
             "id": row.id,
             "tenant_id": row.tenant_id,

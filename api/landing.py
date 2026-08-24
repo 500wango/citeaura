@@ -122,4 +122,8 @@ def serve_i18n_catalog(locale: str):
     if not path.is_file():
         raise HTTPException(status_code=404, detail={"error": "locale_not_found"})
     catalogs = load_all_catalogs()
-    return JSONResponse(catalogs.get(code) or {}, media_type="application/json; charset=utf-8")
+    return JSONResponse(
+        catalogs.get(code) or {},
+        media_type="application/json; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )

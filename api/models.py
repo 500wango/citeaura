@@ -251,6 +251,7 @@ class Job(Base):
             postgresql_where=text("status IN ('queued', 'running')"),
             sqlite_where=text("status IN ('queued', 'running')"),
         ),
+        Index("ix_jobs_project_id_id", "project_id", "id"),
     )
 
     id = Column(Integer, primary_key=True)

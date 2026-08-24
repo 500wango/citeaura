@@ -132,10 +132,12 @@ function escapeHtml(value) {
     try { localStorage.setItem('ulang', state.locale); } catch (e) {}
     var selector = $('#site-locale');
     if (selector) selector.value = state.locale;
-    Promise.all([
-      fetch('/i18n/en.json').then(function (r) { return r.ok ? r.json() : {}; }),
-      fetch('/i18n/' + state.locale + '.json').then(function (r) { return r.ok ? r.json() : {}; }),
-    ])
+      Promise.all(state.locale === 'en'
+        ? [fetch('/i18n/en.json').then(function (r) { return r.ok ? r.json() : {}; })]
+        : [
+          fetch('/i18n/en.json').then(function (r) { return r.ok ? r.json() : {}; }),
+          fetch('/i18n/' + state.locale + '.json').then(function (r) { return r.ok ? r.json() : {}; }),
+        ])
       .then(function (catalogs) {
         state.fallbackCatalog = catalogs[0] || {};
         state.catalog = state.locale === 'en' ? state.fallbackCatalog : (catalogs[1] || {});
@@ -253,6 +255,24 @@ function escapeHtml(value) {
         applyBilling();
       });
     });
+    fetch('/api/v1/billing/plans', { credentials: 'omit', cache: 'force-cache' })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (payload) {
+        (payload && payload.plans || []).forEach(function (plan) {
+          var card = $('[data-plan-code="' + plan.code + '"]');
+          if (!card || !plan.prices) return;
+          var monthly = plan.prices.monthly && plan.prices.monthly.usd;
+          var annual = plan.prices.annual && plan.prices.annual.usd;
+          var price = card.querySelector('.price strong');
+          if (typeof monthly === 'number' && price) {
+            price.setAttribute('data-monthly', '$' + monthly);
+            price.textContent = '$' + monthly;
+          }
+          if (typeof annual === 'number' && price) price.setAttribute('data-annual', '$' + annual);
+        });
+        applyBilling();
+      })
+      .catch(function () { /* static prices remain the offline fallback */ });
   }
 
   /* ================================================================
@@ -318,7 +338,7 @@ function escapeHtml(value) {
     }).then(function (response) {
       if (!response.ok) throw new Error('public_audit_failed');
       return response.json();
-    }).catch(function () { return null; });
+    }).catch(function () { return { error: 'public_audit_failed' }; });
 
     if (resultBanner) resultBanner.classList.add('is-hidden');
     if (titleEl) titleEl.textContent = localize('Preparing {domain} workspace...', { domain: domain });
@@ -367,7 +387,7 @@ function escapeHtml(value) {
 
       auditPromise.then(function (audit) {
         renderAuditResult(domain, audit);
-        trackPublicEvent('landing_cta_clicked', { source: 'landing_simulator', result: audit ? 'audit_ready' : 'preview_only' });
+        trackPublicEvent('landing_cta_clicked', { source: 'landing_simulator', result: audit && audit.kind === 'public_diagnostic_summary' ? 'audit_ready' : 'audit_failed' });
         if (typeof onComplete === 'function') onComplete(audit || {});
       });
     }, 1600);
@@ -398,16 +418,18 @@ function escapeHtml(value) {
     if (banner) {
       if (domainEl) domainEl.textContent = domain;
       var isLiveAudit = audit && audit.kind === 'public_diagnostic_summary';
+      var isAuditFailure = audit && audit.error;
       var badge = $('.banner-badge', banner);
       var titlePrefix = $('#banner-title-prefix');
       var openLabel = $('#banner-open-app-label');
-      if (badge) badge.textContent = isLiveAudit ? localize('Live technical diagnostic · no AI sampling') : localize('Preview only · continue in workspace');
-      if (titlePrefix) titlePrefix.textContent = isLiveAudit ? localize('Technical diagnostic ready ·') : localize('Setup preview loaded');
-      if (gradeEl) gradeEl.textContent = isLiveAudit ? String(audit.score || 0) + '/100' : 'Preview ready';
+      if (badge) badge.textContent = isLiveAudit ? localize('Live technical diagnostic · no AI sampling') : (isAuditFailure ? localize('Diagnostic unavailable · retry') : localize('Preview only · continue in workspace'));
+      if (titlePrefix) titlePrefix.textContent = isLiveAudit ? localize('Technical diagnostic ready ·') : (isAuditFailure ? localize('Technical diagnostic unavailable') : localize('Setup preview loaded'));
+      if (gradeEl) gradeEl.textContent = isLiveAudit ? String(audit.score || 0) + '/100' : (isAuditFailure ? localize('Unavailable') : 'Preview ready');
       if (openLabel) openLabel.textContent = isLiveAudit ? localize('Create workspace →') : localize('Open Workspace →');
       var details = $('#banner-audit-details');
       if (details) {
         var checks = isLiveAudit && Array.isArray(audit.checks) ? audit.checks : [];
+        if (isAuditFailure) checks = [{ name: localize('The live audit could not be completed. Please retry or continue to the workspace.'), ok: false }];
         details.innerHTML = checks.slice(0, 5).map(function (check) {
           return '<span class="audit-result-chip ' + (check.ok ? 'is-ok' : 'is-fail') + '">' +
             (check.ok ? '✓ ' : '⚠ ') + escapeHtml(check.name || localize('Site check')) + '</span>';

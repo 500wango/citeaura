@@ -15,10 +15,11 @@ load_dotenv()
 
 
 def database_url():
-    return os.getenv(
-        "DATABASE_URL",
-        "postgresql+psycopg2://citeaura:citeaura@localhost:5432/citeaura",
-    )
+    development_default = "postgresql+psycopg2://citeaura:citeaura@localhost:5432/citeaura"
+    value = os.getenv("DATABASE_URL", development_default)
+    if production_proxy_mode() and value == development_default:
+        raise RuntimeError("DATABASE_URL must be explicitly configured in production")
+    return value
 
 
 def redis_url():
@@ -82,6 +83,11 @@ def forwarded_allow_ips():
 def production_proxy_mode():
     """是否由可信生产反向代理承接公网流量。"""
     return _enabled("PRODUCTION_PROXY_MODE")
+
+
+def api_docs_enabled():
+    """生产反向代理模式默认关闭公开 OpenAPI 文档。"""
+    return _enabled("API_DOCS_ENABLED", "true") and not production_proxy_mode()
 
 
 def trust_cloudflare_country_header():

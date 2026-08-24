@@ -307,6 +307,15 @@
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-out);
 }
+button.project-opt {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 .project-opt:hover { background: var(--deep); }
 .project-opt.is-active {
   background: color-mix(in oklch, var(--accent) 12%, transparent);

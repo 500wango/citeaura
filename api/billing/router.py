@@ -5,7 +5,7 @@ import hashlib
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -562,8 +562,9 @@ def billing_usage(current_user: User = Depends(get_current_user), db: Session = 
 
 
 @router.get("/plans")
-def billing_plans():
+def billing_plans(response: Response):
     """返回可用套餐及其展示价格。"""
+    response.headers["Cache-Control"] = "public, max-age=300"
     return {
         "plans": _catalog(),
         "payment": {

@@ -4,14 +4,14 @@ import json
 import logging
 import os
 import time
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from celery import current_task
 from fastapi import HTTPException
 from sqlalchemy import or_
-from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from api import config
 from api.adapters import baseline, brand_facts, global_scope, locking, measurement, regression_alerts, sampling_control, site_signals, ticket_workflow
@@ -37,9 +37,11 @@ from api.billing.platform_pool import (
 )
 from api.db import SessionLocal
 from api.models import IntegrationCredential, Job, Project, Tenant
+from api.pipeline_catalog import ACTION_DEFAULTS, ACTION_METHODS, PIPELINE_ACTIONS
 from api.product_events import record_product_event
 from api.settings.crypto import decrypt_key
 from api.worker.celery_app import celery_app
+from api.worker import job_runtime as _job_runtime
 
 
 logger = logging.getLogger(__name__)
@@ -48,68 +50,8 @@ MAX_JOB_ATTEMPTS = 3
 REVIEW_RESERVATION_TTL = timedelta(hours=2)
 
 
-PIPELINE_ACTIONS = {
-    "crawl": {"label": "Crawl Website", "args": ["--max-pages"]},
-    "audit": {"label": "Site Audit", "args": []},
-    "sample": {"label": "AI Sampling", "args": ["--limit", "--repeat", "--platforms", "--question-ids"]},
-    "bootstrap": {"label": "Auto-bootstrap Baseline", "args": ["--skip-llm"]},
-    "deliverables": {"label": "Generate Three Deliverables", "args": []},
-    "plan": {"label": "Build Action Tickets", "args": []},
-    "expand": {"label": "Query Expansion", "args": ["--no-llm"]},
-    "blueprint": {"label": "Build Blueprint", "args": []},
-    "generate": {"label": "Generate Assets", "args": ["--asset", "--draft", "--draft-limit"]},
-    "lint": {"label": "Draft Risk Inspection", "args": []},
-    "report": {"label": "Generate Diagnostic Report", "args": []},
-    "verify": {"label": "Closed-Loop Verify", "args": ["--no-recrawl"]},
-    "deliver": {"label": "Compile Delivery Pack", "args": []},
-    "sample-sheet": {"label": "Export Manual Sample Sheet", "args": []},
-    "autopilot": {"label": "Autopilot Bootstrap", "args": ["--no-sample", "--limit", "--skip-llm"]},
-    "serve": {
-        "label": "Run Full Optimization Cycle",
-        "args": ["--max-pages", "--limit", "--no-sample", "--draft", "--draft-limit"],
-    },
-}
-
 PLATFORM_FUNDED_ACTIONS = frozenset(("sample", "autopilot", "serve", "cycle"))
 _JOB_NOT_CLAIMED = object()
-
-_ACTION_METHODS = {
-    "crawl": "cmd_crawl",
-    "audit": "cmd_audit",
-    "sample": "cmd_sample",
-    "bootstrap": "cmd_bootstrap",
-    "deliverables": "cmd_deliverables",
-    "plan": "cmd_plan",
-    "expand": "cmd_expand",
-    "blueprint": "cmd_blueprint",
-    "generate": "cmd_generate",
-    "lint": "cmd_lint",
-    "report": "cmd_report",
-    "verify": "cmd_verify",
-    "deliver": "cmd_deliver",
-    "sample-sheet": "cmd_sheet",
-    "autopilot": "cmd_autopilot",
-    "serve": "cmd_serve",
-}
-
-_ACTION_DEFAULTS = {
-    "crawl": {"max_pages": None},
-    "audit": {},
-    "sample": {"limit": None, "repeat": 1, "platforms": None, "question_ids": None},
-    "bootstrap": {"skip_llm": False},
-    "deliverables": {},
-    "plan": {},
-    "expand": {"no_llm": False},
-    "blueprint": {},
-    "generate": {"asset": None, "draft": False, "draft_limit": None},
-    "lint": {},
-    "report": {},
-    "verify": {"no_recrawl": False},
-    "deliver": {},
-    "sample-sheet": {},
-    "autopilot": {"no_sample": False, "limit": None, "skip_llm": False, "no_delivery": True},
-    "serve": {"max_pages": None, "limit": None, "no_sample": False, "draft": False, "draft_limit": None, "no_delivery": True},
-}
 
 _INTEGER_LIMITS = {
     "--max-pages": (1, 1000),
@@ -342,7 +284,7 @@ def _action_namespace(action, params=None):
     """按引擎动作白名单清洗参数，并转换为 geo.cmd_* 所需对象。"""
     if action not in PIPELINE_ACTIONS:
         raise ValueError(f"unsupported pipeline action: {action}")
-    values = dict(_ACTION_DEFAULTS[action])
+    values = dict(ACTION_DEFAULTS[action])
     allowed = set(PIPELINE_ACTIONS[action]["args"])
     for raw_name, value in (params or {}).items():
         flag = str(raw_name)
@@ -369,7 +311,7 @@ def _action_namespace(action, params=None):
 def _run_pipeline_action(action, project_slug, params=None):
     import geo
 
-    method = getattr(geo, _ACTION_METHODS[action])
+    method = getattr(geo, ACTION_METHODS[action])
     args = _action_namespace(action, params)
     args.slug = project_slug
     method(args)
@@ -673,117 +615,27 @@ def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_p
                     )
 
 
-def _as_utc(value):
-    if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
-
-
-def _next_scheduled_run(scheduled_for, interval_days, now):
-    """保持原有节奏，并跳过服务停机期间错过的周期。"""
-    next_run = _as_utc(scheduled_for) + timedelta(days=interval_days)
-    while next_run <= now:
-        next_run += timedelta(days=interval_days)
-    return next_run
+# Keep the task module's private names stable while the runtime primitives live
+# in a dependency-light support module.
+_as_utc = _job_runtime.as_utc
+_next_scheduled_run = _job_runtime.next_scheduled_run
+_database_connection_lost = _job_runtime.database_connection_lost
 
 
 def _reclaim_stale_jobs(db, now):
-    """回收超过 Celery 最大执行窗口仍活跃的任务，避免项目永久占用。"""
-    cutoff = now - timedelta(hours=2)
-    stale_running = db.query(Job).filter(
-        Job.status == "running",
-        Job.started_at.isnot(None),
-        Job.started_at < cutoff,
-    ).all()
-    stale_queued = db.query(Job).filter(
-        Job.status == "queued",
-        Job.created_at < cutoff,
-    ).all()
-    reclaimed = 0
-    for job in stale_running + stale_queued:
-        project = db.get(Project, job.project_id)
-        job.status = "failed"
-        job.stage = "failed"
-        job.finished_at = now
-        job.error = "worker_lost_or_timeout"
-        if project is not None and project.status not in ("archived",):
-            project.status = "failed"
-        reclaimed += 1
-    if reclaimed:
-        db.commit()
-    return reclaimed
+    return _job_runtime.reclaim_stale_jobs(db, now)
 
 
-@contextmanager
 def _capture_task_output(log_path):
-    """把引擎 print 输出写入当前 Job 日志。"""
-    if log_path is None:
-        yield
-        return
-    try:
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        handle = log_path.open("a", encoding="utf-8", buffering=1)
-    except OSError as exc:
-        logger.error("Unable to capture job output in %s: %s", log_path, exc)
-        yield
-        return
-    with handle:
-        with redirect_stdout(handle), redirect_stderr(handle):
-            yield
+    return _job_runtime.capture_task_output(log_path, logger)
 
 
 def _append_job_event(log_path, message):
-    if log_path is None:
-        return False
-    try:
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        with log_path.open("a", encoding="utf-8") as handle:
-            handle.write(f"[citeaura] {message}\n")
-    except OSError as exc:
-        logger.error("Unable to append job event in %s: %s", log_path, exc)
-        return False
-    return True
-
-
-def _database_connection_lost(exc):
-    if exc.connection_invalidated:
-        return True
-    message = str(getattr(exc, "orig", exc)).lower()
-    return any(marker in message for marker in (
-        "connection has been closed",
-        "connection is closed",
-        "connection already closed",
-        "closed the connection unexpectedly",
-        "closed unexpectedly",
-        "connection reset",
-        "server closed the connection",
-        "terminating connection",
-    ))
+    return _job_runtime.append_job_event(log_path, message, logger)
 
 
 def _job_transaction(operation, retries=2):
-    """用短会话更新 Job；断开的数据库连接可安全重放。"""
-    retries = max(1, int(retries))
-    for attempt in range(retries):
-        db = SessionLocal()
-        try:
-            result = operation(db)
-            db.commit()
-            return result
-        except DBAPIError as exc:
-            try:
-                db.rollback()
-            except SQLAlchemyError:
-                pass
-            if attempt + 1 < retries and _database_connection_lost(exc):
-                logger.warning("job status database connection lost; retrying with a fresh session")
-                continue
-            raise
-        except SQLAlchemyError:
-            db.rollback()
-            raise
-        finally:
-            db.close()
+    return _job_runtime.job_transaction(operation, logger, retries=retries, session_factory=SessionLocal)
 
 
 @contextmanager
