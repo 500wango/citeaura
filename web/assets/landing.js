@@ -54,15 +54,23 @@ function escapeHtml(value) {
     return Object.prototype.hasOwnProperty.call(state.catalog, key) ? state.catalog[key] : null;
   }
 
+  function normalizeText(str) {
+    return String(str || '').replace(/\s+/g, ' ').trim();
+  }
+
   function localize(value, params) {
     var text = String(value == null ? '' : value);
     if (state.locale === 'en') return text;
-    var key = Object.keys(state.fallbackCatalog).find(function (candidate) {
-      return state.fallbackCatalog[candidate] === text;
-    });
-    var localized = key && state.catalog[key] != null
-      ? state.catalog[key]
-      : (key && state.locale !== 'en' ? '[[missing:' + key + ']]' : text);
+    var norm = normalizeText(text);
+    if (!norm) return text;
+    var key = state.reverseMap ? (state.reverseMap[norm] || state.reverseMap[text]) : null;
+    if (!key) {
+      key = Object.keys(state.fallbackCatalog).find(function (candidate) {
+        var cVal = state.fallbackCatalog[candidate];
+        return cVal === text || normalizeText(cVal) === norm;
+      });
+    }
+    var localized = key && state.catalog[key] != null ? state.catalog[key] : text;
     Object.keys(params || {}).forEach(function (name) {
       localized = localized.replace(new RegExp('\\{' + name + '\\}', 'g'), function () { return String(params[name]); });
     });
@@ -141,6 +149,14 @@ function escapeHtml(value) {
       .then(function (catalogs) {
         state.fallbackCatalog = catalogs[0] || {};
         state.catalog = state.locale === 'en' ? state.fallbackCatalog : (catalogs[1] || {});
+        state.reverseMap = {};
+        Object.keys(state.fallbackCatalog).forEach(function (k) {
+          var val = state.fallbackCatalog[k];
+          if (typeof val === 'string') {
+            state.reverseMap[val] = k;
+            state.reverseMap[normalizeText(val)] = k;
+          }
+        });
         applyI18n();
       })
       .catch(function () { state.catalog = {}; state.fallbackCatalog = {}; applyI18n(); });

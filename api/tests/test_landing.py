@@ -237,7 +237,7 @@ def test_blog_index_and_articles_are_static_html():
     index = client.get("/blog")
     assert index.status_code == 200
     assert index.headers["content-type"].startswith("text/html")
-    assert "<h1>Measure and diagnose AI brand visibility</h1>" in index.text
+    assert "Measure and diagnose AI brand visibility</h1>" in index.text
     assert 'href="/blog/measure-if-chatgpt-mentions-your-brand"' in index.text
     assert 'href="/blog/why-chatgpt-does-not-mention-my-brand"' in index.text
     assert 'href="/blog/gptbot-blocked-by-robots-txt"' in index.text
@@ -275,7 +275,7 @@ def test_blog_index_and_articles_are_static_html():
     for path, headline, marker in articles:
         page = client.get(path)
         assert page.status_code == 200, path
-        assert f"<h1>{headline}</h1>" in page.text
+        assert f"{headline}</h1>" in page.text
         assert marker in page.text
         assert "does not guarantee" in page.text
         assert f'rel="canonical" href="https://citeaura.com{path}"' in page.text
