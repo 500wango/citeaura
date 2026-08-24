@@ -28,6 +28,9 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'data-i18n="landing.mode_search"' in response.text
     assert 'data-i18n="landing.mode_manual"' in response.text
     assert 'class="nav-sign-in"' in response.text
+    assert '<a href="#simulator" data-i18n="nav.simulator">Free AI Audit</a>' not in response.text
+    assert '<a href="#about" data-i18n="public.nav.what_it_is">Overview</a>' in response.text
+    assert '<a href="#product" data-i18n="nav.product">Features</a>' in response.text
     assert '<a href="#tickets" data-i18n="nav.tickets">Action Tickets</a>' not in response.text
     assert 'href="/privacy"' in response.text
     assert 'href="/terms"' in response.text
@@ -79,6 +82,27 @@ def test_public_verification_pages_support_head_requests():
     assert sample.status_code == 200
     assert "Example diagnostic pack" in sample.text
     assert "all domain names, prompts, rates, and ticket outcomes" in sample.text
+
+
+def test_public_navigation_does_not_duplicate_hero_audit_cta():
+    paths = (
+        "/",
+        "/docs",
+        "/blog",
+        "/blog/measure-if-chatgpt-mentions-your-brand",
+        "/blog/why-chatgpt-does-not-mention-my-brand",
+        "/blog/gptbot-blocked-by-robots-txt",
+        "/blog/what-to-put-in-llms-txt",
+        "/blog/white-label-geo-diagnostic-report",
+    )
+    nav_link = 'data-i18n="nav.simulator">Free AI Audit</a>'
+    for path in paths:
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert nav_link not in response.text, path
+
+    landing = client.get("/")
+    assert 'href="#simulator" data-i18n="landing.final_secondary"' in landing.text
 
 
 def test_about_and_contact_pages_expose_provenance_and_real_support_channel():

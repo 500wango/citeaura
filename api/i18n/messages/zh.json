@@ -1,7 +1,7 @@
 {
   "nav.simulator": "免费技术诊断",
   "nav.workflow": "工作原理",
-  "nav.product": "产品界面",
+  "nav.product": "核心能力",
   "nav.tickets": "行动工单",
   "nav.pricing": "价格",
   "nav.docs": "文档",
@@ -1729,7 +1729,7 @@
   "landing.howto_openai": "OpenAI 爬虫文档",
   "landing.howto_schema": "Schema.org 软件应用类型",
   "landing.compare_rarely_published": "很少发布",
-  "landing.about_index": "00 / 产品定位",
+  "landing.about_index": "00 / 产品定义",
   "landing.about_title": "什么是 CiteAura",
   "landing.about_body": "CiteAura 是专注于生成式引擎优化（GEO）的专业 SaaS 平台：通过技术诊断、AI 提及与引用率评测、结构化工单输出与闭环验收，帮助品牌在 AI 搜索时代持续提升推荐占有率。",
   "literal.bf647454e360": "快速入门",

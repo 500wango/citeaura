@@ -85,6 +85,17 @@ def test_workspace_navigation_keys_cover_all_track_items():
         assert catalog["nav.blueprint"] not in {"", "[[missing:nav.blueprint]]"}
 
 
+def test_public_zh_navigation_uses_distinct_product_labels():
+    catalogs = load_all_catalogs()
+    public_zh = json.loads(
+        (Path(__file__).resolve().parents[1] / "i18n" / "messages" / "public" / "zh.json").read_text("utf-8")
+    )
+    assert public_zh["public.nav.what_it_is"] == "产品概览"
+    assert catalogs["en"]["nav.product"] == "Features"
+    assert catalogs["zh"]["nav.product"] == "核心能力"
+    assert public_zh["public.nav.what_it_is"] != catalogs["zh"]["nav.product"]
+
+
 def test_frontend_legacy_localize_literals_are_catalogued():
     root = Path(__file__).resolve().parents[2]
     catalog = load_all_catalogs()["en"]
