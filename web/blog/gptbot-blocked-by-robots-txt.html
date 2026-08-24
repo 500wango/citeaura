@@ -9,10 +9,10 @@
   <meta name="theme-color" content="#f7f9fa">
   <script src="/site-assets/theme-init.js"></script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/site-assets/styles/tokens.css?v=2.3">
-  <link rel="stylesheet" href="/site-assets/styles/base.css?v=2.3">
-  <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
-  <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.5">
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css?v=3.1">
+  <link rel="stylesheet" href="/site-assets/styles/base.css?v=3.1">
+  <link rel="stylesheet" href="/site-assets/styles/components.css?v=3.1">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css?v=3.2">
   <link rel="stylesheet" href="/site-assets/styles/blog.css?v=1.4">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
   <link rel="canonical" href="https://citeaura.com/blog/gptbot-blocked-by-robots-txt">
@@ -126,9 +126,32 @@
         <a href="/#pricing">Pricing</a>
       </nav>
 
-      <div class="nav-actions">
-        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
-        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+            <div class="nav-actions">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" data-i18n-aria="theme.to_dark" title="Switch Theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        <div class="lang-picker-btn" title="Change Language">
+          <svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <label class="sr-only" for="site-locale" data-i18n="lang.label">Language</label>
+          <select id="site-locale" class="site-locale-compact" aria-label="Language">
+            <option value="en">English (EN)</option>
+            <option value="zh">简体中文 (ZH)</option>
+            <option value="ja">日本語 (JA)</option>
+            <option value="ko">한국어 (KO)</option>
+            <option value="es">Español (ES)</option>
+            <option value="fr">Français (FR)</option>
+            <option value="de">Deutsch (DE)</option>
+          </select>
+        </div>
+
+        <a class="nav-sign-in" href="/app?auth=login" data-i18n="nav.sign_in">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
       </div>
     </div>
   </header>
@@ -240,5 +263,6 @@
       </nav>
     </div>
   </footer>
+  <script defer src="/site-assets/landing.js?v=3.2"></script>
 </body>
 </html>
