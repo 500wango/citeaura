@@ -300,8 +300,10 @@ def test_landing_js_supports_international_locales():
     assert "localStorage.setItem('ulang'" in response.text
     assert "function detectLocale()" in response.text
     assert "var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de']" in response.text
-    assert "fetch('/i18n/en.json')" in response.text
-    assert "fetch('/i18n/' + state.locale + '.json')" in response.text
+    assert "var LOCALE_ASSET_VERSION = '3.4'" in response.text
+    assert "fetch('/i18n/en.json?v=' + LOCALE_ASSET_VERSION)" in response.text
+    assert "fetch('/i18n/' + state.locale + '.json?v=' + LOCALE_ASSET_VERSION)" in response.text
+    assert "fetch('/i18n/public/zh.json?v=' + LOCALE_ASSET_VERSION)" in response.text
     assert "function publicValue(key, fallback, params)" in response.text
     assert "public.landing.preview_log_ready" in response.text
     assert "new WeakMap()" in response.text
@@ -314,7 +316,7 @@ def test_public_pages_load_shared_landing_localization():
     for path in ("/about", "/contact", "/privacy", "/terms", "/sample-report"):
         response = client.get(path)
         assert response.status_code == 200
-        assert '/site-assets/landing.js?v=3.3' in response.text, path
+        assert '/site-assets/landing.js?v=3.4' in response.text, path
     assert 'data-i18n-html="public.privacy.sec1"' in client.get("/privacy").text
     assert 'data-i18n-html="public.terms.sec1"' in client.get("/terms").text
     assert 'data-i18n-html="public.sample.sec1"' in client.get("/sample-report").text

@@ -21,6 +21,7 @@ function escapeHtml(value) {
 
   var THEME_COLORS = { light: '#f7f9fa', dark: '#15181e' };
   var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
+  var LOCALE_ASSET_VERSION = '3.4';
   var state = { locale: 'en', theme: 'light', billing: 'monthly', catalog: {}, fallbackCatalog: {}, literalCatalog: {}, defaults: new WeakMap(), activeDomain: 'yourbrand.com' };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -193,13 +194,13 @@ function escapeHtml(value) {
     var selector = $('#site-locale');
     if (selector) selector.value = state.locale;
       var catalogRequests = [
-        fetch('/i18n/en.json').then(function (r) { return r.ok ? r.json() : {}; }),
+        fetch('/i18n/en.json?v=' + LOCALE_ASSET_VERSION).then(function (r) { return r.ok ? r.json() : {}; }),
       ];
       if (state.locale !== 'en') {
-        catalogRequests.push(fetch('/i18n/' + state.locale + '.json').then(function (r) { return r.ok ? r.json() : {}; }));
+        catalogRequests.push(fetch('/i18n/' + state.locale + '.json?v=' + LOCALE_ASSET_VERSION).then(function (r) { return r.ok ? r.json() : {}; }));
       }
       if (state.locale === 'zh') {
-        catalogRequests.push(fetch('/i18n/public/zh.json').then(function (r) { return r.ok ? r.json() : {}; }));
+        catalogRequests.push(fetch('/i18n/public/zh.json?v=' + LOCALE_ASSET_VERSION).then(function (r) { return r.ok ? r.json() : {}; }));
       }
       Promise.all(catalogRequests)
       .then(function (catalogs) {

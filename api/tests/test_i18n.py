@@ -94,6 +94,10 @@ def test_public_zh_navigation_uses_distinct_product_labels():
     assert catalogs["en"]["nav.product"] == "Features"
     assert catalogs["zh"]["nav.product"] == "核心能力"
     assert public_zh["public.nav.what_it_is"] != catalogs["zh"]["nav.product"]
+    assert "产品定位" not in json.dumps(catalogs["zh"], ensure_ascii=False)
+    assert "产品定位" not in json.dumps(public_zh, ensure_ascii=False)
+    assert "产品界面" not in json.dumps(catalogs["zh"], ensure_ascii=False)
+    assert "产品界面" not in json.dumps(public_zh, ensure_ascii=False)
 
 
 def test_frontend_legacy_localize_literals_are_catalogued():
