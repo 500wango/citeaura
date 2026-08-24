@@ -1728,5 +1728,8 @@
   "landing.howto_docs": "Documentación de medición de CiteAura",
   "landing.howto_openai": "Documentación del crawler de OpenAI",
   "landing.howto_schema": "SoftwareApplication de Schema.org",
-  "landing.compare_rarely_published": "Rara vez se publica"
+  "landing.compare_rarely_published": "Rara vez se publica",
+  "landing.about_index": "00 / Definición",
+  "landing.about_title": "Qué es CiteAura",
+  "landing.about_body": "CiteAura es una plataforma de GEO que audita, mide y mejora las citas, menciones y visibilidad de marcas en motores de IA, cerrando el ciclo con tickets y verificación."
 }

@@ -1728,5 +1728,8 @@
   "landing.howto_docs": "CiteAura 測定ドキュメント",
   "landing.howto_openai": "OpenAI クローラードキュメント",
   "landing.howto_schema": "Schema.org の SoftwareApplication",
-  "landing.compare_rarely_published": "ほとんど公開されない"
+  "landing.compare_rarely_published": "ほとんど公開されない",
+  "landing.about_index": "00 / 定義",
+  "landing.about_title": "CiteAura とは",
+  "landing.about_body": "CiteAura は、生成AIエンジンにおけるブランドの引用、言及、可視性を監査・測定・改善し、エンジニアリングチケットと検証で改善サイクルを完結させる GEO プラットフォームです。"
 }

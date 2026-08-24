@@ -1728,5 +1728,8 @@
   "landing.howto_docs": "CiteAura 측정 문서",
   "landing.howto_openai": "OpenAI 크롤러 문서",
   "landing.howto_schema": "Schema.org SoftwareApplication 유형",
-  "landing.compare_rarely_published": "거의 게시되지 않음"
+  "landing.compare_rarely_published": "거의 게시되지 않음",
+  "landing.about_index": "00 / 제품 정의",
+  "landing.about_title": "CiteAura 소개",
+  "landing.about_body": "CiteAura는 생성형 AI 엔진에서 브랜드 인용, 언급 및 가시성을 감사, 측정 및 개선하고 엔지니어링 티켓 및 검증으로 루프를 완성하는 GEO 플랫폼입니다."
 }

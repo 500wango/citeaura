@@ -1728,5 +1728,8 @@
   "landing.howto_docs": "CiteAura measurement documentation",
   "landing.howto_openai": "OpenAI crawler documentation",
   "landing.howto_schema": "Schema.org SoftwareApplication",
-  "landing.compare_rarely_published": "Rarely published"
+  "landing.compare_rarely_published": "Rarely published",
+  "landing.about_index": "00 / Definition",
+  "landing.about_title": "What CiteAura is",
+  "landing.about_body": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification."
 }
