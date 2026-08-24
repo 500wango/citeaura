@@ -302,7 +302,7 @@ def test_subscribe_creates_checkout_without_opening_limits(billing_client, monke
     )
     plans = client.get("/api/v1/billing/plans")
     assert plans.status_code == 200
-    assert {plan["code"] for plan in plans.json()["plans"]} == {"lite", "starter", "pro", "agency", "enterprise"}
+    assert {plan["code"] for plan in plans.json()["plans"]} == {"starter", "pro", "agency", "enterprise"}
     assert plans.json()["payment"] == {
         "provider": "stripe", "enabled": True, "configured": True, "currency": "usd",
     }

@@ -108,7 +108,7 @@ export default {
         try {
           intentPlan = String(sessionStorage.getItem('citeaura_intent_plan') || '').toLowerCase();
         } catch (e) {}
-        if (intentPlan && ['lite', 'starter', 'pro', 'agency', 'enterprise'].includes(intentPlan)) {
+        if (intentPlan && ['starter', 'pro', 'agency', 'enterprise'].includes(intentPlan)) {
           ctx.navigate(`#/billing?plan=${encodeURIComponent(intentPlan)}`);
         } else {
           ctx.navigate('#/onboarding');

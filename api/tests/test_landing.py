@@ -38,6 +38,8 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'href="/contact"' in response.text
     assert "$199" in response.text
     assert "$79" in response.text
+    assert 'data-plan-code="lite"' not in response.text
+    assert "plan_lite" not in response.text
     assert 'data-i18n="landing.pricing_note"' in response.text
     assert "Scheduled re-sampling and email alerts on mention-rate drops" in response.text
     assert "One-click sendable white-label client pack" in response.text

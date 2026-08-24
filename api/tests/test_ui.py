@@ -44,7 +44,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.17' in response.text
+    assert '/app/app.js?v=3.18' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -201,7 +201,8 @@ def test_spa_auth_routes_enforce_session_state_contract():
 
     assert "const AUTH_ENTRY_ROUTES = new Set(['login', 'register'])" in app_js
     assert "auth-login.js?v=2.11" in app_js
-    assert "auth-register.js?v=2.13" in app_js
+    assert "auth-register.js?v=2.14" in app_js
+    assert re.search(r"\blite\b", app_js, re.IGNORECASE) is None
     assert "if (!state.sessionChecked)" in app_js
     assert "AUTH_ENTRY_ROUTES.has(route) && state.user" in app_js
     assert "state.clearSession();" in app_js
@@ -235,6 +236,8 @@ def test_frontend_contracts_match_backend_request_models():
     facts = (root / "web/app/views/facts.js").read_text("utf-8")
     assets = (root / "web/app/views/assets.js").read_text("utf-8")
     report = (root / "web/app/views/report.js").read_text("utf-8")
+
+    assert re.search(r"\blite\b", billing, re.IGNORECASE) is None
 
     assert "resetPassword({ token, password })" in reset
     assert "preview.tenant?.name" in invite

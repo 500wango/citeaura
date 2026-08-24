@@ -62,6 +62,16 @@ def test_all_locale_catalogs_have_the_same_keys_and_placeholders():
             assert translated_tokens == source_tokens, (locale, key)
 
 
+def test_removed_lite_plan_is_absent_from_all_locale_catalogs():
+    catalogs = load_all_catalogs()
+    for locale, catalog in catalogs.items():
+        assert not any(
+            key.startswith("landing.plan_lite")
+            or key in {"billing.subscribe_lite", "literal.f3c6f4e8a322", "literal.ed057930f4d4"}
+            for key in catalog
+        ), locale
+
+
 def test_every_frontend_t_key_is_registered():
     root = Path(__file__).resolve().parents[2] / "web" / "app"
     keys = set()
@@ -124,7 +134,7 @@ def test_non_english_catalogs_do_not_contain_known_machine_translation_artifacts
             "审判", "车票", "签名", "发动机", "动作车票", "能见度", "14-day",
             "教会网站", "演员", "机器人.txt", "出界核查", "快速报道", "代代代",
             "传送包", "门票", "票价", "模式提供者", "未知模式", "点即时", "点入时",
-            "很少出版", "努力:", "努力：", "Lite 版",
+            "很少出版", "努力:", "努力：",
         ),
         "ja": (
             "14-day", "Bi-Weekly", "キヤノン", "白い標識", "CABot",
@@ -170,7 +180,7 @@ def test_non_english_catalogs_do_not_silently_copy_long_english_copy():
         "AES-256-GCM", "Claude", "DeepSeek", "Gemini", "Grok", "OpenAI",
         "Perplexity", "SSR", "WAF", "linear.app", "yourbrand.com", "Google",
         "Mistral", "Le", "Chat", "Sonnet", "Opus", "Sol", "Terra", "Flash",
-        "Pro", "Lite", "Starter", "Agency", "Enterprise",
+        "Pro", "Starter", "Agency", "Enterprise",
         "xAI", "Doubao", "App", "Web", "GPT", "Baidu", "AI", "Search",
         "Google", "Overviews", "Mistral", "Le", "Chat", "Nano", "Sonar", "Research",
         "content", "facts", "md", "Deep", "facts.md",
@@ -216,7 +226,7 @@ def test_latin_catalogs_do_not_expose_known_english_ui_residue():
             "Libre AI Vérification", "Current English", "Snapshot créé",
         ),
         "de": (
-            "Backup Snapshots", "Start Lite", "User Prompt:", "View Setup Preview",
+            "Backup Snapshots", "User Prompt:", "View Setup Preview",
             "Sitewide GEO Audit", "Brand Fact Bibliothek", "Deploy Assets", "Save Asset",
             "Current English", "Web-Based Retrieval", "Manual · Surface", "Snapshot erfolgreich",
             "Snapshot erstellen",
@@ -287,7 +297,6 @@ def test_landing_howto_plan_names_and_effort_copy():
     for locale, catalog in catalogs.items():
         assert catalog["landing.howto_title"]
         assert catalog["landing.howto_1_body"]
-        assert catalog["literal.f3c6f4e8a322"] == "Lite"
         assert catalog["literal.438226dccf6d"] == "Starter"
         assert catalog["literal.66d0c5e6b170"] == "Pro"
         assert catalog["literal.5c47e26c6ad2"] == "Agency"

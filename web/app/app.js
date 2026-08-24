@@ -93,7 +93,7 @@ export const TRACKS = [
 /* ----------  ---------- */
 const VIEW_LOADERS = {
   login: () => import('./views/auth-login.js?v=2.11'),
-  register: () => import('./views/auth-register.js?v=2.13'),
+  register: () => import('./views/auth-register.js?v=2.14'),
   'forgot-password': () => import('./views/auth-forgot.js?v=2.5'),
   'reset-password': () => import('./views/auth-reset.js?v=2.5'),
   invite: () => import('./views/auth-invite.js?v=2.5'),
@@ -119,7 +119,7 @@ const VIEW_LOADERS = {
   'engine-settings': () => import('./views/engine-settings.js?v=3.2'),
   automation: () => import('./views/automation.js?v=2.7'),
   team: () => import('./views/team.js?v=2.6'),
-  billing: () => import('./views/billing.js?v=3.0'),
+  billing: () => import('./views/billing.js?v=3.1'),
   security: () => import('./views/security.js?v=2.5'),
   archive: () => import('./views/archive.js?v=2.6'),
 };
@@ -626,7 +626,7 @@ async function init() {
 }
 
 const INTENT_PLAN_KEY = 'citeaura_intent_plan';
-const ENTRY_PLANS = new Set(['lite', 'starter', 'pro', 'agency', 'enterprise']);
+const ENTRY_PLANS = new Set(['starter', 'pro', 'agency', 'enterprise']);
 
 function normalizeLegacyAuthLink() {
   const params = new URLSearchParams(location.search);
