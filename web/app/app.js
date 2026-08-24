@@ -464,10 +464,17 @@ function renderAppShell() {
           </div>
 
           <div class="header-right">
-            <label class="sr-only" for="app-locale">${t('lang.label', {}, 'Language')}</label>
-            <select id="app-locale" class="input" style="width:auto;min-width:116px;padding:6px 28px 6px 9px;font-size:var(--fs-2);" aria-label="${t('lang.label', {}, 'Language')}">
-              ${SUPPORTED_LOCALES.map((locale) => `<option value="${locale}" ${locale === getLocale() ? 'selected' : ''}>${LOCALE_LABELS[locale]}</option>`).join('')}
-            </select>
+            <div class="lang-picker-btn" title="${t('lang.label', {}, 'Language')}">
+              <svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+              <label class="sr-only" for="app-locale">${t('lang.label', {}, 'Language')}</label>
+              <select id="app-locale" class="site-locale-compact" aria-label="${t('lang.label', {}, 'Language')}">
+                ${SUPPORTED_LOCALES.map((locale) => `<option value="${locale}" ${locale === getLocale() ? 'selected' : ''}>${LOCALE_LABELS[locale]}</option>`).join('')}
+              </select>
+            </div>
             <!-- Docs / Help Guide -->
             <a href="/docs" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-sm" style="display:flex;align-items:center;gap:6px;text-decoration:none;font-weight:600;color:var(--ink-2);" title="${t('nav.docs_title', {}, 'Open Documentation & Getting Started Guide')}">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>

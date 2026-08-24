@@ -204,21 +204,28 @@
       </nav>
       
       <div class="nav-actions">
-        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" data-i18n-aria="theme.to_dark">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" data-i18n-aria="theme.to_dark" title="Switch Theme">
           <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
           <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
 
-        <label class="sr-only" for="site-locale" data-i18n="lang.label">Language</label>
-        <select id="site-locale" class="site-locale" aria-label="Language">
-          <option value="en">English</option>
-          <option value="zh">简体中文</option>
-          <option value="ja">日本語</option>
-          <option value="ko">한국어</option>
-          <option value="es">Español</option>
-          <option value="fr">Français</option>
-          <option value="de">Deutsch</option>
-        </select>
+        <div class="lang-picker-btn" title="Change Language">
+          <svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <label class="sr-only" for="site-locale" data-i18n="lang.label">Language</label>
+          <select id="site-locale" class="site-locale-compact" aria-label="Language">
+            <option value="en">English (EN)</option>
+            <option value="zh">简体中文 (ZH)</option>
+            <option value="ja">日本語 (JA)</option>
+            <option value="ko">한국어 (KO)</option>
+            <option value="es">Español (ES)</option>
+            <option value="fr">Français (FR)</option>
+            <option value="de">Deutsch (DE)</option>
+          </select>
+        </div>
         
         <a class="nav-sign-in" href="/app?auth=login" data-i18n="nav.sign_in">Sign In</a>
         <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
@@ -822,188 +829,6 @@
               <strong data-i18n="landing.shot_report_cap">Production-ready JSON-LD, /llms.txt, and semantic blocks with clear placement guidance</strong>
             </figcaption>
           </figure>
-        </div>
-      </div>
-    </section>
-
-    <!-- 04 / 13  -->
-    <section class="tickets-section section" id="tickets" aria-labelledby="tickets-title">
-      <div class="page-shell">
-        <div class="section-heading reveal">
-          <p class="section-index" data-i18n="landing.tickets_index">04 / Actionable Tickets</p>
-          <h2 id="tickets-title" data-i18n="landing.tickets_title">13 Standard Engineering Tickets. Zero Ambiguity.</h2>
-          <p data-i18n="landing.tickets_body">Standardized tickets ready to assign directly to engineering and content teams, with automated regression testing.</p>
-        </div>
-        
-        <div class="tickets-grid reveal-stagger">
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-01</span>
-              <span class="ticket-category-tag">Semantics</span>
-            </div>
-            <h3>Schema.org Knowledge Graph</h3>
-            <p>Inject canonical Organization, Product, FAQ, and Breadcrumb structured entities.</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--good);">Impact: High</span>
-              <span style="color: var(--accent);">Effort: Low</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-02</span>
-              <span class="ticket-category-tag">Pricing</span>
-            </div>
-            <h4>Structured Pricing & Feature Matrix</h4>
-            <p>Machine-readable pricing tiers with exact feature comparison boundaries.</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--good);">Impact: High</span>
-              <span style="color: var(--accent);">Effort: Low</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-03</span>
-              <span class="ticket-category-tag">Ingestion</span>
-            </div>
-            <h4>/llms.txt Specification Ingestion</h4>
-            <p>Deploy standard root machine summaries for zero-latency LLM crawler ingestion.</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--good);">Impact: High</span>
-              <span style="color: var(--accent);">Effort: Low</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-04</span>
-              <span class="ticket-category-tag">Authority</span>
-            </div>
-            <h4>Entity Verification & Anchor Links</h4>
-            <p>Establish authoritative outbound verification nodes (Wikidata, GitHub, Crunchbase).</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--warn);">Impact: Med</span>
-              <span style="color: var(--accent);">Effort: Low</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-05</span>
-              <span class="ticket-category-tag">Comparison</span>
-            </div>
-            <h4>Competitor Differentiation Blocks</h4>
-            <p>Factual comparison blocks answering "How does Brand X compare to Brand Y?".</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--good);">Impact: High</span>
-              <span style="color: var(--accent);">Effort: Med</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-06</span>
-              <span class="ticket-category-tag">FAQ</span>
-            </div>
-            <h4>Target Question Answering Schema</h4>
-            <p>Direct concise answer units targeting high-frequency conversational queries.</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--good);">Impact: High</span>
-              <span style="color: var(--accent);">Effort: Low</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-07</span>
-              <span class="ticket-category-tag">Extraction</span>
-            </div>
-            <h4>Semantic Heading Hierarchy</h4>
-            <p>Fix skipped heading hierarchies and non-extractable client-rendered text blocks.</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--warn);">Impact: Med</span>
-              <span style="color: var(--accent);">Effort: Low</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-08</span>
-              <span class="ticket-category-tag">i18n</span>
-            </div>
-            <h4>Fact Sheet Consistency</h4>
-            <p>Keep official facts consistent across homepage copy, schema, audit assets, and delivery documents.</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--good);">Impact: High</span>
-              <span style="color: var(--accent);">Effort: Med</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-09</span>
-              <span class="ticket-category-tag">Robots</span>
-            </div>
-            <h4>AI Crawler Access Whitelisting</h4>
-            <p>Update robots.txt to ensure GPTBot, ClaudeBot, PerplexityBot, and DeepSeekBot crawl freely.</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--good);">Impact: High</span>
-              <span style="color: var(--accent);">Effort: Low</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-10</span>
-              <span class="ticket-category-tag">WAF</span>
-            </div>
-            <h4>WAF / Anti-Scrape Compatibility</h4>
-            <p>Bypass false-positive challenge pages on critical brand documentation routes.</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--good);">Impact: High</span>
-              <span style="color: var(--accent);">Effort: Low</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-11</span>
-              <span class="ticket-category-tag">SSR</span>
-            </div>
-            <h4>Raw HTML Density Enhancement</h4>
-            <p>Ensure core brand value propositions exist in initial HTML payload without client JS.</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--good);">Impact: High</span>
-              <span style="color: var(--accent);">Effort: Med</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-12</span>
-              <span class="ticket-category-tag">Verification</span>
-            </div>
-            <h4>Repeatable Before/After Review Loop</h4>
-            <p>Scheduled re-sampling surfaces changes clearly so teams can run verification and review regressions with evidence.</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--good);">Impact: High</span>
-              <span style="color: var(--accent);">Effort: Low</span>
-            </div>
-          </div>
-          
-          <div class="ticket-full-card reveal">
-            <div class="ticket-header-row">
-              <span class="ticket-id">GEO-13</span>
-              <span class="ticket-category-tag">Delivery</span>
-            </div>
-            <h4>White-Label Strategy & Delivery Pack</h4>
-            <p>Compile executive audit decks, action matrices, ticket changelogs, and client deliverables.</p>
-            <div class="ticket-footer-row">
-              <span style="color: var(--good);">Impact: High</span>
-              <span style="color: var(--accent);">Effort: Low</span>
-            </div>
-          </div>
         </div>
       </div>
     </section>

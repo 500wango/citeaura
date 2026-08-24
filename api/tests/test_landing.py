@@ -52,8 +52,7 @@ def test_landing_page_is_public_and_links_to_application():
     assert "14 days" in response.text
     assert "Updated 2026-08-19" in response.text
     assert "Sources and definitions:" in response.text
-    assert "<h3>Schema.org Knowledge Graph</h3>" in response.text
-
+    
 
 def test_public_verification_pages_support_head_requests():
     for path in (

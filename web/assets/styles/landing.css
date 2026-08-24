@@ -40,12 +40,26 @@
 .lang-btn.is-active { background: var(--surface); color: var(--ink); box-shadow: var(--sh-sm); font-weight: 600; }
 
 .theme-toggle {
-  display: grid; place-items: center;
-  width: 40px; height: 40px; border: 1px solid var(--divider); border-radius: var(--r-md);
-  background: var(--surface); color: var(--muted);
-  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border: 1px solid var(--divider); border-radius: var(--r-md);
+  background: var(--surface); color: var(--muted); cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
-.theme-toggle:hover { color: var(--ink); border-color: var(--accent-line); }
+.theme-toggle:hover { color: var(--ink); border-color: var(--accent-line); background: var(--deep); }
+
+.lang-picker-btn {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border: 1px solid var(--divider); border-radius: var(--r-md);
+  background: var(--surface); color: var(--muted); cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.lang-picker-btn:hover { color: var(--ink); border-color: var(--accent-line); background: var(--deep); }
+.lang-picker-btn .icon-globe { pointer-events: none; }
+.site-locale-compact {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; appearance: none; -webkit-appearance: none;
+}
 .theme-toggle .icon-sun, .theme-toggle .icon-moon { transition: opacity var(--dur-fast) var(--ease-out); }
 
 .nav-menu-toggle {
