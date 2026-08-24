@@ -399,12 +399,12 @@ h1 {
 .extract-card td { padding: var(--sp-2) var(--sp-3) var(--sp-2) 0; border-bottom: 1px solid var(--line); color: var(--ink-2); vertical-align: top; }
 .extract-table-wrap { overflow-x: auto; }
 .extract-note { font-family: var(--font-mono); font-size: var(--fs-1); color: var(--faint); line-height: 1.7; }
-.extract-steps { display: grid; gap: var(--sp-2); counter-reset: step; padding-left: 0; list-style: none; }
-.extract-steps li { position: relative; padding-left: var(--sp-7); color: var(--ink-2); font-size: var(--fs-3); line-height: 1.6; }
+.extract-steps { display: grid; gap: var(--sp-3); padding-left: 0; list-style: none; margin: 0; }
+.extract-steps li { position: relative; padding-left: var(--sp-5); color: var(--ink-2); font-size: var(--fs-3); line-height: 1.6; }
 .extract-steps li::before {
-  counter-increment: step; content: counter(step, decimal-leading-zero);
-  position: absolute; left: 0; top: 2px;
-  font-family: var(--font-mono); font-size: var(--fs-1); font-weight: 600; color: var(--accent);
+  content: "•";
+  position: absolute; left: var(--sp-2); top: 0;
+  color: var(--accent); font-weight: bold; font-size: var(--fs-4);
 }
 .extract-steps strong { color: var(--ink); }
 
