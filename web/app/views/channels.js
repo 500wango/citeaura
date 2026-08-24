@@ -120,14 +120,14 @@ export default {
                         <td><strong class="num" style="font-size:var(--fs-3);color:var(--ink);">${escapeHtml(channel.domain)}</strong></td>
                         <td>
                           <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                            ${engines.length ? engines.map((engine) => `<span class="tag tag-neutral">${escapeHtml(engine)}</span>`).join('') : '<span class="tag tag-dim">${t('channels.unknown_model', {}, 'Unknown model')}</span>'}
+                            ${engines.length ? engines.map((engine) => `<span class="tag tag-neutral">${escapeHtml(engine)}</span>`).join('') : `<span class="tag tag-dim">${t('channels.unknown_model', {}, 'Unknown model')}</span>`}
                           </div>
                         </td>
                         <td style="max-width:340px;">
                           ${questions.length ? `
                             <div style="font-size:var(--fs-2);color:var(--ink);line-height:1.45;overflow-wrap:anywhere;">${escapeHtml(questions[0])}</div>
                             ${questionCount > 1 ? `<span style="font-size:var(--fs-1);color:var(--muted);">+${questionCount - 1} more question${questionCount === 2 ? '' : 's'}</span>` : ''}
-                          ` : '<span style="color:var(--muted);">${t('channels.question_unavailable', {}, 'Question unavailable')}</span>'}
+                          ` : `<span style="color:var(--muted);">${t('channels.question_unavailable', {}, 'Question unavailable')}</span>`}
                         </td>
                         <td data-num style="font-weight:700;text-align:right;">${Number(channel.count || 0)}</td>
                         <td data-num style="text-align:right;">${share.toFixed(1)}%</td>
@@ -168,7 +168,7 @@ export default {
             </div>
             <button type="button" id="btn-add-external-evidence" class="btn btn-secondary btn-sm">${t('channels.add_evidence_record', {}, 'Add evidence record')}</button>
           </div>
-          ${externalEvidence.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('channels.col_source', {}, 'Source')}</th><th>${t('channels.col_fact_supported', {}, 'Fact supported')}</th><th>${t('channels.col_questions', {}, 'Questions')}</th><th>${t('common.status', {}, 'Status')}</th></tr></thead><tbody>${externalEvidence.map((record) => `<tr><td><a href="${escapeHtml(record.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.url)}</a><div style="color:var(--muted);font-size:var(--fs-1);">${escapeHtml(record.source_type || '')}</div></td><td>${escapeHtml(record.fact_supported || '')}</td><td>${escapeHtml((record.question_ids || []).join(', ') || 'Not mapped')}</td><td><span class="tag tag-warn">${t('channels.manual_confirmation_required', {}, 'Manual confirmation required')}</span></td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('channels.no_external_evidence', {}, 'No external evidence has been confirmed for this project.')}</p>'}
+          ${externalEvidence.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('channels.col_source', {}, 'Source')}</th><th>${t('channels.col_fact_supported', {}, 'Fact supported')}</th><th>${t('channels.col_questions', {}, 'Questions')}</th><th>${t('common.status', {}, 'Status')}</th></tr></thead><tbody>${externalEvidence.map((record) => `<tr><td><a href="${escapeHtml(record.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.url)}</a><div style="color:var(--muted);font-size:var(--fs-1);">${escapeHtml(record.source_type || '')}</div></td><td>${escapeHtml(record.fact_supported || '')}</td><td>${escapeHtml((record.question_ids || []).join(', ') || 'Not mapped')}</td><td><span class="tag tag-warn">${t('channels.manual_confirmation_required', {}, 'Manual confirmation required')}</span></td></tr>`).join('')}</tbody></table></div>` : `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('channels.no_external_evidence', {}, 'No external evidence has been confirmed for this project.')}</p>`}
         </section>
       </div>
     `;

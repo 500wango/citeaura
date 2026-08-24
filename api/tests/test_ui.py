@@ -1,4 +1,6 @@
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -102,6 +104,25 @@ def test_spa_static_modules_are_served():
         response = client.get(path)
         assert response.status_code == 200, f"Failed to serve {path}"
         assert "javascript" in response.headers["content-type"].lower() or "text/" in response.headers["content-type"].lower()
+
+
+def test_frontend_view_modules_parse_as_es_modules():
+    """Import every view as an ES module so nested template syntax is parsed."""
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is not installed")
+
+    root = Path(__file__).resolve().parents[2]
+    modules = sorted((root / "web" / "app" / "views").glob("*.js"))
+    imports = ",".join(f"import({module.as_uri()!r})" for module in modules)
+    result = subprocess.run(
+        [node, "--input-type=module", "-e", f"await Promise.all([{imports}]);"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
 
 
 def test_citation_sources_view_has_no_legacy_seo_integrations():
@@ -288,8 +309,8 @@ def test_frontend_contracts_match_backend_request_models():
     app_js = (root / "web/app/app.js").read_text("utf-8")
     assert "citeaura_intent_plan" in app_js
     assert "ENTRY_PLANS" in app_js
-    assert "engine-settings.js?v=3.1" in app_js
-    assert "engines.js?v=2.7" in app_js
+    assert "engine-settings.js?v=3.2" in app_js
+    assert "engines.js?v=2.8" in app_js
     assert "workbench.js?v=2.7" in app_js
     assert "overview.js?v=2.9" in app_js
     assert "onboarding.js?v=2.9" in app_js

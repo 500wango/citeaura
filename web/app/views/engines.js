@@ -170,7 +170,7 @@ export default {
                 ${questionReadiness.total ? ` · ${questionReadiness.sufficient || 0}/${questionReadiness.total} questions meet the minimum in every provider/mode cohort` : ''}
               </p>
             </div>
-            ${questionGaps.length ? '<span class="tag tag-warn">${t('engines.per_question_evidence_limited', {}, 'Per-question evidence limited')}</span>' : '<span class="tag pill-good">${t('engines.question_evidence_ready', {}, 'Question evidence ready')}</span>'}
+            ${questionGaps.length ? `<span class="tag tag-warn">${t('engines.per_question_evidence_limited', {}, 'Per-question evidence limited')}</span>` : `<span class="tag pill-good">${t('engines.question_evidence_ready', {}, 'Question evidence ready')}</span>`}
           </div>
         </div>
 
@@ -247,7 +247,7 @@ export default {
                     const matchedIdentity = s.analysis?.matched_identity?.text || s.analysis?.matched_identity?.value;
                     const mentionBadge = s.analysis?.brand_mentioned
                       ? `<span class="tag pill-good">Mentioned${matchedIdentity ? ` via "${escapeHtml(matchedIdentity)}"` : ''}</span>`
-                      : '<span class="tag tag-dim">${t('common.not_mentioned', {}, 'Not Mentioned')}</span>';
+                      : `<span class="tag tag-dim">${t('common.not_mentioned', {}, 'Not Mentioned')}</span>`;
                     return `
                 <div class="sample-replay-card">
                   <div class="sample-head">
