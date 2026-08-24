@@ -654,8 +654,8 @@
 
         <!-- Workspace Workflow -->
         <section id="workflow">
-          <h2>Workspace Workflow</h2>
-          <p>The workspace follows a repeatable measurement and execution loop. Each view has a distinct role; use the evidence from one stage as the input to the next.</p>
+          <h2 data-i18n="docs.workflow_h2">Workspace Workflow</h2>
+          <p data-i18n="docs.workflow_lead">The workspace follows a repeatable measurement and execution loop. Each view has a distinct role; use the evidence from one stage as the input to the next.</p>
           <div class="docs-table-wrap">
             <table class="docs-table">
               <thead>
@@ -706,8 +706,8 @@
 
         <!-- Measurement Concepts -->
         <section id="measurement">
-          <h2>Measurement Concepts</h2>
-          <p>CiteAura records observations from a defined question set. Results describe that sample cohort; they are not a guarantee of how every user, model version, region, or future answer will behave.</p>
+          <h2 data-i18n="docs.measurement_h2">Measurement Concepts</h2>
+          <p data-i18n="docs.measurement_lead">CiteAura records observations from a defined question set. Results describe that sample cohort; they are not a guarantee of how every user, model version, region, or future answer will behave.</p>
 
           <h3>Sampling modes</h3>
           <div class="docs-table-wrap">
@@ -739,7 +739,7 @@
             </table>
           </div>
 
-          <h3>Core metrics</h3>
+          <h3 data-i18n="docs.core_metrics_h3">Core metrics</h3>
           <ul>
             <li><strong>Mention rate:</strong> the share of successful sampled answers in the current cohort that mention the configured brand identity.</li>
             <li><strong>Average rank:</strong> the observed recommendation position when a usable rank is present. An absent rank is not converted into a fabricated value.</li>
@@ -758,7 +758,7 @@
 
         <!-- BYOK Setup Guide -->
         <section id="byok">
-          <h2>Model Keys &amp; Providers</h2>
+          <h2 data-i18n="docs.byok_h2">Model Keys &amp; Providers</h2>
           <p>Bring Your Own Key routes measurement requests through your provider account, so provider usage and charges remain visible there. CiteAura currently exposes six built-in providers and supports custom OpenAI-compatible HTTPS endpoints.</p>
 
           <h3 id="key-setup-openai">1. OpenAI</h3>
@@ -825,7 +825,7 @@
 
         <!-- Monitor -->
         <section id="monitor">
-          <h2>Monitor Visibility &amp; Citations</h2>
+          <h2 data-i18n="docs.monitor_h2">Monitor Visibility &amp; Citations</h2>
           <h3>AI Visibility Matrix</h3>
           <p>The matrix groups the latest measured cohort by model provider. Use it to compare mention rate, average observed rank, sample count, sampling mode, and measurement status. Select <strong>Sample Matrix Now</strong> to queue a new cohort.</p>
           <p>Open <strong>Raw AI Sample Answers &amp; Citations</strong> before acting on an aggregate. The replay contains the exact question, answer, provider, mode, detected brand identity, and returned source URLs.</p>
@@ -840,7 +840,7 @@
 
         <!-- Diagnostics -->
         <section id="diagnostics">
-          <h2>Diagnostics &amp; Brand Inputs</h2>
+          <h2 data-i18n="docs.diagnostics_h2">Diagnostics &amp; Brand Inputs</h2>
           <h3>Site-wide GEO Audit</h3>
           <p>Review crawlability, page roles, semantic structure, extraction blocks, and structured data. Page grades summarize applicable checks; skipped or non-applicable checks are shown separately. Use <strong>Re-run Audit</strong> after the public site changes.</p>
 
@@ -859,7 +859,7 @@
 
         <!-- Execution -->
         <section id="execution">
-          <h2>Action Tickets &amp; Execution</h2>
+          <h2 data-i18n="docs.execution_h2">Action Tickets &amp; Execution</h2>
           <p>CiteAura maps audit and sampling evidence to a standard ticket library. The current project total can change when evidence changes, users add project-specific tickets, completed items regress, or a rerun preserves customized work.</p>
 
           <h3>Action Tickets</h3>
@@ -882,7 +882,7 @@
 
         <!-- llms.txt -->
         <section id="llms-txt">
-          <h2>Using /llms.txt</h2>
+          <h2 data-i18n="docs.llms_txt_h2">Using /llms.txt</h2>
           <p><code>/llms.txt</code> is an emerging machine-readable discovery convention, not a universal indexing standard. It can present official facts and links in a concise Markdown file, but support varies by crawler and provider.</p>
           <div class="code-block">
 # Brand Name
@@ -906,7 +906,7 @@
 
         <!-- Verification and Delivery -->
         <section id="verification-delivery">
-          <h2>Verification &amp; Delivery</h2>
+          <h2 data-i18n="docs.verify_h2">Verification &amp; Delivery</h2>
           <h3>Closed-Loop Verify</h3>
           <p>Run verification after public changes have been deployed. Verification re-crawls the site and evaluates ticket acceptance checks against the latest audit and metrics artifacts. It records pass, fail, and reopened states; it does not convert an implementation claim into a pass without supporting evidence.</p>
           <ol>
@@ -923,7 +923,7 @@
 
         <!-- Administration -->
         <section id="administration">
-          <h2>Workspace Administration</h2>
+          <h2 data-i18n="docs.admin_h2">Workspace Administration</h2>
           <div class="docs-table-wrap">
             <table class="docs-table">
               <thead>
@@ -979,7 +979,7 @@
 
         <!-- Troubleshooting -->
         <section id="troubleshooting">
-          <h2>Jobs &amp; Troubleshooting</h2>
+          <h2 data-i18n="docs.troubleshoot_h2">Jobs &amp; Troubleshooting</h2>
           <h3>Job states</h3>
           <ul>
             <li><strong>Queued:</strong> the command is waiting for a worker.</li>

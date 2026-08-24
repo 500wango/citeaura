@@ -106,8 +106,18 @@ function escapeHtml(value) {
       if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
       if (value != null) {
         if (node.tagName === 'TITLE') { document.title = value; return; }
-        node.textContent = value;
+        if (value.indexOf('<') >= 0 && value.indexOf('>') >= 0) {
+          node.innerHTML = value;
+        } else {
+          node.textContent = value;
+        }
       }
+    });
+    $$('[data-i18n-html]').forEach(function (node) {
+      var key = node.getAttribute('data-i18n-html');
+      var value = catalogValue(key);
+      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
+      if (value != null) node.innerHTML = value;
     });
     var title = catalogValue('landing.title');
     if (title) document.title = title;
