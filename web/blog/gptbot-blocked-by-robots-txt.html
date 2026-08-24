@@ -158,19 +158,19 @@
 
   <article class="blog-shell blog-article">
     <nav class="blog-crumb" aria-label="Breadcrumb">
-      <a href="/">Home</a>
+      <a href="/" data-i18n="guide.breadcrumb_home">Home</a>
       <span aria-hidden="true">/</span>
-      <a href="/blog">Guides</a>
+      <a href="/blog" data-i18n="guide.breadcrumb_guides">Guides</a>
       <span aria-hidden="true">/</span>
       <span>Crawl access</span>
     </nav>
 
     <header class="blog-header">
-      <span class="blog-kicker">Crawl access</span>
-      <h1>GPTBot Blocked by robots.txt? Find and Fix the Rule</h1>
+      <span class="blog-kicker" data-i18n="g3.kicker">Crawl access</span>
+      <h1 data-i18n="g3.h1">GPTBot Blocked by robots.txt? Find and Fix the Rule</h1>
       <p class="blog-lead">GPTBot is blocked by robots.txt when a Disallow rule matches the paths that state your product. Open the file at the site root, find the User-agent for GPTBot or a blanket * rule, and allow the public pages you want retrieved. After you deploy, request the file again and confirm the crawl. CiteAura flags blocked AI crawlers in the site audit so the fix is a ticket, not a guess.</p>
       <p class="blog-meta">Updated 20 August 2026 · 6 min read</p>
-      <p class="blog-byline">By CiteAura Editorial Team · Evidence and documentation</p>
+      <p class="blog-byline" data-i18n="g1.byline">By CiteAura Editorial Team · Evidence and documentation</p>
     </header>
 
     <h2>How to tell that GPTBot is blocked</h2>
@@ -210,7 +210,7 @@
     <p>Opening robots.txt lets a crawler request the page. It does not guarantee that ChatGPT will fetch, mention, cite, or rank the brand. Treat the fix as a prerequisite, then measure with a labeled cohort.</p>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
-      <h2 id="faq-heading">FAQ: GPTBot and robots.txt</h2>
+      <h2 id="faq-heading" data-i18n="guide.faq_title">FAQ: GPTBot and robots.txt</h2>
       <h3>Should GPTBot be allowed to crawl every route?</h3>
       <p>No. Keep app, admin, account, cart, API, and other private routes closed. Allow only public pages that state the product.</p>
       <h3>How do I confirm a GPTBot robots.txt fix?</h3>
@@ -220,14 +220,14 @@
     </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">
-      <h2 id="related-guides">Related guides</h2>
+      <h2 id="related-guides" data-i18n="guide.related_h2">Related guides</h2>
       <ul>
         <li><a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT does not mention a brand</a></li>
         <li><a href="/blog/what-to-put-in-llms-txt">What to put in llms.txt</a></li>
       </ul>
     </aside>
 
-    <h2>Sources</h2>
+    <h2 data-i18n="guide.sources_h2">Sources</h2>
     <ul>
       <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI crawler documentation</a> — GPTBot, OAI-SearchBot, and ChatGPT-User tokens.</li>
       <li><a href="https://www.robotstxt.org/robotstxt.html" rel="noopener noreferrer">The robots.txt specification</a> — how User-agent groups and Disallow/Allow matching work.</li>
@@ -237,7 +237,7 @@
 
     <div class="blog-cta">
       <p>Audit the live robots file, keep private routes closed, and verify GPTBot can reach the public product pages.</p>
-      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+      <a class="btn btn-primary" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
     </div>
   </article>
 
@@ -254,7 +254,7 @@
 
       <nav class="footer-links" aria-label="Footer Navigation">
         <a href="/docs">Docs</a>
-        <a href="/blog">Guides</a>
+        <a href="/blog" data-i18n="guide.breadcrumb_guides">Guides</a>
         <a href="/about">About</a>
         <a href="/contact">Contact</a>
         <a href="/app?auth=login">Sign In</a>

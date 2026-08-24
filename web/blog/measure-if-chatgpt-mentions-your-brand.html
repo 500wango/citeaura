@@ -158,74 +158,74 @@
 
   <article class="blog-shell blog-article">
     <nav class="blog-crumb" aria-label="Breadcrumb">
-      <a href="/">Home</a>
+      <a href="/" data-i18n="guide.breadcrumb_home">Home</a>
       <span aria-hidden="true">/</span>
-      <a href="/blog">Guides</a>
+      <a href="/blog" data-i18n="guide.breadcrumb_guides">Guides</a>
       <span aria-hidden="true">/</span>
-      <span>Measurement</span>
+      <span data-i18n="g1.kicker">Measurement</span>
     </nav>
 
     <header class="blog-header">
-      <span class="blog-kicker">Measurement</span>
-      <h1>How to Measure ChatGPT Brand Mentions</h1>
-      <p class="blog-lead">You cannot treat one ChatGPT reply as a measurement. To measure if ChatGPT mentions your brand, fix a question set, record each raw answer, and mark whether the brand name or official domain appears. Repeat the same questions later. CiteAura stores those traces with a sampling-mode label so a mention rate is tied to a defined cohort, not a screenshot.</p>
-      <p class="blog-meta">Updated 20 August 2026 · 6 min read</p>
-      <p class="blog-byline">By CiteAura Editorial Team · Evidence and documentation</p>
+      <span class="blog-kicker" data-i18n="g1.kicker">Measurement</span>
+      <h1 data-i18n="g1.h1">How to Measure ChatGPT Brand Mentions</h1>
+      <p class="blog-lead" data-i18n="g1.lead">You cannot treat one ChatGPT reply as a measurement. To measure if ChatGPT mentions your brand, fix a question set, record each raw answer, and mark whether the brand name or official domain appears. Repeat the same questions later. CiteAura stores those traces with a sampling-mode label so a mention rate is tied to a defined cohort, not a screenshot.</p>
+      <p class="blog-meta" data-i18n="g1.meta">Updated 20 August 2026 · 6 min read</p>
+      <p class="blog-byline" data-i18n="g1.byline">By CiteAura Editorial Team · Evidence and documentation</p>
     </header>
 
-    <h2>What counts as a mention</h2>
-    <p>A mention is a usable string match in the recorded answer: the brand name you configured, a clear alias, or the official domain. A source URL is a different signal. ChatGPT only returns citations in some product or retrieval modes, so “no link” is not the same as “no mention.”</p>
-    <p>Do not convert a missing rank into a fake rank. Many answers name a brand without ordering a list. Record rank only when the answer actually ranks options.</p>
+    <h2 data-i18n="g1.sec1_h2">What counts as a mention</h2>
+    <p data-i18n="g1.sec1_p1">A mention is a usable string match in the recorded answer: the brand name you configured, a clear alias, or the official domain. A source URL is a different signal. ChatGPT only returns citations in some product or retrieval modes, so “no link” is not the same as “no mention.”</p>
+    <p data-i18n="g1.sec1_p2">Do not convert a missing rank into a fake rank. Many answers name a brand without ordering a list. Record rank only when the answer actually ranks options.</p>
 
-    <h2>How to measure it without guessing</h2>
+    <h2 data-i18n="g1.sec2_h2">How to measure it without guessing</h2>
     <ol>
-      <li>Write 10–20 questions a buyer would ask. Include category, comparison, and problem prompts. Avoid “tell me about [your brand].”</li>
-      <li>Ask the same questions in the same market and language.</li>
-      <li>Save the question, raw answer, date, and whether you used the ChatGPT product UI or an API.</li>
-      <li>Mark each successful answer as mentioned or not mentioned.</li>
-      <li>Compute mention rate as mentioned ÷ successful answers in that cohort.</li>
-      <li>Repeat later with the same questions before you call the change a trend.</li>
+      <li data-i18n="g1.sec2_li1">Write 10–20 questions a buyer would ask. Include category, comparison, and problem prompts. Avoid “tell me about [your brand].”</li>
+      <li data-i18n="g1.sec2_li2">Ask the same questions in the same market and language.</li>
+      <li data-i18n="g1.sec2_li3">Save the question, raw answer, date, and whether you used the ChatGPT product UI or an API.</li>
+      <li data-i18n="g1.sec2_li4">Mark each successful answer as mentioned or not mentioned.</li>
+      <li data-i18n="g1.sec2_li5">Compute mention rate as mentioned ÷ successful answers in that cohort.</li>
+      <li data-i18n="g1.sec2_li6">Repeat later with the same questions before you call the change a trend.</li>
     </ol>
-    <p>A cohort is the unit of measurement. If you change the questions, the providers, or the product surface, you started a new series.</p>
+    <p data-i18n="g1.sec2_p">A cohort is the unit of measurement. If you change the questions, the providers, or the product surface, you started a new series.</p>
 
-    <h2>API knowledge is not the ChatGPT product UI</h2>
-    <p>Most developer APIs measure parametric model knowledge. The consumer ChatGPT app can retrieve the web, apply memory, or use a different system prompt. Mixing those answers into one percentage hides the method.</p>
+    <h2 data-i18n="g1.sec3_h2">API knowledge is not the ChatGPT product UI</h2>
+    <p data-i18n="g1.sec3_p">Most developer APIs measure parametric model knowledge. The consumer ChatGPT app can retrieve the web, apply memory, or use a different system prompt. Mixing those answers into one percentage hides the method.</p>
     <ul>
       <li><strong>API · Model knowledge</strong> — provider API, no live retrieval.</li>
       <li><strong>API · Web-grounded retrieval</strong> — provider API with search enabled; this is the mode that can return source URLs.</li>
       <li><strong>Manual · Product surface</strong> — a transcript from the ChatGPT app or another consumer UI.</li>
     </ul>
     <div class="blog-callout">
-      <p>Label every sample. An unlabeled “ChatGPT said this” log is not comparable next month.</p>
+      <p data-i18n="g1.sec3_callout">Label every sample. An unlabeled “ChatGPT said this” log is not comparable next month.</p>
     </div>
 
-    <h2>How CiteAura records the measurement</h2>
-    <p>In the workspace you keep a target question bank, run a sample, and inspect the raw answer next to the aggregate. Mention rate, sample count, and sampling mode stay attached to that cohort. Unmeasured providers stay unmeasured; they are not shown as 0%.</p>
+    <h2 data-i18n="g1.sec4_h2">How CiteAura records the measurement</h2>
+    <p data-i18n="g1.sec4_p1">In the workspace you keep a target question bank, run a sample, and inspect the raw answer next to the aggregate. Mention rate, sample count, and sampling mode stay attached to that cohort. Unmeasured providers stay unmeasured; they are not shown as 0%.</p>
     <p>See <a href="/docs#measurement">Measurement Concepts</a> for how those labels appear in the product, and <a href="/">the CiteAura homepage</a> for the overall workflow.</p>
 
-    <h2>A mention rate is not a ranking promise</h2>
-    <p>Answers vary by model version, region, and retrieval path. A higher mention rate on a fixed question set is evidence about that sample. It does not guarantee that ChatGPT will mention or rank the brand for every user.</p>
+    <h2 data-i18n="g1.sec5_h2">A mention rate is not a ranking promise</h2>
+    <p data-i18n="g1.sec5_p1">Answers vary by model version, region, and retrieval path. A higher mention rate on a fixed question set is evidence about that sample. It does not guarantee that ChatGPT will mention or rank the brand for every user.</p>
     <p>If the brand is missing across a stable cohort, the next question is why. Start with <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT Does Not Mention Your Brand</a>.</p>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
-      <h2 id="faq-heading">FAQ: measuring ChatGPT brand mentions</h2>
-      <h3>Can one ChatGPT reply measure brand visibility?</h3>
-      <p>No. A single reply is an observation, not a baseline. Use a fixed question set and repeat it before comparing cohorts.</p>
-      <h3>What should a ChatGPT mention log include?</h3>
-      <p>Save the question, raw answer, date, market and language, sampling mode, and the rule used to mark a mention.</p>
-      <h3>Can API results be compared with the ChatGPT product UI?</h3>
-      <p>Keep them in separate cohorts. A developer API and the consumer product can use different retrieval paths and contexts.</p>
+      <h2 id="faq-heading" data-i18n="guide.faq_title">FAQ: measuring ChatGPT brand mentions</h2>
+      <h3 data-i18n="faq.visibility_metric_q">Can one ChatGPT reply measure brand visibility?</h3>
+      <p data-i18n="faq.visibility_metric_a">No. A single reply is an observation, not a baseline. Use a fixed question set and repeat it before comparing cohorts.</p>
+      <h3 data-i18n="faq.mention_log_q">What should a ChatGPT mention log include?</h3>
+      <p data-i18n="faq.mention_log_a">Save the question, raw answer, date, market and language, sampling mode, and the rule used to mark a mention.</p>
+      <h3 data-i18n="faq.compare_api_ui_q">Can API results be compared with the ChatGPT product UI?</h3>
+      <p data-i18n="faq.compare_api_ui_a">Keep them in separate cohorts. A developer API and the consumer product can use different retrieval paths and contexts.</p>
     </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">
-      <h2 id="related-guides">Related guides</h2>
+      <h2 id="related-guides" data-i18n="guide.related_h2">Related guides</h2>
       <ul>
         <li><a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT does not mention a brand</a></li>
         <li><a href="/blog/gptbot-blocked-by-robots-txt">How to fix a GPTBot robots.txt block</a></li>
       </ul>
     </aside>
 
-    <h2>Sources</h2>
+    <h2 data-i18n="guide.sources_h2">Sources</h2>
     <ul>
       <li><a href="https://platform.openai.com/docs/guides/latest-model" rel="noopener noreferrer">OpenAI model API guide</a> — developer APIs measure model knowledge unless search is enabled.</li>
       <li><a href="https://platform.openai.com/docs/guides/tools-web-search" rel="noopener noreferrer">OpenAI web search tool</a> — retrieval-enabled API calls can return source URLs; the ChatGPT app is a different surface.</li>
@@ -234,8 +234,8 @@
     </ul>
 
     <div class="blog-cta">
-      <p>Set up a domain, keep the question set stable, and review labeled ChatGPT samples in one workspace.</p>
-      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+      <p data-i18n="g1.cta_p">Set up a domain, keep the question set stable, and review labeled ChatGPT samples in one workspace.</p>
+      <a class="btn btn-primary" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
     </div>
   </article>
 

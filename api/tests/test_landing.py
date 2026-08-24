@@ -280,13 +280,13 @@ def test_blog_index_and_articles_are_static_html():
         assert "does not guarantee" in page.text
         assert f'rel="canonical" href="https://citeaura.com{path}"' in page.text
         assert page.text.count('href="https://') >= 3
-        assert "<h2>Sources</h2>" in page.text
+        assert "Sources</h2>" in page.text
         assert page.text.count("<h1") == 1
         assert '"@type": "FAQPage"' in page.text
         assert 'class="blog-related"' in page.text
         assert "By CiteAura Editorial Team" in page.text
         assert 'class="blog-cta"' in page.text
-        assert 'class="btn btn-primary" href="/app?auth=register">Start free trial</a>' in page.text
+        assert 'href="/app?auth=register"' in page.text and "Start free trial</a>" in page.text
         title = re.search(r"<title>([^<]+)</title>", page.text)
         assert title is not None
         assert 55 <= len(title.group(1)) <= 70
