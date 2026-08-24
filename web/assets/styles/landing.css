@@ -41,7 +41,7 @@
 
 .theme-toggle {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; border: 1px solid var(--divider); border-radius: var(--r-md);
+  width: 34px; height: 34px; padding: 0; border: 1px solid var(--divider); border-radius: var(--r-md);
   background: var(--surface); color: var(--muted); cursor: pointer;
   transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
@@ -50,17 +50,19 @@
 .lang-picker-btn {
   position: relative;
   display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; border: 1px solid var(--divider); border-radius: var(--r-md);
+  width: 34px; height: 34px; padding: 0; border: 1px solid var(--divider); border-radius: var(--r-md);
   background: var(--surface); color: var(--muted); cursor: pointer;
+  overflow: hidden;
   transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
 .lang-picker-btn:hover { color: var(--ink); border-color: var(--accent-line); background: var(--deep); }
-.lang-picker-btn .icon-globe { pointer-events: none; }
+.lang-picker-btn .icon-globe { width: 16px; height: 16px; pointer-events: none; }
+.lang-picker-btn select,
 .site-locale-compact {
-  position: absolute; inset: 0; width: 100%; height: 100%;
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   opacity: 0; cursor: pointer; appearance: none; -webkit-appearance: none;
+  border: none; background: transparent; padding: 0; margin: 0; font-size: 14px;
 }
-.theme-toggle .icon-sun, .theme-toggle .icon-moon { transition: opacity var(--dur-fast) var(--ease-out); }
 
 .nav-menu-toggle {
   display: none; align-items: center; justify-content: center;
@@ -582,13 +584,4 @@ h1 {
   .hero-scanner-input-wrap { border-right: 1px solid var(--divider); border-radius: var(--r-md) var(--r-md) 0 0; padding: 0 0 0 var(--sp-3); }
   .hero-scanner-btn { border-radius: 0 0 var(--r-md) var(--r-md); }
 }
-.site-locale {
-  min-height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--ink);
-  padding: 0 26px 0 9px;
-  font: inherit;
-  font-size: 12px;
-}
+.site-locale { display: none; }
