@@ -585,3 +585,8 @@ h1 {
   .hero-scanner-btn { border-radius: 0 0 var(--r-md) var(--r-md); }
 }
 .site-locale { display: none; }
+
+[data-theme="dark"] select option {
+  background-color: #201c17 !important;
+  color: #f1ece4 !important;
+}

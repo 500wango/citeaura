@@ -1313,3 +1313,8 @@ button.project-opt {
   opacity: 0; cursor: pointer; appearance: none; -webkit-appearance: none;
   border: none; background: transparent; padding: 0; margin: 0; font-size: 14px;
 }
+
+[data-theme="dark"] select option {
+  background-color: #201c17 !important;
+  color: #f1ece4 !important;
+}
