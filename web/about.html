@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>About CiteAura | GEO Diagnosis and Verification</title>
-  <meta name="description" content="Learn what CiteAura measures, how its GEO diagnostic workflow works, and where its AI visibility evidence stops.">
+  <title data-i18n="public.about.title">About CiteAura | GEO Diagnosis and Verification</title>
+  <meta name="description" content="Learn what CiteAura measures, how its GEO diagnostic workflow works, and where its AI visibility evidence stops." data-i18n-content="public.about.description">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/site-assets/theme-init.js"></script>
@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
   <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.8">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <script defer src="/site-assets/landing.js?v=3.2"></script>
   <link rel="canonical" href="https://citeaura.com/about">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
   <meta property="og:type" content="website">
@@ -91,91 +92,91 @@
 <body>
   <header class="site-header">
     <div class="page-shell header-layout">
-      <a class="brand" href="/" aria-label="CiteAura Home">
+      <a class="brand" href="/" aria-label="CiteAura Home" data-i18n-aria="nav.home">
         <span class="brand-mark" aria-hidden="true"></span>
         <span class="brand-word">CiteAura</span>
       </a>
-      <nav class="nav-links" aria-label="Main Navigation">
-        <a href="/#workflow">How It Works</a>
-        <a href="/docs">Docs</a>
-        <a href="/blog">Guides</a>
-        <a href="/contact">Contact</a>
+      <nav class="nav-links" aria-label="Main Navigation" data-i18n-aria="nav.main">
+        <a href="/#workflow" data-i18n="nav.workflow">How It Works</a>
+        <a href="/docs" data-i18n="nav.docs">Docs</a>
+        <a href="/blog" data-i18n="nav.guides">Guides</a>
+        <a href="/contact" data-i18n="public.nav.contact">Contact</a>
       </nav>
       <div class="nav-actions">
-        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
-        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+        <a class="nav-sign-in" href="/app?auth=login" data-i18n="nav.sign_in">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
       </div>
     </div>
   </header>
 
   <main class="public-page">
     <header class="public-header">
-      <span class="public-kicker">About CiteAura</span>
-      <h1>GEO diagnosis with evidence boundaries</h1>
-      <p class="public-lead">CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.</p>
-      <p class="public-meta">Maintained by CiteAura Editorial Team · Updated 20 August 2026</p>
+      <span class="public-kicker" data-i18n="public.about.kicker">About CiteAura</span>
+      <h1 data-i18n="public.about.h1">GEO diagnosis with evidence boundaries</h1>
+      <p class="public-lead" data-i18n="public.about.lead">CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.</p>
+      <p class="public-meta" data-i18n="public.about.meta">Maintained by CiteAura Editorial Team · Updated 20 August 2026</p>
     </header>
 
     <section aria-labelledby="what-title">
-      <h2 id="what-title">What CiteAura does</h2>
-      <p>CiteAura connects a public domain to a documented workflow: crawl the site, extract verified facts, inspect page-level GEO signals, sample configured AI engines, assign changes, and re-check the result. The output is an evidence-based diagnostic and an execution plan, not a ranking promise.</p>
+      <h2 id="what-title" data-i18n="public.about.what_h2">What CiteAura does</h2>
+      <p data-i18n="public.about.what_p">CiteAura connects a public domain to a documented workflow: crawl the site, extract verified facts, inspect page-level GEO signals, sample configured AI engines, assign changes, and re-check the result. The output is an evidence-based diagnostic and an execution plan, not a ranking promise.</p>
       <ol>
-        <li>Add the official website and create a workspace.</li>
-        <li>Review extracted facts and buyer-intent questions.</li>
-        <li>Run labeled model sampling or import manual product-surface observations.</li>
-        <li>Turn crawl and visibility gaps into tickets with owners and acceptance checks.</li>
-        <li>Re-crawl, verify completed work, and export a diagnostic delivery pack.</li>
+        <li data-i18n="public.about.what_li1">Add the official website and create a workspace.</li>
+        <li data-i18n="public.about.what_li2">Review extracted facts and buyer-intent questions.</li>
+        <li data-i18n="public.about.what_li3">Run labeled model sampling or import manual product-surface observations.</li>
+        <li data-i18n="public.about.what_li4">Turn crawl and visibility gaps into tickets with owners and acceptance checks.</li>
+        <li data-i18n="public.about.what_li5">Re-crawl, verify completed work, and export a diagnostic delivery pack.</li>
       </ol>
     </section>
 
     <section aria-labelledby="evidence-title">
-      <h2 id="evidence-title">How the evidence is labeled</h2>
-      <p>AI outputs depend on the retrieval path, model version, market, and question. CiteAura keeps these modes separate so an API response is not presented as a product-UI observation.</p>
+      <h2 id="evidence-title" data-i18n="public.about.evidence_h2">How the evidence is labeled</h2>
+      <p data-i18n="public.about.evidence_p">AI outputs depend on the retrieval path, model version, market, and question. CiteAura keeps these modes separate so an API response is not presented as a product-UI observation.</p>
       <ul>
-        <li><strong>API · Model knowledge:</strong> parameterized model knowledge without live web retrieval.</li>
-        <li><strong>API · Web-grounded retrieval:</strong> provider search with returned source URLs when available.</li>
-        <li><strong>Manual · Product surface:</strong> a human-recorded observation from a public AI product interface.</li>
+        <li data-i18n="public.about.evidence_li1"><strong>API · Model knowledge:</strong> parameterized model knowledge without live web retrieval.</li>
+        <li data-i18n="public.about.evidence_li2"><strong>API · Web-grounded retrieval:</strong> provider search with returned source URLs when available.</li>
+        <li data-i18n="public.about.evidence_li3"><strong>Manual · Product surface:</strong> a human-recorded observation from a public AI product interface.</li>
       </ul>
     </section>
 
     <section aria-labelledby="limits-title">
-      <h2 id="limits-title">What CiteAura does not promise</h2>
-      <p>CiteAura does not guarantee a mention, ranking, or citation from any AI provider. A measured change is evidence about a defined sample and time window. It is not a universal claim about every user, model, region, or future answer.</p>
-      <p>The official website is a source of truth for verified product facts. External authoritative pages often determine whether a model retrieves and cites a brand, so the workflow includes external evidence and does not treat homepage edits as the whole GEO strategy.</p>
+      <h2 id="limits-title" data-i18n="public.about.limits_h2">What CiteAura does not promise</h2>
+      <p data-i18n="public.about.limits_p1">CiteAura does not guarantee a mention, ranking, or citation from any AI provider. A measured change is evidence about a defined sample and time window. It is not a universal claim about every user, model, region, or future answer.</p>
+      <p data-i18n="public.about.limits_p2">The official website is a source of truth for verified product facts. External authoritative pages often determine whether a model retrieves and cites a brand, so the workflow includes external evidence and does not treat homepage edits as the whole GEO strategy.</p>
     </section>
 
     <section class="public-source-list" aria-labelledby="sources-title">
-      <h2 id="sources-title">Sources and specifications</h2>
+      <h2 id="sources-title" data-i18n="public.about.sources_h2">Sources and specifications</h2>
       <ul>
-        <li><a href="/docs#measurement">CiteAura measurement documentation</a> - sampling modes, citation sources, and replay evidence.</li>
-        <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI crawler documentation</a> - public crawler identity and access rules.</li>
-        <li><a href="https://schema.org/SoftwareApplication" rel="noopener noreferrer">Schema.org SoftwareApplication</a> - structured product entity vocabulary.</li>
+        <li><a href="/docs#measurement" data-i18n="public.about.source1_name">CiteAura measurement documentation</a> <span data-i18n="public.about.source1_desc">- sampling modes, citation sources, and replay evidence.</span></li>
+        <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer" data-i18n="public.about.source2_name">OpenAI crawler documentation</a> <span data-i18n="public.about.source2_desc">- public crawler identity and access rules.</span></li>
+        <li><a href="https://schema.org/SoftwareApplication" rel="noopener noreferrer" data-i18n="public.about.source3_name">Schema.org SoftwareApplication</a> <span data-i18n="public.about.source3_desc">- structured product entity vocabulary.</span></li>
       </ul>
     </section>
 
     <div class="public-cta">
-      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
-      <a class="btn btn-secondary" href="/contact">Contact CiteAura</a>
+      <a class="btn btn-primary" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
+      <a class="btn btn-secondary" href="/contact" data-i18n="public.about.contact_cta">Contact CiteAura</a>
     </div>
   </main>
 
   <footer class="site-footer">
     <div class="page-shell footer-layout">
       <div class="footer-brand">
-        <a class="brand" href="/" aria-label="CiteAura Home">
+        <a class="brand" href="/" aria-label="CiteAura Home" data-i18n-aria="nav.home">
           <span class="brand-mark" aria-hidden="true"></span>
           <span class="brand-word">CiteAura</span>
         </a>
-        <p class="footer-tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
+        <p class="footer-tagline" data-i18n="landing.footer_tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
         <span class="footer-copy">© 2026 CiteAura</span>
       </div>
-      <nav class="footer-links" aria-label="Footer Navigation">
-        <a href="/docs">Docs</a>
-        <a href="/blog">Guides</a>
-        <a href="/about">About</a>
-        <a href="/contact">Contact</a>
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/terms">Terms of Service</a>
+      <nav class="footer-links" aria-label="Footer Navigation" data-i18n-aria="public.docs.footer_nav">
+        <a href="/docs" data-i18n="nav.docs">Docs</a>
+        <a href="/blog" data-i18n="nav.guides">Guides</a>
+        <a href="/about" data-i18n="public.nav.about">About</a>
+        <a href="/contact" data-i18n="public.nav.contact">Contact</a>
+        <a href="/privacy" data-i18n="nav.privacy">Privacy Policy</a>
+        <a href="/terms" data-i18n="nav.terms">Terms of Service</a>
       </nav>
     </div>
   </footer>

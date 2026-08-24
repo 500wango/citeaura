@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sample GEO Diagnostic Report | CiteAura</title>
-  <meta name="description" content="Explore an example CiteAura GEO diagnostic report with evidence, action tickets, and verification gates.">
+  <title data-i18n="public.sample.title">Sample GEO Diagnostic Report | CiteAura</title>
+  <meta name="description" content="Explore an example CiteAura GEO diagnostic report with evidence, action tickets, and verification gates." data-i18n-content="public.sample.description">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://citeaura.com/sample-report">
   <script src="/site-assets/theme-init.js"></script>
@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
   <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.8">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <script defer src="/site-assets/landing.js?v=3.2"></script>
   <style>
     .sample-page { min-height: 100vh; background: var(--page); color: var(--ink); }
     .sample-header { border-bottom: 1px solid var(--line); background: color-mix(in oklch, var(--page) 92%, transparent); }
@@ -63,21 +64,21 @@
     <div class="sample-shell sample-nav">
       <a class="sample-brand" href="/">CiteAura</a>
       <div class="sample-nav-actions">
-        <a class="btn btn-secondary btn-sm" href="/">Back to site</a>
-        <a class="btn btn-primary btn-sm" href="/app?auth=register">Run your audit</a>
+        <a class="btn btn-secondary btn-sm" href="/" data-i18n="public.sample.back">Back to site</a>
+        <a class="btn btn-primary btn-sm" href="/app?auth=register" data-i18n="public.sample.run_audit">Run your audit</a>
       </div>
     </div>
   </header>
   <main class="sample-shell">
-    <section class="sample-hero">
+    <section class="sample-hero" data-i18n-html="public.sample.hero">
       <div class="sample-kicker">Example diagnostic pack · Fictional workspace</div>
       <h1>From an AI answer to an evidence-backed action plan.</h1>
       <p>This sample shows how CiteAura turns a public-site crawl and a labeled AI baseline into prioritized tickets, acceptance checks, and a client-ready delivery pack.</p>
       <div class="sample-disclosure"><strong>Example only:</strong> all domain names, prompts, rates, and ticket outcomes on this page are illustrative. A real workspace reports the sampled engines, sampling mode, raw answer replay, and evidence coverage that were actually measured.</div>
     </section>
 
-    <section aria-label="Example summary">
-      <div class="sample-grid">
+    <section aria-label="Example summary" data-i18n-aria="public.sample.summary_aria">
+      <div class="sample-grid" data-i18n-html="public.sample.summary">
         <div class="sample-kpi"><strong>76</strong><span>Technical audit score · example</span></div>
         <div class="sample-kpi"><strong>18%</strong><span>AI mention rate · 24 labeled answers</span></div>
         <div class="sample-kpi"><strong>4</strong><span>High-impact tickets created</span></div>
@@ -85,7 +86,7 @@
       </div>
     </section>
 
-    <section class="sample-section">
+    <section class="sample-section" data-i18n-html="public.sample.sec1">
       <h2>1. Evidence scope</h2>
       <p>The report keeps technical diagnosis separate from visibility measurement, so a customer can see what was checked and what remains unmeasured.</p>
       <table class="sample-table">
@@ -99,7 +100,7 @@
       </table>
     </section>
 
-    <section class="sample-section">
+    <section class="sample-section" data-i18n-html="public.sample.sec2">
       <h2>2. Action tickets with acceptance gates</h2>
       <p>Every recommendation has an owner, an evidence link, and a checker that can reopen the ticket after a regression.</p>
       <div class="ticket-list">
@@ -110,7 +111,7 @@
       </div>
     </section>
 
-    <section class="sample-section">
+    <section class="sample-section" data-i18n-html="public.sample.sec3">
       <h2>3. Delivery and verification</h2>
       <p>The final pack contains an audit report, execution plan, ticket log, acceptance checklist, draft risks, and build map. The pack is marked diagnostic-ready until implementation evidence is complete.</p>
       <table class="sample-table">
@@ -123,7 +124,7 @@
       </table>
     </section>
 
-    <section class="sample-cta">
+    <section class="sample-cta" data-i18n-html="public.sample.cta">
       <div><h2>See this workflow on your own domain.</h2><p>Start with a free technical diagnostic. Add model keys later for a full AI visibility baseline.</p></div>
       <a class="btn btn-primary" href="/app?auth=register">Create free workspace <span aria-hidden="true">→</span></a>
     </section>

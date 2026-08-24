@@ -194,7 +194,7 @@
       
       <nav id="primary-nav" class="nav-links" aria-label="Main navigation" data-i18n-aria="nav.main">
         <a href="#simulator" data-i18n="nav.simulator">Free AI Audit</a>
-        <a href="#about">What it is</a>
+        <a href="#about" data-i18n="public.nav.what_it_is">What it is</a>
         <a href="#workflow" data-i18n="nav.workflow">How It Works</a>
         <a href="#product" data-i18n="nav.product">Product</a>
         <a href="#pricing" data-i18n="nav.pricing">Pricing</a>
@@ -204,12 +204,12 @@
       </nav>
       
       <div class="nav-actions">
-        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" data-i18n-aria="theme.to_dark" title="Switch Theme">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" data-i18n-aria="theme.to_dark" data-i18n-title="public.nav.switch_theme" title="Switch Theme">
           <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
           <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
 
-        <div class="lang-picker-btn" title="Change Language">
+        <div class="lang-picker-btn" title="Change Language" data-i18n-title="public.nav.change_language">
           <svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="10"/>
             <line x1="2" y1="12" x2="22" y2="12"/>
@@ -251,7 +251,7 @@
             <form class="hero-scanner-form">
               <div class="hero-scanner-input-wrap">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
-                <input type="text" class="hero-scanner-input" value="yourbrand.com" placeholder="Enter your domain (e.g. yourbrand.com)" aria-label="Website domain to audit">
+                <input type="text" class="hero-scanner-input" value="yourbrand.com" placeholder="Enter your domain (e.g. yourbrand.com)" aria-label="Website domain to audit" data-i18n-placeholder="public.landing.domain_placeholder" data-i18n-aria="public.landing.domain_aria">
               </div>
               <button type="submit" class="btn btn-primary hero-scanner-btn" data-i18n="landing.scan_btn">Run free technical audit →</button>
             </form>
@@ -292,7 +292,7 @@
                 <button type="button" class="console-tab-btn" data-target="compare" data-i18n="landing.tab_compare">Before / After</button>
                 <button type="button" class="console-tab-btn" data-target="assets" data-i18n="landing.tab_assets">Deploy Assets</button>
               </div>
-              <div class="console-live-ping">Example workspace preview · yourbrand.com</div>
+              <div class="console-live-ping" data-i18n="public.landing.preview_live_ping_static">Example workspace preview · yourbrand.com</div>
             </div>
             
             <div class="console-body">
@@ -300,8 +300,8 @@
               <div class="console-scan-overlay" id="console-scanner">
                 <div class="scan-overlay-head">
                   <div class="scan-status-text">
-                    <strong class="scan-domain-title">Preparing yourbrand.com workspace...</strong>
-                    <span class="scan-sub-status">This preview shows the setup flow. Full audits run inside the product workspace.</span>
+                    <strong class="scan-domain-title" data-i18n="public.landing.preview_preparing_static">Preparing yourbrand.com workspace...</strong>
+                    <span class="scan-sub-status" data-i18n="public.landing.preview_sub_status">This preview shows the setup flow. Full audits run inside the product workspace.</span>
                   </div>
                   <span class="scan-pct" id="scan-pct-val">0%</span>
                 </div>
@@ -309,12 +309,12 @@
                   <div class="scan-progress-fill" id="scan-progress-fill"></div>
                 </div>
                 <div class="scan-terminal-log" id="scan-terminal-log">
-                  <div class="log-line">▶ Opening guided workspace setup preview...</div>
+                  <div class="log-line" data-i18n="public.landing.preview_log_open">▶ Opening guided workspace setup preview...</div>
                 </div>
               </div>
 
               <!--  (Result Action Banner) -->
-              <div class="visibility-baseline" aria-label="Example visibility metrics">
+              <div class="visibility-baseline" aria-label="Example visibility metrics" data-i18n-aria="public.landing.metrics_aria">
                 <div class="visibility-baseline-label" data-i18n="landing.metrics_label">Example visibility baseline · 14 valid samples · 2 platforms · API · Web-grounded retrieval · 21 Aug 2026</div>
                 <div class="visibility-metric-grid">
                   <div><strong>0%</strong><span data-i18n="landing.metric_mention">Mention Rate</span></div>
@@ -327,12 +327,12 @@
 
               <div class="console-result-banner is-hidden" id="console-result-banner">
                 <div class="banner-info">
-                  <span class="banner-badge">Preview only — continue in workspace</span>
-                  <span class="banner-title"><strong id="banner-domain-name">yourbrand.com</strong>: <span id="banner-title-prefix">Setup preview loaded</span> <span id="banner-grade-val">Preview ready</span></span>
+                  <span class="banner-badge" data-i18n="public.landing.preview_only_badge">Preview only — continue in workspace</span>
+                  <span class="banner-title"><strong id="banner-domain-name">yourbrand.com</strong>: <span id="banner-title-prefix" data-i18n="public.landing.preview_loaded_title">Setup preview loaded</span> <span id="banner-grade-val" data-i18n="public.landing.preview_ready">Preview ready</span></span>
                   <div id="banner-audit-details" class="audit-result-chips" aria-live="polite"></div>
                 </div>
                 <a href="/app" class="btn btn-primary btn-sm banner-action-btn" id="banner-open-app-btn">
-                  <span id="banner-open-app-label">Open Workspace →</span>
+                  <span id="banner-open-app-label" data-i18n="public.landing.preview_open_workspace">Open Workspace →</span>
                 </a>
               </div>
 
@@ -342,84 +342,84 @@
                   <div class="radar-card">
                     <div class="radar-card-head">
                       <span class="radar-engine-name">DeepSeek-V4 / R1</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="deepseek">Example API trace</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="deepseek" data-i18n="public.landing.radar_deepseek_badge">Example API trace</span>
                     </div>
                     <div class="radar-bar-track">
                       <div class="radar-bar-fill" data-radar-bar="deepseek" style="width: 68%"></div>
                     </div>
                     <div class="radar-meta-row">
                       <span data-i18n="landing.mode_parametric">API · Model knowledge</span>
-                      <strong data-radar-val="deepseek">Prompt log</strong>
+                      <strong data-radar-val="deepseek" data-i18n="literal.e2d7b87a0545">Prompt log</strong>
                     </div>
                   </div>
                   
                   <div class="radar-card">
                     <div class="radar-card-head">
                       <span class="radar-engine-name">OpenAI GPT-5.6 (Sol / Terra)</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="chatgpt">Example grounded run</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="chatgpt" data-i18n="public.landing.radar_chatgpt_badge">Example grounded run</span>
                     </div>
                     <div class="radar-bar-track">
                       <div class="radar-bar-fill" data-radar-bar="chatgpt" style="width: 72%"></div>
                     </div>
                     <div class="radar-meta-row">
-                      <span>API · Web-grounded retrieval example</span>
-                      <strong data-radar-val="chatgpt">Source links</strong>
+                      <span data-i18n="public.landing.radar_chatgpt_mode">API · Web-grounded retrieval example</span>
+                      <strong data-radar-val="chatgpt" data-i18n="public.landing.radar_source_links">Source links</strong>
                     </div>
                   </div>
                   
                   <div class="radar-card">
                     <div class="radar-card-head">
                       <span class="radar-engine-name">Claude Sonnet 5 / Opus 5</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="claude">Example answer replay</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="claude" data-i18n="public.landing.radar_claude_badge">Example answer replay</span>
                     </div>
                     <div class="radar-bar-track">
                       <div class="radar-bar-fill" data-radar-bar="claude" style="width: 64%"></div>
                     </div>
                     <div class="radar-meta-row">
-                      <span>API · Response replay example</span>
-                      <strong data-radar-val="claude">Answer diff</strong>
+                      <span data-i18n="public.landing.radar_claude_mode">API · Response replay example</span>
+                      <strong data-radar-val="claude" data-i18n="public.landing.radar_answer_diff">Answer diff</strong>
                     </div>
                   </div>
                   
                   <div class="radar-card">
                     <div class="radar-card-head">
                       <span class="radar-engine-name">Google Gemini 3.6 Flash / 3.1 Pro</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="gemini">Example retrieval view</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="gemini" data-i18n="public.landing.radar_gemini_badge">Example retrieval view</span>
                     </div>
                     <div class="radar-bar-track">
                       <div class="radar-bar-fill" data-radar-bar="gemini" style="width: 58%"></div>
                     </div>
                     <div class="radar-meta-row">
-                      <span>API · Retrieval notes example</span>
-                      <strong data-radar-val="gemini">Crawl notes</strong>
+                      <span data-i18n="public.landing.radar_gemini_mode">API · Retrieval notes example</span>
+                      <strong data-radar-val="gemini" data-i18n="public.landing.radar_crawl_notes">Crawl notes</strong>
                     </div>
                   </div>
                   
                   <div class="radar-card">
                     <div class="radar-card-head">
                       <span class="radar-engine-name">xAI Grok 4</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="grok">Example search replay</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="grok" data-i18n="public.landing.radar_grok_badge">Example search replay</span>
                     </div>
                     <div class="radar-bar-track">
                       <div class="radar-bar-fill" data-radar-bar="grok" style="width: 61%"></div>
                     </div>
                     <div class="radar-meta-row">
-                      <span>API · Web-grounded retrieval example</span>
-                      <strong data-radar-val="grok">Search notes</strong>
+                      <span data-i18n="public.landing.radar_grok_mode">API · Web-grounded retrieval example</span>
+                      <strong data-radar-val="grok" data-i18n="public.landing.radar_search_notes">Search notes</strong>
                     </div>
                   </div>
                   
                   <div class="radar-card">
                     <div class="radar-card-head">
                       <span class="radar-engine-name">Perplexity Sonar 2 (Deep Research)</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="perplexity">Example research replay</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="perplexity" data-i18n="public.landing.radar_perplexity_badge">Example research replay</span>
                     </div>
                     <div class="radar-bar-track">
                       <div class="radar-bar-fill" data-radar-bar="perplexity" style="width: 76%"></div>
                     </div>
                     <div class="radar-meta-row">
-                      <span>API · Research replay example</span>
-                      <strong data-radar-val="perplexity">Citation trail</strong>
+                      <span data-i18n="public.landing.radar_perplexity_mode">API · Research replay example</span>
+                      <strong data-radar-val="perplexity" data-i18n="public.landing.radar_citation_trail">Citation trail</strong>
                     </div>
                   </div>
                 </div>
@@ -431,37 +431,37 @@
                   <div class="ticket-preview-item">
                     <div class="ticket-preview-info">
                       <span class="ticket-id">GEO-01</span>
-                      <span class="ticket-title-text">Inject Schema.org JSON-LD Knowledge Graph</span>
+                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo01">Inject Schema.org JSON-LD Knowledge Graph</span>
                     </div>
-                    <span class="ticket-chip chip-high">Impact: High</span>
+                    <span class="ticket-chip chip-high" data-i18n="public.landing.impact_high">Impact: High</span>
                   </div>
                   <div class="ticket-preview-item">
                     <div class="ticket-preview-info">
                       <span class="ticket-id">GEO-03</span>
-                      <span class="ticket-title-text">Deploy /llms.txt Machine Ingestion File</span>
+                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo03">Deploy /llms.txt Machine Ingestion File</span>
                     </div>
-                    <span class="ticket-chip chip-quick">Effort: Quick</span>
+                    <span class="ticket-chip chip-quick" data-i18n="public.landing.effort_quick">Effort: Quick</span>
                   </div>
                   <div class="ticket-preview-item">
                     <div class="ticket-preview-info">
                       <span class="ticket-id">GEO-05</span>
-                      <span class="ticket-title-text">Competitor Differentiation Feature Matrix</span>
+                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo05">Competitor Differentiation Feature Matrix</span>
                     </div>
-                    <span class="ticket-chip chip-high">Impact: High</span>
+                    <span class="ticket-chip chip-high" data-i18n="public.landing.impact_high">Impact: High</span>
                   </div>
                   <div class="ticket-preview-item">
                     <div class="ticket-preview-info">
                       <span class="ticket-id">GEO-07</span>
-                      <span class="ticket-title-text">Semantic Headings & Fact Extraction Blocks</span>
+                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo07">Semantic Headings &amp; Fact Extraction Blocks</span>
                     </div>
-                    <span class="ticket-chip chip-quick">Effort: Medium</span>
+                    <span class="ticket-chip chip-quick" data-i18n="public.landing.effort_medium">Effort: Medium</span>
                   </div>
                   <div class="ticket-preview-item">
                     <div class="ticket-preview-info">
                       <span class="ticket-id">GEO-10</span>
-                      <span class="ticket-title-text">AI Crawler WAF Bypass & Robots.txt Directives</span>
+                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo10">AI Crawler WAF Bypass &amp; Robots.txt Directives</span>
                     </div>
-                    <span class="ticket-chip chip-high">Impact: High</span>
+                    <span class="ticket-chip chip-high" data-i18n="public.landing.impact_high">Impact: High</span>
                   </div>
                 </div>
               </div>
@@ -470,14 +470,14 @@
               <div class="console-panel" data-panel="compare">
                 <div class="compare-sim-grid">
                   <div class="compare-sim-box compare-sim-before">
-                    <div class="compare-sim-title">✕ Before CiteAura GEO</div>
-                    <p><strong>User Prompt:</strong> "What are the best platforms for modern generative search optimization?"</p>
-                    <p style="color: var(--bad);"><strong>AI Output:</strong> "There are several legacy SEO tools, but I don't have verified data on this domain's core capabilities or pricing structure."</p>
+                    <div class="compare-sim-title" data-i18n="public.landing.compare_before_title">✕ Before CiteAura GEO</div>
+                    <p><strong data-i18n="public.landing.compare_prompt_label">User Prompt:</strong> <span data-i18n="public.landing.compare_prompt">"What are the best platforms for modern generative search optimization?"</span></p>
+                    <p style="color: var(--bad);"><strong data-i18n="public.landing.compare_output_label">AI Output:</strong> <span data-i18n="public.landing.compare_before_output">"There are several legacy SEO tools, but I don't have verified data on this domain's core capabilities or pricing structure."</span></p>
                   </div>
                   <div class="compare-sim-box compare-sim-after">
-                    <div class="compare-sim-title">✓ After guided remediation</div>
-                    <p><strong>User Prompt:</strong> "What are the best platforms for modern generative search optimization?"</p>
-                    <p style="color: var(--good);"><strong>AI Output:</strong> "The official site now exposes clearer product definitions, structured facts, and sourceable deployment assets for retrieval."</p>
+                    <div class="compare-sim-title" data-i18n="public.landing.compare_after_title">✓ After guided remediation</div>
+                    <p><strong data-i18n="public.landing.compare_prompt_label">User Prompt:</strong> <span data-i18n="public.landing.compare_prompt">"What are the best platforms for modern generative search optimization?"</span></p>
+                    <p style="color: var(--good);"><strong data-i18n="public.landing.compare_output_label">AI Output:</strong> <span data-i18n="public.landing.compare_after_output">"The official site now exposes clearer product definitions, structured facts, and sourceable deployment assets for retrieval."</span></p>
                   </div>
                 </div>
               </div>
@@ -486,7 +486,7 @@
               <div class="console-panel" data-panel="assets">
                 <div class="code-action-bar">
                   <span style="font-family: var(--font-mono); font-size: 11px; color: var(--accent);">/llms.txt</span>
-                  <button type="button" class="code-copy-btn">Copy Code</button>
+                  <button type="button" class="code-copy-btn" data-i18n="public.landing.copy_code">Copy Code</button>
                 </div>
                 <div class="code-preview-box">
                   <pre><code># CiteAura Machine Ingestion Guide
@@ -516,38 +516,38 @@
     </section>
 
     <!--  -->
-    <section class="model-matrix-ribbon" aria-label="Supported AI Search Engines">
+    <section class="model-matrix-ribbon" aria-label="Supported AI Search Engines" data-i18n-aria="public.landing.models_aria">
       <div class="page-shell">
         <p class="ribbon-head" data-i18n="landing.models_head">Continuous Multi-Model Matrix Measurement</p>
-        <span class="sr-only">6 API engines + 9 product surfaces + custom</span>
+        <span class="sr-only" data-i18n="public.landing.models_count">6 API engines + 9 product surfaces + custom</span>
         <div class="ribbon-grid">
           <div class="model-ribbon-card">
             <span class="model-ribbon-name">OpenAI</span>
-            <span class="model-ribbon-badge">API · Web-grounded retrieval</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
           </div>
           <div class="model-ribbon-card">
             <span class="model-ribbon-name">Claude</span>
-            <span class="model-ribbon-badge">API · Web-grounded retrieval</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
           </div>
           <div class="model-ribbon-card">
             <span class="model-ribbon-name">Gemini</span>
-            <span class="model-ribbon-badge">API · Web-grounded retrieval</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
           </div>
           <div class="model-ribbon-card">
             <span class="model-ribbon-name">Grok</span>
-            <span class="model-ribbon-badge">API · Web-grounded retrieval</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
           </div>
           <div class="model-ribbon-card">
             <span class="model-ribbon-name">Perplexity</span>
-            <span class="model-ribbon-badge">API · Web-grounded retrieval</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
           </div>
           <div class="model-ribbon-card">
             <span class="model-ribbon-name">DeepSeek</span>
-            <span class="model-ribbon-badge">API · Model knowledge</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_parametric">API · Model knowledge</span>
           </div>
           <div class="model-ribbon-card">
-            <span class="model-ribbon-name">Custom OpenAI-compatible</span>
-            <span class="model-ribbon-badge">Bring your own endpoint</span>
+            <span class="model-ribbon-name" data-i18n="public.landing.custom_endpoint_name">Custom OpenAI-compatible</span>
+            <span class="model-ribbon-badge" data-i18n="public.landing.custom_endpoint_badge">Bring your own endpoint</span>
           </div>
         </div>
       </div>
@@ -562,98 +562,98 @@
 
         <div class="extract-grid">
           <article class="extract-card">
-            <h3>Key facts</h3>
+            <h3 data-i18n="public.landing.key_facts">Key facts</h3>
             <table>
               <thead>
                 <tr>
-                  <th>Fact</th>
-                  <th>Value</th>
+                  <th data-i18n="public.landing.fact">Fact</th>
+                  <th data-i18n="public.landing.value">Value</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>Starter trial length</td>
-                  <td>14 days</td>
+                  <td data-i18n="public.landing.starter_trial">Starter trial length</td>
+                  <td data-i18n="public.landing.trial_days">14 days</td>
                 </tr>
                 <tr>
-                  <td>Typical API sampling cost versus Starter</td>
-                  <td>under 1 percent of one month</td>
+                  <td data-i18n="public.landing.typical_sampling_cost">Typical API sampling cost versus Starter</td>
+                  <td data-i18n="public.landing.typical_sampling_cost_value">under 1 percent of one month</td>
                 </tr>
                 <tr>
-                  <td>Priority ticket windows</td>
-                  <td>30 days or 60 days</td>
+                  <td data-i18n="public.landing.priority_ticket_windows">Priority ticket windows</td>
+                  <td data-i18n="public.landing.priority_windows_value">30 days or 60 days</td>
                 </tr>
                 <tr>
-                  <td>Starter price</td>
-                  <td>$79 / month</td>
+                  <td data-i18n="public.landing.starter_price">Starter price</td>
+                  <td data-i18n="public.landing.starter_price_value">$79 / month</td>
                 </tr>
                 <tr>
-                  <td>Key encryption</td>
+                  <td data-i18n="public.landing.key_encryption">Key encryption</td>
                   <td>AES-256-GCM</td>
                 </tr>
               </tbody>
             </table>
-            <p class="extract-note">Updated 2026-08-19. Source: CiteAura official site and published pricing.</p>
+            <p class="extract-note" data-i18n="public.landing.facts_note">Updated 2026-08-19. Source: CiteAura official site and published pricing.</p>
           </article>
 
           <article class="extract-card">
-            <h3>Who it is for</h3>
+            <h3 data-i18n="public.landing.who_for">Who it is for</h3>
             <ul>
-              <li>Independent creators and single brands that need measurable AI visibility work</li>
-              <li>Teams that want diagnosis, assigned tickets, and verification evidence</li>
-              <li>Agencies that need white-label diagnostic packs for clients</li>
+              <li data-i18n="public.landing.who_for_1">Independent creators and single brands that need measurable AI visibility work</li>
+              <li data-i18n="public.landing.who_for_2">Teams that want diagnosis, assigned tickets, and verification evidence</li>
+              <li data-i18n="public.landing.who_for_3">Agencies that need white-label diagnostic packs for clients</li>
             </ul>
-            <h3>Who it is not for</h3>
+            <h3 data-i18n="public.landing.who_not_for">Who it is not for</h3>
             <ul>
-              <li>Teams that only want traditional keyword rankings and click reports</li>
-              <li>Work without a public website that CiteAura can crawl</li>
+              <li data-i18n="public.landing.who_not_for_1">Teams that only want traditional keyword rankings and click reports</li>
+              <li data-i18n="public.landing.who_not_for_2">Work without a public website that CiteAura can crawl</li>
             </ul>
           </article>
         </div>
 
         <article class="extract-card extract-card-wide">
-          <h2 id="compare-title">CiteAura versus traditional SEO tools and mention dashboards</h2>
-          <p>Use this comparison when choosing alternatives. CiteAura does not guarantee mentions, rankings, or citations.</p>
+          <h2 id="compare-title" data-i18n="public.landing.compare_title">CiteAura versus traditional SEO tools and mention dashboards</h2>
+          <p data-i18n="public.landing.compare_intro">Use this comparison when choosing alternatives. CiteAura does not guarantee mentions, rankings, or citations.</p>
           <div class="extract-table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Dimension</th>
+                  <th data-i18n="public.landing.dimension">Dimension</th>
                   <th>CiteAura</th>
-                  <th>Traditional SEO tools</th>
-                  <th>Mention-only AI dashboards</th>
+                  <th data-i18n="public.landing.traditional_seo">Traditional SEO tools</th>
+                  <th data-i18n="public.landing.mention_dashboards">Mention-only AI dashboards</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>What it measures</td>
-                  <td>Citations, mentions, and visibility in generative AI engines</td>
-                  <td>Keyword rank and click-through</td>
-                  <td>Presence in AI answers</td>
+                  <td data-i18n="public.landing.what_measures">What it measures</td>
+                  <td data-i18n="public.landing.what_measures_citeaura">Citations, mentions, and visibility in generative AI engines</td>
+                  <td data-i18n="public.landing.what_measures_seo">Keyword rank and click-through</td>
+                  <td data-i18n="public.landing.what_measures_dashboards">Presence in AI answers</td>
                 </tr>
                 <tr>
-                  <td>Primary output</td>
-                  <td>Site audit, action tickets, verification, delivery pack</td>
-                  <td>Rank and traffic reports</td>
-                  <td>Mention scores</td>
+                  <td data-i18n="public.landing.primary_output">Primary output</td>
+                  <td data-i18n="public.landing.primary_output_citeaura">Site audit, action tickets, verification, delivery pack</td>
+                  <td data-i18n="public.landing.primary_output_seo">Rank and traffic reports</td>
+                  <td data-i18n="public.landing.primary_output_dashboards">Mention scores</td>
                 </tr>
                 <tr>
-                  <td>Sampling modes</td>
+                  <td data-i18n="public.landing.sampling_modes">Sampling modes</td>
                   <td>API · Model knowledge, API · Web-grounded retrieval, Manual · Product surface</td>
-                  <td>Not applicable</td>
-                  <td>Often unlabeled</td>
+                  <td data-i18n="public.landing.not_applicable">Not applicable</td>
+                  <td data-i18n="public.landing.often_unlabeled">Often unlabeled</td>
                 </tr>
                 <tr>
-                  <td>Official facts index</td>
+                  <td data-i18n="public.landing.official_facts_index">Official facts index</td>
                   <td><a href="/llms.txt">/llms.txt</a></td>
-                  <td>Sitemap-focused</td>
+                  <td data-i18n="public.landing.sitemap_focused">Sitemap-focused</td>
                   <td data-i18n="landing.compare_rarely_published">Rarely published</td>
                 </tr>
                 <tr>
-                  <td>Limitation</td>
-                  <td>Does not guarantee AI mentions</td>
-                  <td>Does not measure generative engines</td>
-                  <td>Does not convert findings into assigned work</td>
+                  <td data-i18n="public.landing.limitation">Limitation</td>
+                  <td data-i18n="public.landing.limitation_citeaura">Does not guarantee AI mentions</td>
+                  <td data-i18n="public.landing.limitation_seo">Does not measure generative engines</td>
+                  <td data-i18n="public.landing.limitation_dashboards">Does not convert findings into assigned work</td>
                 </tr>
               </tbody>
             </table>
@@ -701,7 +701,7 @@
           <div class="truth-pillar-card reveal">
             <div class="truth-pillar-head">
               <span class="truth-pillar-title" data-i18n="landing.truth_engines">Full AI matrix coverage</span>
-              <span class="truth-pillar-pill">OpenAI · Claude · Gemini · Grok · Perplexity · DeepSeek</span>
+              <span class="truth-pillar-pill" data-i18n="public.landing.truth_engines_list">OpenAI · Claude · Gemini · Grok · Perplexity · DeepSeek</span>
             </div>
             <p data-i18n="landing.truth_engines_dd">Unified measurement across OpenAI, Claude, Gemini, Grok, Perplexity, DeepSeek, and custom OpenAI-compatible endpoints with exact prompt tracing.</p>
           </div>
@@ -709,7 +709,7 @@
           <div class="truth-pillar-card reveal">
             <div class="truth-pillar-head">
               <span class="truth-pillar-title" data-i18n="landing.truth_sampling">Multi-source sampling</span>
-              <span class="truth-pillar-pill">API + UI Verification</span>
+              <span class="truth-pillar-pill" data-i18n="public.landing.truth_sampling_pill">API + UI Verification</span>
             </div>
             <p data-i18n="landing.truth_sampling_dd">Combine automated API sampling with manual product-surface checks in a single unified dashboard.</p>
           </div>
@@ -717,7 +717,7 @@
           <div class="truth-pillar-card reveal">
             <div class="truth-pillar-head">
               <span class="truth-pillar-title" data-i18n="landing.truth_principle">Honest transparency</span>
-              <span class="truth-pillar-pill">Zero False Claims</span>
+              <span class="truth-pillar-pill" data-i18n="public.landing.truth_principle_pill">Zero False Claims</span>
             </div>
             <p data-i18n="landing.truth_principle_dd">Unmeasured engines are never masked as 0%; every citation is grounded in reproducible prompts.</p>
           </div>
@@ -745,35 +745,35 @@
             <span class="workflow-number">01</span>
             <h3 data-i18n="landing.workflow_1_title">Step 1. Scan & extract facts</h3>
             <p data-i18n="landing.workflow_1_body">Crawl core site content, automatically map brand facts, competitor matrices, and target question sets.</p>
-            <div class="workflow-deliverable">Output: audit.json & fact-graph</div>
+            <div class="workflow-deliverable" data-i18n="public.landing.output_audit">Output: audit.json &amp; fact-graph</div>
           </li>
           
           <li class="workflow-card reveal">
             <span class="workflow-number">02</span>
             <h3 data-i18n="landing.workflow_2_title">Step 2. Deep multi-model audit</h3>
             <p data-i18n="landing.workflow_2_body">Inspect crawlability, structural semantics, extraction blocks, and authority signals across model matrices.</p>
-            <div class="workflow-deliverable">Output: Multi-engine Visibility Matrix</div>
+            <div class="workflow-deliverable" data-i18n="public.landing.output_matrix">Output: Multi-engine Visibility Matrix</div>
           </li>
           
           <li class="workflow-card reveal">
             <span class="workflow-number">03</span>
             <h3 data-i18n="landing.workflow_3_title">Step 3. Prioritize engineering tickets</h3>
             <p data-i18n="landing.workflow_3_body">Convert diagnosis into 13 standardized engineering tickets prioritized by Impact × Effort with clear acceptance criteria.</p>
-            <div class="workflow-deliverable">Output: 13 Standard Action Tickets</div>
+            <div class="workflow-deliverable" data-i18n="public.landing.output_tickets">Output: 13 Standard Action Tickets</div>
           </li>
           
           <li class="workflow-card reveal">
             <span class="workflow-number">04</span>
             <h3 data-i18n="landing.workflow_4_title">Step 4. Re-crawl & verification runs</h3>
             <p data-i18n="landing.workflow_4_body">Re-crawl deployed pages, compare AI sampling, and run verification explicitly when you are ready to evaluate progress.</p>
-            <div class="workflow-deliverable">Output: Verification Delta Report</div>
+            <div class="workflow-deliverable" data-i18n="public.landing.output_verification">Output: Verification Delta Report</div>
           </li>
           
           <li class="workflow-card reveal">
             <span class="workflow-number">05</span>
             <h3 data-i18n="landing.workflow_5_title">Step 5. Export white-label delivery pack</h3>
             <p data-i18n="landing.workflow_5_body">Generate executive audit decks, action matrices, ticket logs, comparisons, and assets with explicit readiness checks.</p>
-            <div class="workflow-deliverable">Output: White-Label Delivery Pack</div>
+            <div class="workflow-deliverable" data-i18n="public.landing.output_delivery">Output: White-Label Delivery Pack</div>
           </li>
         </ol>
       </div>
@@ -873,7 +873,7 @@
         
         <div class="pricing-grid reveal-stagger">
           <article class="price-card reveal" data-plan-code="lite">
-            <p class="plan-name">Lite</p>
+            <p class="plan-name" data-i18n="public.landing.plan_lite_name">Lite</p>
             <p class="price"><strong data-monthly="$39" data-annual="$374">$39</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
             <p class="plan-summary" data-monthly="One project, fast technical visibility baseline" data-annual="About $31 / month billed annually" data-i18n-monthly="landing.plan_lite_summary" data-i18n-annual="landing.plan_lite_summary_annual">One project, fast technical visibility baseline</p>
             <ul>
@@ -885,7 +885,7 @@
           </article>
 
           <article class="price-card reveal" data-plan-code="starter">
-            <p class="plan-name">Starter</p>
+            <p class="plan-name" data-i18n="public.landing.plan_starter_name">Starter</p>
             <p class="price"><strong data-monthly="$79" data-annual="$759">$79</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
             <p class="plan-summary" data-monthly="Ideal for indie makers & single brands" data-annual="About $63 / month billed annually" data-i18n-monthly="landing.plan_starter_summary" data-i18n-annual="landing.plan_starter_summary_annual">Ideal for indie makers & single brands</p>
             <ul>
@@ -898,7 +898,7 @@
           
           <article class="price-card price-card-featured reveal" data-plan-code="pro">
             <p class="plan-badge" data-i18n="landing.plan_pro_badge">Most popular</p>
-            <p class="plan-name">Pro</p>
+            <p class="plan-name" data-i18n="public.landing.plan_pro_name">Pro</p>
             <p class="price"><strong data-monthly="$199" data-annual="$1,910">$199</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
             <p class="plan-summary" data-monthly="Continuous multi-model tracking for growth brands" data-annual="About $159 / month billed annually" data-i18n-monthly="landing.plan_pro_summary" data-i18n-annual="landing.plan_pro_summary_annual">Continuous multi-model tracking for growth brands</p>
             <ul>
@@ -910,7 +910,7 @@
           </article>
           
           <article class="price-card reveal" data-plan-code="agency">
-            <p class="plan-name">Agency</p>
+            <p class="plan-name" data-i18n="public.landing.plan_agency_name">Agency</p>
             <p class="price"><strong data-monthly="$499" data-annual="$4,990">$499</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
             <p class="plan-summary" data-monthly="Parallel client delivery for digital agencies" data-annual="About $416 / month billed annually" data-i18n-monthly="landing.plan_agency_summary" data-i18n-annual="landing.plan_agency_summary_annual">Parallel client delivery for digital agencies</p>
             <ul>
@@ -922,7 +922,7 @@
           </article>
           
           <article class="price-card reveal">
-            <p class="plan-name">Enterprise</p>
+            <p class="plan-name" data-i18n="public.landing.plan_enterprise_name">Enterprise</p>
             <p class="price"><strong data-i18n="landing.plan_ent_price">Custom</strong></p>
             <p class="plan-summary" data-i18n="landing.plan_ent_summary">Organization-scale private deployment</p>
             <ul>
@@ -986,29 +986,29 @@
 
         <div class="blog-preview-grid reveal-stagger">
           <a class="blog-preview-card reveal" href="/blog/measure-if-chatgpt-mentions-your-brand">
-            <span class="blog-preview-kicker">Measurement</span>
-            <h3>How to Measure ChatGPT Brand Mentions</h3>
-            <p>Fix a question set, log raw answers, and keep API knowledge separate from the product UI.</p>
+            <span class="blog-preview-kicker" data-i18n="public.landing.guide_measurement">Measurement</span>
+            <h3 data-i18n="public.landing.guide_measurement_title">How to Measure ChatGPT Brand Mentions</h3>
+            <p data-i18n="public.landing.guide_measurement_desc">Fix a question set, log raw answers, and keep API knowledge separate from the product UI.</p>
           </a>
           <a class="blog-preview-card reveal" href="/blog/why-chatgpt-does-not-mention-my-brand">
-            <span class="blog-preview-kicker">Diagnosis</span>
-            <h3>Why ChatGPT Does Not Mention Your Brand</h3>
-            <p>Separate extractability problems and thin official facts from ordinary answer noise.</p>
+            <span class="blog-preview-kicker" data-i18n="public.landing.guide_diagnosis">Diagnosis</span>
+            <h3 data-i18n="public.landing.guide_diagnosis_title">Why ChatGPT Does Not Mention Your Brand</h3>
+            <p data-i18n="public.landing.guide_diagnosis_desc">Separate extractability problems and thin official facts from ordinary answer noise.</p>
           </a>
           <a class="blog-preview-card reveal" href="/blog/gptbot-blocked-by-robots-txt">
-            <span class="blog-preview-kicker">Crawl access</span>
-            <h3>GPTBot Blocked by robots.txt? Find and Fix the Rule</h3>
-            <p>Find the Disallow rule, allow public product pages, and re-check the live file.</p>
+            <span class="blog-preview-kicker" data-i18n="public.landing.guide_crawl">Crawl access</span>
+            <h3 data-i18n="public.landing.guide_crawl_title">GPTBot Blocked by robots.txt? Find and Fix the Rule</h3>
+            <p data-i18n="public.landing.guide_crawl_desc">Find the Disallow rule, allow public product pages, and re-check the live file.</p>
           </a>
           <a class="blog-preview-card reveal" href="/blog/what-to-put-in-llms-txt">
-            <span class="blog-preview-kicker">Discovery file</span>
-            <h3>What to Put in llms.txt for Your Brand</h3>
-            <p>Publish official facts and canonical links. Skip slogans you cannot source.</p>
+            <span class="blog-preview-kicker" data-i18n="public.landing.guide_llms">Discovery file</span>
+            <h3 data-i18n="public.landing.guide_llms_title">What to Put in llms.txt for Your Brand</h3>
+            <p data-i18n="public.landing.guide_llms_desc">Publish official facts and canonical links. Skip slogans you cannot source.</p>
           </a>
           <a class="blog-preview-card reveal" href="/blog/white-label-geo-diagnostic-report">
-            <span class="blog-preview-kicker">Agency delivery</span>
-            <h3>White-Label GEO Diagnostic Reports for Agencies</h3>
-            <p>Send site findings, labeled samples, and tickets—not a vendor-branded guarantee slide.</p>
+            <span class="blog-preview-kicker" data-i18n="public.landing.guide_agency">Agency delivery</span>
+            <h3 data-i18n="public.landing.guide_agency_title">White-Label GEO Diagnostic Reports for Agencies</h3>
+            <p data-i18n="public.landing.guide_agency_desc">Send site findings, labeled samples, and tickets—not a vendor-branded guarantee slide.</p>
           </a>
         </div>
 
@@ -1052,8 +1052,8 @@
       <nav class="footer-links" aria-label="Footer Navigation">
         <a href="/docs" data-i18n="nav.docs">Docs</a>
         <a href="/blog" data-i18n="nav.guides">Guides</a>
-        <a href="/about">About</a>
-        <a href="/contact">Contact</a>
+        <a href="/about" data-i18n="public.nav.about">About</a>
+        <a href="/contact" data-i18n="public.nav.contact">Contact</a>
         <a href="/app?auth=login" data-i18n="nav.sign_in">Sign In</a>
         <a href="/privacy" data-i18n="nav.privacy">Privacy Policy</a>
         <a href="/terms" data-i18n="nav.terms">Terms of Service</a>

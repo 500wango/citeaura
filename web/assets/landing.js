@@ -21,7 +21,7 @@ function escapeHtml(value) {
 
   var THEME_COLORS = { light: '#f7f9fa', dark: '#15181e' };
   var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
-  var state = { locale: 'en', theme: 'light', billing: 'monthly', catalog: {}, fallbackCatalog: {}, literalCatalog: {}, activeDomain: 'yourbrand.com' };
+  var state = { locale: 'en', theme: 'light', billing: 'monthly', catalog: {}, fallbackCatalog: {}, literalCatalog: {}, defaults: new WeakMap(), activeDomain: 'yourbrand.com' };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
@@ -52,6 +52,28 @@ function escapeHtml(value) {
 
   function catalogValue(key) {
     return Object.prototype.hasOwnProperty.call(state.catalog, key) ? state.catalog[key] : null;
+  }
+
+  // Public pages use a separate catalog so marketing copy does not expand the
+  // authenticated product locale contract. Keep dynamic preview strings on
+  // explicit keys instead of relying on fragile English text reverse lookup.
+  function publicValue(key, fallback, params) {
+    var localized = catalogValue(key);
+    var text = localized != null ? localized : fallback;
+    Object.keys(params || {}).forEach(function (name) {
+      text = text.replace(new RegExp('\\{' + name + '\\}', 'g'), function () { return String(params[name]); });
+    });
+    return text;
+  }
+
+  function rememberDefault(node, kind, value) {
+    var defaults = state.defaults.get(node);
+    if (!defaults) {
+      defaults = {};
+      state.defaults.set(node, defaults);
+    }
+    if (!Object.prototype.hasOwnProperty.call(defaults, kind)) defaults[kind] = value;
+    return defaults[kind];
   }
 
   function normalizeText(str) {
@@ -102,6 +124,7 @@ function escapeHtml(value) {
   function applyI18n() {
     $$('[data-i18n]').forEach(function (node) {
       var key = node.getAttribute('data-i18n');
+      var defaultHtml = rememberDefault(node, 'html', node.innerHTML);
       var value = catalogValue(key);
       if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
       if (value != null) {
@@ -111,48 +134,55 @@ function escapeHtml(value) {
         } else {
           node.textContent = value;
         }
-      }
+      } else node.innerHTML = defaultHtml;
     });
     $$('[data-i18n-html]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-html');
+      var defaultHtml = rememberDefault(node, 'html', node.innerHTML);
       var value = catalogValue(key);
       if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      if (value != null) node.innerHTML = value;
+      node.innerHTML = value != null ? value : defaultHtml;
     });
     var title = catalogValue('landing.title');
     if (title && !document.querySelector('title[data-i18n]')) document.title = title;
     $$('[data-i18n-content]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-content');
+      var defaultValue = rememberDefault(node, 'content', node.getAttribute('content') || '');
       var value = catalogValue(key);
       if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      if (value != null) node.setAttribute('content', value);
+      node.setAttribute('content', value != null ? value : defaultValue);
     });
     $$('[data-i18n-aria]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-aria');
+      var defaultValue = rememberDefault(node, 'aria', node.getAttribute('aria-label') || '');
       var value = catalogValue(key);
       if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      if (value != null) node.setAttribute('aria-label', value);
+      node.setAttribute('aria-label', value != null ? value : defaultValue);
     });
     $$('[data-i18n-alt]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-alt');
+      var defaultValue = rememberDefault(node, 'alt', node.getAttribute('alt') || '');
       var value = catalogValue(key);
       if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      if (value != null) node.setAttribute('alt', value);
+      node.setAttribute('alt', value != null ? value : defaultValue);
     });
     $$('[data-i18n-placeholder]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-placeholder');
+      var defaultValue = rememberDefault(node, 'placeholder', node.getAttribute('placeholder') || '');
       var value = catalogValue(key);
       if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      if (value != null) node.setAttribute('placeholder', value);
+      node.setAttribute('placeholder', value != null ? value : defaultValue);
     });
     $$('[data-i18n-title]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-title');
+      var defaultValue = rememberDefault(node, 'title', node.getAttribute('title') || '');
       var value = catalogValue(key);
       if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      if (value != null) node.setAttribute('title', value);
+      node.setAttribute('title', value != null ? value : defaultValue);
     });
     applyBilling();
     renderThemeControl();
+    refreshPreviewLocale();
     localizeLegacyText();
   }
 
@@ -350,19 +380,53 @@ function escapeHtml(value) {
       Example workspace preview
      ================================================================ */
   var PREVIEW_BARS = {
-    deepseek: { width: '68%', badge: 'Example API trace', value: 'Prompt log' },
-    chatgpt: { width: '72%', badge: 'Example grounded run', value: 'Source links' },
-    claude: { width: '64%', badge: 'Example answer replay', value: 'Answer diff' },
-    gemini: { width: '58%', badge: 'Example retrieval view', value: 'Crawl notes' },
-    grok: { width: '61%', badge: 'Example search replay', value: 'Search notes' },
-    perplexity: { width: '76%', badge: 'Example research replay', value: 'Citation trail' }
+    deepseek: { width: '68%', badge: ['public.landing.radar_deepseek_badge', 'Example API trace'], value: ['public.landing.radar_prompt_log', 'Prompt log'] },
+    chatgpt: { width: '72%', badge: ['public.landing.radar_chatgpt_badge', 'Example grounded run'], value: ['public.landing.radar_source_links', 'Source links'] },
+    claude: { width: '64%', badge: ['public.landing.radar_claude_badge', 'Example answer replay'], value: ['public.landing.radar_answer_diff', 'Answer diff'] },
+    gemini: { width: '58%', badge: ['public.landing.radar_gemini_badge', 'Example retrieval view'], value: ['public.landing.radar_crawl_notes', 'Crawl notes'] },
+    grok: { width: '61%', badge: ['public.landing.radar_grok_badge', 'Example search replay'], value: ['public.landing.radar_search_notes', 'Search notes'] },
+    perplexity: { width: '76%', badge: ['public.landing.radar_perplexity_badge', 'Example research replay'], value: ['public.landing.radar_citation_trail', 'Citation trail'] }
   };
 
   var isScanning = false;
+  var previewState = { audit: null, hasResult: false, scanSteps: [] };
+
+  function renderRadarPreview() {
+    if (!previewState.hasResult && state.locale !== 'zh') return;
+    Object.keys(PREVIEW_BARS).forEach(function (engine) {
+      var preview = PREVIEW_BARS[engine];
+      var bar = $('[data-radar-bar="' + engine + '"]');
+      var val = $('[data-radar-val="' + engine + '"]');
+      var badge = $('[data-radar-badge="' + engine + '"]');
+      if (bar) bar.style.width = preview.width;
+      if (val) val.textContent = publicValue(preview.value[0], preview.value[1]);
+      if (badge) badge.textContent = publicValue(preview.badge[0], preview.badge[1]);
+    });
+  }
+
+  function refreshPreviewLocale() {
+    var domain = state.activeDomain || 'yourbrand.com';
+    var titleEl = $('.scan-domain-title');
+    var submitBtn = $('.hero-scanner-btn');
+    var ping = $('.console-live-ping');
+    if (titleEl) titleEl.textContent = publicValue('public.landing.preview_preparing', 'Preparing {domain} workspace...', { domain: domain });
+    if (submitBtn) submitBtn.textContent = isScanning ? publicValue('public.landing.preview_button_loading', catalogValue('landing.scan_btn') || 'Preparing workspace preview...') : (catalogValue('landing.scan_btn') || publicValue('public.landing.preview_button_run', 'Run free technical audit →'));
+    if (ping) ping.textContent = publicValue('public.landing.preview_live_ping', '● Example workspace preview · {domain}', { domain: domain });
+    renderRadarPreview();
+
+    previewState.scanSteps.forEach(function (step, index) {
+      var line = $('.scan-terminal-log .log-line[data-preview-step="' + index + '"]');
+      if (line) line.textContent = publicValue(step.key, step.fallback, step.params);
+    });
+    if (previewState.hasResult) renderAuditResult(domain, previewState.audit, { track: false });
+  }
 
   function runPreview(domain, onComplete) {
     if (isScanning) return;
     isScanning = true;
+    state.activeDomain = domain;
+    previewState.audit = null;
+    previewState.hasResult = false;
 
     var scannerOverlay = $('#console-scanner');
     var progressBar = $('#scan-progress-fill');
@@ -383,10 +447,10 @@ function escapeHtml(value) {
     }).catch(function () { return { error: 'public_audit_failed' }; });
 
     if (resultBanner) resultBanner.classList.add('is-hidden');
-    if (titleEl) titleEl.textContent = localize('Preparing {domain} workspace...', { domain: domain });
+    if (titleEl) titleEl.textContent = publicValue('public.landing.preview_preparing', 'Preparing {domain} workspace...', { domain: domain });
     if (submitBtn) {
       submitBtn.classList.add('is-loading');
-      submitBtn.textContent = localize('Preparing workspace preview...');
+      submitBtn.textContent = publicValue('public.landing.preview_button_loading', 'Preparing workspace preview...');
     }
 
     if (scannerOverlay) {
@@ -394,25 +458,27 @@ function escapeHtml(value) {
     }
 
     var steps = [
-      { pct: 20, log: localize('▶ Capturing the requested domain: https://{domain}', { domain: domain }), delay: 50 },
-      { pct: 45, log: localize('● [1/4] Opening the guided setup flow and project shell...'), delay: 260 },
-      { pct: 70, log: localize('● [2/4] Previewing example report, ticket, and asset views...'), delay: 560 },
-      { pct: 88, log: localize('● [3/4] Saving the domain for workspace onboarding...'), delay: 860 },
-      { pct: 100, log: localize('✔ [4/4] Preview ready. Run the full audit inside the app.'), delay: 1160 }
+      { pct: 20, key: 'public.landing.preview_log_capture', fallback: '▶ Capturing the requested domain: https://{domain}', params: { domain: domain }, delay: 50 },
+      { pct: 45, key: 'public.landing.preview_log_setup', fallback: '● [1/4] Opening the guided setup flow and project shell...', params: {}, delay: 260 },
+      { pct: 70, key: 'public.landing.preview_log_report', fallback: '● [2/4] Previewing example report, ticket, and asset views...', params: {}, delay: 560 },
+      { pct: 88, key: 'public.landing.preview_log_save', fallback: '● [3/4] Saving the domain for workspace onboarding...', params: {}, delay: 860 },
+      { pct: 100, key: 'public.landing.preview_log_ready', fallback: '✔ [4/4] Preview ready. Run the full audit inside the app.', params: {}, delay: 1160 }
     ];
+    previewState.scanSteps = steps;
 
     if (logBox) {
       logBox.innerHTML = '';
     }
 
-    steps.forEach(function (st) {
+    steps.forEach(function (st, index) {
       setTimeout(function () {
         if (progressBar) progressBar.style.width = st.pct + '%';
         if (pctVal) pctVal.textContent = st.pct + '%';
         if (logBox) {
           var div = document.createElement('div');
           div.className = 'log-line' + (st.pct === 100 ? ' log-ok' : (st.pct > 50 ? ' log-accent' : ''));
-          div.textContent = st.log;
+          div.dataset.previewStep = String(index);
+          div.textContent = publicValue(st.key, st.fallback, st.params);
           logBox.appendChild(div);
           logBox.scrollTop = logBox.scrollHeight;
         }
@@ -424,33 +490,29 @@ function escapeHtml(value) {
       if (scannerOverlay) scannerOverlay.classList.remove('is-active');
       if (submitBtn) {
         submitBtn.classList.remove('is-loading');
-        submitBtn.textContent = localize('Run free technical audit →');
+        submitBtn.textContent = publicValue('public.landing.preview_button_run', 'Run free technical audit →');
       }
 
       auditPromise.then(function (audit) {
-        renderAuditResult(domain, audit);
+        renderAuditResult(domain, audit, { track: true });
         trackPublicEvent('landing_cta_clicked', { source: 'landing_simulator', result: audit && audit.kind === 'public_diagnostic_summary' ? 'audit_ready' : 'audit_failed' });
         if (typeof onComplete === 'function') onComplete(audit || {});
       });
     }, 1600);
   }
 
-  function renderAuditResult(domain, audit) {
+  function renderAuditResult(domain, audit, options) {
+    options = options || {};
+    state.activeDomain = domain;
+    previewState.audit = audit || {};
+    previewState.hasResult = true;
     var input = $('.hero-scanner-input');
     if (input) input.value = domain;
 
-    Object.keys(PREVIEW_BARS).forEach(function (engine) {
-      var preview = PREVIEW_BARS[engine];
-      var bar = $('[data-radar-bar="' + engine + '"]');
-      var val = $('[data-radar-val="' + engine + '"]');
-      var badge = $('[data-radar-badge="' + engine + '"]');
-      if (bar) bar.style.width = preview.width;
-      if (val) val.textContent = localize(preview.value);
-      if (badge) badge.textContent = localize(preview.badge);
-    });
+    renderRadarPreview();
 
     var ping = $('.console-live-ping');
-    if (ping) ping.textContent = localize('● Example workspace preview · {domain}', { domain: domain });
+    if (ping) ping.textContent = publicValue('public.landing.preview_live_ping', '● Example workspace preview · {domain}', { domain: domain });
 
     var banner = $('#console-result-banner');
     var domainEl = $('#banner-domain-name');
@@ -464,22 +526,23 @@ function escapeHtml(value) {
       var badge = $('.banner-badge', banner);
       var titlePrefix = $('#banner-title-prefix');
       var openLabel = $('#banner-open-app-label');
-      if (badge) badge.textContent = isLiveAudit ? localize('Live technical diagnostic · no AI sampling') : (isAuditFailure ? localize('Diagnostic unavailable · retry') : localize('Preview only · continue in workspace'));
-      if (titlePrefix) titlePrefix.textContent = isLiveAudit ? localize('Technical diagnostic ready ·') : (isAuditFailure ? localize('Technical diagnostic unavailable') : localize('Setup preview loaded'));
-      if (gradeEl) gradeEl.textContent = isLiveAudit ? String(audit.score || 0) + '/100' : (isAuditFailure ? localize('Unavailable') : 'Preview ready');
-      if (openLabel) openLabel.textContent = isLiveAudit ? localize('Create workspace →') : localize('Open Workspace →');
+      if (badge) badge.textContent = isLiveAudit ? publicValue('public.landing.preview_live_badge', 'Live technical diagnostic · no AI sampling') : (isAuditFailure ? publicValue('public.landing.preview_diagnostic_unavailable', 'Diagnostic unavailable · retry') : publicValue('public.landing.preview_only_badge', 'Preview only · continue in workspace'));
+      if (titlePrefix) titlePrefix.textContent = isLiveAudit ? publicValue('public.landing.preview_live_title', 'Technical diagnostic ready ·') : (isAuditFailure ? publicValue('public.landing.preview_diagnostic_unavailable_title', 'Technical diagnostic unavailable') : publicValue('public.landing.preview_loaded_title', 'Setup preview loaded'));
+      if (gradeEl) gradeEl.textContent = isLiveAudit ? String(audit.score || 0) + '/100' : (isAuditFailure ? publicValue('public.landing.preview_unavailable', 'Unavailable') : publicValue('public.landing.preview_ready', 'Preview ready'));
+      if (openLabel) openLabel.textContent = isLiveAudit ? publicValue('public.landing.preview_create_workspace', 'Create workspace →') : publicValue('public.landing.preview_open_workspace', 'Open Workspace →');
       var details = $('#banner-audit-details');
       if (details) {
         var checks = isLiveAudit && Array.isArray(audit.checks) ? audit.checks : [];
-        if (isAuditFailure) checks = [{ name: localize('The live audit could not be completed. Please retry or continue to the workspace.'), ok: false }];
+        if (isAuditFailure) checks = [{ name: publicValue('public.landing.preview_diagnostic_failed_body', 'The live audit could not be completed. Please retry or continue to the workspace.'), ok: false }];
         details.innerHTML = checks.slice(0, 5).map(function (check) {
           return '<span class="audit-result-chip ' + (check.ok ? 'is-ok' : 'is-fail') + '">' +
-            (check.ok ? '✓ ' : '⚠ ') + escapeHtml(check.name || localize('Site check')) + '</span>';
+            (check.ok ? '✓ ' : '⚠ ') + escapeHtml(check.name || publicValue('public.landing.preview_site_check', 'Site check')) + '</span>';
         }).join('');
       }
       if (actionBtn) {
         actionBtn.href = '/app#/onboarding?domain=' + encodeURIComponent(domain);
-        actionBtn.addEventListener('click', function () {
+        if (actionBtn.__citeAuraPreviewHandler) actionBtn.removeEventListener('click', actionBtn.__citeAuraPreviewHandler);
+        actionBtn.__citeAuraPreviewHandler = function () {
           try {
             localStorage.setItem('citeaura_pending_domain', domain);
             sessionStorage.setItem('citeaura_pending_domain', domain);
@@ -488,10 +551,11 @@ function escapeHtml(value) {
               sessionStorage.setItem('citeaura_pending_audit', JSON.stringify(audit));
             }
           } catch(e){}
-        });
+        };
+        actionBtn.addEventListener('click', actionBtn.__citeAuraPreviewHandler);
       }
       banner.classList.remove('is-hidden');
-      if (isLiveAudit) trackPublicEvent('public_audit_completed', { source: 'landing_simulator' });
+      if (isLiveAudit && options.track !== false) trackPublicEvent('public_audit_completed', { source: 'landing_simulator' });
     }
   }
 
@@ -548,7 +612,7 @@ function escapeHtml(value) {
         if (code && navigator.clipboard) {
           navigator.clipboard.writeText(code.textContent).then(function () {
             var orig = copyBtn.textContent;
-            copyBtn.textContent = localize('Copied!');
+            copyBtn.textContent = publicValue('public.landing.preview_copied', 'Copied!');
             setTimeout(function () { copyBtn.textContent = orig; }, 2000);
           });
         }

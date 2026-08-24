@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy Policy — CiteAura</title>
-  <meta name="description" content="CiteAura Privacy Policy. Learn about our enterprise data isolation, AES-256-GCM BYOK encryption, and zero model training commitment.">
+  <title data-i18n="public.privacy.title">Privacy Policy — CiteAura</title>
+  <meta name="description" content="CiteAura Privacy Policy. Learn about our enterprise data isolation, AES-256-GCM BYOK encryption, and zero model training commitment." data-i18n-content="public.privacy.description">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/site-assets/theme-init.js"></script>
@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.2">
   <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.2">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <script defer src="/site-assets/landing.js?v=3.2"></script>
   <link rel="canonical" href="https://citeaura.com/privacy">
 
   <!-- Schema.org Breadcrumb Data -->
@@ -107,41 +108,41 @@
   <!-- Header -->
   <header class="site-header">
     <div class="page-shell header-layout">
-      <a class="brand" href="/" aria-label="CiteAura Home">
+      <a class="brand" href="/" aria-label="CiteAura Home" data-i18n-aria="nav.home">
         <span class="brand-mark" aria-hidden="true"></span>
         <span class="brand-word">CiteAura</span>
       </a>
       
-      <nav class="nav-links" aria-label="Main Navigation">
-        <a href="/#workflow">Workflow</a>
-        <a href="/#pricing">Pricing</a>
-        <a href="/#faq">FAQ</a>
+      <nav class="nav-links" aria-label="Main Navigation" data-i18n-aria="nav.main">
+        <a href="/#workflow" data-i18n="nav.workflow">Workflow</a>
+        <a href="/#pricing" data-i18n="nav.pricing">Pricing</a>
+        <a href="/#faq" data-i18n="nav.faq">FAQ</a>
       </nav>
       
       <div class="header-actions">
-        <a class="btn btn-secondary btn-sm" href="/app?auth=login">Sign In</a>
-        <a class="btn btn-primary btn-sm" href="/app?auth=register">Get Started</a>
+        <a class="btn btn-secondary btn-sm" href="/app?auth=login" data-i18n="nav.sign_in">Sign In</a>
+        <a class="btn btn-primary btn-sm" href="/app?auth=register" data-i18n="nav.cta">Get Started</a>
       </div>
     </div>
   </header>
 
   <main class="legal-content">
     <div class="legal-header">
-      <h1>Privacy Policy</h1>
-      <p class="legal-meta">Effective Date: August 15, 2026 · Version 1.4</p>
+      <h1 data-i18n="public.privacy.h1">Privacy Policy</h1>
+      <p class="legal-meta" data-i18n="public.privacy.meta">Effective Date: August 15, 2026 · Version 1.4</p>
     </div>
 
     <div class="legal-body">
-      <div class="legal-highlight">
-        <p><strong>Our Core Privacy Commitment:</strong> CiteAura never trains AI models on your private data, prompt matrices, or customer audits. All API keys are encrypted with hardware-grade AES-256-GCM and stored exclusively within your isolated tenant workspace.</p>
+      <div class="legal-highlight" data-i18n-html="public.privacy.commitment">
+        <p data-i18n="public.privacy.commitment"><strong>Our Core Privacy Commitment:</strong> CiteAura never trains AI models on your private data, prompt matrices, or customer audits. All API keys are encrypted with hardware-grade AES-256-GCM and stored exclusively within your isolated tenant workspace.</p>
       </div>
 
-      <section>
+      <section data-i18n-html="public.privacy.sec1">
         <h2>1. Overview & Scope</h2>
         <p>CiteAura ("we", "our", or "us") provides a Generative Engine Optimization (GEO) platform that diagnoses, tracks, and verifies brand visibility across artificial intelligence search engines and large language models. This Privacy Policy describes how we collect, use, process, and protect your information when you visit <a href="https://citeaura.com">citeaura.com</a>, access the CiteAura web application at <code>citeaura.com/app</code>, or interact with our APIs.</p>
       </section>
 
-      <section>
+      <section data-i18n-html="public.privacy.sec2">
         <h2>2. Information We Collect</h2>
         <h3>2.1 Account & Workspace Information</h3>
         <p>When you register for a CiteAura workspace, we collect your email address, organization or team name, role, and hashed password. For single sign-on (SSO) users, we process authentication tokens provided by your OpenID Connect (OIDC) identity provider.</p>
@@ -157,7 +158,7 @@
 
       </section>
 
-      <section>
+      <section data-i18n-html="public.privacy.sec3">
         <h2>3. How We Use Your Information</h2>
         <p>We use the collected information strictly for the following purposes:</p>
         <ul>
@@ -169,12 +170,12 @@
         </ul>
       </section>
 
-      <section>
+      <section data-i18n-html="public.privacy.sec4">
         <h2>4. Zero Model Training Guarantee</h2>
         <p>We believe in absolute data sovereignty for brand teams and marketing consultants. <strong>CiteAura will never sell, license, share, or use your proprietary content, prompt archives, audit findings, or custom strategies to train, fine-tune, or evaluate public machine learning models.</strong></p>
       </section>
 
-      <section>
+      <section data-i18n-html="public.privacy.sec5">
         <h2>5. Data Isolation & Security Architecture</h2>
         <p>CiteAura enforces strict multi-tenant isolation:</p>
         <ul>
@@ -185,12 +186,12 @@
         </ul>
       </section>
 
-      <section>
+      <section data-i18n-html="public.privacy.sec6">
         <h2>6. Cookies & Tracking Technologies</h2>
         <p>We use strictly necessary HTTP-only session cookies to maintain your authenticated login state and CSRF defense headers. We also use a first-party HTTP-only random visitor cookie for aggregate registration and conversion measurement. We do not use third-party behavioral tracking cookies or advertising pixels.</p>
       </section>
 
-      <section>
+      <section data-i18n-html="public.privacy.sec7">
         <h2>7. Data Retention & Deletion Rights</h2>
         <p>Under GDPR, CCPA, and global data privacy standards, you have the right to:</p>
         <ul>
@@ -200,7 +201,7 @@
         </ul>
       </section>
 
-      <section>
+      <section data-i18n-html="public.privacy.sec8">
         <h2>8. Contact Us</h2>
         <p>If you have any questions, privacy concerns, or data subject requests regarding this policy, please contact our Data Protection Team at:</p>
         <p><strong>Email:</strong> <a href="mailto:privacy@citeaura.com">privacy@citeaura.com</a><br>
@@ -217,18 +218,18 @@
           <span class="brand-mark" aria-hidden="true"></span>
           <span class="brand-word">CiteAura</span>
         </a>
-        <p class="footer-tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
+        <p class="footer-tagline" data-i18n="landing.footer_tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
         <span class="footer-copy">© 2026 CiteAura</span>
       </div>
       
-      <nav class="footer-links" aria-label="Footer Navigation">
-        <a href="/docs">Docs</a>
-        <a href="/blog">Guides</a>
-        <a href="/about">About</a>
-        <a href="/contact">Contact</a>
-        <a href="/app?auth=login">Sign In</a>
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/terms">Terms of Service</a>
+      <nav class="footer-links" aria-label="Footer Navigation" data-i18n-aria="public.docs.footer_nav">
+        <a href="/docs" data-i18n="nav.docs">Docs</a>
+        <a href="/blog" data-i18n="nav.guides">Guides</a>
+        <a href="/about" data-i18n="public.nav.about">About</a>
+        <a href="/contact" data-i18n="public.nav.contact">Contact</a>
+        <a href="/app?auth=login" data-i18n="nav.sign_in">Sign In</a>
+        <a href="/privacy" data-i18n="nav.privacy">Privacy Policy</a>
+        <a href="/terms" data-i18n="nav.terms">Terms of Service</a>
       </nav>
     </div>
   </footer>

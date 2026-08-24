@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contact CiteAura | Product and Privacy Requests</title>
-  <meta name="description" content="Contact CiteAura for privacy requests, account support, documentation questions, and product feedback.">
+  <title data-i18n="public.contact.title">Contact CiteAura | Product and Privacy Requests</title>
+  <meta name="description" content="Contact CiteAura for privacy requests, account support, documentation questions, and product feedback." data-i18n-content="public.contact.description">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/site-assets/theme-init.js"></script>
@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.3">
   <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.8">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <script defer src="/site-assets/landing.js?v=3.2"></script>
   <link rel="canonical" href="https://citeaura.com/contact">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
   <meta property="og:type" content="website">
@@ -82,52 +83,52 @@
 <body>
   <header class="site-header">
     <div class="page-shell header-layout">
-      <a class="brand" href="/" aria-label="CiteAura Home">
+      <a class="brand" href="/" aria-label="CiteAura Home" data-i18n-aria="nav.home">
         <span class="brand-mark" aria-hidden="true"></span>
         <span class="brand-word">CiteAura</span>
       </a>
-      <nav class="nav-links" aria-label="Main Navigation">
-        <a href="/#workflow">How It Works</a>
-        <a href="/docs">Docs</a>
-        <a href="/blog">Guides</a>
-        <a href="/about">About</a>
+      <nav class="nav-links" aria-label="Main Navigation" data-i18n-aria="nav.main">
+        <a href="/#workflow" data-i18n="nav.workflow">How It Works</a>
+        <a href="/docs" data-i18n="nav.docs">Docs</a>
+        <a href="/blog" data-i18n="nav.guides">Guides</a>
+        <a href="/about" data-i18n="public.nav.about">About</a>
       </nav>
       <div class="nav-actions">
-        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
-        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+        <a class="nav-sign-in" href="/app?auth=login" data-i18n="nav.sign_in">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
       </div>
     </div>
   </header>
 
   <main class="public-page">
     <header class="public-header">
-      <span class="public-kicker">Contact CiteAura</span>
-      <h1>Choose the right support channel</h1>
-      <p class="public-lead">Use the workspace for account and product support. Use the privacy address for data-subject requests and privacy questions. Public documentation and source links are available for technical review.</p>
-      <p class="public-meta">Updated 20 August 2026</p>
+      <span class="public-kicker" data-i18n="public.contact.kicker">Contact CiteAura</span>
+      <h1 data-i18n="public.contact.h1">Choose the right support channel</h1>
+      <p class="public-lead" data-i18n="public.contact.lead">Use the workspace for account and product support. Use the privacy address for data-subject requests and privacy questions. Public documentation and source links are available for technical review.</p>
+      <p class="public-meta" data-i18n="public.contact.meta">Updated 20 August 2026</p>
     </header>
 
     <section aria-labelledby="support-title">
-      <h2 id="support-title">Product and account support</h2>
-      <p>Sign in to your workspace to review project status, audit evidence, tickets, verification history, and delivery packs. This keeps account and tenant details inside the authenticated product rather than in an unprotected form.</p>
-      <p><a class="btn btn-primary" href="/app?auth=login">Open CiteAura workspace</a></p>
+      <h2 id="support-title" data-i18n="public.contact.support_h2">Product and account support</h2>
+      <p data-i18n="public.contact.support_p">Sign in to your workspace to review project status, audit evidence, tickets, verification history, and delivery packs. This keeps account and tenant details inside the authenticated product rather than in an unprotected form.</p>
+      <p><a class="btn btn-primary" href="/app?auth=login" data-i18n="public.contact.support_cta">Open CiteAura workspace</a></p>
     </section>
 
     <section class="public-contact-list" aria-labelledby="privacy-title">
-      <h2 id="privacy-title">Privacy and data requests</h2>
-      <p>For access, correction, deletion, or other privacy questions, email the CiteAura privacy team:</p>
+      <h2 id="privacy-title" data-i18n="public.contact.privacy_h2">Privacy and data requests</h2>
+      <p data-i18n="public.contact.privacy_p">For access, correction, deletion, or other privacy questions, email the CiteAura privacy team:</p>
       <dl>
-        <dt>Email</dt>
+        <dt data-i18n="public.contact.email_label">Email</dt>
         <dd><a href="mailto:privacy@citeaura.com">privacy@citeaura.com</a></dd>
       </dl>
-      <p>Include enough context to locate the request, but do not send passwords, API keys, access tokens, or other secrets by email.</p>
+      <p data-i18n="public.contact.privacy_note">Include enough context to locate the request, but do not send passwords, API keys, access tokens, or other secrets by email.</p>
     </section>
 
     <section aria-labelledby="technical-title">
-      <h2 id="technical-title">Documentation and product support</h2>
+      <h2 id="technical-title" data-i18n="public.contact.docs_h2">Documentation and product support</h2>
       <ul>
-        <li><a href="/docs">Read the CiteAura documentation</a> for setup, measurement modes, citations, verification, and delivery.</li>
-        <li><a href="/privacy">Read the Privacy Policy</a> and <a href="/terms">Terms of Service</a> before using the platform.</li>
+        <li><a href="/docs" data-i18n="public.contact.docs_link">Read the CiteAura documentation</a> <span data-i18n="public.contact.docs_desc">for setup, measurement modes, citations, verification, and delivery.</span></li>
+        <li><a href="/privacy" data-i18n="public.contact.privacy_link">Read the Privacy Policy</a> <span data-i18n="public.contact.and">and</span> <a href="/terms" data-i18n="public.contact.terms_link">Terms of Service</a> <span data-i18n="public.contact.terms_desc">before using the platform.</span></li>
       </ul>
     </section>
   </main>
@@ -135,20 +136,20 @@
   <footer class="site-footer">
     <div class="page-shell footer-layout">
       <div class="footer-brand">
-        <a class="brand" href="/" aria-label="CiteAura Home">
+        <a class="brand" href="/" aria-label="CiteAura Home" data-i18n-aria="nav.home">
           <span class="brand-mark" aria-hidden="true"></span>
           <span class="brand-word">CiteAura</span>
         </a>
-        <p class="footer-tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
+        <p class="footer-tagline" data-i18n="landing.footer_tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
         <span class="footer-copy">© 2026 CiteAura</span>
       </div>
-      <nav class="footer-links" aria-label="Footer Navigation">
-        <a href="/docs">Docs</a>
-        <a href="/blog">Guides</a>
-        <a href="/about">About</a>
-        <a href="/contact">Contact</a>
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/terms">Terms of Service</a>
+      <nav class="footer-links" aria-label="Footer Navigation" data-i18n-aria="public.docs.footer_nav">
+        <a href="/docs" data-i18n="nav.docs">Docs</a>
+        <a href="/blog" data-i18n="nav.guides">Guides</a>
+        <a href="/about" data-i18n="public.nav.about">About</a>
+        <a href="/contact" data-i18n="public.nav.contact">Contact</a>
+        <a href="/privacy" data-i18n="nav.privacy">Privacy Policy</a>
+        <a href="/terms" data-i18n="nav.terms">Terms of Service</a>
       </nav>
     </div>
   </footer>

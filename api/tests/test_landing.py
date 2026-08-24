@@ -84,7 +84,7 @@ def test_public_verification_pages_support_head_requests():
 def test_about_and_contact_pages_expose_provenance_and_real_support_channel():
     about = client.get("/about")
     assert about.status_code == 200
-    assert "<h1>GEO diagnosis with evidence boundaries</h1>" in about.text
+    assert '<h1 data-i18n="public.about.h1">GEO diagnosis with evidence boundaries</h1>' in about.text
     canonical_definition = (
         "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves "
         "brand citations, mentions, and visibility in generative AI engines, then closes the loop "
@@ -98,7 +98,7 @@ def test_about_and_contact_pages_expose_provenance_and_real_support_channel():
 
     contact = client.get("/contact")
     assert contact.status_code == 200
-    assert "<h1>Choose the right support channel</h1>" in contact.text
+    assert '<h1 data-i18n="public.contact.h1">Choose the right support channel</h1>' in contact.text
     assert '"@type": "ContactPage"' in contact.text
     assert 'mailto:privacy@citeaura.com' in contact.text
     assert "do not send passwords" in contact.text
@@ -193,6 +193,73 @@ def test_public_zh_catalog_covers_docs_and_guides():
     assert client.get("/i18n/public/en.json").status_code == 404
 
 
+def test_public_zh_catalog_covers_all_localized_public_pages():
+    catalog = client.get("/i18n/public/zh.json").json()
+    root = Path(__file__).resolve().parents[2] / "web"
+    pages = [
+        root / "index.html",
+        root / "about.html",
+        root / "contact.html",
+        root / "privacy.html",
+        root / "terms.html",
+        root / "sample-report.html",
+    ]
+    for page in pages:
+        keys = set(re.findall(r'data-i18n(?:-[a-z]+)*="([^\"]+)"', page.read_text("utf-8")))
+        missing = sorted(key for key in keys if key.startswith("public.") and key not in catalog)
+        assert not missing, (page, missing)
+
+
+def test_public_zh_docs_does_not_retain_english_action_labels():
+    """Chinese Docs copy must not expose provider-console UI labels in English prose."""
+    catalog = client.get("/i18n/public/zh.json").json()
+    product_catalog = client.get("/i18n/zh.json").json()
+    forbidden = (
+        "Create new secret key",
+        "Create Key",
+        "Create API key",
+        "Create API Key",
+        "API Keys",
+        "API Settings",
+        "Generate",
+        "Mention Rate",
+        "Average Rank",
+        "Sample Count",
+        "Citation Share",
+        "Unmeasured",
+        "Cohort",
+        "Prompt",
+        "Secret Key",
+        "Model ID",
+        "Base URL",
+        "Owner",
+        "Editor",
+        "Viewer",
+        "Perception Gaps",
+        "Target Questions",
+        "Brand Fact Library",
+        "Worker 执行",
+        "W3C guidance on presenting findings",
+        "Schema.org Report",
+        "Schema.org TechArticle",
+        "Schema.org SoftwareApplication",
+        "CiteAura measurement documentation",
+    )
+    values = list(catalog.values()) + [
+        product_catalog["docs.byok_openai_step2"],
+        product_catalog["docs.byok_claude_step2"],
+        product_catalog["docs.byok_google_step2"],
+        product_catalog["docs.byok_custom_step2"],
+        product_catalog["docs.diag_gaps_h3"],
+        product_catalog["docs.diag_questions_h3"],
+        product_catalog["docs.diag_facts_h3"],
+        product_catalog["docs.step_4_desc"],
+        product_catalog["g1.sec2_p"],
+        product_catalog["g1.sec3_p"],
+    ]
+    assert not [(phrase, value) for value in values for phrase in forbidden if phrase in value]
+
+
 def test_landing_has_no_forbidden_brand_or_false_claims():
     response = client.get("/")
     lowered = response.text.lower()
@@ -211,6 +278,22 @@ def test_landing_js_supports_international_locales():
     assert "var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de']" in response.text
     assert "fetch('/i18n/en.json')" in response.text
     assert "fetch('/i18n/' + state.locale + '.json')" in response.text
+    assert "function publicValue(key, fallback, params)" in response.text
+    assert "public.landing.preview_log_ready" in response.text
+    assert "new WeakMap()" in response.text
+    assert "function refreshPreviewLocale()" in response.text
+    assert "previewState.hasResult" in response.text
+    assert "data-preview-step" in response.text
+
+
+def test_public_pages_load_shared_landing_localization():
+    for path in ("/about", "/contact", "/privacy", "/terms", "/sample-report"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert '/site-assets/landing.js?v=3.2' in response.text, path
+    assert 'data-i18n-html="public.privacy.sec1"' in client.get("/privacy").text
+    assert 'data-i18n-html="public.terms.sec1"' in client.get("/terms").text
+    assert 'data-i18n-html="public.sample.sec1"' in client.get("/sample-report").text
 
 
 def test_seo_technical_files_are_served():

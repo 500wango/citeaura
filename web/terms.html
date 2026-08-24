@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Terms of Service — CiteAura</title>
-  <meta name="description" content="CiteAura Terms of Service. Review our platform usage conditions, GEO measurement disclaimers, BYOK responsibilities, and subscription terms.">
+  <title data-i18n="public.terms.title">Terms of Service — CiteAura</title>
+  <meta name="description" content="CiteAura Terms of Service. Review our platform usage conditions, GEO measurement disclaimers, BYOK responsibilities, and subscription terms." data-i18n-content="public.terms.description">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/site-assets/theme-init.js"></script>
@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/site-assets/styles/components.css?v=2.2">
   <link rel="stylesheet" href="/site-assets/styles/landing.css?v=2.2">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <script defer src="/site-assets/landing.js?v=3.2"></script>
   <link rel="canonical" href="https://citeaura.com/terms">
 
   <!-- Schema.org Breadcrumb Data -->
@@ -107,46 +108,46 @@
   <!-- Header -->
   <header class="site-header">
     <div class="page-shell header-layout">
-      <a class="brand" href="/" aria-label="CiteAura Home">
+      <a class="brand" href="/" aria-label="CiteAura Home" data-i18n-aria="nav.home">
         <span class="brand-mark" aria-hidden="true"></span>
         <span class="brand-word">CiteAura</span>
       </a>
       
-      <nav class="nav-links" aria-label="Main Navigation">
-        <a href="/#workflow">Workflow</a>
-        <a href="/#pricing">Pricing</a>
-        <a href="/#faq">FAQ</a>
+      <nav class="nav-links" aria-label="Main Navigation" data-i18n-aria="nav.main">
+        <a href="/#workflow" data-i18n="nav.workflow">Workflow</a>
+        <a href="/#pricing" data-i18n="nav.pricing">Pricing</a>
+        <a href="/#faq" data-i18n="nav.faq">FAQ</a>
       </nav>
       
       <div class="header-actions">
-        <a class="btn btn-secondary btn-sm" href="/app?auth=login">Sign In</a>
-        <a class="btn btn-primary btn-sm" href="/app?auth=register">Get Started</a>
+        <a class="btn btn-secondary btn-sm" href="/app?auth=login" data-i18n="nav.sign_in">Sign In</a>
+        <a class="btn btn-primary btn-sm" href="/app?auth=register" data-i18n="nav.cta">Get Started</a>
       </div>
     </div>
   </header>
 
   <main class="legal-content">
     <div class="legal-header">
-      <h1>Terms of Service</h1>
-      <p class="legal-meta">Effective Date: August 12, 2026 · Version 1.2</p>
+      <h1 data-i18n="public.terms.h1">Terms of Service</h1>
+      <p class="legal-meta" data-i18n="public.terms.meta">Effective Date: August 12, 2026 · Version 1.2</p>
     </div>
 
     <div class="legal-body">
-      <div class="legal-highlight">
+      <div class="legal-highlight" data-i18n-html="public.terms.notice">
         <p><strong>Scientific Rigor Notice:</strong> AI generative engine outputs are probabilistic and subject to continuous model updates. CiteAura provides evidence-based audit diagnostics and structured engineering tickets to maximize visibility, but cannot guarantee specific AI answers, rankings, or citations.</p>
       </div>
 
-      <section>
+      <section data-i18n-html="public.terms.sec1">
         <h2>1. Acceptance of Terms</h2>
         <p>By creating an account, accessing, or using the CiteAura platform (<a href="https://citeaura.com">citeaura.com</a> and associated subdomains/APIs), you agree to be bound by these Terms of Service ("Terms") and our <a href="/privacy">Privacy Policy</a>. If you are entering into these Terms on behalf of an entity or organization, you represent that you have the authority to bind such entity.</p>
       </section>
 
-      <section>
+      <section data-i18n-html="public.terms.sec2">
         <h2>2. Description of Services</h2>
         <p>CiteAura provides software-as-a-service (SaaS) tools for Generative Engine Optimization (GEO). The platform crawls designated websites, analyzes structural semantics and extractability, executes multi-model perception sampling, generates actionable engineering tickets, verifies closed-loop fixes, and compiles client-ready delivery assets.</p>
       </section>
 
-      <section>
+      <section data-i18n-html="public.terms.sec3">
         <h2>3. Measurement Integrity & Scientific Disclaimers</h2>
         <h3>3.1 Stochastic Nature of AI Models</h3>
         <p>Large Language Models (LLMs) and AI search engines generate responses dynamically. CiteAura provides evidence-grounded sampling and prompt reproducibility. However, CiteAura does not guarantee that third-party AI models (including but not limited to ChatGPT, Claude, Gemini, DeepSeek, or Perplexity) will mention, recommend, or cite your domain or brand in any specific instance or query.</p>
@@ -155,7 +156,7 @@
         <p>CiteAura explicitly categorizes all measurement data into <em>API · Model Knowledge</em> (parametric memory), <em>API · Web-Grounded Retrieval</em> (live web search), and <em>Manual · Product Surface</em>. Unmeasured engines are reported honestly as unmeasured and never fabricated or masked as 0%.</p>
       </section>
 
-      <section>
+      <section data-i18n-html="public.terms.sec4">
         <h2>4. Bring Your Own Key (BYOK) & Third-Party APIs</h2>
         <p>When you provide third-party model API keys (e.g. OpenAI, Anthropic, DeepSeek, Google):</p>
         <ul>
@@ -165,7 +166,7 @@
         </ul>
       </section>
 
-      <section>
+      <section data-i18n-html="public.terms.sec5">
         <h2>5. User Accounts & Acceptable Use</h2>
         <h3>5.1 Account Security</h3>
         <p>You are responsible for maintaining the confidentiality of your login credentials and for all activities that occur under your tenant workspace.</p>
@@ -180,12 +181,12 @@
         </ul>
       </section>
 
-      <section>
+      <section data-i18n-html="public.terms.sec6">
         <h2>6. Intellectual Property & Customer Ownership</h2>
         <p><strong>Your Data Remains Yours:</strong> You retain full ownership of all domain data, brand fact repositories, audit reports, JSON-LD schemas, <code>/llms.txt</code> files, and client delivery packages generated through your use of the platform. CiteAura claims no intellectual property rights over your customer deliverables.</p>
       </section>
 
-      <section>
+      <section data-i18n-html="public.terms.sec7">
         <h2>7. Subscriptions, Billing, and Trials</h2>
         <h3>7.1 Free Trial</h3>
         <p>Eligible users receive a 14-day free trial of Starter plan features without requiring credit card information. Upon trial expiration, continued active tracking requires an active subscription.</p>
@@ -194,17 +195,17 @@
         <p>Paid subscriptions (Starter, Pro, Agency) are billed in advance on a monthly or annual recurring cycle. You may cancel your subscription at any time via your billing settings. Cancellations take effect at the conclusion of the current paid billing period.</p>
       </section>
 
-      <section>
+      <section data-i18n-html="public.terms.sec8">
         <h2>8. Limitation of Liability</h2>
         <p>To the maximum extent permitted by applicable law, CiteAura and its affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits, revenue, or brand reputation resulting from your use of the platform or changes in third-party AI search algorithms.</p>
       </section>
 
-      <section>
+      <section data-i18n-html="public.terms.sec9">
         <h2>9. Modifications to Terms</h2>
         <p>We may modify these Terms from time to time. If a revision meaningfully affects your rights, we will provide notice via email or a prominent notification within the application. Continued use of the platform after the effective date constitutes your agreement to the updated Terms.</p>
       </section>
 
-      <section>
+      <section data-i18n-html="public.terms.sec10">
         <h2>10. Governing Law & Contact</h2>
         <p>These Terms shall be governed by and construed in accordance with the laws applicable to commercial software agreements, without regard to conflict of law principles.</p>
         <p>For questions or formal inquiries regarding these Terms, contact us at:</p>
@@ -226,14 +227,14 @@
         <span class="footer-copy">© 2026 CiteAura</span>
       </div>
       
-      <nav class="footer-links" aria-label="Footer Navigation">
-        <a href="/docs">Docs</a>
-        <a href="/blog">Guides</a>
-        <a href="/about">About</a>
-        <a href="/contact">Contact</a>
-        <a href="/app?auth=login">Sign In</a>
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/terms">Terms of Service</a>
+      <nav class="footer-links" aria-label="Footer Navigation" data-i18n-aria="public.docs.footer_nav">
+        <a href="/docs" data-i18n="nav.docs">Docs</a>
+        <a href="/blog" data-i18n="nav.guides">Guides</a>
+        <a href="/about" data-i18n="public.nav.about">About</a>
+        <a href="/contact" data-i18n="public.nav.contact">Contact</a>
+        <a href="/app?auth=login" data-i18n="nav.sign_in">Sign In</a>
+        <a href="/privacy" data-i18n="nav.privacy">Privacy Policy</a>
+        <a href="/terms" data-i18n="nav.terms">Terms of Service</a>
       </nav>
     </div>
   </footer>
