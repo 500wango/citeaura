@@ -290,7 +290,7 @@ def test_public_pages_load_shared_landing_localization():
     for path in ("/about", "/contact", "/privacy", "/terms", "/sample-report"):
         response = client.get(path)
         assert response.status_code == 200
-        assert '/site-assets/landing.js?v=3.2' in response.text, path
+        assert '/site-assets/landing.js?v=3.3' in response.text, path
     assert 'data-i18n-html="public.privacy.sec1"' in client.get("/privacy").text
     assert 'data-i18n-html="public.terms.sec1"' in client.get("/terms").text
     assert 'data-i18n-html="public.sample.sec1"' in client.get("/sample-report").text
