@@ -12,6 +12,11 @@ from api import config
 NONCE_SIZE = 12
 
 
+def key_aad(tenant_id, engine_code) -> bytes:
+    """把密文绑定到稳定的租户和引擎归属。"""
+    return f"{tenant_id}:{str(engine_code).strip().lower()}".encode("utf-8")
+
+
 def _master_key() -> bytes:
     """读取 base64 编码的 32-byte AES 密钥。"""
     encoded = config.aes_key()
@@ -26,23 +31,29 @@ def _master_key() -> bytes:
     return key
 
 
-def encrypt_key(value: str) -> str:
+def encrypt_key(value: str, aad: bytes | None = None) -> str:
     """使用随机 nonce 加密 API Key，返回可存储的 base64 密文。"""
     if not value:
         raise ValueError("key value cannot be empty")
     nonce = os.urandom(NONCE_SIZE)
-    ciphertext = AESGCM(_master_key()).encrypt(nonce, value.encode("utf-8"), None)
+    ciphertext = AESGCM(_master_key()).encrypt(nonce, value.encode("utf-8"), aad)
     return base64.urlsafe_b64encode(nonce + ciphertext).decode("ascii")
 
 
-def decrypt_key(encoded: str) -> str:
+def decrypt_key(encoded: str, aad: bytes | None = None) -> str:
     """解密 API Key；认证标签失败会抛出 ValueError。"""
     try:
         payload = base64.urlsafe_b64decode(encoded.encode("ascii"))
         if len(payload) <= NONCE_SIZE:
             raise ValueError("ciphertext is too short")
         nonce, ciphertext = payload[:NONCE_SIZE], payload[NONCE_SIZE:]
-        return AESGCM(_master_key()).decrypt(nonce, ciphertext, None).decode("utf-8")
+        try:
+            plaintext = AESGCM(_master_key()).decrypt(nonce, ciphertext, aad)
+        except InvalidTag:
+            if aad is None:
+                raise
+            plaintext = AESGCM(_master_key()).decrypt(nonce, ciphertext, None)
+        return plaintext.decode("utf-8")
     except (InvalidTag, ValueError, UnicodeError) as exc:
         raise ValueError("invalid encrypted API key") from exc
 

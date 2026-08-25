@@ -1,15 +1,13 @@
 """试用额度检查和用量汇总。"""
 
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
-from sqlalchemy.dialects.postgresql import insert as postgres_insert
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from api.models import Job, Membership, Project, Tenant, UsageCounter, User
+from api.models import Job, Membership, Project, Tenant, User
 from api.billing.plans import PLANS
 
 
@@ -45,8 +43,11 @@ def _row_sampled(action, request_json):
 
 
 def _count_sampled_jobs(db, *, project_id=None, tenant_id=None, created_from=None, created_to=None):
-    """按动作参数统计未失败的采样 Job，忽略 no_sample 管线。"""
-    query = db.query(Job).filter(Job.action.in_(SAMPLE_JOB_ACTIONS), Job.status != "failed")
+    """按动作参数统计已执行或仍待执行的采样 Job，忽略 no_sample 管线。"""
+    query = db.query(Job).filter(
+        Job.action.in_(SAMPLE_JOB_ACTIONS),
+        or_(Job.status != "failed", Job.started_at.isnot(None)),
+    )
     if tenant_id is not None:
         query = query.join(Project, Project.id == Job.project_id).filter(Project.tenant_id == tenant_id)
     if project_id is not None:
@@ -120,58 +121,6 @@ def activation_funnel(db: Session, tenant: Tenant) -> dict:
         "next_step_label": next_step["label"] if next_step else None,
         "sample_runs_completed": len(sampled_jobs),
     }
-
-
-def reconcile_usage_counter(db: Session, tenant: Tenant, now=None):
-    """按当前项目快照和当月 Job 权威数据刷新用量计数器。"""
-    now = now or datetime.now(timezone.utc)
-    month = date(now.year, now.month, 1)
-    month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
-    if now.month == 12:
-        next_month = datetime(now.year + 1, 1, 1, tzinfo=timezone.utc)
-    else:
-        next_month = datetime(now.year, now.month + 1, 1, tzinfo=timezone.utc)
-    projects_active = db.query(func.count(Project.id)).filter(
-        Project.tenant_id == tenant.id,
-        Project.archived_at.is_(None),
-        Project.status != "archived",
-    ).scalar() or 0
-    sample_runs = _count_sampled_jobs(
-        db,
-        tenant_id=tenant.id,
-        created_from=month_start,
-        created_to=next_month,
-    )
-    values = {
-        "tenant_id": tenant.id,
-        "month": month,
-        "sample_runs": sample_runs,
-        "projects_active": projects_active,
-        "platform_calls": 0,
-        "platform_cost_cny_fen": 0,
-    }
-    dialect = db.get_bind().dialect.name
-    if dialect == "postgresql":
-        statement = postgres_insert(UsageCounter).values(**values).on_conflict_do_update(
-            index_elements=["tenant_id", "month"],
-            set_={"sample_runs": sample_runs, "projects_active": projects_active},
-        )
-        db.execute(statement)
-    elif dialect == "sqlite":
-        statement = sqlite_insert(UsageCounter).values(**values).on_conflict_do_update(
-            index_elements=["tenant_id", "month"],
-            set_={"sample_runs": sample_runs, "projects_active": projects_active},
-        )
-        db.execute(statement)
-    else:
-        counter = db.get(UsageCounter, {"tenant_id": tenant.id, "month": month})
-        if counter is None:
-            db.add(UsageCounter(**values))
-        else:
-            counter.sample_runs = sample_runs
-            counter.projects_active = projects_active
-    db.flush()
-    return {"sample_runs": sample_runs, "projects_active": projects_active}
 
 
 def _trial_active(tenant: Tenant) -> bool:

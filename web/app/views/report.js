@@ -8,6 +8,7 @@ import { toast } from '../components/toast.js';
 import { gradeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
 import { openModal } from '../components/modal.js';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -34,11 +35,11 @@ export default {
     const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : 'Unmeasured';
     const quality = report && report.report_quality;
     const confidence = quality && quality.confidence;
-    const confidenceLabel = confidence && confidence.label ? confidence.label : 'No baseline';
+    const confidenceLabel = confidence && confidence.label ? confidence.label : t('overview.no_baseline', {}, 'No baseline');
     const trend = (quality && quality.measurement_quality && quality.measurement_quality.trend) || {};
     const trendNote = trend.status === 'noteworthy'
-      ? `${trend.label || 'Trend'} ${trend.delta_pp != null ? `(${trend.delta_pp} pp)` : ''}`
-      : (trend.label || 'Single-round observation. Two comparable sample periods are required before treating a change as a trend.');
+      ? `${escapeHtml(trend.label || 'Trend')} ${trend.delta_pp != null ? `(${Number(trend.delta_pp)} pp)` : ''}`
+      : escapeHtml(trend.label || t('overview.no_comparable', {}, 'No comparable period'));
     const assetTotals = deliveries.reduce((totals, item) => {
       const summary = item && item.asset_summary ? item.asset_summary : {};
       totals.ready += Number(summary.ready || 0);
@@ -89,7 +90,7 @@ export default {
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
               <span class="kicker">02 · Action</span>
               <strong style="font-size:var(--fs-2);margin-top:2px;">${t('nav.plan', {}, 'Action Tickets')}</strong>
-              <span style="font-size:11px;color:var(--muted);margin-top:2px;">Impact × Effort roadmap</span>
+              <span style="font-size:11px;color:var(--muted);margin-top:2px;">${t('literal.bbb414501acd', {}, 'Impact × Effort roadmap')}</span>
             </div>
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
               <span class="kicker">03 · Assets</span>
@@ -136,33 +137,33 @@ export default {
                             ? t('report.status_review', {}, 'Review package')
                             : t('report.status_unknown', {}, 'Readiness unavailable');
                       const downloadLabel = implementationReady
-                        ? 'Download implementation ZIP'
+                        ? t('report.download_implementation_zip', {}, 'Download implementation ZIP')
                         : customerReady
-                          ? 'Download diagnostic ZIP'
-                          : 'Download review ZIP';
+                          ? t('report.download_diagnostic_zip', {}, 'Download diagnostic ZIP')
+                          : t('report.download_review_zip', {}, 'Download review ZIP');
                       const backlogNote = !implementationReady && Array.isArray(d.implementation_backlog) && d.implementation_backlog.length
                         ? `${Number((d.asset_summary || {}).template || 0)} outlines remain implementation backlog`
                         : `${Number((d.asset_summary || {}).ready || 0)} ready · ${Number((d.asset_summary || {}).needs_review || 0)} review · ${Number((d.asset_summary || {}).template || 0)} templates`;
                       return `
                       <tr>
                         <td>
-                          <span class="num" style="font-weight:700;font-size:var(--fs-3);">${dateStr}</span>
+                          <span class="num" style="font-weight:700;font-size:var(--fs-3);">${escapeHtml(dateStr)}</span>
                         </td>
                         <td>
                           <div style="display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;">
                             ${statusPill(customerReady ? 'good' : 'warning', statusLabel)}
-                            <span style="font-size:var(--fs-2);color:var(--muted);">${backlogNote}</span>
+                            <span style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(backlogNote)}</span>
                           </div>
                         </td>
                         <td style="text-align:right;">
-                          <a href="${dlUrl}" class="btn btn-secondary btn-sm" download title="${reviewRequired ? 'Contains assets that require review before publishing.' : implementationReady ? 'Diagnostic documents and publishable assets passed the current checks.' : customerReady ? 'Diagnostic final pack. Implementation outlines stay classified and do not block sending this ZIP.' : 'Readiness could not be confirmed.'}" aria-label="${downloadLabel}">
+                          <a href="${escapeHtml(dlUrl)}" class="btn btn-secondary btn-sm" download title="${escapeHtml(reviewRequired ? 'Contains assets that require review before publishing.' : implementationReady ? 'Diagnostic documents and publishable assets passed the current checks.' : customerReady ? 'Diagnostic final pack. Implementation outlines stay classified and do not block sending this ZIP.' : 'Readiness could not be confirmed.')}" aria-label="${escapeHtml(downloadLabel)}">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             <span>${t(implementationReady ? 'report.download_implementation_zip' : customerReady ? 'report.download_diagnostic_zip' : 'report.download_review_zip', {}, downloadLabel)}</span>
                           </a>
                         </td>
                         ${canSendAny ? `<td style="text-align:right;">
-                          ${d.can_send
-                            ? `<button type="button" class="btn btn-primary btn-sm btn-send-pack" data-date="${dateStr}">${t('report.send_client_btn', {}, 'Send to client')}</button>`
+                            ${d.can_send
+                            ? `<button type="button" class="btn btn-primary btn-sm btn-send-pack" data-date="${escapeHtml(dateStr)}">${t('report.send_client_btn', {}, 'Send to client')}</button>`
                             : `<span style="font-size:var(--fs-1);color:var(--muted);">${t('report.send_unavailable', {}, 'Not sendable yet')}</span>`}
                         </td>` : ''}
                       </tr>
@@ -214,7 +215,7 @@ export default {
         openModal({
           title: t('report.send_modal_title', {}, 'Send white-label pack'),
           content: `<p style="margin:0 0 var(--sp-3);color:var(--muted);font-size:var(--fs-2);">${t('report.send_modal_desc', {}, 'Creates a 7-day client download link. Email is optional — you can copy the link instead.')}</p>
-            <div class="field"><label>${t('report.send_email_label', {}, 'Client email (optional)')}</label>
+            <div class="field"><label for="pack-recipient">${t('report.send_email_label', {}, 'Client email (optional)')}</label>
             <input type="email" id="pack-recipient" class="input" placeholder="client@agency.com"></div>
             <div id="pack-share-url" class="field-hint"></div>`,
           confirmText: t('report.send_confirm', {}, 'Create sendable link'),

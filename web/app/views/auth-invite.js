@@ -106,7 +106,6 @@ export default {
             registered = true;
             await auth.login({ email, password });
           } catch (registerError) {
-            if (registerError.error === 'email_already_registered') throw loginError;
             throw registerError;
           }
         }

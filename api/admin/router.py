@@ -12,7 +12,9 @@ from api import config
 from api.admin.audit import record_admin_event
 from api.admin.deps import require_admin_operate, require_admin_read
 from api.admin.security import ADMIN_COOKIE, ADMIN_SESSION_MINUTES, create_admin_token
-from api.auth.security import hash_password, verify_password
+from api.auth.security import DUMMY_PASSWORD_HASH, hash_password, verify_password
+from api.billing.access import subscription_is_current
+from api.rate_limit import RateLimitUnavailable, check_account
 from api.db import get_db
 from api.models import (
     AdminAuditEvent,
@@ -139,7 +141,7 @@ def _converted_tenant_ids(db, tenants, end):
 
 
 def _is_paid(subscription):
-    return subscription is not None and subscription.status == "active"
+    return subscription_is_current(subscription)
 
 
 def _mrr_cents(subscription):
@@ -219,8 +221,16 @@ def _tenant_payload(db, tenant):
 
 @router.post("/auth/login")
 def admin_login(request: Request, payload: AdminLogin, response: Response, db: Session = Depends(get_db)):
+    try:
+        decision = check_account(payload.email)
+    except RateLimitUnavailable:
+        _error(status.HTTP_503_SERVICE_UNAVAILABLE, "rate_limit_unavailable")
+    if not decision.allowed:
+        _error(status.HTTP_429_TOO_MANY_REQUESTS, "rate_limit_exceeded")
     admin = db.query(PlatformAdmin).filter(PlatformAdmin.email == payload.email).first()
-    valid = admin is not None and admin.status == "active" and verify_password(payload.password, admin.password_hash)
+    password_hash = admin.password_hash if admin is not None else DUMMY_PASSWORD_HASH
+    password_valid = verify_password(payload.password, password_hash)
+    valid = admin is not None and admin.status == "active" and password_valid
     if not valid:
         if admin is not None:
             record_admin_event(

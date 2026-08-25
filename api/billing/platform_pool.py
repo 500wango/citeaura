@@ -16,6 +16,7 @@ from api.adapters.engine import ENGINE_KEY_ENV, load_tenant_keys, resolve_tenant
 from api.adapters import sampling_modes
 from api.db import SessionLocal
 from api.models import Job, PlatformUsage, PlatformUsageOutbox, Project, UsageCounter
+from api.billing.access import sync_tenant_plan
 
 
 PAID_PLANS = frozenset(("starter", "pro", "agency", "enterprise"))
@@ -99,6 +100,8 @@ def _tenant(db, tenant_id):
 def resolve_funding(db, tenant_id, project_slug, allow_pool=True):
     """合并当前租户 BYOK 与项目平台池；相同引擎始终由 BYOK 覆盖。"""
     tenant = _tenant(db, tenant_id)
+    if tenant is not None:
+        sync_tenant_plan(db, tenant.id)
     if tenant is None:
         return {
             "keys": {}, "pool_codes": frozenset(), "rates": {},

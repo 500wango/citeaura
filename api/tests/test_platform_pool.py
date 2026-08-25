@@ -9,6 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.billing import platform_pool
+from api.adapters import sampling_control
 from api.db import Base, get_db
 from api.main import app
 from api.models import (
@@ -386,3 +387,54 @@ def test_usage_outbox_replays_failed_accounting_once(tmp_path, monkeypatch):
         assert usage.calls == 3
         assert db.get(Job, job_id).budget_reservation_status == "settled"
         assert db.query(UsageCounter).one().platform_cost_cny_fen == 15
+
+
+def test_platform_pool_hard_limits_include_usage_and_reservations_but_not_byok(tmp_path, monkeypatch):
+    monkeypatch.setenv("PLATFORM_POOL_PRICES_CNY_FEN", json.dumps({"openai": 5}))
+    monkeypatch.setenv("PLATFORM_POOL_OPENAI_API_KEY", "platform-openai")
+    monkeypatch.setattr(platform_pool, "SessionLocal", lambda: session_factory())
+    monkeypatch.setattr(sampling_control.app_config, "platform_pool_tenant_monthly_call_limit", lambda: 2)
+    monkeypatch.setattr(sampling_control.app_config, "platform_pool_tenant_monthly_cost_cny_fen_limit", lambda: 10)
+    monkeypatch.setattr(sampling_control.app_config, "platform_pool_global_monthly_call_limit", lambda: 100)
+    monkeypatch.setattr(sampling_control.app_config, "platform_pool_global_monthly_cost_cny_fen_limit", lambda: 1000)
+    engine = create_engine(f"sqlite:///{tmp_path / 'limits.sqlite'}")
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(platform_pool, "SessionLocal", session_factory)
+    monkeypatch.setattr(__import__('api.adapters.engine', fromlist=['WORK_ROOT']), "WORK_ROOT", tmp_path / "work")
+    with session_factory() as db:
+        tenant = Tenant(name="limits", plan="pro")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="limits",
+            url="https://limits.example",
+            market="global",
+            platform_pool_enabled=True,
+        )
+        db.add(project)
+        db.flush()
+        root = tmp_path / "work" / tenant.directory_slug / project.slug
+        root.mkdir(parents=True)
+        (root / "geo.json").write_text(json.dumps({"market": "global", "questions": [{"id": "q1", "text": "Question?", "market": "global"}]}), "utf-8")
+        db.add(PlatformUsage(
+            tenant_id=tenant.id, project_id=project.id, action="sample", engine_code="openai",
+            calls=1, unit_price_cny_fen=5, amount_cny_fen=5,
+        ))
+        db.add(Job(
+            project_id=project.id, action="sample", status="queued",
+            reserved_platform_calls=1, reserved_platform_cost_cny_fen=5,
+            budget_reservation_status="reserved",
+        ))
+        db.commit()
+        with pytest.raises(sampling_control.SamplingBudgetExceeded) as exc:
+            sampling_control.ensure_allowed(db, tenant, project, platforms=["openai"])
+        assert exc.value.code == "platform_pool_tenant_limit_exceeded"
+
+        byok = ApiKey(tenant_id=tenant.id, engine_code="openai", encrypted_value=encrypt_key("tenant-openai"))
+        db.add(byok)
+        db.commit()
+        result = sampling_control.ensure_allowed(db, tenant, project, platforms=["openai"])
+        assert result["estimate"]["platform_pool_calls"] == 0
+        assert result["budget"]["tenant_platform_pool_limit_exceeded"] is False

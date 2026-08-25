@@ -3,6 +3,8 @@
  * ：12.5px、、 hover 、
  */
 
+import { escapeHtml } from '../safe-html.js';
+
 export function renderTable({ columns = [], data = [], emptyText = 'No items found' } = {}) {
   if (!data || !data.length) {
     return `
@@ -21,7 +23,7 @@ export function renderTable({ columns = [], data = [], emptyText = 'No items fou
               .map(
                 (col) => `
               <th style="${col.align ? `text-align:${col.align};` : ''}${col.width ? `width:${col.width};` : ''}">
-                ${col.label || ''}
+                ${escapeHtml(col.label || '')}
               </th>
             `
               )
@@ -35,7 +37,9 @@ export function renderTable({ columns = [], data = [], emptyText = 'No items fou
             <tr data-row-idx="${rowIdx}">
               ${columns
                 .map((col) => {
-                  const val = col.render ? col.render(row, rowIdx) : row[col.key] !== undefined ? row[col.key] : '—';
+                  const val = col.render
+                    ? col.render(row, rowIdx)
+                    : escapeHtml(row[col.key] !== undefined ? row[col.key] : '—');
                   const isNum = col.align === 'right' || col.isNum;
                   return `
                   <td ${isNum ? 'data-num' : ''} style="${col.align ? `text-align:${col.align};` : ''}">

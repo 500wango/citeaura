@@ -31,6 +31,39 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+// Admin responses are rendered through one sanitizer entry point so a future
+// interpolated field cannot turn a missed escape into stored XSS.
+function sanitizeHtml(value) {
+  const template = document.createElement('template');
+  template.innerHTML = String(value ?? '');
+  template.content.querySelectorAll('script,style,iframe,object,embed,base,meta,link,svg,math').forEach((node) => node.remove());
+  template.content.querySelectorAll('*').forEach((element) => {
+    Array.from(element.attributes).forEach((attribute) => {
+      const name = attribute.name.toLowerCase();
+      if (name.startsWith('on') || name === 'srcdoc' || name === 'srcset' || name === 'ping') {
+        element.removeAttribute(attribute.name);
+      } else if (name === 'href' || name === 'src' || name === 'action' || name === 'formaction') {
+        try {
+          const parsed = new URL(attribute.value, document.baseURI);
+          if (!['http:', 'https:'].includes(parsed.protocol)) element.removeAttribute(attribute.name);
+        } catch (_) {
+          element.removeAttribute(attribute.name);
+        }
+      }
+    });
+  });
+  return template.content;
+}
+
+function setSafeHtml(target, value) {
+  if (target) target.replaceChildren(sanitizeHtml(value));
+}
+
+function appendSafeHtml(target, value) {
+  if (!target) return;
+  target.appendChild(sanitizeHtml(value));
+}
+
 function qs(params = {}) {
   const values = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -107,7 +140,7 @@ function canOperate() {
 
 function showLogin(message = '') {
   root.className = '';
-  root.innerHTML = `
+  setSafeHtml(root, `
     <main class="admin-login">
       <section class="admin-login-panel">
         <a class="admin-brand" href="/">
@@ -124,7 +157,7 @@ function showLogin(message = '') {
         </form>
       </section>
       <section class="admin-login-context" aria-hidden="true"><h2>Revenue, conversion, customer geography, and platform health in one operating view.</h2></section>
-    </main>`;
+    </main>`);
   document.getElementById('admin-login-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const button = event.currentTarget.querySelector('button');
@@ -150,7 +183,7 @@ function showLogin(message = '') {
 
 function renderShell() {
   root.className = '';
-  root.innerHTML = `
+  setSafeHtml(root, `
     <div class="admin-shell">
       <aside class="admin-sidebar">
         <a class="admin-brand" href="/admin/"><img src="/site-assets/brand/mark.svg" alt=""><strong>CiteAura</strong><span>Operations</span></a>
@@ -175,7 +208,7 @@ function renderShell() {
         </header>
         <div class="admin-content" id="admin-content"><div class="admin-loading">Loading...</div></div>
       </main>
-    </div>`;
+    </div>`);
   root.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => {
     state.view = button.dataset.view;
     state.page = 1;
@@ -205,7 +238,7 @@ function populateCountryFilter() {
   const select = document.getElementById('admin-country');
   if (!select) return;
   const options = state.countries.filter(Boolean).sort().map((code) => `<option value="${code}"${state.country === code ? ' selected' : ''}>${escapeHtml(countryName(code))}</option>`).join('');
-  select.innerHTML = `<option value="">All countries</option>${options}`;
+  setSafeHtml(select, `<option value="">All countries</option>${options}`);
   select.value = state.country;
 }
 
@@ -229,7 +262,7 @@ async function renderOverview() {
     ['Activated', data.customers.activated],
     ['Current paid', data.customers.paid_current],
   ];
-  document.getElementById('admin-content').innerHTML = `
+  setSafeHtml(document.getElementById('admin-content'), `
     <section class="admin-section"><div class="kpis admin-kpis">
       ${kpi('Registered', number(data.customers.registered), `Last ${state.days} days`)}
       ${kpi('Activation', percent(data.customers.activation_rate), `${number(data.customers.activated)} workspaces`)}
@@ -252,7 +285,7 @@ async function renderOverview() {
         <div class="admin-health-row"><span>Job failure rate</span><strong>${percent(data.operations.job_failure_rate)}</strong></div>
         <div class="admin-health-row"><span>Country unknown rate</span><strong>${percent(data.customers.unknown_country_rate)}</strong></div>
       </div></div>
-    </section>`;
+    </section>`);
 }
 
 async function renderCountries() {
@@ -261,8 +294,8 @@ async function renderCountries() {
   state.countries = [...new Set(data.countries.map((item) => item.country_code).filter(Boolean))];
   populateCountryFilter();
   const rows = data.countries.filter((item) => !state.country || item.country_code === state.country);
-  document.getElementById('admin-content').innerHTML = tableSection('Country performance', `${rows.length} acquisition markets`, ['Country', 'Registered', 'Activated', 'Activation', 'Current paid', 'Trial conversion', 'MRR'], rows.map((item) => `
-    <tr><td><div class="primary">${escapeHtml(countryName(item.country_code))}</div><div class="secondary mono">${escapeHtml(item.country_code || 'UNKNOWN')}</div></td><td class="mono">${number(item.registered)}</td><td class="mono">${number(item.activated)}</td><td class="mono">${percent(item.activation_rate)}</td><td class="mono">${number(item.paid_current)}</td><td class="mono">${percent(item.trial_to_paid_rate)}</td><td class="mono">${money(item.mrr_usd_cents)}</td></tr>`));
+  setSafeHtml(document.getElementById('admin-content'), tableSection('Country performance', `${rows.length} acquisition markets`, ['Country', 'Registered', 'Activated', 'Activation', 'Current paid', 'Trial conversion', 'MRR'], rows.map((item) => `
+    <tr><td><div class="primary">${escapeHtml(countryName(item.country_code))}</div><div class="secondary mono">${escapeHtml(item.country_code || 'UNKNOWN')}</div></td><td class="mono">${number(item.registered)}</td><td class="mono">${number(item.activated)}</td><td class="mono">${percent(item.activation_rate)}</td><td class="mono">${number(item.paid_current)}</td><td class="mono">${percent(item.trial_to_paid_rate)}</td><td class="mono">${money(item.mrr_usd_cents)}</td></tr>`)));
 }
 
 function tableSection(title, description, headers, rows, toolbar = '') {
@@ -304,8 +337,8 @@ async function renderUsers() {
     const action = canOperate() ? `<button class="btn btn-ghost btn-sm" data-user-id="${item.id}" data-current-status="${item.status}">${item.status === 'active' ? 'Disable' : 'Restore'}</button>` : '';
     return `<tr><td><div class="primary">${escapeHtml(item.email)}</div><div class="secondary">${escapeHtml(item.registration_kind.replace('_', ' '))}</div></td><td>${tag(item.status)}</td><td>${item.is_paid ? tag('paid') : tag('not paid')}</td><td><div class="primary">${escapeHtml(countryName(item.country_code))}</div><div class="secondary mono">${escapeHtml(item.country_code || 'UNKNOWN')}</div></td><td><div>${escapeHtml(workspaces)}</div></td><td class="mono">${escapeHtml(dateTime(item.last_login_at))}</td><td class="mono">${escapeHtml(dateTime(item.created_at))}</td><td>${action}</td></tr>`;
   });
-  document.getElementById('admin-content').innerHTML = tableSection('Registered users', `${number(data.pagination.total)} total users`, ['User', 'Status', 'Billing', 'Signup country', 'Workspaces', 'Last login', 'Registered', ''], rows, toolbar('Search email'));
-  document.getElementById('admin-content').insertAdjacentHTML('beforeend', pagination(data));
+  setSafeHtml(document.getElementById('admin-content'), tableSection('Registered users', `${number(data.pagination.total)} total users`, ['User', 'Status', 'Billing', 'Signup country', 'Workspaces', 'Last login', 'Registered', ''], rows, toolbar('Search email')));
+  appendSafeHtml(document.getElementById('admin-content'), pagination(data));
   bindSearch();
   bindPagination();
   bindStatusActions('user');
@@ -318,8 +351,8 @@ async function renderTenants() {
     const action = canOperate() ? `<button class="btn btn-ghost btn-sm" data-tenant-id="${item.id}" data-current-status="${item.status}">${item.status === 'active' ? 'Disable' : 'Restore'}</button>` : '';
     return `<tr><td><div class="primary">${escapeHtml(item.name)}</div><div class="secondary">${escapeHtml(item.owner_email || 'No owner')}</div></td><td>${tag(item.status)}</td><td>${tag(item.plan)}</td><td><div>${escapeHtml(countryName(item.country_code))}</div><div class="secondary mono">${escapeHtml(item.country_code || 'UNKNOWN')}</div></td><td class="mono">${number(item.members)}</td><td class="mono">${number(item.projects)}</td><td>${item.activated ? tag('active') : tag('not activated')}</td><td class="mono">${money(item.mrr_usd_cents)}</td><td>${action}</td></tr>`;
   });
-  document.getElementById('admin-content').innerHTML = tableSection('Customer workspaces', `${number(data.pagination.total)} total workspaces`, ['Workspace', 'Status', 'Plan', 'Acquisition country', 'Members', 'Projects', 'Activation', 'MRR', ''], rows, toolbar('Search workspace or owner'));
-  document.getElementById('admin-content').insertAdjacentHTML('beforeend', pagination(data));
+  setSafeHtml(document.getElementById('admin-content'), tableSection('Customer workspaces', `${number(data.pagination.total)} total workspaces`, ['Workspace', 'Status', 'Plan', 'Acquisition country', 'Members', 'Projects', 'Activation', 'MRR', ''], rows, toolbar('Search workspace or owner')));
+  appendSafeHtml(document.getElementById('admin-content'), pagination(data));
   bindSearch();
   bindPagination();
   bindStatusActions('tenant');
@@ -329,8 +362,8 @@ async function renderSubscriptions() {
   setHeader('Subscriptions', 'Recurring revenue and account-level billing state', false);
   const data = await api(`/subscriptions${qs({ page: state.page })}`);
   const rows = data.items.map((item) => `<tr><td><div class="primary">${escapeHtml(item.tenant_name || `Workspace ${item.tenant_id}`)}</div><div class="secondary">${escapeHtml(countryName(item.country_code))}</div></td><td>${tag(item.plan)}</td><td>${tag(item.status)}</td><td>${escapeHtml(item.billing_interval)}</td><td class="mono">${money(item.mrr_usd_cents)}</td><td>${escapeHtml(countryName(item.billing_country_code))}</td><td>${item.cancel_at_period_end ? tag('canceling') : tag('renewing')}</td><td class="mono">${escapeHtml(dateTime(item.expires_at))}</td></tr>`);
-  document.getElementById('admin-content').innerHTML = tableSection('Subscription ledger', `${number(data.pagination.total)} subscriptions, USD only`, ['Workspace', 'Plan', 'Status', 'Interval', 'MRR', 'Billing country', 'Renewal', 'Period end'], rows);
-  document.getElementById('admin-content').insertAdjacentHTML('beforeend', pagination(data));
+  setSafeHtml(document.getElementById('admin-content'), tableSection('Subscription ledger', `${number(data.pagination.total)} subscriptions, USD only`, ['Workspace', 'Plan', 'Status', 'Interval', 'MRR', 'Billing country', 'Renewal', 'Period end'], rows));
+  appendSafeHtml(document.getElementById('admin-content'), pagination(data));
   bindPagination();
 }
 
@@ -338,8 +371,8 @@ async function renderJobs() {
   setHeader('Jobs', 'Cross-workspace pipeline execution and failure diagnosis', false);
   const data = await api(`/jobs${qs({ q: state.query, page: state.page })}`);
   const rows = data.items.map((item) => `<tr><td class="mono">#${item.id}</td><td><div class="primary">${escapeHtml(item.tenant_name)}</div><div class="secondary">${escapeHtml(item.project_slug)}</div></td><td>${escapeHtml(item.action)}</td><td>${tag(item.status)}</td><td>${escapeHtml(item.stage)}</td><td class="mono">${number(item.progress)}%</td><td class="mono">${item.duration_seconds === null ? 'Running' : `${number(item.duration_seconds)}s`}</td><td><div class="secondary">${escapeHtml(item.error || '')}</div></td></tr>`);
-  document.getElementById('admin-content').innerHTML = tableSection('Pipeline jobs', `${number(data.pagination.total)} total jobs`, ['ID', 'Workspace / project', 'Action', 'Status', 'Stage', 'Progress', 'Duration', 'Error'], rows, toolbar('Search workspace, project, or action'));
-  document.getElementById('admin-content').insertAdjacentHTML('beforeend', pagination(data));
+  setSafeHtml(document.getElementById('admin-content'), tableSection('Pipeline jobs', `${number(data.pagination.total)} total jobs`, ['ID', 'Workspace / project', 'Action', 'Status', 'Stage', 'Progress', 'Duration', 'Error'], rows, toolbar('Search workspace, project, or action')));
+  appendSafeHtml(document.getElementById('admin-content'), pagination(data));
   bindSearch();
   bindPagination();
 }
@@ -348,14 +381,14 @@ async function renderAudit() {
   setHeader('Admin audit', 'Immutable record of platform administrator activity', false);
   const data = await api(`/audit${qs({ page: state.page })}`);
   const rows = data.items.map((item) => `<tr><td class="mono">${escapeHtml(dateTime(item.created_at))}</td><td><div class="primary">${escapeHtml(item.admin_email || 'Removed administrator')}</div><div class="secondary mono">${escapeHtml(item.ip_address || 'Unknown IP')}</div></td><td>${escapeHtml(item.action)}</td><td>${escapeHtml(item.target)}</td><td>${tag(item.outcome)}</td><td><div class="secondary">${escapeHtml(JSON.stringify(item.details))}</div></td></tr>`);
-  document.getElementById('admin-content').innerHTML = tableSection('Administrator activity', `${number(data.pagination.total)} audit events`, ['Time', 'Administrator', 'Action', 'Target', 'Outcome', 'Details'], rows);
-  document.getElementById('admin-content').insertAdjacentHTML('beforeend', pagination(data));
+  setSafeHtml(document.getElementById('admin-content'), tableSection('Administrator activity', `${number(data.pagination.total)} audit events`, ['Time', 'Administrator', 'Action', 'Target', 'Outcome', 'Details'], rows));
+  appendSafeHtml(document.getElementById('admin-content'), pagination(data));
   bindPagination();
 }
 
 async function renderAccount() {
   setHeader('Account', 'Update your platform administrator credentials', false);
-  document.getElementById('admin-content').innerHTML = `
+  setSafeHtml(document.getElementById('admin-content'), `
     <section class="admin-section admin-account-settings">
       <div class="admin-section-head"><div><h2>Change password</h2><p>Changing your password signs out this administrator session.</p></div></div>
       <form class="admin-password-form" id="admin-password-form">
@@ -367,7 +400,7 @@ async function renderAccount() {
           <button class="btn btn-primary" type="submit">Change password</button>
         </div>
       </form>
-    </section>`;
+    </section>`);
   document.getElementById('admin-password-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const currentPassword = document.getElementById('admin-current-password').value;
@@ -418,7 +451,7 @@ function bindStatusActions(kind) {
 async function renderView() {
   const content = document.getElementById('admin-content');
   if (!content) return;
-  content.innerHTML = '<div class="admin-loading">Loading...</div>';
+  setSafeHtml(content, '<div class="admin-loading">Loading...</div>');
   try {
     const renderers = { overview: renderOverview, countries: renderCountries, users: renderUsers, tenants: renderTenants, subscriptions: renderSubscriptions, jobs: renderJobs, audit: renderAudit, account: renderAccount };
     await (renderers[state.view] || renderOverview)();
@@ -428,7 +461,7 @@ async function renderView() {
       showLogin('Your administrator session has expired.');
       return;
     }
-    content.innerHTML = `<div class="admin-error">Unable to load this view: ${escapeHtml(error.message)}</div>`;
+    setSafeHtml(content, `<div class="admin-error">Unable to load this view: ${escapeHtml(error.message)}</div>`);
   }
 }
 

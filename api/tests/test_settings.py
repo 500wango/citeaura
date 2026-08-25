@@ -9,7 +9,7 @@ from api.db import Base, get_db
 from api.main import app
 from api.models import CustomProvider
 from api.settings import router as settings_router
-from api.settings.crypto import decrypt_key, encrypt_key
+from api.settings.crypto import decrypt_key, encrypt_key, key_aad
 
 
 @pytest.fixture()
@@ -144,7 +144,7 @@ def test_custom_provider_lifecycle_is_encrypted_and_tenant_isolated(settings_cli
     with client.session_factory() as db:
         row = db.query(CustomProvider).one()
         assert row.encrypted_api_key != "sk-custom-secret"
-        assert decrypt_key(row.encrypted_api_key) == "sk-custom-secret"
+        assert decrypt_key(row.encrypted_api_key, key_aad(row.tenant_id, row.code)) == "sk-custom-secret"
 
     updated = client.put(
         "/api/v1/settings/keys/custom",
@@ -164,7 +164,8 @@ def test_custom_provider_lifecycle_is_encrypted_and_tenant_isolated(settings_cli
     assert provider["market"] == "global"
     with client.session_factory() as db:
         assert db.query(CustomProvider).count() == 1
-        assert decrypt_key(db.query(CustomProvider).one().encrypted_api_key) == "sk-replaced-secret"
+        row = db.query(CustomProvider).one()
+        assert decrypt_key(row.encrypted_api_key, key_aad(row.tenant_id, row.code)) == "sk-replaced-secret"
 
     deleted = client.delete(f"/api/v1/settings/keys/custom/{provider['code']}", headers=first)
     assert deleted.status_code == 200

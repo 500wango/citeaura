@@ -3,7 +3,7 @@
  */
 
 import { projects } from '../api.js?v=3.8';
-import { t, tError } from '../i18n.js';
+import { hasCatalogKey, t, tError } from '../i18n.js';
 import { confirmModal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { renderKpis } from '../components/kpi.js';
@@ -268,7 +268,8 @@ export default {
                   .sort((left, right) => (priorityRank[left.priority] ?? 99) - (priorityRank[right.priority] ?? 99))
                   .slice(0, 5)
                   .map((ticket) => {
-                    const title = t(ticket.title, {}, ticket.title_en || ticket.title || ticket.name || ticket.id);
+                    const rawTitle = ticket.title_en || ticket.title || ticket.name || ticket.id;
+                    const title = hasCatalogKey(ticket.title) ? t(ticket.title) : rawTitle;
                     return `
                   <a class="ticket-item" href="#/plan" style="text-decoration:none;">
                     <div style="display:flex;align-items:center;justify-content:space-between;">

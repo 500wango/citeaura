@@ -3,7 +3,7 @@
  */
 
 import { analytics, projects } from '../api.js?v=3.5';
-import { t, tError } from '../i18n.js';
+import { hasCatalogKey, t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { statusPill } from '../components/badge.js';
@@ -168,8 +168,10 @@ export default {
                   ${tickets
                     .map(
                       (ticket, idx) => {
-                        const title = t(ticket.title, {}, ticket.title_en || ticket.title || ticket.name || ticket.id);
-                        const role = t(ticket.owner || ticket.role, {}, ticket.owner_en || ticket.role || 'Engineering');
+                        const titleSource = ticket.title_en || ticket.title || ticket.name || ticket.id;
+                        const roleSource = ticket.owner_en || ticket.owner || ticket.role || 'Engineering';
+                        const title = hasCatalogKey(ticket.title) ? t(ticket.title) : titleSource;
+                        const role = hasCatalogKey(ticket.owner || ticket.role) ? t(ticket.owner || ticket.role) : roleSource;
                         return `
                         <tr>
                           <td class="num" style="color:var(--muted);">${idx + 1}</td>

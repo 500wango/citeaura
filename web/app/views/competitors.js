@@ -86,7 +86,7 @@ export default {
                       const relationship = typeof comp === 'object' ? comp.relationship || 'direct_competitor' : 'direct_competitor';
                       const discovered = discoveryByName[name] || {};
                       const evidence = discovered.discovery_status || (
-                        typeof comp === 'object' && comp.relationship_review_required !== false ? 'Review required' : 'Confirmed'
+                        typeof comp === 'object' && comp.relationship_review_required !== false ? t('common.review_required', {}, 'Review required') : t('common.confirmed', {}, 'Confirmed')
                       );
                       return `
                       <tr>
@@ -125,9 +125,9 @@ export default {
               <h3 style="font-size:var(--fs-4);font-weight:600;margin:0 0 4px;">${t('competitors.heatmap_title', {}, 'Recommendation Heatmap')}</h3>
               <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('competitors.heatmap_desc', {}, 'Question × entity × sampling cohort. API cohorts and product-surface observations stay separate.')}</p>
             </div>
-            <span class="tag tag-neutral">${heatmap.sample_count || 0} valid samples</span>
+            <span class="tag tag-neutral">${heatmap.sample_count || 0} ${t('common.valid_samples', {}, 'valid samples')}</span>
           </div>
-          ${alerts.length ? `<div style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--line);background:var(--bad-soft);color:var(--bad);font-size:var(--fs-2);"><strong>${alerts.length} takeover candidate${alerts.length === 1 ? '' : 's'}</strong> · Wilson 95% intervals are separated; inspect the replay before acting.</div>` : ''}
+          ${alerts.length ? `<div style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--line);background:var(--bad-soft);color:var(--bad);font-size:var(--fs-2);"><strong>${escapeHtml(t('competitors.takeover_alert', { count: alerts.length }, '{count} takeover candidate(s)'))}</strong></div>` : ''}
           ${cohorts.length && entities.length && heatmapQuestions.length ? cohorts.map((cohort) => {
             const cohortKey = cohort.key;
             return `<div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
@@ -157,11 +157,11 @@ export default {
         const content = `
           <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
             <div class="field" style="margin:0;">
-              <label>${t('competitors.comp_name_label', {}, 'Competitor Brand Name')} *</label>
+              <label for="new-comp-name">${t('competitors.comp_name_label', {}, 'Competitor Brand Name')} *</label>
               <input type="text" id="new-comp-name" class="input" placeholder="e.g. RivalCo" required>
             </div>
             <div class="field" style="margin:0;">
-              <label>${t('competitors.comp_domain_label', {}, 'Website Domain')}</label>
+              <label for="new-comp-domain">${t('competitors.comp_domain_label', {}, 'Website Domain')}</label>
               <input type="url" id="new-comp-domain" class="input" placeholder="https://rival.com">
             </div>
           </div>

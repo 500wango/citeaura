@@ -352,8 +352,7 @@ def create_project(
     existing = db.query(Project).filter(Project.tenant_id == tenant.id, Project.slug == slug).first()
     if existing is not None and existing.archived_at is None and existing.status != "archived":
         _error(status.HTTP_409_CONFLICT, "project_already_exists")
-    if existing is None or (existing.archived_at is None and existing.status != "archived"):
-        check_project_creation(db, tenant)
+    check_project_creation(db, tenant)
 
     restoring_existing_workspace = existing is not None and _project_directory_exists(tenant.directory_slug, slug)
     if existing is not None:
@@ -450,6 +449,9 @@ def create_project(
         with with_tenant_context(tenant.directory_slug, slug):
             geolib.write_json(geolib.project_dir(slug) / "public_audit.json", audit_snapshot)
 
+    if job_action == "autopilot":
+        _reserve_sample_estimate(db, tenant, project, job, SampleRequest())
+
     project.status = "bootstrapping"
     job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
@@ -470,6 +472,7 @@ def create_project(
         job.stage = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
         job.finished_at = datetime.now(timezone.utc)
+        sampling_control.release_reservation(job)
         db.commit()
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
 
@@ -812,16 +815,11 @@ def retry_project_job(
     request = _request_payload(source.request_json)
     request_no_sample = _pipeline_flag(request, "no-sample") or _pipeline_flag(request, "no_sample")
     estimate = None
+    sample_payload = None
     if source.action in ("sample", "cycle", "autopilot", "serve"):
         if source.action not in ("autopilot", "serve") or not request_no_sample:
             check_sample_run(db, tenant, project)
-            estimate = _validated_sample_estimate(
-                db,
-                tenant,
-                project,
-                _pipeline_sample_payload(request),
-                enforce=True,
-            )
+            sample_payload = _pipeline_sample_payload(request)
     job = Job(
         project_id=project.id,
         action=source.action,
@@ -832,6 +830,8 @@ def retry_project_job(
         retry_of_job_id=source.id,
     )
     db.add(job)
+    if sample_payload is not None:
+        estimate = _reserve_sample_estimate(db, tenant, project, job, sample_payload)
     project.status = {
         "sample": "sampling", "verify": "verifying", "deliver": "delivering", "bootstrap": "bootstrapping",
         "autopilot": "bootstrapping", "cycle": "processing",
@@ -849,6 +849,7 @@ def retry_project_job(
         job.stage = "failed"
         job.error = str(exc)
         job.finished_at = datetime.now(timezone.utc)
+        sampling_control.release_reservation(job)
         project.status = source.status if source.status != "failed" else "ready"
         db.commit()
         _error(status.HTTP_400_BAD_REQUEST, "job_retry_invalid")
@@ -857,6 +858,7 @@ def retry_project_job(
         job.stage = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
         job.finished_at = datetime.now(timezone.utc)
+        sampling_control.release_reservation(job)
         project.status = "failed"
         db.commit()
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
@@ -1024,6 +1026,7 @@ def sample_project(
         job.stage = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
         job.finished_at = datetime.now(timezone.utc)
+        sampling_control.release_reservation(job)
         project.status = "failed"
         db.commit()
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
@@ -1055,15 +1058,10 @@ def run_pipeline_action(
         check_sample_run(db, tenant, project)
         sample_payload = _pipeline_sample_payload(params)
         sample_payload = _normalize_sample_estimate_payload(tenant, project, sample_payload)
-        if action != "sample":
-            estimate = _validated_sample_estimate(
-                db, tenant, project, sample_payload,
-                enforce=True, allow_pool=False,
-            )
 
     job = Job(project_id=project.id, action=action, status="queued", stage="queued",
               request_json=_safe_request_json(action, params))
-    if action == "sample" and sample_payload is not None:
+    if sample_payload is not None:
         estimate = _reserve_sample_estimate(db, tenant, project, job, sample_payload)
     db.add(job)
     project.status = {
@@ -1085,6 +1083,7 @@ def run_pipeline_action(
         job.stage = "failed"
         job.error = f"{type(exc).__name__}: {exc}"
         job.finished_at = datetime.now(timezone.utc)
+        sampling_control.release_reservation(job)
         project.status = "failed"
         db.commit()
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")

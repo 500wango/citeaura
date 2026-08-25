@@ -15,7 +15,7 @@ from api.adapters import sampling_modes
 from api.auth.deps import get_current_user, require_owner
 from api.db import get_db
 from api.models import ApiKey, CustomProvider, Tenant, User
-from api.settings.crypto import decrypt_key, encrypt_key, mask_key
+from api.settings.crypto import decrypt_key, encrypt_key, key_aad, mask_key
 
 
 router = APIRouter(prefix="/api/v1/settings/keys", tags=["settings"])
@@ -92,19 +92,17 @@ def _provider_code(tenant_id: int, name: str) -> str:
     return f"custom_{digest}"
 
 
-def _provider_response(row: CustomProvider, include_key=False):
+def _provider_response(row: CustomProvider):
     result = {
         "code": row.code,
         "name": row.name,
         "base_url": row.base_url,
         "model_id": row.model_id,
         "market": row.market or "both",
-        "masked": mask_key(decrypt_key(row.encrypted_api_key)),
+        "masked": mask_key(decrypt_key(row.encrypted_api_key, key_aad(row.tenant_id, row.code))),
         "sampling_mode": sampling_modes.MODE_API,
         "sampling_mode_code": sampling_modes.CODE_PARAMETRIC,
     }
-    if include_key:
-        result["api_key"] = decrypt_key(row.encrypted_api_key)
     return result
 
 
@@ -213,7 +211,7 @@ def put_custom_provider(payload: CustomProviderPayload, current_user: User = Dep
     row.base_url = provider["base_url"]
     row.model_id = provider["model_id"]
     row.market = provider["market"]
-    row.encrypted_api_key = encrypt_key(provider["api_key"])
+    row.encrypted_api_key = encrypt_key(provider["api_key"], key_aad(tenant.id, provider["code"]))
     db.commit()
     return {"provider": _provider_response(row)}
 
@@ -237,7 +235,7 @@ def delete_custom_provider(code: str, current_user: User = Depends(require_owner
 def put_key(payload: KeyPayload, current_user: User = Depends(require_owner), db: Session = Depends(get_db)):
     """新增或替换当前租户的引擎 API Key。"""
     tenant = _tenant_for_user(db, current_user)
-    encrypted_value = encrypt_key(payload.key_value)
+    encrypted_value = encrypt_key(payload.key_value, key_aad(tenant.id, payload.engine_code))
     row = (
         db.query(ApiKey)
         .filter(ApiKey.tenant_id == tenant.id, ApiKey.engine_code == payload.engine_code)
@@ -269,7 +267,7 @@ def list_keys(current_user: User = Depends(get_current_user), db: Session = Depe
     items = []
     for row in rows:
         # 只在请求内解密用于掩码，响应和日志都不携带明文。
-        items.append({"engine_code": row.engine_code, "masked": mask_key(decrypt_key(row.encrypted_value))})
+        items.append({"engine_code": row.engine_code, "masked": mask_key(decrypt_key(row.encrypted_value, key_aad(row.tenant_id, row.engine_code)))})
     return {"keys": items}
 
 
@@ -283,7 +281,7 @@ def test_key(engine_code: str, current_user: User = Depends(require_owner), db: 
     row = db.query(ApiKey).filter(ApiKey.tenant_id == tenant.id, ApiKey.engine_code == engine_code).first()
     if row is None:
         _error(status.HTTP_404_NOT_FOUND, "key_not_found")
-    secret = decrypt_key(row.encrypted_value)
+    secret = decrypt_key(row.encrypted_value, key_aad(row.tenant_id, row.engine_code))
     started = time.monotonic()
     try:
         import sample

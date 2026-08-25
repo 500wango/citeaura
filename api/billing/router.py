@@ -16,6 +16,7 @@ from api.auth.deps import get_current_user, require_owner
 from api.billing.limits import activation_funnel, usage
 from api.billing.plans import PLANS, SUBSCRIBABLE_PLANS
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
+from api.billing.access import subscription_is_current, sync_tenant_plan
 from api.billing import stripe as stripe_adapter
 from api.adapters import transactional_email
 from api.db import get_db
@@ -205,37 +206,10 @@ def _activate_checkout(db, value):
 
 
 def _sync_tenant_plan(db, tenant_id):
-    tenant = db.get(Tenant, tenant_id)
-    if tenant is None:
-        return
-    active = (
-        db.query(Subscription)
-        .filter(
-            Subscription.tenant_id == tenant_id,
-            Subscription.status.in_(("active", "trialing", "past_due")),
-        )
-        .order_by(Subscription.started_at.desc(), Subscription.id.desc())
-        .first()
-    )
-    if active is not None:
-        tenant.plan = active.plan
-        return
-    latest = (
-        db.query(Subscription)
-        .filter(Subscription.tenant_id == tenant_id)
-        .order_by(Subscription.started_at.desc(), Subscription.id.desc())
-        .first()
-    )
-    tenant.plan = "trial"
-    if tenant.trial_ends_at is None:
-        tenant.trial_ends_at = (
-            latest.expires_at if latest is not None and latest.expires_at is not None
-            else latest.started_at if latest is not None
-            else datetime.now(timezone.utc)
-        )
+    return sync_tenant_plan(db, tenant_id)
 
 
-def _update_subscription(db, value, deleted=False):
+def _update_subscription(db, value, deleted=False, event_created=None):
     provider_subscription_id = value.get("id")
     row = _subscription_row(db, provider_subscription_id)
     if row is None:
@@ -256,6 +230,12 @@ def _update_subscription(db, value, deleted=False):
             started_at=_timestamp(value.get("start_date")),
         )
         db.add(row)
+    incoming_created = _timestamp(event_created, None) if event_created is not None else None
+    stored_created = row.provider_event_created_at
+    if incoming_created is not None and stored_created is not None:
+        stored_created = _timestamp(stored_created.timestamp(), stored_created)
+        if incoming_created <= stored_created:
+            return False
     status_value = "canceled" if deleted else str(value.get("status") or "incomplete")
     if status_value == "incomplete_expired":
         status_value = "canceled"
@@ -270,6 +250,8 @@ def _update_subscription(db, value, deleted=False):
     row.provider = "stripe"
     row.provider_customer_id = _stripe_id(value.get("customer")) or row.provider_customer_id
     row.expires_at = _timestamp(value.get("current_period_end"), row.expires_at)
+    if incoming_created is not None:
+        row.provider_event_created_at = incoming_created
     metadata = _metadata(value.get("metadata"))
     if metadata:
         tenant_id, plan_code, billing_interval, plan = _validated_selection(value)
@@ -318,10 +300,14 @@ def _update_invoice_status(db, value, paid):
                 if config.stripe_currency() == "usd"
                 else row.amount_cny_fen
             )
+        is_proration = str(value.get("billing_reason") or "").lower() in (
+            "subscription_update", "subscription_create",
+        ) and value.get("amount_paid") is not None
         if (
             str(value.get("currency") or "").lower() != config.stripe_currency()
             or expected_amount is None
-            or amount_paid != expected_amount
+            or amount_paid <= 0
+            or (not is_proration and amount_paid != expected_amount)
         ):
             return False
     if row is None:
@@ -365,6 +351,7 @@ def _record_invoice_transaction(db, event, value, subscription, paid):
         status="succeeded" if paid else "failed",
         currency=currency[:3] if currency else "xxx",
         amount_usd_cents=amount if currency == "usd" else None,
+        amount_cny_fen=amount if currency == "cny" else None,
         billing_country_code=country_code,
         occurred_at=_timestamp(value.get("status_transitions", {}).get("paid_at") if paid and isinstance(value.get("status_transitions"), dict) else value.get("created")),
     )
@@ -393,12 +380,15 @@ def _record_refund_transaction(db, event, value):
         cumulative_amount = max(0, int(value.get("amount_refunded") or 0))
     except (TypeError, ValueError):
         cumulative_amount = 0
-    previously_recorded = db.query(func.coalesce(func.sum(PaymentTransaction.amount_usd_cents), 0)).filter(
+    amount_column = PaymentTransaction.amount_usd_cents if currency == "usd" else PaymentTransaction.amount_cny_fen
+    previously_recorded = db.query(func.coalesce(func.sum(amount_column), 0)).filter(
         PaymentTransaction.provider == "stripe",
         PaymentTransaction.provider_invoice_id == invoice_id,
         PaymentTransaction.status == "refunded",
     ).scalar() or 0
-    amount = max(0, cumulative_amount - previously_recorded) if currency == "usd" else cumulative_amount
+    # Stripe's amount_refunded is cumulative for every supported currency.
+    # Store only the delta so repeated charge.refunded webhooks remain idempotent.
+    amount = max(0, cumulative_amount - previously_recorded)
     billing_details = value.get("billing_details") if isinstance(value.get("billing_details"), dict) else {}
     address = billing_details.get("address") if isinstance(billing_details.get("address"), dict) else {}
     country_code = normalize_country_code(address.get("country")) or source.billing_country_code
@@ -411,6 +401,7 @@ def _record_refund_transaction(db, event, value):
         status="refunded",
         currency=currency[:3] if currency else "xxx",
         amount_usd_cents=amount if currency == "usd" else None,
+        amount_cny_fen=amount if currency == "cny" else None,
         billing_country_code=country_code,
         occurred_at=_timestamp(value.get("created")),
     ))
@@ -433,9 +424,9 @@ def _process_stripe_event(db, event):
     if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
         return _activate_checkout(db, value)
     if event_type == "customer.subscription.updated":
-        return _update_subscription(db, value)
+        return _update_subscription(db, value, event_created=event.get("created"))
     if event_type == "customer.subscription.deleted":
-        return _update_subscription(db, value, deleted=True)
+        return _update_subscription(db, value, deleted=True, event_created=event.get("created"))
     if event_type == "invoice.payment_failed":
         row = _update_invoice_status(db, value, paid=False)
         if row:
@@ -523,6 +514,7 @@ def billing_usage(current_user: User = Depends(get_current_user), db: Session = 
     tenant = db.get(Tenant, current_user.tenant_id)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
+    _sync_tenant_plan(db, tenant.id)
     result = usage(db, tenant)
     result["platform_pool"] = usage_summary(db, tenant)
     result["platform_pool_calls"] = result["platform_pool"].get("calls", 0)
@@ -534,10 +526,7 @@ def billing_usage(current_user: User = Depends(get_current_user), db: Session = 
         .order_by(Subscription.started_at.desc(), Subscription.id.desc())
         .first()
     )
-    active_paid = (
-        latest is not None
-        and latest.status in ("active", "trialing", "past_due")
-    )
+    active_paid = subscription_is_current(latest)
     can_change_plan = bool(
         active_paid
         and latest.provider == "stripe"
@@ -601,6 +590,7 @@ def subscribe(
     tenant = db.get(Tenant, current_user.tenant_id)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
+    _sync_tenant_plan(db, tenant.id)
     if payload.plan == "enterprise":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -700,6 +690,7 @@ def cancel_subscription(current_user: User = Depends(require_owner), db: Session
     """取消当前订阅，等待 Stripe Webhook 将租户降回试用状态。"""
     _require_billing_enabled()
     tenant = db.get(Tenant, current_user.tenant_id)
+    _sync_tenant_plan(db, tenant.id)
     subscription = db.query(Subscription).filter(
         Subscription.tenant_id == tenant.id,
         Subscription.status.in_(("active", "trialing", "past_due")),

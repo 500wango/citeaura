@@ -11,6 +11,24 @@ depends_on = None
 
 
 def upgrade():
+    # Older databases may contain multiple active rows. Keep the earliest row
+    # for each project and close the rest before adding the unique index.
+    op.execute(sa.text("""
+        UPDATE jobs
+        SET status = 'failed',
+            stage = 'failed',
+            finished_at = CURRENT_TIMESTAMP,
+            error = 'duplicate_active_job'
+        WHERE id IN (
+            SELECT id FROM (
+                SELECT id,
+                       ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY id) AS duplicate_rank
+                FROM jobs
+                WHERE status IN ('queued', 'running')
+            ) ranked
+            WHERE duplicate_rank > 1
+        )
+    """))
     op.create_index(
         "uq_jobs_project_active",
         "jobs",

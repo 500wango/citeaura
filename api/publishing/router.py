@@ -10,7 +10,7 @@ from api.adapters.exceptions import GeoEngineError
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.db import get_db
 from api.models import ApiKey, Project, Tenant, User
-from api.settings.crypto import decrypt_key, encrypt_key
+from api.settings.crypto import decrypt_key, encrypt_key, key_aad
 
 
 router = APIRouter(prefix="/api/v1/projects/{project_id}/publishing", tags=["publishing"])
@@ -67,7 +67,7 @@ def _configured_codes(db, tenant_id):
 def _credentials(db, tenant_id, platform):
     mapping = publishing.credential_map(platform)
     rows = db.query(ApiKey).filter(ApiKey.tenant_id == tenant_id, ApiKey.engine_code.in_(mapping)).all()
-    return {mapping[row.engine_code]: decrypt_key(row.encrypted_value) for row in rows}
+    return {mapping[row.engine_code]: decrypt_key(row.encrypted_value, key_aad(row.tenant_id, row.engine_code)) for row in rows}
 
 
 def _overview(db, tenant, project):
@@ -106,7 +106,9 @@ def update_publisher(
             raise ValueError("unsupported publisher credentials: " + ", ".join(unknown))
         publishing.validate_credentials(platform, payload.credentials)
         credential_changes = {
-            publishing.credential_code(platform, env_name): None if value is None else encrypt_key(value.strip())
+            publishing.credential_code(platform, env_name): None if value is None else encrypt_key(
+                value.strip(), key_aad(tenant.id, publishing.credential_code(platform, env_name)),
+            )
             for env_name, value in payload.credentials.items()
         }
         if payload.publisher_config is not None:

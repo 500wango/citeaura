@@ -4,6 +4,7 @@
  */
 
 import { t } from '../i18n.js';
+import { escapeHtml } from '../safe-html.js';
 
 export function samplingModeBadge(mode) {
   const norm = String(mode || '').toLowerCase();
@@ -38,7 +39,9 @@ export function samplingModeBadge(mode) {
 }
 
 export function gradeBadge(grade) {
-  const g = (grade || 'D').toUpperCase();
+  const g = ['A', 'B', 'C', 'D'].includes(String(grade || '').toUpperCase())
+    ? String(grade).toUpperCase()
+    : 'D';
   return `<span class="grade-badge grade-${g}">${g}</span>`;
 }
 
@@ -50,7 +53,7 @@ export function statusPill(status, label) {
   else if (s === 'warn' || s === 'warning' || s === 'todo') pillClass = 'pill-warn';
   else if (s === 'failed' || s === 'error' || s === 'bad') pillClass = 'pill-bad';
 
-  return `<span class="tag ${pillClass}">${label || status}</span>`;
+  return `<span class="tag ${pillClass}">${escapeHtml(label || status)}</span>`;
 }
 
 export default {

@@ -23,9 +23,9 @@ export default {
         </div>
         <div class="card" style="gap:var(--sp-3);">
           <span class="kicker">${t('workbench.selected_q', {}, 'Selected Question')}</span>
-          <strong>${question?.text || t('workbench.select_prompt', {}, 'Select a question from the question bank.')}</strong>
-          <span style="font-size:var(--fs-2);color:var(--muted);">${question?.id || t('workbench.no_qid', {}, 'No question ID')}${data.sample_date ? ` | ${t('workbench.latest_artifact', { date: data.sample_date }, `Latest sample artifact: ${data.sample_date}`)}` : ''}</span>
-          <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(data.sources || []).map((source) => `<span class="tag tag-neutral">${source.kind}: ${source.path}</span>`).join('')}</div>
+          <strong>${escapeHtml(question?.text || t('workbench.select_prompt', {}, 'Select a question from the question bank.'))}</strong>
+          <span style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(question?.id || t('workbench.no_qid', {}, 'No question ID'))}${data.sample_date ? ` | ${escapeHtml(t('workbench.latest_artifact', { date: data.sample_date }, `Latest sample artifact: ${data.sample_date}`))}` : ''}</span>
+          <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(data.sources || []).map((source) => `<span class="tag tag-neutral">${escapeHtml(source.kind)}: ${escapeHtml(source.path)}</span>`).join('')}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
           ${samples.length ? samples.map((sample) => {

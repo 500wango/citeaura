@@ -7,6 +7,8 @@ from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 
 from api.db import SessionLocal
 from api.models import Job, Project
+from api.adapters.sampling_control import release_reservation
+from api import config
 
 
 def as_utc(value):
@@ -25,7 +27,7 @@ def next_scheduled_run(scheduled_for, interval_days, now):
 
 def reclaim_stale_jobs(db, now):
     """回收超过 Celery 最大执行窗口仍活跃的任务，避免项目永久占用。"""
-    cutoff = now - timedelta(hours=2)
+    cutoff = now - timedelta(seconds=config.stale_running_job_timeout_seconds())
     stale_running = db.query(Job).filter(
         Job.status == "running",
         Job.started_at.isnot(None),
@@ -34,6 +36,7 @@ def reclaim_stale_jobs(db, now):
     stale_queued = db.query(Job).filter(
         Job.status == "queued",
         Job.created_at < cutoff,
+        Job.celery_task_id.is_(None),
     ).all()
     reclaimed = 0
     for job in stale_running + stale_queued:
@@ -42,6 +45,7 @@ def reclaim_stale_jobs(db, now):
         job.stage = "failed"
         job.finished_at = now
         job.error = "worker_lost_or_timeout"
+        release_reservation(job)
         if project is not None and project.status not in ("archived",):
             project.status = "failed"
         reclaimed += 1

@@ -27,7 +27,7 @@ class InviteRequest(BaseModel):
     @classmethod
     def normalize_email(cls, value):
         value = value.strip().lower()
-        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value):
+        if not re.fullmatch(r"[^@\s<>\"']+@[^@\s<>\"']+\.[^@\s<>\"']+", value):
             raise ValueError("invalid email")
         return value
 

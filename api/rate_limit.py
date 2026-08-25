@@ -136,3 +136,25 @@ def check_request(request, now=None):
         remaining=max(0, limit - count),
         reset_at=reset_at,
     )
+
+
+def check_account(identifier, now=None):
+    """按邮箱摘要限流，防止分布式来源共同攻击一个账号。"""
+    limit = config.rate_limit_auth_requests()
+    window = config.rate_limit_window_seconds()
+    current_time = time.time() if now is None else float(now)
+    bucket = int(current_time // window)
+    reset_at = (bucket + 1) * window
+    normalized = str(identifier or "").strip().lower()
+    subject_hash = hashlib.sha256(f"account:{normalized}".encode("utf-8")).hexdigest()[:24]
+    key = f"{RATE_LIMIT_PREFIX}:account:{bucket}:{subject_hash}"
+    try:
+        count = int(locking.redis_client().eval(INCREMENT_SCRIPT, 1, key, max(1, reset_at - int(current_time) + 1)))
+    except (RedisError, TypeError, ValueError) as exc:
+        raise RateLimitUnavailable("rate_limit_unavailable") from exc
+    return RateLimitDecision(
+        allowed=count <= limit,
+        limit=limit,
+        remaining=max(0, limit - count),
+        reset_at=reset_at,
+    )

@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from api.db import Base, get_db
 from api.main import app
 from api.models import BillingEvent, Job, PaymentTransaction, Project, Subscription, Tenant, UsageCounter
+from api.billing.limits import _count_sampled_jobs
 from api.billing import stripe as stripe_adapter
 from api.projects import router as project_router
 
@@ -175,6 +176,60 @@ def test_paid_project_limits_are_enforced_and_reported(billing_client):
         tenant.plan = "enterprise"
         db.commit()
     assert client.get("/api/v1/billing/usage", headers=headers).json()["projects_limit"] is None
+
+
+def test_restoring_archived_project_respects_the_active_project_limit(billing_client):
+    client, session_factory = billing_client
+    headers = _register(client, "restore-limit@example.com")
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "restore-limit").one()
+        db.add_all([
+            Project(tenant_id=tenant.id, slug=f"active-{index}", url=f"https://active-{index}.example", market="both")
+            for index in range(3)
+        ])
+        db.add(Project(
+            tenant_id=tenant.id,
+            slug="restore-limit-example",
+            url="https://restore-limit.example",
+            market="both",
+            status="archived",
+            archived_at=datetime.now(timezone.utc),
+        ))
+        db.commit()
+
+    response = client.post(
+        "/api/v1/projects",
+        headers=headers,
+        json={"url": "https://restore-limit.example"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"] == "trial_limit_exceeded"
+
+
+def test_started_failed_sample_still_counts_against_trial_quota(billing_client):
+    _, session_factory = billing_client
+    with session_factory() as db:
+        tenant = Tenant(name="failed-sample", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="failed-sample-project",
+            url="https://failed-sample.example",
+            market="both",
+        )
+        db.add(project)
+        db.flush()
+        db.add(Job(
+            project_id=project.id,
+            action="sample",
+            status="failed",
+            started_at=datetime.now(timezone.utc),
+        ))
+        db.commit()
+
+        assert _count_sampled_jobs(db, project_id=project.id) == 1
 
 
 def test_trial_sample_limit_is_per_project(billing_client, monkeypatch):

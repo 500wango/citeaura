@@ -23,6 +23,15 @@ def upgrade():
             "ix_jobs_budget_reservation_status", ["budget_reservation_status"], unique=False,
         )
 
+    # Jobs closed by the pre-0022 active-job migration cannot retain a
+    # reservation once the reservation columns exist.
+    op.execute(sa.text("""
+        UPDATE jobs
+        SET budget_reservation_status = 'released'
+        WHERE status = 'failed'
+          AND budget_reservation_status IS NULL
+    """))
+
     op.create_table(
         "refresh_tokens",
         sa.Column("id", sa.Integer(), nullable=False),

@@ -10,6 +10,7 @@ from api.audit import record_event
 from api.db import get_db
 from api.models import Membership, Tenant, User
 from api.auth.security import ACCESS_TOKEN_COOKIE, decode_token
+from api.billing.access import sync_tenant_plan
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
@@ -76,6 +77,8 @@ def get_current_user(
         tenant_id = int(payload["tenant_id"])
     except (KeyError, TypeError, ValueError, jwt.PyJWTError, RuntimeError):
         _unauthorized("invalid_token")
+
+    sync_tenant_plan(db, tenant_id)
 
     user = db.get(User, user_id)
     membership = db.get(Membership, {"tenant_id": tenant_id, "user_id": user_id})

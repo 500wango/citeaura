@@ -54,11 +54,11 @@ citeaura/
 
 | # | 问题 | 解法 |
 |---|------|------|
-| 1 | `geolib.die()` 调用 `sys.exit(1)` | Monkey-patch 为 `raise GeoEngineError(msg)` |
-| 2 | `geolib.project_dir(slug)` 无租户隔离 | 包装为 `project_dir(tenant_slug, slug)`，`WORK = ROOT/work/<tenant>` |
+| 1 | `geolib.die()` 调用 `sys.exit(1)` | 通过 `geolib.scoped_runtime` 的 ContextVar 注入 `raise GeoEngineError(msg)` |
+| 2 | `geolib.project_dir(slug)` 无租户隔离 | 通过 `geolib.scoped_paths` 的 ContextVar 包装租户工作目录 |
 | 3 | API Key 在 `.env` 全局环境变量 | 从 DB 解密 → `os.environ` 注入 → 调引擎 → 恢复 |
 | 4 | `jobs.py` 用子进程 | 替换为 Celery task，保留 action 白名单逻辑 |
-| 5 | `geolib.ROOT` 指向 engine/ | 运行时 patch `geolib.ROOT` 和 `geolib.WORK` |
+| 5 | `geolib.ROOT` 指向 engine/ | 运行时通过 `geolib.scoped_paths` 设置 ContextVar，不修改进程全局路径 |
 
 ## 技术栈
 
@@ -96,7 +96,7 @@ def run_bootstrap(tenant_id: str, project_slug: str):
         bootstrap.run(project_slug)
 ```
 
-`with_tenant_context` 负责：patch WORK 路径 → 注入 Key → patch die() → yield → 恢复。
+`with_tenant_context` 负责：设置租户路径和运行时钩子的 ContextVar → 注入 Key → yield → 恢复。
 
 ## 数据模型
 

@@ -83,7 +83,7 @@ export default {
             <textarea id="facts-markdown" class="input" rows="22" placeholder="# Brand facts\n\n## Definition\n\nWrite the approved one-sentence definition.\n\n## Verified claims\n\n- Claim - Source URL - Verified YYYY-MM-DD">${escapeHtml(facts.text || '')}</textarea>
             <span style="font-size:var(--fs-1);color:var(--muted);">${t('facts.markdown_tip', {}, 'This file is stored as <code>content/facts.md</code>. CiteAura does not mark a claim as verified without a source you provide.')}</span>
           </div>
-          <label style="display:flex;align-items:flex-start;gap:var(--sp-2);font-size:var(--fs-2);">
+          <label for="facts-approve" style="display:flex;align-items:flex-start;gap:var(--sp-2);font-size:var(--fs-2);">
             <input type="checkbox" id="facts-approve" ${facts.reviewed ? 'checked' : ''}>
             <span>${t('facts.approval_checkbox', {}, 'I reviewed every material claim, attached evidence, and approve this library for publishable derived assets. The diagnostic pack does not need this checkbox.')}</span>
           </label>

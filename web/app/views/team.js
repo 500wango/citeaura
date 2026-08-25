@@ -4,6 +4,7 @@
 
 import { team } from '../api.js?v=3.4';
 import { t, tError } from '../i18n.js';
+import { escapeHtml } from '../safe-html.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 
@@ -58,10 +59,10 @@ export default {
                   .map(
                     (m) => `
                   <tr>
-                    <td><strong>${m.email}</strong></td>
+                    <td><strong>${escapeHtml(m.email)}</strong></td>
                     <td>
                       <span class="tag ${m.role === 'owner' ? 'tag-accent' : 'tag-neutral'}">
-                        ${m.role || 'editor'}
+                        ${escapeHtml(m.role || 'editor')}
                       </span>
                     </td>
                     <td class="num">${m.created_at ? new Date(m.created_at).toLocaleDateString() : '—'}</td>
@@ -106,9 +107,9 @@ export default {
                     .map(
                       (inv) => `
                     <tr>
-                      <td><strong>${inv.email}</strong></td>
-                      <td><span class="tag tag-dim">${inv.role}</span></td>
-                      <td><span class="tag ${inv.status === 'pending' ? 'tag-accent' : 'tag-dim'}">${inv.status}</span></td>
+                    <td><strong>${escapeHtml(inv.email)}</strong></td>
+                    <td><span class="tag tag-dim">${escapeHtml(inv.role)}</span></td>
+                    <td><span class="tag ${inv.status === 'pending' ? 'tag-accent' : 'tag-dim'}">${escapeHtml(inv.status)}</span></td>
                       <td style="text-align:right;">
                         <button type="button" class="btn btn-ghost btn-sm btn-revoke-inv" data-id="${inv.id}" style="color:var(--bad);" ${inv.status === 'pending' ? '' : 'disabled'}>
                           ${t('team.revoke', {}, 'Revoke')}
@@ -198,7 +199,7 @@ function showInvitationLink(url) {
       <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
         <div class="field" style="margin:0;">
           <label>${t('team.invitation_link_label', {}, 'Invitation Link')}</label>
-          <input type="text" id="created-invite-url" class="input" value="${url}" readonly>
+          <input type="text" id="created-invite-url" class="input" value="${escapeHtml(url)}" readonly>
         </div>
         <button type="button" id="copy-created-invite" class="btn btn-primary">${t('common.copy_link', {}, 'Copy Link')}</button>
       </div>

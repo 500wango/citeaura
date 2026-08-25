@@ -3,7 +3,7 @@
  */
 
 import { auth, projects, onAuthFailure } from './api.js?v=3.5';
-import { t, loadCatalogs, getLocale, setLocale, detectLocale, localizeRenderedText, SUPPORTED_LOCALES, LOCALE_LABELS } from './i18n.js';
+import { t, tError, loadCatalogs, getLocale, setLocale, detectLocale, localizeRenderedText, SUPPORTED_LOCALES, LOCALE_LABELS } from './i18n.js';
 import { toast } from './components/toast.js';
 import { escapeHtml, setSafeHtml } from './safe-html.js';
 import { openTelemetryModal } from './components/telemetry-modal.js?v=2.6';
@@ -317,7 +317,7 @@ async function renderApp() {
     } catch (err) {
       if (renderId !== renderSequence) return;
       console.error('Failed to mount view:', err);
-      setSafeHtml(viewContainer, `<div class="app-view-container"><div class="banner bad">Error loading view: ${err.message}</div></div>`);
+      setSafeHtml(viewContainer, `<div class="app-view-container"><div class="banner bad">${escapeHtml(tError(err))}</div></div>`);
     }
   }
 

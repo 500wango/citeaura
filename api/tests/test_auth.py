@@ -120,8 +120,8 @@ def test_auth_rejects_duplicate_and_invalid_credentials(client):
     assert client.post("/api/v1/auth/register", json=payload).status_code == 201
 
     duplicate = client.post("/api/v1/auth/register", json=payload)
-    assert duplicate.status_code == 409
-    assert duplicate.json() == {"error": "email_already_registered"}
+    assert duplicate.status_code == 202
+    assert duplicate.json() == {"accepted": True}
 
     invalid = client.post(
         "/api/v1/auth/login",
@@ -225,6 +225,20 @@ def test_logout_clears_both_session_cookies(client):
     assert rejected.status_code == 401
     with client.session_factory() as db:
         assert db.query(User).filter(User.email == payload["email"]).one().session_version == 1
+
+
+def test_logout_ignores_stale_bearer_and_revokes_current_cookie_session(client):
+    payload = {"email": "logout-stale@example.com", "password": "correct-horse-battery"}
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    first = client.post("/api/v1/auth/login", json=payload).json()
+    client.cookies.delete("citeaura_access_token")
+    current = client.post("/api/v1/auth/login", json=payload).json()
+    response = client.post(
+        "/api/v1/auth/logout",
+        headers={"Authorization": f"Bearer {first['access_token']}"},
+    )
+    assert response.status_code == 200
+    assert client.post("/api/v1/auth/refresh", json={"refresh_token": current["refresh_token"]}).status_code == 401
 
 
 def test_password_reset_is_non_enumerating_single_use_and_hashed(client, monkeypatch):

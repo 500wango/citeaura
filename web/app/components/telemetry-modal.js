@@ -22,6 +22,8 @@ let isFetching = false;
 let completionHandled = false;
 let currentOnClose = null;
 let currentOnComplete = null;
+let previouslyFocused = null;
+let modalKeydownHandler = null;
 
 const AUTOPILOT_STAGES = [
   { key: 'crawl', labelKey: 'telemetry.stage.crawl_website', label: 'Crawl Website' },
@@ -187,6 +189,7 @@ function resetForRetry(jobId) {
   completionHandled = false;
   startTime = Date.now();
   streamToken += 1;
+  isFetching = false;
 
   const jobLabel = document.getElementById('tel-job-id');
   const progressBar = document.getElementById('tel-progress-bar');
@@ -243,6 +246,8 @@ export function openTelemetryModal({
   onComplete = null,
 }) {
   closeTelemetryModal();
+  isFetching = false;
+  previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
   currentProjectId = projectId;
   currentJobId = jobId;
@@ -330,6 +335,29 @@ export function openTelemetryModal({
   `;
 
   setSafeHtml(root, modalHtml);
+
+  const dialog = root.querySelector('.telemetry-box');
+  modalKeydownHandler = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeWithCallback();
+      return;
+    }
+    if (event.key !== 'Tab' || !dialog) return;
+    const focusable = dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+  document.addEventListener('keydown', modalKeydownHandler);
+  queueMicrotask(() => dialog?.querySelector('button, [href], input, select, textarea')?.focus?.({ preventScroll: true }));
 
   document.getElementById('tel-close-btn')?.addEventListener('click', closeWithCallback);
   bindBackgroundButton();
@@ -459,7 +487,7 @@ async function fetchLogChunk(token) {
     }
     console.warn('Telemetry log fetch error:', error);
   } finally {
-    if (token === streamToken) isFetching = false;
+    isFetching = false;
   }
 }
 
@@ -479,6 +507,13 @@ export function closeTelemetryModal() {
   currentOnClose = null;
   currentOnComplete = null;
   isFetching = false;
+  if (modalKeydownHandler) {
+    document.removeEventListener('keydown', modalKeydownHandler);
+    modalKeydownHandler = null;
+  }
   const root = document.getElementById('telemetry-modal-root');
   if (root) root.replaceChildren();
+  const focusTarget = previouslyFocused;
+  previouslyFocused = null;
+  if (focusTarget && document.contains(focusTarget)) focusTarget.focus({ preventScroll: true });
 }

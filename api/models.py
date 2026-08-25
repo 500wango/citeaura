@@ -302,6 +302,7 @@ class Subscription(Base):
     provider_checkout_session_id = Column(String(255), nullable=True, unique=True)
     started_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=True)
+    provider_event_created_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     tenant = relationship("Tenant", back_populates="subscriptions")
@@ -338,6 +339,7 @@ class PaymentTransaction(Base):
     status = Column(String(32), nullable=False)
     currency = Column(String(3), nullable=False)
     amount_usd_cents = Column(Integer, nullable=True)
+    amount_cny_fen = Column(Integer, nullable=True)
     billing_country_code = Column(String(2), nullable=True, index=True)
     occurred_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

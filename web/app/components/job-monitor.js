@@ -56,7 +56,7 @@ export function createJobMonitor({ state, projects, toast, t, openTelemetryModal
             ? Number(active.progress)
             : (active.status === 'running' ? 45 : 10);
           setSafeHtml(indicator, `
-            <div class="active-job-capsule" id="header-job-capsule" title="${t('telemetry.title', {}, 'Click to view live execution logs & telemetry')}">
+            <button type="button" class="active-job-capsule" id="header-job-capsule" title="${t('telemetry.title', {}, 'Click to view live execution logs & telemetry')}" aria-label="${escapeHtml(`${actionLabel}: ${stageLabel}`)}">
               <div class="job-capsule-content">
                 <span class="job-spinner"></span>
                 <span class="job-action-label">${escapeHtml(actionLabel)}</span>
@@ -64,7 +64,7 @@ export function createJobMonitor({ state, projects, toast, t, openTelemetryModal
                 <span class="job-pct-badge">${progressVal}%</span>
               </div>
               <div class="job-capsule-bar"><div class="job-capsule-fill" style="width: ${progressVal}%;"></div></div>
-            </div>
+            </button>
           `);
           document.getElementById('header-job-capsule')?.addEventListener('click', () => {
             openTelemetryModal({ projectId: state.activeProjectId, jobId: active.id, actionName: active.action });

@@ -174,6 +174,31 @@ def platform_pool_prices():
     return os.getenv("PLATFORM_POOL_PRICES_CNY_FEN", "{}").strip()
 
 
+def platform_pool_tenant_monthly_call_limit():
+    """每个租户的平台代付月调用硬上限。"""
+    return _integer("PLATFORM_POOL_TENANT_MONTHLY_CALL_LIMIT", 10_000, maximum=100_000_000)
+
+
+def platform_pool_tenant_monthly_cost_cny_fen_limit():
+    """每个租户的平台代付月成本硬上限（分）。"""
+    return _integer("PLATFORM_POOL_TENANT_MONTHLY_COST_CNY_FEN_LIMIT", 500_000, maximum=1_000_000_000)
+
+
+def platform_pool_global_monthly_call_limit():
+    """整个平台的平台代付月调用硬上限。"""
+    return _integer("PLATFORM_POOL_GLOBAL_MONTHLY_CALL_LIMIT", 100_000, maximum=1_000_000_000)
+
+
+def platform_pool_global_monthly_cost_cny_fen_limit():
+    """整个平台的平台代付月成本硬上限（分）。"""
+    return _integer("PLATFORM_POOL_GLOBAL_MONTHLY_COST_CNY_FEN_LIMIT", 5_000_000, maximum=2_000_000_000)
+
+
+def stale_running_job_timeout_seconds():
+    """硬超时后的 Job 回收窗口，必须略大于 Celery 硬超时。"""
+    return _integer("STALE_RUNNING_JOB_TIMEOUT_SECONDS", 4_500, minimum=3_660, maximum=86_400)
+
+
 def billing_annual_discount_percent():
     """返回年付折扣百分比，非法配置回退到付 10 个月。"""
     try:

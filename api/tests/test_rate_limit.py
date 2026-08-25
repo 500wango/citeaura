@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from api import config
 from api import rate_limit
 
@@ -35,3 +37,27 @@ def test_source_ip_ignores_invalid_forwarded_values(monkeypatch):
     )
 
     assert rate_limit._source_ip(request) == "192.0.2.44"
+
+
+def test_account_rate_limit_is_normalized_and_fail_closed(monkeypatch):
+    calls = []
+
+    class Redis:
+        def eval(self, script, count, key, expiry):
+            calls.append((key, expiry))
+            return len(calls)
+
+    monkeypatch.setattr(rate_limit.locking, "redis_client", lambda: Redis())
+    monkeypatch.setattr(config, "rate_limit_auth_requests", lambda: 1)
+    first = rate_limit.check_account(" Owner@Example.com ", now=120)
+    second = rate_limit.check_account("owner@example.com", now=120)
+    assert first.allowed is True
+    assert second.allowed is False
+    assert calls[0][0] == calls[1][0]
+
+    def unavailable():
+        raise __import__("redis").exceptions.ConnectionError("offline")
+
+    monkeypatch.setattr(rate_limit.locking, "redis_client", unavailable)
+    with pytest.raises(rate_limit.RateLimitUnavailable):
+        rate_limit.check_account("owner@example.com", now=120)

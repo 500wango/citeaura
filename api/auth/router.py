@@ -30,6 +30,7 @@ from api.auth.security import (
     hash_password,
     verify_password,
 )
+from api.rate_limit import RateLimitUnavailable, check_account
 from api.country import request_country_code
 from api.analytics.router import request_visitor
 from api.db import get_db
@@ -175,12 +176,14 @@ def register(
     request: Request,
     payload: RegisterRequest,
     background_tasks: BackgroundTasks,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     """创建用户、默认租户和 owner membership。"""
     if db.query(User.id).filter(User.email == payload.email).first() is not None:
         verify_password(payload.password, DUMMY_PASSWORD_HASH)
-        _error(status.HTTP_409_CONFLICT, "email_already_registered")
+        response.status_code = status.HTTP_202_ACCEPTED
+        return {"accepted": True}
 
     invitation = invitation_for_token(db, payload.invitation_token, for_update=True) if payload.invitation_token else None
     country_code = request_country_code(request)
@@ -280,6 +283,12 @@ def register(
 @router.post("/auth/login")
 def login(request: Request, payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
     """验证密码并返回 access/refresh JWT。"""
+    try:
+        decision = check_account(payload.email)
+    except RateLimitUnavailable:
+        _error(status.HTTP_503_SERVICE_UNAVAILABLE, "rate_limit_unavailable")
+    if not decision.allowed:
+        _error(status.HTTP_429_TOO_MANY_REQUESTS, "rate_limit_exceeded")
     user = db.query(User).filter(User.email == payload.email).first()
     if user is None:
         verify_password(payload.password, DUMMY_PASSWORD_HASH)
@@ -415,7 +424,7 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
                 RefreshToken.revoked_at.is_(None),
             ).update({RefreshToken.revoked_at: datetime.now(timezone.utc)}, synchronize_session=False)
             db.commit()
-        break
+        continue
     response.delete_cookie(ACCESS_TOKEN_COOKIE, path="/", httponly=True, secure=config.session_cookie_secure(), samesite="strict")
     response.delete_cookie(REFRESH_TOKEN_COOKIE, path="/", httponly=True, secure=config.session_cookie_secure(), samesite="strict")
     response.headers["Cache-Control"] = "no-store"

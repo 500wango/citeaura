@@ -97,7 +97,7 @@ services:
       target: worker
     command: >-
       celery -A api.worker.celery_app beat --loglevel=INFO
-      --schedule=/tmp/citeaura-celerybeat-schedule"
+      --schedule=/tmp/citeaura-celerybeat-schedule
 
 volumes:
   postgres_data:

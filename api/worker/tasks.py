@@ -653,6 +653,7 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
         if job.status == "running" and redelivered_task_id and job.celery_task_id == redelivered_task_id:
             next_attempt = int(job.attempt or 1) + 1
             if next_attempt > MAX_JOB_ATTEMPTS:
+                sampling_control.release_reservation(job)
                 db.query(Job).filter(Job.id == job.id, Job.status == "running").update({
                     Job.status: "failed",
                     Job.stage: "failed",
@@ -754,6 +755,7 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                 job.stage = "failed"
                 job.finished_at = datetime.now(timezone.utc)
                 job.error = error_message
+                sampling_control.release_reservation(job)
                 if project is not None:
                     project.status = "failed"
 
@@ -837,6 +839,7 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                     job.stage = "failed"
                     job.finished_at = datetime.now(timezone.utc)
                     job.error = "completion_status_persist_failed"
+                    sampling_control.release_reservation(job)
                     if project is not None:
                         project.status = "failed"
 
@@ -1069,8 +1072,7 @@ def task_dispatch_schedules(now_iso=None):
                 continue
             try:
                 check_sample_run(db, tenant, project)
-                if project.monthly_budget_cny_fen is not None or project.sample_call_limit is not None:
-                    sampling_control.ensure_allowed(db, tenant, project, allow_pool=True)
+                sampling_control.ensure_allowed(db, tenant, project, allow_pool=True)
             except (HTTPException, sampling_control.SamplingBudgetExceeded):
                 result["quota_blocked"] += 1
                 scheduled_for = project.schedule_next_run_at
@@ -1087,6 +1089,20 @@ def task_dispatch_schedules(now_iso=None):
             previous_last_enqueued = project.schedule_last_enqueued_at
             job = Job(project_id=project.id, action="cycle", status="queued", stage="queued", request_json="{}")
             db.add(job)
+            try:
+                sampling_control.reserve(db, tenant, project, job, allow_pool=True)
+            except (HTTPException, sampling_control.SamplingBudgetExceeded):
+                db.rollback()
+                blocked_project = db.get(Project, project_id)
+                if blocked_project is not None:
+                    blocked_project.schedule_next_run_at = _next_scheduled_run(
+                        scheduled_for,
+                        blocked_project.schedule_interval_days,
+                        now,
+                    )
+                    db.commit()
+                result["quota_blocked"] += 1
+                continue
             project.status = "processing"
             project.schedule_last_enqueued_at = now
             project.schedule_next_run_at = _next_scheduled_run(
@@ -1110,6 +1126,7 @@ def task_dispatch_schedules(now_iso=None):
                 job.status = "failed"
                 job.error = f"{type(exc).__name__}: {exc}"
                 job.finished_at = now
+                sampling_control.release_reservation(job)
                 project.status = previous_status
                 project.schedule_next_run_at = scheduled_for
                 project.schedule_last_enqueued_at = previous_last_enqueued

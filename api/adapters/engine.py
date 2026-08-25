@@ -150,40 +150,6 @@ def with_tenant_read_context(tenant_id: str, project_slug: str):
         yield
 
 
-def patch_die():
-    """将引擎的 sys.exit 错误改为 GeoEngineError，并返回原函数。"""
-    previous = geolib.die
-
-    def raise_error(message, code=1):
-        raise GeoEngineError(message)
-
-    geolib.die = raise_error
-    return previous
-
-
-def patch_paths(tenant_slug: str, project_slug: str):
-    """临时把引擎路径切到租户工作区，并返回原路径。"""
-    tenant_slug = _valid_slug(tenant_slug, "tenant")
-    _valid_slug(project_slug, "project")
-    previous = (geolib.ROOT, geolib.WORK)
-    geolib.ROOT = PROJECT_ROOT
-    geolib.WORK = WORK_ROOT / tenant_slug
-    return previous
-
-
-def patch_project_lock(tenant_slug: str):
-    """把引擎文件锁临时替换为带租户隔离的 Redis 锁。"""
-    tenant_slug = _valid_slug(tenant_slug, "tenant")
-    previous = geolib.project_lock
-
-    def distributed_lock(project_slug):
-        project_slug = _valid_slug(project_slug, "project")
-        return locking.project_lock(tenant_slug, project_slug)
-
-    geolib.project_lock = distributed_lock
-    return previous
-
-
 def _environment_name(name: str) -> str:
     """把引擎代码转换为引擎约定的 API Key 环境变量名。"""
     name = str(name)
@@ -339,7 +305,7 @@ def resolve_tenant(db, tenant_id):
 def load_tenant_keys(db, tenant_id):
     """从数据库解密当前租户的 Key，供 worker 注入环境变量。"""
     from api.models import ApiKey, CustomProvider
-    from api.settings.crypto import decrypt_key
+    from api.settings.crypto import decrypt_key, key_aad
 
     tenant = resolve_tenant(db, tenant_id)
     if tenant is None:
@@ -349,19 +315,19 @@ def load_tenant_keys(db, tenant_id):
         ApiKey.engine_code.in_(tuple(ENGINE_KEY_ENV)),
     ).all()
     keys = {
-        str(row.engine_code).strip().lower(): decrypt_key(row.encrypted_value)
+        str(row.engine_code).strip().lower(): decrypt_key(row.encrypted_value, key_aad(row.tenant_id, row.engine_code))
         for row in rows
         if str(row.engine_code).strip().lower() in ENGINE_KEY_ENV
     }
     custom_rows = db.query(CustomProvider).filter(CustomProvider.tenant_id == tenant.id).all()
-    keys.update({row.code: decrypt_key(row.encrypted_api_key) for row in custom_rows})
+    keys.update({row.code: decrypt_key(row.encrypted_api_key, key_aad(row.tenant_id, row.code)) for row in custom_rows})
     return keys
 
 
 def load_custom_providers(db, tenant_id):
     """读取当前租户的自定义供应商配置（含仅供运行时使用的 Key）。"""
     from api.models import CustomProvider
-    from api.settings.crypto import decrypt_key
+    from api.settings.crypto import decrypt_key, key_aad
 
     tenant = resolve_tenant(db, tenant_id)
     if tenant is None:
@@ -374,7 +340,7 @@ def load_custom_providers(db, tenant_id):
             "base_url": row.base_url,
             "model_id": row.model_id,
             "market": row.market or "both",
-            "api_key": decrypt_key(row.encrypted_api_key),
+            "api_key": decrypt_key(row.encrypted_api_key, key_aad(row.tenant_id, row.code)),
         }
         for row in rows
     ]

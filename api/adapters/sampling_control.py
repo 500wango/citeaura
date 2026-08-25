@@ -2,13 +2,14 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 from api.adapters.engine import geolib, load_custom_providers, with_tenant_context
 from api.adapters import measurement, sampling_modes
 from api.billing.platform_pool import resolve_funding
 from api.models import Job, PlatformUsage, Project, Tenant
 from api.billing.limits import check_sample_run
+from api import config as app_config
 
 
 class SamplingBudgetExceeded(ValueError):
@@ -112,8 +113,75 @@ def _project_pool_reservations(db, project_id):
     ).filter(
         Job.project_id == project_id,
         Job.budget_reservation_status.in_(("reserved", "review")),
+        (
+            ((Job.budget_reservation_status == "reserved") & Job.status.in_(("queued", "running")))
+            | ((Job.budget_reservation_status == "review") & Job.finished_at.isnot(None))
+        ),
     ).one()
     return {"calls": int(calls or 0), "cost_cny_fen": int(amount or 0)}
+
+
+def _pool_spend(db, tenant_id=None):
+    """返回指定租户或全局当月已结算的平台池支出。"""
+    start, end = _month_range()
+    query = db.query(
+        func.coalesce(func.sum(PlatformUsage.calls), 0),
+        func.coalesce(func.sum(PlatformUsage.amount_cny_fen), 0),
+    ).filter(
+        PlatformUsage.created_at >= start,
+        PlatformUsage.created_at < end,
+    )
+    if tenant_id is not None:
+        query = query.filter(PlatformUsage.tenant_id == tenant_id)
+    calls, amount = query.one()
+    return {"calls": int(calls or 0), "cost_cny_fen": int(amount or 0)}
+
+
+def _pool_reservations(db, tenant_id=None):
+    """返回仍会占用平台池硬上限的未结算预留。"""
+    query = db.query(
+        func.coalesce(func.sum(Job.reserved_platform_calls), 0),
+        func.coalesce(func.sum(Job.reserved_platform_cost_cny_fen), 0),
+    ).join(Project, Project.id == Job.project_id).filter(
+        Job.budget_reservation_status.in_(("reserved", "review")),
+        (
+            ((Job.budget_reservation_status == "reserved") & Job.status.in_(("queued", "running")))
+            | ((Job.budget_reservation_status == "review") & Job.finished_at.isnot(None))
+        ),
+    )
+    if tenant_id is not None:
+        query = query.filter(Project.tenant_id == tenant_id)
+    calls, amount = query.one()
+    return {"calls": int(calls or 0), "cost_cny_fen": int(amount or 0)}
+
+
+def _limit_state(usage, reservations, added_calls, added_cost, call_limit, cost_limit):
+    projected_calls = usage["calls"] + reservations["calls"] + added_calls
+    projected_cost = usage["cost_cny_fen"] + reservations["cost_cny_fen"] + added_cost
+    return {
+        "call_limit": call_limit,
+        "cost_cny_fen_limit": cost_limit,
+        "used_calls": usage["calls"],
+        "used_cost_cny_fen": usage["cost_cny_fen"],
+        "reserved_calls": reservations["calls"],
+        "reserved_cost_cny_fen": reservations["cost_cny_fen"],
+        "projected_calls": projected_calls,
+        "projected_cost_cny_fen": projected_cost,
+        "calls_exceeded": bool(added_calls and projected_calls > call_limit),
+        "cost_exceeded": bool(added_cost and projected_cost > cost_limit),
+    }
+
+
+def _lock_platform_pool_budget(db):
+    """用事务级全局锁串行化 PostgreSQL 的平台池额度预留。"""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(274911)"))
+
+
+def release_reservation(job):
+    """释放未结算的平台池预留，保留估算金额供审计。"""
+    if job is not None and job.budget_reservation_status in ("reserved", "review"):
+        job.budget_reservation_status = "released"
 
 
 def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, question_ids=None, allow_pool=True):
@@ -128,7 +196,7 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, quest
     custom_providers = load_custom_providers(db, tenant.id)
     with with_tenant_context(tenant.directory_slug, project.slug, custom_providers=custom_providers):
         config_path = geolib.project_dir(project.slug) / "geo.json"
-        config = geolib.load_config(project.slug) if config_path.is_file() else {
+        project_config = geolib.load_config(project.slug) if config_path.is_file() else {
             "questions": [],
             "platforms": list(requested or []),
         }
@@ -136,7 +204,7 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, quest
         custom_codes = set(configured)
         project_market = getattr(project, "market", None)
         if project_market not in ("cn", "global", "both"):
-            project_market = config.get("market") if config.get("market") in ("cn", "global", "both") else "both"
+            project_market = project_config.get("market") if project_config.get("market") in ("cn", "global", "both") else "both"
         if requested:
             mismatched = [
                 code for code in requested
@@ -145,7 +213,7 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, quest
             if mismatched:
                 raise SamplingPlatformMarketMismatch(mismatched, project_market)
         requested = list(dict.fromkeys(requested or default_sample_platforms(
-            funding, custom_providers, list(config.get("platforms", [])) + configured,
+            funding, custom_providers, list(project_config.get("platforms", [])) + configured,
             project_market,
         )))
         items = []
@@ -168,7 +236,7 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, quest
                 source = "byok"
             else:
                 source = "unavailable"
-            question_count = len(sample.questions_for(config, code, selected_question_ids or None))
+            question_count = len(sample.questions_for(project_config, code, selected_question_ids or None))
             if limit:
                 question_count = min(question_count, int(limit))
             calls = question_count * int(repeat) if source != "unavailable" else 0
@@ -198,14 +266,40 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, quest
 
     usage = _project_pool_spend(db, project.id)
     reservations = _project_pool_reservations(db, project.id)
+    tenant_usage = _pool_spend(db, tenant.id)
+    tenant_reservations = _pool_reservations(db, tenant.id)
+    global_usage = _pool_spend(db)
+    global_reservations = _pool_reservations(db)
+    tenant_limits = _limit_state(
+        tenant_usage,
+        tenant_reservations,
+        pool_calls,
+        pool_cost,
+        app_config.platform_pool_tenant_monthly_call_limit(),
+        app_config.platform_pool_tenant_monthly_cost_cny_fen_limit(),
+    )
+    global_limits = _limit_state(
+        global_usage,
+        global_reservations,
+        pool_calls,
+        pool_cost,
+        app_config.platform_pool_global_monthly_call_limit(),
+        app_config.platform_pool_global_monthly_cost_cny_fen_limit(),
+    )
     budget = project.monthly_budget_cny_fen
     projected = usage["cost_cny_fen"] + reservations["cost_cny_fen"] + pool_cost
     call_limit_exceeded = project.sample_call_limit is not None and total_calls > project.sample_call_limit
     budget_exceeded = budget is not None and pool_calls > 0 and projected > budget
-    paused = bool(project.pause_on_budget_exceeded and (call_limit_exceeded or budget_exceeded))
+    tenant_pool_exceeded = tenant_limits["calls_exceeded"] or tenant_limits["cost_exceeded"]
+    global_pool_exceeded = global_limits["calls_exceeded"] or global_limits["cost_exceeded"]
+    paused = bool(
+        (project.pause_on_budget_exceeded and (call_limit_exceeded or budget_exceeded))
+        or tenant_pool_exceeded
+        or global_pool_exceeded
+    )
     return {
         "project_id": project.id,
-        "question_set_version": measurement.question_set_version(config),
+        "question_set_version": measurement.question_set_version(project_config),
         "question_ids": sorted(selected_question_ids),
         "platforms": items,
         "estimate": {
@@ -232,7 +326,13 @@ def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, quest
             ),
             "call_limit_exceeded": call_limit_exceeded,
             "budget_exceeded": budget_exceeded,
+            "tenant_platform_pool_limit_exceeded": tenant_pool_exceeded,
+            "global_platform_pool_limit_exceeded": global_pool_exceeded,
             "paused": paused,
+        },
+        "platform_pool_limits": {
+            "tenant": tenant_limits,
+            "global": global_limits,
         },
     }
 
@@ -241,13 +341,19 @@ def ensure_allowed(db, tenant, project, **kwargs):
     result = estimate(db, tenant, project, **kwargs)
     budget = result["budget"]
     if budget["paused"]:
-        code = "sample_call_limit_exceeded" if budget["call_limit_exceeded"] else "monthly_budget_exceeded"
+        if budget["global_platform_pool_limit_exceeded"]:
+            code = "platform_pool_global_limit_exceeded"
+        elif budget["tenant_platform_pool_limit_exceeded"]:
+            code = "platform_pool_tenant_limit_exceeded"
+        else:
+            code = "sample_call_limit_exceeded" if budget["call_limit_exceeded"] else "monthly_budget_exceeded"
         raise SamplingBudgetExceeded(code, result)
     return result
 
 
 def reserve(db, tenant, project, job, **kwargs):
     """Lock the project budget row and reserve an estimated platform-pool amount."""
+    _lock_platform_pool_budget(db)
     locked_tenant = db.query(Tenant).filter(Tenant.id == tenant.id).with_for_update().one()
     locked_project = db.query(Project).filter(Project.id == project.id).with_for_update().one()
     check_sample_run(db, locked_tenant, locked_project)

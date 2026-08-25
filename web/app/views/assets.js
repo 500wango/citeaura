@@ -37,9 +37,9 @@ function renderCampaignProposals(campaigns) {
           <p>${t('assets.proposals_desc', {}, 'Evidence-backed interventions awaiting measurement, fact review, or human approval.')}</p>
         </div>
         <div class="campaign-proposal-counts" aria-label="Campaign proposal status counts">
-          <span class="tag pill-good">${counts.ready_for_approval || 0} ready</span>
-          <span class="tag pill-warn">${counts.review_required || 0} review</span>
-          <span class="tag pill-bad">${counts.blocked || 0} blocked</span>
+            <span class="tag pill-good">${counts.ready_for_approval || 0} ${t('assets.ready_for_approval', {}, 'Ready for approval')}</span>
+            <span class="tag pill-warn">${counts.review_required || 0} ${t('common.review_required', {}, 'Review required')}</span>
+            <span class="tag pill-bad">${counts.blocked || 0} ${t('assets.blocked', {}, 'Blocked')}</span>
         </div>
       </div>
       ${items.length ? `<div class="campaign-proposal-list">${items.map((proposal) => {
@@ -65,8 +65,8 @@ function renderCampaignProposals(campaigns) {
             <p class="campaign-proposal-objective">${escapeHtml(proposal.objective || '')}</p>
             <div class="campaign-proposal-evidence">
               <span><strong>${escapeHtml(opportunity)}</strong></span>
-              <span>Aggregate mention ${escapeHtml(percent(promptEvidence.mention_rate))} · n=${Number(promptEvidence.samples || 0)}</span>
-              <span>${baselines.length} separate cohort baseline${baselines.length === 1 ? '' : 's'}</span>
+              <span>${t('engines.col_mention_rate', {}, 'Aggregate mention')} ${escapeHtml(percent(promptEvidence.mention_rate))} · n=${Number(promptEvidence.samples || 0)}</span>
+              <span>${escapeHtml(t('assets.cohort_baselines', { count: baselines.length }, '{count} separate cohort baseline(s)'))}</span>
               ${takeoverEvidence.slice(0, 2).map((item) => `<span>${escapeHtml(item.competitor || 'Competitor')} · ${escapeHtml(item.engine_name || '')} · ${escapeHtml(item.sampling_mode || '')}</span>`).join('')}
             </div>
           </div>
@@ -84,10 +84,10 @@ function renderCampaignProposals(campaigns) {
               </div>
             </div>
             <div class="campaign-proposal-links" aria-label="Campaign workflow">
-              <span class="tag ${workflow.evidence?.status === 'available' ? 'pill-good' : 'pill-warn'}">Evidence ${escapeHtml(workflow.evidence?.status || 'pending')}</span>
-              <span class="tag ${workflow.ticket?.status === 'linked' ? 'tag-neutral' : 'tag-dim'}">Ticket ${escapeHtml(workflow.ticket?.status || 'missing')}</span>
-              <span class="tag ${workflow.asset?.status === 'linked' ? 'tag-neutral' : 'tag-dim'}">Asset ${escapeHtml(workflow.asset?.status || 'missing')}</span>
-              <span class="tag ${workflow.review?.status === 'ready' ? 'pill-good' : 'pill-warn'}">Review ${escapeHtml(workflow.review?.status || 'required')}</span>
+              <span class="tag ${workflow.evidence?.status === 'available' ? 'pill-good' : 'pill-warn'}">${t('competitors.col_evidence', {}, 'Evidence')} ${escapeHtml(workflow.evidence?.status || 'pending')}</span>
+              <span class="tag ${workflow.ticket?.status === 'linked' ? 'tag-neutral' : 'tag-dim'}">${t('verify.col_ticket', {}, 'Ticket')} ${escapeHtml(workflow.ticket?.status || 'missing')}</span>
+              <span class="tag ${workflow.asset?.status === 'linked' ? 'tag-neutral' : 'tag-dim'}">${t('assets.file_label', {}, 'Asset')} ${escapeHtml(workflow.asset?.status || 'missing')}</span>
+              <span class="tag ${workflow.review?.status === 'ready' ? 'pill-good' : 'pill-warn'}">${t('common.review_required', {}, 'Review')} ${escapeHtml(workflow.review?.status || 'required')}</span>
               <span class="tag tag-dim">${t('assets.verify_pending', {}, 'Verify pending')}</span>
             </div>
             <a class="btn btn-secondary btn-sm campaign-proposal-action" data-action="${escapeHtml(proposal.next_step?.action || '')}" data-question-id="${escapeHtml(questionId)}" href="${escapeHtml(proposal.next_step?.route || '#/assets')}">${escapeHtml(proposal.next_step?.label || 'Review proposal')}</a>
@@ -128,7 +128,7 @@ export default {
             : `<button type="button" id="btn-generate-assets" class="btn btn-primary btn-sm">${t('assets.generate_btn', {}, 'Generate assets')}</button>`}</div>
         </div>
         ${renderCampaignProposals(campaigns)}
-        ${reviewRequired.length ? `<div class="banner warn" style="margin-bottom:var(--sp-4);"><div><strong>Review required.</strong> ${reviewRequired.length} derived asset(s) cannot be published until the brand fact library and supporting evidence are approved.</div></div>` : ''}
+        ${reviewRequired.length ? `<div class="banner warn" style="margin-bottom:var(--sp-4);"><div><strong>${t('common.review_required', {}, 'Review required')}.</strong> ${escapeHtml(t('assets.review_blocked_notice', { count: reviewRequired.length }, '{count} derived asset(s) cannot be published until the brand fact library and supporting evidence are approved.'))}</div></div>` : ''}
         ${assets.length ? `<div class="card" style="gap:var(--sp-4);">
           <div class="field" style="margin:0;">
             <label for="asset-path">${t('assets.file_label', {}, 'Asset file')}</label>
