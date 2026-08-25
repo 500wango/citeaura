@@ -122,6 +122,17 @@ function escapeHtml(value) {
     });
   }
 
+  function applyNavGroupLabels() {
+    var keys = { Product: 'nav.product_group', Solutions: 'nav.solutions_group', Resources: 'nav.resources_group' };
+    $$('.nav-group summary').forEach(function (summary) {
+      var textNode = summary.firstChild;
+      if (!textNode || textNode.nodeType !== 3) return;
+      var source = normalizeText(textNode.nodeValue);
+      var value = catalogValue(keys[source]);
+      if (value != null) textNode.nodeValue = ' ' + value + ' ';
+    });
+  }
+
   function applyI18n() {
     $$('[data-i18n]').forEach(function (node) {
       var key = node.getAttribute('data-i18n');
@@ -183,6 +194,7 @@ function escapeHtml(value) {
     });
     applyBilling();
     renderThemeControl();
+    applyNavGroupLabels();
     refreshPreviewLocale();
     localizeLegacyText();
   }
@@ -267,7 +279,8 @@ function escapeHtml(value) {
   function initNav() {
     var header = $('.site-header');
     var toggle = $('.nav-menu-toggle');
-    if (!header || !toggle) return;
+    if (!header || !toggle || toggle.dataset.navBound === 'true') return;
+    toggle.dataset.navBound = 'true';
     toggle.addEventListener('click', function () {
       var open = header.classList.toggle('nav-open');
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');

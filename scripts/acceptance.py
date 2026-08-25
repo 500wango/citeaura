@@ -145,6 +145,7 @@ def collect_checks(base_url, production=False):
             "/site-assets/styles/tokens.css",
             "/site-assets/styles/landing.css",
             "/site-assets/landing.js",
+            "/site-assets/site-nav.js",
             "/site-assets/seo-attribution.js",
             "/site-assets/styles/seo-pages.css",
             "/site-assets/product-audit-clay.webp",

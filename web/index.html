@@ -17,6 +17,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <script defer src="/site-assets/landing.js?v=3.4"></script>
+  <script defer src="/site-assets/site-nav.js?v=1.0"></script>
   <script defer src="/site-assets/seo-attribution.js?v=1.0"></script>
   <link rel="canonical" href="https://citeaura.com/">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
@@ -195,19 +196,36 @@
       <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" data-i18n-aria="nav.open" aria-label="Open navigation">
         <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
         <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
-        <span class="sr-label" data-i18n="nav.menu">Menu</span>
+        <span class="sr-only" data-i18n="nav.menu">Menu</span>
       </button>
       
       <nav id="primary-nav" class="nav-links" aria-label="Main navigation" data-i18n-aria="nav.main">
-        <a href="#about" data-i18n="public.nav.what_it_is">Overview</a>
-        <a href="#workflow" data-i18n="nav.workflow">How It Works</a>
-        <a href="#product" data-i18n="nav.product">Features</a>
+        <details class="nav-group">
+          <summary>Product <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <div class="nav-group-menu">
+            <a href="#about" data-i18n="public.nav.what_it_is">Overview</a>
+            <a href="#workflow" data-i18n="nav.workflow">How It Works</a>
+            <a href="#product" data-i18n="nav.product">Features</a>
+            <a href="/ai-visibility-audit">AI visibility audit</a>
+          </div>
+        </details>
+        <details class="nav-group">
+          <summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <div class="nav-group-menu">
+            <a href="/for-brands">For brands</a>
+            <a href="/for-agencies">For agencies</a>
+          </div>
+        </details>
+        <details class="nav-group">
+          <summary>Resources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <div class="nav-group-menu">
+            <a href="/docs" data-i18n="nav.docs">Docs</a>
+            <a href="/blog" data-i18n="nav.guides">Guides</a>
+            <a href="/methodology">Methodology</a>
+            <a href="/sample-report">Sample report</a>
+          </div>
+        </details>
         <a href="/pricing" data-i18n="nav.pricing">Pricing</a>
-        <a href="/docs" data-i18n="nav.docs">Docs</a>
-        <a href="/blog" data-i18n="nav.guides">Guides</a>
-        <a href="/ai-visibility-audit">AI visibility audit</a>
-        <a href="/for-agencies">For agencies</a>
-        <a href="/for-brands">For brands</a>
       </nav>
       
       <div class="nav-actions">

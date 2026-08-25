@@ -112,6 +112,35 @@ def test_public_navigation_does_not_duplicate_hero_audit_cta():
     assert 'href="#simulator" data-i18n="landing.final_secondary"' in landing.text
 
 
+def test_public_navigation_uses_compact_groups_and_shared_mobile_menu():
+    paths = (
+        "/",
+        "/about",
+        "/contact",
+        "/privacy",
+        "/terms",
+        "/docs",
+        "/ai-visibility-audit",
+        "/for-agencies",
+        "/for-brands",
+        "/methodology",
+        "/pricing",
+        "/blog",
+        "/blog/measure-if-chatgpt-mentions-your-brand",
+        "/blog/why-chatgpt-does-not-mention-my-brand",
+        "/blog/gptbot-blocked-by-robots-txt",
+        "/blog/what-to-put-in-llms-txt",
+        "/blog/white-label-geo-diagnostic-report",
+    )
+    for path in paths:
+        body = client.get(path).text
+        assert body.count('class="nav-group"') == 3, path
+        assert 'id="primary-nav"' in body, path
+        assert 'class="nav-menu-toggle"' in body, path
+        assert '/site-assets/site-nav.js?v=1.0' in body, path
+        assert 'href="/sample-report"' in body, path
+
+
 def test_public_navigation_links_to_standalone_pricing_page():
     paths = (
         "/privacy",
@@ -174,6 +203,7 @@ def test_landing_assets_are_served():
         ("/site-assets/styles/landing.css", "text/css"),
         ("/site-assets/styles/blog.css", "text/css"),
         ("/site-assets/landing.js", "text/javascript"),
+        ("/site-assets/site-nav.js", "text/javascript"),
         ("/site-assets/seo-attribution.js", "text/javascript"),
         ("/site-assets/styles/seo-pages.css", "text/css"),
         ("/site-assets/favicon.png", "image/png"),
