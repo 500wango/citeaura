@@ -19,6 +19,10 @@ def test_production_compose_binds_api_to_loopback_and_profiles_nginx():
     assert "requirements.lock" in dockerfile
     assert "requirements.lock" in (ROOT / "docker-compose.yml").read_text("utf-8")
     assert 'profiles: ["standalone-nginx"]' in compose
+    assert 'profiles: ["local-postgres"]' in compose
+    assert "image: postgres:${POSTGRES_MAJOR:-18}-alpine" in compose
+    assert "postgres_data:/var/lib/postgresql/data" in compose
+    assert '"5432' not in compose.split("  postgres:\n", 1)[1].split("  redis:\n", 1)[0]
     beat = compose.split("  beat:\n", 1)[1].split("\n  nginx:\n", 1)[0]
     assert "    command:" in beat
     assert "      command:" not in beat
@@ -39,6 +43,9 @@ def test_deploy_script_leaves_tls_to_host_caddy():
     assert "up -d --build api worker beat nginx" not in deploy
     assert 'http://127.0.0.1:${APP_PORT}/api/v1/health/ready' in deploy
     assert 'curl --silent --show-error' in deploy
+    assert 'database_host' in deploy
+    assert 'compose up -d --wait postgres' in deploy
+    assert '--profile local-postgres' in deploy
 
 
 def test_long_revision_expands_alembic_version_before_schema_changes():

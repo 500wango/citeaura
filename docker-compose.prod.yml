@@ -11,6 +11,24 @@ x-app: &app
     - citeaura
 
 services:
+  postgres:
+    profiles: ["local-postgres"]
+    image: postgres:${POSTGRES_MAJOR:-18}-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-citeaura}
+      POSTGRES_USER: ${POSTGRES_USER:-citeaura}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - citeaura
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -85,6 +103,7 @@ services:
       - citeaura
 
 volumes:
+  postgres_data:
   redis_data:
   citeaura_work:
 

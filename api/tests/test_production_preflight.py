@@ -45,6 +45,47 @@ def test_valid_production_environment_passes_with_optional_warnings():
     assert any("tenant-managed" in warning for warning in warnings)
 
 
+def test_preflight_accepts_local_compose_postgres_without_tls():
+    values = _valid_environment()
+    password = "local-password-" + "p" * 24
+    values.update({
+        "DATABASE_URL": f"postgresql+psycopg2://citeaura:{password}@postgres:5432/citeaura",
+        "POSTGRES_DB": "citeaura",
+        "POSTGRES_USER": "citeaura",
+        "POSTGRES_PASSWORD": password,
+    })
+
+    errors, _warnings = validate_environment(values)
+
+    assert errors == []
+
+
+def test_preflight_rejects_insecure_external_postgres():
+    values = _valid_environment()
+    values["DATABASE_URL"] = "postgresql+psycopg2://user:secure@db.example/citeaura"
+
+    errors, _warnings = validate_environment(values)
+
+    assert "DATABASE_URL must require TLS for an external PostgreSQL server" in errors
+
+
+def test_preflight_requires_local_postgres_credentials_and_matching_url():
+    values = _valid_environment()
+    values.update({
+        "DATABASE_URL": "postgresql+psycopg2://wrong:password@postgres:5432/other",
+        "POSTGRES_DB": "citeaura",
+        "POSTGRES_USER": "citeaura",
+        "POSTGRES_PASSWORD": "short",
+    })
+
+    errors, _warnings = validate_environment(values)
+
+    assert "POSTGRES_PASSWORD must be a non-placeholder value of at least 24 characters" in errors
+    assert "DATABASE_URL user must match POSTGRES_USER for local PostgreSQL" in errors
+    assert "DATABASE_URL database must match POSTGRES_DB for local PostgreSQL" in errors
+    assert "DATABASE_URL password must match POSTGRES_PASSWORD for local PostgreSQL" in errors
+
+
 def test_preflight_migrates_missing_forwarded_proxy_default(tmp_path):
     env_file = tmp_path / ".env.production"
     env_file.write_text("DOMAIN=app.example\n", encoding="utf-8")

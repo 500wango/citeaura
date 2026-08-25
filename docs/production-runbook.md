@@ -2,6 +2,8 @@
 
 移动端 App 不在上线范围内。
 
+数据库从 Neon 迁移到同机独立 Compose PostgreSQL 的操作步骤见 [`docs/neon-to-compose-postgres-migration.md`](neon-to-compose-postgres-migration.md)。本文档描述当前生产部署和日常运维；迁移完成前，现有生产环境仍按 Neon 连接配置运行。
+
 ## 上线前配置
 
 1. 复制 `.env.production.example` 为 `.env.production`，填写真实域名、Neon 的 pooled `DATABASE_URL`、`JWT_SECRET` 和 `AES_KEY`。

@@ -21,6 +21,7 @@ PLATFORM_KEYS = (
     "XAI_API_KEY", "PERPLEXITY_API_KEY",
 )
 LEGACY_ENV_DEFAULTS = {"FORWARDED_ALLOW_IPS": "127.0.0.1"}
+LOCAL_POSTGRES_HOSTS = {"postgres"}
 
 
 def read_env(path):
@@ -72,6 +73,11 @@ def _feature_flag(values, key, errors):
     return value in TRUE_VALUES
 
 
+def _database_target(database_url):
+    parsed = urlparse(database_url)
+    return parsed, (parsed.hostname or "").lower()
+
+
 def validate_environment(values):
     errors = []
     warnings = []
@@ -100,12 +106,31 @@ def validate_environment(values):
     if database_url and (not database_url.startswith("postgresql+psycopg2://") or _placeholder(database_url)):
         errors.append("DATABASE_URL must use postgresql+psycopg2 and contain production credentials")
     if database_url:
-        parsed_database = urlparse(database_url)
+        parsed_database, database_host = _database_target(database_url)
         if not parsed_database.hostname:
             errors.append("DATABASE_URL must include a database hostname")
         query = {key.lower(): value.lower() for key, value in (item.split("=", 1) for item in parsed_database.query.split("&") if "=" in item)}
-        if query.get("sslmode") != "require":
-            errors.append("DATABASE_URL must set sslmode=require for Neon TLS")
+        sslmode = query.get("sslmode", "")
+        if database_host in LOCAL_POSTGRES_HOSTS:
+            postgres_db = values.get("POSTGRES_DB", "citeaura")
+            postgres_user = values.get("POSTGRES_USER", "citeaura")
+            postgres_password = values.get("POSTGRES_PASSWORD", "")
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", postgres_db):
+                errors.append("POSTGRES_DB must be a valid PostgreSQL identifier")
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", postgres_user):
+                errors.append("POSTGRES_USER must be a valid PostgreSQL identifier")
+            if not postgres_password or len(postgres_password) < 24 or _placeholder(postgres_password):
+                errors.append("POSTGRES_PASSWORD must be a non-placeholder value of at least 24 characters")
+            if unquote(parsed_database.username or "") != postgres_user:
+                errors.append("DATABASE_URL user must match POSTGRES_USER for local PostgreSQL")
+            if unquote(parsed_database.path.lstrip("/") or "") != postgres_db:
+                errors.append("DATABASE_URL database must match POSTGRES_DB for local PostgreSQL")
+            if unquote(parsed_database.password or "") != postgres_password:
+                errors.append("DATABASE_URL password must match POSTGRES_PASSWORD for local PostgreSQL")
+            if sslmode and sslmode not in ("disable", "prefer"):
+                errors.append("DATABASE_URL sslmode must be disable or prefer for local PostgreSQL")
+        elif sslmode not in ("require", "verify-ca", "verify-full"):
+            errors.append("DATABASE_URL must require TLS for an external PostgreSQL server")
     redis_url = urlparse(values.get("REDIS_URL", ""))
     redis_password = values.get("REDIS_PASSWORD", "")
     if not redis_password or len(redis_password) < 24 or _placeholder(redis_password):

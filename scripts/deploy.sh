@@ -37,19 +37,34 @@ set +a
 : "${JWT_SECRET:?JWT_SECRET is required in .env.production}"
 : "${AES_KEY:?AES_KEY is required in .env.production}"
 APP_PORT="${APP_PORT:-18000}"
+
+database_host="$(DATABASE_URL="$DATABASE_URL" python3 -c 'from os import environ; from urllib.parse import urlparse; print(urlparse(environ["DATABASE_URL"]).hostname or "")')"
+compose_profiles=()
+if [[ "$database_host" == "postgres" ]]; then
+    : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required for local Compose PostgreSQL}"
+    compose_profiles+=(--profile local-postgres)
+fi
+
+compose() {
+    docker compose "${compose_profiles[@]}" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
+
 if [[ -z "${CITEAURA_SOURCE_REVISION:-}" || "${CITEAURA_SOURCE_REVISION:-}" == "unknown" ]]; then
     CITEAURA_SOURCE_REVISION="$(git rev-parse --short=12 HEAD 2>/dev/null || true)"
     CITEAURA_SOURCE_REVISION="${CITEAURA_SOURCE_REVISION:-unknown}"
 fi
 export CITEAURA_SOURCE_REVISION
 
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config --quiet
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d redis
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build api worker beat
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --user root api \
+compose config --quiet
+compose up -d redis
+if [[ "$database_host" == "postgres" ]]; then
+    compose up -d --wait postgres
+fi
+compose build api worker beat
+compose run --rm --user root api \
     chown -R citeaura:citeaura /app/work
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm api alembic upgrade head
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d api worker beat
+compose run --rm api alembic upgrade head
+compose up -d api worker beat
 
 for attempt in $(seq 1 30); do
     if curl --fail --silent --show-error \
@@ -61,7 +76,7 @@ for attempt in $(seq 1 30); do
         curl --silent --show-error \
             "http://127.0.0.1:${APP_PORT}/api/v1/health/ready" >&2 || true
         printf '\n' >&2
-        docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps >&2
+        compose ps >&2
         exit 1
     fi
     sleep 2
