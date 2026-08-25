@@ -8,6 +8,7 @@
 - [About CiteAura](https://citeaura.com/about): Product scope, evidence boundaries, and source specifications.
 - [Contact CiteAura](https://citeaura.com/contact): Privacy requests, workspace support, and product documentation.
 - [Documentation](https://citeaura.com/docs): Setup, measurement, execution, verification, and delivery guidance.
+- [AI Visibility Audit](https://citeaura.com/ai-visibility-audit): What to check, how to run an audit, and how to verify the work.
 - [For Agencies](https://citeaura.com/for-agencies): White-label GEO audits, client tickets, verification, and delivery workflows.
 - [For Brands](https://citeaura.com/for-brands): AI visibility diagnosis, public-site fixes, and closed-loop verification.
 - [Methodology](https://citeaura.com/methodology): Evidence model, sampling modes, cohorts, and verification boundaries.

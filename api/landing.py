@@ -26,6 +26,7 @@ SITE_BASE_URL = os.getenv("SITE_BASE_URL", "https://citeaura.com").rstrip("/")
 PUBLIC_PAGES = (
     {"path": "/", "lastmod": "2026-08-20", "changefreq": "weekly", "priority": "1.0"},
     {"path": "/docs", "lastmod": "2026-08-20", "changefreq": "weekly", "priority": "0.8"},
+    {"path": "/ai-visibility-audit", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.9"},
     {"path": "/for-agencies", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.8"},
     {"path": "/for-brands", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.8"},
     {"path": "/methodology", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.7"},
@@ -95,6 +96,13 @@ def serve_terms_page():
 def serve_docs_page():
     """返回 CiteAura 文档与新手上手中心页面。"""
     return FileResponse(WEB_ROOT / "docs.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/ai-visibility-audit")
+@router.head("/ai-visibility-audit")
+def serve_ai_visibility_audit_page():
+    """返回面向高意图搜索的 AI visibility audit 支柱页。"""
+    return FileResponse(WEB_ROOT / "ai-visibility-audit.html", media_type="text/html; charset=utf-8")
 
 
 @router.get("/for-agencies")

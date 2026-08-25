@@ -68,6 +68,7 @@ def test_public_verification_pages_support_head_requests():
         "/privacy",
         "/terms",
         "/docs",
+        "/ai-visibility-audit",
         "/for-agencies",
         "/for-brands",
         "/methodology",
@@ -208,6 +209,7 @@ def test_public_pages_expose_social_card_metadata():
         "/privacy": "og-default.png",
         "/terms": "og-default.png",
         "/sample-report": "og-default.png",
+        "/ai-visibility-audit": "og-default.png",
         "/docs": "og-docs.png",
         "/blog": "og-guides.png",
         "/blog/what-to-put-in-llms-txt": "og-guides.png",
@@ -403,6 +405,7 @@ def test_seo_technical_files_are_served():
     assert "xml" in sitemap_res.headers["content-type"]
     assert "<loc>https://citeaura.com/</loc>" in sitemap_res.text
     assert "<loc>https://citeaura.com/docs</loc>" in sitemap_res.text
+    assert "<loc>https://citeaura.com/ai-visibility-audit</loc>" in sitemap_res.text
     assert "<loc>https://citeaura.com/about</loc>" in sitemap_res.text
     assert "<loc>https://citeaura.com/contact</loc>" in sitemap_res.text
     assert "<loc>https://citeaura.com/blog</loc>" in sitemap_res.text
@@ -417,6 +420,7 @@ def test_seo_technical_files_are_served():
     assert llms_res.headers["content-type"].startswith("text/plain")
     assert llms_res.text.startswith("# CiteAura\n")
     assert "https://citeaura.com/docs" in llms_res.text
+    assert "https://citeaura.com/ai-visibility-audit" in llms_res.text
     assert "https://citeaura.com/for-agencies" in llms_res.text
     assert "https://citeaura.com/for-brands" in llms_res.text
     assert "https://citeaura.com/methodology" in llms_res.text
@@ -567,7 +571,7 @@ def test_private_surfaces_send_noindex_header_and_public_pages_do_not():
         assert "noindex" in header, private
         assert "nofollow" in header, private
 
-    for public in ("/", "/docs", "/for-agencies", "/for-brands", "/methodology", "/pricing", "/blog", "/sample-report", "/sitemap.xml", "/llms.txt"):
+    for public in ("/", "/docs", "/ai-visibility-audit", "/for-agencies", "/for-brands", "/methodology", "/pricing", "/blog", "/sample-report", "/sitemap.xml", "/llms.txt"):
         assert "x-robots-tag" not in client.get(public).headers, public
 
 
@@ -581,6 +585,7 @@ def test_public_pages_expose_structured_data():
         "/privacy": {"WebPage", "BreadcrumbList"},
         "/terms": {"WebPage", "BreadcrumbList"},
         "/sample-report": {"WebPage", "BreadcrumbList"},
+        "/ai-visibility-audit": {"WebPage", "BreadcrumbList", "FAQPage"},
         "/for-agencies": {"WebPage", "BreadcrumbList", "FAQPage"},
         "/for-brands": {"WebPage", "BreadcrumbList", "FAQPage"},
         "/methodology": {"TechArticle", "BreadcrumbList", "FAQPage"},
@@ -609,6 +614,7 @@ def test_public_pages_expose_structured_data():
 
 def test_public_solution_pages_have_indexable_content_contract():
     expected = {
+        "/ai-visibility-audit": ("AI Visibility Audit Software", "Find the evidence behind missing AI mentions."),
         "/for-agencies": ("GEO Software for Agencies", "Turn GEO findings into client-ready work."),
         "/for-brands": ("AI Visibility Software for Brands", "See why AI overlooks your brand."),
         "/methodology": ("AI Visibility Measurement Methodology", "Measure AI visibility without hiding the evidence."),
