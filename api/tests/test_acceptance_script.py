@@ -1,4 +1,6 @@
 from scripts.acceptance import collect_checks
+from api.landing import PUBLIC_PAGES, SITE_BASE_URL
+from urllib.parse import urlsplit
 
 
 class Response:
@@ -12,6 +14,23 @@ class Response:
         return self._body
 
 
+def _public_html(url):
+    path = urlsplit(url).path or "/"
+    marker = "About CiteAura" if path == "/about" else "Contact CiteAura" if path == "/contact" else "CiteAura public page"
+    return (
+        "<!doctype html><html><head><title>CiteAura public page for SEO verification</title>"
+        "<meta name=\"description\" content=\"CiteAura public documentation and evidence-based GEO workflow for brands, agencies, and technical teams.\">"
+        "<meta name=\"robots\" content=\"index, follow\">"
+        f"<link rel=\"canonical\" href=\"{SITE_BASE_URL}{path}\"></head>"
+        f"<body><h1>{marker}</h1>API · Model knowledge API · Web-grounded retrieval Manual · Product surface</body></html>"
+    )
+
+
+def _sitemap():
+    locs = "".join(f"<url><loc>{SITE_BASE_URL}{page['path']}</loc></url>" for page in PUBLIC_PAGES)
+    return f'<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{locs}</urlset>'
+
+
 def test_acceptance_script_checks_public_surface(monkeypatch):
     html = "CiteAura API · Model knowledge API · Web-grounded retrieval Manual · Product surface /app"
 
@@ -20,11 +39,13 @@ def test_acceptance_script_checks_public_surface(monkeypatch):
             return Response(body={"status": "ok"})
         if _url.endswith("/llms.txt"):
             return Response(text="# CiteAura\nhttps://citeaura.com/docs")
+        if _url.endswith("/sitemap.xml"):
+            return Response(text=_sitemap())
         if _url.endswith("/about"):
-            return Response(text="About CiteAura")
+            return Response(text=_public_html(_url))
         if _url.endswith("/contact"):
-            return Response(text="Contact CiteAura")
-        return Response(text=html)
+            return Response(text=_public_html(_url))
+        return Response(text=_public_html(_url))
 
     monkeypatch.setattr("scripts.acceptance.requests.get", fake_get)
     result = collect_checks("http://example.test")
@@ -41,11 +62,13 @@ def test_acceptance_script_fails_when_llms_manifest_is_missing(monkeypatch):
             return Response(body={"status": "ok"})
         if _url.endswith("/llms.txt"):
             return Response(status_code=404)
+        if _url.endswith("/sitemap.xml"):
+            return Response(text=_sitemap())
         if _url.endswith("/about"):
-            return Response(text="About CiteAura")
+            return Response(text=_public_html(_url))
         if _url.endswith("/contact"):
-            return Response(text="Contact CiteAura")
-        return Response(text=html)
+            return Response(text=_public_html(_url))
+        return Response(text=_public_html(_url))
 
     monkeypatch.setattr("scripts.acceptance.requests.get", fake_get)
     result = collect_checks("http://example.test")
@@ -76,11 +99,13 @@ def test_production_acceptance_requires_https_canonical_trailing_slash_redirect(
             return Response(body={"status": "ready"})
         if url.endswith("/llms.txt"):
             return Response(text="# CiteAura\nhttps://citeaura.com/docs")
+        if url.endswith("/sitemap.xml"):
+            return Response(text=_sitemap())
         if url.endswith("/about"):
-            return Response(text="About CiteAura")
+            return Response(text=_public_html(url))
         if url.endswith("/contact"):
-            return Response(text="Contact CiteAura")
-        return Response(text=html)
+            return Response(text=_public_html(url))
+        return Response(text=_public_html(url))
 
     monkeypatch.setattr("scripts.acceptance.requests.get", fake_get)
     result = collect_checks("https://example.test", production=True)

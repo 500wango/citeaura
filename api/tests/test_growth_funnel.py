@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -86,7 +88,7 @@ def test_public_audit_returns_handoff_id_and_persists_result(growth_client):
 
 
 def test_public_audit_handoff_is_accepted_during_registration(growth_client):
-    client, _ = growth_client
+    client, sessions = growth_client
     audit = client.post("/api/v1/public/audit", json={"url": "https://register-handoff.example"}).json()
     response = client.post(
         "/api/v1/auth/register",
@@ -95,7 +97,18 @@ def test_public_audit_handoff_is_accepted_during_registration(growth_client):
             "password": "correct-horse-battery",
             "audit_id": audit["audit_id"],
             "acquisition_source": "landing",
+            "acquisition_medium": "organic",
+            "acquisition_campaign": "seo-guide",
         },
     )
     assert response.status_code == 201
     assert response.json()["audit"]["audit_id"] == audit["audit_id"]
+    with sessions() as db:
+        event = db.query(ProductEvent).filter(ProductEvent.name == "signup_attribution").one()
+        properties = json.loads(event.properties)
+        assert properties == {
+            "audit_id": audit["audit_id"],
+            "campaign": "seo-guide",
+            "medium": "organic",
+            "source": "landing",
+        }

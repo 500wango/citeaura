@@ -8,6 +8,11 @@
 - [About CiteAura](https://citeaura.com/about): Product scope, evidence boundaries, and source specifications.
 - [Contact CiteAura](https://citeaura.com/contact): Privacy requests, workspace support, and product documentation.
 - [Documentation](https://citeaura.com/docs): Setup, measurement, execution, verification, and delivery guidance.
+- [For Agencies](https://citeaura.com/for-agencies): White-label GEO audits, client tickets, verification, and delivery workflows.
+- [For Brands](https://citeaura.com/for-brands): AI visibility diagnosis, public-site fixes, and closed-loop verification.
+- [Methodology](https://citeaura.com/methodology): Evidence model, sampling modes, cohorts, and verification boundaries.
+- [Pricing](https://citeaura.com/pricing): Starter, Pro, Agency, and Enterprise plan capacity and trial terms.
+- [Sample GEO Diagnostic Report](https://citeaura.com/sample-report): Example diagnostic with evidence, action tickets, and verification gates.
 - [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
 - [How to Measure ChatGPT Brand Mentions](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
 - [Why ChatGPT Does Not Mention Your Brand](https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand)
@@ -27,7 +32,7 @@
 - Typical API sampling cost: under 1 percent of one Starter month
 - Priority ticket windows: 30 days or 60 days
 - Key encryption: AES-256-GCM
-- Updated: 2026-08-20
+- Updated: 2026-08-26
 
 ## Product workflow
 

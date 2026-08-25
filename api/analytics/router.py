@@ -3,6 +3,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 import jwt
 from fastapi import APIRouter, Depends, Request, Response, status
@@ -20,6 +21,7 @@ from api.product_events import record_product_event
 router = APIRouter(prefix="/api/v1/events", tags=["analytics"])
 VISITOR_COOKIE = "citeaura_visitor"
 PUBLIC_EVENT_NAMES = frozenset({
+    "seo_page_view",
     "landing_cta_clicked",
     "sample_report_viewed",
     "public_audit_started",
@@ -39,6 +41,50 @@ PUBLIC_EVENT_NAMES = frozenset({
     "checkout_succeeded",
 })
 
+_SENSITIVE_KEYS = frozenset({"email", "password", "token", "secret", "api_key", "cookie"})
+_LABEL_KEYS = frozenset({"source", "medium", "campaign"})
+
+
+def _safe_property_value(key, value):
+    """清理公开事件属性，保留路径/主机/活动标签而不接收凭据或完整 URL。"""
+    if key in _SENSITIVE_KEYS or any(fragment in key for fragment in ("password", "token", "secret", "cookie")):
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value
+    text = str(value).replace("\r", " ").replace("\n", " ").strip()
+    if not text:
+        return text
+    if key in {"page_path", "first_touch_path"}:
+        parsed = urlsplit(text)
+        path = parsed.path or "/"
+        return path[:256]
+    if key == "referrer_host":
+        parsed = urlsplit(text if "://" in text else f"https://{text}")
+        return (parsed.hostname or "")[:128].lower() or None
+    if key in _LABEL_KEYS:
+        # UTM labels are intentionally short summaries. If a client sends a
+        # URL-shaped value, retain its host and drop path/query credentials.
+        if "://" in text or text.startswith("//"):
+            parsed = urlsplit(text if "://" in text else f"https:{text}")
+            return (parsed.hostname or "")[:128].lower() or None
+        return text.split("?", 1)[0].split("#", 1)[0][:256]
+    if "url" in key and not key.endswith("_host"):
+        return None
+    return text[:256]
+
+
+def sanitize_public_properties(properties):
+    """只保留公开事件需要的低敏摘要，避免把查询串或秘密写入事件表。"""
+    clean = {}
+    for raw_key, value in (properties or {}).items():
+        key = str(raw_key).strip().lower()[:48]
+        safe = _safe_property_value(key, value)
+        if safe is not None:
+            clean[key] = safe
+    return clean
+
 
 class ProductEventRequest(BaseModel):
     name: str = Field(min_length=1, max_length=64)
@@ -56,14 +102,7 @@ class ProductEventRequest(BaseModel):
     def validate_properties(cls, value: dict):
         if len(value) > 12:
             raise ValueError("too many event properties")
-        clean = {}
-        for key, item in value.items():
-            key = str(key)
-            if len(key) > 48:
-                continue
-            if isinstance(item, (str, int, float, bool)) or item is None:
-                clean[key] = str(item)[:256] if isinstance(item, str) else item
-        return clean
+        return sanitize_public_properties(value)
 
 
 def visitor_hash(value):
@@ -130,7 +169,7 @@ def product_event(payload: ProductEventRequest, request: Request, db: Session = 
         user_id=user_id,
         anonymous_id=request_visitor(request),
         country_code=request_country_code(request),
-        properties=payload.properties,
+        properties=sanitize_public_properties(payload.properties),
     )
     db.commit()
     return {"accepted": True}

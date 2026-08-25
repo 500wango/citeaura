@@ -68,6 +68,10 @@ def test_public_verification_pages_support_head_requests():
         "/privacy",
         "/terms",
         "/docs",
+        "/for-agencies",
+        "/for-brands",
+        "/methodology",
+        "/pricing",
         "/sample-report",
         "/blog",
         "/blog/measure-if-chatgpt-mentions-your-brand",
@@ -105,6 +109,22 @@ def test_public_navigation_does_not_duplicate_hero_audit_cta():
 
     landing = client.get("/")
     assert 'href="#simulator" data-i18n="landing.final_secondary"' in landing.text
+
+
+def test_public_navigation_links_to_standalone_pricing_page():
+    paths = (
+        "/privacy",
+        "/terms",
+        "/blog/measure-if-chatgpt-mentions-your-brand",
+        "/blog/why-chatgpt-does-not-mention-my-brand",
+        "/blog/gptbot-blocked-by-robots-txt",
+        "/blog/what-to-put-in-llms-txt",
+        "/blog/white-label-geo-diagnostic-report",
+    )
+    for path in paths:
+        body = client.get(path).text
+        assert 'href="/pricing"' in body, path
+        assert 'href="/#pricing"' not in body, path
 
 
 def test_about_and_contact_pages_expose_provenance_and_real_support_channel():
@@ -153,6 +173,8 @@ def test_landing_assets_are_served():
         ("/site-assets/styles/landing.css", "text/css"),
         ("/site-assets/styles/blog.css", "text/css"),
         ("/site-assets/landing.js", "text/javascript"),
+        ("/site-assets/seo-attribution.js", "text/javascript"),
+        ("/site-assets/styles/seo-pages.css", "text/css"),
         ("/site-assets/favicon.png", "image/png"),
         ("/site-assets/brand/mark.svg", "image/svg+xml"),
         ("/site-assets/fonts/space-grotesk-700.woff2", "font/woff2"),
@@ -165,6 +187,9 @@ def test_landing_assets_are_served():
         ("/site-assets/product-audit-clay.webp", "image/webp"),
         ("/site-assets/product-plan-clay.webp", "image/webp"),
         ("/site-assets/product-assets-clay.webp", "image/webp"),
+        ("/site-assets/og-default.png", "image/png"),
+        ("/site-assets/og-docs.png", "image/png"),
+        ("/site-assets/og-guides.png", "image/png"),
     ):
         response = client.get(path)
         assert response.status_code == 200
@@ -173,6 +198,44 @@ def test_landing_assets_are_served():
     blog_css = client.get("/site-assets/styles/blog.css")
     assert ".blog-article a:not(.btn)" in blog_css.text
     assert ".blog-article a {" not in blog_css.text
+
+
+def test_public_pages_expose_social_card_metadata():
+    expected_images = {
+        "/": "og-default.png",
+        "/about": "og-default.png",
+        "/contact": "og-default.png",
+        "/privacy": "og-default.png",
+        "/terms": "og-default.png",
+        "/sample-report": "og-default.png",
+        "/docs": "og-docs.png",
+        "/blog": "og-guides.png",
+        "/blog/what-to-put-in-llms-txt": "og-guides.png",
+        "/blog/why-chatgpt-does-not-mention-my-brand": "og-guides.png",
+        "/blog/gptbot-blocked-by-robots-txt": "og-guides.png",
+        "/blog/measure-if-chatgpt-mentions-your-brand": "og-guides.png",
+        "/blog/white-label-geo-diagnostic-report": "og-guides.png",
+        "/for-agencies": "og-guides.png",
+        "/for-brands": "og-default.png",
+        "/methodology": "og-docs.png",
+        "/pricing": "og-default.png",
+    }
+
+    for path, image in expected_images.items():
+        response = client.get(path)
+        assert response.status_code == 200, path
+        body = response.text
+
+        image_url = f'https://citeaura.com/site-assets/{image}'
+        assert f'<meta property="og:image" content="{image_url}">' in body, path
+        assert f'<meta name="twitter:image" content="{image_url}">' in body, path
+        assert '<meta property="og:image:width" content="1200">' in body, path
+        assert '<meta property="og:image:height" content="630">' in body, path
+        assert '<meta property="og:image:alt" content="' in body, path
+        assert '<meta name="twitter:card" content="summary_large_image">' in body, path
+
+        # The 811x237 wordmark is not a valid social card image.
+        assert 'property="og:image" content="https://citeaura.com/site-assets/logo.png"' not in body, path
 
 
 def test_product_gallery_uses_current_clay_visual_assets():
@@ -354,6 +417,10 @@ def test_seo_technical_files_are_served():
     assert llms_res.headers["content-type"].startswith("text/plain")
     assert llms_res.text.startswith("# CiteAura\n")
     assert "https://citeaura.com/docs" in llms_res.text
+    assert "https://citeaura.com/for-agencies" in llms_res.text
+    assert "https://citeaura.com/for-brands" in llms_res.text
+    assert "https://citeaura.com/methodology" in llms_res.text
+    assert "https://citeaura.com/pricing" in llms_res.text
     assert "https://citeaura.com/about" in llms_res.text
     assert "https://citeaura.com/contact" in llms_res.text
     assert "https://citeaura.com/blog" in llms_res.text
@@ -444,3 +511,115 @@ def test_homepage_keeps_slogan_h1_and_links_guides():
     assert 'href="/blog/gptbot-blocked-by-robots-txt"' in response.text
     assert 'href="/blog/what-to-put-in-llms-txt"' in response.text
     assert 'href="/blog/white-label-geo-diagnostic-report"' in response.text
+
+
+def test_sitemap_matches_public_pages_and_page_canonicals():
+    from api.landing import PUBLIC_PAGES, SITE_BASE_URL
+
+    sitemap = client.get("/sitemap.xml").text
+    locs = set(re.findall(r"<loc>([^<]+)</loc>", sitemap))
+
+    assert locs == {SITE_BASE_URL + page["path"] for page in PUBLIC_PAGES}
+    assert len(locs) == len(re.findall(r"<loc>", sitemap))
+
+    for page in PUBLIC_PAGES:
+        path = page["path"]
+        response = client.get(path)
+        assert response.status_code == 200, path
+        canonical = SITE_BASE_URL + path
+        assert f'<link rel="canonical" href="{canonical}">' in response.text, path
+
+    # Private surfaces must never enter the sitemap.
+    for private in ("/app", "/app/", "/login", "/signup"):
+        assert f"<loc>https://citeaura.com{private}</loc>" not in sitemap
+
+
+def test_icon_and_manifest_routes_are_served():
+    manifest_res = client.get("/manifest.webmanifest")
+    assert manifest_res.status_code == 200
+    assert manifest_res.headers["content-type"].startswith("application/manifest+json")
+
+    manifest = manifest_res.json()
+    assert manifest["name"] == "CiteAura"
+    assert {icon["sizes"] for icon in manifest["icons"]} >= {"192x192", "512x512"}
+
+    for path in ("/site-assets/favicon.png", "/site-assets/apple-touch-icon.png"):
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.headers["content-type"].startswith("image/png"), path
+
+    # Crawlers and legacy clients probe /favicon.ico blindly; keep it a redirect, not a 404.
+    redirect = client.get("/favicon.ico", follow_redirects=False)
+    assert redirect.status_code == 308
+    assert redirect.headers["location"] == "/site-assets/favicon.png"
+    assert client.get("/favicon.ico").status_code == 200
+
+    home = client.get("/").text
+    assert '<link rel="icon" type="image/png" href="/site-assets/favicon.png">' in home
+    assert '<link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">' in home
+    assert '<link rel="manifest" href="/manifest.webmanifest">' in home
+
+
+def test_private_surfaces_send_noindex_header_and_public_pages_do_not():
+    for private in ("/app", "/app/projects", "/api/v1/health", "/admin"):
+        response = client.get(private, follow_redirects=False)
+        header = response.headers.get("x-robots-tag", "")
+        assert "noindex" in header, private
+        assert "nofollow" in header, private
+
+    for public in ("/", "/docs", "/for-agencies", "/for-brands", "/methodology", "/pricing", "/blog", "/sample-report", "/sitemap.xml", "/llms.txt"):
+        assert "x-robots-tag" not in client.get(public).headers, public
+
+
+def test_public_pages_expose_structured_data():
+    import json
+
+    expected_types = {
+        "/": {"Organization", "WebSite", "SoftwareApplication"},
+        "/about": {"AboutPage"},
+        "/contact": {"ContactPage"},
+        "/privacy": {"WebPage", "BreadcrumbList"},
+        "/terms": {"WebPage", "BreadcrumbList"},
+        "/sample-report": {"WebPage", "BreadcrumbList"},
+        "/for-agencies": {"WebPage", "BreadcrumbList", "FAQPage"},
+        "/for-brands": {"WebPage", "BreadcrumbList", "FAQPage"},
+        "/methodology": {"TechArticle", "BreadcrumbList", "FAQPage"},
+        "/pricing": {"WebPage", "BreadcrumbList", "OfferCatalog"},
+        "/blog": {"CollectionPage"},
+        "/blog/what-to-put-in-llms-txt": {"Article", "BreadcrumbList", "FAQPage"},
+    }
+
+    for path, required in expected_types.items():
+        body = client.get(path).text
+        blocks = re.findall(
+            r'<script type="application/ld\+json">(.*?)</script>', body, re.DOTALL
+        )
+        assert blocks, path
+
+        found = set()
+        for block in blocks:
+            payload = json.loads(block)
+            nodes = payload.get("@graph", [payload]) if isinstance(payload, dict) else payload
+            for node in nodes:
+                node_type = node.get("@type")
+                found.update(node_type if isinstance(node_type, list) else [node_type])
+
+        assert required <= found, f"{path}: missing {required - found}"
+
+
+def test_public_solution_pages_have_indexable_content_contract():
+    expected = {
+        "/for-agencies": ("GEO Software for Agencies", "Turn GEO findings into client-ready work."),
+        "/for-brands": ("AI Visibility Software for Brands", "See why AI overlooks your brand."),
+        "/methodology": ("AI Visibility Measurement Methodology", "Measure AI visibility without hiding the evidence."),
+        "/pricing": ("CiteAura Pricing", "A clear plan for evidence-based GEO work."),
+    }
+    for path, (title_marker, h1) in expected.items():
+        response = client.get(path)
+        assert response.status_code == 200
+        assert '<meta name="robots" content="index, follow' in response.text
+        assert f'<link rel="canonical" href="https://citeaura.com{path}">' in response.text
+        assert f"{h1}</h1>" in response.text
+        assert response.text.count("<h1") == 1
+        assert title_marker in response.text.split("</title>", 1)[0]
+        assert "/site-assets/seo-attribution.js?v=1.0" in response.text

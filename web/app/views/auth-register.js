@@ -82,12 +82,22 @@ export default {
       try {
         let auditId = '';
         let acquisitionSource = '';
+        let acquisitionMedium = '';
         let acquisitionCampaign = '';
         try {
           auditId = sessionStorage.getItem('citeaura_pending_audit_id') || '';
           const params = new URLSearchParams(window.location.search);
-          acquisitionSource = params.get('utm_source') || document.referrer || '';
+          const stored = JSON.parse(localStorage.getItem('citeaura_seo_attribution_v1') || 'null');
+          const referrerHost = (() => {
+            try {
+              const referrer = new URL(document.referrer);
+              return referrer.hostname && referrer.hostname !== window.location.hostname ? referrer.hostname : '';
+            } catch (error) { return ''; }
+          })();
+          acquisitionSource = params.get('utm_source') || stored?.source || (referrerHost || 'direct');
+          acquisitionMedium = params.get('utm_medium') || stored?.medium || (referrerHost ? 'referral' : 'none');
           acquisitionCampaign = params.get('utm_campaign') || '';
+          if (!acquisitionCampaign && stored?.campaign) acquisitionCampaign = stored.campaign;
         } catch (e) {}
         const registration = await auth.register({
           tenant_name,
@@ -95,6 +105,7 @@ export default {
           password,
           audit_id: auditId || undefined,
           acquisition_source: acquisitionSource.slice(0, 128) || undefined,
+          acquisition_medium: acquisitionMedium.slice(0, 64) || undefined,
           acquisition_campaign: acquisitionCampaign.slice(0, 128) || undefined,
         });
         if (registration?.audit) {

@@ -32,7 +32,7 @@ from api.auth.security import (
 )
 from api.rate_limit import RateLimitUnavailable, check_account
 from api.country import request_country_code
-from api.analytics.router import request_visitor
+from api.analytics.router import request_visitor, sanitize_public_properties
 from api.db import get_db
 from api.models import Membership, PasswordResetToken, PublicAudit, RefreshToken, Tenant, User
 from api.product_events import record_product_event
@@ -49,6 +49,7 @@ class RegisterRequest(BaseModel):
     invitation_token: str | None = Field(default=None, min_length=20, max_length=512)
     audit_id: str | None = Field(default=None, min_length=16, max_length=64)
     acquisition_source: str | None = Field(default=None, max_length=128)
+    acquisition_medium: str | None = Field(default=None, max_length=64)
     acquisition_campaign: str | None = Field(default=None, max_length=128)
 
     @field_validator("email")
@@ -239,7 +240,7 @@ def register(
             country_code=country_code,
             properties={"registration_kind": user.registration_kind},
         )
-        if payload.acquisition_source or payload.acquisition_campaign:
+        if payload.acquisition_source or payload.acquisition_medium or payload.acquisition_campaign:
             record_product_event(
                 db,
                 "signup_attribution",
@@ -247,10 +248,12 @@ def register(
                 user_id=user.id,
                 anonymous_id=request_visitor(request),
                 country_code=country_code,
-                properties={
+                properties=sanitize_public_properties({
                     "source": payload.acquisition_source or "direct",
+                    "medium": payload.acquisition_medium or "none",
                     "campaign": payload.acquisition_campaign or "",
-                },
+                    "audit_id": payload.audit_id or "",
+                }),
             )
         if invitation:
             invitation.accepted_at = datetime.now(timezone.utc)

@@ -133,6 +133,8 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if request.url.path.startswith(("/files/", "/api/", "/app", "/admin")):
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
     if request.url.path.startswith("/api/v1/") and "Cache-Control" not in response.headers:
         response.headers["Cache-Control"] = "private, no-store"
     elif request.url.path.startswith("/app/"):

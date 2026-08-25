@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<!--
+  CiteAura OG 图模板（1200×630）——一次性本地创作用，不参与运行时。
+  这是 web/assets/og-*.png 的源文件，重制社交分享图时改这里再重新截图。
+
+  用法（从仓库根目录执行）：
+    for v in default docs guides; do
+      google-chrome --headless --disable-gpu --hide-scrollbars \
+        --screenshot=web/assets/og-$v.png --window-size=1200,630 \
+        "file://$PWD/docs/og-image-template.html?v=$v"
+    done
+
+  颜色取自 web/assets/styles/tokens.css 的 Clay 亮色调色板，字体是仓库自托管
+  woff2，所以产出图与站点视觉一致。
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CiteAura OG image template</title>
+<style>
+  @font-face {
+    font-family: 'Space Grotesk';
+    src: url('../web/assets/fonts/space-grotesk-700.woff2') format('woff2');
+    font-weight: 700;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'Space Grotesk';
+    src: url('../web/assets/fonts/space-grotesk-400.woff2') format('woff2');
+    font-weight: 400;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: url('../web/assets/fonts/jetbrains-mono-600.woff2') format('woff2');
+    font-weight: 600;
+    font-display: block;
+  }
+
+  :root {
+    --accent: #b0552a;
+    --accent-strong: #96431f;
+    --accent-soft: #f6e7dc;
+    --accent-line: #e0bfa8;
+    --page: #f8f5ef;
+    --surface: #fffdf9;
+    --ink: #2b2620;
+    --ink-2: #544a3c;
+    --muted: #7d7160;
+    --line: #e5ded1;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+
+  body {
+    background: var(--page);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* 右上角暖色光晕，避免大面积平铺显得空 */
+  body::before {
+    content: '';
+    position: absolute;
+    top: -240px;
+    right: -180px;
+    width: 720px;
+    height: 720px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--accent-soft) 0%, rgba(246, 231, 220, 0) 70%);
+  }
+
+  /* 顶部陶土色饰条 */
+  body::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-strong) 50%, var(--accent-line) 100%);
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    padding: 76px 80px 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 站点 24 个页面的头部都用 logo.png 这张横版锁定标，这里沿用同一份资源，
+     避免手工拼 mark + 文字导致字距与站点不一致。 */
+  .brand {
+    margin-bottom: 52px;
+  }
+
+  .brand img {
+    width: 260px;
+    height: auto;
+    display: block;
+  }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 600;
+    font-size: 19px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent-strong);
+    margin-bottom: 26px;
+  }
+
+  h1 {
+    font-size: 71px;
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.028em;
+    max-width: 15.5em;
+  }
+
+  h1 em { font-style: normal; color: var(--accent); }
+
+  p.sub {
+    margin-top: 30px;
+    font-size: 28px;
+    font-weight: 400;
+    line-height: 1.42;
+    color: var(--ink-2);
+    max-width: 21em;
+  }
+
+  footer {
+    position: relative;
+    z-index: 1;
+    padding: 0 80px 56px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 600;
+    font-size: 22px;
+    color: var(--muted);
+  }
+
+  footer .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  footer .spacer { flex: 1; }
+
+  footer .engines {
+    font-size: 19px;
+    letter-spacing: 0.04em;
+    color: var(--faint, #a39683);
+  }
+</style>
+</head>
+<body>
+  <main>
+    <div class="brand">
+      <img src="../web/assets/logo.png" alt="">
+    </div>
+    <div class="eyebrow" id="eyebrow">Generative Engine Optimization</div>
+    <h1 id="headline">Do AI engines <em>cite</em> your brand?</h1>
+    <p class="sub" id="sub">Measure AI visibility, audit your site, turn evidence into engineering tickets, and verify the fix.</p>
+  </main>
+  <footer>
+    <span class="dot"></span>
+    <span>citeaura.com</span>
+    <span class="spacer"></span>
+    <span class="engines" id="engines">ChatGPT · Claude · Perplexity · Gemini</span>
+  </footer>
+
+<script>
+  var VARIANTS = {
+    default: {
+      eyebrow: 'Generative Engine Optimization',
+      headline: 'Do AI engines <em>cite</em> your brand?',
+      sub: 'Measure AI visibility, audit your site, and turn the evidence into engineering tickets.',
+    },
+    docs: {
+      eyebrow: 'Documentation',
+      headline: 'Set up, measure, <em>verify</em>.',
+      sub: 'Everything needed to run a GEO diagnosis end to end — from first crawl to client delivery.',
+    },
+    guides: {
+      eyebrow: 'Guides',
+      headline: 'Field notes on <em>AI visibility</em>.',
+      sub: 'Long-form answers to the measurement and diagnosis questions that recur.',
+    },
+  };
+
+  var variant = new URLSearchParams(location.search).get('v') || 'default';
+  var copy = VARIANTS[variant] || VARIANTS.default;
+  document.getElementById('eyebrow').textContent = copy.eyebrow;
+  document.getElementById('headline').innerHTML = copy.headline;
+  document.getElementById('sub').textContent = copy.sub;
+</script>
+</body>
+</html>
