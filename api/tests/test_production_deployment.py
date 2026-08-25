@@ -21,7 +21,7 @@ def test_production_compose_binds_api_to_loopback_and_profiles_nginx():
     assert 'profiles: ["standalone-nginx"]' in compose
     assert 'profiles: ["local-postgres"]' in compose
     assert "image: postgres:${POSTGRES_MAJOR:-18}-alpine" in compose
-    assert "postgres_data:/var/lib/postgresql/data" in compose
+    assert "postgres_data:/var/lib/postgresql" in compose
     assert '"5432' not in compose.split("  postgres:\n", 1)[1].split("  redis:\n", 1)[0]
     beat = compose.split("  beat:\n", 1)[1].split("\n  nginx:\n", 1)[0]
     assert "    command:" in beat

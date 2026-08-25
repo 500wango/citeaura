@@ -47,7 +47,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-citeaura}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
