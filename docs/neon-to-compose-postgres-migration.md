@@ -4,7 +4,9 @@
 
 当前生产服务器已有另一套应用的 Compose PostgreSQL。本方案不复用另一套应用的容器、网络、数据卷或数据库，也不把 CiteAura PostgreSQL 映射到宿主机 `5432`。
 
-> 当前状态：这是迁移操作手册，不代表迁移已经执行。执行前必须确认 Neon 版本、当前 CiteAura Compose project 名称、`citeaura_work` 卷名和停机窗口。
+> 当前状态：迁移已于 2026-08-25 完成。本文保留完整操作步骤，便于审计、回滚演练和灾备恢复；不得把文中的占位符直接用于生产。
+
+实际生产结果：源 Neon PostgreSQL 18.4 已导出并恢复到 CiteAura 独立 `postgres:18-alpine`（运行时 18.6）；生产 readiness 全绿，当前数据库目标为 `postgres:5432/citeaura`。最终 dump、工作卷备份、迁移前环境文件和 Neon 原库均保留在回滚窗口内。正式切换未复用 `arcmux-pg`，也未映射宿主机 `5432`。
 
 ## 1. 迁移边界
 
@@ -363,3 +365,12 @@ Neon 原库和最终 dump 至少保留 24 至 72 小时。
 → 配置异机/对象存储备份
 → 保留 Neon 回滚窗口
 ```
+
+## 11. 本次执行记录
+
+- 代码兼容提交：`076c3cd`；PostgreSQL 18 卷布局修复：`b660c5f`；两次生产 Actions 均成功。
+- 工作卷备份：`/var/backups/citeaura/citeaura-work-before-db-migration.tar.gz`，权限 600。
+- 最终数据库归档：`/var/backups/citeaura/neon-final-20260825T004850Z.dump`；目标恢复后 `0031_job_history_index`、关键表行数、Job 状态和 AES 加密 Key 解密均通过。
+- 迁移前环境文件备份：`/var/backups/citeaura/env-production-before-db-migration-20260825T004937Z`，权限 600。
+- 迁移后每日备份：`/usr/local/sbin/citeaura-postgres-backup`，由 `/etc/cron.d/citeaura-postgres-backup` 每日 03:17 执行，保留 14 天；对象存储/异机复制仍需配置。
+- 验收：`https://citeaura.com/`、`/app/` 返回 200，未认证 API 返回 401，readiness 的 database/migrations/redis/worker/encryption/jwt 等检查全部为 `true`；`arcmux-pg` 保持健康。

@@ -2,12 +2,12 @@
 
 移动端 App 不在上线范围内。
 
-数据库从 Neon 迁移到同机独立 Compose PostgreSQL 的操作步骤见 [`docs/neon-to-compose-postgres-migration.md`](neon-to-compose-postgres-migration.md)。本文档描述当前生产部署和日常运维；迁移完成前，现有生产环境仍按 Neon 连接配置运行。
+数据库从 Neon 迁移到同机独立 Compose PostgreSQL 的完整步骤和回滚说明见 [`docs/neon-to-compose-postgres-migration.md`](neon-to-compose-postgres-migration.md)。迁移已于 2026-08-25 完成；当前生产使用 CiteAura 自己的 `local-postgres` Compose profile，另一应用的 PostgreSQL 不在本项目内。
 
 ## 上线前配置
 
-1. 复制 `.env.production.example` 为 `.env.production`，填写真实域名、Neon 的 pooled `DATABASE_URL`、`JWT_SECRET` 和 `AES_KEY`。
-2. 在 Neon 创建生产项目，复制连接串并将协议改为 `postgresql+psycopg2://`，保留 `?sslmode=require`。生产 Compose 不启动本地 Postgres，迁移会直接写入 Neon。
+1. 复制 `.env.production.example` 为 `.env.production`，填写真实域名、本地 Compose PostgreSQL 的 `POSTGRES_*` 变量、`JWT_SECRET` 和 `AES_KEY`。
+2. 生产 `DATABASE_URL` 使用 `postgresql+psycopg2://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/<POSTGRES_DB>`；不要映射宿主机 `5432`，也不要复用另一应用的 PostgreSQL 容器、网络或卷。Neon 连接只作为迁移回滚材料保留。
 3. 将 `PUBLIC_BASE_URL` 设置为 `https://DOMAIN`，并将 `SESSION_COOKIE_SECURE=true`。
 4. 保持 `PRODUCTION_PROXY_MODE=true`、`RATE_LIMIT_ENABLED=true` 和 `RATE_LIMIT_TRUST_PROXY_HEADERS=true`。默认每个用户或来源 IP 每分钟 120 个 API 请求，注册、登录和刷新每分钟 20 个；可通过 `RATE_LIMIT_*` 调整。
 5. 暂不开放支付时保持 `BILLING_ENABLED=false`，Stripe 配置可以留空。开放支付时改为 `true`，并在 Stripe Dashboard 创建订阅 Checkout Webhook；事件至少包括 `checkout.session.completed`、`checkout.session.async_payment_succeeded`、`customer.subscription.updated`、`customer.subscription.deleted`、`invoice.paid` 和 `invoice.payment_failed`，地址为 `https://DOMAIN/api/v1/billing/webhook`。
@@ -27,6 +27,8 @@ scripts/acceptance.py --base-url https://your-domain.example --production
 ```
 
 `production_preflight.py` 不打印密钥值，会拒绝占位符、HTTP 公网地址和无效 AES Key。部署脚本带 `--migrate-legacy`，只会为旧环境文件补写非敏感的 `FORWARDED_ALLOW_IPS=127.0.0.1` 默认值；显式空值、通配符或非法代理地址仍会失败。配置了认证 SMTP 时会校验端口与加密模式：`465` 只能配 `ssl`，`ssl` 只能配 `465`；`587` 应配 `starttls`。`BILLING_ENABLED=true` 时还会拒绝测试 Stripe Key，`PASSWORD_RESET_EMAIL_ENABLED=true` 时会校验认证 SMTP。脚本可重复执行，不会启动仓库内的 Nginx，也不会改动其他 Docker Compose 项目。
+
+数据库每日备份由宿主机 `/usr/local/sbin/citeaura-postgres-backup` 执行，cron 时刻为 03:17，保留 14 天且备份文件权限为 600。`/var/backups/citeaura/` 仍属于本机故障域，必须复制到异机或对象存储。
 
 ## 平台管理员密码恢复
 
