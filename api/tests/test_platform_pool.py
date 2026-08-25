@@ -390,6 +390,7 @@ def test_usage_outbox_replays_failed_accounting_once(tmp_path, monkeypatch):
 
 
 def test_platform_pool_hard_limits_include_usage_and_reservations_but_not_byok(tmp_path, monkeypatch):
+    monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"2" * 32).decode())
     monkeypatch.setenv("PLATFORM_POOL_PRICES_CNY_FEN", json.dumps({"openai": 5}))
     monkeypatch.setenv("PLATFORM_POOL_OPENAI_API_KEY", "platform-openai")
     monkeypatch.setattr(platform_pool, "SessionLocal", lambda: session_factory())
