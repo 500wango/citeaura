@@ -447,6 +447,49 @@ def test_signed_webhook_activates_subscription_once(billing_client):
     assert usage["subscription"]["status"] == "active"
 
 
+def test_checkout_watermark_rejects_stale_subscription_webhook(billing_client):
+    client, session_factory = billing_client
+    _register(client, "stripe-ordering@example.com")
+    with session_factory() as db:
+        tenant_id = db.query(Tenant).filter(Tenant.name == "stripe-ordering").one().id
+
+    checkout = _stripe_event("evt_ordered_checkout", "checkout.session.completed", {
+        "id": "cs_ordered",
+        "created": 200,
+        "client_reference_id": str(tenant_id),
+        "customer": "cus_ordered",
+        "subscription": "sub_ordered",
+        "payment_status": "paid",
+        "currency": "usd",
+        "amount_total": 19900,
+        "metadata": {
+            "tenant_id": str(tenant_id),
+            "plan": "pro",
+            "billing_interval": "monthly",
+        },
+    })
+    checkout["created"] = 200
+    assert _post_stripe_event(client, checkout).json()["processed"] is True
+
+    stale = _stripe_event("evt_ordered_stale", "customer.subscription.updated", {
+        "id": "sub_ordered",
+        "status": "incomplete",
+        "current_period_end": 400,
+    })
+    stale["created"] = 100
+    response = _post_stripe_event(client, stale)
+
+    assert response.status_code == 200
+    assert response.json() == {"received": True, "duplicate": False, "processed": False}
+    with session_factory() as db:
+        subscription = db.query(Subscription).one()
+        assert subscription.status == "active"
+        stored_created = subscription.provider_event_created_at
+        if stored_created.tzinfo is None:
+            stored_created = stored_created.replace(tzinfo=timezone.utc)
+        assert stored_created.timestamp() == 200
+
+
 def test_successful_checkout_schedules_one_payment_email(billing_client, monkeypatch):
     client, session_factory = billing_client
     sent = []

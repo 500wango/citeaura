@@ -198,6 +198,18 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
     project_id = _project(session_factory, tenant_id)
     root = _seed_workspace(tmp_path)
 
+    read_paths = [root / "geo.json", root / "content" / "facts.md", root / "assets" / "outlines" / "q001.md"]
+    before_reads = {path: path.stat().st_mtime_ns for path in read_paths}
+    assert client.get(f"/api/v1/projects/{project_id}/config", headers=headers).status_code == 200
+    assert client.get(f"/api/v1/projects/{project_id}/facts", headers=headers).status_code == 200
+    assert client.get(f"/api/v1/projects/{project_id}/assets", headers=headers).status_code == 200
+    assert client.get(
+        f"/api/v1/projects/{project_id}/asset",
+        headers=headers,
+        params={"path": "outlines/q001.md"},
+    ).status_code == 200
+    assert {path: path.stat().st_mtime_ns for path in read_paths} == before_reads
+
     config = client.get(f"/api/v1/projects/{project_id}/config", headers=headers)
     assert config.status_code == 200
     assert config.json()["market"] == "global"
@@ -233,7 +245,7 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
         headers=headers,
         json={"publishing": {"webhook": {"url": "https://127.0.0.1"}}},
     )
-    assert forbidden.status_code == 400
+    assert forbidden.status_code == 422
 
     added = client.post(
         f"/api/v1/projects/{project_id}/questions",
@@ -251,6 +263,15 @@ def test_workspace_read_write_flow_and_project_summary(workspace_client, monkeyp
     assert chinese_question.status_code == 400
     assert chinese_question.json()["error"] == "workspace_operation_failed"
     assert "must not contain Chinese characters" in chinese_question.json()["detail"]
+
+    invalid_global_update = client.patch(
+        f"/api/v1/projects/{project_id}/questions/q101",
+        headers=headers,
+        json={"text": "Example 的价格是多少？", "market": "global"},
+    )
+    assert invalid_global_update.status_code == 400
+    assert invalid_global_update.json()["error"] == "workspace_operation_failed"
+    assert "must not contain Chinese characters" in invalid_global_update.json()["detail"]
 
     first_offsite = client.post(
         f"/api/v1/projects/{project_id}/tickets",

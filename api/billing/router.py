@@ -125,6 +125,28 @@ def _timestamp(value, fallback=None):
         return fallback or datetime.now(timezone.utc)
 
 
+def _optional_timestamp(event_created=None, object_created=None):
+    """解析 Stripe 事件时间；缺失或非法值不伪造当前时间。"""
+    value = event_created if event_created is not None else object_created
+    if value is None:
+        return None
+    try:
+        return datetime.fromtimestamp(int(value), tz=timezone.utc)
+    except (TypeError, ValueError, OSError):
+        return None
+
+
+def _stale_provider_event(row, incoming_created):
+    stored_created = row.provider_event_created_at
+    if incoming_created is None or stored_created is None:
+        return False
+    if stored_created.tzinfo is None:
+        stored_created = stored_created.replace(tzinfo=timezone.utc)
+    else:
+        stored_created = stored_created.astimezone(timezone.utc)
+    return incoming_created <= stored_created
+
+
 def _subscription_row(db, provider_subscription_id=None, checkout_session_id=None):
     query = db.query(Subscription)
     if provider_subscription_id:
@@ -153,7 +175,7 @@ def _validated_selection(value):
     return tenant_id, plan_code, billing_interval, _plan(plan_code)
 
 
-def _activate_checkout(db, value):
+def _activate_checkout(db, value, event_created=None):
     tenant_id, plan_code, billing_interval, plan = _validated_selection(value)
     if value.get("payment_status") not in ("paid", "no_payment_required"):
         return False
@@ -171,6 +193,12 @@ def _activate_checkout(db, value):
     if not provider_subscription_id:
         raise stripe_adapter.StripeError("stripe_subscription_missing")
     row = _subscription_row(db, provider_subscription_id, value.get("id"))
+    incoming_created = _optional_timestamp(event_created, value.get("created"))
+    if row is not None:
+        if row.tenant_id != tenant.id:
+            raise stripe_adapter.StripeError("stripe_tenant_invalid")
+        if _stale_provider_event(row, incoming_created):
+            return False
     started_at = _timestamp(value.get("created"))
     if row is None:
         row = Subscription(tenant_id=tenant.id)
@@ -187,6 +215,8 @@ def _activate_checkout(db, value):
     row.provider_checkout_session_id = value.get("id")
     row.started_at = started_at
     row.expires_at = _add_billing_period(started_at, billing_interval)
+    if incoming_created is not None:
+        row.provider_event_created_at = incoming_created
     tenant.plan = plan_code
     record_product_event(
         db,
@@ -230,12 +260,9 @@ def _update_subscription(db, value, deleted=False, event_created=None):
             started_at=_timestamp(value.get("start_date")),
         )
         db.add(row)
-    incoming_created = _timestamp(event_created, None) if event_created is not None else None
-    stored_created = row.provider_event_created_at
-    if incoming_created is not None and stored_created is not None:
-        stored_created = _timestamp(stored_created.timestamp(), stored_created)
-        if incoming_created <= stored_created:
-            return False
+    incoming_created = _optional_timestamp(event_created, value.get("created"))
+    if _stale_provider_event(row, incoming_created):
+        return False
     status_value = "canceled" if deleted else str(value.get("status") or "incomplete")
     if status_value == "incomplete_expired":
         status_value = "canceled"
@@ -266,7 +293,7 @@ def _update_subscription(db, value, deleted=False, event_created=None):
     return True
 
 
-def _update_invoice_status(db, value, paid):
+def _update_invoice_status(db, value, paid, event_created=None):
     provider_subscription_id = _stripe_id(value.get("subscription"))
     parent = value.get("parent") if isinstance(value.get("parent"), dict) else {}
     details = parent.get("subscription_details") if isinstance(parent.get("subscription_details"), dict) else {}
@@ -288,6 +315,10 @@ def _update_invoice_status(db, value, paid):
             plan = _plan(plan_code)
         except (StopIteration, KeyError):
             return False
+    incoming_created = _optional_timestamp(event_created, value.get("created"))
+    stale = row is not None and _stale_provider_event(row, incoming_created)
+    if stale and paid and row.status in ("canceled", "unpaid"):
+        return False
     if paid:
         try:
             amount_paid = int(value.get("amount_paid"))
@@ -322,12 +353,17 @@ def _update_invoice_status(db, value, paid):
             provider_customer_id=_stripe_id(value.get("customer")),
             provider_subscription_id=provider_subscription_id,
             started_at=_timestamp(value.get("created")),
+            provider_event_created_at=incoming_created,
         )
         db.add(row)
         db.flush()
     if paid and row.status in ("canceled", "unpaid"):
         return False
+    if stale:
+        return row
     row.status = "active" if paid else "past_due"
+    if incoming_created is not None:
+        row.provider_event_created_at = incoming_created
     db.flush()
     _sync_tenant_plan(db, row.tenant_id)
     return row
@@ -422,18 +458,18 @@ def _process_stripe_event(db, event):
     if not isinstance(value, dict):
         raise stripe_adapter.StripeError("stripe_payload_invalid")
     if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
-        return _activate_checkout(db, value)
+        return _activate_checkout(db, value, event_created=event.get("created"))
     if event_type == "customer.subscription.updated":
         return _update_subscription(db, value, event_created=event.get("created"))
     if event_type == "customer.subscription.deleted":
         return _update_subscription(db, value, deleted=True, event_created=event.get("created"))
     if event_type == "invoice.payment_failed":
-        row = _update_invoice_status(db, value, paid=False)
+        row = _update_invoice_status(db, value, paid=False, event_created=event.get("created"))
         if row:
             _record_invoice_transaction(db, event, value, row, paid=False)
         return bool(row)
     if event_type == "invoice.paid":
-        row = _update_invoice_status(db, value, paid=True)
+        row = _update_invoice_status(db, value, paid=True, event_created=event.get("created"))
         if row:
             _record_invoice_transaction(db, event, value, row, paid=True)
         return bool(row)

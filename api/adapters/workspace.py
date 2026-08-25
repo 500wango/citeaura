@@ -9,12 +9,13 @@ from copy import deepcopy
 from pathlib import Path
 from urllib.parse import urlparse
 
-from api.adapters.engine import geolib
+from api.adapters.engine import geolib, process_state_lock
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import brand_facts, brand_identity, competitor_scope, generated_assets, global_scope, sampling_modes
 
 
 TEXT_SUFFIXES = {".txt", ".json", ".html", ".md"}
+CONFIG_PATCH_FIELDS = frozenset(("url", "market", "questions", "competitors", "platforms", "brand"))
 
 
 def _usable_crawl_pages(project_slug: str):
@@ -197,11 +198,12 @@ def resilient_crawl_evidence(project_slug: str):
                 "The site may require JavaScript rendering or block automated crawlers."
             )
 
-        engine_crawl.run = run_with_recovery
-        try:
-            yield
-        finally:
-            engine_crawl.run = original_run
+        with process_state_lock():
+            engine_crawl.run = run_with_recovery
+            try:
+                yield
+            finally:
+                engine_crawl.run = original_run
 
 
 def _safe_target(base: Path, relative: str, suffixes=None) -> Path:
@@ -232,27 +234,19 @@ def _validated_questions(questions):
     validated = []
     used_ids = set()
     for item in questions:
-        if not isinstance(item, dict):
-            raise ValueError("each question must be an object")
-        qid = str(item.get("id") or "").strip()
-        text = str(item.get("text") or "").strip()
-        market = item.get("market", "both")
-        group = str(item.get("group") or "Recommendation").strip() or "Recommendation"
-        if not re.fullmatch(r"q\d{3,6}", qid) or qid in used_ids:
+        normalized = global_scope.validate_question(item, require_id=True, default_group="Recommendation")
+        if normalized["id"] in used_ids:
             raise ValueError("question ids must be unique qNNN values")
-        if not text or len(text) > 1000:
-            raise ValueError("question text is required and must not exceed 1000 characters")
-        if market == "global" and global_scope.contains_han(text):
-            raise ValueError("global question text must not contain Chinese characters")
-        if market not in ("cn", "global", "both"):
-            raise ValueError("question market must be cn, global, or both")
-        validated.append({**item, "id": qid, "text": text, "market": market, "group": group})
-        used_ids.add(qid)
+        validated.append(normalized)
+        used_ids.add(normalized["id"])
     return validated
 
 
 def read_config(project_slug: str) -> dict:
-    return ensure_global_engine_scope(project_slug)
+    path = geolib.project_dir(project_slug) / "geo.json"
+    if not path.is_file():
+        return {}
+    return global_scope.normalize_config_data(geolib.load_config(project_slug))
 
 
 def ensure_global_engine_scope(project_slug: str) -> dict:
@@ -263,8 +257,15 @@ def ensure_global_engine_scope(project_slug: str) -> dict:
 def update_config(project_slug: str, updates: dict) -> dict:
     if not isinstance(updates, dict):
         raise ValueError("config body must be an object")
+    unknown = sorted(set(updates) - CONFIG_PATCH_FIELDS)
+    if unknown:
+        raise ValueError("unsupported config fields: " + ", ".join(str(item) for item in unknown))
     if "publishing" in updates:
         raise ValueError("publishing config must use the publishing API")
+    updates = dict(updates)
+    brand_updates = updates.pop("brand", None)
+    if brand_updates is not None and not isinstance(brand_updates, dict):
+        raise ValueError("brand config must be an object")
     if "competitors" in updates:
         updates = {**updates, "competitors": competitor_scope.normalize_user_competitors(updates["competitors"])}
     with geolib.project_lock(project_slug):
@@ -273,6 +274,11 @@ def update_config(project_slug: str, updates: dict) -> dict:
         if updates.get("slug", project_slug) != project_slug:
             raise ValueError("project slug cannot be changed")
         current.update(updates)
+        if brand_updates is not None:
+            current["brand"] = {
+                **(current.get("brand") if isinstance(current.get("brand"), dict) else {}),
+                **brand_updates,
+            }
         current["slug"] = project_slug
         if current.get("market") not in ("cn", "global", "both"):
             current["market"] = "both"
@@ -290,13 +296,13 @@ def update_config(project_slug: str, updates: dict) -> dict:
 
 def facts_source(project_slug: str) -> dict:
     path = geolib.project_dir(project_slug) / "content" / "facts.md"
-    migration = brand_facts.ensure_english_facts(project_slug)
     text = path.read_text("utf-8") if path.exists() else ""
     reviewed = brand_facts.REVIEWED_MARKER in text
-    verification = brand_facts.verify_against_site(project_slug, text) if text else {}
+    verification = geolib.read_json(
+        geolib.project_dir(project_slug) / "content" / "facts.verification.json",
+        {},
+    ) or {}
     machine_verified = bool(verification.get("publication_ready")) and not reviewed
-    if machine_verified:
-        brand_facts.sync_sample_factcheck(project_slug, verification)
     review_status = (
         "approved" if reviewed else
         "machine_verified" if machine_verified else
@@ -310,7 +316,7 @@ def facts_source(project_slug: str) -> dict:
         "machine_verified": machine_verified,
         "review_status": review_status,
         "verification": verification,
-        "migration": migration,
+        "migration": {"status": "not_run", "migrated": False, "backup": None},
     }
 
 
@@ -320,18 +326,18 @@ def save_facts(project_slug: str, text: str, approve: bool = False):
             geolib.project_dir(project_slug) / "content" / "facts.md",
             brand_facts.reviewed_text(text) if approve else brand_facts.unreviewed_text(text),
         )
-    brand_facts.verify_against_site(project_slug)
+        brand_facts.verify_against_site(project_slug)
 
 
 def asset_tree(project_slug: str):
-    config = ensure_global_engine_scope(project_slug)
-    return generated_assets.normalize_project_assets(project_slug, config=config)["tree"]
+    config = read_config(project_slug)
+    return generated_assets.read_project_assets(project_slug, config=config)["tree"]
 
 
 def read_asset(project_slug: str, relative: str):
     relative = generated_assets.validate_asset_path(relative)
-    config = ensure_global_engine_scope(project_slug)
-    state = generated_assets.normalize_project_assets(project_slug, config=config)
+    config = read_config(project_slug)
+    state = generated_assets.read_project_assets(project_slug, config=config)
     if relative not in state["visible_paths"]:
         raise FileNotFoundError(relative)
     target = _safe_target(geolib.project_dir(project_slug) / "assets", relative, TEXT_SUFFIXES)
@@ -343,7 +349,7 @@ def read_asset(project_slug: str, relative: str):
 def save_asset(project_slug: str, relative: str, text: str):
     relative = generated_assets.validate_asset_path(relative)
     text = generated_assets.validate_asset_text(text)
-    config = ensure_global_engine_scope(project_slug)
+    config = read_config(project_slug)
     state = generated_assets.normalize_project_assets(project_slug, config=config)
     if relative not in state["visible_paths"]:
         raise FileNotFoundError(relative)
@@ -362,7 +368,7 @@ def workbench(project_slug: str, question_id: str):
 
     if question_id and not re.fullmatch(r"q\d{3,6}", question_id):
         raise ValueError("invalid question id")
-    config = ensure_global_engine_scope(project_slug)
+    config = read_config(project_slug)
     result = dashboard.workbench(project_slug, question_id)
     sample_directory = geolib.project_dir(project_slug) / "samples"
     files = sorted(sample_directory.glob("*.jsonl")) if sample_directory.exists() else []
@@ -505,15 +511,10 @@ def add_questions(project_slug: str, items: list):
         }
         added = []
         for item in items:
-            text = str(item.get("text") or "").strip()
-            market = item.get("market", "both")
-            group = str(item.get("group") or "Scenario").strip() or "Scenario"
-            if not text or len(text) > 1000:
-                raise ValueError("question text is required and must not exceed 1000 characters")
-            if market == "global" and global_scope.contains_han(text):
-                raise ValueError("global question text must not contain Chinese characters")
-            if market not in ("cn", "global", "both"):
-                raise ValueError("question market must be cn, global, or both")
+            candidate = global_scope.validate_question(item, require_id=False, default_group="Scenario")
+            text = candidate["text"]
+            market = candidate["market"]
+            group = candidate["group"]
             if text in existing:
                 continue
             number = 101
@@ -521,11 +522,12 @@ def add_questions(project_slug: str, items: list):
                 number += 1
             used.add(number)
             question = {
+                **candidate,
                 "id": f"q{number:03d}",
                 "group": group,
                 "market": market,
                 "text": text,
-                "source": str(item.get("source") or "manual"),
+                "source": str(candidate.get("source") or "manual"),
             }
             questions.append(question)
             existing.add(text)
@@ -547,18 +549,8 @@ def update_question(project_slug: str, question_id: str, changes: dict):
         current = next((item for item in questions if str(item.get("id")) == question_id), None)
         if current is None:
             raise KeyError(question_id)
-        if "text" in changes:
-            text = str(changes.get("text") or "").strip()
-            if not text or len(text) > 1000:
-                raise ValueError("question text is required and must not exceed 1000 characters")
-            current["text"] = text
-        if "market" in changes:
-            market = str(changes.get("market") or "").strip()
-            if market not in ("cn", "global", "both"):
-                raise ValueError("question market must be cn, global, or both")
-            current["market"] = market
-        if "group" in changes and changes.get("group"):
-            current["group"] = str(changes.get("group")).strip()
+        proposed = {**current, **{key: value for key, value in changes.items() if key in ("text", "market", "group")}}
+        current.update(global_scope.validate_question(proposed, require_id=True))
         geolib.save_config(project_slug, config)
     global_scope.normalize_project(project_slug)
     return current
@@ -663,13 +655,14 @@ def preserve_manual_tickets(project_slug: str):
             return _merge_ticket_workflow(project_slug, workflow_tickets) or rebuilt
         return rebuilt
 
-    engine_tasks.build = build_with_manual
-    try:
-        yield
-    finally:
-        engine_tasks.build = original_build
-        _merge_manual_tickets(project_slug, manual_tickets)
-        _merge_ticket_workflow(project_slug, workflow_tickets)
+    with process_state_lock():
+        engine_tasks.build = build_with_manual
+        try:
+            yield
+        finally:
+            engine_tasks.build = original_build
+            _merge_manual_tickets(project_slug, manual_tickets)
+            _merge_ticket_workflow(project_slug, workflow_tickets)
 
 
 def create_offsite_ticket(project_slug: str, url: str, ask_text: str, influenced_questions: list[str]):

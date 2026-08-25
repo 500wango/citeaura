@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from api.adapters import action_scope, brand_facts, brand_identity, competitor_scope
 from api.adapters.crawl_evidence import contains_han, deduplicate_crawl_evidence, deduplicate_crawl_pages, normalize_evidence_url
-from api.adapters.engine import geolib
+from api.adapters.engine import geolib, process_state_lock
 
 
 DOMESTIC_PLATFORM_CODES = frozenset((
@@ -29,6 +29,9 @@ GROUP_NAMES = {
     "品牌验证": "brand_verification",
     "场景": "scenario",
 }
+
+QUESTION_MARKETS = frozenset(("cn", "global", "both"))
+QUESTION_ID_PATTERN = re.compile(r"q\d{3,6}")
 
 GLOBAL_CHANNEL_NAMES = {
     "official_en": "English Official Site",
@@ -585,6 +588,31 @@ def is_global_sample(row, config=None):
     return True
 
 
+def validate_question(item, *, require_id=True, default_group="recommendation"):
+    """校验并规范化单个问题，所有编辑入口共享该约束。"""
+    if not isinstance(item, dict):
+        raise ValueError("each question must be an object")
+    question_id = str(item.get("id") or "").strip().lower()
+    text = str(item.get("text") or "").strip()
+    market = str(item.get("market", "both") or "both").strip().lower()
+    group = str(item.get("group") or default_group).strip() or default_group
+    if require_id and not QUESTION_ID_PATTERN.fullmatch(question_id):
+        raise ValueError("question ids must be unique qNNN values")
+    if not text or len(text) > 1000:
+        raise ValueError("question text is required and must not exceed 1000 characters")
+    if market not in QUESTION_MARKETS:
+        raise ValueError("question market must be cn, global, or both")
+    if market == "global" and contains_han(text):
+        raise ValueError("global question text must not contain Chinese characters")
+    return {
+        **item,
+        "id": question_id,
+        "text": text,
+        "market": market,
+        "group": group,
+    }
+
+
 def normalize_questions(questions, *, strict=False):
     """保留中文、全球和双市场问题，确保每条问题都有合法市场。"""
     if not isinstance(questions, list):
@@ -598,27 +626,20 @@ def normalize_questions(questions, *, strict=False):
             if strict:
                 raise ValueError("each question must be an object")
             continue
-        text = str(item.get("text") or "").strip()
-        market = item.get("market")
-        if not text:
+        try:
+            normalized_item = validate_question(item, require_id=strict)
+        except ValueError:
             if strict:
-                raise ValueError("question text is required")
+                raise
             continue
-        if market not in ("cn", "global", "both", None):
-            if strict:
-                raise ValueError("question market must be cn, global, or both")
-            continue
-        market = market or "both"
-        question_id = str(item.get("id") or "").strip().lower()
-        if strict and (not re.fullmatch(r"q\d{3,6}", question_id) or question_id in seen_ids):
+        question_id = normalized_item["id"]
+        if strict and question_id in seen_ids:
             raise ValueError("question id must be a unique q followed by 3-6 digits")
         if question_id:
             seen_ids.add(question_id)
         normalized.append({
-            **item,
-            "text": text,
-            "market": market,
-            "group": GROUP_NAMES.get(item.get("group"), item.get("group") or "recommendation"),
+            **normalized_item,
+            "group": GROUP_NAMES.get(normalized_item.get("group"), normalized_item.get("group") or "recommendation"),
         })
     return geolib.normalize_question_ids(normalized)
 
@@ -1069,30 +1090,31 @@ def normalize_generated_outputs(project_slug):
         result = original_blueprint(slug, *args, **kwargs)
         return normalize_blueprint(project_slug) if slug == project_slug else result
 
-    engine_bootstrap.run = bootstrap_run
-    engine_bootstrap.brand_facts = extract_brand_facts
-    engine_bootstrap.competitors = discover_competitors
-    engine_bootstrap.render_facts = render_brand_facts
-    engine_audit.run = audit_run
-    engine_crawl.run = crawl_run
-    engine_generate.run = generate_run
-    engine_generate.parse_facts = parse_brand_facts
-    engine_tasks.build = tasks_build
-    engine_blueprint.build = blueprint_build
-    try:
-        yield
-    finally:
-        engine_bootstrap.run = original_bootstrap
-        engine_bootstrap.brand_facts = original_brand_facts
-        engine_bootstrap.competitors = original_competitors
-        engine_bootstrap.render_facts = original_render_facts
-        engine_audit.run = original_audit
-        engine_crawl.run = original_crawl
-        engine_generate.run = original_generate
-        engine_generate.parse_facts = original_parse_facts
-        engine_tasks.build = original_tasks
-        engine_blueprint.build = original_blueprint
-        config = normalize_project(project_slug)
-        from api.adapters import generated_assets
+    with process_state_lock():
+        engine_bootstrap.run = bootstrap_run
+        engine_bootstrap.brand_facts = extract_brand_facts
+        engine_bootstrap.competitors = discover_competitors
+        engine_bootstrap.render_facts = render_brand_facts
+        engine_audit.run = audit_run
+        engine_crawl.run = crawl_run
+        engine_generate.run = generate_run
+        engine_generate.parse_facts = parse_brand_facts
+        engine_tasks.build = tasks_build
+        engine_blueprint.build = blueprint_build
+        try:
+            yield
+        finally:
+            engine_bootstrap.run = original_bootstrap
+            engine_bootstrap.brand_facts = original_brand_facts
+            engine_bootstrap.competitors = original_competitors
+            engine_bootstrap.render_facts = original_render_facts
+            engine_audit.run = original_audit
+            engine_crawl.run = original_crawl
+            engine_generate.run = original_generate
+            engine_generate.parse_facts = original_parse_facts
+            engine_tasks.build = original_tasks
+            engine_blueprint.build = original_blueprint
+    config = normalize_project(project_slug)
+    from api.adapters import generated_assets
 
-        generated_assets.normalize_project_assets(project_slug, config=config)
+    generated_assets.normalize_project_assets(project_slug, config=config)

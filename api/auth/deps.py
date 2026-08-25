@@ -4,13 +4,14 @@ import jwt
 from fastapi import BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.orm import sessionmaker
 
 from api.audit import record_event
 from api.db import get_db
 from api.models import Membership, Tenant, User
 from api.auth.security import ACCESS_TOKEN_COOKIE, decode_token
-from api.billing.access import sync_tenant_plan
+from api.billing.access import effective_tenant_plan
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
@@ -78,8 +79,6 @@ def get_current_user(
     except (KeyError, TypeError, ValueError, jwt.PyJWTError, RuntimeError):
         _unauthorized("invalid_token")
 
-    sync_tenant_plan(db, tenant_id)
-
     user = db.get(User, user_id)
     membership = db.get(Membership, {"tenant_id": tenant_id, "user_id": user_id})
     tenant = db.get(Tenant, tenant_id)
@@ -92,6 +91,11 @@ def get_current_user(
         or int(payload.get("sv", -1)) != int(user.session_version)
     ):
         _unauthorized("invalid_token")
+
+    # 授权读取必须反映最新订阅，但不能让每个请求把租户实体标记为待写入。
+    effective_plan = effective_tenant_plan(db, tenant_id)
+    if effective_plan is not None and effective_plan != tenant.plan:
+        set_committed_value(tenant, "plan", effective_plan)
 
     # 后续租户路由统一从 current_user.tenant_id 读取当前 token 的租户。
     user.tenant_id = tenant_id

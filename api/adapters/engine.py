@@ -57,6 +57,13 @@ ENGINE_MAX_REPEAT = geolib.MAX_SAMPLE_REPEAT
 CUSTOM_PROVIDER_CODE = re.compile(r"^custom_[a-z0-9][a-z0-9_-]{2,55}$")
 
 
+@contextmanager
+def process_state_lock():
+    """串行化需要临时修改引擎进程级状态的操作。"""
+    with _CONTEXT_LOCK:
+        yield
+
+
 class _PinnedAddressAdapter(HTTPAdapter):
     """让一次引擎请求复用已校验的 DNS 地址，并保留 HTTPS SNI。"""
 
@@ -374,7 +381,7 @@ def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = N
         if not needs_process_state:
             yield
             return
-        with _CONTEXT_LOCK:
+        with process_state_lock():
             with inject_keys(keys), protect_network_fetches(), _custom_provider_context(custom_providers):
                 yield
 

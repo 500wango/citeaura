@@ -302,6 +302,32 @@ def _write_index(assets, records, excluded):
     _atomic_write(path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
 
 
+def read_project_assets(project_slug, config=None):
+    """读取现有资产索引；索引缺失时只在内存中构建最小视图。"""
+    project = geolib.project_dir(project_slug)
+    assets = project / "assets"
+    if not assets.is_dir():
+        return {"tree": [], "visible_paths": frozenset(), "excluded": {}}
+    index = geolib.read_json(assets / "index.json", {}) or {}
+    records = index.get("asset_records") if isinstance(index, dict) else None
+    if isinstance(index, dict) and index.get("contract") == CONTRACT and isinstance(records, list):
+        records = [item for item in records if isinstance(item, dict) and item.get("path")]
+        return {
+            "tree": records,
+            "visible_paths": frozenset(item["path"] for item in records),
+            "excluded": index.get("excluded") if isinstance(index.get("excluded"), dict) else {},
+        }
+    config = config if isinstance(config, dict) else geolib.load_config(project_slug)
+    blueprint = _safe_blueprint(config, geolib.read_json(project / "blueprint.json", {}) or {})
+    active_ids = {item["id"] for item in blueprint["contents"]}
+    records, excluded = _visible_assets(assets, active_ids, set())
+    return {
+        "tree": records,
+        "visible_paths": frozenset(item["path"] for item in records),
+        "excluded": excluded,
+    }
+
+
 def normalize_project_assets(project_slug, config=None):
     """Migrate managed legacy assets and return the safe product-visible tree."""
     project = geolib.project_dir(project_slug)

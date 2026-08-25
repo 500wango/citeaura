@@ -995,6 +995,12 @@ def load_facts(project_slug):
 
 
 def sync_sample_factcheck(project_slug, verification=None):
+    """在项目锁内用官网事实核对最近一轮采样回答。"""
+    with geolib.project_lock(project_slug):
+        return _sync_sample_factcheck_locked(project_slug, verification)
+
+
+def _sync_sample_factcheck_locked(project_slug, verification=None):
     """用已对照过的官网事实核对最近一轮采样回答，不覆盖人工记录。"""
     directory = geolib.project_dir(project_slug)
     path = directory / "factcheck.json"

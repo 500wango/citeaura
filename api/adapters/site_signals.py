@@ -8,7 +8,7 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 
-from api.adapters.engine import geolib
+from api.adapters.engine import geolib, process_state_lock
 from api.adapters.exceptions import GeoEngineError
 from api.adapters.network import NetworkTargetError, validate_outbound_url
 
@@ -290,14 +290,15 @@ def semantic_site_signals(project_slug):
         result = original_run(slug, *args, **kwargs)
         return validate_project_signals(project_slug) if slug == project_slug else result
 
-    engine_crawl.run = run_with_validation
-    engine_crawl.rank = rank_safe_candidates
-    engine_crawl.check_crawl_health = check_with_diagnostics
-    engine_crawl.analyze_page = analyze_with_static_fallback
-    try:
-        yield
-    finally:
-        engine_crawl.run = original_run
-        engine_crawl.rank = original_rank
-        engine_crawl.check_crawl_health = original_health
-        engine_crawl.analyze_page = original_analyze
+    with process_state_lock():
+        engine_crawl.run = run_with_validation
+        engine_crawl.rank = rank_safe_candidates
+        engine_crawl.check_crawl_health = check_with_diagnostics
+        engine_crawl.analyze_page = analyze_with_static_fallback
+        try:
+            yield
+        finally:
+            engine_crawl.run = original_run
+            engine_crawl.rank = original_rank
+            engine_crawl.check_crawl_health = original_health
+            engine_crawl.analyze_page = original_analyze

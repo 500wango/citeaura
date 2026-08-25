@@ -126,7 +126,9 @@ def _sync_claim_verification(project_slug):
         if not facts_path.is_file():
             return None
         verification = brand_facts.verify_against_site(project_slug)
-        brand_facts.sync_sample_factcheck(project_slug, verification)
+        # task lifecycle already owns the project lock; avoid reacquiring the
+        # distributed lock while updating the derived factcheck ledger.
+        brand_facts._sync_sample_factcheck_locked(project_slug, verification)
         return verification
     except Exception as exc:  # noqa: BLE001
         logger.warning("Claim verification deferred for %s: %s", project_slug, exc)

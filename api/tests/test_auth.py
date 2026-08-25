@@ -9,7 +9,7 @@ from api.auth import password_reset
 from api.adapters.engine import tenant_slug
 from api.db import Base, get_db
 from api.main import app
-from api.models import PasswordResetToken, Tenant, User
+from api.models import PasswordResetToken, Subscription, Tenant, User
 
 
 @pytest.fixture()
@@ -82,6 +82,38 @@ def test_register_login_and_me(client):
     cookie_current = client.get("/api/v1/me")
     assert cookie_current.status_code == 200
     assert cookie_current.json()["user"]["email"] == "owner@example.com"
+
+
+def test_auth_reads_effective_subscription_plan_without_persisting_sync(client):
+    payload = {"email": "effective-plan@example.com", "password": "correct-horse-battery"}
+    registered = client.post("/api/v1/auth/register", json=payload)
+    assert registered.status_code == 201
+    tenant_id = registered.json()["tenant"]["id"]
+    tokens = client.post("/api/v1/auth/login", json=payload).json()
+
+    with client.session_factory() as db:
+        tenant = db.get(Tenant, tenant_id)
+        tenant.plan = "trial"
+        db.add(Subscription(
+            tenant_id=tenant_id,
+            plan="pro",
+            billing_interval="monthly",
+            status="active",
+            provider="stripe",
+            provider_subscription_id="sub-effective-plan",
+            started_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        ))
+        db.commit()
+
+    response = client.get(
+        "/api/v1/me",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["tenant"]["plan"] == "pro"
+    with client.session_factory() as db:
+        assert db.get(Tenant, tenant_id).plan == "trial"
 
 
 def test_registration_schedules_welcome_email(client, monkeypatch):

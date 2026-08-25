@@ -1,9 +1,10 @@
 """问题库、资产、事实库和内容工作台 API。"""
 
 from datetime import datetime, timezone
+from typing import Literal
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from api.adapters.engine import with_tenant_read_context
@@ -26,6 +27,33 @@ class TextRequest(BaseModel):
 
 class FactsRequest(TextRequest):
     approve: bool = False
+
+
+class BrandConfigPatch(BaseModel):
+    """用户可编辑的品牌配置字段。派生身份字段不允许从 API 写入。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, max_length=320)
+    site: str | None = Field(default=None, max_length=2048)
+    industry: str | None = Field(default=None, max_length=512)
+    definition: str | None = Field(default=None, max_length=4000)
+    target_users: str | None = Field(default=None, max_length=2000)
+    products: list[str] | None = Field(default=None, max_length=100)
+    aliases: list[str] | None = Field(default=None, max_length=100)
+
+
+class ProjectConfigPatch(BaseModel):
+    """项目配置的显式 patch 合同，拒绝未知顶层字段。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    url: str | None = Field(default=None, max_length=2048)
+    market: Literal["cn", "global", "both"] | None = None
+    questions: list[dict] | None = Field(default=None, max_length=1000)
+    competitors: list[dict] | None = Field(default=None, max_length=200)
+    platforms: list[str] | None = Field(default=None, max_length=64)
+    brand: BrandConfigPatch | None = None
 
 
 class AssetRequest(TextRequest):
@@ -127,13 +155,13 @@ def project_questions(project_id: int, current_user: User = Depends(get_current_
 @router.patch("/api/v1/projects/{project_id}/config")
 def update_project_config(
     project_id: int,
-    payload: dict = Body(...),
+    payload: ProjectConfigPatch,
     current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     _, project = _tenant_project(db, current_user, project_id)
     _ensure_idle(db, project)
-    updates = dict(payload)
+    updates = payload.model_dump(exclude_unset=True)
     normalized_url = None
     if "url" in updates:
         try:
@@ -347,7 +375,10 @@ def add_project_questions(
 
 
 class QuestionUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     text: str | None = Field(default=None, max_length=1000)
+    market: Literal["cn", "global", "both"] | None = None
     group: str | None = Field(default=None, max_length=128)
 
 
