@@ -142,6 +142,7 @@ def collect_checks(base_url, production=False):
             page = _get(base_url, path)
             check(f"public:{path}", page.status_code == 200 and marker in page.text, page.status_code)
         for asset in (
+            "/runtime-assets/theme-init.js",
             "/site-assets/styles/tokens.css",
             "/site-assets/styles/landing.css",
             "/site-assets/landing.js",

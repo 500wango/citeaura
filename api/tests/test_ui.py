@@ -49,7 +49,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
     assert "/site-assets/styles/app.css" in response.text
-    assert '<script src="/site-assets/theme-init.js"></script>' in response.text
+    assert '<script src="/runtime-assets/theme-init.js"></script>' in response.text
     assert re.search(r"<script(?![^>]*\bsrc=)[^>]*>", response.text, re.IGNORECASE) is None
     policy = response.headers["content-security-policy"]
     assert "script-src 'self';" in policy

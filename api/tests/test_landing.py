@@ -237,7 +237,7 @@ def test_frontend_asset_cache_contract_is_explicit():
         "/site-assets/landing.js",
         "/site-assets/site-nav.js",
         "/site-assets/seo-attribution.js",
-        "/site-assets/theme-init.js",
+        "/runtime-assets/theme-init.js",
         "/site-assets/styles/tokens.css",
         "/site-assets/styles/base.css",
         "/site-assets/styles/components.css",
@@ -276,7 +276,16 @@ def test_public_markup_has_no_manual_asset_version_queries():
         if path.suffix.lower() not in {".html", ".js", ".css", ".json", ".webmanifest"}:
             continue
         source = path.read_text("utf-8")
-        assert re.search(r"(?:/site-assets/|/app(?:-assets)?/|/i18n/)[^\"'\\s<>?]+\\?v=", source) is None, path
+        assert re.search(r"(?:/site-assets/|/runtime-assets/|/app(?:-assets)?/|/i18n/)[^\"'\\s<>?]+\\?v=", source) is None, path
+
+
+def test_pages_use_the_runtime_theme_entrypoint():
+    """Avoid reusing the legacy edge-cached theme script URL."""
+    root = Path(__file__).resolve().parents[2]
+    for path in sorted((root / "web").rglob("*.html")):
+        source = path.read_text("utf-8")
+        assert "/runtime-assets/theme-init.js" in source, path
+        assert "/site-assets/theme-init.js" not in source, path
 
 
 def test_public_pages_expose_social_card_metadata():

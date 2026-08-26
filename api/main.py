@@ -42,6 +42,7 @@ app.add_middleware(
     allowed_hosts=sorted({"localhost", "127.0.0.1", "testserver", _public_host, f"*.{_public_host}"}),
 )
 app.mount("/site-assets", StaticFiles(directory=WEB_ROOT / "assets"), name="site-assets")
+app.mount("/runtime-assets", StaticFiles(directory=WEB_ROOT / "assets"), name="runtime-assets")
 app.mount("/app-assets", StaticFiles(directory=WEB_ROOT / "app"), name="app-assets")
 app.mount("/app", StaticFiles(directory=WEB_ROOT / "app", html=True), name="app")
 app.mount("/admin", StaticFiles(directory=WEB_ROOT / "admin", html=True), name="admin")
@@ -133,7 +134,7 @@ async def security_headers(request: Request, call_next):
         or request.url.path.startswith("/admin/")
     ):
         response.headers["Cache-Control"] = "private, no-store, max-age=0"
-    elif request.url.path.startswith("/site-assets/"):
+    elif request.url.path.startswith(("/site-assets/", "/runtime-assets/")):
         if request.url.path.lower().endswith((".js", ".css")):
             response.headers["Cache-Control"] = "public, no-store, max-age=0"
         else:
