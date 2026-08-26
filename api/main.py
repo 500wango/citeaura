@@ -42,6 +42,7 @@ app.add_middleware(
     allowed_hosts=sorted({"localhost", "127.0.0.1", "testserver", _public_host, f"*.{_public_host}"}),
 )
 app.mount("/site-assets", StaticFiles(directory=WEB_ROOT / "assets"), name="site-assets")
+app.mount("/app-assets", StaticFiles(directory=WEB_ROOT / "app"), name="app-assets")
 app.mount("/app", StaticFiles(directory=WEB_ROOT / "app", html=True), name="app")
 app.mount("/admin", StaticFiles(directory=WEB_ROOT / "admin", html=True), name="admin")
 app.include_router(admin_router)
@@ -124,7 +125,11 @@ async def api_rate_limiter(request: Request, call_next):
 async def security_headers(request: Request, call_next):
     """为 API 和嵌入式 UI 添加基础浏览器安全策略。"""
     response = await call_next(request)
-    if request.url.path == "/app" or request.url.path.startswith("/app/"):
+    if (
+        request.url.path == "/app"
+        or request.url.path.startswith("/app/")
+        or request.url.path.startswith("/app-assets/")
+    ):
         response.headers["Cache-Control"] = "private, no-store, max-age=0"
     elif request.url.path.startswith("/site-assets/"):
         response.headers["Cache-Control"] = (
@@ -133,7 +138,7 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    if request.url.path.startswith(("/files/", "/api/", "/app", "/admin")):
+    if request.url.path.startswith(("/files/", "/api/", "/app", "/app-assets/", "/admin")):
         response.headers["X-Robots-Tag"] = "noindex, nofollow"
     if request.url.path.startswith("/api/v1/") and "Cache-Control" not in response.headers:
         response.headers["Cache-Control"] = "private, no-store"

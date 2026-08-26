@@ -43,8 +43,8 @@ def test_spa_is_served_with_citeaura_shell():
     assert "CiteAura" in response.text
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
-    assert '<script type="module" src="/app/app.js' in response.text
-    assert '<script type="module" src="/app/app.js"></script>' in response.text
+    assert '<script type="module" src="/app-assets/app.js' in response.text
+    assert '<script type="module" src="/app-assets/app.js"></script>' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -83,23 +83,23 @@ def test_admin_shell_is_excluded_from_search_index():
 def test_spa_static_modules_are_served():
     client = TestClient(app)
     for path in (
-        "/app/app.js",
-        "/app/api.js",
-        "/app/i18n.js",
-        "/app/safe-html.js",
-        "/app/views/overview.js",
-        "/app/views/engines.js",
-        "/app/views/plan.js",
-        "/app/views/report.js",
-        "/app/views/siteaudit.js",
-        "/app/views/facts.js",
-        "/app/views/onboarding.js",
-        "/app/components/toast.js",
-        "/app/components/modal.js",
-        "/app/components/badge.js",
-        "/app/components/kpi.js",
-        "/app/components/table.js",
-        "/app/components/tabs.js",
+        "/app-assets/app.js",
+        "/app-assets/api.js",
+        "/app-assets/i18n.js",
+        "/app-assets/safe-html.js",
+        "/app-assets/views/overview.js",
+        "/app-assets/views/engines.js",
+        "/app-assets/views/plan.js",
+        "/app-assets/views/report.js",
+        "/app-assets/views/siteaudit.js",
+        "/app-assets/views/facts.js",
+        "/app-assets/views/onboarding.js",
+        "/app-assets/components/toast.js",
+        "/app-assets/components/modal.js",
+        "/app-assets/components/badge.js",
+        "/app-assets/components/kpi.js",
+        "/app-assets/components/table.js",
+        "/app-assets/components/tabs.js",
     ):
         response = client.get(path)
         assert response.status_code == 200, f"Failed to serve {path}"
@@ -128,9 +128,9 @@ def test_frontend_view_modules_parse_as_es_modules():
 
 def test_citation_sources_view_has_no_legacy_seo_integrations():
     client = TestClient(app)
-    channels = client.get("/app/views/channels.js").text
-    app_js = client.get("/app/app.js").text
-    api_js = client.get("/app/api.js").text
+    channels = client.get("/app-assets/views/channels.js").text
+    app_js = client.get("/app-assets/app.js").text
+    api_js = client.get("/app-assets/api.js").text
 
     assert "AI Citation Sources" in channels
     assert "Run Citation Sampling" in channels
@@ -146,11 +146,11 @@ def test_citation_sources_view_has_no_legacy_seo_integrations():
     assert "SEO Integrations" not in app_js
     assert "views/integrations.js" not in app_js
     assert "getProjectTraffic" not in api_js
-    assert client.get("/app/views/integrations.js").status_code == 404
+    assert client.get("/app-assets/views/integrations.js").status_code == 404
 
 
 def test_action_tickets_are_listed_in_execution_navigation():
-    app_js = TestClient(app).get("/app/app.js").text
+    app_js = TestClient(app).get("/app-assets/app.js").text
 
     assert "defaultView: 'assets'" in app_js
     assert "{ id: 'plan', labelKey: 'nav.plan', defaultLabel: 'Action Tickets' }" in app_js
@@ -377,7 +377,7 @@ def test_ui_compatibility_route_remains_available():
 
     assert response.status_code == 200
     assert "CiteAura" in response.text
-    assert '<script type="module" src="/app/app.js' in response.text
+    assert '<script type="module" src="/app-assets/app.js' in response.text
 
 
 @pytest.mark.parametrize(
