@@ -281,18 +281,52 @@ function escapeHtml(value) {
     var toggle = $('.nav-menu-toggle');
     if (!header || !toggle || toggle.dataset.navBound === 'true') return;
     toggle.dataset.navBound = 'true';
-    toggle.addEventListener('click', function () {
-      var open = header.classList.toggle('nav-open');
+
+    var groups = $$('.nav-group');
+    var links = $$('.nav-links a');
+    var closeGroups = function (except) {
+      groups.forEach(function (group) {
+        if (group !== except) group.removeAttribute('open');
+      });
+    };
+    var setMenuOpen = function (open) {
+      header.classList.toggle('nav-open', open);
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       var key = open ? 'nav.close' : 'nav.open';
       var label = catalogValue(key);
       if (label) toggle.setAttribute('aria-label', label);
+      if (!open) closeGroups();
+    };
+
+    toggle.addEventListener('click', function () {
+      setMenuOpen(!header.classList.contains('nav-open'));
     });
-    $$('.nav-links a').forEach(function (link) {
-      link.addEventListener('click', function () {
-        header.classList.remove('nav-open');
-        toggle.setAttribute('aria-expanded', 'false');
+    groups.forEach(function (group) {
+      var summary = group.querySelector('summary');
+      if (!summary) return;
+      summary.setAttribute('aria-expanded', group.open ? 'true' : 'false');
+      group.addEventListener('toggle', function () {
+        if (group.open) closeGroups(group);
+        summary.setAttribute('aria-expanded', group.open ? 'true' : 'false');
       });
+    });
+    links.forEach(function (link) {
+      link.addEventListener('click', function () { setMenuOpen(false); });
+      try {
+        var linkPath = new URL(link.href, location.href).pathname.replace(/\/$/, '') || '/';
+        var currentPath = location.pathname.replace(/\/$/, '') || '/';
+        if (linkPath === currentPath && !link.getAttribute('href').startsWith('#')) link.classList.add('is-current');
+      } catch (e) {}
+    });
+    document.addEventListener('click', function (event) {
+      if (header.classList.contains('nav-open') && !header.contains(event.target)) setMenuOpen(false);
+      if (!header.contains(event.target)) closeGroups();
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') setMenuOpen(false);
+    });
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 1120) setMenuOpen(false);
     });
   }
 

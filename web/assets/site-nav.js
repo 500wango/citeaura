@@ -9,10 +9,18 @@
 
     toggle.dataset.navBound = 'true';
 
+    var groups = nav.querySelectorAll('.nav-group');
+    var closeGroups = function (except) {
+      groups.forEach(function (group) {
+        if (group !== except) group.removeAttribute('open');
+      });
+    };
+
     function setOpen(open) {
       header.classList.toggle('nav-open', open);
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+      if (!open) closeGroups();
     }
 
     toggle.addEventListener('click', function () {
@@ -22,6 +30,15 @@
     nav.querySelectorAll('a').forEach(function (link) {
       link.addEventListener('click', function () {
         setOpen(false);
+      });
+    });
+    groups.forEach(function (group) {
+      var summary = group.querySelector('summary');
+      if (!summary) return;
+      summary.setAttribute('aria-expanded', group.open ? 'true' : 'false');
+      group.addEventListener('toggle', function () {
+        if (group.open) closeGroups(group);
+        summary.setAttribute('aria-expanded', group.open ? 'true' : 'false');
       });
     });
 
@@ -34,7 +51,7 @@
     });
 
     window.addEventListener('resize', function () {
-      if (window.innerWidth > 900) setOpen(false);
+      if (window.innerWidth > 1120) setOpen(false);
     });
   }
 

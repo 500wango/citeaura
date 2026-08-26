@@ -137,7 +137,7 @@ def test_public_navigation_uses_compact_groups_and_shared_mobile_menu():
         assert body.count('class="nav-group"') == 3, path
         assert 'id="primary-nav"' in body, path
         assert 'class="nav-menu-toggle"' in body, path
-        assert '/site-assets/site-nav.js?v=1.0' in body, path
+        assert '/site-assets/site-nav.js?v=1.1' in body, path
         assert 'href="/sample-report"' in body, path
 
 
@@ -413,7 +413,7 @@ def test_public_pages_load_shared_landing_localization():
     for path in ("/about", "/contact", "/privacy", "/terms", "/sample-report"):
         response = client.get(path)
         assert response.status_code == 200
-        assert '/site-assets/landing.js?v=3.4' in response.text, path
+        assert '/site-assets/landing.js?v=3.5' in response.text, path
     assert 'data-i18n-html="public.privacy.sec1"' in client.get("/privacy").text
     assert 'data-i18n-html="public.terms.sec1"' in client.get("/terms").text
     assert 'data-i18n-html="public.sample.sec1"' in client.get("/sample-report").text
