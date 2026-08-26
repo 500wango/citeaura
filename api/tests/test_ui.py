@@ -44,7 +44,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.18' in response.text
+    assert '/app/app.js?v=3.19' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -352,6 +352,14 @@ def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():
     blocked_tags = sanitizer.split('const URL_ATTRIBUTES', 1)[0]
     for interactive_tag in ("'form'", "'input'", "'button'", "'select'", "'textarea'"):
         assert interactive_tag not in blocked_tags
+    safe_html_importers = []
+    for path in (root / "web" / "app").rglob("*.js"):
+        text = path.read_text("utf-8")
+        if path.name != "safe-html.js" and "safe-html.js" in text:
+            safe_html_importers.append(path)
+            assert "safe-html.js?v=1.1" in text, path
+            assert re.search(r"safe-html\.js['\"]", text) is None, path
+    assert safe_html_importers
     assert "window.clearInterval(jobPollingTimer)" in app_js
     for path in (root / "web").rglob("*"):
         if path.suffix in (".html", ".js"):

@@ -4,7 +4,7 @@
 
 import { archive } from '../api.js?v=3.4';
 import { t, tError } from '../i18n.js';
-import { escapeHtml } from '../safe-html.js';
+import { escapeHtml } from '../safe-html.js?v=1.1';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';

@@ -3,7 +3,7 @@
  * ：12.5px、、 hover 、
  */
 
-import { escapeHtml } from '../safe-html.js';
+import { escapeHtml } from '../safe-html.js?v=1.1';
 
 export function renderTable({ columns = [], data = [], emptyText = 'No items found' } = {}) {
   if (!data || !data.length) {

@@ -9,7 +9,7 @@ import { toast } from '../components/toast.js';
 import { renderKpis } from '../components/kpi.js';
 import { gradeBadge, samplingModeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
-import { escapeHtml } from '../safe-html.js';
+import { escapeHtml } from '../safe-html.js?v=1.1';
 
 export default {
   render: async (ctx) => {

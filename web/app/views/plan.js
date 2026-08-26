@@ -8,7 +8,7 @@ import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
-import { escapeHtml } from '../safe-html.js';
+import { escapeHtml } from '../safe-html.js?v=1.1';
 import { workspace } from '../api.js?v=3.5';
 
 function localizedTicketField(ticket, field, enField, fallback = '') {

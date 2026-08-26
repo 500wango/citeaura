@@ -2,7 +2,7 @@
  * Modal 
  */
 
-import { escapeHtml, setSafeHtml } from '../safe-html.js';
+import { escapeHtml, setSafeHtml } from '../safe-html.js?v=1.1';
 import { t } from '../i18n.js';
 
 let modalRoot = null;

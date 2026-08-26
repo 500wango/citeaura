@@ -4,7 +4,7 @@
  */
 
 import { t } from '../i18n.js';
-import { escapeHtml } from '../safe-html.js';
+import { escapeHtml } from '../safe-html.js?v=1.1';
 
 export function samplingModeBadge(mode) {
   const norm = String(mode || '').toLowerCase();

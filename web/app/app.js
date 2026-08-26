@@ -5,7 +5,7 @@
 import { auth, projects, onAuthFailure } from './api.js?v=3.5';
 import { t, tError, loadCatalogs, getLocale, setLocale, detectLocale, localizeRenderedText, SUPPORTED_LOCALES, LOCALE_LABELS } from './i18n.js';
 import { toast } from './components/toast.js';
-import { escapeHtml, setSafeHtml } from './safe-html.js';
+import { escapeHtml, setSafeHtml } from './safe-html.js?v=1.1';
 import { openTelemetryModal } from './components/telemetry-modal.js?v=2.6';
 import { createJobMonitor } from './components/job-monitor.js?v=1.0';
 // Job monitor cleanup retains the timer contract: window.clearInterval(jobPollingTimer).

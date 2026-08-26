@@ -5,7 +5,7 @@
 import { analytics, projects } from '../api.js?v=3.8';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { escapeHtml } from '../safe-html.js';
+import { escapeHtml } from '../safe-html.js?v=1.1';
 
 export default {
   render: () => {

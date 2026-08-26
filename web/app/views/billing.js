@@ -5,7 +5,7 @@
 import { billing } from '../api.js?v=3.8';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { escapeHtml } from '../safe-html.js';
+import { escapeHtml } from '../safe-html.js?v=1.1';
 
 const PLAN_NAMES = { starter: 'Starter', pro: 'Pro', agency: 'Agency' };
 

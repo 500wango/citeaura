@@ -8,7 +8,7 @@ import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { samplingModeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
-import { escapeHtml } from '../safe-html.js';
+import { escapeHtml } from '../safe-html.js?v=1.1';
 
 export default {
   render: async (ctx) => {
