@@ -6,6 +6,10 @@ const BLOCKED_TAGS = new Set([
   'script', 'style', 'iframe', 'object', 'embed', 'base', 'meta', 'link',
   'foreignobject', 'animate', 'animatemotion', 'animatetransform', 'set', 'math',
 ]);
+// These tags are required by the SPA's controlled forms and action surfaces.
+// Keep them outside the denylist so a future sanitizer change cannot silently
+// remove the controls that mounted handlers depend on.
+const INTERACTIVE_TAGS = new Set(['form', 'input', 'button', 'select', 'textarea']);
 const URL_ATTRIBUTES = new Set(['href', 'src', 'action', 'formaction', 'poster', 'xlink:href']);
 const UNSAFE_STYLE = /(?:expression\s*\(|url\s*\(|@import|behavior\s*:|-moz-binding|position\s*:\s*(?:fixed|sticky))/i;
 
@@ -29,7 +33,7 @@ export function sanitizeHtml(value) {
   template.innerHTML = String(value ?? '');
   template.content.querySelectorAll('*').forEach((element) => {
     const tag = element.tagName.toLowerCase();
-    if (BLOCKED_TAGS.has(tag)) {
+    if (BLOCKED_TAGS.has(tag) && !INTERACTIVE_TAGS.has(tag)) {
       element.remove();
       return;
     }

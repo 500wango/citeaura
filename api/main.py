@@ -64,7 +64,7 @@ app.include_router(landing_router)
 app.include_router(ui_router)
 
 
-_NON_PUBLIC_SLASH_PREFIXES = ("/api/", "/app/", "/admin/", "/files/", "/site-assets/")
+_NON_PUBLIC_SLASH_PREFIXES = ("/api/", "/app/", "/app-assets/", "/admin/", "/files/", "/site-assets/")
 
 
 def _public_canonical_redirect(request: Request):
@@ -129,12 +129,19 @@ async def security_headers(request: Request, call_next):
         request.url.path == "/app"
         or request.url.path.startswith("/app/")
         or request.url.path.startswith("/app-assets/")
+        or request.url.path == "/admin"
+        or request.url.path.startswith("/admin/")
     ):
         response.headers["Cache-Control"] = "private, no-store, max-age=0"
     elif request.url.path.startswith("/site-assets/"):
-        response.headers["Cache-Control"] = (
-            "public, max-age=31536000, immutable" if request.query_params.get("v") else "public, max-age=86400"
-        )
+        if request.url.path.lower().endswith((".js", ".css")):
+            response.headers["Cache-Control"] = "public, no-store, max-age=0"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif request.url.path in ("/docs.js", "/manifest.webmanifest") or response.headers.get("content-type", "").lower().startswith(
+        "text/html"
+    ):
+        response.headers["Cache-Control"] = "public, no-store, max-age=0"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"

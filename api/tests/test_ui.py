@@ -48,7 +48,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
-    assert "/site-assets/styles/app.css?v=3.5" in response.text
+    assert "/site-assets/styles/app.css" in response.text
     assert '<script src="/site-assets/theme-init.js"></script>' in response.text
     assert re.search(r"<script(?![^>]*\bsrc=)[^>]*>", response.text, re.IGNORECASE) is None
     policy = response.headers["content-security-policy"]
@@ -105,6 +105,65 @@ def test_spa_static_modules_are_served():
         assert response.status_code == 200, f"Failed to serve {path}"
         assert "javascript" in response.headers["content-type"].lower() or "text/" in response.headers["content-type"].lower()
         assert response.headers["cache-control"] == "private, no-store, max-age=0"
+
+
+def test_admin_shell_assets_are_uncached():
+    client = TestClient(app)
+    for path in ("/admin/admin.js", "/admin/admin.css"):
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.headers["cache-control"] == "private, no-store, max-age=0"
+
+
+def test_spa_uses_one_uncached_module_namespace():
+    """Keep every SPA module on the same stable URL and cache contract."""
+    root = Path(__file__).resolve().parents[2]
+    client = TestClient(app)
+    shell = client.get("/app")
+
+    assert '<script type="module" src="/app-assets/app.js"></script>' in shell.text
+    assert re.search(r'<script[^>]+src="/app/(?:[^"?]+\.js)', shell.text) is None
+
+    module_files = sorted((root / "web" / "app").rglob("*.js"))
+    assert module_files
+    for path in module_files:
+        relative = path.relative_to(root / "web" / "app").as_posix()
+        response = client.get(f"/app-assets/{relative}")
+        assert response.status_code == 200, relative
+        assert response.headers["cache-control"] == "private, no-store, max-age=0"
+        source = path.read_text("utf-8")
+        imports = re.findall(r"(?:\bfrom\s+|\bimport\s*\()\s*['\"]([^'\"]+)['\"]", source)
+        assert all("?" not in spec for spec in imports), relative
+        assert all(not spec.startswith("/app/") for spec in imports), relative
+
+    # Keep old direct module URLs readable for bookmarks, but never cache them.
+    legacy = client.get("/app/app.js")
+    assert legacy.status_code == 200
+    assert legacy.headers["cache-control"] == "private, no-store, max-age=0"
+
+
+def test_frontend_interactive_controls_have_explicit_runtime_contracts():
+    """Prevent sanitizer/cache fixes from hiding unbound controls in new views."""
+    root = Path(__file__).resolve().parents[2]
+    button_pattern = re.compile(r"<button\b([^>]*)>", re.IGNORECASE | re.DOTALL)
+    form_pattern = re.compile(r"<form\b", re.IGNORECASE)
+
+    for path in sorted((root / "web" / "app").rglob("*.js")):
+        source = path.read_text("utf-8")
+        buttons = button_pattern.findall(source)
+        if not buttons and not form_pattern.search(source):
+            continue
+
+        for attrs in buttons:
+            assert re.search(r"\btype\s*=\s*['\"](?:button|submit|reset)['\"]", attrs, re.IGNORECASE), path
+            assert re.search(r"\bon(?:click|change|submit|error|load)\s*=", attrs, re.IGNORECASE) is None, path
+
+        has_click_binding = bool(re.search(r"addEventListener\(\s*['\"]click['\"]", source))
+        has_submit_binding = bool(re.search(r"addEventListener\(\s*['\"]submit['\"]", source))
+        if buttons:
+            assert has_click_binding or has_submit_binding, path
+        if form_pattern.search(source):
+            assert has_submit_binding, path
 
 
 def test_frontend_view_modules_parse_as_es_modules():
@@ -169,7 +228,7 @@ def test_legacy_seo_integration_api_is_not_exposed():
 
 
 def test_api_js_covers_all_core_endpoints():
-    response = TestClient(app).get("/app/api.js")
+    response = TestClient(app).get("/app-assets/api.js")
     assert response.status_code == 200
     text = response.text
     assert "/api/v1/auth/login" in text
@@ -182,7 +241,7 @@ def test_api_js_covers_all_core_endpoints():
 
 
 def test_api_js_uses_cookie_session_refresh_and_unwraps_collections():
-    text = TestClient(app).get("/app/api.js").text
+    text = TestClient(app).get("/app-assets/api.js").text
 
     assert "'X-CiteAura-Session': 'cookie'" in text
     assert "'X-CiteAura-Session': '1'" not in text
@@ -350,9 +409,10 @@ def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():
     assert "name.startsWith('on')" in sanitizer
     assert "URL_ATTRIBUTES" in sanitizer
     assert "'script', 'style', 'iframe'" in sanitizer
-    blocked_tags = sanitizer.split('const URL_ATTRIBUTES', 1)[0]
+    blocked_tags = sanitizer.split('const INTERACTIVE_TAGS', 1)[0]
     for interactive_tag in ("'form'", "'input'", "'button'", "'select'", "'textarea'"):
         assert interactive_tag not in blocked_tags
+    assert "BLOCKED_TAGS.has(tag) && !INTERACTIVE_TAGS.has(tag)" in sanitizer
     for path in (root / "web" / "app").rglob("*.js"):
         text = path.read_text("utf-8")
         assert re.search(r"(?:from\s+|import\()['\"][^'\"]+\?v=", text) is None, path

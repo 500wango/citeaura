@@ -229,7 +229,7 @@ def serve_i18n_catalog(locale: str):
     return JSONResponse(
         catalogs.get(code) or {},
         media_type="application/json; charset=utf-8",
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers={"Cache-Control": "public, no-store, max-age=0"},
     )
 
 
@@ -243,5 +243,5 @@ def serve_public_i18n_catalog(locale: str):
     return JSONResponse(
         json.loads(path.read_text("utf-8")),
         media_type="application/json; charset=utf-8",
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers={"Cache-Control": "public, no-store, max-age=0"},
     )

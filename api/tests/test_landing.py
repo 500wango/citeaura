@@ -137,7 +137,7 @@ def test_public_navigation_uses_compact_groups_and_shared_mobile_menu():
         assert body.count('class="nav-group"') == 3, path
         assert 'id="primary-nav"' in body, path
         assert 'class="nav-menu-toggle"' in body, path
-        assert '/site-assets/site-nav.js?v=1.1' in body, path
+        assert '/site-assets/site-nav.js' in body, path
         assert 'href="/sample-report"' in body, path
 
 
@@ -229,6 +229,54 @@ def test_landing_assets_are_served():
     blog_css = client.get("/site-assets/styles/blog.css")
     assert ".blog-article a:not(.btn)" in blog_css.text
     assert ".blog-article a {" not in blog_css.text
+
+
+def test_frontend_asset_cache_contract_is_explicit():
+    """Behavior resources must refresh; immutable content can remain cached."""
+    for path in (
+        "/site-assets/landing.js",
+        "/site-assets/site-nav.js",
+        "/site-assets/seo-attribution.js",
+        "/site-assets/theme-init.js",
+        "/site-assets/styles/tokens.css",
+        "/site-assets/styles/base.css",
+        "/site-assets/styles/components.css",
+        "/site-assets/styles/app.css",
+        "/site-assets/styles/landing.css",
+        "/site-assets/styles/blog.css",
+        "/site-assets/styles/seo-pages.css",
+        "/i18n/en.json",
+        "/i18n/zh.json",
+        "/i18n/public/zh.json",
+    ):
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.headers["cache-control"] == "public, no-store, max-age=0", path
+
+    for path in (
+        "/site-assets/favicon.png",
+        "/site-assets/brand/mark.svg",
+        "/site-assets/fonts/space-grotesk-700.woff2",
+        "/site-assets/product-audit.webp",
+    ):
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.headers["cache-control"] == "public, max-age=31536000, immutable", path
+
+    for path in ("/", "/docs", "/blog", "/docs.js", "/manifest.webmanifest"):
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.headers["cache-control"] == "public, no-store, max-age=0", path
+
+
+def test_public_markup_has_no_manual_asset_version_queries():
+    """A single stable asset URL prevents stale-cache version-chain drift."""
+    root = Path(__file__).resolve().parents[2]
+    for path in sorted((root / "web").rglob("*")):
+        if path.suffix.lower() not in {".html", ".js", ".css", ".json", ".webmanifest"}:
+            continue
+        source = path.read_text("utf-8")
+        assert re.search(r"(?:/site-assets/|/app(?:-assets)?/|/i18n/)[^\"'\\s<>?]+\\?v=", source) is None, path
 
 
 def test_public_pages_expose_social_card_metadata():
@@ -397,10 +445,10 @@ def test_landing_js_supports_international_locales():
     assert "localStorage.setItem('ulang'" in response.text
     assert "function detectLocale()" in response.text
     assert "var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de']" in response.text
-    assert "var LOCALE_ASSET_VERSION = '3.4'" in response.text
-    assert "fetch('/i18n/en.json?v=' + LOCALE_ASSET_VERSION)" in response.text
-    assert "fetch('/i18n/' + state.locale + '.json?v=' + LOCALE_ASSET_VERSION)" in response.text
-    assert "fetch('/i18n/public/zh.json?v=' + LOCALE_ASSET_VERSION)" in response.text
+    assert "LOCALE_ASSET_VERSION" not in response.text
+    assert "fetch('/i18n/en.json')" in response.text
+    assert "fetch('/i18n/' + state.locale + '.json')" in response.text
+    assert "fetch('/i18n/public/zh.json')" in response.text
     assert "function publicValue(key, fallback, params)" in response.text
     assert "public.landing.preview_log_ready" in response.text
     assert "new WeakMap()" in response.text
@@ -413,7 +461,7 @@ def test_public_pages_load_shared_landing_localization():
     for path in ("/about", "/contact", "/privacy", "/terms", "/sample-report"):
         response = client.get(path)
         assert response.status_code == 200
-        assert '/site-assets/landing.js?v=3.5' in response.text, path
+        assert '/site-assets/landing.js' in response.text, path
     assert 'data-i18n-html="public.privacy.sec1"' in client.get("/privacy").text
     assert 'data-i18n-html="public.terms.sec1"' in client.get("/terms").text
     assert 'data-i18n-html="public.sample.sec1"' in client.get("/sample-report").text
@@ -658,4 +706,4 @@ def test_public_solution_pages_have_indexable_content_contract():
         assert f"{h1}</h1>" in response.text
         assert response.text.count("<h1") == 1
         assert title_marker in response.text.split("</title>", 1)[0]
-        assert "/site-assets/seo-attribution.js?v=1.0" in response.text
+        assert "/site-assets/seo-attribution.js" in response.text
