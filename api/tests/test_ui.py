@@ -349,7 +349,9 @@ def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():
     assert "name.startsWith('on')" in sanitizer
     assert "URL_ATTRIBUTES" in sanitizer
     assert "'script', 'style', 'iframe'" in sanitizer
-    assert "'form'" in sanitizer.split('const URL_ATTRIBUTES', 1)[0]
+    blocked_tags = sanitizer.split('const URL_ATTRIBUTES', 1)[0]
+    for interactive_tag in ("'form'", "'input'", "'button'", "'select'", "'textarea'"):
+        assert interactive_tag not in blocked_tags
     assert "window.clearInterval(jobPollingTimer)" in app_js
     for path in (root / "web").rglob("*"):
         if path.suffix in (".html", ".js"):

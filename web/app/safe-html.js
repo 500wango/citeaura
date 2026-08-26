@@ -5,7 +5,6 @@
 const BLOCKED_TAGS = new Set([
   'script', 'style', 'iframe', 'object', 'embed', 'base', 'meta', 'link',
   'foreignobject', 'animate', 'animatemotion', 'animatetransform', 'set', 'math',
-  'template', 'form', 'input', 'button', 'select', 'textarea', 'object',
 ]);
 const URL_ATTRIBUTES = new Set(['href', 'src', 'action', 'formaction', 'poster', 'xlink:href']);
 const UNSAFE_STYLE = /(?:expression\s*\(|url\s*\(|@import|behavior\s*:|-moz-binding|position\s*:\s*(?:fixed|sticky))/i;
