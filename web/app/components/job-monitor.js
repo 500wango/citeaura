@@ -1,4 +1,4 @@
-import { escapeHtml, setSafeHtml } from '../safe-html.js?v=1.1';
+import { escapeHtml, setSafeHtml } from '../safe-html.js';
 
 const JOB_ACTION_LABELS = {
   crawl: ['telemetry.stage.crawl_website', 'Crawl Website'],

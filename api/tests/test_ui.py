@@ -44,7 +44,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.20' in response.text
+    assert '<script type="module" src="/app/app.js"></script>' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -54,7 +54,7 @@ def test_spa_is_served_with_citeaura_shell():
     policy = response.headers["content-security-policy"]
     assert "script-src 'self';" in policy
     assert "script-src 'self' 'unsafe-inline'" not in policy
-    assert response.headers["cache-control"] == "public, max-age=0, must-revalidate"
+    assert response.headers["cache-control"] == "private, no-store, max-age=0"
 
 
 def test_public_trailing_slash_redirect_uses_configured_canonical_url(monkeypatch):
@@ -104,6 +104,7 @@ def test_spa_static_modules_are_served():
         response = client.get(path)
         assert response.status_code == 200, f"Failed to serve {path}"
         assert "javascript" in response.headers["content-type"].lower() or "text/" in response.headers["content-type"].lower()
+        assert response.headers["cache-control"] == "private, no-store, max-age=0"
 
 
 def test_frontend_view_modules_parse_as_es_modules():
@@ -135,7 +136,7 @@ def test_citation_sources_view_has_no_legacy_seo_integrations():
     assert "Run Citation Sampling" in channels
     assert "External evidence records" in channels
     assert "addExternalEvidence" in channels
-    assert "import { projects, workspace } from '../api.js?v=3.8';" in channels
+    assert "import { projects, workspace } from '../api.js';" in channels
     assert "workspace.getExternalEvidence(projectId)" in channels
     assert "workspace.addExternalEvidence(ctx.activeProjectId" in channels
     assert "projects.getExternalEvidence" not in channels
@@ -200,8 +201,8 @@ def test_spa_auth_routes_enforce_session_state_contract():
     register_js = (root / "web/app/views/auth-register.js").read_text("utf-8")
 
     assert "const AUTH_ENTRY_ROUTES = new Set(['login', 'register'])" in app_js
-    assert "auth-login.js?v=2.11" in app_js
-    assert "auth-register.js?v=2.14" in app_js
+    assert "auth-login.js" in app_js
+    assert "auth-register.js" in app_js
     assert re.search(r"\blite\b", app_js, re.IGNORECASE) is None
     assert "if (!state.sessionChecked)" in app_js
     assert "AUTH_ENTRY_ROUTES.has(route) && state.user" in app_js
@@ -317,13 +318,13 @@ def test_frontend_contracts_match_backend_request_models():
     app_js = (root / "web/app/app.js").read_text("utf-8")
     assert "citeaura_intent_plan" in app_js
     assert "ENTRY_PLANS" in app_js
-    assert "engine-settings.js?v=3.3" in app_js
-    assert "engines.js?v=2.9" in app_js
-    assert "workbench.js?v=2.7" in app_js
-    assert "overview.js?v=2.10" in app_js
-    assert "onboarding.js?v=2.9" in app_js
-    assert "facts.js?v=2.7" in app_js
-    assert "telemetry-modal.js?v=2.6" in app_js
+    assert "engine-settings.js" in app_js
+    assert "engines.js" in app_js
+    assert "workbench.js" in app_js
+    assert "overview.js" in app_js
+    assert "onboarding.js" in app_js
+    assert "facts.js" in app_js
+    assert "telemetry-modal.js" in app_js
     assert "function projectKey(project)" in app_js
     assert "projectKey(p) === state.activeProjectId" in app_js
     assert "const renderId = ++renderSequence" in app_js
@@ -352,20 +353,9 @@ def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():
     blocked_tags = sanitizer.split('const URL_ATTRIBUTES', 1)[0]
     for interactive_tag in ("'form'", "'input'", "'button'", "'select'", "'textarea'"):
         assert interactive_tag not in blocked_tags
-    safe_html_importers = []
-    modal_importers = []
     for path in (root / "web" / "app").rglob("*.js"):
         text = path.read_text("utf-8")
-        if path.name != "safe-html.js" and "safe-html.js" in text:
-            safe_html_importers.append(path)
-            assert "safe-html.js?v=1.1" in text, path
-            assert re.search(r"safe-html\.js['\"]", text) is None, path
-        if path.name != "modal.js" and "components/modal.js" in text:
-            modal_importers.append(path)
-            assert "components/modal.js?v=1.1" in text, path
-            assert re.search(r"components/modal\.js['\"]", text) is None, path
-    assert safe_html_importers
-    assert modal_importers
+        assert re.search(r"(?:from\s+|import\()['\"][^'\"]+\?v=", text) is None, path
     assert "window.clearInterval(jobPollingTimer)" in app_js
     for path in (root / "web").rglob("*"):
         if path.suffix in (".html", ".js"):

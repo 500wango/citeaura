@@ -2,10 +2,10 @@
  * Brand onboarding
  */
 
-import { analytics, projects } from '../api.js?v=3.8';
+import { analytics, projects } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { escapeHtml } from '../safe-html.js?v=1.1';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: () => {

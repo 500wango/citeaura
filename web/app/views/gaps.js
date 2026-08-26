@@ -1,7 +1,7 @@
-import { projects } from '../api.js?v=3.4';
+import { projects } from '../api.js';
 import { t } from '../i18n.js';
 import { renderEmpty } from '../components/empty.js';
-import { escapeHtml } from '../safe-html.js?v=1.1';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {

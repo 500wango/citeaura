@@ -2,12 +2,12 @@
  * Target questions
  */
 
-import { workspace, projects } from '../api.js?v=3.8';
+import { workspace, projects } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { openModal } from '../components/modal.js?v=1.1';
+import { openModal } from '../components/modal.js';
 import { renderEmpty, bindEmptyAction } from '../components/empty.js';
-import { escapeHtml } from '../safe-html.js?v=1.1';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {

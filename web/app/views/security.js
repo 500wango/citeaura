@@ -2,7 +2,7 @@
  *  (Security & SSO)
  */
 
-import { sso } from '../api.js?v=3.4';
+import { sso } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 

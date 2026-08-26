@@ -125,7 +125,7 @@ async def security_headers(request: Request, call_next):
     """为 API 和嵌入式 UI 添加基础浏览器安全策略。"""
     response = await call_next(request)
     if request.url.path == "/app" or request.url.path.startswith("/app/"):
-        response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+        response.headers["Cache-Control"] = "private, no-store, max-age=0"
     elif request.url.path.startswith("/site-assets/"):
         response.headers["Cache-Control"] = (
             "public, max-age=31536000, immutable" if request.query_params.get("v") else "public, max-age=86400"
@@ -137,8 +137,6 @@ async def security_headers(request: Request, call_next):
         response.headers["X-Robots-Tag"] = "noindex, nofollow"
     if request.url.path.startswith("/api/v1/") and "Cache-Control" not in response.headers:
         response.headers["Cache-Control"] = "private, no-store"
-    elif request.url.path.startswith("/app/"):
-        response.headers["Cache-Control"] = "no-cache"
     if request.url.path.startswith("/files/"):
         response.headers["Content-Security-Policy"] = (
             "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data: blob: https:; "

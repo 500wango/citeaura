@@ -2,12 +2,12 @@
  * CiteAura 
  */
 
-import { auth, projects, onAuthFailure } from './api.js?v=3.5';
+import { auth, projects, onAuthFailure } from './api.js';
 import { t, tError, loadCatalogs, getLocale, setLocale, detectLocale, localizeRenderedText, SUPPORTED_LOCALES, LOCALE_LABELS } from './i18n.js';
 import { toast } from './components/toast.js';
-import { escapeHtml, setSafeHtml } from './safe-html.js?v=1.1';
-import { openTelemetryModal } from './components/telemetry-modal.js?v=2.6';
-import { createJobMonitor } from './components/job-monitor.js?v=1.0';
+import { escapeHtml, setSafeHtml } from './safe-html.js';
+import { openTelemetryModal } from './components/telemetry-modal.js';
+import { createJobMonitor } from './components/job-monitor.js';
 // Job monitor cleanup retains the timer contract: window.clearInterval(jobPollingTimer).
 
 /* ----------  ---------- */
@@ -92,36 +92,36 @@ export const TRACKS = [
 
 /* ----------  ---------- */
 const VIEW_LOADERS = {
-  login: () => import('./views/auth-login.js?v=2.11'),
-  register: () => import('./views/auth-register.js?v=2.14'),
-  'forgot-password': () => import('./views/auth-forgot.js?v=2.5'),
-  'reset-password': () => import('./views/auth-reset.js?v=2.5'),
-  invite: () => import('./views/auth-invite.js?v=2.5'),
-  onboarding: () => import('./views/onboarding.js?v=2.9'),
-  overview: () => import('./views/overview.js?v=2.10'),
-  engines: () => import('./views/engines.js?v=2.9'),
-  channels: () => import('./views/channels.js?v=3.0'),
-  competitors: () => import('./views/competitors.js?v=2.7'),
-  siteaudit: () => import('./views/siteaudit.js?v=2.6'),
-  gaps: () => import('./views/gaps.js?v=2.5'),
-  blueprint: () => import('./views/blueprint.js?v=1.0'),
-  questions: () => import('./views/questions.js?v=2.9'),
-  facts: () => import('./views/facts.js?v=2.7'),
-  plan: () => import('./views/plan.js?v=2.8'),
-  workbench: () => import('./views/workbench.js?v=2.7'),
-  assets: () => import('./views/assets.js?v=2.7'),
-  outreach: () => import('./views/outreach.js?v=2.7'),
-  publishing: () => import('./views/publishing.js?v=2.6'),
-  verify: () => import('./views/verify.js?v=2.5'),
-  report: () => import('./views/report.js?v=2.8'),
-  branding: () => import('./views/branding.js?v=2.5'),
-  'project-settings': () => import('./views/project-settings.js?v=2.6'),
-  'engine-settings': () => import('./views/engine-settings.js?v=3.3'),
-  automation: () => import('./views/automation.js?v=2.7'),
-  team: () => import('./views/team.js?v=2.7'),
-  billing: () => import('./views/billing.js?v=3.1'),
-  security: () => import('./views/security.js?v=2.5'),
-  archive: () => import('./views/archive.js?v=2.7'),
+  login: () => import('./views/auth-login.js'),
+  register: () => import('./views/auth-register.js'),
+  'forgot-password': () => import('./views/auth-forgot.js'),
+  'reset-password': () => import('./views/auth-reset.js'),
+  invite: () => import('./views/auth-invite.js'),
+  onboarding: () => import('./views/onboarding.js'),
+  overview: () => import('./views/overview.js'),
+  engines: () => import('./views/engines.js'),
+  channels: () => import('./views/channels.js'),
+  competitors: () => import('./views/competitors.js'),
+  siteaudit: () => import('./views/siteaudit.js'),
+  gaps: () => import('./views/gaps.js'),
+  blueprint: () => import('./views/blueprint.js'),
+  questions: () => import('./views/questions.js'),
+  facts: () => import('./views/facts.js'),
+  plan: () => import('./views/plan.js'),
+  workbench: () => import('./views/workbench.js'),
+  assets: () => import('./views/assets.js'),
+  outreach: () => import('./views/outreach.js'),
+  publishing: () => import('./views/publishing.js'),
+  verify: () => import('./views/verify.js'),
+  report: () => import('./views/report.js'),
+  branding: () => import('./views/branding.js'),
+  'project-settings': () => import('./views/project-settings.js'),
+  'engine-settings': () => import('./views/engine-settings.js'),
+  automation: () => import('./views/automation.js'),
+  team: () => import('./views/team.js'),
+  billing: () => import('./views/billing.js'),
+  security: () => import('./views/security.js'),
+  archive: () => import('./views/archive.js'),
 };
 
 const PUBLIC_ROUTES = ['login', 'register', 'forgot-password', 'reset-password', 'invite'];

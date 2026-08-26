@@ -2,13 +2,13 @@
  * AI  (Engines & Sample Replay)
  */
 
-import { projects, workspace } from '../api.js?v=3.5';
-import { openModal } from '../components/modal.js?v=1.1';
+import { projects, workspace } from '../api.js';
+import { openModal } from '../components/modal.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { samplingModeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
-import { escapeHtml } from '../safe-html.js?v=1.1';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {

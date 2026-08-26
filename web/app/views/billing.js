@@ -2,10 +2,10 @@
  *  (Billing & Plans)
  */
 
-import { billing } from '../api.js?v=3.8';
+import { billing } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { escapeHtml } from '../safe-html.js?v=1.1';
+import { escapeHtml } from '../safe-html.js';
 
 const PLAN_NAMES = { starter: 'Starter', pro: 'Pro', agency: 'Agency' };
 

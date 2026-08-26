@@ -2,14 +2,14 @@
  *  (Overview)
  */
 
-import { projects } from '../api.js?v=3.8';
+import { projects } from '../api.js';
 import { hasCatalogKey, t, tError } from '../i18n.js';
-import { confirmModal } from '../components/modal.js?v=1.1';
+import { confirmModal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { renderKpis } from '../components/kpi.js';
 import { gradeBadge, samplingModeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
-import { escapeHtml } from '../safe-html.js?v=1.1';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {

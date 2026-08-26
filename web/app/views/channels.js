@@ -2,11 +2,11 @@
  * AI 联网采样引用信源。
  */
 
-import { projects, workspace } from '../api.js?v=3.8';
+import { projects, workspace } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
-import { openModal } from '../components/modal.js?v=1.1';
+import { openModal } from '../components/modal.js';
 
 function escapeHtml(value) {
   return String(value ?? '')

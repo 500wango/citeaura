@@ -2,10 +2,10 @@
  *  (Engine Keys & BYOK)
  */
 
-import { settings } from '../api.js?v=3.8';
+import { settings } from '../api.js';
 import { t, tError, hasCatalogKey } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { openModal } from '../components/modal.js?v=1.1';
+import { openModal } from '../components/modal.js';
 
 const AVAILABLE_ENGINES = [
   { code: 'glm', name: 'Zhipu GLM', provider: 'Zhipu AI', market: 'CN' },

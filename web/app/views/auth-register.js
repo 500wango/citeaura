@@ -2,7 +2,7 @@
  * 
  */
 
-import { analytics, auth } from '../api.js?v=3.8';
+import { analytics, auth } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 

@@ -2,13 +2,13 @@
  *  (Report & Deliveries)
  */
 
-import { analytics, projects } from '../api.js?v=3.7';
+import { analytics, projects } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { gradeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
-import { openModal } from '../components/modal.js?v=1.1';
-import { escapeHtml } from '../safe-html.js?v=1.1';
+import { openModal } from '../components/modal.js';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {

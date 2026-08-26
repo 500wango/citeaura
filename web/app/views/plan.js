@@ -2,14 +2,14 @@
  *  (Plan & Playbook)
  */
 
-import { analytics, projects } from '../api.js?v=3.5';
+import { analytics, projects } from '../api.js';
 import { hasCatalogKey, t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { openModal } from '../components/modal.js?v=1.1';
+import { openModal } from '../components/modal.js';
 import { statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
-import { escapeHtml } from '../safe-html.js?v=1.1';
-import { workspace } from '../api.js?v=3.5';
+import { escapeHtml } from '../safe-html.js';
+import { workspace } from '../api.js';
 
 function localizedTicketField(ticket, field, enField, fallback = '') {
   const source = ticket?.[field] || ticket?.[enField] || fallback;
