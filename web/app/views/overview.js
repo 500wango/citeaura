@@ -4,7 +4,7 @@
 
 import { projects } from '../api.js?v=3.8';
 import { hasCatalogKey, t, tError } from '../i18n.js';
-import { confirmModal } from '../components/modal.js';
+import { confirmModal } from '../components/modal.js?v=1.1';
 import { toast } from '../components/toast.js';
 import { renderKpis } from '../components/kpi.js';
 import { gradeBadge, samplingModeBadge, statusPill } from '../components/badge.js';

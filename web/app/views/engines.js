@@ -3,7 +3,7 @@
  */
 
 import { projects, workspace } from '../api.js?v=3.5';
-import { openModal } from '../components/modal.js';
+import { openModal } from '../components/modal.js?v=1.1';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { samplingModeBadge, statusPill } from '../components/badge.js';

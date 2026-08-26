@@ -5,7 +5,7 @@
 import { settings } from '../api.js?v=3.8';
 import { t, tError, hasCatalogKey } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { openModal } from '../components/modal.js';
+import { openModal } from '../components/modal.js?v=1.1';
 
 const AVAILABLE_ENGINES = [
   { code: 'glm', name: 'Zhipu GLM', provider: 'Zhipu AI', market: 'CN' },

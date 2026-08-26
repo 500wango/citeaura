@@ -1,7 +1,7 @@
 import { projects, workspace } from '../api.js?v=3.4';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { confirmModal } from '../components/modal.js';
+import { confirmModal } from '../components/modal.js?v=1.1';
 import { renderEmpty } from '../components/empty.js';
 
 export default {

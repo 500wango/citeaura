@@ -5,7 +5,7 @@
 import { outreach, projects } from '../api.js?v=3.4';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { openModal } from '../components/modal.js';
+import { openModal } from '../components/modal.js?v=1.1';
 import { renderEmpty } from '../components/empty.js';
 
 let draftState = [];

@@ -44,7 +44,7 @@ def test_spa_is_served_with_citeaura_shell():
     assert "GeoLook" not in response.text
     assert 'id="app"' in response.text
     assert '<script type="module" src="/app/app.js' in response.text
-    assert '/app/app.js?v=3.19' in response.text
+    assert '/app/app.js?v=3.20' in response.text
     assert "/site-assets/styles/tokens.css" in response.text
     assert "/site-assets/styles/base.css" in response.text
     assert "/site-assets/styles/components.css" in response.text
@@ -317,10 +317,10 @@ def test_frontend_contracts_match_backend_request_models():
     app_js = (root / "web/app/app.js").read_text("utf-8")
     assert "citeaura_intent_plan" in app_js
     assert "ENTRY_PLANS" in app_js
-    assert "engine-settings.js?v=3.2" in app_js
-    assert "engines.js?v=2.8" in app_js
+    assert "engine-settings.js?v=3.3" in app_js
+    assert "engines.js?v=2.9" in app_js
     assert "workbench.js?v=2.7" in app_js
-    assert "overview.js?v=2.9" in app_js
+    assert "overview.js?v=2.10" in app_js
     assert "onboarding.js?v=2.9" in app_js
     assert "facts.js?v=2.7" in app_js
     assert "telemetry-modal.js?v=2.6" in app_js
@@ -353,13 +353,19 @@ def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():
     for interactive_tag in ("'form'", "'input'", "'button'", "'select'", "'textarea'"):
         assert interactive_tag not in blocked_tags
     safe_html_importers = []
+    modal_importers = []
     for path in (root / "web" / "app").rglob("*.js"):
         text = path.read_text("utf-8")
         if path.name != "safe-html.js" and "safe-html.js" in text:
             safe_html_importers.append(path)
             assert "safe-html.js?v=1.1" in text, path
             assert re.search(r"safe-html\.js['\"]", text) is None, path
+        if path.name != "modal.js" and "components/modal.js" in text:
+            modal_importers.append(path)
+            assert "components/modal.js?v=1.1" in text, path
+            assert re.search(r"components/modal\.js['\"]", text) is None, path
     assert safe_html_importers
+    assert modal_importers
     assert "window.clearInterval(jobPollingTimer)" in app_js
     for path in (root / "web").rglob("*"):
         if path.suffix in (".html", ".js"):
