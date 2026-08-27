@@ -108,7 +108,12 @@ def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None):
                 repeat=repeat,
                 question_ids=question_ids,
             )
-            _task_facade()._require_sampling_output(result, project_slug, job_id=job_id)
+            _task_facade()._require_sampling_output(
+                result,
+                project_slug,
+                job_id=job_id,
+                funding=funding,
+            )
             measurement.record_sampling(
                 project_slug,
                 source="api",

@@ -188,7 +188,7 @@ def _redact_sampling_error(value):
     return text[:160]
 
 
-def _sampling_diagnostic(result, project_slug, started_at=None):
+def _sampling_diagnostic(result, project_slug, started_at=None, funding=None):
     """生成不含密钥的采样失败摘要，供日志、Job 和 UI 直接展示。"""
     metrics = result if isinstance(result, dict) else _latest_metrics(project_slug)
     if started_at is not None and not _metrics_written_since(project_slug, started_at):
@@ -246,8 +246,14 @@ def _sampling_diagnostic(result, project_slug, started_at=None):
         for code in (project_config.get("platforms") or [])
         if str(code).strip()
     ]
+    has_funding_snapshot = isinstance(funding, dict)
+    funded_codes = set()
+    if has_funding_snapshot:
+        funded_codes.update(str(code).strip().lower() for code in (funding.get("keys") or {}))
+        funded_codes.update(str(code).strip().lower() for code in (funding.get("pool_codes") or ()))
     requested = list(dict.fromkeys(
-        code for code in configured if sample is None or code in sample.PROVIDERS
+        code for code in configured
+        if sample is None or code in sample.PROVIDERS or code in funded_codes
     ))
     for code in grouped:
         if code not in requested:
@@ -263,9 +269,13 @@ def _sampling_diagnostic(result, project_slug, started_at=None):
         elif item and item["failed"]:
             error = item["errors"].most_common(1)[0][0] if item["errors"] else "provider_request_failed"
             status = f"failed[{error}]"
+        elif has_funding_snapshot and code not in funded_codes:
+            status = "missing_worker_funding"
+            missing_keys += 1
         elif sample is not None and code in sample.PROVIDERS:
             provider = sample.PROVIDERS[code]
-            if not os.environ.get(provider.get("key_env")):
+            key_env = provider.get("key_env")
+            if not has_funding_snapshot and (not key_env or not os.environ.get(key_env)):
                 status = "missing_api_key"
                 missing_keys += 1
             else:
@@ -279,16 +289,20 @@ def _sampling_diagnostic(result, project_slug, started_at=None):
                 else:
                     status = "no_successful_samples"
         else:
-            status = "not_requested"
+            status = "no_successful_samples"
         platform_items.append({"code": code, "status": status})
 
     skipped = sum(1 for item in platform_items if item["status"] in {
-        "missing_api_key", "no_matching_questions", "no_successful_samples", "not_requested",
+        "missing_worker_funding", "missing_api_key", "no_matching_questions",
+        "no_successful_samples", "not_requested",
     })
     if not requested and not rows:
         reason = "no_api_platforms_configured"
         next_step = "configure a funded API key or select Audit only"
-    elif missing_keys and not rows:
+    elif requested and not rows and (
+        (has_funding_snapshot and not (funded_codes & set(requested)))
+        or (not has_funding_snapshot and missing_keys == len(requested))
+    ):
         reason = "no_worker_funding"
         next_step = "configure a model key or eligible platform pool, then retry"
     elif no_questions and not rows:
@@ -347,9 +361,11 @@ def _sampling_succeeded(result, project_slug, job_id=None, started_at=None):
     return _sampling_success_count(metrics) > 0
 
 
-def _require_sampling_output(result, project_slug, job_id=None, started_at=None):
+def _require_sampling_output(result, project_slug, job_id=None, started_at=None, funding=None):
     if not _sampling_succeeded(result, project_slug, job_id=job_id, started_at=started_at):
-        error = SamplingOutputError(_sampling_diagnostic(result, project_slug, started_at=started_at))
+        error = SamplingOutputError(
+            _sampling_diagnostic(result, project_slug, started_at=started_at, funding=funding)
+        )
         # _job_status captures stdout/stderr into the tenant Job log, so the
         # same actionable summary remains available even when DB persistence
         # of the final error is delayed.
@@ -493,6 +509,7 @@ def task_bootstrap(
             if not no_sample:
                 _require_sampling_output(
                     _latest_metrics(project_slug), project_slug, job_id=job_id, started_at=started_at,
+                    funding=worker_funding,
                 )
                 funding = _engine_funding(
                     tenant_id, project_slug, allow_pool=job_action in PLATFORM_FUNDED_ACTIONS,
@@ -556,9 +573,9 @@ def task_sample(
                 sample_kwargs["question_ids"] = question_ids
             result = sample.run(project_slug, **sample_kwargs)
             if job_id is None:
-                _require_sampling_output(result, project_slug)
+                _require_sampling_output(result, project_slug, funding=worker_funding)
             else:
-                _require_sampling_output(result, project_slug, job_id=job_id)
+                _require_sampling_output(result, project_slug, job_id=job_id, funding=worker_funding)
             funding = worker_funding or _engine_funding(tenant_id, project_slug)
             measurement.record_sampling(
                 project_slug,
@@ -599,6 +616,7 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
                     geo.cmd_cycle(args)
             _require_sampling_output(
                 _latest_metrics(project_slug), project_slug, job_id=job_id, started_at=started_at,
+                funding=worker_funding,
             )
             funding = _engine_funding(tenant_id, project_slug, allow_pool=True)
             latest_metrics = _latest_metrics(project_slug)
@@ -842,6 +860,7 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                         project_slug,
                         job_id=job_id,
                         started_at=started_at,
+                        funding=worker_funding,
                     )
                 funding = _engine_funding(
                     tenant_id, project_slug, allow_pool=action in PLATFORM_FUNDED_ACTIONS,

@@ -101,7 +101,7 @@ def test_sample_task_normalizes_blueprint_after_recording_sampling(monkeypatch):
     monkeypatch.setitem(sys.modules, "sample", types.SimpleNamespace(run=fake_sample_run))
     monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
-    monkeypatch.setattr(tasks, "_require_sampling_output", lambda result, slug: calls.append(("require", slug)) or result)
+    monkeypatch.setattr(tasks, "_require_sampling_output", lambda result, slug, **kwargs: calls.append(("require", slug)) or result)
     monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {"keys": {}, "pool_codes": ()})
     monkeypatch.setattr(tasks.measurement, "record_sampling", lambda slug, **kwargs: calls.append(("record", slug)))
     monkeypatch.setattr(tasks.global_scope, "normalize_project", lambda slug: calls.append(("normalize", slug)))
@@ -135,7 +135,7 @@ def test_sample_task_forwards_question_scope_to_engine_and_manifest(monkeypatch)
     monkeypatch.setitem(sys.modules, "sample", types.SimpleNamespace(run=fake_sample_run))
     monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
-    monkeypatch.setattr(tasks, "_require_sampling_output", lambda result, slug: result)
+    monkeypatch.setattr(tasks, "_require_sampling_output", lambda result, slug, **kwargs: result)
     monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {"keys": {}, "pool_codes": ()})
     monkeypatch.setattr(
         tasks.measurement,
@@ -207,6 +207,53 @@ def test_sampling_failure_reports_missing_worker_funding(tmp_path, monkeypatch):
     assert "reason=no_worker_funding" in message
     assert "openai:missing_api_key" in message
     assert "configure a model key" in message
+
+
+def test_sampling_diagnostic_uses_worker_funding_snapshot(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / "geo.json").write_text(json.dumps({
+        "market": "global",
+        "platforms": ["openai"],
+        "questions": [{"id": "q1", "market": "global", "text": "Best tool?"}],
+    }), encoding="utf-8")
+    monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: project_dir)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    with pytest.raises(tasks.SamplingOutputError) as exc_info:
+        tasks._require_sampling_output(
+            {},
+            "example",
+            funding={"keys": {"openai": "runtime-only"}, "pool_codes": ()},
+        )
+
+    message = str(exc_info.value)
+    assert "openai:missing_api_key" not in message
+    assert "openai:missing_worker_funding" not in message
+    assert "openai:no_successful_samples" in message
+    assert "reason=no_successful_samples" in message
+
+
+def test_sampling_diagnostic_reports_missing_worker_funding_with_snapshot(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / "geo.json").write_text(json.dumps({
+        "market": "global",
+        "platforms": ["openai"],
+        "questions": [{"id": "q1", "market": "global", "text": "Best tool?"}],
+    }), encoding="utf-8")
+    monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: project_dir)
+
+    with pytest.raises(tasks.SamplingOutputError) as exc_info:
+        tasks._require_sampling_output(
+            {},
+            "example",
+            funding={"keys": {}, "pool_codes": ()},
+        )
+
+    message = str(exc_info.value)
+    assert "openai:missing_worker_funding" in message
+    assert "reason=no_worker_funding" in message
 
 
 def test_sampling_failure_reports_provider_error_from_current_jsonl(tmp_path, monkeypatch):
