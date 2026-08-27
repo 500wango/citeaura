@@ -548,7 +548,7 @@ h1 {
 /* ============ pricing ============ */
 .pricing-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-6); flex-wrap: wrap; }
 .pricing-head .section-heading { margin-bottom: var(--sp-6); }
-.pricing-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--sp-4); align-items: stretch; }
+.pricing-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-4); align-items: stretch; max-width: 1180px; margin-inline: auto; }
 .price-card {
   display: flex; flex-direction: column;
   padding: var(--sp-5); border: 1px solid var(--line); border-radius: var(--r-lg);
@@ -563,7 +563,7 @@ h1 {
 .price { margin: var(--sp-3) 0 var(--sp-1); }
 .price strong { font-family: var(--font-mono); font-size: var(--fs-7); font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: var(--ink); }
 .price span { font-family: var(--font-mono); font-size: var(--fs-1); color: var(--faint); margin-left: 4px; }
-.plan-summary { color: var(--muted); font-size: var(--fs-2); line-height: 1.55; min-height: 48px; }
+.plan-summary { color: var(--muted); font-size: var(--fs-2); line-height: 1.55; min-height: 72px; text-wrap: pretty; }
 .price-card ul { display: grid; gap: var(--sp-2); margin: var(--sp-4) 0 var(--sp-5); padding-left: 0; list-style: none; }
 .price-card li { position: relative; padding-left: var(--sp-4); font-size: var(--fs-2); color: var(--ink-2); line-height: 1.5; }
 .price-card li::before { content: "—"; position: absolute; left: 0; color: var(--accent-line); }
@@ -627,7 +627,7 @@ h1 {
 /* ============ 响应式 ============ */
 @media (max-width: 1080px) {
   .workflow-list { grid-template-columns: repeat(3, 1fr); }
-  .pricing-grid { grid-template-columns: repeat(3, 1fr); }
+  .pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tickets-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 1120px) {
