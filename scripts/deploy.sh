@@ -7,6 +7,7 @@ cd "$PROJECT_DIR"
 
 ENV_FILE="${ENV_FILE:-.env.production}"
 COMPOSE_FILE="docker-compose.prod.yml"
+COMPOSE_EXTRA_FILE=""
 export ENV_FILE
 
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -43,10 +44,15 @@ compose_profiles=()
 if [[ "$database_host" == "postgres" ]]; then
     : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required for local Compose PostgreSQL}"
     compose_profiles+=(--profile local-postgres)
+    COMPOSE_EXTRA_FILE="docker-compose.prod.local-postgres.yml"
 fi
 
 compose() {
-    docker compose "${compose_profiles[@]}" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+    local compose_files=(-f "$COMPOSE_FILE")
+    if [[ -n "$COMPOSE_EXTRA_FILE" ]]; then
+        compose_files+=(-f "$COMPOSE_EXTRA_FILE")
+    fi
+    docker compose "${compose_profiles[@]}" --env-file "$ENV_FILE" "${compose_files[@]}" "$@"
 }
 
 if [[ -z "${CITEAURA_SOURCE_REVISION:-}" || "${CITEAURA_SOURCE_REVISION:-}" == "unknown" ]]; then
