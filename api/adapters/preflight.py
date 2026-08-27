@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 import requests
 
 from api.adapters.network import NetworkTargetError, assert_public_host
+from api.adapters.engine import _PinnedAddressAdapter
 
 
 class PreflightError(ValueError):
@@ -48,9 +49,12 @@ def run(url: str, timeout: float = 8.0) -> dict:
     normalized = normalize_url(url)
     parsed = urlparse(normalized)
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    addresses = None
     checks = []
     try:
+        from api.adapters.network import resolve_public_addresses
         _resolve_public(parsed.hostname, port)
+        addresses = resolve_public_addresses(parsed.hostname, port)
         checks.append(_check("dns", True, "DNS Resolvable"))
     except PreflightError as exc:
         action = "Configure public A/AAAA/CNAME records for domain and wait for DNS propagation"
@@ -66,7 +70,10 @@ def run(url: str, timeout: float = 8.0) -> dict:
 
     homepage = None
     try:
-        homepage = requests.get(normalized, timeout=timeout, allow_redirects=False, stream=True)
+        session = requests.Session()
+        session.trust_env = False
+        session.mount(f"{parsed.scheme}://", _PinnedAddressAdapter(parsed.hostname, addresses[0], port))
+        homepage = session.get(normalized, timeout=timeout, allow_redirects=False, stream=True)
         status = homepage.status_code
         location = ""
         if 300 <= status < 400:
@@ -101,7 +108,10 @@ def run(url: str, timeout: float = 8.0) -> dict:
     robots_body = ""
     response = None
     try:
-        response = requests.get(robots_url, timeout=timeout, allow_redirects=False, stream=True)
+        session = requests.Session()
+        session.trust_env = False
+        session.mount(f"{parsed.scheme}://", _PinnedAddressAdapter(parsed.hostname, addresses[0], port))
+        response = session.get(robots_url, timeout=timeout, allow_redirects=False, stream=True)
         robots_status = response.status_code
         iter_content = getattr(response, "iter_content", None)
         if callable(iter_content):

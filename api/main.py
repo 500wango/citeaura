@@ -7,6 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.exc import IntegrityError
 
 from api import config
@@ -93,7 +94,7 @@ async def canonical_public_paths(request: Request, call_next):
 async def api_rate_limiter(request: Request, call_next):
     """对 API 请求应用共享 Redis 配额。"""
     try:
-        decision = check_request(request)
+        decision = await run_in_threadpool(check_request, request)
     except RateLimitUnavailable as exc:
         if request.url.path in AUTH_PATHS:
             return JSONResponse(

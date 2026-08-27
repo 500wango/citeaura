@@ -248,6 +248,9 @@ def sso_callback(
         )
     elif user.status != "active":
         _error(status.HTTP_403_FORBIDDEN, "account_disabled")
+    elif db.get(Membership, {"tenant_id": tenant.id, "user_id": user.id}) is None:
+        # Never silently attach an existing global identity to a new tenant.
+        _error(status.HTTP_403_FORBIDDEN, "sso_identity_not_bound")
     membership = db.get(Membership, {"tenant_id": tenant.id, "user_id": user.id})
     if membership is None:
         membership = Membership(tenant_id=tenant.id, user_id=user.id, role=configuration.default_role)

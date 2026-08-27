@@ -379,7 +379,8 @@ def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = N
         project_lock_factory=distributed_lock,
     ):
         if not needs_process_state:
-            yield
+            with protect_network_fetches():
+                yield
             return
         with process_state_lock():
             with inject_keys(keys), protect_network_fetches(), _custom_provider_context(custom_providers):

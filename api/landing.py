@@ -238,7 +238,7 @@ def serve_public_i18n_catalog(locale: str):
     """Serve the public-page catalog kept separate from product UI copy."""
     code = normalize_locale(locale, default="")
     path = MESSAGES_DIR / "public" / f"{code}.json"
-    if code != "zh" or not path.is_file():
+    if code not in SUPPORTED_LOCALES or not path.is_file():
         raise HTTPException(status_code=404, detail={"error": "locale_not_found"})
     return JSONResponse(
         json.loads(path.read_text("utf-8")),

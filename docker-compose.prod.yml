@@ -34,11 +34,11 @@ services:
     restart: unless-stopped
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    command: ["sh", "-c", "printf 'appendonly yes\\nrequirepass %s\\n' \"$$REDIS_PASSWORD\" > /tmp/redis.conf && exec redis-server /tmp/redis.conf"]
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -77,6 +77,11 @@ services:
       target: worker
     volumes:
       - citeaura_work:/app/work
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A api.worker.celery_app inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   beat:
     <<: *app
@@ -84,7 +89,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: worker
-    command: ["celery", "-A", "api.worker.celery_app", "beat", "--loglevel=INFO", "--schedule=/tmp/citeaura-celerybeat-schedule"]
+    command: ["celery", "-A", "api.worker.celery_app", "beat", "--loglevel=INFO", "--schedule=/app/work/celerybeat-schedule"]
+    volumes:
+      - citeaura_work:/app/work
 
   nginx:
     profiles: ["standalone-nginx"]

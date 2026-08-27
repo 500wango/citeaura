@@ -181,6 +181,12 @@ def register(
     db: Session = Depends(get_db),
 ):
     """创建用户、默认租户和 owner membership。"""
+    try:
+        decision = check_account(payload.email)
+    except RateLimitUnavailable:
+        _error(status.HTTP_503_SERVICE_UNAVAILABLE, "rate_limit_unavailable")
+    if not decision.allowed:
+        _error(status.HTTP_429_TOO_MANY_REQUESTS, "rate_limit_exceeded")
     if db.query(User.id).filter(User.email == payload.email).first() is not None:
         verify_password(payload.password, DUMMY_PASSWORD_HASH)
         response.status_code = status.HTTP_202_ACCEPTED
