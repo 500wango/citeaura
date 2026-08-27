@@ -1,6 +1,7 @@
 """从现有事实库、问题库和采样回答生成需人工复核的机会。"""
 
 import re
+import hashlib
 
 from api.adapters.engine import geolib
 
@@ -21,7 +22,8 @@ def assess(project_slug):
     claims = _facts(facts_text)
     sample_path = _latest(directory / "samples")
     rows = [row for row in geolib.read_jsonl(sample_path)] if sample_path else []
-    answers = [str(row.get("answer") or row.get("response") or row.get("text") or "") for row in rows if row.get("ok")]
+    valid_rows = [row for row in rows if row.get("ok") is True and (row.get("search_enabled") is True or str(row.get("sample_mode") or "").lower() in ("manual", "product_surface"))]
+    answers = [str(row.get("answer") or row.get("response") or row.get("text") or "") for row in valid_rows]
     conflicts = []
     for claim in claims:
         words = [word for word in re.findall(r"[A-Za-z0-9\u4e00-\u9fff]{4,}", claim) if word.lower() not in {"with", "from", "that", "this", "official"}]
@@ -37,6 +39,22 @@ def assess(project_slug):
     questions = [item for item in config.get("questions") or [] if isinstance(item, dict)]
     for question in questions:
         text = str(question.get("text") or question.get("question") or "").strip()
-        if text and not any(text.casefold() in answer.casefold() for answer in answers):
-            opportunities.append({"type": "answer_page", "status": "needs_sampling", "question": text, "suggested_page_type": "FAQ or answer page", "evidence": [{"source": "question_bank", "question_id": question.get("id")}]})
+        if not text: continue
+        qid = str(question.get("id") or "")
+        cohorts = {}
+        for row in valid_rows:
+            if str(row.get("question_id") or "") != qid: continue
+            mode = str(row.get("sampling_mode_code") or ("api_search_grounded" if row.get("search_enabled") else "manual_product_surface"))
+            cohorts.setdefault(mode, []).append(row)
+        mode, cohort = sorted(cohorts.items(), key=lambda pair: (-len(pair[1]), pair[0]))[0] if cohorts else (None, [])
+        mentioned = [row for row in cohort if (row.get("analysis") or {}).get("brand_mentioned") is True]
+        gap_type = "not_covered"; status = "not_covered" if len(cohort) >= 3 and not mentioned else "unmeasured"
+        target = config.get("mention_rate_target")
+        if len(cohort) >= 5 and mentioned and isinstance(target, (int, float)) and len(mentioned) / len(cohort) < target:
+            gap_type = status = "low_mention"
+        if mentioned and status == "unmeasured": continue
+        page_type = "faq"
+        evidence = [{"source": "sample", "question_id": qid, "sampling_mode": mode, "excerpt": str(row.get("answer") or row.get("response") or "")[:240]} for row in cohort[:3]] or [{"source": "question_bank", "question_id": qid}]
+        opportunities.append({"id": hashlib.sha256(f"{qid}{gap_type}{page_type}".encode()).hexdigest()[:16], "type": "answer_page", "status": status, "question": text, "question_id": qid, "evidence_count": len(evidence) if cohort else 0, "gap_type": gap_type, "suggested_page_type": page_type, "acceptance_criteria": {"type": "verify", "cohort": "same_question_same_sampling_mode", "sampling_mode": mode, "outcomes": ["improved", "unchanged", "regressed", "unmeasured"]}, "evidence": evidence})
+    opportunities.sort(key=lambda item: (item.get("question_id", ""), item.get("id", "")))
     return {"status": "measured" if answers else "unmeasured", "facts_count": len(claims), "sample_count": len(answers), "conflicts": conflicts, "opportunities": opportunities[:50]}

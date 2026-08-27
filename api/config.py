@@ -84,6 +84,22 @@ def production_proxy_mode():
     """是否由可信生产反向代理承接公网流量。"""
     return _enabled("PRODUCTION_PROXY_MODE")
 
+def citation_intelligence_enabled():
+    """引用智能功能开关，默认开启；发布回滚时可通过环境变量关闭。"""
+    return _enabled("CITATION_INTELLIGENCE_V1", "true")
+
+def citation_api_enabled():
+    return citation_intelligence_enabled() and _enabled("CITATION_API_V1", "true")
+
+def citation_channels_enabled():
+    return citation_intelligence_enabled() and _enabled("CITATION_CHANNELS_V1", "true")
+
+def citation_overview_enabled():
+    return citation_intelligence_enabled() and _enabled("CITATION_OVERVIEW_V1", "true")
+
+def citation_shadow_enabled():
+    return _enabled("CITATION_SHADOW_MODE", "true")
+
 
 def api_docs_enabled():
     """生产反向代理模式默认关闭公开 OpenAPI 文档。"""

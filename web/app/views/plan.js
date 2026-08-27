@@ -36,12 +36,15 @@ export default {
 
     let tickets = [];
     let visibilityPlan = null;
+    let opportunities = [];
     try {
-      const [playbook, loadedPlan] = await Promise.all([
+      const [playbook, loadedPlan, opportunityData] = await Promise.all([
         projects.getPlaybook(projectId).catch(() => null),
         projects.getVisibilityPlan(projectId).catch(() => null),
+        projects.getBrandOpportunities(projectId).catch(() => null),
       ]);
       visibilityPlan = loadedPlan;
+      opportunities = Array.isArray(opportunityData?.opportunities) ? opportunityData.opportunities : [];
       tickets = playbook?.playbook || await projects.getTickets(projectId).catch(() => []);
       if (!Array.isArray(tickets)) tickets = [];
     } catch (err) {
@@ -80,6 +83,7 @@ export default {
             <div class="seg">
               <a href="#/plan?view=matrix" class="seg-opt ${currentMode === 'matrix' ? 'is-active' : ''}">${t('plan.mode_matrix', {}, '2×2 Matrix')}</a>
               <a href="#/plan?view=table" class="seg-opt ${currentMode === 'table' ? 'is-active' : ''}">${t('plan.mode_table', {}, 'Table List')}</a>
+              <a href="#/plan?view=opportunities" class="seg-opt ${currentMode === 'opportunities' ? 'is-active' : ''}">${t('plan.opportunities', {}, 'Opportunities')}</a>
             </div>
             <button type="button" id="btn-create-custom-ticket" class="btn btn-secondary btn-sm">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -92,8 +96,9 @@ export default {
 
         <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Plan controls</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Explicitly record the current phase and completed implementation stages.</p></div><button type="button" id="btn-save-visibility-plan" class="btn btn-secondary btn-sm">Save plan</button></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--sp-3);"><label class="field" style="margin:0;"><span>Current phase</span><select id="visibility-phase" class="input">${timeline.map((item) => `<option value="${item.key}" ${visibilityPlan?.plan?.current_phase === item.key ? 'selected' : ''}>${item.label}</option>`).join('')}</select></label><label class="field" style="margin:0;"><span>Next review</span><input id="visibility-review" class="input" type="date" value="${visibilityPlan?.plan?.next_review_at ? String(visibilityPlan.plan.next_review_at).slice(0,10) : ''}"></label></div></div>
 
+        ${currentMode === 'opportunities' ? `<div class="card" style="padding:0;overflow:auto;"><table class="table"><caption class="sr-only">${t('plan.content_opportunities', {}, 'Content opportunities')}</caption><thead><tr><th>${t('questions.col_prompt', {}, 'Question')}</th><th>${t('plan.gap', {}, 'Gap')}</th><th>${t('plan.page_type', {}, 'Page type')}</th><th>${t('plan.evidence', {}, 'Evidence')}</th><th>${t('common.status', {}, 'Status')}</th><th>${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${opportunities.map((item) => `<tr><td>${escapeHtml(item.question)}</td><td>${escapeHtml(item.gap_type || '')}</td><td>${escapeHtml(item.suggested_page_type || '')}</td><td>${Number(item.evidence_count || (item.evidence || []).length)}</td><td>${escapeHtml(item.status || 'unmeasured')}</td><td><button type="button" class="btn btn-secondary btn-sm btn-opportunity-ticket" data-opportunity-id="${escapeHtml(item.id)}">${t('plan.create_ticket_btn', {}, 'Create ticket')}</button></td></tr>`).join('') || `<tr><td colspan="6">${t('channels.unmeasured_run_sample', {}, 'Unmeasured · Run a sample')}</td></tr>`}</tbody></table></div>` : ''}
         ${
-          currentMode === 'matrix'
+          currentMode === 'matrix' && currentMode !== 'opportunities'
             ? `
           <!-- 2x2 Matrix Mode -->
           <div class="matrix-grid">
@@ -158,7 +163,7 @@ export default {
             </div>
           </div>
         `
-            : `
+            : currentMode === 'table' ? `
           <!-- Table Mode -->
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl" style="overflow-x:auto;">
@@ -208,7 +213,7 @@ export default {
             </div>
           </div>
         `
-        }
+        : ''}
       </div>
     `;
   },
@@ -227,6 +232,13 @@ export default {
         toast.success('Visibility plan updated');
       } catch (err) { toast.error(tError(err)); }
     });
+    document.querySelectorAll('.btn-opportunity-ticket').forEach((button) => button.addEventListener('click', async () => {
+      try {
+        const result = await projects.createOpportunityTicket(projectId, button.dataset.opportunityId);
+        toast.success(result.reused ? t('plan.ticket_reused', {}, 'Existing opportunity ticket reused') : t('plan.ticket_created_success', {}, 'Opportunity ticket created'));
+        button.disabled = true;
+      } catch (err) { toast.error(tError(err)); }
+    }));
 
     // Bind ticket card clicks
     document.querySelectorAll('.ticket-item, .btn-edit-ticket').forEach((el) => {

@@ -17,6 +17,8 @@ from api.projects.delivery_routes import router as delivery_router
 from api.projects.visibility_plan_routes import router as visibility_plan_router
 from api.projects.citation_readiness_routes import router as citation_readiness_router
 from api.projects.brand_opportunity_routes import router as brand_opportunity_router
+from api.projects.citation_source_routes import router as citation_source_router
+from api.projects.entity_routes import router as entity_router
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 router.add_api_route(
@@ -33,5 +35,7 @@ router.include_router(delivery_router)
 router.include_router(visibility_plan_router)
 router.include_router(citation_readiness_router)
 router.include_router(brand_opportunity_router)
+router.include_router(citation_source_router)
+router.include_router(entity_router)
 
 __all__ = tuple(name for name in globals() if not name.startswith("__"))

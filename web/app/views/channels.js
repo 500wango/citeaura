@@ -8,6 +8,8 @@ import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
 import { openModal } from '../components/modal.js';
 
+let citationDomainState = new Map();
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -15,6 +17,10 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function suggestedAsset(type) {
+  return ({ community: t('channels.asset_community', {}, 'FAQ / fact block'), editorial: t('channels.asset_editorial', {}, 'Comparison matrix / llms.txt'), knowledge: t('channels.asset_knowledge', {}, 'Schema / entity definition'), review: t('channels.asset_review', {}, 'Review schema / testimonial block') })[type] || t('channels.asset_default', {}, 'Evidence-backed answer page');
 }
 
 async function runCitationSample(ctx, button) {
@@ -42,14 +48,17 @@ export default {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
     }
 
-    const [report, externalEvidence, project] = await Promise.all([
+    const [report, externalEvidence, project, citationSources, citationFeatures] = await Promise.all([
       projects.getReport(projectId).catch(() => null),
       workspace.getExternalEvidence(projectId).catch(() => []),
       projects.get(projectId).catch(() => null),
+      projects.getCitationSources(projectId).catch(() => null),
+      projects.getCitationFeatures(projectId).catch(() => ({ channels: false })),
     ]);
-    const channels = report?.channels || [];
+    const channels = citationFeatures.channels && citationSources?.status === 'measured' ? citationSources.domains : (report?.channels || []);
+    citationDomainState = new Map(channels.map((item) => [String(item.domain || ''), item]));
     const totalMentions = channels.reduce((sum, channel) => sum + Number(channel.count || 0), 0);
-    const cohort = report?.sample_artifact || report?.date || null;
+    const cohort = citationSources?.run_id || report?.sample_artifact || report?.date || null;
     const ownHost = String(project?.url || '').replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '').toLowerCase();
     const officialSource = channels.find((channel) => String(channel.domain || '').toLowerCase().replace(/^www\./, '') === ownHost);
 
@@ -105,7 +114,7 @@ export default {
                     <th>${t('channels.col_questions', {}, 'Question Evidence')}</th>
                     <th style="text-align:right;">${t('channels.col_citations', {}, 'Mentions')}</th>
                     <th style="text-align:right;">${t('channels.col_share', {}, 'Share')}</th>
-                    <th>${t('channels.col_opportunity', {}, 'Next Action')}</th>
+                    ${citationFeatures.channels ? `<th>${t('channels.col_opportunity', {}, 'Suggested asset')}</th><th>${t('common.action', {}, 'Action')}</th>` : `<th>${t('channels.col_opportunity', {}, 'Next Action')}</th>`}
                   </tr>
                 </thead>
                 <tbody>
@@ -114,6 +123,7 @@ export default {
                     const questions = Array.isArray(channel.sample_questions) ? channel.sample_questions : [];
                     const questionCount = Number(channel.question_count || questions.length);
                     const share = totalMentions ? Math.round(Number(channel.count || 0) * 1000 / totalMentions) / 10 : 0;
+                    const evidenceUrls = Array.isArray(channel.evidence_urls) ? channel.evidence_urls : [];
                     return `
                       <tr>
                         <td class="num" style="color:var(--muted);">${index + 1}</td>
@@ -131,7 +141,7 @@ export default {
                         </td>
                         <td data-num style="font-weight:700;text-align:right;">${Number(channel.count || 0)}</td>
                         <td data-num style="text-align:right;">${share.toFixed(1)}%</td>
-                        <td><a href="#/outreach" class="btn btn-ghost btn-sm">${t('channels.create_outreach', {}, 'Draft Outreach')} →</a></td>
+                        ${citationFeatures.channels ? `<td><span class="tag tag-neutral">${escapeHtml(suggestedAsset(channel.type))}</span></td><td><div style="display:flex;gap:var(--sp-1);flex-wrap:wrap;">${evidenceUrls.length ? `<a href="#/engines" class="btn btn-ghost btn-sm">${t('channels.review_samples', {}, 'View evidence')}</a>` : ''}<button type="button" class="btn btn-ghost btn-sm btn-create-citation-ticket" data-domain="${escapeHtml(channel.domain)}" data-run-id="${escapeHtml(citationSources?.run_id || cohort || '')}" data-asset="${escapeHtml(suggestedAsset(channel.type))}">${t('plan.create_ticket_btn', {}, 'Create ticket')}</button></div></td>` : `<td><a href="#/outreach" class="btn btn-ghost btn-sm">${t('channels.create_outreach', {}, 'Draft Outreach')} →</a></td>`}
                       </tr>
                     `;
                   }).join('')}
@@ -177,6 +187,22 @@ export default {
   mounted: (ctx) => {
     document.querySelectorAll('.btn-run-citation-sample').forEach((button) => {
       button.addEventListener('click', () => runCitationSample(ctx, button));
+    });
+    document.querySelectorAll('.btn-create-citation-ticket').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const domain = button.dataset.domain || '';
+        try {
+          const source = citationDomainState.get(domain) || {};
+          const result = await projects.createCitationTicket(ctx.activeProjectId, {
+            domain,
+            run_id: button.dataset.runId,
+            suggested_asset: button.dataset.asset || 'evidence-backed asset',
+            evidence_urls: source.evidence_urls || [],
+          });
+          toast.success(result.reused ? t('channels.ticket_reused', {}, 'Existing citation ticket reused') : t('channels.ticket_created', {}, 'Citation ticket created'));
+          button.disabled = true;
+        } catch (err) { toast.error(tError(err)); }
+      });
     });
     document.getElementById('btn-add-external-evidence')?.addEventListener('click', async () => {
       openModal({

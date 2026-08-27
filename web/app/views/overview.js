@@ -32,14 +32,18 @@ export default {
     let tickets = [];
     let jobs = [];
     let visibilityPlan = null;
+    let citationSources = null;
+    let citationFeatures = null;
 
     try {
-      [project, report, tickets, jobs, visibilityPlan] = await Promise.all([
+      [project, report, tickets, jobs, visibilityPlan, citationSources, citationFeatures] = await Promise.all([
         projects.get(projectId).catch(() => null),
         projects.getReport(projectId).catch(() => null),
         projects.getTickets(projectId).catch(() => []),
         projects.getJobs(projectId).catch(() => []),
         projects.getVisibilityPlan(projectId).catch(() => null),
+        projects.getCitationSources(projectId).catch(() => null),
+        projects.getCitationFeatures(projectId).catch(() => ({ overview: false })),
       ]);
     } catch (err) {
       console.error('Failed to load overview data:', err);
@@ -178,6 +182,7 @@ export default {
 
         <!-- Key Metrics Bar -->
         ${renderKpis(kpiData)}
+        ${citationFeatures?.overview ? `<div class="card" style="gap:var(--sp-3);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Citation Source Intelligence</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Latest web-enabled evidence, traceable to a sampling run.</p></div><a href="#/channels" class="btn btn-secondary btn-sm">View Channels</a></div>${citationSources?.status === 'measured' ? `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(citationSources.domains || []).slice(0,5).map((item) => `<span class="tag tag-neutral">${escapeHtml(item.domain)} · ${(item.share * 100).toFixed(1)}%</span>`).join('')}</div><span style="color:var(--muted);font-size:var(--fs-1);">${citationSources.total_citations} citations · ${escapeHtml(citationSources.run_id || '')}</span>` : `<span style="color:var(--muted);">Unmeasured · Run a sample</span>`}</div>` : ''}
         <div class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">AI Visibility Operating Plan</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${phaseLabels[plan.current_phase] || 'Baseline'} · ${plan.status || 'active'}</p></div>
