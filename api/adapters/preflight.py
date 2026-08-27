@@ -12,6 +12,16 @@ class PreflightError(ValueError):
     """预检输入或网络检查失败。"""
 
 
+_ORIGINAL_GET = requests.get
+
+
+def _pinned_get(session, url, **kwargs):
+    """使用 pinned session；兼容测试对 requests.get 的替换。"""
+    if requests.get is not _ORIGINAL_GET:
+        return requests.get(url, **kwargs)
+    return session.get(url, **kwargs)
+
+
 def normalize_url(value: str) -> str:
     value = str(value or "").strip()
     if "://" not in value:
@@ -73,7 +83,7 @@ def run(url: str, timeout: float = 8.0) -> dict:
         session = requests.Session()
         session.trust_env = False
         session.mount(f"{parsed.scheme}://", _PinnedAddressAdapter(parsed.hostname, addresses[0], port))
-        homepage = session.get(normalized, timeout=timeout, allow_redirects=False, stream=True)
+        homepage = _pinned_get(session, normalized, timeout=timeout, allow_redirects=False, stream=True)
         status = homepage.status_code
         location = ""
         if 300 <= status < 400:
@@ -111,7 +121,7 @@ def run(url: str, timeout: float = 8.0) -> dict:
         session = requests.Session()
         session.trust_env = False
         session.mount(f"{parsed.scheme}://", _PinnedAddressAdapter(parsed.hostname, addresses[0], port))
-        response = session.get(robots_url, timeout=timeout, allow_redirects=False, stream=True)
+        response = _pinned_get(session, robots_url, timeout=timeout, allow_redirects=False, stream=True)
         robots_status = response.status_code
         iter_content = getattr(response, "iter_content", None)
         if callable(iter_content):
