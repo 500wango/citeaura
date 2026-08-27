@@ -35,8 +35,13 @@ export default {
     }
 
     let tickets = [];
+    let visibilityPlan = null;
     try {
-      const playbook = await projects.getPlaybook(projectId).catch(() => null);
+      const [playbook, loadedPlan] = await Promise.all([
+        projects.getPlaybook(projectId).catch(() => null),
+        projects.getVisibilityPlan(projectId).catch(() => null),
+      ]);
+      visibilityPlan = loadedPlan;
       tickets = playbook?.playbook || await projects.getTickets(projectId).catch(() => []);
       if (!Array.isArray(tickets)) tickets = [];
     } catch (err) {
@@ -44,6 +49,7 @@ export default {
     }
 
     const currentMode = ctx.params.view || 'matrix';
+    const timeline = visibilityPlan?.timeline || [];
 
     // Categorize four quadrants
     const quickWins = [];
@@ -81,6 +87,10 @@ export default {
             </button>
           </div>
         </div>
+
+        ${timeline.length ? `<div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Operating timeline</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Advance phases after reviewing evidence and completing the linked work.</p></div><span class="tag tag-dim">${timeline.filter((item) => item.status === 'complete').length}/${timeline.length} complete</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--sp-2);">${timeline.map((item) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(item.label)}</span><strong class="${item.status === 'complete' ? 'pill-good' : item.status === 'active' ? 'pill-warn' : ''}">${escapeHtml(item.status)}</strong></div>`).join('')}</div></div>` : ''}
+
+        <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Plan controls</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Explicitly record the current phase and completed implementation stages.</p></div><button type="button" id="btn-save-visibility-plan" class="btn btn-secondary btn-sm">Save plan</button></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--sp-3);"><label class="field" style="margin:0;"><span>Current phase</span><select id="visibility-phase" class="input">${timeline.map((item) => `<option value="${item.key}" ${visibilityPlan?.plan?.current_phase === item.key ? 'selected' : ''}>${item.label}</option>`).join('')}</select></label><label class="field" style="margin:0;"><span>Next review</span><input id="visibility-review" class="input" type="date" value="${visibilityPlan?.plan?.next_review_at ? String(visibilityPlan.plan.next_review_at).slice(0,10) : ''}"></label></div></div>
 
         ${
           currentMode === 'matrix'
@@ -206,6 +216,17 @@ export default {
   mounted: (ctx) => {
     const projectId = ctx.activeProjectId;
     if (!projectId) return;
+
+    document.getElementById('btn-save-visibility-plan')?.addEventListener('click', async () => {
+      const phase = document.getElementById('visibility-phase')?.value || 'baseline';
+      const next = document.getElementById('visibility-review')?.value || null;
+      const currentPlan = await projects.getVisibilityPlan(projectId).catch(() => ({}));
+      const completed = (currentPlan.plan?.completed_phases || []).filter((item) => item !== phase);
+      try {
+        await projects.updateVisibilityPlan(projectId, { status: currentPlan.plan?.status || 'active', current_phase: phase, next_review_at: next ? `${next}T00:00:00Z` : null, goals: currentPlan.plan?.goals || [], completed_phases: completed });
+        toast.success('Visibility plan updated');
+      } catch (err) { toast.error(tError(err)); }
+    });
 
     // Bind ticket card clicks
     document.querySelectorAll('.ticket-item, .btn-edit-ticket').forEach((el) => {

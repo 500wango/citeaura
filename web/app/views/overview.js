@@ -31,13 +31,15 @@ export default {
     let project = null;
     let tickets = [];
     let jobs = [];
+    let visibilityPlan = null;
 
     try {
-      [project, report, tickets, jobs] = await Promise.all([
+      [project, report, tickets, jobs, visibilityPlan] = await Promise.all([
         projects.get(projectId).catch(() => null),
         projects.getReport(projectId).catch(() => null),
         projects.getTickets(projectId).catch(() => []),
         projects.getJobs(projectId).catch(() => []),
+        projects.getVisibilityPlan(projectId).catch(() => null),
       ]);
     } catch (err) {
       console.error('Failed to load overview data:', err);
@@ -70,6 +72,10 @@ export default {
       ? `${trend.label || 'Trend'} ${trend.direction || ''} ${trend.delta_pp != null ? `${trend.delta_pp} pp` : ''}`.trim()
       : (trend.label || t('overview.trend_single', {}, 'Single-round observation; two comparable periods are required before calling a trend'));
     const measuredEngines = engines.filter((item) => item.sample_count);
+    const plan = visibilityPlan?.plan || {};
+    const baseline = visibilityPlan?.baseline;
+    const phaseLabels = { baseline: 'Baseline', technical: 'Technical crawl', citation: 'Citation readiness', content: 'Content opportunities', offsite: 'Off-site entity', review: 'Review & re-measure' };
+    const goals = Array.isArray(plan.goals) ? plan.goals : [];
     const priorityRank = { P0: 0, P1: 1, P2: 2 };
     const hasQuestions = Array.isArray(project.questions) && project.questions.length > 0;
     const projectStatus = project.project?.status || project.status;
@@ -172,6 +178,18 @@ export default {
 
         <!-- Key Metrics Bar -->
         ${renderKpis(kpiData)}
+        <div class="card" style="gap:var(--sp-3);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">AI Visibility Operating Plan</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${phaseLabels[plan.current_phase] || 'Baseline'} · ${plan.status || 'active'}</p></div>
+            <button type="button" id="btn-capture-visibility-baseline" class="btn btn-secondary btn-sm">${baseline ? 'Refresh baseline' : 'Capture baseline'}</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-2);">
+            <div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Phase</span><strong>${phaseLabels[plan.current_phase] || 'Baseline'}</strong></div>
+            <div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Baseline</span><strong>${baseline ? new Date(baseline.captured_at).toLocaleDateString() : unmeasured}</strong></div>
+            <div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Goals</span><strong>${goals.length || '—'}</strong></div>
+          </div>
+          ${goals.length ? `<div style="display:flex;flex-wrap:wrap;gap:var(--sp-2);">${goals.map((goal) => `<span class="tag tag-dim">${escapeHtml(goal.label || goal.type)} · ${goal.target}</span>`).join('')}</div>` : '<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Set measurable goals to track progress across sampling cycles.</p>'}
+        </div>
         <div class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('overview.sentiment_context_title', {}, 'Brand sentiment context')}</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${t('overview.sentiment_context_desc', {}, 'Heuristic labels from unprompted answer replays; inspect evidence before reporting.')}</p></div>
@@ -427,6 +445,22 @@ export default {
           toast.error(tError(err));
         } finally {
           verifyBtn.disabled = false;
+        }
+      });
+    }
+
+    const baselineBtn = document.getElementById('btn-capture-visibility-baseline');
+    if (baselineBtn) {
+      baselineBtn.addEventListener('click', async () => {
+        baselineBtn.disabled = true;
+        try {
+          await projects.captureVisibilityBaseline(projectId);
+          toast.success('Visibility baseline captured');
+          await ctx.reloadCurrentView();
+        } catch (err) {
+          toast.error(tError(err));
+        } finally {
+          baselineBtn.disabled = false;
         }
       });
     }

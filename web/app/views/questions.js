@@ -20,13 +20,15 @@ export default {
     let expand = {};
     let research = {};
     let insights = {};
+    let brandOpportunities = null;
     try {
       let project = null;
-      [questions, expand, project, research] = await Promise.all([
+      [questions, expand, project, research, brandOpportunities] = await Promise.all([
         workspace.getQuestions(projectId).catch(() => []),
         workspace.getExpand(projectId).catch(() => ({})),
         projects.get(projectId).catch(() => null),
         workspace.getPromptResearch(projectId).catch(() => ({})),
+        projects.getBrandOpportunities(projectId).catch(() => null),
       ]);
       insights = project?.insights || {};
     } catch (err) {
@@ -37,6 +39,7 @@ export default {
     const opportunityItems = Array.isArray(explorer.items) ? explorer.items : [];
     const researchItems = Array.isArray(research?.items) ? research.items : [];
     const priorityLabel = { high: 'High opportunity', medium: 'Medium opportunity', needs_sampling: 'Needs sampling', probe: 'Brand probe', monitor: 'Monitor' };
+    const contentOpportunities = Array.isArray(brandOpportunities?.opportunities) ? brandOpportunities.opportunities : [];
 
     return `
       <div class="app-view-container">
@@ -64,6 +67,8 @@ export default {
           </div>
           ${researchItems.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('questions.col_candidate', {}, 'Prompt candidate')}</th><th>${t('questions.col_seed', {}, 'Seed')}</th><th>${t('questions.col_intent', {}, 'Intent')}</th><th>${t('questions.col_funnel_stage', {}, 'Funnel stage')}</th><th style="text-align:right;">${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${researchItems.slice(0, 18).map((item) => `<tr><td style="min-width:300px;"><strong>${escapeHtml(item.text || '')}</strong></td><td><span class="tag tag-dim">${escapeHtml(item.seed || '')}</span></td><td><span class="tag tag-neutral">${escapeHtml(item.intent || '')}</span></td><td>${escapeHtml(item.funnel_stage || '')}</td><td style="text-align:right;">${item.in_question_bank ? `<span class="tag pill-good">${t('questions.in_bank', {}, 'In bank')}</span>` : `<button type="button" class="btn btn-secondary btn-sm btn-add-research" data-text="${escapeHtml(item.text || '')}" data-intent="${escapeHtml(item.intent || '')}">${t('questions.add_to_monitoring', {}, 'Add to monitoring')}</button>`}</td></tr>`).join('')}</tbody></table></div>` : `<div style="padding:var(--sp-4);background:var(--page);color:var(--muted);font-size:var(--fs-2);">${t('questions.no_research_yet', {}, 'No research run yet. Generate a fan-out to discover the questions your buyers may ask.')}</div>`}
         </div>
+
+        ${contentOpportunities.length ? `<div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Content opportunities from evidence</h3>${contentOpportunities.slice(0, 8).map((item) => `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);align-items:center;padding:var(--sp-2) 0;border-bottom:1px solid var(--line);"><div><strong>${escapeHtml(item.question)}</strong><div style="color:var(--muted);font-size:var(--fs-2);">${escapeHtml(item.suggested_page_type)} · ${escapeHtml(item.status)}</div></div><span class="tag tag-dim">${(item.evidence || []).length} evidence</span></div>`).join('')}</div>` : ''}
 
         <div class="card" style="padding:0;overflow:hidden;margin-bottom:var(--sp-4);">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);">

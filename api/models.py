@@ -183,6 +183,8 @@ class Project(Base):
     sample_call_limit = Column(Integer, nullable=True)
     pause_on_budget_exceeded = Column(Boolean, nullable=False, default=True, server_default="true")
     alert_on_regression = Column(Boolean, nullable=False, default=False, server_default="false")
+    visibility_plan_json = Column(Text, nullable=True)
+    visibility_baseline_json = Column(Text, nullable=True)
     archived_at = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 

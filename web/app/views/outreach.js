@@ -18,8 +18,12 @@ export default {
     }
 
     let outreachData = {};
+    let attribution = {};
     try {
-      outreachData = await outreach.get(projectId).catch(() => ({}));
+      [outreachData, attribution] = await Promise.all([
+        outreach.get(projectId).catch(() => ({})),
+        projects.getOffsiteAttribution(projectId).catch(() => ({})),
+      ]);
     } catch (e) {}
 
     const drafts = outreachData.drafts || [];
@@ -45,6 +49,8 @@ export default {
             </button>
           </div>
         </div>
+
+        <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Off-site entity & attribution</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${attribution.attribution?.caveat || 'External source data is not configured.'}</p></div><span class="tag tag-dim">${attribution.status || 'not_configured'}</span></div><div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(attribution.next_steps || []).map((step) => `<span class="tag tag-neutral">${step}</span>`).join('')}</div></div>
 
         <!-- Outreach Drafts List -->
         <div class="card" style="padding:0;overflow:hidden;">

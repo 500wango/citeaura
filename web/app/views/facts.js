@@ -1,4 +1,4 @@
-import { workspace } from '../api.js';
+import { workspace, projects } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
@@ -63,7 +63,10 @@ export default {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
     }
 
-    const facts = await workspace.getFacts(projectId).catch(() => ({ exists: false, text: '' }));
+    const [facts, opportunities] = await Promise.all([
+      workspace.getFacts(projectId).catch(() => ({ exists: false, text: '' })),
+      projects.getBrandOpportunities(projectId).catch(() => null),
+    ]);
     return `
       <div class="app-view-container">
         <div class="view-header">
@@ -77,6 +80,7 @@ export default {
         </div>
         ${migrationNotice(facts)}
         ${reviewStatusNotice(facts)}
+        ${opportunities?.conflicts?.length ? `<div class="card" style="gap:var(--sp-3);"><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Potential fact conflicts</h3>${opportunities.conflicts.map((item) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><strong>${escapeHtml(item.claim)}</strong><div style="color:var(--muted);font-size:var(--fs-2);margin-top:4px;">Needs human review · ${(item.evidence || []).length} sampled contradiction(s)</div></div>`).join('')}</div>` : ''}
         <div class="card" style="gap:var(--sp-3);">
           <div class="field" style="margin:0;">
             <label for="facts-markdown">${t('facts.markdown_label', {}, 'Official facts in Markdown')}</label>

@@ -44,8 +44,12 @@ export default {
     }
 
     let report = null;
+    let citationReadiness = null;
     try {
-      report = await projects.getReport(projectId).catch(() => null);
+      [report, citationReadiness] = await Promise.all([
+        projects.getReport(projectId).catch(() => null),
+        projects.getCitationReadiness(projectId).catch(() => null),
+      ]);
     } catch (e) {}
 
     const audit = (report && report.audit) || {};
@@ -96,6 +100,17 @@ export default {
             <span class="num" style="font-size:var(--fs-7);font-weight:700;">${summary.passed || 0} / ${summary.evaluated || 0}</span>
             <span style="color:var(--muted);font-size:11px;">${summary.not_evaluated || 0} not evaluated / ${summary.not_applicable || 0} not applicable</span>
           </div>
+        </div>
+
+        <div class="card" style="gap:var(--sp-3);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Citation Readiness</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Evidence-backed signals for whether AI systems can access, extract and cite this site.</p></div>
+            <span class="tag ${citationReadiness?.status === 'measured' ? 'pill-good' : 'tag-dim'}">${citationReadiness?.score ?? t('common.unmeasured', {}, 'Unmeasured')}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:var(--sp-2);">
+            ${(citationReadiness?.dimensions || []).map((item) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(item.label)}</span><strong>${item.score == null ? t('common.unmeasured', {}, 'Unmeasured') : `${item.score}/100`}</strong><span style="display:block;color:var(--faint);font-size:11px;">${(item.evidence || []).length} evidence item(s)</span></div>`).join('') || `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Run a site audit to calculate citation readiness.</p>`}
+          </div>
+          ${(citationReadiness?.crawler_checks || []).length ? `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${citationReadiness.crawler_checks.map((item) => `<span class="tag ${item.status === 'pass' ? 'pill-good' : item.status === 'fail' ? 'pill-bad' : 'tag-dim'}" title="${escapeHtml(item.action || '')}">${escapeHtml(item.name)} · ${escapeHtml(item.status)}</span>`).join('')}</div>` : ''}
         </div>
 
         ${siteFindings.length ? `

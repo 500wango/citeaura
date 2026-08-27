@@ -229,3 +229,91 @@ with with_tenant_context("test-tenant", "example"):
 3. 引擎通用缺陷可在 `engine/` 修复；租户、计费、认证等 SaaS 专属逻辑必须留在 `api/adapters/`
 4. 所有异步操作返回 `job_id`，前端通过轮询 `/jobs/:jid` 获取进度
 5. 错误处理：引擎的 `GeoEngineError` 在 API 层转为 HTTP 400/500 + JSON body
+
+---
+
+## Phase 5: AI Visibility Operating Plan（Semrush playbook 融合）
+
+目标：把现有的事实库、站点审计、AI 采样、工单、验收和交付包串成一条有目标、有阶段、有证据的持续运营流程。此阶段不新增泛化的 AI 写作器，也不承诺排名、流量或收入增长。
+
+### Task 5.1: 统一基线与目标合同（P0）
+
+**状态：已完成（2026-08-27）**
+
+**输入**：现有 report、engines、samples、facts、siteaudit、verify history
+
+**输出**：项目级 `visibility_plan` 元数据和基线快照
+
+- 新增计划字段：`status`、`current_phase`、`started_at`、`next_review_at`、`goals[]`
+- 目标类型限定为：`mention_rate`、`citation_rate`、`accuracy`、`crawler_access`、`ticket_completion`
+- 每个目标必须记录指标定义、目标值、基线值、样本量、采样模式和测量时间
+- DB 只保存计划/目标/周期元数据；详细样本、证据和历史快照继续写入 `work/<tenant>/<slug>/`
+- API：`GET/PUT /projects/:id/visibility-plan`、`POST /projects/:id/visibility-plan/baseline`
+- 前端：在 `overview` 增加目标卡和阶段进度，在 `report` 增加基线对比
+
+**验收**：无样本时显示 `未测` 而不是 `0`；不同采样模式不可直接混算；同一基线重复提交具备幂等性。
+
+### Task 5.2: Citation Readiness 诊断（P0）
+
+**状态：已完成（2026-08-27）**
+
+- 汇总现有 `siteaudit`、facts、schema、抓取和采样证据，生成分项 readiness：`crawlability`、`extractability`、`answerability`、`fact_consistency`、`citation_evidence`
+- 每个分项必须关联证据文件、URL、检查时间和修复建议
+- 诊断结果映射为现有 tickets，复用优先级、状态、verify 和 timeline
+- API：`GET /projects/:id/citation-readiness`
+- 前端：新增 `readiness` 视图或嵌入 `siteaudit`，不要再造第二套工单系统
+
+**验收**：每个扣分项可追溯到证据；重复运行不会生成重复工单；验证后能自动更新状态。
+
+### Task 5.3: AI Crawler 与页面提取检查（P0）
+
+**状态：已完成（2026-08-28）**
+
+- 检查 robots.txt、llms.txt、noindex、canonical、HTTP 状态、关键页面可提取文本和 schema
+- 区分“不可抓取”“可抓取但不可提取”“可提取但缺少可引用答案”
+- 将检查纳入 preflight/siteaudit，不依赖 LLM Key
+- 增加采样/检查来源标签：`人工·产品端` 或对应 API 模式
+
+**验收**：同一 URL 的 DNS/HTTP 检查复用现有网络保护；失败结果包含明确原因，不把网络错误解释为 AI 不提及。
+
+### Task 5.4: 品牌事实冲突与内容机会（P1）
+
+**状态：已完成（2026-08-27）**
+
+- 从原始 AI 回答提取品牌描述，与 `Brand Fact Library` 比较
+- 输出冲突类型：错误、过时、无来源、互相矛盾，并生成事实修正工单
+- 从真实问题库、低引用问题和竞品差距生成内容机会
+- 内容机会只输出问题、证据、建议页面类型和验收条件，不自动发布内容
+- 前端复用 `facts`、`gaps`、`questions` 和 `blueprint` 视图
+
+**验收**：每条机会至少关联一个真实问题或采样证据；缺少证据时显示“待验证”。
+
+### Task 5.5: 六阶段运营时间线与周期复测（P1）
+
+**状态：已完成（2026-08-28）**
+
+- 阶段：基线、抓取与技术、页面可引用性、内容、站外实体、复测
+- 每阶段包含目标、建议工单、完成条件、下一次复测日期
+- 复测沿用现有 automation、sample、verify 和 job monitor
+- 报告增加前后对比、变更记录、样本量和未归因声明
+
+**验收**：用户可以从一个计划进入工单、触发复测、查看变化并生成交付包；任何阶段都可暂停，不影响现有手动流程。
+
+### Task 5.6: 站外实体与结果归因（P2）
+
+**状态：已完成代码合同与审核 UI（2026-08-28）；真实 GSC/GA4 拉取需客户授权后启用**
+
+- 先做第三方品牌信息一致性清单和人工复核队列，再评估外部数据源连接器
+- 接入 GSC/GA4 前先定义低敏字段、归因窗口和“相关但不等于因果”的文案
+- 不把目录数量、外链数量或论坛发帖数量作为核心成功指标
+
+**验收**：站外建议均有来源、相关性和审核状态；结果报表明确标注无法归因的部分。
+
+### 实施顺序与发布闸门
+
+1. 先完成 5.1，建立数据合同和基线快照。
+2. 再完成 5.2、5.3，把诊断转成可验收工单。
+3. 完成 5.4、5.5，形成内容机会和周期运营闭环。
+4. 最后评估 5.6，必须先有真实客户数据再扩展归因和站外连接器。
+
+每个 Task 必须通过 API/Engine 全量回归、文件系统产物校验、租户隔离测试和至少一个浏览器流程验收；不得修改 `engine/` 公共接口。
