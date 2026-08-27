@@ -5,6 +5,8 @@ x-app: &app
     CITEAURA_SOURCE_REVISION: ${CITEAURA_SOURCE_REVISION:-unknown}
   restart: unless-stopped
   depends_on:
+    postgres:
+      condition: service_healthy
     redis:
       condition: service_healthy
   networks:

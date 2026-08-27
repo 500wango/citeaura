@@ -20,6 +20,9 @@ def test_production_compose_binds_api_to_loopback_and_profiles_nginx():
     assert "requirements.lock" in (ROOT / "docker-compose.yml").read_text("utf-8")
     assert 'profiles: ["standalone-nginx"]' in compose
     assert 'profiles: ["local-postgres"]' in compose
+    app = compose.split("x-app: &app\n", 1)[1].split("\nservices:\n", 1)[0]
+    assert "    postgres:\n      condition: service_healthy" in app
+    assert "    redis:\n      condition: service_healthy" in app
     assert "image: postgres:${POSTGRES_MAJOR:-18}-alpine" in compose
     assert "postgres_data:/var/lib/postgresql" in compose
     assert '"5432' not in compose.split("  postgres:\n", 1)[1].split("  redis:\n", 1)[0]
