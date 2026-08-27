@@ -1,3 +1,4 @@
+import json
 import sys
 import types
 from contextlib import contextmanager
@@ -149,6 +150,92 @@ def test_sample_task_forwards_question_scope_to_engine_and_manifest(monkeypatch)
 
     assert captured["run"]["question_ids"] == ["q101", "q102"]
     assert captured["manifest"]["question_ids"] == ["q101", "q102"]
+
+
+def test_sampling_success_uses_explicit_success_count_when_platform_aggregate_is_missing():
+    result = {
+        "sample_count": 4,
+        "successful_sample_count": 2,
+        "platforms": {},
+    }
+
+    assert tasks._sampling_succeeded(result, "example") is True
+
+
+def test_sampling_empty_result_never_accepts_stale_metrics(monkeypatch):
+    monkeypatch.setattr(tasks, "_latest_metrics", lambda slug: {
+        "sample_summary": {"successful": 3},
+    })
+
+    assert tasks._sampling_succeeded({}, "example") is False
+
+
+def test_sampling_success_uses_current_jsonl_as_source_of_truth(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    (project_dir / "samples").mkdir(parents=True)
+    (project_dir / "samples" / "run-1.jsonl").write_text(json.dumps({
+        "run_id": "run-1", "platform": "openai", "ok": True,
+    }) + "\n", encoding="utf-8")
+    monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: project_dir)
+
+    result = {
+        "run_id": "run-1",
+        "sample_count": 1,
+        "successful_sample_count": 0,
+        "platforms": {},
+    }
+
+    assert tasks._sampling_succeeded(result, "example") is True
+
+
+def test_sampling_failure_reports_missing_worker_funding(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / "geo.json").write_text(json.dumps({
+        "market": "global",
+        "platforms": ["openai"],
+        "questions": [{"id": "q1", "market": "global", "text": "Best tool?"}],
+    }), encoding="utf-8")
+    monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: project_dir)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    with pytest.raises(tasks.SamplingOutputError) as exc_info:
+        tasks._require_sampling_output({}, "example")
+
+    message = str(exc_info.value)
+    assert "requests=0" in message
+    assert "reason=no_worker_funding" in message
+    assert "openai:missing_api_key" in message
+    assert "configure a model key" in message
+
+
+def test_sampling_failure_reports_provider_error_from_current_jsonl(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    (project_dir / "samples").mkdir(parents=True)
+    (project_dir / "metrics").mkdir()
+    (project_dir / "geo.json").write_text(json.dumps({
+        "market": "global",
+        "platforms": ["openai"],
+        "questions": [{"id": "q1", "market": "global", "text": "Best tool?"}],
+    }), encoding="utf-8")
+    result = {"run_id": "run-1", "sample_count": 1, "successful_sample_count": 0,
+              "sample_summary": {"total": 1, "successful": 0, "failed": 1}}
+    (project_dir / "samples" / "run-1.jsonl").write_text(json.dumps({
+        "run_id": "run-1", "platform": "openai", "ok": False,
+        "error": "HTTP 401: invalid api key",
+    }) + "\n", encoding="utf-8")
+    monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: project_dir)
+    monkeypatch.setenv("OPENAI_API_KEY", "runtime-only")
+
+    with pytest.raises(tasks.SamplingOutputError) as exc_info:
+        tasks._require_sampling_output(result, "example")
+
+    message = str(exc_info.value)
+    assert "requests=1" in message
+    assert "failed=1" in message
+    assert "reason=all_requests_failed" in message
+    assert "openai:failed[HTTP 401: invalid api key]" in message
+    assert "runtime-only" not in message
 
 
 def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):

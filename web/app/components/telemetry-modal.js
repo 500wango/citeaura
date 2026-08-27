@@ -472,10 +472,15 @@ async function fetchLogChunk(token) {
         terminal.scrollTop = terminal.scrollHeight;
       }
       if (actionsContainer) {
+        const samplingFailure = /sampling produced no measurable successful samples|sampling_no_successful_samples/i.test(String(job.error || ''));
+        const settingsAction = samplingFailure
+          ? `<a class="btn btn-secondary btn-sm" id="tel-open-engine-settings" href="#/engine-settings">${t('engines.configure_keys', {}, 'Configure API Keys')}</a>`
+          : '';
         const retryAction = job.can_retry
           ? `<button type="button" class="btn btn-danger btn-sm" id="tel-retry-btn">${t('telemetry.retry', {}, 'Retry Job')}</button>`
           : `<button type="button" class="btn btn-secondary btn-sm" id="tel-close-bottom-btn">${t('common.close', {}, 'Close')}</button>`;
-        setSafeHtml(actionsContainer, retryAction);
+        setSafeHtml(actionsContainer, settingsAction + retryAction);
+        document.getElementById('tel-open-engine-settings')?.addEventListener('click', () => closeTelemetryModal());
         if (job.can_retry) document.getElementById('tel-retry-btn')?.addEventListener('click', retryCurrentJob);
         else bindBackgroundButton();
       }
