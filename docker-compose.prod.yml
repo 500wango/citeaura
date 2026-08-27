@@ -80,7 +80,7 @@ services:
     volumes:
       - citeaura_work:/app/work
     healthcheck:
-      test: ["CMD-SHELL", "celery -A api.worker.celery_app inspect ping -d celery@$$HOSTNAME"]
+      test: ["CMD-SHELL", "celery -A api.worker.celery_app inspect ping --timeout=5 | grep -q 'pong'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -94,6 +94,11 @@ services:
     command: ["celery", "-A", "api.worker.celery_app", "beat", "--loglevel=INFO", "--schedule=/app/work/celerybeat-schedule"]
     volumes:
       - citeaura_work:/app/work
+    healthcheck:
+      test: ["CMD", "python", "-c", "import pathlib,sys; sys.exit(0 if b' beat' in pathlib.Path('/proc/1/cmdline').read_bytes() else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   nginx:
     profiles: ["standalone-nginx"]
