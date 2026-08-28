@@ -448,16 +448,15 @@ def test_landing_has_no_forbidden_brand_or_false_claims():
     assert "已通过 SOC 2" not in response.text
 
 
-def test_landing_js_supports_international_locales():
+def test_landing_js_uses_english_only_product_contract():
     response = client.get("/site-assets/landing.js")
     assert response.status_code == 200
     assert "localStorage.setItem('ulang'" in response.text
     assert "function detectLocale()" in response.text
-    assert "var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de']" in response.text
+    assert "var LOCALES = ['en']" in response.text
     assert "LOCALE_ASSET_VERSION" not in response.text
     assert "fetch('/i18n/en.json')" in response.text
-    assert "fetch('/i18n/' + state.locale + '.json')" in response.text
-    assert "fetch('/i18n/public/zh.json')" in response.text
+    assert "state.locale = 'en'" in response.text
     assert "function publicValue(key, fallback, params)" in response.text
     assert "public.landing.preview_log_ready" in response.text
     assert "new WeakMap()" in response.text

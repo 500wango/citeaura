@@ -3,7 +3,9 @@
  * Every user-facing key must exist in every supported catalog.
  */
 
-export const SUPPORTED_LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
+// Product UI is intentionally English-only until multilingual demand is validated.
+// The dormant catalog files remain available for a future, explicit relaunch.
+export const SUPPORTED_LOCALES = ['en'];
 export const DEFAULT_LOCALE = 'en';
 
 const HTML_LANG_MAP = {
@@ -39,17 +41,7 @@ function normalizeLocale(locale) {
 }
 
 export function detectLocale() {
-  const query = new URLSearchParams(window.location.search).get('lang');
-  if (query) return normalizeLocale(query);
-  try {
-    const stored = localStorage.getItem('ulang');
-    if (stored) return normalizeLocale(stored);
-  } catch (e) {}
-  const browser = Array.isArray(navigator.languages) ? navigator.languages : [navigator.language];
-  for (const value of browser) {
-    const locale = normalizeLocale(value);
-    if (locale !== DEFAULT_LOCALE || String(value || '').toLowerCase().startsWith('en')) return locale;
-  }
+  // Do not infer product language from browser, URL, or stale localStorage.
   return DEFAULT_LOCALE;
 }
 
@@ -70,7 +62,7 @@ function notifySubscribers() {
 }
 
 export async function loadCatalogs(locale = 'en') {
-  currentLocale = normalizeLocale(locale);
+  currentLocale = DEFAULT_LOCALE;
   try {
     localStorage.setItem('ulang', currentLocale);
   } catch (e) {}

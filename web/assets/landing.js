@@ -20,7 +20,8 @@ function escapeHtml(value) {
   'use strict';
 
   var THEME_COLORS = { light: '#f7f9fa', dark: '#15181e' };
-  var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
+  // Product marketing pages are intentionally English-only for now.
+  var LOCALES = ['en'];
   var state = { locale: 'en', theme: 'light', billing: 'monthly', catalog: {}, fallbackCatalog: {}, literalCatalog: {}, defaults: new WeakMap(), activeDomain: 'yourbrand.com' };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -36,17 +37,6 @@ function escapeHtml(value) {
   }
 
   function detectLocale() {
-    var query = new URLSearchParams(location.search).get('lang');
-    if (query) return normalizeLocale(query);
-    try {
-      var stored = localStorage.getItem('ulang');
-      if (stored) return normalizeLocale(stored);
-    } catch (e) {}
-    var languages = navigator.languages || [navigator.language];
-    for (var i = 0; i < languages.length; i += 1) {
-      var locale = normalizeLocale(languages[i]);
-      if (locale !== 'en' || String(languages[i] || '').toLowerCase().indexOf('en') === 0) return locale;
-    }
     return 'en';
   }
 
@@ -199,8 +189,8 @@ function escapeHtml(value) {
   }
 
   function setLocale(locale) {
-    state.locale = normalizeLocale(locale);
-    document.documentElement.lang = state.locale === 'zh' ? 'zh-CN' : state.locale;
+    state.locale = 'en';
+    document.documentElement.lang = 'en';
     try { localStorage.setItem('ulang', state.locale); } catch (e) {}
     var selector = $('#site-locale');
     if (selector) selector.value = state.locale;

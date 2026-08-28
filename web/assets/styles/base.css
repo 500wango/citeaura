@@ -180,6 +180,9 @@ select option {
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
+
+/* English-only product contract; keep the dormant markup reversible. */
+.lang-picker-btn { display: none !important; }
 .lang-picker-btn:hover, .theme-toggle:hover {
   color: var(--ink);
   border-color: var(--accent);
