@@ -2,18 +2,13 @@
 
 import json
 import logging
-import os
-import re
 import time
 from contextlib import contextmanager
-from collections import Counter
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from celery import current_task
-from fastapi import HTTPException
 from sqlalchemy import or_
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from api import config
 from api.adapters import baseline, brand_facts, global_scope, locking, measurement, regression_alerts, sampling_control, site_signals, ticket_workflow
@@ -22,27 +17,36 @@ from api.adapters.engine import (
     ENGINE_MAX_REPEAT,
     _environment_name,
     geolib,
-    job_log_path,
     load_custom_providers,
     load_tenant_keys,
     tenant_slug,
     with_tenant_context,
 )
 from api.adapters.workspace import ensure_global_engine_scope, preserve_manual_tickets, resilient_crawl_evidence
-from api.billing.limits import check_sample_run
 from api.billing.platform_pool import (
     meter_platform_calls,
     persist_usage_outbox,
     record_usage,
-    reconcile_usage_outbox,
     resolve_funding,
 )
+from api.billing.limits import check_sample_run
 from api.db import SessionLocal
-from api.models import IntegrationCredential, Job, Project, Tenant
+from api.models import Job, Project, Tenant
 from api.pipeline_catalog import ACTION_DEFAULTS, ACTION_METHODS, PIPELINE_ACTIONS
 from api.product_events import record_product_event
 from api.settings.crypto import decrypt_key
 from api.worker.celery_app import celery_app
+from api.worker.worker_sampling import (
+    SamplingOutputError,
+    _latest_metrics,
+    _metrics_written_since,
+    _require_sampling_output,
+    _sampling_diagnostic,
+    _sampling_rows,
+    _sampling_succeeded,
+)
+from api.worker.worker_maintenance import task_dispatch_schedules, task_reconcile_platform_usage
+from api.worker.worker_external import task_send_outreach, task_archive_project, task_restore_project
 from api.worker import job_runtime as _job_runtime
 
 _as_utc = _job_runtime.as_utc
@@ -60,39 +64,6 @@ PLATFORM_FUNDED_ACTIONS = frozenset(("sample", "autopilot", "serve", "cycle"))
 _JOB_NOT_CLAIMED = object()
 
 
-class SamplingOutputError(RuntimeError):
-    """采样没有产生可度量成功行时，保留可行动的诊断信息。"""
-
-    code = "sampling_no_successful_samples"
-
-    def __init__(self, diagnostic):
-        self.diagnostic = diagnostic if isinstance(diagnostic, dict) else {}
-        super().__init__(self._format_message())
-
-    def _format_message(self):
-        diagnostic = self.diagnostic
-        requests = int(diagnostic.get("requests") or 0)
-        successful = int(diagnostic.get("successful") or 0)
-        failed = int(diagnostic.get("failed") or 0)
-        skipped = int(diagnostic.get("skipped") or 0)
-        parts = [
-            "sampling produced no measurable successful samples",
-            f"requests={requests}",
-            f"successful={successful}",
-            f"failed={failed}",
-            f"skipped={skipped}",
-        ]
-        platforms = diagnostic.get("platforms") or []
-        if platforms:
-            parts.append("platforms=" + ",".join(
-                f"{item.get('code')}:{item.get('status')}" for item in platforms[:8]
-            ))
-        reason = str(diagnostic.get("reason") or "sampling_failed")
-        parts.append(f"reason={reason}")
-        next_step = str(diagnostic.get("next_step") or "check provider configuration and retry")
-        parts.append(f"next={next_step}")
-        return "; ".join(parts)
-
 _INTEGER_LIMITS = {
     "--max-pages": (1, 1000),
     "--limit": (1, 1000),
@@ -102,276 +73,6 @@ _INTEGER_LIMITS = {
 _FLAG_ARGS = {"--no-recrawl", "--draft", "--no-sample", "--skip-llm", "--no-llm"}
 _CSV_ARGS = {"--platforms", "--asset", "--question-ids"}
 
-
-def _latest_metrics_path(project_slug):
-    directory = geolib.project_dir(project_slug) / "metrics"
-    files = sorted(directory.glob("*.json")) if directory.exists() else []
-    return files[-1] if files else None
-
-
-def _latest_metrics(project_slug):
-    path = _latest_metrics_path(project_slug)
-    return geolib.read_json(path, {}) if path else {}
-
-
-def _metrics_written_since(project_slug, started_at):
-    if started_at is None:
-        return True
-    path = _latest_metrics_path(project_slug)
-    if path is None:
-        return False
-    started = started_at if started_at.tzinfo else started_at.replace(tzinfo=timezone.utc)
-    written = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
-    return written >= started - timedelta(seconds=5)
-
-
-def _sample_count(value):
-    """把旧产物中的可选计数统一为非负整数。"""
-    try:
-        return max(0, int(value or 0))
-    except (TypeError, ValueError):
-        return 0
-
-
-def _sampling_success_count(metrics):
-    """按明确成功字段优先，兼容历史 metrics 的成功样本口径。"""
-    if not isinstance(metrics, dict):
-        return 0
-    if "successful_sample_count" in metrics:
-        return _sample_count(metrics.get("successful_sample_count"))
-    summary = metrics.get("sample_summary")
-    if isinstance(summary, dict) and "successful" in summary:
-        return _sample_count(summary.get("successful"))
-    measurement_result = metrics.get("measurement")
-    if isinstance(measurement_result, dict) and "effective_samples" in measurement_result:
-        return _sample_count(measurement_result.get("effective_samples"))
-    platforms = metrics.get("platforms")
-    if isinstance(platforms, dict):
-        count = sum(
-            _sample_count(item.get("samples"))
-            for item in platforms.values()
-            if isinstance(item, dict)
-        )
-        if count:
-            return count
-    provider_observability = metrics.get("provider_observability")
-    if isinstance(provider_observability, dict) and "successful" in provider_observability:
-        count = _sample_count(provider_observability.get("successful"))
-        if count:
-            return count
-    # Metrics written before successful_sample_count was introduced used
-    # sample_count for successful rows. Only use it when no newer success
-    # signal exists, so a failed run with requests is not accepted.
-    return _sample_count(metrics.get("sample_count"))
-
-
-def _sampling_rows(project_slug, metrics):
-    """读取本轮 JSONL，诊断时以原始行而不是归一化摘要为准。"""
-    directory = geolib.project_dir(project_slug) / "samples"
-    if not directory.exists():
-        return []
-    run_id = metrics.get("run_id") if isinstance(metrics, dict) else None
-    if not run_id:
-        return []
-    path = directory / f"{run_id}.jsonl"
-    if not path.is_file():
-        return []
-    rows = geolib.read_jsonl(path)
-    return [row for row in rows if str(row.get("run_id") or "") == str(run_id)]
-
-
-def _redact_sampling_error(value):
-    """保留供应商错误类别，同时避免把响应中的凭据写入 Job 错误。"""
-    text = str(value or "").replace("\n", " ").strip()
-    text = re.sub(r"(?i)bearer\s+\S+", "Bearer <redacted>", text)
-    text = re.sub(r"(?i)(api[_ -]?key|token|secret)([=: ]+)\S+", r"\1\2<redacted>", text)
-    return text[:160]
-
-
-def _sampling_diagnostic(result, project_slug, started_at=None, funding=None):
-    """生成不含密钥的采样失败摘要，供日志、Job 和 UI 直接展示。"""
-    metrics = result if isinstance(result, dict) else _latest_metrics(project_slug)
-    if started_at is not None and not _metrics_written_since(project_slug, started_at):
-        metrics = {}
-    rows = _sampling_rows(project_slug, metrics)
-    summary = metrics.get("sample_summary") if isinstance(metrics, dict) else None
-    observability = metrics.get("provider_observability") if isinstance(metrics, dict) else None
-    if rows:
-        total = len(rows)
-        successful = sum(1 for row in rows if row.get("ok"))
-        failed = total - successful
-    else:
-        total = _sample_count((summary or {}).get("total")) if isinstance(summary, dict) else 0
-        successful = _sampling_success_count(metrics)
-        if not total and isinstance(observability, dict):
-            total = _sample_count(observability.get("requests"))
-        failed = max(0, total - successful)
-
-    grouped = {}
-    for row in rows:
-        code = str(row.get("platform") or "unknown")
-        item = grouped.setdefault(code, {"successful": 0, "failed": 0, "errors": Counter()})
-        if row.get("ok"):
-            item["successful"] += 1
-        else:
-            item["failed"] += 1
-            error = _redact_sampling_error(row.get("error"))
-            if error:
-                item["errors"][error] += 1
-    if not grouped and isinstance(summary, dict):
-        for code, item in (summary.get("per_platform") or {}).items():
-            if isinstance(item, dict):
-                grouped[str(code)] = {
-                    "successful": _sample_count(item.get("successful")),
-                    "failed": _sample_count(item.get("failed")),
-                    "errors": Counter(),
-                }
-    if not grouped and isinstance(observability, dict):
-        for code, item in (observability.get("platforms") or {}).items():
-            if isinstance(item, dict):
-                grouped[str(code)] = {
-                    "successful": _sample_count(item.get("successful")),
-                    "failed": _sample_count(item.get("failed")),
-                    "errors": Counter(),
-                }
-
-    try:
-        import sample
-    except ImportError:
-        sample = None
-    config_path = geolib.project_dir(project_slug) / "geo.json"
-    project_config = geolib.read_json(config_path, {}) if config_path.is_file() else {}
-    configured = [
-        str(code).strip().lower()
-        for code in (project_config.get("platforms") or [])
-        if str(code).strip()
-    ]
-    has_funding_snapshot = isinstance(funding, dict)
-    funded_codes = set()
-    if has_funding_snapshot:
-        funded_codes.update(str(code).strip().lower() for code in (funding.get("keys") or {}))
-        funded_codes.update(str(code).strip().lower() for code in (funding.get("pool_codes") or ()))
-    requested = list(dict.fromkeys(
-        code for code in configured
-        if sample is None or code in sample.PROVIDERS or code in funded_codes
-    ))
-    for code in grouped:
-        if code not in requested:
-            requested.append(code)
-
-    platform_items = []
-    missing_keys = 0
-    no_questions = 0
-    for code in requested:
-        item = grouped.get(code)
-        if item and item["successful"]:
-            status = "succeeded"
-        elif item and item["failed"]:
-            error = item["errors"].most_common(1)[0][0] if item["errors"] else "provider_request_failed"
-            status = f"failed[{error}]"
-        elif has_funding_snapshot and code not in funded_codes:
-            status = "missing_worker_funding"
-            missing_keys += 1
-        elif sample is not None and code in sample.PROVIDERS:
-            provider = sample.PROVIDERS[code]
-            key_env = provider.get("key_env")
-            if not has_funding_snapshot and (not key_env or not os.environ.get(key_env)):
-                status = "missing_api_key"
-                missing_keys += 1
-            else:
-                try:
-                    matching = sample.questions_for(project_config, code)
-                except Exception:  # noqa: BLE001
-                    matching = []
-                if not matching:
-                    status = "no_matching_questions"
-                    no_questions += 1
-                else:
-                    status = "no_successful_samples"
-        else:
-            status = "no_successful_samples"
-        platform_items.append({"code": code, "status": status})
-
-    skipped = sum(1 for item in platform_items if item["status"] in {
-        "missing_worker_funding", "missing_api_key", "no_matching_questions",
-        "no_successful_samples", "not_requested",
-    })
-    if not requested and not rows:
-        reason = "no_api_platforms_configured"
-        next_step = "configure a funded API key or select Audit only"
-    elif requested and not rows and (
-        (has_funding_snapshot and not (funded_codes & set(requested)))
-        or (not has_funding_snapshot and missing_keys == len(requested))
-    ):
-        reason = "no_worker_funding"
-        next_step = "configure a model key or eligible platform pool, then retry"
-    elif no_questions and not rows:
-        reason = "no_matching_questions"
-        next_step = "add questions for the configured market, then retry"
-    elif total and not successful:
-        reason = "all_requests_failed"
-        next_step = "check provider credentials, endpoint, model, and network, then retry"
-    else:
-        reason = "no_successful_samples"
-        next_step = "check the sampling log and retry"
-    return {
-        "requests": total,
-        "successful": successful,
-        "failed": failed,
-        "skipped": skipped,
-        "platforms": platform_items,
-        "reason": reason,
-        "next_step": next_step,
-    }
-
-
-def _sampling_succeeded(result, project_slug, job_id=None, started_at=None):
-    # An empty result is the engine's explicit "nothing runnable" contract;
-    # never replace it with an older metrics file and report a stale success.
-    if isinstance(result, dict) and not result:
-        return False
-    if isinstance(result, dict) and result:
-        if result.get("run_id"):
-            rows = _sampling_rows(project_slug, result)
-            if rows:
-                return any(bool(row.get("ok")) for row in rows)
-        explicit_success = any(
-            key in result for key in (
-                "successful_sample_count", "sample_summary", "measurement", "provider_observability",
-            )
-        )
-        if explicit_success:
-            return _sampling_success_count(result) > 0
-        if _sampling_success_count(result) > 0:
-            return True
-        return False
-    if started_at is not None and not _metrics_written_since(project_slug, started_at):
-        return False
-    metrics = _latest_metrics(project_slug)
-    if (
-        job_id is not None
-        and started_at is None
-        and str(((metrics or {}).get("provenance") or {}).get("job_id")) != str(job_id)
-    ):
-        return False
-    if isinstance(metrics, dict) and metrics.get("run_id"):
-        rows = _sampling_rows(project_slug, metrics)
-        if rows:
-            return any(bool(row.get("ok")) for row in rows)
-    return _sampling_success_count(metrics) > 0
-
-
-def _require_sampling_output(result, project_slug, job_id=None, started_at=None, funding=None):
-    if not _sampling_succeeded(result, project_slug, job_id=job_id, started_at=started_at):
-        error = SamplingOutputError(
-            _sampling_diagnostic(result, project_slug, started_at=started_at, funding=funding)
-        )
-        # _job_status captures stdout/stderr into the tenant Job log, so the
-        # same actionable summary remains available even when DB persistence
-        # of the final error is delayed.
-        print(f"[citeaura] {error}", flush=True)
-        raise error
-    return result
 
 
 def _sync_claim_verification(project_slug):
@@ -633,136 +334,6 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
             return {"status": "done", "project_slug": project_slug}
 
 
-@celery_app.task(name="citeaura.dispatch_schedules")
-def task_dispatch_schedules(now_iso=None):
-    """扫描到期项目并投递周期复跑任务。"""
-    now = datetime.fromisoformat(now_iso) if now_iso else datetime.now(timezone.utc)
-    now = _as_utc(now)
-    result = {"scanned": 0, "enqueued": 0, "busy": 0, "quota_blocked": 0, "failed": 0}
-    db = SessionLocal()
-    try:
-        _reclaim_stale_jobs(db, now)
-        candidate_ids = [
-            row[0]
-            for row in (
-                db.query(Project.id)
-                .join(Tenant, Tenant.id == Project.tenant_id)
-                .filter(
-                    Tenant.status == "active",
-                    Project.schedule_interval_days.in_((1, 7, 14, 30)),
-                    Project.schedule_next_run_at.isnot(None),
-                    Project.schedule_next_run_at <= now,
-                )
-                .order_by(Project.schedule_next_run_at, Project.id)
-                .all()
-            )
-        ]
-        result["scanned"] = len(candidate_ids)
-        db.rollback()
-        for project_id in candidate_ids:
-            project = (
-                db.query(Project)
-                .filter(
-                    Project.id == project_id,
-                    Project.schedule_interval_days.in_((1, 7, 14, 30)),
-                    Project.schedule_next_run_at.isnot(None),
-                    Project.schedule_next_run_at <= now,
-                )
-                .with_for_update(skip_locked=True, of=Project)
-                .first()
-            )
-            if project is None:
-                db.rollback()
-                continue
-            tenant = db.get(Tenant, project.tenant_id)
-            if tenant is None or tenant.status != "active":
-                project.schedule_interval_days = None
-                project.schedule_next_run_at = None
-                db.commit()
-                continue
-            active = db.query(Job.id).filter(
-                Job.project_id == project.id,
-                Job.status.in_(("queued", "running")),
-            ).first()
-            if active is not None:
-                result["busy"] += 1
-                db.rollback()
-                continue
-            try:
-                check_sample_run(db, tenant, project)
-                sampling_control.ensure_allowed(db, tenant, project, allow_pool=True)
-            except (HTTPException, sampling_control.SamplingBudgetExceeded):
-                result["quota_blocked"] += 1
-                scheduled_for = project.schedule_next_run_at
-                project.schedule_next_run_at = _next_scheduled_run(
-                    scheduled_for,
-                    project.schedule_interval_days,
-                    now,
-                )
-                db.commit()
-                continue
-
-            scheduled_for = project.schedule_next_run_at
-            previous_status = project.status
-            previous_last_enqueued = project.schedule_last_enqueued_at
-            job = Job(project_id=project.id, action="cycle", status="queued", stage="queued", request_json="{}")
-            db.add(job)
-            try:
-                sampling_control.reserve(db, tenant, project, job, allow_pool=True)
-            except (HTTPException, sampling_control.SamplingBudgetExceeded):
-                db.rollback()
-                blocked_project = db.get(Project, project_id)
-                if blocked_project is not None:
-                    blocked_project.schedule_next_run_at = _next_scheduled_run(
-                        scheduled_for,
-                        blocked_project.schedule_interval_days,
-                        now,
-                    )
-                    db.commit()
-                result["quota_blocked"] += 1
-                continue
-            project.status = "processing"
-            project.schedule_last_enqueued_at = now
-            project.schedule_next_run_at = _next_scheduled_run(
-                scheduled_for,
-                project.schedule_interval_days,
-                now,
-            )
-            try:
-                db.flush()
-            except IntegrityError:
-                db.rollback()
-                result["busy"] += 1
-                continue
-            job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
-            db.commit()
-            try:
-                task_result = task_cycle.delay(tenant.directory_slug, project.slug, job_id=job.id)
-                job.celery_task_id = getattr(task_result, "id", None)
-                db.commit()
-            except Exception as exc:  # noqa: BLE001
-                job.status = "failed"
-                job.error = f"{type(exc).__name__}: {exc}"
-                job.finished_at = now
-                sampling_control.release_reservation(job)
-                project.status = previous_status
-                project.schedule_next_run_at = scheduled_for
-                project.schedule_last_enqueued_at = previous_last_enqueued
-                db.commit()
-                result["failed"] += 1
-                continue
-            result["enqueued"] += 1
-        return result
-    finally:
-        db.close()
-
-
-@celery_app.task(name="citeaura.reconcile_platform_usage")
-def task_reconcile_platform_usage(limit=100):
-    """补偿因数据库瞬时故障未完成的平台代付计量。"""
-    return {"processed": reconcile_usage_outbox(limit=limit)}
-
-
 @celery_app.task(name="citeaura.verify")
 def task_verify(tenant_id: str, project_slug: str, job_id=None):
     """执行工单自动验收。"""
@@ -900,87 +471,5 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                     result = {"result": result, "delivery_error": delivery_error}
             return result
 
-
-@celery_app.task(name="citeaura.send_outreach")
-def task_send_outreach(tenant_id: str, project_slug: str, draft_id: str, job_id=None):
-    """领取已人工确认的草稿并通过租户 SMTP 发送。"""
-    from api.adapters import outreach
-
-    action = "outreach_send"
-    db = SessionLocal()
-    try:
-        tenant = _tenant_record(db, tenant_id)
-        if tenant is None:
-            raise ValueError("tenant_not_found")
-        tenant_name = tenant.directory_slug
-        tenant_db_id = tenant.id
-    finally:
-        db.close()
-
-    with _job_status(tenant_name, project_slug, action, job_id) as claim:
-        if claim is _JOB_NOT_CLAIMED:
-            return {"status": "ignored", "reason": "job_not_queued"}
-        try:
-            credential_db = SessionLocal()
-            try:
-                row = credential_db.query(IntegrationCredential).filter(
-                    IntegrationCredential.tenant_id == tenant_db_id,
-                    IntegrationCredential.provider == "outreach_smtp",
-                ).first()
-                if row is None:
-                    raise outreach.OutreachError("smtp_not_configured")
-                credentials = json.loads(decrypt_key(row.encrypted_value))
-                settings = json.loads(row.config_json or "{}")
-            finally:
-                credential_db.close()
-        except Exception as exc:
-            with with_tenant_context(tenant_name, project_slug):
-                outreach.mark_queued_failed(project_slug, draft_id, exc)
-            raise
-        with with_tenant_context(tenant_name, project_slug):
-            try:
-                draft = outreach.claim_for_sending(project_slug, draft_id)
-                result = outreach.send_smtp(draft, settings, credentials)
-            except Exception as exc:
-                outreach.mark_failed(project_slug, draft_id, exc)
-                outreach.mark_queued_failed(project_slug, draft_id, exc)
-                raise
-            outreach.mark_sent(project_slug, draft_id)
-            return {"status": "done", "draft_id": draft_id, **result}
-
-
-@celery_app.task(name="citeaura.archive_project")
-def task_archive_project(tenant_id: str, project_slug: str, job_id=None):
-    """将本地活动项目写成经校验的对象存储快照。"""
-    from api.adapters import archive
-
-    with _job_status(tenant_id, project_slug, "archive", job_id) as claim:
-        if claim is _JOB_NOT_CLAIMED:
-            return {"status": "ignored", "reason": "job_not_queued"}
-        result = archive.create_archive(tenant_id, project_slug)
-        return {"status": "done", "project_slug": project_slug, "archive": result}
-
-
-@celery_app.task(name="citeaura.restore_project")
-def task_restore_project(
-    tenant_id: str,
-    project_slug: str,
-    archive_id: str,
-    overwrite: bool = False,
-    job_id=None,
-):
-    """校验对象快照并恢复到本地活动项目。"""
-    from api.adapters import archive
-
-    with _job_status(tenant_id, project_slug, "archive_restore", job_id) as claim:
-        if claim is _JOB_NOT_CLAIMED:
-            return {"status": "ignored", "reason": "job_not_queued"}
-        result = archive.restore_archive(
-            tenant_id,
-            project_slug,
-            archive_id,
-            overwrite=overwrite,
-        )
-        return {"status": "done", "project_slug": project_slug, "restore": result}
 
 __all__ = tuple(name for name in globals() if not name.startswith("__"))
