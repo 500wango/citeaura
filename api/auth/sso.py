@@ -86,6 +86,24 @@ def _domains(configuration):
         values = []
     return [value for value in values if isinstance(value, str)]
 
+def _verified_domains(configuration):
+    try:
+        values = json.loads(configuration.verified_domains or "[]")
+    except (TypeError, ValueError):
+        values = []
+    return [value for value in values if isinstance(value, str)]
+
+def _verification_token(tenant_id, domain):
+    return f"citeaura-domain-verification={tenant_id}:{domain}"
+
+def _domain_verified(tenant_id, domain):
+    try:
+        import dns.resolver
+        answers = dns.resolver.resolve(f"_citeaura.{domain}", "TXT", lifetime=3)
+        return any(_verification_token(tenant_id, domain) in "".join(part.decode() if isinstance(part, bytes) else str(part) for part in answer.strings) for answer in answers)
+    except Exception:
+        return False
+
 
 def _configuration_payload(configuration, tenant, can_edit):
     if configuration is None:
@@ -107,6 +125,7 @@ def _configuration_payload(configuration, tenant, can_edit):
         "client_id": configuration.client_id,
         "client_secret_configured": bool(configuration.encrypted_client_secret),
         "allowed_domains": _domains(configuration),
+        "verified_domains": _verified_domains(configuration),
         "default_role": configuration.default_role,
         "enabled": bool(configuration.enabled),
         "login_url": f"/api/v1/sso/login/{tenant.id}" if configuration.enabled else None,
@@ -138,14 +157,36 @@ def save_sso_config(
     configuration.issuer_url = payload.issuer_url
     configuration.client_id = payload.client_id
     configuration.allowed_domains = json.dumps(payload.allowed_domains, ensure_ascii=True)
+    existing_verified = set(_verified_domains(configuration))
+    configuration.verified_domains = json.dumps(sorted(existing_verified.intersection(payload.allowed_domains)), ensure_ascii=True)
     configuration.default_role = payload.default_role
     configuration.enabled = payload.enabled
+    if payload.enabled and config.sso_require_domain_verification():
+        missing = [domain for domain in payload.allowed_domains if domain not in existing_verified]
+        if missing:
+            _error(status.HTTP_409_CONFLICT, "sso_domains_unverified")
     if payload.client_secret is not None:
         value = payload.client_secret.strip()
         configuration.encrypted_client_secret = encrypt_key(value) if value else None
     db.commit()
     db.refresh(configuration)
     return _configuration_payload(configuration, tenant, True)
+
+@router.post("/domains/verify")
+def verify_sso_domains(current_user: User = Depends(require_owner), db: Session = Depends(get_db)):
+    configuration = db.get(SsoConfiguration, current_user.tenant_id)
+    if configuration is None:
+        _error(status.HTTP_404_NOT_FOUND, "sso_not_configured")
+    verified = set(_verified_domains(configuration))
+    results = {}
+    for domain in _domains(configuration):
+        ok = _domain_verified(current_user.tenant_id, domain)
+        results[domain] = {"verified": ok, "txt_name": f"_citeaura.{domain}", "txt_value": _verification_token(current_user.tenant_id, domain)}
+        if ok:
+            verified.add(domain)
+    configuration.verified_domains = json.dumps(sorted(verified.intersection(_domains(configuration))), ensure_ascii=True)
+    db.commit()
+    return {"verified_domains": _verified_domains(configuration), "results": results}
 
 
 @router.delete("/config")
@@ -166,6 +207,8 @@ def start_sso_login(tenant_id: int, response: Response, db: Session = Depends(ge
     configuration = db.get(SsoConfiguration, tenant.id)
     if tenant.plan != "enterprise" or configuration is None or not configuration.enabled:
         _error(status.HTTP_404_NOT_FOUND, "sso_not_configured")
+    if config.sso_require_domain_verification() and set(_domains(configuration)) - set(_verified_domains(configuration)):
+        _error(status.HTTP_409_CONFLICT, "sso_domains_unverified")
     state = create_sso_state(tenant.id)
     redirect_uri = f"{config.public_base_url()}/api/v1/sso/callback"
     try:

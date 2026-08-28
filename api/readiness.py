@@ -9,7 +9,7 @@ from api.settings.crypto import _master_key
 from api.worker.celery_app import celery_app
 
 
-EXPECTED_DB_REVISION = "0033_visibility_plan"
+EXPECTED_DB_REVISION = "0034_sso_domain_verification"
 
 
 def _worker_available():

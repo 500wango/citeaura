@@ -1,4 +1,4 @@
-.PHONY: dev test migrate worker beat preflight create-admin reset-admin-password reset-admin-password-prod grant-plan-prod
+.PHONY: dev test migrate worker beat preflight check-work-root create-admin reset-admin-password reset-admin-password-prod grant-plan-prod
 
 dev:
 	uvicorn api.main:app --reload
@@ -18,6 +18,9 @@ beat:
 
 preflight:
 	python3 scripts/production_preflight.py --env-file $${ENV_FILE:-.env.production} --tls-mode external
+
+check-work-root:
+	@test "$${WORK_ROOT:-$$(pwd)/work}" != "$$(pwd)/engine/work" || { printf 'WORK_ROOT must not point at engine/work for SaaS runs; use with_tenant_context.\n' >&2; exit 2; }
 
 create-admin:
 	python3 -m api.admin.cli create --email "$${EMAIL}" --role "$${ROLE:-superadmin}"

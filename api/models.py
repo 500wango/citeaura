@@ -506,6 +506,7 @@ class SsoConfiguration(Base):
     client_id = Column(String(512), nullable=False)
     encrypted_client_secret = Column(Text, nullable=True)
     allowed_domains = Column(Text, nullable=False, default="[]", server_default="[]")
+    verified_domains = Column(Text, nullable=False, default="[]", server_default="[]")
     default_role = Column(String(32), nullable=False, default="viewer", server_default="viewer")
     enabled = Column(Boolean, nullable=False, default=False, server_default="false")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

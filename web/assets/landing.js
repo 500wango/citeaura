@@ -16,6 +16,18 @@ function escapeHtml(value) {
     .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
 
+function sanitizeLandingHtml(value) {
+  var template = document.createElement('template');
+  template.innerHTML = String(value == null ? '' : value);
+  template.content.querySelectorAll('script,style,iframe,object,embed,base,meta,link').forEach(function (node) { node.remove(); });
+  template.content.querySelectorAll('*').forEach(function (node) {
+    Array.prototype.slice.call(node.attributes).forEach(function (attribute) {
+      if (/^on/i.test(attribute.name) || /^(?:javascript|data):/i.test(attribute.value)) node.removeAttribute(attribute.name);
+    });
+  });
+  return template.innerHTML;
+}
+
 (function () {
   'use strict';
 
@@ -131,7 +143,7 @@ function escapeHtml(value) {
       if (value != null) {
         if (node.tagName === 'TITLE') { document.title = value; return; }
         if (value.indexOf('<') >= 0 && value.indexOf('>') >= 0) {
-          node.innerHTML = value;
+          node.innerHTML = sanitizeLandingHtml(value);
         } else {
           node.textContent = value;
         }
@@ -142,7 +154,7 @@ function escapeHtml(value) {
       var defaultHtml = rememberDefault(node, 'html', node.innerHTML);
       var value = catalogValue(key);
       if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      node.innerHTML = value != null ? value : defaultHtml;
+      node.innerHTML = value != null ? sanitizeLandingHtml(value) : defaultHtml;
     });
     var title = catalogValue('landing.title');
     if (title && !document.querySelector('title[data-i18n]')) document.title = title;

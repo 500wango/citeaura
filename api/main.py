@@ -38,9 +38,10 @@ _docs_url = "/api/docs" if config.api_docs_enabled() else None
 _redoc_url = "/api/redoc" if config.api_docs_enabled() else None
 app = FastAPI(title="CiteAura API", version="1.0.0", docs_url=_docs_url, redoc_url=_redoc_url)
 _public_host = urlparse(config.public_base_url()).hostname or "localhost"
+_configured_hosts = set(config.allowed_hosts())
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=sorted({"localhost", "127.0.0.1", "testserver", _public_host, f"*.{_public_host}"}),
+    allowed_hosts=sorted({"localhost", "127.0.0.1", "testserver", _public_host, f"*.{_public_host}", *_configured_hosts}),
 )
 app.mount("/site-assets", StaticFiles(directory=WEB_ROOT / "assets"), name="site-assets")
 app.mount("/runtime-assets", StaticFiles(directory=WEB_ROOT / "assets"), name="runtime-assets")

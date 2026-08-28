@@ -8,10 +8,13 @@ RUN pip wheel --wheel-dir /wheels -r requirements.lock
 
 FROM python:3.12-slim AS runtime
 
+ARG GIT_SHA=unknown
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    CITEAURA_SOURCE_REVISION=${GIT_SHA}
 WORKDIR /app
 COPY --from=builder /wheels /wheels
 RUN pip install --no-index --find-links=/wheels /wheels/*
@@ -26,6 +29,7 @@ USER citeaura
 
 FROM runtime AS api
 EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready')"
 CMD ["sh", "-c", "exec uvicorn api.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=\"${FORWARDED_ALLOW_IPS:-127.0.0.1}\""]
 
 FROM runtime AS worker

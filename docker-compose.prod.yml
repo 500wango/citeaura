@@ -51,6 +51,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: api
+      args:
+        GIT_SHA: ${CITEAURA_SOURCE_REVISION:-unknown}
     command:
       - sh
       - -c
@@ -75,6 +77,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: worker
+      args:
+        GIT_SHA: ${CITEAURA_SOURCE_REVISION:-unknown}
     volumes:
       - citeaura_work:/app/work
     healthcheck:
@@ -89,6 +93,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: worker
+      args:
+        GIT_SHA: ${CITEAURA_SOURCE_REVISION:-unknown}
     command: ["celery", "-A", "api.worker.celery_app", "beat", "--loglevel=INFO", "--schedule=/app/work/celerybeat-schedule"]
     volumes:
       - citeaura_work:/app/work
@@ -109,8 +115,11 @@ services:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
     volumes:
-      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/nginx.conf:/etc/nginx/templates/citeaura.conf.template:ro
       - ./deploy/certs:/etc/nginx/certs:ro
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN is required}
+    command: ["/bin/sh", "-c", "sed \"s/__DOMAIN__/$${DOMAIN}/g\" /etc/nginx/templates/citeaura.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
     networks:
       - citeaura
 

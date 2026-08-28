@@ -146,6 +146,15 @@ def oidc_allow_insecure_localhost():
 def public_base_url():
     return os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
 
+def allowed_hosts():
+    """返回 TrustedHost 允许的额外主机名。"""
+    value = os.getenv("ALLOWED_HOSTS", "")
+    return tuple(item.strip().lower() for item in value.split(",") if item.strip())
+
+def sso_require_domain_verification():
+    """生产环境要求 SSO 域名完成 DNS TXT 验证。"""
+    return _enabled("SSO_REQUIRE_DOMAIN_VERIFICATION", "false")
+
 
 def source_revision():
     """返回部署源码版本，本地运行时回退读取 Git。"""
