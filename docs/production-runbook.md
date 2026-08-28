@@ -2,6 +2,106 @@
 
 移动端 App 不在上线范围内。
 
+## 自托管快速开始
+
+本手册适用于在一台 Linux 主机上运行 CiteAura。要求主机已安装 Docker Engine、Docker Compose v2、Git、Python 3.12 和 `curl`；使用默认的一键部署路径时，还需要宿主机安装 Caddy。生产服务由 API、Celery Worker、Celery Beat、Redis 和 PostgreSQL 组成，管线产物写入 Docker volume `citeaura_work`，不要把 `/app/work` 改为临时目录。
+
+### 1. 获取代码并创建环境文件
+
+```bash
+sudo mkdir -p /opt/citeaura
+sudo chown "$USER" /opt/citeaura
+git clone https://github.com/500wango/citeaura.git /opt/citeaura
+cd /opt/citeaura
+cp .env.production.example .env.production
+chmod 600 .env.production
+```
+
+编辑 `.env.production`，至少填写真实值：
+
+- `DOMAIN`：规范公网域名，例如 `app.example.com`。
+- `PUBLIC_BASE_URL`：必须是 `https://` 加 `DOMAIN`，例如 `https://app.example.com`。
+- `DATABASE_URL`：同机 Compose 数据库使用 `postgresql+psycopg2://<user>:<password>@postgres:5432/<db>`；外部 PostgreSQL 使用其 TLS 连接串。
+- `POSTGRES_PASSWORD`：仅当 `DATABASE_URL` 的主机名为 `postgres` 时需要。
+- `REDIS_PASSWORD` 与带密码的 `REDIS_URL`。
+- `JWT_SECRET`：至少 32 个字符的随机值。
+- `AES_KEY`：有效的 32 字节 Base64 密钥。部署后不要更换，否则已保存的 BYOK 无法解密。
+- `PRODUCTION_PROXY_MODE=true`、`SESSION_COOKIE_SECURE=true`、`RATE_LIMIT_ENABLED=true`。
+- `SSO_REQUIRE_DOMAIN_VERIFICATION=true`（启用企业 SSO 时保持开启）。
+- `ALLOWED_HOSTS`：逗号分隔的额外 Host；通常留空即可，主域及其子域会由 `PUBLIC_BASE_URL` 自动允许。
+
+不要把 `.env.production` 提交到 Git、同步到聊天工具或写入备份文档。部署脚本会拒绝缺失值、占位符、HTTP 公网地址和无效密钥。
+
+### 2. DNS 与反向代理
+
+将 `DOMAIN` 的 A/AAAA 记录指向主机。默认推荐使用宿主机 Caddy 终止 TLS：
+
+```bash
+sudo systemctl enable --now caddy
+scripts/one-click-deploy.sh --env-file .env.production
+```
+
+该脚本会运行生产预检、构建镜像、执行 Alembic 迁移、启动服务，并在 `/etc/caddy/sites/citeaura.caddy` 写入站点配置。Caddy 负责 `80/443`、自动证书和 `www` 到规范域名的跳转；CiteAura API 只绑定 `127.0.0.1:${APP_PORT:-18000}`。
+
+如果不使用 Caddy，可启用 Compose 的 `standalone-nginx` profile。先准备 `deploy/certs/fullchain.pem` 和 `deploy/certs/privkey.pem`，确保主机的 `80/443` 未被其他服务占用，然后运行：
+
+```bash
+ENV_FILE=.env.production scripts/deploy.sh
+docker compose --env-file .env.production -f docker-compose.prod.yml --profile standalone-nginx up -d nginx
+```
+
+Nginx 会从 `deploy/nginx.conf` 模板将 `__DOMAIN__` 替换为环境文件中的 `DOMAIN`。此模式不会配置 Caddy；证书续期和 DNS 记录由操作者负责。
+
+### 3. 部署后检查
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+curl --fail https://$DOMAIN/api/v1/health/ready
+scripts/acceptance.py --base-url https://$DOMAIN --production
+```
+
+`/api/v1/health/ready` 应返回 HTTP 200，且数据库、迁移、Redis、Worker、加密和 JWT 检查为 true。若只运行 `docker compose up` 而未执行 `scripts/deploy.sh`，必须手动执行 `docker compose ... run --rm api alembic upgrade head`；当前数据库 head 为 `0034_sso_domain_verification`。
+
+### 4. 首次注册与 SSO 域名验证
+
+首次打开 `https://$DOMAIN/app` 注册的用户会自动成为自己工作区的 `owner`，即该工作区的租户 Owner。只有 Enterprise 工作区可以配置 SSO。
+
+SSO 启用前，Owner 需要完成每个登录邮箱域的 DNS TXT 验证：
+
+1. 在工作台保存 SSO 配置，暂时将 `enabled` 设为 `false`，`allowed_domains` 填企业邮箱域名，例如 `example.com`。
+2. 使用 Owner 的 Bearer token 调用：
+
+   ```bash
+   curl -X POST https://$DOMAIN/api/v1/sso/domains/verify \
+     -H "Authorization: Bearer ACCESS_TOKEN"
+   ```
+
+3. 按响应中的 `txt_name` 和 `txt_value` 创建 DNS TXT 记录。记录通常是 `_citeaura.example.com`，值为 `citeaura-domain-verification=TENANT_ID:example.com`。
+4. 等待 DNS 传播后再次调用验证接口，确认 `verified: true`。
+5. 保存同一 SSO 配置并设置 `enabled: true`。当 `SSO_REQUIRE_DOMAIN_VERIFICATION=true` 且任一域名未验证时，API 返回 `409 sso_domains_unverified`，不会启用登录。
+
+OIDC 回调地址固定为 `https://$DOMAIN/api/v1/sso/callback`。IdP 返回的 `email_verified` 必须为 true；当前实现不会自动把已经存在但未加入该租户的全局用户静默绑定进来，而是返回 `sso_identity_not_bound`，应通过团队邀请完成绑定。
+
+### 5. 更新、回滚与数据备份
+
+日常更新使用：
+
+```bash
+git pull --ff-only origin main
+scripts/one-click-deploy.sh --env-file .env.production
+```
+
+更新前确认 `git status` 没有未提交的受管文件。脚本会重新构建 API/Worker/Beat、执行迁移并检查 readiness；Caddy 配置校验失败会自动恢复旧配置。不要删除 `citeaura_work`、`postgres_data` 或 `redis_data` volume。数据库备份不包含 `citeaura_work`，必须分别快照工作区 volume；本机备份还要复制到异机或对象存储。
+
+发生故障时先保留容器日志和当前迁移版本：
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=200 api worker beat
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+```
+
+不要通过更换 `AES_KEY`、删除迁移或直接清空 volume“修复”启动问题；这会破坏既有租户数据和加密凭证。
+
 数据库从 Neon 迁移到同机独立 Compose PostgreSQL 的完整步骤和回滚说明见 [`docs/neon-to-compose-postgres-migration.md`](neon-to-compose-postgres-migration.md)。迁移已于 2026-08-25 完成；当前生产使用 CiteAura 自己的 `local-postgres` Compose profile，另一应用的 PostgreSQL 不在本项目内。
 
 ## 上线前配置
