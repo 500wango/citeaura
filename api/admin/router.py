@@ -132,9 +132,9 @@ def _converted_tenant_ids(db, tenants, end):
     ).all()
     result = set()
     deadlines = {
-        tenant.id: _utc(tenant.created_at) + timedelta(days=TRIAL_DAYS)
+        tenant.id: _utc(tenant.created_at) + timedelta(days=14)
         for tenant in tenants
-        if _utc(tenant.created_at) <= end - timedelta(days=TRIAL_DAYS)
+        if _utc(tenant.created_at) <= end - timedelta(days=14)
     }
     for row in rows:
         deadline = deadlines.get(row.tenant_id)
@@ -319,7 +319,7 @@ def overview(
     paid_subscriptions = [item for item in current_subscriptions if _is_paid(item)]
     activated_ids = _activated_tenant_ids(db, [tenant.id for tenant in period_tenants])
     activated = len(activated_ids)
-    matured = [tenant for tenant in period_tenants if _utc(tenant.created_at) <= end - timedelta(days=TRIAL_DAYS)]
+    matured = [tenant for tenant in period_tenants if _utc(tenant.created_at) <= end - timedelta(days=14)]
     converted = len(_converted_tenant_ids(db, matured, end))
     checkout_query = db.query(ProductEvent.tenant_id).filter(
         ProductEvent.name == "checkout_started",
@@ -470,7 +470,7 @@ def countries(
     period_tenant_ids = [tenant.id for tenant in period_tenants]
     subscription_map = _active_subscription_map(db, period_tenant_ids)
     activated_ids = _activated_tenant_ids(db, period_tenant_ids)
-    matured = [tenant for tenant in period_tenants if _utc(tenant.created_at) <= end - timedelta(days=TRIAL_DAYS)]
+    matured = [tenant for tenant in period_tenants if _utc(tenant.created_at) <= end - timedelta(days=14)]
     matured_ids = {tenant.id for tenant in matured}
     converted_ids = _converted_tenant_ids(db, matured, end)
     for tenant in period_tenants:

@@ -16,7 +16,7 @@ export default {
               <span class="brand-mark" style="width:32px;height:32px;"></span>
               <span class="brand-word" style="font-size:var(--fs-6);">CiteAura</span>
             </a>
-            <h1 class="auth-title">${t('auth.register_title', {}, 'Start 14-Day Free Trial')}</h1>
+            <h1 class="auth-title">${t('auth.register_title', {}, 'Start 7-Day Free Trial')}</h1>
             <p class="auth-subtitle">${t('auth.register_subtitle', {}, 'No credit card required. Includes 3 projects and full engineering tickets.')}</p>
           </div>
 
@@ -118,6 +118,7 @@ export default {
           acquisition_medium: acquisitionMedium.slice(0, 64) || undefined,
           acquisition_campaign: acquisitionCampaign.slice(0, 128) || undefined,
           segment: segment || undefined,
+        });
         if (registration?.audit) {
           try { sessionStorage.setItem('citeaura_pending_audit', JSON.stringify(registration.audit)); } catch (e) {}
         }

@@ -211,7 +211,7 @@
   "auth.login_btn": "Sign In",
   "auth.no_account": "Don't have an account?",
   "auth.start_trial": "Start 7-day free trial",
-  "auth.register_title": "Start 14-Day Free Trial",
+  "auth.register_title": "Start 7-Day Free Trial",
   "auth.register_subtitle": "No credit card required. Includes 3 projects and full engineering tickets.",
   "auth.tenant_name": "Organization / Team Name",
   "auth.confirm_password": "Confirm Password",
