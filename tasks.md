@@ -41,7 +41,7 @@
 **输出**：注册/登录/鉴权  
 
 - 创建 `api/auth/router.py`：
-  - `POST /api/v1/auth/register` → 创建 user + 默认 tenant（14天试用）+ membership(owner)
+  - `POST /api/v1/auth/register` → 创建 user + 默认 tenant（7天试用）+ membership(owner)
   - `POST /api/v1/auth/login` → 返回 JWT access_token + refresh_token
   - `GET /api/v1/me` → 当前用户信息 + tenant
 - 创建 `api/auth/deps.py`：`get_current_user` 依赖（JWT 验证）

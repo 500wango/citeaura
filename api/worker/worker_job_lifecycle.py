@@ -175,6 +175,13 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                             country_code=tenant.acquisition_country_code if tenant is not None else None,
                             properties={"project_id": project.id, "job_id": job.id},
                         )
+                        record_product_event(
+                            db,
+                            "retest_completed",
+                            tenant_id=project.tenant_id,
+                            country_code=tenant.acquisition_country_code if tenant is not None else None,
+                            properties={"project_id": project.id, "job_id": job.id},
+                        )
                     elif job.action == "deliver":
                         record_product_event(
                             db,

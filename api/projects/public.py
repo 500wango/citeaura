@@ -102,6 +102,43 @@ def _persist_audit(db, result, request):
     return payload
 
 
+def _first_repair(checks):
+    """Return one observed, highest-value repair without inventing AI evidence."""
+    priority = {"ai_crawlers": 0, "llms_txt": 1, "sitemap": 2, "robots": 3}
+    candidates = [item for item in checks if isinstance(item, dict) and not item.get("ok")]
+    candidates.sort(key=lambda item: (priority.get(item.get("key"), 10), str(item.get("name", ""))))
+    if not candidates:
+        return {
+            "status": "no_observed_gap",
+            "finding": "No technical gap was observed in this audit.",
+            "why_it_matters": "The free audit checks technical accessibility only; it does not measure AI visibility.",
+            "recommended_action": "Run an AI visibility baseline to measure answers, mentions, and citations.",
+            "acceptance_criteria": "A completed web-grounded baseline exists for the same question cohort.",
+            "evidence": [],
+        }
+    item = candidates[0]
+    key = str(item.get("key") or "technical_check")
+    name = str(item.get("name") or key)
+    action = str(item.get("action") or "Review this technical finding and publish the verified fix.")
+    return {
+        "status": "observed_gap",
+        "finding": name,
+        "why_it_matters": "AI crawlers and retrieval systems need a publicly accessible, machine-readable source.",
+        "recommended_action": action,
+        "acceptance_criteria": f"Re-run the technical audit and confirm {key} reports OK.",
+        "evidence": [{"path": item.get("path", key), "message": item.get("message", "Observed by public technical preflight")}],
+    }
+
+
+def _with_first_repair(result):
+    """Add the stable first-repair contract to old and newly cached results."""
+    if not isinstance(result, dict) or result.get("kind") != "public_diagnostic_summary":
+        return result
+    if not result.get("first_repair"):
+        result = {**result, "first_repair": _first_repair(result.get("checks", []))}
+    return result
+
+
 def _machine_signal(root: str, path: str, label: str) -> dict:
     """Fetch only bounded machine-file text and never return its contents."""
     url = root.rstrip("/") + path
@@ -142,7 +179,7 @@ def public_audit(payload: PublicAuditRequest, request: Request, db: Session = De
         )
     cached = _cached_audit(payload.url)
     if cached is not None:
-        result = _persist_audit(db, {**cached, "cached": True}, request)
+        result = _persist_audit(db, {**_with_first_repair(cached), "cached": True}, request)
         record_product_event(db, "public_audit_completed", anonymous_id=_client_key(request), properties={"url_host": urlparse(payload.url).hostname, "cached": True})
         db.commit()
         return result
@@ -181,6 +218,7 @@ def public_audit(payload: PublicAuditRequest, request: Request, db: Session = De
             "signals": {"robots": present["robots"], "sitemap": present["sitemap"], "llms_txt": present["llms_txt"], "ai_bots_blocked": blocked},
             "next_step": "Create a workspace to turn findings into tickets and verification runs",
         }
+        result["first_repair"] = _first_repair(checks)
         _cache_audit(payload.url, result)
         result = _persist_audit(db, result, request)
         record_product_event(db, "public_audit_completed", anonymous_id=_client_key(request), properties={"url_host": urlparse(payload.url).hostname, "score": result["score"]})

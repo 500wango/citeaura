@@ -41,6 +41,15 @@ export default {
               <input type="password" id="reg-confirm" class="input" placeholder="Re-enter password" minlength="8" required autocomplete="new-password">
             </div>
 
+            <div class="field" style="margin:0;">
+              <label for="reg-segment">How will you use CiteAura? <span style="color:var(--muted);">(optional)</span></label>
+              <select id="reg-segment" class="input">
+                <option value="">Choose one</option>
+                <option value="solo">For my brand / company</option>
+                <option value="agency">For clients / consulting work</option>
+              </select>
+            </div>
+
             <button type="submit" class="btn btn-primary btn-block" style="margin-top:var(--sp-2);">
               <span>${t('auth.register_btn', {}, 'Create Workspace')}</span>
             </button>
@@ -69,6 +78,7 @@ export default {
       const email = document.getElementById('reg-email').value.trim();
       const password = document.getElementById('reg-password').value;
       const confirm = document.getElementById('reg-confirm').value;
+      const segment = document.getElementById('reg-segment')?.value || '';
       const submitBtn = form.querySelector('button[type="submit"]');
 
       if (password !== confirm) {
@@ -107,14 +117,14 @@ export default {
           acquisition_source: acquisitionSource.slice(0, 128) || undefined,
           acquisition_medium: acquisitionMedium.slice(0, 64) || undefined,
           acquisition_campaign: acquisitionCampaign.slice(0, 128) || undefined,
-        });
+          segment: segment || undefined,
         if (registration?.audit) {
           try { sessionStorage.setItem('citeaura_pending_audit', JSON.stringify(registration.audit)); } catch (e) {}
         }
         await auth.login({ email, password });
         await ctx.reloadSession();
         toast.success(t('auth.register_success', {}, 'Workspace created successfully'));
-        // 从落地页带 ?plan=pro 注册时，直接进入计费页发起升级，无需等 14 天试用结束。
+        // 从落地页带 ?plan=pro 注册时，直接进入计费页发起升级，无需等 7 天试用结束。
         let intentPlan = '';
         try {
           intentPlan = String(sessionStorage.getItem('citeaura_intent_plan') || '').toLowerCase();

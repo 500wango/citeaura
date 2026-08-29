@@ -1,6 +1,10 @@
 """CiteAura 套餐能力定义。"""
 
 
+# Trial access window for new workspaces. Historical migrations retain their original dates.
+TRIAL_DAYS = 7
+
+
 PLANS = {
     "trial": {
         "name": "Trial",

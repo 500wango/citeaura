@@ -99,7 +99,8 @@ export default {
         const preflightBox = document.getElementById('ob-preflight');
         if (preflightBox) {
           preflightBox.style.display = 'flex';
-          preflightBox.innerHTML = `<strong style="font-size:var(--fs-2);">${t('onboard.audit_findings_title', {}, 'Your public audit findings')}</strong>${pendingAudit.checks.slice(0, 6).map((check) => `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);font-size:var(--fs-2);"><span>${escapeHtml(check.name || 'Site check')}</span><span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : escapeHtml(check.message || 'Needs review')}</span></div>`).join('')}`;
+          const repair = pendingAudit.first_repair;
+          preflightBox.innerHTML = `<strong style="font-size:var(--fs-2);">${t('onboard.audit_findings_title', {}, 'Your public audit findings')}</strong>${repair?.status === 'observed_gap' ? `<div class="card" style="padding:var(--sp-3);"><strong>First repair</strong><div>${escapeHtml(repair.recommended_action || repair.finding || '')}</div><small>Done when: ${escapeHtml(repair.acceptance_criteria || '')}</small></div>` : ''}${pendingAudit.checks.slice(0, 6).map((check) => `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);font-size:var(--fs-2);"><span>${escapeHtml(check.name || 'Site check')}</span><span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : escapeHtml(check.message || 'Needs review')}</span></div>`).join('')}`;
         }
       }
     } catch (e) {

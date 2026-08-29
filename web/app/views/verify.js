@@ -1,4 +1,4 @@
-import { projects } from '../api.js';
+import { analytics, projects } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';

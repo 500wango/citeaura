@@ -41,7 +41,7 @@ export default {
 
           <div class="auth-footer">
             <span>${t('auth.no_account', {}, "Don't have an account?")}</span>
-            <a href="#/register" style="font-weight:600;margin-left:var(--sp-1);">${t('auth.start_trial', {}, 'Start 14-day free trial')}</a>
+            <a href="#/register" style="font-weight:600;margin-left:var(--sp-1);">${t('auth.start_trial', {}, 'Start 7-day free trial')}</a>
           </div>
         </div>
       </div>

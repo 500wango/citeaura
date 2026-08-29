@@ -227,6 +227,10 @@ def create_project(
     if audit_snapshot:
         with _route_facade().with_tenant_context(tenant.directory_slug, slug):
             geolib.write_json(geolib.project_dir(slug) / "public_audit.json", audit_snapshot)
+            from api.adapters import first_repair
+            first_ticket, first_ticket_reused = first_repair.ensure_ticket(slug, audit_snapshot)
+    else:
+        first_ticket, first_ticket_reused = None, False
 
     if job_action == "autopilot":
         _reserve_sample_estimate(db, tenant, project, job, SampleRequest())
@@ -262,6 +266,8 @@ def create_project(
         "slug": project.slug,
         "status": project.status,
         "audit_id": payload.audit_id,
+        "first_ticket": first_ticket,
+        "first_ticket_reused": first_ticket_reused,
     }
 
 

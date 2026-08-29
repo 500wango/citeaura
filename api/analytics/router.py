@@ -39,6 +39,12 @@ PUBLIC_EVENT_NAMES = frozenset({
     "signup_started",
     "checkout_started",
     "checkout_succeeded",
+    # First-value funnel stages. These names remain intentionally explicit so
+    # the public endpoint cannot become an arbitrary event sink.
+    "first_evidence_viewed",
+    "first_ticket_accepted",
+    "retest_completed",
+    "renewal",
 })
 
 _SENSITIVE_KEYS = frozenset({"email", "password", "token", "secret", "api_key", "cookie"})
@@ -162,6 +168,7 @@ def product_event(payload: ProductEventRequest, request: Request, db: Session = 
         except (KeyError, TypeError, ValueError, RuntimeError, jwt.PyJWTError):
             tenant_id = None
             user_id = None
+    first_value_event = payload.name in {"first_evidence_viewed", "first_ticket_accepted", "retest_completed", "renewal"}
     record_product_event(
         db,
         payload.name,
@@ -170,6 +177,7 @@ def product_event(payload: ProductEventRequest, request: Request, db: Session = 
         anonymous_id=request_visitor(request),
         country_code=request_country_code(request),
         properties=sanitize_public_properties(payload.properties),
+        dedupe=first_value_event,
     )
     db.commit()
     return {"accepted": True}

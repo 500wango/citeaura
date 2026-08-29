@@ -13,7 +13,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from api import config
+from api import config, segments
+from api.billing.plans import TRIAL_DAYS
 from api.auth import password_reset
 from api.adapters import transactional_email
 from api.adapters.engine import tenant_slug
@@ -51,6 +52,7 @@ class RegisterRequest(BaseModel):
     acquisition_source: str | None = Field(default=None, max_length=128)
     acquisition_medium: str | None = Field(default=None, max_length=64)
     acquisition_campaign: str | None = Field(default=None, max_length=128)
+    segment: str | None = Field(default=None, max_length=32)
 
     @field_validator("email")
     @classmethod
@@ -218,9 +220,10 @@ def register(
         tenant = Tenant(
             name=_tenant_name(db, payload.tenant_name, payload.email),
             plan="trial",
+            segment=segments.from_signup(payload.segment, payload.acquisition_source),
             acquisition_country_code=country_code,
             country_source="cloudflare_signup" if country_code else None,
-            trial_ends_at=datetime.now(timezone.utc) + timedelta(days=14),
+            trial_ends_at=datetime.now(timezone.utc) + timedelta(days=TRIAL_DAYS),
         )
         tenant.directory_slug = tenant.name
 
@@ -244,7 +247,7 @@ def register(
             user_id=user.id,
             anonymous_id=request_visitor(request),
             country_code=country_code,
-            properties={"registration_kind": user.registration_kind},
+            properties={"registration_kind": user.registration_kind, "segment": tenant.segment},
         )
         if payload.acquisition_source or payload.acquisition_medium or payload.acquisition_campaign:
             record_product_event(

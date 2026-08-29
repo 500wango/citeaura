@@ -337,6 +337,7 @@ async function showTicketDetailModal(projectId, tid, ctx) {
 
       try {
         await projects.patchTicket(projectId, tid, { status, note });
+        if (status === 'doing' || status === 'done') analytics.track('first_ticket_accepted', { project_id: projectId, source: 'plan', status });
         toast.success(t('plan.ticket_saved', {}, 'Ticket updated'));
         await ctx.reloadCurrentView();
         return true;

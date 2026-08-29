@@ -33,6 +33,7 @@ class Tenant(Base):
     directory_slug = Column(String(48), nullable=False, unique=True)
     plan = Column(String(32), nullable=False, default="trial", server_default="trial")
     status = Column(String(32), nullable=False, default="active", server_default="active")
+    segment = Column(String(32), nullable=False, default="unknown", server_default="unknown", index=True)
     acquisition_country_code = Column(String(2), nullable=True, index=True)
     country_source = Column(String(32), nullable=True)
     trial_ends_at = Column(DateTime(timezone=True), nullable=True)

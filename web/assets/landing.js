@@ -587,6 +587,10 @@ function sanitizeLandingHtml(value) {
           return '<span class="audit-result-chip ' + (check.ok ? 'is-ok' : 'is-fail') + '">' +
             (check.ok ? '✓ ' : '⚠ ') + escapeHtml(check.name || publicValue('public.landing.preview_site_check', 'Site check')) + '</span>';
         }).join('');
+        var repair = isLiveAudit && audit.first_repair;
+        if (repair && details) {
+          details.insertAdjacentHTML('beforeend', '<div class="audit-first-repair"><strong>First repair:</strong> ' + escapeHtml(repair.recommended_action || repair.finding) + '<br><span>Done when: ' + escapeHtml(repair.acceptance_criteria || '') + '</span></div>');
+        }
       }
       if (actionBtn) {
         actionBtn.href = '/app#/onboarding?domain=' + encodeURIComponent(domain);

@@ -9,6 +9,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from api import config
+from api import segments
 from api.admin.audit import record_admin_event
 from api.admin.deps import require_admin_operate, require_admin_read
 from api.admin.security import ADMIN_COOKIE, ADMIN_SESSION_MINUTES, create_admin_token
@@ -29,6 +30,8 @@ from api.models import (
     User,
 )
 from api.billing.limits import activation_funnel
+from api.billing.plans import TRIAL_DAYS
+from api.billing.limits import activation_funnel_totals
 
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
@@ -129,9 +132,9 @@ def _converted_tenant_ids(db, tenants, end):
     ).all()
     result = set()
     deadlines = {
-        tenant.id: _utc(tenant.created_at) + timedelta(days=14)
+        tenant.id: _utc(tenant.created_at) + timedelta(days=TRIAL_DAYS)
         for tenant in tenants
-        if _utc(tenant.created_at) <= end - timedelta(days=14)
+        if _utc(tenant.created_at) <= end - timedelta(days=TRIAL_DAYS)
     }
     for row in rows:
         deadline = deadlines.get(row.tenant_id)
@@ -316,7 +319,7 @@ def overview(
     paid_subscriptions = [item for item in current_subscriptions if _is_paid(item)]
     activated_ids = _activated_tenant_ids(db, [tenant.id for tenant in period_tenants])
     activated = len(activated_ids)
-    matured = [tenant for tenant in period_tenants if _utc(tenant.created_at) <= end - timedelta(days=14)]
+    matured = [tenant for tenant in period_tenants if _utc(tenant.created_at) <= end - timedelta(days=TRIAL_DAYS)]
     converted = len(_converted_tenant_ids(db, matured, end))
     checkout_query = db.query(ProductEvent.tenant_id).filter(
         ProductEvent.name == "checkout_started",
@@ -376,6 +379,13 @@ def overview(
     refunds_usd_cents = refund_query.scalar() or 0
     return {
         "range": {"days": days, "start": start, "end": end, "country": country.upper() if country else None},
+        "segment_funnels": {
+            segment: activation_funnel_totals(
+                db,
+                [tenant for tenant in period_tenants if segments.infer(tenant.plan, len(tenant.projects), tenant.segment) == segment],
+            )
+            for segment in segments.SEGMENTS
+        },
         "customers": {
             "workspaces_total": len(all_tenants),
             "registered": len(period_tenants),
@@ -417,6 +427,32 @@ def overview(
     }
 
 
+@router.get("/funnel")
+def funnel(
+    days: int = Query(default=30, ge=1, le=365),
+    segment: str | None = Query(default=None, pattern="^(solo|agency|unknown)$"),
+    country: str | None = Query(default=None, min_length=2, max_length=2),
+    admin: PlatformAdmin = Depends(require_admin_read),
+    db: Session = Depends(get_db),
+):
+    """返回按客群拆分的首次价值漏斗，不暴露单个租户数据。"""
+    start, end = _range(days)
+    query = db.query(Tenant).filter(Tenant.created_at >= start, Tenant.created_at <= end)
+    if country:
+        query = query.filter(Tenant.acquisition_country_code == country.upper())
+    tenants = query.all()
+    grouped = {key: [] for key in segments.SEGMENTS}
+    for tenant in tenants:
+        key = segments.infer(tenant.plan, len(tenant.projects), tenant.segment)
+        grouped[key].append(tenant)
+    if segment:
+        grouped = {segment: grouped[segment]}
+    return {
+        "range": {"days": days, "start": start, "end": end, "country": country.upper() if country else None},
+        "segments": {key: activation_funnel_totals(db, rows) for key, rows in grouped.items()},
+    }
+
+
 @router.get("/countries")
 def countries(
     days: int = Query(default=30, ge=1, le=365),
@@ -434,7 +470,7 @@ def countries(
     period_tenant_ids = [tenant.id for tenant in period_tenants]
     subscription_map = _active_subscription_map(db, period_tenant_ids)
     activated_ids = _activated_tenant_ids(db, period_tenant_ids)
-    matured = [tenant for tenant in period_tenants if _utc(tenant.created_at) <= end - timedelta(days=14)]
+    matured = [tenant for tenant in period_tenants if _utc(tenant.created_at) <= end - timedelta(days=TRIAL_DAYS)]
     matured_ids = {tenant.id for tenant in matured}
     converted_ids = _converted_tenant_ids(db, matured, end)
     for tenant in period_tenants:

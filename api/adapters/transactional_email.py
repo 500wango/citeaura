@@ -26,7 +26,7 @@ def send_welcome_email(email, tenant_name, user_id):
         "Welcome to CiteAura",
         (
             f"Welcome to CiteAura, {tenant_name}!\n\n"
-            "Your workspace is ready with a 14-day trial. Start by adding a project domain "
+            "Your workspace is ready with a 7-day trial. Start by adding a project domain "
             "to generate your first AI visibility report.\n\n"
             f"Open CiteAura: {config.public_base_url()}/app\n\n"
             "Best,\nThe CiteAura team"

@@ -8,7 +8,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from api.models import Job, Membership, Project, Tenant, User
-from api.billing.plans import PLANS
+from api.billing.plans import PLANS, TRIAL_DAYS
 
 
 TRIAL_PROJECT_LIMIT = 3
@@ -123,6 +123,61 @@ def activation_funnel(db: Session, tenant: Tenant) -> dict:
     }
 
 
+AUDIT_JOB_ACTIONS = ("audit", "sample", "sample-import", "autopilot", "cycle", "serve", "bootstrap")
+
+
+def activation_funnel_totals(db: Session, tenants) -> dict:
+    """把 activation_funnel 的六段聚合到一组租户上，只用两次批量查询。
+
+    单租户版本按时间线返回明细；这里只关心每段有多少租户到达，
+    用于运营面板的转化率，因此不读取时间戳。
+    """
+    tenant_ids = [tenant.id for tenant in tenants]
+    reached = {key: set() for key, _ in ACTIVATION_STEPS}
+    reached["registration"] = set(tenant_ids)
+    if not tenant_ids:
+        return _funnel_payload(reached, 0)
+    project_rows = db.query(Project.id, Project.tenant_id).filter(Project.tenant_id.in_(tenant_ids)).all()
+    reached["project_creation"] = {row.tenant_id for row in project_rows}
+    project_owner = {row.id: row.tenant_id for row in project_rows}
+    if project_owner:
+        job_rows = db.query(Job.project_id, Job.action, Job.request_json).filter(
+            Job.project_id.in_(list(project_owner)),
+            Job.status == "done",
+        ).all()
+        sample_counts = {}
+        for row in job_rows:
+            owner = project_owner.get(row.project_id)
+            if owner is None:
+                continue
+            if row.action in AUDIT_JOB_ACTIONS:
+                reached["first_audit"].add(owner)
+            if row.action == "deliver":
+                reached["first_delivery_pack"].add(owner)
+            if _row_sampled(row.action, row.request_json):
+                reached["first_sample"].add(owner)
+                sample_counts[owner] = sample_counts.get(owner, 0) + 1
+        reached["first_resample"] = {owner for owner, count in sample_counts.items() if count >= 2}
+    return _funnel_payload(reached, len(tenant_ids))
+
+
+def _funnel_payload(reached, registered):
+    """把每段到达人数转成带转化率的阶段列表。"""
+    steps = []
+    previous = None
+    for key, label in ACTIVATION_STEPS:
+        count = len(reached[key])
+        steps.append({
+            "key": key,
+            "label": label,
+            "tenants": count,
+            "rate_from_registration": round(count * 100 / registered, 1) if registered else None,
+            "rate_from_previous": round(count * 100 / previous, 1) if previous else None,
+        })
+        previous = count
+    return {"registered": registered, "steps": steps}
+
+
 def _trial_active(tenant: Tenant) -> bool:
     """判断租户是否受试用额度约束；过期试用直接拒绝。"""
     if tenant.plan != "trial":
@@ -132,7 +187,7 @@ def _trial_active(tenant: Tenant) -> bool:
         created_at = tenant.created_at
         if created_at is None:
             _raise_limit("trial expiration is not configured")
-        ends_at = created_at + timedelta(days=14)
+        ends_at = created_at + timedelta(days=TRIAL_DAYS)
     if ends_at.tzinfo is None:
         ends_at = ends_at.replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > ends_at:
@@ -210,7 +265,7 @@ def usage(db: Session, tenant: Tenant) -> dict:
     plan = PLANS.get(tenant.plan) or {}
     trial_ends_at = tenant.trial_ends_at
     if trial and trial_ends_at is None and tenant.created_at is not None:
-        trial_ends_at = tenant.created_at + timedelta(days=14)
+        trial_ends_at = tenant.created_at + timedelta(days=TRIAL_DAYS)
     trial_expired = False
     if trial and trial_ends_at is not None:
         ends_at = trial_ends_at
@@ -228,7 +283,7 @@ def usage(db: Session, tenant: Tenant) -> dict:
         "plan": tenant.plan,
         "trial_ends_at": tenant.trial_ends_at,
         "trial_expired": trial_expired,
-        # 试用未结束也可随时付费升级；不要求等 14 天。
+        # 试用未结束也可随时付费升级；不要求等 7 天。
         "can_upgrade": trial,
         "projects_active": project_count,
         "projects_limit": projects_limit,

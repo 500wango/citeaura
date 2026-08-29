@@ -400,6 +400,15 @@ def _record_invoice_transaction(db, event, value, subscription, paid):
         country_code=tenant.acquisition_country_code if tenant is not None else None,
         properties={"invoice_id": value.get("id"), "currency": currency, "amount": amount},
     )
+    if paid and str(value.get("billing_reason") or "").lower() in ("subscription_cycle", "subscription_threshold"):
+        record_product_event(
+            db,
+            "renewal",
+            tenant_id=subscription.tenant_id,
+            country_code=tenant.acquisition_country_code if tenant is not None else None,
+            properties={"invoice_id": value.get("id"), "subscription_id": subscription.provider_subscription_id},
+            dedupe=True,
+        )
 
 
 def _record_refund_transaction(db, event, value):

@@ -309,6 +309,8 @@ export const publishing = {
   get: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/publishing`),
   save: (id, platform, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/publishing/${encodeURIComponent(platform)}`, { method: 'PUT', body }),
   publish: (id, platform, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/publishing/${encodeURIComponent(platform)}`, { method: 'POST', body }),
+  createGithubPr: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/publishing/github/pr`, { method: 'POST', body }),
+  listGithubPrs: (id, refresh = false) => request(`/api/v1/projects/${encodeURIComponent(id)}/publishing/github/prs?refresh=${refresh ? 'true' : 'false'}`),
 };
 
 /* ==========================================================================

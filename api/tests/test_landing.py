@@ -55,7 +55,7 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'data-i18n="landing.howto_title"' in response.text
     assert 'data-i18n="landing.howto_1_body"' in response.text
     assert 'data-i18n="landing.compare_rarely_published"' in response.text
-    assert "14 days" in response.text
+    assert "7 days" in response.text
     assert "Updated 2026-08-19" in response.text
     assert "Sources and definitions:" in response.text
     
@@ -517,7 +517,7 @@ def test_seo_technical_files_are_served():
     assert "https://citeaura.com/app/" not in llms_res.text
     assert "API - Parametric knowledge" in llms_res.text
     assert "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations" in llms_res.text
-    assert "14 days" in llms_res.text
+    assert "7 days" in llms_res.text
     assert client.head("/llms.txt").status_code == 200
 
 

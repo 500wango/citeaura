@@ -28,7 +28,7 @@
 - Canonical name: CiteAura
 - Official website: https://citeaura.com
 - Category: Generative Engine Optimization (GEO) software
-- Starter trial: 14 days
+- Starter trial: 7 days
 - Starter price: $79 / month for 3 active projects
 - Typical API sampling cost: under 1 percent of one Starter month
 - Priority ticket windows: 30 days or 60 days

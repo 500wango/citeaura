@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 
 from api.adapters import publishing
+from api.adapters import github_pr
 from api.adapters.engine import with_tenant_context, with_tenant_read_context
 from api.adapters.exceptions import GeoEngineError
 from api.auth.deps import get_current_user, require_editor, require_owner
@@ -36,6 +37,17 @@ class PublisherConfigRequest(BaseModel):
 class PublishRequest(BaseModel):
     path: str = Field(min_length=1, max_length=1024)
     title: str = Field(default="", max_length=300)
+    confirmed: bool = False
+
+
+class GitHubPRRequest(BaseModel):
+    ticket_id: str = Field(min_length=1, max_length=128)
+    run_id: str = Field(min_length=1, max_length=128)
+    paths: list[str] = Field(min_length=1, max_length=20)
+    title: str = Field(default="", max_length=300)
+    acceptance_criteria: str | None = Field(default=None, max_length=5000)
+    evidence_urls: list[str] = Field(default_factory=list, max_length=10)
+    sampling_mode: str | None = Field(default=None, max_length=128)
     confirmed: bool = False
 
 
@@ -154,3 +166,50 @@ def publish_content(
             return publishing.publish(project.slug, platform, payload.path, payload.title.strip())
     except (GeoEngineError, RuntimeError, ValueError) as exc:
         _error(status.HTTP_400_BAD_REQUEST, "publishing_operation_failed", str(exc))
+
+
+@router.get("/github/prs")
+def list_github_prs(
+    project_id: int,
+    refresh: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """列出项目的 GitHub PR，并可读取最新公开状态。"""
+    tenant, project = _tenant_project(db, current_user, project_id)
+    try:
+        credentials = _credentials(db, tenant.id, "github")
+        with with_tenant_context(tenant.directory_slug, project.slug, credentials):
+            config = (publishing.geolib.load_config(project.slug).get("publishing") or {}).get("github") or {}
+            return {"prs": github_pr.list_prs(project.slug, config, credentials.get("GITHUB_TOKEN"), refresh=refresh)}
+    except (GeoEngineError, RuntimeError, ValueError) as exc:
+        _error(status.HTTP_400_BAD_REQUEST, "github_pr_status_failed", str(exc))
+
+
+@router.post("/github/pr")
+def create_github_pr(
+    project_id: int,
+    payload: GitHubPRRequest,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    """把已确认资产提交为待人工审核的 GitHub PR。"""
+    tenant, project = _tenant_project(db, current_user, project_id)
+    if not payload.confirmed:
+        _error(status.HTTP_400_BAD_REQUEST, "publish_confirmation_required")
+    try:
+        credentials = _credentials(db, tenant.id, "github")
+        with with_tenant_context(tenant.directory_slug, project.slug, credentials):
+            config = publishing.overview(project.slug, _configured_codes(db, tenant.id))
+            publisher = next(item for item in config["publishers"] if item["code"] == "github")
+            if not publisher["ready"]:
+                _error(status.HTTP_400_BAD_REQUEST, "github_not_ready", publisher["missing"])
+            saved = (publishing.geolib.load_config(project.slug).get("publishing") or {}).get("github") or {}
+            return github_pr.create(
+                project.slug, saved, credentials.get("GITHUB_TOKEN"),
+                ticket_id=payload.ticket_id, run_id=payload.run_id, paths=payload.paths,
+                title=payload.title, acceptance_criteria=payload.acceptance_criteria,
+                evidence_urls=payload.evidence_urls, sampling_mode=payload.sampling_mode,
+            )
+    except (GeoEngineError, RuntimeError, ValueError) as exc:
+        _error(status.HTTP_400_BAD_REQUEST, "github_pr_failed", str(exc))

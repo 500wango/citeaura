@@ -2,7 +2,7 @@
  * AI 联网采样引用信源。
  */
 
-import { projects, workspace } from '../api.js';
+import { projects, workspace, analytics } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
@@ -185,6 +185,7 @@ export default {
   },
 
   mounted: (ctx) => {
+    analytics.track('first_evidence_viewed', { project_id: ctx.activeProjectId, source: 'channels' });
     document.querySelectorAll('.btn-run-citation-sample').forEach((button) => {
       button.addEventListener('click', () => runCitationSample(ctx, button));
     });

@@ -934,7 +934,7 @@ def test_expired_trial_cannot_create_projects(billing_client):
 
 
 def test_active_and_expired_trial_can_upgrade_to_pro_without_waiting(billing_client, monkeypatch):
-    """试用中与试用过期均可立刻升级 Pro，不要求等满 14 天。"""
+    """试用中与试用过期均可立刻升级 Pro，不要求等满 7 天。"""
     client, session_factory = billing_client
     captured = []
     monkeypatch.setattr(
