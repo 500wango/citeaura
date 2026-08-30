@@ -164,7 +164,7 @@
   max-width: var(--shell); margin: 0 auto; padding: 0 var(--sp-6);
   display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 6fr);
   gap: clamp(var(--sp-8), 5vw, var(--sp-10));
-  align-items: center;
+  align-items: start;
 }
 
 .hero-eyebrow {
@@ -260,11 +260,10 @@ h1 {
   border: 1px solid var(--divider); border-radius: 20px;
   background: var(--surface); box-shadow: var(--sh-sm);
   overflow: hidden;
-  transform: translateY(8px);
   transition-property: box-shadow, border-color; transition-duration: var(--dur-med); transition-timing-function: var(--ease-out);
 }
 .console-frame:hover { box-shadow: 0 20px 48px color-mix(in srgb, var(--ink) 14%, transparent); border-color: var(--accent-line); }
-.hero-shot { margin: 0; }
+.hero-shot { margin: 0; align-self: start; }
 
 .console-header {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
