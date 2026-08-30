@@ -327,11 +327,14 @@ def test_public_pages_expose_social_card_metadata():
         assert 'property="og:image" content="https://citeaura.com/site-assets/logo.png"' not in body, path
 
 
-def test_product_gallery_uses_current_clay_visual_assets():
+def test_product_gallery_uses_current_dark_visual_assets():
     response = client.get("/")
-    assert 'src="/site-assets/product-audit-clay.webp"' in response.text
-    assert 'src="/site-assets/product-plan-clay.webp"' in response.text
-    assert 'src="/site-assets/product-assets-clay.webp"' in response.text
+    assert 'src="/site-assets/product-audit.webp"' in response.text
+    assert 'src="/site-assets/product-plan.webp"' in response.text
+    assert 'src="/site-assets/product-assets.webp"' in response.text
+    assert 'src="/site-assets/product-audit-clay.webp"' not in response.text
+    assert 'src="/site-assets/product-plan-clay.webp"' not in response.text
+    assert 'src="/site-assets/product-assets-clay.webp"' not in response.text
     assert 'src="/site-assets/product-audit-en.webp"' not in response.text
     assert 'src="/site-assets/product-plan-en.webp"' not in response.text
     assert 'src="/site-assets/product-assets-en.webp"' not in response.text
