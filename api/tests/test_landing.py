@@ -329,9 +329,9 @@ def test_public_pages_expose_social_card_metadata():
 
 def test_product_gallery_uses_current_dark_visual_assets():
     response = client.get("/")
-    assert 'src="/site-assets/product-audit.webp"' in response.text
-    assert 'src="/site-assets/product-plan.webp"' in response.text
-    assert 'src="/site-assets/product-assets.webp"' in response.text
+    assert 'src="/site-assets/product-overview-real.png"' in response.text
+    assert 'src="/site-assets/product-tickets-real.png"' in response.text
+    assert 'src="/site-assets/product-delivery-real.png"' in response.text
     assert 'src="/site-assets/product-audit-clay.webp"' not in response.text
     assert 'src="/site-assets/product-plan-clay.webp"' not in response.text
     assert 'src="/site-assets/product-assets-clay.webp"' not in response.text
