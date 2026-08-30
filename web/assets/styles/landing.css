@@ -627,7 +627,7 @@ h1 {
 .final-cta-actions { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
 
 .site-footer { padding: var(--sp-8) 0 var(--sp-10); }
-.footer-layout { display: flex; justify-content: space-between; gap: var(--sp-7); flex-wrap: wrap; }
+.footer-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; gap: var(--sp-7); }
 .footer-brand .brand { margin-bottom: var(--sp-3); }
 .footer-tagline { max-width: 44ch; color: var(--muted); font-size: var(--fs-2); line-height: 1.65; margin-bottom: var(--sp-3); }
 .footer-copy { font-family: var(--font-mono); font-size: var(--fs-1); color: var(--faint); }
@@ -675,6 +675,7 @@ h1 {
   .section { padding: var(--sp-9) 0; }
   .final-cta-shell { padding: var(--sp-5); }
   .hero-scanner-form { flex-direction: column; }
+  .footer-layout { grid-template-columns: 1fr; }
   h1 { font-size: clamp(2.35rem, 11vw, 3.25rem); }
   .hero-scanner-box { padding: var(--sp-3); border-radius: var(--r-xl); }
   .hero-scanner-input-wrap { border-right: 1px solid var(--divider); border-radius: var(--r-md) var(--r-md) 0 0; padding: 0 0 0 var(--sp-3); }
