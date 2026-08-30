@@ -1,48 +1,48 @@
-/* CiteAura design tokens —— Clay 暖纸/陶土色系。明暗两套，OKLCH→hex 已固化。 */
+/* CiteAura design tokens —— Signal Green 色系。明暗两套。 */
 
 :root {
   color-scheme: light;
 
-  /* ---- 主色：Clay 陶土 ---- */
-  --accent: #b0552a;
-  --accent-strong: #96431f;
-  --accent-soft: #f6e7dc;
-  --accent-line: #e0bfa8;
+  /* ---- 主色：Signal Green ---- */
+  --accent: #0e7a52;
+  --accent-strong: #0a5f40;
+  --accent-soft: #e3f5ec;
+  --accent-line: #b8e2cc;
   --on-accent: #ffffff;
 
-  /* ---- 中性：暖纸 ---- */
-  --page: #f8f5ef;
-  --surface: #fffdf9;
-  --deep: #efe9de;
-  --ink: #2b2620;
-  --ink-2: #544a3c;
-  --muted: #7d7160;
-  --faint: #a39683;
-  --line: #e5ded1;
-  --divider: #d2c7b4;
+  /* ---- 中性 ---- */
+  --page: #f5f8f6;
+  --surface: #ffffff;
+  --deep: #eaf0ec;
+  --ink: #10201a;
+  --ink-2: #3c4a44;
+  --muted: #62716a;
+  --faint: #93a19a;
+  --line: #dbe6e0;
+  --divider: #dbe6e0;
 
-  /* ---- 语义色（暖调）---- */
-  --good: #3e7d5a;
-  --good-soft: #e6f1ea;
-  --warn: #b0700f;
-  --warn-soft: #f7ecd9;
-  --bad: #bf4043;
-  --bad-soft: #f7e4e4;
+  /* ---- 语义色 ---- */
+  --good: #0e7a52;
+  --good-soft: #e3f5ec;
+  --warn: #8a5a00;
+  --warn-soft: #fbf0d9;
+  --bad: #b3261e;
+  --bad-soft: #fbe9e7;
   --info: var(--accent);
   --info-soft: var(--accent-soft);
 
-  /* ---- 图表（暖调序列）---- */
-  --chart-1: #b0552a;
-  --chart-2: #8a6d3b;
-  --chart-3: #3e7d5a;
-  --chart-4: #5b6ee1;
-  --chart-5: #9c4a4a;
-  --chart-6: #6b5b8e;
+  /* ---- 图表 ---- */
+  --chart-1: #0e7a52;
+  --chart-2: #1c6fae;
+  --chart-3: #7c3aed;
+  --chart-4: #8a5a00;
+  --chart-5: #b3261e;
+  --chart-6: #62716a;
 
-  /* ---- 阴影（暖黑）---- */
-  --sh-sm: 0 1px 2px rgba(43, 38, 32, 0.06), 0 0 0 1px rgba(43, 38, 32, 0.04);
-  --sh-md: 0 4px 16px rgba(43, 38, 32, 0.10), 0 0 0 1px rgba(43, 38, 32, 0.05);
-  --sh-lg: 0 16px 48px rgba(43, 38, 32, 0.14), 0 0 0 1px rgba(43, 38, 32, 0.06);
+  /* ---- 阴影 ---- */
+  --sh-sm: 0 1px 2px rgba(16, 32, 26, 0.06), 0 0 0 1px rgba(16, 32, 26, 0.04);
+  --sh-md: 0 4px 16px rgba(16, 32, 26, 0.10), 0 0 0 1px rgba(16, 32, 26, 0.05);
+  --sh-lg: 0 16px 48px rgba(16, 32, 26, 0.14), 0 0 0 1px rgba(16, 32, 26, 0.06);
 
   /* ---- 字体 ---- */
   --font-display: "Space Grotesk", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "Yu Gothic", "Noto Sans JP", sans-serif;
@@ -97,11 +97,11 @@
   --dur-hero: 800ms;
 
   /* ---- 装饰变量（名称保留供 app 引用，值已扁平化）---- */
-  --grad-hero: radial-gradient(90% 60% at 50% -10%, rgba(176, 85, 42, 0.05), transparent 70%);
-  --grad-accent: linear-gradient(135deg, #b0552a, #b0552a);
-  --grad-accent-vivid: linear-gradient(135deg, #b0552a, #96431f);
-  --grad-card-hover: linear-gradient(135deg, rgba(176, 85, 42, 0.05), rgba(176, 85, 42, 0.03));
-  --grad-glow: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(176, 85, 42, 0.06), transparent 45%);
+  --grad-hero: radial-gradient(90% 60% at 50% -10%, rgba(14, 122, 82, 0.05), transparent 70%);
+  --grad-accent: linear-gradient(135deg, #0e7a52, #0e7a52);
+  --grad-accent-vivid: linear-gradient(135deg, #0e7a52, #0a5f40);
+  --grad-card-hover: linear-gradient(135deg, rgba(14, 122, 82, 0.05), rgba(14, 122, 82, 0.03));
+  --grad-glow: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(14, 122, 82, 0.06), transparent 45%);
   --grad-mesh: none;
 
   --glass-bg: var(--page);
@@ -109,55 +109,55 @@
   --glass-border: var(--line);
   --glass-border-glow: none;
 
-  --glow-dot: rgba(176, 85, 42, 0.18);
-  --glow-dot-2: rgba(176, 85, 42, 0.12);
-  --glow-dot-3: rgba(62, 125, 90, 0.14);
+  --glow-dot: rgba(14, 122, 82, 0.18);
+  --glow-dot-2: rgba(14, 122, 82, 0.12);
+  --glow-dot-3: rgba(28, 111, 174, 0.14);
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --accent: #e08a5e;
-  --accent-strong: #eba078;
-  --accent-soft: #33201a;
-  --accent-line: #5c3520;
-  --on-accent: #2a130a;
+  --accent: #22e3a6;
+  --accent-strong: #0aa87d;
+  --accent-soft: #123227;
+  --accent-line: #1c2b25;
+  --on-accent: #04140f;
 
-  --page: #181512;
-  --surface: #201c17;
-  --deep: #282219;
-  --ink: #f1ece4;
-  --ink-2: #d0c6b6;
-  --muted: #9d917e;
-  --faint: #6e6455;
-  --line: #2f2921;
-  --divider: #473e30;
+  --page: #070b0a;
+  --surface: #0d1512;
+  --deep: #111c17;
+  --ink: #eef4f1;
+  --ink-2: #a9bab3;
+  --muted: #6f8079;
+  --faint: #465650;
+  --line: #1c2b25;
+  --divider: #152019;
 
-  --good: #6fbf8f;
-  --good-soft: #1d2e24;
-  --warn: #dfa940;
-  --warn-soft: #30260f;
-  --bad: #e0777a;
-  --bad-soft: #341c1c;
+  --good: #22e3a6;
+  --good-soft: #123227;
+  --warn: #ffb020;
+  --warn-soft: #3a2a10;
+  --bad: #ff5c6c;
+  --bad-soft: #3a1218;
 
-  --chart-1: #e08a5e;
-  --chart-2: #c9a55e;
-  --chart-3: #6fbf8f;
-  --chart-4: #8b97ec;
-  --chart-5: #d97f7f;
-  --chart-6: #a493c9;
+  --chart-1: #22e3a6;
+  --chart-2: #3d9bd6;
+  --chart-3: #a78bfa;
+  --chart-4: #ffb020;
+  --chart-5: #ff5c6c;
+  --chart-6: #6f8079;
 
-  --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
-  --sh-md: 0 4px 20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
-  --sh-lg: 0 16px 52px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.10);
+  --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --sh-md: 0 4px 20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --sh-lg: 0 16px 52px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
 
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
-  --grad-hero: radial-gradient(90% 60% at 50% -10%, rgba(224, 138, 94, 0.06), transparent 70%);
-  --grad-accent: linear-gradient(135deg, #e08a5e, #e08a5e);
-  --grad-accent-vivid: linear-gradient(135deg, #e08a5e, #c96f43);
-  --grad-card-hover: linear-gradient(135deg, rgba(224, 138, 94, 0.07), rgba(224, 138, 94, 0.04));
-  --grad-glow: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(224, 138, 94, 0.07), transparent 45%);
+  --grad-hero: radial-gradient(90% 60% at 50% -10%, rgba(34, 227, 166, 0.06), transparent 70%);
+  --grad-accent: linear-gradient(135deg, #22e3a6, #22e3a6);
+  --grad-accent-vivid: linear-gradient(135deg, #22e3a6, #0aa87d);
+  --grad-card-hover: linear-gradient(135deg, rgba(34, 227, 166, 0.07), rgba(34, 227, 166, 0.04));
+  --grad-glow: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(34, 227, 166, 0.07), transparent 45%);
   --grad-mesh: none;
 
   --glass-bg: var(--page);
@@ -165,7 +165,7 @@
   --glass-border: var(--line);
   --glass-border-glow: none;
 
-  --glow-dot: rgba(224, 138, 94, 0.18);
-  --glow-dot-2: rgba(224, 138, 94, 0.12);
-  --glow-dot-3: rgba(111, 191, 143, 0.14);
+  --glow-dot: rgba(34, 227, 166, 0.18);
+  --glow-dot-2: rgba(34, 227, 166, 0.12);
+  --glow-dot-3: rgba(255, 176, 32, 0.14);
 }

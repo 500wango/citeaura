@@ -157,12 +157,12 @@ select {
   color-scheme: dark;
 }
 select option {
-  background-color: #ffffff;
-  color: #2b2620;
+  background-color: var(--surface);
+  color: var(--ink);
 }
 [data-theme="dark"] select option {
-  background-color: #201c17;
-  color: #f1ece4;
+  background-color: var(--surface);
+  color: var(--ink);
 }
 
 /* Lang picker & Theme toggle high-contrast controls */
@@ -189,14 +189,14 @@ select option {
   background: var(--deep);
 }
 [data-theme="dark"] .lang-picker-btn, [data-theme="dark"] .theme-toggle {
-  background: #201c17;
-  border-color: #473e30;
-  color: #d0c6b6;
+  background: var(--surface);
+  border-color: var(--divider);
+  color: var(--ink-2);
 }
 [data-theme="dark"] .lang-picker-btn:hover, [data-theme="dark"] .theme-toggle:hover {
-  background: #282219;
-  border-color: #e08a5e;
-  color: #f1ece4;
+  background: var(--deep);
+  border-color: var(--accent);
+  color: var(--ink);
 }
 .lang-picker-btn .icon-globe {
   width: 16px;

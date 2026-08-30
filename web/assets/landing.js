@@ -31,7 +31,7 @@ function sanitizeLandingHtml(value) {
 (function () {
   'use strict';
 
-  var THEME_COLORS = { light: '#f7f9fa', dark: '#15181e' };
+  var THEME_COLORS = { light: '#f7f9fa', dark: '#070b0a' };
   // Product marketing pages are intentionally English-only for now.
   var LOCALES = ['en'];
   var state = { locale: 'en', theme: 'light', billing: 'monthly', catalog: {}, fallbackCatalog: {}, literalCatalog: {}, defaults: new WeakMap(), activeDomain: 'yourbrand.com' };
@@ -255,6 +255,10 @@ function sanitizeLandingHtml(value) {
   }
 
   function initTheme() {
+    if (document.documentElement.dataset.themeLock === 'dark') {
+      setTheme('dark', false);
+      return;
+    }
     var param = new URLSearchParams(location.search).get('theme');
     var saved = null;
     try { saved = localStorage.getItem('utheme'); } catch (e) {}

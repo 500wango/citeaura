@@ -145,6 +145,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
   border-radius: var(--r-sm); font-size: var(--fs-1); font-weight: 500; white-space: nowrap;
 }
 .tag-accent { background: var(--accent-soft); color: var(--accent); }
+.tag-warn { background: var(--warn-soft); color: var(--warn); }
 .tag-neutral { background: var(--deep); color: var(--ink-2); border: 1px solid var(--line); }
 .tag-dim { background: var(--deep); color: var(--muted); }
 .tag-outline { border: 1px solid var(--divider); background: transparent; color: var(--muted); }

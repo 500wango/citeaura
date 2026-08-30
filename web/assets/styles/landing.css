@@ -688,6 +688,6 @@ h1 {
 .site-locale { display: none; }
 
 [data-theme="dark"] select option {
-  background-color: #201c17 !important;
-  color: #f1ece4 !important;
+  background-color: var(--surface) !important;
+  color: var(--ink) !important;
 }
