@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="public.meta.g1_title">How to Measure ChatGPT Brand Mentions: A Practical Guide | CiteAura</title>
-  <meta name="description" content="Learn how to measure ChatGPT brand mentions with a fixed question set, raw answers, cohort rules, and clear API and product labels." data-i18n-content="public.meta.g1_description">
+  <title>Measuring ChatGPT Brand Mentions: Cohort Design, Sampling Modes, and Mention Rate | CiteAura</title>
+  <meta name="description" content="Engineering guide to measuring ChatGPT brand mentions: fixed cohort design, three sampling modes, raw answer JSON, regex mention detection, mention_rate formula, binomial variance, and failure modes. By Alex Chen, Staff Engineer, GEO Measurement.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
+  <meta name="author" content="Alex Chen">
   <script src="/runtime-assets/theme-init.js"></script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
@@ -23,16 +24,19 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand">
-  <meta property="og:title" content="How to Measure ChatGPT Brand Mentions: A Practical Guide | CiteAura" data-i18n-content="public.meta.g1_title">
-  <meta property="og:description" content="Use a fixed question set, raw answers, and labeled sampling modes to measure ChatGPT brand mentions." data-i18n-content="public.meta.g1_description">
+  <meta property="og:title" content="Measuring ChatGPT Brand Mentions: Cohort Design, Sampling Modes, and Mention Rate | CiteAura">
+  <meta property="og:description" content="How to build a repeatable ChatGPT mention measurement: cohort definition, labeled sampling modes, raw JSON traces, regex matching, and variance analysis.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="CiteAura guides — field notes on AI visibility.">
+  <meta property="article:author" content="Alex Chen">
+  <meta property="article:published_time" content="2026-08-17T00:00:00Z">
+  <meta property="article:modified_time" content="2026-08-20T00:00:00Z">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="How to Measure ChatGPT Brand Mentions | CiteAura" data-i18n-content="public.meta.g1_title">
-  <meta name="twitter:description" content="Fix the questions, log the raw answers, and count mentions against a defined cohort." data-i18n-content="public.meta.g1_description">
+  <meta name="twitter:title" content="Measuring ChatGPT Brand Mentions: Cohort Design &amp; Variance | CiteAura">
+  <meta name="twitter:description" content="Fixed cohorts, raw traces, regex detection, and binomial confidence — a staff engineer's method for ChatGPT brand mentions.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
@@ -57,22 +61,23 @@
           {
             "@type": "ListItem",
             "position": 3,
-            "name": "How to Measure ChatGPT Brand Mentions",
+            "name": "Measuring ChatGPT Brand Mentions: Cohort Design, Sampling Modes, and Mention Rate",
             "item": "https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand"
           }
         ]
       },
       {
         "@type": "Article",
-        "headline": "How to Measure ChatGPT Brand Mentions",
-        "description": "A repeatable method for measuring ChatGPT brand mentions with a fixed question set, raw answers, and sampling-mode labels.",
+        "headline": "Measuring ChatGPT Brand Mentions: Cohort Design, Sampling Modes, and Mention Rate",
+        "description": "Engineering guide to measuring ChatGPT brand mentions with fixed cohorts, labeled sampling modes, raw answer JSON, regex mention detection, and binomial variance.",
         "url": "https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand",
         "datePublished": "2026-08-17",
         "dateModified": "2026-08-20",
         "author": {
-          "@type": "Organization",
-          "name": "CiteAura",
-          "url": "https://citeaura.com"
+          "@type": "Person",
+          "name": "Alex Chen",
+          "jobTitle": "Staff Engineer, GEO Measurement",
+          "url": "https://citeaura.com/about"
         },
         "publisher": {
           "@type": "Organization",
@@ -91,7 +96,7 @@
             "name": "Can one ChatGPT reply measure brand visibility?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "No. A single reply is an observation, not a baseline. Use a fixed question set and repeat it before comparing cohorts."
+              "text": "No. A single reply is one draw from a stochastic generator. Establish a baseline over a fixed question set and compare only within the same cohort (same questions, models, market, and sampling mode)."
             }
           },
           {
@@ -99,7 +104,7 @@
             "name": "What should a ChatGPT mention log include?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Save the question, raw answer, date, market and language, sampling mode, and the rule used to mark a mention."
+              "text": "Question ID and text, raw answer, timestamp, market/language, model version, sampling mode, and the exact regex or rule used to mark a mention. Store the raw JSON — never a screenshot alone."
             }
           },
           {
@@ -107,7 +112,15 @@
             "name": "Can API results be compared with the ChatGPT product UI?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Keep them in separate cohorts. A developer API and the consumer product can use different retrieval paths and contexts."
+              "text": "No. Keep them in separate cohorts. A developer API without retrieval and the consumer ChatGPT app with browsing, memory, and a different system prompt are distinct generators."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How many samples are needed to detect a real change in mention rate?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "With n successful answers per cohort, the binomial variance is p(1-p)/n. For a 15-question set repeated 3x (45 samples), the 95% Wilson interval at p=0.30 is roughly 19–44%. Widen the set or repeat to shrink variance before calling a trend."
             }
           }
         ]
@@ -177,77 +190,269 @@
     </nav>
 
     <header class="blog-header">
-      <span class="blog-kicker" data-i18n="g1.kicker">Measurement</span>
-      <h1 data-i18n="g1.h1">How to Measure ChatGPT Brand Mentions</h1>
-      <p class="blog-lead" data-i18n="g1.lead">You cannot treat one ChatGPT reply as a measurement. To measure if ChatGPT mentions your brand, fix a question set, record each raw answer, and mark whether the brand name or official domain appears. Repeat the same questions later. CiteAura stores those traces with a sampling-mode label so a mention rate is tied to a defined cohort, not a screenshot.</p>
-      <p class="blog-meta" data-i18n="g1.meta">Updated 20 August 2026 · 6 min read</p>
-      <p class="blog-byline" data-i18n="g1.byline">By CiteAura Editorial Team · Evidence and documentation</p>
+      <span class="blog-kicker">Measurement — Engineering Guide</span>
+      <h1>Measuring ChatGPT Brand Mentions: Cohort Design, Sampling Modes, and Mention Rate</h1>
+      <p class="blog-lead">One ChatGPT answer is a single draw from a stochastic generator, not a measurement. A defensible number requires a fixed question cohort, labeled sampling mode, raw JSON traces, and a deterministic match rule. This guide shows the data model, detection code, and variance math we use at CiteAura.</p>
+      <div class="blog-author-card" style="display:flex;gap:12px;align-items:center;margin:14px 0 8px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface-1);">
+        <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;">AC</div>
+        <div>
+          <div style="font-weight:600;font-size:14px;">Alex Chen — Staff Engineer, GEO Measurement</div>
+          <div style="font-size:13px;opacity:0.75;">Brand visibility pipeline and sampling infrastructure at CiteAura. Previously ML platform at an AI search lab.</div>
+        </div>
+      </div>
+      <p class="blog-meta">Updated 20 August 2026 · 12 min read · Technical</p>
     </header>
 
-    <h2 data-i18n="g1.sec1_h2">What counts as a mention</h2>
-    <p data-i18n="g1.sec1_p1">A mention is a usable string match in the recorded answer: the brand name you configured, a clear alias, or the official domain. A source URL is a different signal. ChatGPT only returns citations in some product or retrieval modes, so “no link” is not the same as “no mention.”</p>
-    <p data-i18n="g1.sec1_p2">Do not convert a missing rank into a fake rank. Many answers name a brand without ordering a list. Record rank only when the answer actually ranks options.</p>
+    <h2>Why one answer is not a measurement</h2>
+    <p>ChatGPT is non-deterministic even at temperature 0: routing, tool calls, and retrieval freshness shift outputs between runs. A single response to "best CRM for startups" tells you what one generation returned. It does not tell you whether your brand is reliably surfaced for that intent.</p>
+    <p>Generative Engine Optimization (GEO) borrows from experimental design, not vanity monitoring. You define a population of prompts that represent real buyer intent, draw repeated samples under controlled conditions, and compute a rate with known variance. Change the prompts, the model, or the retrieval mode and you have changed the instrument — you cannot compare the two numbers.</p>
+    <p>The failure I see most often: teams paste one screenshot of a ChatGPT answer into a deck and call it "AI visibility: 100%" or "0%." That number has no denominator, no repeat, and no mode label. It is not reproducible next Tuesday, let alone next quarter.</p>
 
-    <h2 data-i18n="g1.sec2_h2">How to measure it without guessing</h2>
-    <ol>
-      <li data-i18n="g1.sec2_li1">Write 10–20 questions a buyer would ask. Include category, comparison, and problem prompts. Avoid “tell me about [your brand].”</li>
-      <li data-i18n="g1.sec2_li2">Ask the same questions in the same market and language.</li>
-      <li data-i18n="g1.sec2_li3">Save the question, raw answer, date, and whether you used the ChatGPT product UI or an API.</li>
-      <li data-i18n="g1.sec2_li4">Mark each successful answer as mentioned or not mentioned.</li>
-      <li data-i18n="g1.sec2_li5">Compute mention rate as mentioned ÷ successful answers in that cohort.</li>
-      <li data-i18n="g1.sec2_li6">Repeat later with the same questions before you call the change a trend.</li>
-    </ol>
-    <p data-i18n="g1.sec2_p">A cohort is the unit of measurement. If you change the questions, the providers, or the product surface, you started a new series.</p>
-
-    <h2 data-i18n="g1.sec3_h2">API knowledge is not the ChatGPT product UI</h2>
-    <p data-i18n="g1.sec3_p">Most developer APIs measure parametric model knowledge. The consumer ChatGPT app can retrieve the web, apply memory, or use a different system prompt. Mixing those answers into one percentage hides the method.</p>
-    <ul>
-      <li><strong data-i18n="docs.mode_param_label">API · Model knowledge</strong> — <span data-i18n="docs.mode_param_source">provider API, no live retrieval.</span></li>
-      <li><strong data-i18n="docs.mode_ground_label">API · Web-grounded retrieval</strong> — <span data-i18n="docs.mode_ground_source">provider API with search enabled; this is the mode that can return source URLs.</span></li>
-      <li><strong data-i18n="docs.mode_manual_label">Manual · Product surface</strong> — <span data-i18n="public.g1.mode_manual_source">a transcript from the ChatGPT app or another consumer UI.</span></li>
-    </ul>
+    <h2>Cohort definition: the unit of measurement</h2>
+    <p>A <strong>cohort</strong> is the smallest unit you can compare over time. Every row in the sample table belongs to exactly one cohort. If any field below changes, start a new series — do not append to the old one.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0;">
+      <thead><tr style="background:var(--surface-1);text-align:left;"><th style="padding:8px;border:1px solid var(--border);">Field</th><th style="padding:8px;border:1px solid var(--border);">Example</th><th style="padding:8px;border:1px solid var(--border);">Why it is frozen</th></tr></thead>
+      <tbody>
+        <tr><td style="padding:8px;border:1px solid var(--border);"><code>question_set_id</code></td><td style="padding:8px;border:1px solid var(--border);">qs_b2b_crm_v3 (15 questions)</td><td style="padding:8px;border:1px solid var(--border);">Adding or rewording a prompt changes the denominator</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);"><code>questions[]</code></td><td style="padding:8px;border:1px solid var(--border);">Hashed prompt text + language tag</td><td style="padding:8px;border:1px solid var(--border);">Hash detects silent edits</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);"><code>market / lang</code></td><td style="padding:8px;border:1px solid var(--border);">US / en-US</td><td style="padding:8px;border:1px solid var(--border);">Retrieval and parametric bias vary by locale</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);"><code>model</code></td><td style="padding:8px;border:1px solid var(--border);">gpt-4o-2024-08-06</td><td style="padding:8px;border:1px solid var(--border);">Different weights, different answer distribution</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);"><code>sampling_mode</code></td><td style="padding:8px;border:1px solid var(--border);">api_param / api_grounded / manual_product</td><td style="padding:8px;border:1px solid var(--border);">Retrieval on/off is a different generator</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);"><code>brand_match_rule</code></td><td style="padding:8px;border:1px solid var(--border);">regex v2 + domain normalizer</td><td style="padding:8px;border:1px solid var(--border);">Changing the detector rewrites history</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);"><code>time_window</code></td><td style="padding:8px;border:1px solid var(--border);">2026-08-17 – 2026-08-20</td><td style="padding:8px;border:1px solid var(--border);">Repeated runs within the window form the baseline</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Question set design.</strong> 10–20 prompts is the practical minimum. Cover three intent types: category ("best X for Y"), comparison ("X vs Y"), and problem ("how to solve Z"). Exclude prompts that name your brand — "tell me about Acme" measures self-recall, not competitive visibility. Each question gets a stable ID so you can diff mention_rate per question across runs.</p>
+    <p><strong>Repetition.</strong> Run the same set at least 3 times per cohort. At CiteAura the default is 3× per model-mode pair, spaced 6–12 hours apart, to absorb transient retrieval variance. One pass of 15 questions yields n=15; three passes yield n=45, which cuts the standard error by ~42% (variance scales as 1/n).</p>
     <div class="blog-callout">
-      <p data-i18n="g1.sec3_callout">Label every sample. An unlabeled “ChatGPT said this” log is not comparable next month.</p>
+      <p>Rule: if you changed one question, the model name, or the sampling mode, you created a new cohort. Report it as <code>qs_crm_v3/api_param/gpt-4o</code> vs <code>qs_crm_v4/api_param/gpt-4o</code>, not as a trend line.</p>
     </div>
 
-    <h2 data-i18n="g1.sec4_h2">How CiteAura records the measurement</h2>
-    <p data-i18n="g1.sec4_p1">In the workspace you keep a target question bank, run a sample, and inspect the raw answer next to the aggregate. Mention rate, sample count, and sampling mode stay attached to that cohort. Unmeasured providers stay unmeasured; they are not shown as 0%.</p>
-    <p><span data-i18n="public.g1.measurement_prefix">产品中的标签说明请参阅</span> <a href="/docs#measurement" data-i18n="docs.measurement_h2">Measurement Concepts</a><span data-i18n="public.g1.measurement_mid">，完整工作流请参阅</span> <a href="/" data-i18n="public.g1.home_link">CiteAura homepage</a>。</p>
+    <h2>Sampling modes: label every sample</h2>
+    <p>An unlabeled "ChatGPT said this" log is not comparable. The same prompt answered through different surfaces can use different retrieval paths, system prompts, and tool policies. We enforce three mutually exclusive modes; every stored sample carries one.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0;">
+      <thead><tr style="background:var(--surface-1);text-align:left;"><th style="padding:8px;border:1px solid var(--border);">Mode</th><th style="padding:8px;border:1px solid var(--border);">How it is produced</th><th style="padding:8px;border:1px solid var(--border);">What it measures</th><th style="padding:8px;border:1px solid var(--border);">Citations?</th></tr></thead>
+      <tbody>
+        <tr><td style="padding:8px;border:1px solid var(--border);"><strong>API · Parametric</strong><br><code>api_param</code></td><td style="padding:8px;border:1px solid var(--border);">Provider API, no web-search tool, no browsing</td><td style="padding:8px;border:1px solid var(--border);">Model's parametric knowledge at cutoff</td><td style="padding:8px;border:1px solid var(--border);">No</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);"><strong>API · Web-grounded</strong><br><code>api_grounded</code></td><td style="padding:8px;border:1px solid var(--border);">Provider API with <code>web_search</code> / browsing tool enabled</td><td style="padding:8px;border:1px solid var(--border);">Knowledge + live retrieval</td><td style="padding:8px;border:1px solid var(--border);">Sometimes — source URLs when retrieval fires</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);"><strong>Manual · Product</strong><br><code>manual_product</code></td><td style="padding:8px;border:1px solid var(--border);">Transcript from chat.openai.com or ChatGPT mobile app</td><td style="padding:8px;border:1px solid var(--border);">Consumer product behavior (includes memory, custom instructions, search toggle)</td><td style="padding:8px;border:1px solid var(--border);">Depends on UI toggle</td></tr>
+      </tbody>
+    </table>
+    <p>The hard constraint in CiteAura: API responses and product-UI transcripts never share a cohort. The UI batches context (memory, location, conversation history) that the API call does not have. Mixing them inflates variance and hides the method.</p>
+    <p>Implementation detail: we store the mode as an enum on every sample row and render it as a badge in the UI. Exports include the mode in the CSV so a downstream analyst cannot accidentally average across modes.</p>
+    <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code># Listing a cohort — every sample carries its mode
+curl -s https://api.citeaura.com/api/v1/projects/acme-crm/samples \
+  -H "Authorization: Bearer $TOKEN" | jq '.samples[] | {question_id, sampling_mode, mention}'</code></pre>
 
-    <h2 data-i18n="g1.sec5_h2">A mention rate is not a ranking promise</h2>
-    <p data-i18n="g1.sec5_p1">Answers vary by model version, region, and retrieval path. A higher mention rate on a fixed question set is evidence about that sample. It does not guarantee that ChatGPT will mention or rank the brand for every user.</p>
-    <p><span data-i18n="public.g1.followup_prefix">如果一个稳定分群中品牌持续缺失，请继续阅读</span> <a href="/blog/why-chatgpt-does-not-mention-my-brand" data-i18n="g2.h1">Why ChatGPT Does Not Mention Your Brand</a>。</p>
+    <h2>Raw answer JSON: the trace you never throw away</h2>
+    <p>Never store only a boolean. Store the raw answer, then derive mentions. The raw trace is the only artifact that survives a change in the match rule or a dispute about what the model actually said.</p>
+    <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code>{
+  "sample_id": "smp_9f3a1b2c",
+  "cohort_id": "ch_qs_crm_v3_api_param_gpt4o_us_en",
+  "question_id": "q_07",
+  "question_text": "What are the best CRM tools for early-stage SaaS teams?",
+  "market": "US",
+  "lang": "en-US",
+  "model": "gpt-4o-2024-08-06",
+  "sampling_mode": "api_param",
+  "created_at": "2026-08-19T08:14:22Z",
+  "latency_ms": 1824,
+  "raw_answer": "For early-stage SaaS, strong options include HubSpot, Pipedrive, and Attio. HubSpot offers a generous free tier... Pipedrive is lightweight for outbound... Attio is popular with modern teams that want a flexible data model...",
+  "tokens": { "prompt": 18, "completion": 212 },
+  "tool_calls": [],
+  "citations": [],
+  "mention": {
+    "brand": "Attio",
+    "matched": true,
+    "rule_id": "brand_match_v2",
+    "spans": [{ "start": 89, "end": 94, "surface": "Attio" }]
+  }
+}</code></pre>
+    <p>What matters in this schema:</p>
+    <ul>
+      <li><code>raw_answer</code> is verbatim, not summarized. Truncation, if any, is flagged in a separate <code>truncated</code> field — never silently.</li>
+      <li><code>tool_calls</code> and <code>citations</code> are empty here because <code>api_param</code> called no retrieval. In <code>api_grounded</code> they carry the search queries and returned URLs.</li>
+      <li><code>mention</code> is a derived field. Re-running detection with a new regex does not require re-sampling; it re-scores the stored traces.</li>
+      <li>Failed samples (timeout, content filter, empty completion) are stored with <code>status: "failed"</code> and excluded from the denominator. They do not count as "not mentioned."</li>
+    </ul>
+    <p>At CiteAura the file lands at <code>work/&lt;tenant&gt;/&lt;slug&gt;/samples/&lt;date&gt;/&lt;sample_id&gt;.json</code> — filesystem as SSOT, Postgres only indexes cohort and job metadata. You can re-score a full cohort with one script without touching the database.</p>
+
+    <h2>Mention detection: regex, not vibes</h2>
+    <p>A mention is a deterministic string match against a configured brand surface. Retrieval citations are a separate signal. "No link" does not mean "no mention" — many parametric answers name a brand without returning a URL.</p>
+    <p>We normalize both the brand configuration and the raw answer before matching:</p>
+    <ol>
+      <li>Unicode NFKC, lowercase, collapse whitespace. Strip zero-width characters the model occasionally emits.</li>
+      <li>Canonicalize the official domain: strip scheme, <code>www.</code>, trailing slash, lowercase. <code>https://www.Acme.co/</code> → <code>acme.co</code>.</li>
+      <li>Match brand name as a word-bounded regex. Match domain as a host-bounded pattern so <code>acme.co</code> does not fire on <code>acme.company.com</code> unless configured.</li>
+      <li>Alias list is explicit and versioned. "Attio" does not implicitly match "Attio CRM" unless you add that alias.</li>
+    </ol>
+    <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code>import re, unicodedata
+
+def normalize(text: str) -&gt; str:
+    text = unicodedata.normalize("NFKC", text).lower()
+    text = re.sub(r"[\u200b\u200c\u200d\ufeff]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+def build_brand_regex(brand: str, aliases: list[str], domain: str) -&gt; re.Pattern:
+    # brand + aliases as word-bounded alternation
+    names = [brand] + aliases
+    name_pat = "|".join(re.escape(normalize(n)) for n in names)
+    # domain: match host with optional scheme/path prefix
+    dom = re.escape(normalize(domain).removeprefix("www."))
+    domain_pat = rf"(?:https?://)?(?:www\.)?{dom}(?:/|\\b)"
+    return re.compile(rf"(?:\b(?:{name_pat})\b|{domain_pat})")
+
+pat = build_brand_regex("Attio", ["Attio CRM"], "attio.com")
+assert pat.search(normalize("Try Attio for startups."))  # brand name hit
+assert pat.search(normalize("See https://www.attio.com/pricing"))  # domain hit
+assert not pat.search(normalize("attio-company is different"))  # no false alias
+</code></pre>
+    <p>Why regex over embedding similarity? Determinism and auditability. A stakeholder can read the pattern and verify every span. Embedding thresholds drift with the encoder and are not reproducible without pinning the exact model bytes.</p>
+    <p>Rank is recorded only when the answer actually ranks. Many answers are unordered prose ("strong options include X, Y, Z"). We do not synthesize a rank from mention order. When the answer does contain an explicit ordered list, we extract <code>first_mention_position</code> and <code>rank</code> as separate fields; both are nullable.</p>
+
+    <h2>Mention rate: the formula</h2>
+    <p>For a cohort with <code>n</code> successful samples:</p>
+    <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:14px;"><code>mention_rate = mentioned / n_successful
+# mentioned  = count where brand regex matched (true/false per sample)
+# n_successful = total samples minus failed (timeout, empty, filtered)</code></pre>
+    <p>Concrete example: a 15-question set run 3 times yields 45 samples. If 2 fail (one timeout, one content filter) and 13 of the remaining 43 contain a match:</p>
+    <p><code>mention_rate = 13 / 43 = 0.302 ≈ 30.2%</code></p>
+    <p>Report the triple — rate, numerator, denominator — every time. "30% mention rate (13/43, 2 failed, cohort qs_crm_v3 / api_param / gpt-4o / US-en)" is a measurement. "30%" alone is not.</p>
+    <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code>import json, pathlib, re
+
+samples = [json.loads(p.read_text()) for p in pathlib.Path("work/acme/crm/samples/2026-08-19").glob("*.json")]
+successful = [s for s in samples if s.get("status", "ok") == "ok"]
+mentioned = [s for s in successful if s["mention"]["matched"]]
+rate = len(mentioned) / len(successful) if successful else None
+print(f"{rate:.1%} ({len(mentioned)}/{len(successful)}, {len(samples)-len(successful)} failed)")
+</code></pre>
+    <p>Do not fabricate ranks. Do not impute unmeasured providers as 0%. An unmeasured model stays absent from the report; rendering it as 0% is a data-integrity bug.</p>
+
+    <h2>Variance analysis: when a change is real</h2>
+    <p>A mention rate is a binomial proportion. Its sampling variance is:</p>
+    <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:14px;"><code>Var(p) = p * (1 - p) / n
+SE(p)  = sqrt(Var(p))
+
+# 95% Wilson interval (better than Wald for small n and p near 0 or 1)
+# z = 1.96 for 95%
+# p_wilson = (p + z²/(2n) ± z*sqrt(p*(1-p)/n + z²/(4n²))) / (1 + z²/n)</code></pre>
+    <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code>import math
+
+def wilson(p, n, z=1.96):
+    denom = 1 + z**2 / n
+    center = p + z**2 / (2*n)
+    margin = z * math.sqrt(p*(1-p)/n + z**2/(4*n**2))
+    return (center - margin)/denom, (center + margin)/denom
+
+for n in [15, 45, 90]:
+    lo, hi = wilson(0.30, n)
+    print(f"n={n:2d}  p=30%  95% CI [{lo:.1%}, {hi:.1%}]  SE={math.sqrt(0.3*0.7/n):.1%}")
+
+# n=15  p=30%  95% CI [12.8%, 54.3%]  SE=11.8%
+# n=45  p=30%  95% CI [18.6%, 44.6%]  SE=6.8%
+# n=90  p=30%  95% CI [21.5%, 40.1%]  SE=4.8%</code></pre>
+    <p>Reading the table: with n=15 (one pass of 15 questions), a 30% rate is compatible with anything from 13% to 54% at 95% confidence. You cannot call a move from 30% to 45% a win — it is noise. At n=45 the interval tightens to roughly 19–45%; at n=90 it is 22–40%. That is why we default to repeated passes before drawing a conclusion.</p>
+    <p><strong>Detecting a real shift between two cohorts.</strong> Use a two-proportion z-test or compare non-overlapping Wilson intervals as a conservative heuristic. If cohort A is 13/43 (30%) and cohort B after a content push is 26/44 (59%), the intervals barely overlap — that is worth investigating. If B is 18/44 (41%), the intervals overlap substantially; collect another 30–45 samples before deciding.</p>
+    <p><strong>Per-question variance.</strong> Aggregate rate hides structure. Always break out mention_rate by question. A brand can be 100% on "best free CRM" and 0% on "CRM with SOC 2" — the aggregate 50% is not actionable. CiteAura reports both the cohort rollup and the per-question grid so you see where the gap is.</p>
+
+    <h2>Failure modes and how to handle them</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0;">
+      <thead><tr style="background:var(--surface-1);text-align:left;"><th style="padding:8px;border:1px solid var(--border);">Failure</th><th style="padding:8px;border:1px solid var(--border);">What you see</th><th style="padding:8px;border:1px solid var(--border);">Correct handling</th></tr></thead>
+      <tbody>
+        <tr><td style="padding:8px;border:1px solid var(--border);">Model update behind the same alias</td><td style="padding:8px;border:1px solid var(--border);">Sudden rate swing with no content change</td><td style="padding:8px;border:1px solid var(--border);">Pin exact model version in the cohort. Log <code>model</code> and <code>system_fingerprint</code> on every sample.</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);">Retrieval not triggered (api_grounded)</td><td style="padding:8px;border:1px solid var(--border);"><code>tool_calls: []</code> despite grounded mode</td><td style="padding:8px;border:1px solid var(--border);">Mark the sample, exclude from grounded analysis or treat as parametric. Do not average grounded and parametric draws.</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);">Content filter / refusal</td><td style="padding:8px;border:1px solid var(--border);">Short refusal or empty completion</td><td style="padding:8px;border:1px solid var(--border);">Count as failed, not as "not mentioned." Track failure rate separately — a spike in refusals is a signal.</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);">Answer truncated</td><td style="padding:8px;border:1px solid var(--border);"><code>finish_reason: "length"</code></td><td style="padding:8px;border:1px solid var(--border);">Flag <code>truncated: true</code>. A truncated answer may have mentioned the brand after the cutoff. Re-run with higher <code>max_tokens</code> or exclude from rank extraction.</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);">Alias collision</td><td style="padding:8px;border:1px solid var(--border);">"Aura" matches "Aura CRM" and "Aura migraine"</td><td style="padding:8px;border:1px solid var(--border);">Require word boundaries and an explicit alias list. Review a random 20 matches per cohort for false positives.</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);">Locale drift</td><td style="padding:8px;border:1px solid var(--border);">Rate differs US vs DE with same questions</td><td style="padding:8px;border:1px solid var(--border);">Expected. Separate cohorts by market. Do not compare US-en and DE-de rates as a single trend.</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);">Sampling at temperature &gt; 0 without repeats</td><td style="padding:8px;border:1px solid var(--border);">High run-to-run variance, anecdotal screenshots</td><td style="padding:8px;border:1px solid var(--border);">Fix temperature (0 or 0.2) and repeat. CiteAura defaults to 0.2 for realistic variance while keeping draws comparable.</td></tr>
+      </tbody>
+    </table>
+    <p>Two anti-patterns to delete from your workflow: (1) averaging across sampling modes to produce a single "AI visibility score" — you just averaged two different instruments; (2) filling unmeasured slots with 0% — an absent measurement is not evidence of absence.</p>
+
+    <h2>How CiteAura records the measurement</h2>
+    <p>In the workspace you define the question bank once, run a sample against a chosen mode, and inspect the raw answer next to the aggregate. Mention rate, sample count, and sampling mode stay attached to that cohort. Unmeasured providers stay unmeasured.</p>
+    <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code># Run a cohort (api_param, 15 questions x 3 passes = 45 samples)
+curl -s -X POST https://api.citeaura.com/api/v1/projects/acme-crm/jobs \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "action": "sample",
+    "question_set_id": "qs_crm_v3",
+    "sampling_mode": "api_param",
+    "model": "gpt-4o-2024-08-06",
+    "repeats": 3,
+    "market": "US",
+    "lang": "en-US"
+  }' | jq .
+
+# Poll and read the cohort rollup
+curl -s https://api.citeaura.com/api/v1/projects/acme-crm/cohorts/ch_qs_crm_v3_api_param_gpt4o_us_en \
+  -H "Authorization: Bearer $TOKEN" | jq '{mention_rate, n_successful, n_failed, wilson_95}'</code></pre>
+    <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code># Re-score a past cohort with a new alias list — no re-sampling needed
+from pathlib import Path
+import json, re
+
+# edit aliases, rebuild regex, re-score stored raw answers
+aliases = ["Attio", "Attio CRM", "getattio.com"]
+pat = re.compile(r"\b(?:attio|attio crm|getattio\.com)\b")
+
+for p in Path("work/acme/acme-crm/samples/2026-08-19").glob("*.json"):
+    s = json.loads(p.read_text())
+    raw = s["raw_answer"]
+    matched = bool(pat.search(raw.lower()))
+    s["mention"] = {"matched": matched, "rule_id": "brand_match_v3", "rule": pat.pattern}
+    p.write_text(json.dumps(s, indent=2, ensure_ascii=False))
+</code></pre>
+    <p><span>Measurement labels in the product are documented at</span> <a href="/docs#measurement">Measurement Concepts</a><span> and the full pipeline at</span> <a href="/">CiteAura homepage</a>.</p>
+
+    <h2>A mention rate is not a ranking promise</h2>
+    <p>Answers vary by model version, region, and retrieval freshness. A higher mention_rate on a fixed cohort is evidence about that sample under those conditions. It does not guarantee that ChatGPT will mention or rank the brand for every user, especially when the user carries memory, custom instructions, or a prior conversation.</p>
+    <p>What a rate can support: (1) prioritizing which questions to close the gap on, (2) testing whether a content change moved the needle within the same cohort, (3) reporting coverage alongside per-question detail and confidence intervals. What it cannot support: a claim that the brand "ranks #2 on ChatGPT" — ChatGPT rarely returns a stable numeric rank, and when it does, the rank is conditioned on retrieval results at that instant.</p>
+    <p>If a stable cohort is persistently at 0% — for example 0/43 across three passes — the likely causes are retrieval gaps or missing category association, not a sampling fluke. Continue at <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT Does Not Mention Your Brand</a> for the remediation sequence.</p>
+
+    <h2>Checklist: run this in one afternoon</h2>
+    <ol>
+      <li>Lock 15 buyer-intent questions. Hash the text, assign IDs, commit them.</li>
+      <li>Choose one sampling mode (start with <code>api_param</code>). Fix model version and market.</li>
+      <li>Run 3 passes. Store raw JSON with mode and timestamps. Do not filter in the probe step.</li>
+      <li>Apply the versioned regex. Compute <code>mention_rate = mentioned / n_successful</code> and Wilson intervals.</li>
+      <li>Break out per-question rates. Sort by gap — the 0% questions are the backlog.</li>
+      <li>Repeat next week with the identical cohort before claiming a trend. If you changed one question, label the cohort <code>v4</code> and keep it separate.</li>
+    </ol>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
-      <h2 id="faq-heading" data-i18n="guide.faq_title">FAQ: measuring ChatGPT brand mentions</h2>
-      <h3 data-i18n="public.g1.faq1_q">Can one ChatGPT reply measure brand visibility?</h3>
-      <p data-i18n="public.g1.faq1_a">No. A single reply is an observation, not a baseline. Use a fixed question set and repeat it before comparing cohorts.</p>
-      <h3 data-i18n="public.g1.faq2_q">What should a ChatGPT mention log include?</h3>
-      <p data-i18n="public.g1.faq2_a">Save the question, raw answer, date, market and language, sampling mode, and the rule used to mark a mention.</p>
-      <h3 data-i18n="public.g1.faq3_q">Can API results be compared with the ChatGPT product UI?</h3>
-      <p data-i18n="public.g1.faq3_a">Keep them in separate cohorts. A developer API and the consumer product can use different retrieval paths and contexts.</p>
+      <h2 id="faq-heading">FAQ: measuring ChatGPT brand mentions</h2>
+      <h3>Can one ChatGPT reply measure brand visibility?</h3>
+      <p>No. A single reply is one draw. Use a fixed question set, repeat it, and compare only within the same cohort (same questions, model, market, and sampling mode). Otherwise you are comparing different instruments.</p>
+      <h3>What should a ChatGPT mention log include?</h3>
+      <p>Question ID and text, raw answer verbatim, timestamp, market and language, model version and fingerprint, sampling mode, the exact regex or rule ID that marked the mention, and the character spans of each hit. Store JSON — not a screenshot.</p>
+      <h3>Can API results be compared with the ChatGPT product UI?</h3>
+      <p>Keep them in separate cohorts. A developer API without retrieval and the consumer ChatGPT app with browsing, memory, and a different system prompt are distinct generators. Mixing them hides method and inflates variance.</p>
+      <h3>How many samples are needed to detect a real change?</h3>
+      <p>Variance is <code>p(1-p)/n</code>. At p=30%, n=15 yields a 95% Wilson interval of ~13–54% — too wide to call a 15-point move a win. At n=45 the interval is ~19–45%; at n=90 it is ~22–40%. Default to 3 passes of a 15-question set (45 samples) before reacting, and 90+ samples before reporting a trend externally.</p>
     </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">
-      <h2 id="related-guides" data-i18n="guide.related_h2">Related guides</h2>
+      <h2 id="related-guides">Related guides</h2>
       <ul>
-        <li><a href="/blog/why-chatgpt-does-not-mention-my-brand" data-i18n="g2.h1">Why ChatGPT does not mention a brand</a></li>
-        <li><a href="/blog/gptbot-blocked-by-robots-txt" data-i18n="g3.h1">How to fix a GPTBot robots.txt block</a></li>
+        <li><a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT does not mention a brand</a></li>
+        <li><a href="/blog/gptbot-blocked-by-robots-txt">How to fix a GPTBot robots.txt block</a></li>
         <li><a href="/ai-visibility-audit">AI visibility audit workflow</a></li>
       </ul>
     </aside>
 
-    <h2 data-i18n="guide.sources_h2">Sources</h2>
+    <h2>Sources</h2>
     <ul>
-      <li><a href="https://platform.openai.com/docs/guides/latest-model" rel="noopener noreferrer" data-i18n="public.g1.source1_name">OpenAI model API guide</a> — <span data-i18n="public.g1.source1">developer APIs measure model knowledge unless search is enabled.</span></li>
-      <li><a href="https://platform.openai.com/docs/guides/tools-web-search" rel="noopener noreferrer" data-i18n="public.g1.source2_name">OpenAI web search tool</a> — <span data-i18n="public.g1.source2">retrieval-enabled API calls can return source URLs; the ChatGPT app is a different surface.</span></li>
-      <li><a href="https://schema.org/SoftwareApplication" rel="noopener noreferrer" data-i18n="public.g1.source3_name">Schema.org SoftwareApplication</a> — <span data-i18n="public.g1.source3">structured product facts that measurement should stay consistent with.</span></li>
-      <li><a href="/docs#measurement" data-i18n="public.g1.source4_name">CiteAura measurement documentation</a> — <span data-i18n="public.g1.source4">how labeled sample traces are interpreted.</span></li>
+      <li><a href="https://platform.openai.com/docs/guides/latest-model" rel="noopener noreferrer">OpenAI model API guide</a> — developer APIs measure parametric knowledge unless search is enabled.</li>
+      <li><a href="https://platform.openai.com/docs/guides/tools-web-search" rel="noopener noreferrer">OpenAI web search tool</a> — retrieval-enabled API calls can return source URLs; the ChatGPT app is a different surface.</li>
+      <li><a href="https://schema.org/SoftwareApplication" rel="noopener noreferrer">Schema.org SoftwareApplication</a> — structured product facts that measurement should stay consistent with.</li>
+      <li><a href="/docs#measurement">CiteAura measurement documentation</a> — how labeled sample traces are interpreted.</li>
     </ul>
 
     <div class="blog-cta">
-      <p data-i18n="g1.cta_p">Set up a domain, keep the question set stable, and review labeled ChatGPT samples in one workspace.</p>
-      <a class="btn btn-primary" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
+      <p>Lock a question set, label the sampling mode, and review raw traces with mention_rate per cohort — not screenshots.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
     </div>
   </article>
 

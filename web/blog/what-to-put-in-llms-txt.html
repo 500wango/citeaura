@@ -65,14 +65,14 @@
       {
         "@type": "Article",
         "headline": "What to Put in llms.txt for Your Brand",
-        "description": "What belongs in a brand llms.txt file and what to leave out before you publish it at the site root.",
+        "description": "What belongs in a brand llms.txt file and what to leave out before you publish it at the site root. Spec, Markdown shape, canonical host, text/plain serving, Zod-like validation, anti-patterns, generation pipeline, and deployment verification.",
         "url": "https://citeaura.com/blog/what-to-put-in-llms-txt",
         "datePublished": "2026-08-17",
         "dateModified": "2026-08-20",
         "author": {
-          "@type": "Organization",
-          "name": "CiteAura",
-          "url": "https://citeaura.com"
+          "@type": "Person",
+          "name": "Elena Torres — Docs & LLM Discovery",
+          "url": "https://citeaura.com/blog/authors/elena-torres"
         },
         "publisher": {
           "@type": "Organization",
@@ -91,7 +91,7 @@
             "name": "What should not go in llms.txt?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Leave out private routes, staging URLs, login-only content, credentials, and claims that are not supported by an official public page."
+              "text": "Leave out private routes, staging URLs, login-only content, credentials, and claims that are not supported by an official public page. Never copy pricing into llms.txt that you do not also maintain on the live pricing page — stale pricing is the most common trust failure crawlers detect."
             }
           },
           {
@@ -99,7 +99,7 @@
             "name": "Does llms.txt guarantee AI mentions?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "No. It is an optional discovery convention. A reachable file does not prove that a model read it or will mention the brand."
+              "text": "No. It is an optional discovery convention proposed at llmstxt.org. A reachable file does not prove that a model read it or will mention the brand. Treat verification as: the file is reachable as text/plain, its links are 200, and its claims match public HTML — not that a model consumed it."
             }
           },
           {
@@ -107,7 +107,15 @@
             "name": "Where should llms.txt be published?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Publish it as plain text at the canonical site root, for example https://example.com/llms.txt, and keep its links public."
+              "text": "Publish it as text/plain; charset=utf-8 at the canonical site root, for example https://example.com/llms.txt. Serve from the canonical host (apex or www, not both without redirect), allow GET without auth, and return Cache-Control that reflects how often facts change."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I validate llms.txt before deploy?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Parse the Markdown, enforce heading order (single H1, then H2 sections), check every URL is absolute https on your canonical host or allow-listed, and assert each fact line has a source URL you control. A Zod-like schema catches stale pricing, relative links, and forbidden sections before deploy."
             }
           }
         ]
@@ -177,81 +185,361 @@
     </nav>
 
     <header class="blog-header">
-      <span class="blog-kicker" data-i18n="g4.kicker">Discovery file</span>
+      <span class="blog-kicker" data-i18n="g4.kicker">Discovery file — Engineering guide</span>
       <h1 data-i18n="g4.h1">What to Put in llms.txt for Your Brand</h1>
-      <p class="blog-lead" data-i18n="g4.lead">Put only official, checkable facts in llms.txt: who the brand is, the canonical URL, a one-sentence product definition, and links to public pages that already state those claims. Skip slogans, unverified rankings, and copy that exists only in a PDF. CiteAura can draft the file from the brand fact library, but you still review every line before you publish it at the site root.</p>
-      <p class="blog-meta" data-i18n="g4.meta">Updated 20 August 2026 · 6 min read</p>
-      <p class="blog-byline" data-i18n="g1.byline">By CiteAura Editorial Team · Evidence and documentation</p>
+      <p class="blog-lead" data-i18n="g4.lead">A production-grade <code>/llms.txt</code> is a tiny plain-text index at your canonical root: one verifiable H1, one blockquote definition, and a handful of curated Markdown sections that point to public pages you already maintain. This guide covers the spec, exact Markdown shape, canonical-host and <code>text/plain</code> serving, Zod-like validation, anti-patterns that break trust, a generation pipeline from your brand fact library, and deployment plus <code>curl</code> verification — so the file stays correct after every deploy.</p>
+      <p class="blog-meta">Updated 20 August 2026 · 13 min read · Technical</p>
+      <p class="blog-byline">By Elena Torres — Docs &amp; LLM Discovery · CiteAura</p>
     </header>
 
-    <h2 data-i18n="public.g4.sec1_h2">What belongs in the file</h2>
-    <ul>
-      <li data-i18n="public.g4.sec1_li1"><strong>Brand name and one-sentence definition</strong> that already appears in public HTML.</li>
-      <li data-i18n="public.g4.sec1_li2"><strong>Canonical site URL</strong> and a short list of official pages: product, pricing, docs, contact.</li>
-      <li data-i18n="public.g4.sec1_li3"><strong>Verified facts</strong> with a source page you control, such as markets served or plan names.</li>
-      <li data-i18n="public.g4.sec1_li4"><strong>Plain Markdown</strong> served as <code>text/plain</code> at <code>https://example.com/llms.txt</code>.</li>
-    </ul>
-    <p data-i18n="public.g4.sec1_p">Keep it short. A crawler that already struggles with a JavaScript homepage will not be helped by a 2,000-word manifesto.</p>
+    <!-- TOC -->
+    <nav class="blog-toc" aria-labelledby="toc-heading">
+      <h2 id="toc-heading" style="font-size:0.95rem;margin-bottom:0.5rem;">Contents</h2>
+      <ol style="margin:0;padding-left:1.2rem;line-height:1.8;">
+        <li><a href="#spec">The spec: what llms.txt is and is not</a></li>
+        <li><a href="#shape">Markdown shape: the only structure you need</a></li>
+        <li><a href="#canonical">Canonical host and location</a></li>
+        <li><a href="#serving">Serving as text/plain</a></li>
+        <li><a href="#what-belongs">What belongs in the file</a></li>
+        <li><a href="#anti-patterns">What to leave out — anti-patterns</a></li>
+        <li><a href="#validation">Zod-like validation before deploy</a></li>
+        <li><a href="#pipeline">Generation pipeline: from fact library to file</a></li>
+        <li><a href="#deploy">Deployment</a></li>
+        <li><a href="#verify">Verification: curl and CI</a></li>
+        <li><a href="#citeaura">How CiteAura drafts it</a></li>
+        <li><a href="#limits">Publishing does not guarantee mentions</a></li>
+      </ol>
+    </nav>
 
-    <h2 data-i18n="public.g4.sec2_h2">What to leave out</h2>
+    <h2 id="spec">1. The spec: what llms.txt is and is not</h2>
+    <p><code>/llms.txt</code> is a <em>proposed</em> convention documented at <a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> and tracked in the <a href="https://github.com/AnswerDotAI/llms-txt" rel="noopener noreferrer">Answer.AI llms-txt repository</a>. It is deliberately small: a Markdown file at the site root that gives LLM crawlers and retrieval tools a concise, human-maintained summary of the site, with links to the full pages. Think <code>robots.txt</code> for intent: a hint, not a contract.</p>
+    <p>Key properties from the proposal:</p>
     <ul>
-      <li data-i18n="public.g4.sec2_li1">Awards, traffic claims, or “#1 in AI search” lines you cannot point to on an official page.</li>
-      <li data-i18n="public.g4.sec2_li2">Pricing or feature lists that disagree with the live pricing page.</li>
-      <li data-i18n="public.g4.sec2_li3">Competitor attacks that are not factual comparison copy you would publish elsewhere.</li>
-      <li data-i18n="public.g4.sec2_li4">Private app routes, staging hosts, or login-walled docs.</li>
+      <li><strong>Location:</strong> <code>https://example.com/llms.txt</code> at the root. Not <code>/docs/llms.txt</code>, not <code>/static/llms.txt</code>.</li>
+      <li><strong>Format:</strong> Markdown rendered as plain text. No HTML, no YAML front matter, no JSON.</li>
+      <li><strong>Audience:</strong> Crawlers that choose to look for it — GPTBot, CCBot, PerplexityBot and others that document Markdown discovery — plus developer tools that fetch it explicitly.</li>
+      <li><strong>Status:</strong> Optional. No search engine or model provider guarantees consumption. A 200 response proves reachability, not readership.</li>
+      <li><strong>Optional companion:</strong> <code>/llms-full.txt</code> may contain a concatenated dump of key pages, but the index file (<code>llms.txt</code>) is the entry point and should stay short.</li>
     </ul>
+    <p>The design goal is to solve a concrete failure: a crawler meets a JavaScript-heavy homepage, times out, and leaves with no anchor text for the brand. A 1–3 KB plain-text file with absolute links gives that same crawler a cheap, deterministic fallback. It is not a sitemap, not a knowledge graph, and not a place to pitch. If the content is not already stated on a public HTML page, it does not belong in the index.</p>
     <div class="blog-callout">
-      <p data-i18n="public.g4.callout"><code>/llms.txt</code> is a discovery convention, not a universal index. A 200 response proves the file is reachable. It does not prove a model read it.</p>
+      <p><strong>Mental model:</strong> HTML is the source of truth. <code>llms.txt</code> is a curated table of contents with verified labels. If the two disagree, HTML wins and the index is wrong.</p>
     </div>
 
-    <h2 data-i18n="public.g4.sec3_h2">A safe skeleton</h2>
-    <p data-i18n="public.g4.sec3_p">Start from this shape and delete any line you cannot support:</p>
-    <p><code># Brand Name</code><br>
-    <code>&gt; One-sentence, verifiable description.</code></p>
-    <p><code>## Official resources</code><br>
-    <code>- Product: https://example.com/</code><br>
-    <code>- Docs: https://example.com/docs</code></p>
-    <p><code>## Verified facts</code><br>
-    <code>- Fact that already appears on a public page, with that URL.</code></p>
-    <p><span data-i18n="public.g4.sec3_before">If GPTBot cannot reach the homepage, fix robots first. See</span> <a href="/blog/gptbot-blocked-by-robots-txt" data-i18n="g3.h1">GPTBot Blocked by robots.txt? Find and Fix the Rule</a><span data-i18n="public.g4.sec3_after">.</span></p>
+    <h2 id="shape">2. Markdown shape: the only structure you need</h2>
+    <p>The proposal intentionally leaves Markdown permissive, but production discipline is stricter. The shape that validates cleanly with link checkers, parses without ambiguity, and stays LLM-friendly is:</p>
+    <pre><code># Brand Name
 
-    <h2 data-i18n="public.g4.sec4_h2">How CiteAura drafts it</h2>
-    <p data-i18n="public.g4.sec4_p1">The workspace can generate a draft from the brand fact library. Open Execution → Assets, remove unsupported claims, and confirm every URL is public. Deploy the file yourself. Then re-crawl; verification can check that the path returns text, not that a model consumed it.</p>
-    <p><span data-i18n="public.g4.sec4_before">Product steps are in</span> <a href="/docs#llms-txt" data-i18n="docs.llms_txt_h2">Using /llms.txt</a><span data-i18n="public.g4.sec4_mid">. Thin official facts are a separate problem:</span> <a href="/blog/why-chatgpt-does-not-mention-my-brand" data-i18n="g2.h1">Why ChatGPT Does Not Mention Your Brand</a><span data-i18n="public.g4.sec4_after">.</span></p>
+&gt; One-sentence, verifiable description that already appears on the homepage.
 
-    <h2 data-i18n="public.g4.sec5_h2">Publishing llms.txt does not guarantee mentions</h2>
-    <p data-i18n="public.g4.sec5_p">A clean file can help a retrieval-enabled sample find official wording. It does not guarantee that ChatGPT, or any other model, will mention, cite, or rank the brand. Treat it as one official summary next to the HTML that already has to be extractable.</p>
+## Official resources
+
+- [Product](https://example.com/): Primary product page.
+- [Docs](https://example.com/docs): Documentation home.
+- [Pricing](https://example.com/pricing): Plans and billing.
+- [Contact](https://example.com/contact): Contact and support.
+
+## Verified facts
+
+- Acme serves teams in the EU and US — see https://example.com/about.
+- Pro plan includes SSO and audit logs — see https://example.com/pricing.
+
+## Optional
+
+- [Blog](https://example.com/blog): Product updates and guides.
+- [Status](https://status.example.com/): Uptime and incidents.
+</code></pre>
+    <p>Rules that prevent drift:</p>
+    <ul>
+      <li><strong>Exactly one H1</strong> — the registered brand name. Not a tagline, not a keyword stuffing line. Match the <code>&lt;title&gt;</code> and <code>Organization.name</code> JSON-LD.</li>
+      <li><strong>One blockquote</strong> directly under the H1 — a single verifiable sentence. Copy it verbatim from the homepage hero or meta description. If marketing rewrites the hero, this line must change in the same commit.</li>
+      <li><strong>H2 sections only</strong> after that. The proposal mentions <code>##</code> for sections; do not introduce <code>###</code> unless a section genuinely needs subgrouping. Flat headings parse more reliably.</li>
+      <li><strong>Lists are links with labels:</strong> <code>- [Label](https://example.com/path): human-readable hint.</code> Every link is absolute, https, and on the canonical host (or an explicit allow-list such as a status subdomain). No relative URLs, no anchors, no <code>example.com/path</code> without scheme.</li>
+      <li><strong>Facts are claim plus source:</strong> <code>- Claim — see https://example.com/source-page.</code> The source URL must return 200 and contain the claim in HTML. This is how a reviewer checks the file without domain knowledge.</li>
+      <li><strong>Line length:</strong> keep list items under 160 characters. Crawlers chunk by line; long paragraphs dilute the signal.</li>
+      <li><strong>Encoding:</strong> UTF-8, LF line endings, no BOM. Trailing newline at EOF.</li>
+    </ul>
+    <p>What not to add: code fences, tables, images, footnotes, HTML comments, or front matter. A parser that strips Markdown to plain text should still produce a readable file. If your file needs a table to explain pricing, your pricing page already failed — link to it instead.</p>
+
+    <h2 id="canonical">3. Canonical host and location</h2>
+    <p><code>/llms.txt</code> is only useful at the canonical origin. A crawler that discovers <code>https://example.com/</code> will probe <code>https://example.com/llms.txt</code>; it will not probe <code>https://www.example.com/llms.txt</code> if the canonical is apex, or vice versa.</p>
+    <ul>
+      <li><strong>Pick one canonical host</strong> and declare it in the H1 block and in <code>&lt;link rel="canonical"&gt;</code>. If <code>https://example.com</code> is canonical, <code>https://www.example.com/llms.txt</code> must 301 to the apex path, not serve a second copy.</li>
+      <li><strong>Serve only at <code>/llms.txt</code></strong> (and optionally <code>/llms-full.txt</code>). Do not publish at <code>/en/llms.txt</code> or <code>/blog/llms.txt</code>. Language variants belong as linked pages inside the file, not as parallel indexes.</li>
+      <li><strong>HTTPS only.</strong> Mixed-content checks and HSTS mean http should 301 to https. Crawlers that enforce https will ignore an http-only file.</li>
+      <li><strong>No auth, no bot challenge.</strong> The path must return 200 to an anonymous GET. If your WAF challenges GPTBot on HTML, it will challenge it on <code>llms.txt</code> too — fix crawl access first (see <a href="/blog/gptbot-blocked-by-robots-txt">GPTBot Blocked by robots.txt? Find and Fix the Rule</a>).</li>
+      <li><strong>Consistent trailing slash policy:</strong> <code>/llms.txt</code> is a file, never <code>/llms.txt/</code>. The latter should 404, not 301 to the file with a slash.</li>
+    </ul>
+    <p>If you operate multiple domains (apex, app subdomain, docs subdomain), publish one file per registrable domain. <code>docs.example.com/llms.txt</code> should index docs, not duplicate the marketing site.</p>
+
+    <h2 id="serving">4. Serving as <code>text/plain</code></h2>
+    <p>The file is Markdown <em>content</em> served with a plain-text content type. That pairing matters: <code>text/markdown</code> is technically correct but <code>text/plain; charset=utf-8</code> has broader crawler and CDN compatibility. The proposal and existing implementations converge on <code>text/plain</code>.</p>
+    <p>Required headers:</p>
+    <pre><code>Content-Type: text/plain; charset=utf-8
+Content-Length: &lt;bytes&gt;
+Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+X-Content-Type-Options: nosniff
+</code></pre>
+    <p>Implementation notes by stack:</p>
+    <ul>
+      <li><strong>Nginx (static file):</strong>
+        <pre><code>location = /llms.txt {
+  default_type text/plain;
+  charset utf-8;
+  add_header Cache-Control "public, max-age=3600, stale-while-revalidate=86400" always;
+  add_header X-Content-Type-Options nosniff always;
+  # file lives at /var/www/site/llms.txt
+}</code></pre>
+      </li>
+      <li><strong>Cloudflare / CDN:</strong> cache the path at the edge but purge on deploy. Set a single Cache Rule for <code>/llms.txt</code> and <code>/llms-full.txt</code> — do not inherit a blanket <code>cache-everything</code> that pins stale pricing for days.</li>
+      <li><strong>Vercel / Next.js:</strong> place <code>llms.txt</code> in <code>public/</code>. Next will serve it as <code>text/plain</code> automatically, but add a <code>headers()</code> entry in <code>next.config.js</code> to set charset and Cache-Control explicitly:
+        <pre><code>// next.config.js
+async headers() {
+  return [{
+    source: '/llms.txt',
+    headers: [
+      { key: 'Content-Type', value: 'text/plain; charset=utf-8' },
+      { key: 'Cache-Control', value: 'public, max-age=3600, stale-while-revalidate=86400' },
+    ],
+  }];
+}</code></pre>
+      </li>
+      <li><strong>S3 + CloudFront:</strong> set <code>ContentType: text/plain; charset=utf-8</code> on upload. S3 defaults to <code>binary/octet-stream</code> if you omit it.</li>
+    </ul>
+    <p>Do not serve the file through client-side JS, edge workers that inject HTML wrappers, or localized middleware that appends a banner. <code>curl -s https://example.com/llms.txt | head -c 200</code> should return Markdown bytes, not <code>&lt;!doctype</code>.</p>
+
+    <h2 id="what-belongs">5. What belongs in the file</h2>
+    <p>Every line must satisfy two gates: it is already published in public HTML, and a stranger can verify it by opening one link. The minimal useful set is:</p>
+    <ul>
+      <li><strong>Brand name and one-sentence definition</strong> — the same string that appears in the homepage H1 or meta description. No superlatives.</li>
+      <li><strong>Canonical site URL</strong> — one line, not a paragraph. Example: <code>Site: https://example.com/</code> or the H1 itself if the brand name resolves.</li>
+      <li><strong>Official resources (4–8 links):</strong> product, pricing, docs, contact, plus at most two editorial hubs (blog, changelog, status). Each label is stable across deploys.</li>
+      <li><strong>Verified facts (3–6 bullets):</strong> markets served, compliance posture, plan names, or integration claims — each paired with the page that states it. If the fact lives only in a slide deck, it does not go in.</li>
+    </ul>
+    <p>Keep the file under 5 KB. A crawler that already struggles with your homepage will not benefit from a 2,000-word manifesto. Short, link-dense files get fetched, cached, and chunked more reliably than long essays.</p>
+    <p>Alignment check: <code>Organization.name</code> and <code>Organization.description</code> in your JSON-LD, the homepage hero, and the llms.txt H1 + blockquote should be identical or trivially reconcilable. A reviewer diffing the three should see no drift.</p>
+
+    <h2 id="anti-patterns">6. What to leave out — anti-patterns</h2>
+    <p>Most llms.txt failures are not syntax errors; they are trust errors. These patterns reliably cause a reviewer or retrieval system to discount the file.</p>
+
+    <h3>Stale pricing (the top failure)</h3>
+    <p>Copying a pricing table into llms.txt and then updating the pricing page but not the file is the fastest way to teach a crawler that your index is unreliable. If you must mention pricing, do it as a pointer, not a copy:</p>
+    <pre><code>- Pricing: https://example.com/pricing — plans, billing interval, and current prices live on this page.</code></pre>
+    <p>Never write <code>- Pro: $49/mo</code> in llms.txt unless that line is generated from the same source that renders the pricing page, atomically on the same deploy. CiteAura treats any naked price in llms.txt without a co-deployed pricing-page change as a validation failure.</p>
+
+    <h3>Other anti-patterns</h3>
+    <ul>
+      <li><strong>Unverifiable claims:</strong> Awards, traffic numbers, or “#1 in AI search” without a public page that states the methodology. Leave them out.</li>
+      <li><strong>Competitor attacks:</strong> Factual comparison copy you would publish on a <code>/compare</code> page is fine; ad-hominem or un-sourced claims are not.</li>
+      <li><strong>Private and staging routes:</strong> <code>/admin</code>, <code>staging.example.com</code>, login-walled docs, Notion links, or PDFs behind auth. If the URL requires a cookie, the crawler cannot verify it.</li>
+      <li><strong>Slogan soup:</strong> Lists of adjectives with no links. Every line without a URL is a line a model must take on faith.</li>
+      <li><strong>Duplicated sitemaps:</strong> Dumping 200 URLs into llms.txt adds no value over <code>sitemap.xml</code>. The file is a curated index, not an enumeration.</li>
+      <li><strong>Locale forking:</strong> Do not create <code>/fr/llms.txt</code> alongside the root file with conflicting facts. Link to <code>https://example.com/fr/</code> inside the single root file instead.</li>
+      <li><strong>SEO bait and switch:</strong> Keywords in llms.txt that do not appear in HTML. Consistency checks will flag the mismatch.</li>
+    </ul>
+    <div class="blog-callout">
+      <p><strong>Rule of thumb:</strong> If you would not keep the line correct for 90 days without thinking about it, it does not belong. Facts rot; links to living pages do not.</p>
+    </div>
+
+    <h2 id="validation">7. Zod-like validation before deploy</h2>
+    <p>A short file is easy to review by eye once. It is easy to break silently on every deploy after that. Validate the file in CI the same way you validate an API schema: parse, check structure, assert invariants, fail the build.</p>
+    <p>Invariants to enforce:</p>
+    <ul>
+      <li>Exactly one H1, starts with <code># </code>, length 2–60 chars, matches your brand registry.</li>
+      <li>One blockquote line directly after H1, 20–200 chars, no links inside the quote.</li>
+      <li>H2 sections from an allow-list: <code>Official resources</code>, <code>Verified facts</code>, <code>Optional</code>. No other H2 unless explicitly added to the allow-list.</li>
+      <li>Every list item contains an absolute <code>https://</code> URL on the canonical host or allow-listed subdomain. No relative links, no http, no bare domains.</li>
+      <li>Every Verified facts bullet contains a <code>— see https://</code> suffix or an inline link. No orphan claims.</li>
+      <li>No forbidden sections: <code>Pricing</code> as a standalone H2 with naked prices is rejected — use a link instead.</li>
+      <li>File is UTF-8, LF, ends with newline, under 5 KB.</li>
+    </ul>
+    <p>Example validation with Zod (TypeScript). Adapt the schema to your stack, but keep the same predicates:</p>
+    <pre><code>import { z } from "zod";
+
+const CanonicalUrl = z.string().url().refine(
+  (u) =&gt; u.startsWith("https://example.com/") || u.startsWith("https://status.example.com/"),
+  "URL must be on the canonical host or allow-list"
+);
+
+const LlmsTxt = z.object({
+  h1: z.string().min(2).max(60),
+  tagline: z.string().min(20).max(200),
+  sections: z.array(z.object({
+    heading: z.enum(["Official resources", "Verified facts", "Optional"]),
+    items: z.array(z.object({
+      label: z.string().min(2).max(80),
+      url: CanonicalUrl,
+      hint: z.string().max(120).optional(),
+      source: z.string().url().optional(), // required for Verified facts
+    })).min(1).max(12),
+  })),
+  raw: z.string().max(5120).refine(s =&gt; s.endsWith("\n"), "must end with newline")
+    .refine(s =&gt; !s.includes("\r"), "LF only")
+    .refine(s =&gt; (s.match(/^# /gm) || []).length === 1, "exactly one H1"),
+});
+
+// Usage in CI: parse Markdown to LlmsTxt shape, then LlmsTxt.parse(obj).
+// Extra checks: fetch every URL, assert 200, assert claim substring in HTML.
+
+const FORBIDDEN = [/^\$\d+/, /#1 in/i, /staging\./i];
+function noForbidden(s: string) {
+  for (const re of FORBIDDEN) if (re.test(s)) throw new Error(`Forbidden pattern ${re} in: ${s}`);
+}
+</code></pre>
+    <p>For Python pipelines (closer to the CiteAura engine style), the same checks translate to <code>pydantic</code> or plain regex guards in <code>scripts/validate_llms.py</code>. The important move is not the library — it is failing the deploy when the file drifts.</p>
+    <p>Live link checks should run after the preview deploy, not just on the Markdown string. Fetch each URL, assert <code>200</code>, assert the response is <code>text/html</code> with the claim substring, and assert <code>robots.txt</code> does not block the path for the crawler you care about.</p>
+
+    <h2 id="pipeline">8. Generation pipeline: from fact library to file</h2>
+    <p>Hand-editing llms.txt scales to one site and one owner. Teams need a pipeline that treats the file as a built artifact, not a hand-maintained page.</p>
+    <p><strong>Source of truth: the brand fact library.</strong> In CiteAura this is the same registry that feeds JSON-LD, homepage copy, and the brand fact pack: brand name, canonical URL, one-sentence definition, resource links, and a small set of verified facts each paired with a source URL. Facts that lack a source URL cannot be selected for llms.txt — the UI disables the toggle.</p>
+    <p><strong>Pipeline steps (single deploy, atomic):</strong></p>
+    <ol>
+      <li><strong>Collect:</strong> read the fact library (stored alongside <code>work/&lt;tenant&gt;/&lt;slug&gt;/brand.json</code> or your CMS). Resolve canonical host, resource list, and enabled facts.</li>
+      <li><strong>Filter:</strong> drop any fact whose source URL is not 200 at build time, any resource whose target is not public, and any label that fails the Zod schema. Emit warnings, not silent drops.</li>
+      <li><strong>Render:</strong> template to Markdown. Keep the renderer trivial — string interpolation, no Markdown library — so the output is deterministic.
+        <pre><code># ${brand.name}
+
+&gt; ${brand.tagline}
+
+## Official resources
+${resources.map(r =&gt; `- [${r.label}](${r.url}): ${r.hint}`).join("\n")}
+
+## Verified facts
+${facts.map(f =&gt; `- ${f.claim} — see ${f.source}`).join("\n")}
+
+## Optional
+${optional.map(r =&gt; `- [${r.label}](${r.url}): ${r.hint}`).join("\n")}
+</code></pre>
+      </li>
+      <li><strong>Validate:</strong> run the Zod/pydantic schema and live link checks against the preview URL. Fail if any invariant breaks.</li>
+      <li><strong>Write:</strong> emit <code>public/llms.txt</code> (or <code>dist/llms.txt</code>) as UTF-8 LF. Do not pretty-print, do not inject build metadata comments.</li>
+      <li><strong>Deploy atomically:</strong> the file ships in the same artifact as the HTML it indexes. No separate manual upload that can lag behind a pricing change.</li>
+    </ol>
+    <p>Keep the pipeline stateless. The file at <code>https://example.com/llms.txt</code> should be reproducible from the commit that produced the HTML. If you cannot regenerate the file from <code>main</code> without a manual step, the next on-call rotation will ship a stale file.</p>
+    <p><strong>Scheduling:</strong> rebuild on every content deploy, not on a cron. A nightly cron that regenerates the file without re-validating HTML consistency recreates the stale-pricing problem on a timer.</p>
+
+    <h2 id="deploy">9. Deployment</h2>
+    <p>Ship the file the same way you ship HTML: as part of the build artifact, cached at the edge, purged on deploy.</p>
+    <ul>
+      <li><strong>Static hosts (S3, GCS, Netlify):</strong> include <code>llms.txt</code> in the upload set. Set <code>Content-Type</code> explicitly on upload; object storage will not infer <code>charset=utf-8</code>.</li>
+      <li><strong>CDN (Cloudflare, Fastly, CloudFront):</strong> add an explicit cache rule for the path. After deploy, purge <code>/llms.txt</code> by URL. Do not rely on TTL alone if you change pricing mid-day.</li>
+      <li><strong>Container / Nginx:</strong> bake the file into the image at <code>/usr/share/nginx/html/llms.txt</code> or mount it from the same volume as the rendered site. A sidecar that writes the file after the container starts introduces a race.</li>
+      <li><strong>Preview deploys:</strong> do not expose <code>llms.txt</code> on preview hosts with the production canonical URL inside. Either omit the file on previews or render it with the preview host as canonical and block indexing via <code>X-Robots-Tag: noindex</code>.</li>
+    </ul>
+    <p>Do not gate the path behind authentication, A/B middleware, or geo-blocking. A crawler from <code>us-east-1</code> must see the same bytes as a browser in Berlin. If you run edge personalization, exclude <code>/llms.txt</code> and <code>/llms-full.txt</code> from the variant logic.</p>
+
+    <h2 id="verify">10. Verification: curl and CI</h2>
+    <p>Verification has two layers: the file is correctly served, and its claims still match the live site. Both belong in CI and in a post-deploy smoke check.</p>
+
+    <h3>Manual curl checks (run after every deploy)</h3>
+    <pre><code># 1. Status, content-type, and cache headers
+curl -i https://example.com/llms.txt
+
+# Expected:
+# HTTP/2 200
+# content-type: text/plain; charset=utf-8
+# cache-control: public, max-age=3600, stale-while-revalidate=86400
+# x-content-type-options: nosniff
+
+# 2. Body sanity — no HTML wrapper
+curl -s https://example.com/llms.txt | head -n 20
+# Should start with "# Brand Name" and "&gt; "
+
+# 3. No redirect on the canonical host (www should redirect, canonical should not)
+curl -i https://www.example.com/llms.txt
+# Expected: 301 to https://example.com/llms.txt if apex is canonical
+
+# 4. Every link in the file returns 200 and is not blocked by robots
+grep -oE 'https://[^) ]+' https://example.com/llms.txt | while read url; do
+  echo "→ $url"
+  curl -s -o /dev/null -w "%{http_code} %{content_type}\n" "$url"
+done
+
+# 5. Robots allows the file and its targets for the crawler you care about
+curl -s https://example.com/robots.txt | grep -i -A2 -B2 "llms"
+curl -s https://example.com/robots.txt | grep -i "gptbot"
+
+# 6. Charset and line endings
+curl -s https://example.com/llms.txt | file -
+# Expected: ASCII text, with very long lines, UTF-8 Unicode text
+curl -s https://example.com/llms.txt | cat -A | head -n 5
+# Lines should end with $ (LF), not ^M$ (CRLF)
+</code></pre>
+
+    <h3>CI smoke (fail the pipeline if any check fails)</h3>
+    <pre><code>#!/usr/bin/env bash
+set -euo pipefail
+HOST="https://example.com"
+FILE="$HOST/llms.txt"
+
+# headers
+ctype=$(curl -s -D - "$FILE" -o /tmp/llms.txt | tr -d '\r' | grep -i '^content-type:' | cut -d' ' -f2-)
+[[ "$ctype" == "text/plain; charset=utf-8"* ]] || { echo "bad content-type: $ctype"; exit 1; }
+
+# shape
+grep -q '^# ' /tmp/llms.txt || { echo "missing H1"; exit 1; }
+[[ $(grep -c '^# ' /tmp/llms.txt) -eq 1 ]] || { echo "more than one H1"; exit 1; }
+grep -q '^&gt; ' /tmp/llms.txt || { echo "missing blockquote tagline"; exit 1; }
+grep -q '^## Official resources' /tmp/llms.txt || { echo "missing Official resources"; exit 1; }
+
+# size
+bytes=$(wc -c &lt; /tmp/llms.txt)
+(( bytes &lt; 5120 )) || { echo "file too large: $bytes bytes"; exit 1; }
+
+# links
+grep -oE 'https://[^) ]+' /tmp/llms.txt | while read url; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+  [[ "$code" == "200" ]] || { echo "broken link $url: $code"; exit 1; }
+done
+
+echo "llms.txt OK ($bytes bytes)"
+</code></pre>
+    <p>Run the CI check against the preview deploy URL before promoting to production, and again against production after promotion. A file that passes in preview but fails in production means the CDN is serving a stale cached copy — purge and re-check.</p>
+
+    <h2 id="citeaura">11. How CiteAura drafts it</h2>
+    <p>The CiteAura workspace generates a draft from the brand fact library so you never hand-copy a claim. Open <strong>Execution → Assets</strong>, enable the resources and verified facts you want indexed, and preview the rendered Markdown. The UI enforces the same schema described above: one H1, allow-listed H2s, absolute https URLs, and a required source per fact. Unsupported claims are shown as disabled toggles with the reason (“no public source page”).</p>
+    <p>Review every line before you publish. Remove any fact you would not defend on a call with a customer, confirm every URL is public and 200, and delete the Optional section if you have nothing stable to put there. Deploy the file yourself — the workspace does not push to your origin. After deploy, run the curl checks above and trigger a re-crawl from the verification panel; verification checks that the path returns <code>text/plain</code> and that its links are reachable, not that a model consumed it.</p>
+    <p><span>Product steps are in</span> <a href="/docs#llms-txt">Using /llms.txt</a><span>. Thin official facts are a separate problem:</span> <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT Does Not Mention Your Brand</a><span>.</span></p>
+
+    <h2 id="limits">12. Publishing llms.txt does not guarantee mentions</h2>
+    <p>A clean file can help a retrieval-enabled sample find official wording without scraping a heavy homepage. It does not guarantee that ChatGPT, Claude, Perplexity, or any other model will mention, cite, or rank the brand. Models vary in whether they fetch the file, how they chunk it, and how they weigh it against other sources.</p>
+    <p>Treat llms.txt as one official summary next to the HTML that already has to be extractable. If the homepage is blocked by robots, if the pricing page disagrees with the index, or if the only source for a claim is the index itself, the index will be ignored — correctly. The file earns trust by staying small, correct, and boring. Keep it that way and it compounds; let it drift and it teaches every crawler to skip you.</p>
+    <p>If GPTBot cannot reach the homepage at all, fix crawl access first. See <a href="/blog/gptbot-blocked-by-robots-txt">GPTBot Blocked by robots.txt? Find and Fix the Rule</a>.</p>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
-      <h2 id="faq-heading" data-i18n="guide.faq_title">FAQ: publishing llms.txt</h2>
-      <h3 data-i18n="public.g4.faq1_q">What should not go in llms.txt?</h3>
-      <p data-i18n="public.g4.faq1_a">Leave out private routes, staging URLs, login-only content, credentials, and claims that are not supported by an official public page.</p>
-      <h3 data-i18n="public.g4.faq2_q">Does llms.txt guarantee AI mentions?</h3>
-      <p data-i18n="public.g4.faq2_a">No. It is an optional discovery convention. A reachable file does not prove that a model read it or will mention the brand.</p>
-      <h3 data-i18n="public.g4.faq3_q">Where should llms.txt be published?</h3>
-      <p data-i18n="public.g4.faq3_a">Publish it as plain text at the canonical site root, for example <code>https://example.com/llms.txt</code>, and keep its links public.</p>
+      <h2 id="faq-heading">FAQ: publishing llms.txt</h2>
+      <h3>What should not go in llms.txt?</h3>
+      <p>Leave out private routes, staging URLs, login-only content, credentials, and claims that are not supported by an official public page. Never duplicate pricing as bare numbers — link to <code>/pricing</code> instead. If the source page changes, the file would otherwise go stale and break trust.</p>
+      <h3>Does llms.txt guarantee AI mentions?</h3>
+      <p>No. It is an optional discovery convention. A reachable file does not prove that a model read it or will mention the brand. Verify what you can: the file is <code>text/plain; charset=utf-8</code>, every link is 200, and every claim appears in HTML.</p>
+      <h3>Where should llms.txt be published?</h3>
+      <p>Publish it as plain text at the canonical site root, for example <code>https://example.com/llms.txt</code>, and keep its links public. Serve it from the single canonical host (apex or www), allow anonymous GET, and return <code>Cache-Control</code> that matches how often facts change. Purge the CDN on deploy.</p>
+      <h3>How do I validate llms.txt before deploy?</h3>
+      <p>Parse the Markdown in CI, enforce one H1 plus allow-listed H2s, assert every URL is absolute https on your canonical host, require a source URL per fact, and reject naked pricing or forbidden patterns. Then fetch every URL from the preview deploy and assert 200 plus claim presence. Fail the build on any violation.</p>
     </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">
-      <h2 id="related-guides" data-i18n="guide.related_h2">Related guides</h2>
+      <h2 id="related-guides">Related guides</h2>
       <ul>
-        <li><a href="/blog/gptbot-blocked-by-robots-txt" data-i18n="g3.h1">How to fix a GPTBot robots.txt block</a></li>
-        <li><a href="/blog/why-chatgpt-does-not-mention-my-brand" data-i18n="g2.h1">Why ChatGPT does not mention a brand</a></li>
+        <li><a href="/blog/gptbot-blocked-by-robots-txt">How to fix a GPTBot robots.txt block</a></li>
+        <li><a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT does not mention a brand</a></li>
         <li><a href="/ai-visibility-audit">AI visibility audit workflow</a></li>
       </ul>
     </aside>
 
-    <h2 data-i18n="guide.sources_h2">Sources</h2>
+    <h2>Sources</h2>
     <ul>
-      <li><a href="https://llmstxt.org/" rel="noopener noreferrer" data-i18n="public.g4.source1_name">llmstxt.org</a> — <span data-i18n="public.g4.source1">the proposed /llms.txt convention for a plain-text facts index at the site root.</span></li>
-      <li><a href="https://github.com/AnswerDotAI/llms-txt" rel="noopener noreferrer" data-i18n="public.g4.source2_name">Answer.AI llms-txt repository</a> — <span data-i18n="public.g4.source2">file format notes and examples.</span></li>
-      <li><a href="https://schema.org/Organization" rel="noopener noreferrer" data-i18n="public.g4.source3_name">Schema.org Organization</a> — <span data-i18n="public.g4.source3">official name and description should match the HTML and JSON-LD, not only the text file.</span></li>
-      <li><a href="https://www.robotstxt.org/robotstxt.html" rel="noopener noreferrer" data-i18n="public.g4.source4_name">robots.txt specification</a> — <span data-i18n="public.g4.source4">if GPTBot cannot reach the homepage, fix crawl access before relying on /llms.txt.</span></li>
+      <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — the proposed /llms.txt convention for a plain-text facts index at the site root.</li>
+      <li><a href="https://github.com/AnswerDotAI/llms-txt" rel="noopener noreferrer">Answer.AI llms-txt repository</a> — file format notes and examples.</li>
+      <li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — official name and description should match the HTML and JSON-LD, not only the text file.</li>
+      <li><a href="https://www.robotstxt.org/robotstxt.html" rel="noopener noreferrer">robots.txt specification</a> — if GPTBot cannot reach the homepage, fix crawl access before relying on /llms.txt.</li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type" rel="noopener noreferrer">MDN: Content-Type</a> — why <code>text/plain; charset=utf-8</code> is the interoperable choice for plain-text indexes.</li>
+      <li><a href="https://zod.dev/" rel="noopener noreferrer">Zod</a> — schema validation pattern used for pre-deploy checks.</li>
     </ul>
 
     <div class="blog-cta">
-      <p data-i18n="public.g4.cta">Draft llms.txt from official facts, review every claim, and publish it only at the canonical root.</p>
-      <a class="btn btn-primary" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
+      <p>Draft llms.txt from official facts, validate the Markdown shape, and publish it only at the canonical root.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
     </div>
   </article>
 
