@@ -24,6 +24,7 @@ from api.adapters.delivery_generated_assets import (
     _write_facts_asset,
     render_english_generated_assets,
 )
+from api.adapters.delivery_evidence import write_evidence
 
 def _write_document(directory, number, markdown, cards):
     name = REQUIRED_DOCUMENTS[number]
@@ -180,6 +181,11 @@ def validate_delivery_quality(directory, audit, tickets, asset_index):
         *(f"{number}-{name}.md" for number, name in REQUIRED_DOCUMENTS.items()),
         *(f"{number}-{name}.html" for number, name in REQUIRED_DOCUMENTS.items()),
         "03-Ticket-Log.csv",
+        "07-Evidence/raw-ai-answers.jsonl",
+        "07-Evidence/raw-ai-answers.html",
+        "07-Evidence/citation-evidence.csv",
+        "08-Before-After/visibility-delta.md",
+        "08-Before-After/visibility-delta.html",
     ]
     issues.extend(f"Missing required document: {name}" for name in required if not (directory / name).is_file())
 
@@ -257,7 +263,7 @@ def validate_delivery_quality(directory, audit, tickets, asset_index):
     }
 
 
-def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint, asset_index):
+def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint, asset_index, evidence):
     coverage = blueprint.get("coverage") or {}
     assets = asset_index.get("assets") or []
     asset_summary = asset_index.get("summary") or {}
@@ -371,6 +377,12 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         "Do not treat unmeasured visibility or unfinished outlines as a reason to withhold this pack.",
         "Sampling results must retain their stated mode: API - Parametric knowledge, API - Search grounded, or Manual - Product interface.",
         "",
+        "## Evidence",
+        "",
+        f"- Raw AI answer records: `07-Evidence/raw-ai-answers.html` ({evidence.get('records', 0)} records)",
+        "- Citation evidence: `07-Evidence/citation-evidence.csv`",
+        f"- Before/after comparison: `08-Before-After/visibility-delta.html` ({'comparable' if evidence.get('comparable') else 'not available for this cycle'})",
+        "",
     ]
     markdown = "\n".join(lines)
     (directory / "index.md").write_text(markdown, "utf-8")
@@ -410,6 +422,8 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
         "- `04-Acceptance-Checklist`: current automated and manual verification state.",
         "- `05-Draft-Risks`: publication risks for implementation assets, not diagnostic defects.",
         "- `06-Build-Map`: channel and target-query content architecture.",
+        "- `07-Evidence`: filtered raw AI answers and citation evidence for audit traceability.",
+        "- `08-Before-After`: comparable visibility delta when the cohort contract is satisfied; otherwise an explicit unavailable notice.",
         "- `assets/`: classified as ready, needs review, or template in `assets/index.json`.",
         "- `assets/llms.en.txt`: English facts index to publish at `/llms.txt`.",
         "",
@@ -491,6 +505,7 @@ def _build_delivery(
     risk_summary = _risk_summary(lint, asset_index)
     risk_markdown = _risk_markdown(name, lint, asset_index)
     build_map_markdown = _build_map_markdown(name, blueprint)
+    evidence = write_evidence(project_directory, config, directory, name)
 
     _write_document(directory, "01", audit_markdown, [
         ("Applicable Site Score", _score_result_label(
@@ -528,7 +543,7 @@ def _build_delivery(
     (directory / "assets" / "index.json").write_text(
         json.dumps(asset_index, ensure_ascii=False, indent=2) + "\n", "utf-8",
     )
-    _write_index(directory, name, site, delivery_date, display_audit, tickets, blueprint, asset_index)
+    _write_index(directory, name, site, delivery_date, display_audit, tickets, blueprint, asset_index, evidence)
     apply_delivery_branding(directory)
     validate_delivery_language(directory)
 

@@ -154,6 +154,9 @@ def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypa
         *(f"{number}-{name}.md" for number, name in delivery.REQUIRED_DOCUMENTS.items()),
         *(f"{number}-{name}.html" for number, name in delivery.REQUIRED_DOCUMENTS.items()),
         "03-Ticket-Log.csv", "README.md", "index.md", "index.html", "assets/index.json",
+        "07-Evidence/raw-ai-answers.jsonl", "07-Evidence/raw-ai-answers.html",
+        "07-Evidence/citation-evidence.csv",
+        "08-Before-After/visibility-delta.md", "08-Before-After/visibility-delta.html",
     }
     files = {path.relative_to(output).as_posix() for path in output.rglob("*") if path.is_file()}
     assert expected <= files
@@ -171,6 +174,12 @@ def test_delivery_contract_rebuilds_legacy_package_in_english(tmp_path, monkeypa
     assert "## Measurement and delivery assets" in execution
     assert "Add sitemap.xml and submit it to international search engines" in (output / "03-Ticket-Log.md").read_text("utf-8")
     assert "Current value: 1; target: at most 0." in (output / "04-Acceptance-Checklist.md").read_text("utf-8")
+    evidence = json.loads((output / "07-Evidence/raw-ai-answers.jsonl").read_text("utf-8").splitlines()[0])
+    assert evidence["question"] == "What is Example?"
+    assert evidence["answer"] == "Example is an AI visibility platform."
+    assert "request_id" not in evidence
+    assert "usage" not in evidence
+    assert "Comparison unavailable for this cycle" in (output / "08-Before-After/visibility-delta.md").read_text("utf-8")
     assert delivery.delivery_language_violations(output) == []
 
 
