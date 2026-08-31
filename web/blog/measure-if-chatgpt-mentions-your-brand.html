@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Measuring ChatGPT Brand Mentions: Cohort Design, Sampling Modes, and Mention Rate | CiteAura</title>
+  <title>How to Measure ChatGPT Brand Mentions: A Practical Guide | CiteAura</title>
   <meta name="description" content="Engineering guide to measuring ChatGPT brand mentions: fixed cohort design, three sampling modes, raw answer JSON, regex mention detection, mention_rate formula, binomial variance, and failure modes. By Alex Chen, Staff Engineer, GEO Measurement.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
@@ -191,7 +191,7 @@
 
     <header class="blog-header">
       <span class="blog-kicker">Measurement — Engineering Guide</span>
-      <h1>Measuring ChatGPT Brand Mentions: Cohort Design, Sampling Modes, and Mention Rate</h1>
+      <h1>How to Measure ChatGPT Brand Mentions</h1>
       <p class="blog-lead">One ChatGPT answer is a single draw from a stochastic generator, not a measurement. A defensible number requires a fixed question cohort, labeled sampling mode, raw JSON traces, and a deterministic match rule. This guide shows the data model, detection code, and variance math we use at CiteAura.</p>
       <div class="blog-author-card" style="display:flex;gap:12px;align-items:center;margin:14px 0 8px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface-1);">
         <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;">AC</div>
@@ -201,6 +201,7 @@
         </div>
       </div>
       <p class="blog-meta">Updated 20 August 2026 · 12 min read · Technical</p>
+      <p class="blog-byline">By CiteAura Editorial Team</p>
     </header>
 
     <h2>Why one answer is not a measurement</h2>
@@ -233,7 +234,7 @@
     <table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0;">
       <thead><tr style="background:var(--surface-1);text-align:left;"><th style="padding:8px;border:1px solid var(--border);">Mode</th><th style="padding:8px;border:1px solid var(--border);">How it is produced</th><th style="padding:8px;border:1px solid var(--border);">What it measures</th><th style="padding:8px;border:1px solid var(--border);">Citations?</th></tr></thead>
       <tbody>
-        <tr><td style="padding:8px;border:1px solid var(--border);"><strong>API · Parametric</strong><br><code>api_param</code></td><td style="padding:8px;border:1px solid var(--border);">Provider API, no web-search tool, no browsing</td><td style="padding:8px;border:1px solid var(--border);">Model's parametric knowledge at cutoff</td><td style="padding:8px;border:1px solid var(--border);">No</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);"><strong>API · Model knowledge</strong><br><code>api_param</code></td><td style="padding:8px;border:1px solid var(--border);">Provider API, no web-search tool, no browsing</td><td style="padding:8px;border:1px solid var(--border);">Model's parametric knowledge at cutoff</td><td style="padding:8px;border:1px solid var(--border);">No</td></tr>
         <tr><td style="padding:8px;border:1px solid var(--border);"><strong>API · Web-grounded</strong><br><code>api_grounded</code></td><td style="padding:8px;border:1px solid var(--border);">Provider API with <code>web_search</code> / browsing tool enabled</td><td style="padding:8px;border:1px solid var(--border);">Knowledge + live retrieval</td><td style="padding:8px;border:1px solid var(--border);">Sometimes — source URLs when retrieval fires</td></tr>
         <tr><td style="padding:8px;border:1px solid var(--border);"><strong>Manual · Product</strong><br><code>manual_product</code></td><td style="padding:8px;border:1px solid var(--border);">Transcript from chat.openai.com or ChatGPT mobile app</td><td style="padding:8px;border:1px solid var(--border);">Consumer product behavior (includes memory, custom instructions, search toggle)</td><td style="padding:8px;border:1px solid var(--border);">Depends on UI toggle</td></tr>
       </tbody>

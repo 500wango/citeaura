@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Why ChatGPT Does Not Mention Your Brand: 4 Diagnostic Buckets | CiteAura</title>
+  <title>Why ChatGPT Misses Your Brand: 4 Diagnostic Buckets | CiteAura</title>
   <meta name="description" content="Technical diagnosis for ChatGPT missing-brand cases: views crawl access, JS extractability, WAF challenges, thin facts, and measurement variance — with curl verification and ticket mapping.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
@@ -27,6 +27,7 @@
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="CiteAura guides — field notes on AI visibility.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Why ChatGPT Does Not Mention Your Brand | CiteAura">
   <meta name="twitter:description" content="Crawl access, extractability, thin facts, and noisy cohorts — diagnose before rewriting.">
@@ -85,6 +86,7 @@
       <h1>Why ChatGPT Does Not Mention Your Brand</h1>
       <p class="blog-lead">A missing mention looks the same in the chat window whether the cause is a crawler block, a JavaScript shell, a WAF challenge, or simply a thin public record. This guide separates those four buckets with concrete checks you can run today — curl, view-source, and header audits — so you ship a ticket with evidence, not a rewrite on a hunch. We also show when “not mentioned” is sampling variance and not a site defect.</p>
       <p class="blog-meta">Updated 1 September 2026 · 12 min read · Technical guide</p>
+      <p class="blog-byline">By CiteAura Editorial Team</p>
       <p class="blog-byline">By <strong>Sarah Kim — Site Diagnostics Lead</strong> · CiteAura Engineering · 9 years crawling and indexing diagnostics for B2B SaaS</p>
       <div class="author-card" style="display:flex;gap:12px;align-items:center;margin:16px 0;padding:12px;border:1px solid var(--border);border-radius:8px;">
         <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:grid;place-items:center;color:white;font-weight:700;">SK</div>
@@ -107,7 +109,7 @@
       </ol>
     </nav>
 
-    <h2 id="bucket">The 4 buckets — pick one before you edit</h2>
+    <h2 id="bucket" data-i18n="public.g2.sec1_h2">The 4 buckets — pick one before you edit</h2>
     <p>Every “ChatGPT skipped us” case we triage falls into one of four buckets. Name the bucket first, then fix the bucket.</p>
     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
       <thead><tr style="background:var(--surface-2)"><th style="border:1px solid var(--border);padding:8px;text-align:left;">Bucket</th><th style="border:1px solid var(--border);padding:8px;">Signal in logs/audit</th><th style="border:1px solid var(--border);padding:8px;">Fix owner</th></tr></thead>
@@ -160,7 +162,7 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
     <p>Rule: any claim you want cited must exist as HTML prose on a public route with a stable URL. If it only lives in a sales deck, it does not exist for retrieval.</p>
 
     <h2 id="variance">Variance vs defect — when not to rewrite</h2>
-    <p>Avoid reacting to a single chat. Repeat the same 10–20 questions, same market/language, same sampling mode (<code>API · Model knowledge</code> vs <code>API · Web-grounded</code> vs <code>Manual · Product surface</code>). Compute mention rate as <code>mentioned / successful</code> per cohort. See <a href="/blog/measure-if-chatgpt-mentions-your-brand">How to Measure ChatGPT Brand Mentions</a> for cohort and Wilson interval method.</p>
+    <p>Avoid reacting to a single chat. Repeat the same 10–20 questions, same market/language, same sampling mode (<code>API · Model knowledge</code> vs <code>API · Web-grounded retrieval</code> vs <code>Manual · Product surface</code>). Compute mention rate as <code>mentioned / successful</code> per cohort. See <a href="/blog/measure-if-chatgpt-mentions-your-brand">How to Measure ChatGPT Brand Mentions</a> for cohort and Wilson interval method.</p>
     <ul>
       <li><strong>Variance:</strong> 3/15 one day, 9/15 next day on same cohort → inspect cohort size, increase n to 45, then re-evaluate.</li>
       <li><strong>Defect:</strong> 0/45 across 3 runs with stable questions → go to buckets 1–4 and open tickets.</li>
