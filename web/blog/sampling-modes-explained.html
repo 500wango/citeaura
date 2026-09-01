@@ -178,12 +178,12 @@
     </ul>
     <p>A monitoring tool that silently blends these modes will report random fluctuations, leaving developers unable to tell whether their deployment succeeded or failed.</p>
 
-    <h2>Controlling LLM Sampling Variance</h2>
-    <p>Large language models are inherently non-deterministic. CiteAura applies three scientific controls to ensure statistical reliability:</p>
+    <h2>Controlling Sampling Variance: CiteAura's Measurement Protocol</h2>
+    <p>Large language models are non-deterministic. To ensure reproducible diagnostic data, CiteAura implements a standardized 3-part measurement protocol:</p>
     <ol>
-      <li><strong>Low Temperature Settings:</strong> Setting temperature between 0.1 and 0.3 reduces creative hallucinations while preserving realistic linguistic variations.</li>
-      <li><strong>Fixed Prompt Cohorts:</strong> Instead of ad-hoc single queries, evaluations run across fixed cohorts of 20–30 high-intent buyer questions.</li>
-      <li><strong>Multi-Round Sampling:</strong> Each prompt is sampled across at least 3 distinct runs per engine to calculate statistically stable mention and citation rates.</li>
+      <li><strong>Controlled Temperature Protocol:</strong> In CiteAura audit runs, API temperature is pinned between 0.1 and 0.3 to reduce generation randomness while reflecting realistic linguistic variance.</li>
+      <li><strong>Fixed Cohort Sampling:</strong> CiteAura structures diagnostic evaluations around curated cohorts of 20–30 high-intent buyer queries per project.</li>
+      <li><strong>Multi-Round Replication:</strong> CiteAura executes 3 distinct sampling runs per prompt and engine to calculate statistically stable mention and citation percentages.</li>
     </ol>
 
     <h2>CiteAura's Data Honesty Standard</h2>

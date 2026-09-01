@@ -192,12 +192,12 @@
         assert res.headers["content-type"].startswith("text/plain")
         return TicketStatus.VERIFIED</code></pre>
 
-    <h2>Measuring Before-and-After Citation Deltas</h2>
-    <p>Once deployment verification passes, CiteAura initiates an automated re-sampling run across your defined prompt cohort under <code>API · Web Retrieval</code> mode to record the measurable business impact:</p>
+    <h2>Measuring Before-and-After Citation Deltas (Illustrative Diagnostic Run)</h2>
+    <p>Once deployment verification passes, CiteAura initiates an automated re-sampling run across your defined prompt cohort under <code>API · Web Retrieval</code> mode to record the delta. Below is an illustrative example from a diagnostic run after unblocking search crawlers and deploying structured tables:</p>
     <ul>
       <li><strong>Baseline Cohort (Pre-fix):</strong> Mention Rate: 15.0% | Citation Rate: 0.0%</li>
       <li><strong>Verification Cohort (Post-fix):</strong> Mention Rate: 65.0% | Citation Rate: 45.0%</li>
-      <li><strong>Delta:</strong> +50.0% Mention Rate | +45.0% Citation Rate</li>
+      <li><strong>Illustrative Delta:</strong> +50.0% Mention Rate | +45.0% Citation Rate</li>
     </ul>
 
     <h2>Continuous Regression Monitoring</h2>
