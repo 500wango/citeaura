@@ -188,7 +188,7 @@
     <header class="blog-header">
       <span class="blog-kicker" data-i18n="g3.kicker">Crawl access — infrastructure note</span>
       <h1 data-i18n="g3.h1">GPTBot Blocked by robots.txt? Find and Fix the Rule</h1>
-      <p class="blog-lead" data-i18n="g3.lead">GPTBot respects robots.txt, and a single over-broad <code>Disallow</code> can silently remove your product pages from OpenAI crawl, search, and ChatGPT browsing. This note dissects how the file is actually evaluated — longest-match path logic, User-agent precedence, Allow-vs-Disallow tie-breaking — and gives you copy-paste <code>curl -A</code> verification, Caddy and Cloudflare cache pitfalls, log analysis patterns, and a canonical-host checklist. CiteAura's site audit flags these blocks as ticketed findings so the fix ships instead of sitting in a wiki.</p>
+      <p class="blog-lead" data-i18n="g3.lead">GPTBot follows robots.txt, so one broad <code>Disallow</code> can keep product pages out of a crawler's view. This note walks through the parts that usually cause confusion — longest-match paths, User-agent precedence, and Allow-vs-Disallow ties — then gives you copy-paste <code>curl -A</code> checks, cache and canonical-host checks, and a way to read the logs. CiteAura's site audit can turn a detected block into a ticket with an acceptance check; your infrastructure team still makes the change.</p>
       <p class="blog-meta">Updated 20 August 2026 · 14 min read · Technical</p>
       <p class="blog-byline">By CiteAura Editorial Team</p>
       <p class="blog-byline">By <strong>David Park — Crawler Infrastructure</strong> · CiteAura Engineering</p>
@@ -539,7 +539,7 @@ echo "== 8. Canonical link matches robots host =="
 curl -sSL "https://${HOST}/pricing" | grep -i 'rel="canonical"' | head -n 1
 
 echo "== Done. If all public paths return 200 and robots diff is clean, purge Cloudflare and wait one crawler cache window (~24h) before re-testing in logs. =="</code></pre>
-    <p>Save this as <code>scripts/verify-robots.sh</code> in your repo and run it in CI after any deploy that touches the site root. The script is the acceptance check for the ticket CiteAura opens — it turns "I think I fixed robots.txt" into "I proved the canonical host serves the correct file to GPTBot and the public paths return 200."</p>
+    <p>Save this as <code>scripts/verify-robots.sh</code> in your repo and run it in CI after any deploy that touches the site root. It is a practical acceptance check you can attach to a CiteAura ticket: the canonical host serves the expected file to GPTBot and the public paths return 200.</p>
 
     <h2 id="related-crawlers">Related crawlers to check at the same time</h2>
     <ul>
@@ -551,7 +551,7 @@ echo "== Done. If all public paths return 200 and robots diff is clean, purge Cl
     <p><span>If the homepage is a JavaScript shell, opening robots is not enough. See</span> <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT Does Not Mention Your Brand</a> <span>for extractability checks after the crawler is allowed in.</span></p>
 
     <h2 id="citeaura-records">How CiteAura records the block</h2>
-    <p>The site audit fetches the live robots.txt from the canonical host — following the same redirect chain a crawler would — and parses it with RFC 9309 longest-match semantics per User-agent group. A GPTBot or OAI-SearchBot Disallow that covers <code>/</code>, <code>/products/</code>, <code>/pricing</code>, or other public product paths maps to an action ticket: the matching group, the winning rule, the affected URL set, and the exact curl that reproduces it. The ticket owns the verification step — re-run the curl suite above, purge the edge, and re-crawl so the re-audit can mark the acceptance check green.</p>
+    <p>The site audit fetches the live robots.txt from the canonical host, follows its redirects, and parses RFC 9309 longest-match semantics per User-agent group. A Disallow covering a public product path becomes an action ticket containing the matching group, winning rule, affected URLs, and a reproducible curl probe. Your team still updates the file and purges the edge; CiteAura records the re-crawl result and marks the acceptance check only when it passes.</p>
     <p>A blocked crawler is an infrastructure finding, not a content finding. It gets fixed before the content tickets (headings, facts, schema) because no content fix matters if the crawler never fetched the page. After you deploy, run verification so the re-crawl can close the loop. A separate AI sample cohort is required if you also want a new mention measurement — the site audit and the mention sample are different signals.</p>
     <p><span>Workspace steps are in</span> <a href="/docs#diagnostics">Audit &amp; Brand Inputs</a><span>. The homepage workflow is on</span> <a href="/">citeaura.com</a><span>.</span></p>
 

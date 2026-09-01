@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="public.meta.g5_title">White-Label GEO Diagnostic Reports for Agencies | CiteAura</title>
-  <meta name="description" content="Technical specification for white-label GEO diagnostic reports: delivery pack structure (6 docs + assets), white-label header injection, ticket lifecycle, verification evidence, agency workflow, pricing tiers, and client handoff checklist." data-i18n-content="public.meta.g5_description">
+  <meta name="description" content="Technical specification for white-label GEO diagnostic reports: delivery pack structure, evidence exports, before/after visibility, header injection, ticket lifecycle, agency workflow, and client handoff checklist." data-i18n-content="public.meta.g5_description">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/runtime-assets/theme-init.js"></script>
@@ -32,7 +32,7 @@
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="White-Label GEO Diagnostic Reports for Agencies | CiteAura" data-i18n-content="public.meta.g5_title">
-  <meta name="twitter:description" content="Technical spec for agency GEO diagnostic packs: 6-doc delivery structure, header injection, ticket lifecycle, and verification evidence." data-i18n-content="public.meta.g5_description">
+  <meta name="twitter:description" content="Technical spec for agency GEO diagnostic packs: reports, evidence exports, before/after visibility, header injection, ticket lifecycle, and verification." data-i18n-content="public.meta.g5_description">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
@@ -93,7 +93,7 @@
             "name": "What belongs in a white-label GEO diagnostic report?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Include site findings, labeled samples, action tickets, verification evidence, and clear readiness states for the audited client. CiteAura delivery packs formalize this as 6 documents plus implementation assets."
+              "text": "Include site findings, labeled samples, action tickets, verification evidence, before/after visibility, and clear readiness states for the audited client. CiteAura delivery packs formalize these as documents plus implementation assets."
             }
           },
           {
@@ -117,7 +117,7 @@
             "name": "How does white-label header injection work?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Agency branding is injected at build time via the Delivery → White-Label Branding configuration. The pipeline replaces the default cover header with agency name, logo, domain, and confidentiality notice across all 6 documents. No vendor branding remains in the client-facing ZIP."
+              "text": "Agency branding is injected at build time via the Delivery → White-Label Branding configuration. The pipeline replaces the default cover header with agency name, logo, domain, and confidentiality notice across the client-facing documents."
             }
           },
           {
@@ -216,8 +216,8 @@
       <p><strong>Invariant:</strong> A diagnostic ZIP is a snapshot. If the site, question set, audit parameters, or verification evidence change after the build timestamp, rebuild. The previous ZIP is historical evidence, not the current workspace.</p>
     </div>
 
-    <h2>2 — Delivery pack structure: 6 documents + assets</h2>
-    <p>CiteAura compiles the pack as a deterministic ZIP from the tenant workspace at <code>work/&lt;tenant&gt;/&lt;slug&gt;/delivery/</code>. The build reads the current <code>audit.json</code>, <code>tasks.json</code>, <code>metrics/</code>, and <code>delivery/</code> state and renders six documents plus an implementation assets folder. Every file carries the agency header (Section 3) and a build footer with timestamp, workspace slug, and SHA-256 content hashes.</p>
+    <h2>2 — Delivery pack structure: documents, evidence, and assets</h2>
+    <p>CiteAura compiles the pack as a deterministic ZIP from <code>work/&lt;tenant&gt;/&lt;slug&gt;/delivery/</code>. The build reads the current <code>audit.json</code>, <code>tasks.json</code>, <code>metrics/</code>, and <code>delivery/</code> state, then adds the numbered reports, implementation assets, filtered raw-answer evidence, and a comparable before/after visibility file when the runs match. Every file is part of a timestamped snapshot with workspace metadata and SHA-256 hashes.</p>
 
     <table style="width:100%; border-collapse:collapse; font-size:0.92em; margin: 1.2em 0;">
       <thead>
@@ -232,37 +232,37 @@
         <tr style="border-bottom:1px solid var(--border, #e5e7eb);">
           <td style="padding:8px 10px;"><strong>01</strong></td>
           <td style="padding:8px 10px;"><strong>Executive Summary</strong></td>
-          <td style="padding:8px 10px;"><code>01-executive-summary.pdf</code></td>
+          <td style="padding:8px 10px;"><code>01-Audit-Report.html</code></td>
           <td style="padding:8px 10px;">One-page verdict: visibility posture (Blocked / Partial / Exposed), cohort mention rate with n and mode, top 3 blockers, and ticket count by severity. Written for the client decision-maker; no tool chrome.</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border, #e5e7eb);">
           <td style="padding:8px 10px;"><strong>02</strong></td>
           <td style="padding:8px 10px;"><strong>Site Audit Report</strong></td>
-          <td style="padding:8px 10px;"><code>02-site-audit.pdf</code></td>
+          <td style="padding:8px 10px;"><code>02-Execution-Plan.html</code></td>
           <td style="padding:8px 10px;">Per-URL findings: crawlability, HTTP status, HTML extractability, heading hierarchy, structured data (JSON-LD / Open Graph), robots.txt mapping, and WAF/auth wall detection. Each row links to raw evidence.</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border, #e5e7eb);">
           <td style="padding:8px 10px;"><strong>03</strong></td>
           <td style="padding:8px 10px;"><strong>AI Visibility Matrix</strong></td>
-          <td style="padding:8px 10px;"><code>03-visibility-matrix.pdf</code></td>
+          <td style="padding:8px 10px;"><code>03-Ticket-Log.html</code></td>
           <td style="padding:8px 10px;">Cohort table: question × sampling mode × mention (yes/no) × citation (yes/no). Cohort definition, question set hash, model IDs, dates, and market. Unmeasured providers shown as <em>unmeasured</em>, never 0%.</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border, #e5e7eb);">
           <td style="padding:8px 10px;"><strong>04</strong></td>
           <td style="padding:8px 10px;"><strong>Action Matrix &amp; Tickets</strong></td>
-          <td style="padding:8px 10px;"><code>04-action-matrix.pdf</code></td>
+          <td style="padding:8px 10px;"><code>04-Acceptance-Checklist.html</code></td>
           <td style="padding:8px 10px;">Ticket log with ID, severity (P0/P1/P2), target file/URL, requested change (diff), owner, dependency, and acceptance check. Exported from <code>tasks.json</code> with lifecycle state.</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border, #e5e7eb);">
           <td style="padding:8px 10px;"><strong>05</strong></td>
           <td style="padding:8px 10px;"><strong>Verification Evidence</strong></td>
-          <td style="padding:8px 10px;"><code>05-verification-evidence.pdf</code></td>
+          <td style="padding:8px 10px;"><code>05-Draft-Risks.html</code></td>
           <td style="padding:8px 10px;">Before/after evidence per ticket: crawl snapshots, HTTP headers, HTML diff hash, structured data validator output, and re-sample cohort if applicable. Each ticket references its evidence page.</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border, #e5e7eb);">
           <td style="padding:8px 10px;"><strong>06</strong></td>
           <td style="padding:8px 10px;"><strong>Implementation Guide</strong></td>
-          <td style="padding:8px 10px;"><code>06-implementation-guide.pdf</code></td>
+          <td style="padding:8px 10px;"><code>06-Build-Map.html</code></td>
           <td style="padding:8px 10px;">Sequenced rollout plan: prerequisites, deploy order, rollback notes, and re-verification triggers. Links into the <code>assets/</code> folder for the exact files to ship.</td>
         </tr>
         <tr>
@@ -273,6 +273,8 @@
         </tr>
       </tbody>
     </table>
+
+    <p>The current evidence additions are explicit: <code>07-Evidence/raw-ai-answers.jsonl</code>, <code>07-Evidence/raw-ai-answers.html</code>, and <code>07-Evidence/citation-evidence.csv</code> preserve the filtered answers and citations used in the cycle. <code>08-Before-After/visibility-delta.md</code> and its HTML rendering compare two runs only when provider, model, question, and sampling mode are comparable; otherwise the report says comparison unavailable.</p>
 
     <p>Ancillary files in the ZIP root:</p>
     <ul>
@@ -297,19 +299,19 @@
     <h3>Build-time injection pipeline</h3>
     <ol>
       <li>Operator clicks <strong>Build Pack</strong>. The API snapshots the current branding config and writes it to <code>delivery/branding.json</code> alongside the build.</li>
-      <li>The renderer loads the branding snapshot, injects it into the header template (<code>delivery/templates/header.html</code>), and stamps it on every page of all six documents at render time. Headers are not post-processed watermarks; they are part of the PDF layout pass.</li>
+      <li>The renderer loads the branding snapshot, injects it into the header template (<code>delivery/templates/header.html</code>), and stamps it during document rendering. Headers are part of the layout pass, not post-processed watermarks.</li>
       <li>The manifest records <code>branding_hash</code> so a later rebuild with a changed logo or name is auditable as a distinct build.</li>
       <li>Raw exports in <code>raw/</code> are not branded — they are machine-readable data. If the engagement requires white-label raw exports, the agency re-exports through its own template.</li>
     </ol>
 
     <div class="blog-callout">
-      <p><strong>Check before you send.</strong> Open <code>01-executive-summary.pdf</code> and confirm the header shows the agency, not the vendor. A common error is building before saving the branding form — the pipeline snapshots at build time, not at form-edit time.</p>
+      <p><strong>Check before you send.</strong> Open <code>01-Audit-Report.html</code> and confirm the header shows the agency, not the vendor. Branding is snapshotted at build time.</p>
     </div>
 
     <p>Header injection is idempotent: rebuilding with identical branding and identical workspace state produces byte-identical PDFs except for the <code>built_at</code> timestamp in the footer. That timestamp is intentional — it is the snapshot claim.</p>
 
     <h2>4 — Ticket lifecycle</h2>
-    <p>Findings become <strong>tickets</strong> so they can be assigned, shipped, and verified. A finding without a ticket is a comment; a ticket without an acceptance check is a wish. CiteAura tracks tickets in <code>tasks.json</code> and mirrors them into <code>04-action-matrix.pdf</code>.</p>
+    <p>Findings become <strong>tickets</strong> so they can be assigned, shipped, and verified. CiteAura tracks them in <code>tasks.json</code> and exports the ticket log and acceptance checklist.</p>
 
     <table style="width:100%; border-collapse:collapse; font-size:0.92em; margin: 1.2em 0;">
       <thead>
@@ -362,7 +364,7 @@
       <li><code>requested_change</code> — unified diff or explicit instruction, not "optimize."</li>
       <li><code>owner</code> — agency or client assignee.</li>
       <li><code>acceptance_check</code> — the exact probe that will mark the ticket verified (e.g. "fetch <code>/robots.txt</code> on canonical host; confirm <code>Allow: /products/</code> for <code>GPTBot</code>; re-crawl returns <code>extractable: true</code>").</li>
-      <li><code>evidence_ref</code> — page number in <code>05-verification-evidence.pdf</code> once verified.</li>
+      <li><code>evidence_ref</code> — reference into the generated <code>07-Evidence/</code> files once verified.</li>
     </ul>
 
     <p>Tickets are the only place where action lives. If a finding is not ticketed, it is not tracked, not verified, and not included in the implementation guide's deploy order. The action matrix is sorted P0 → P2, then by dependency, so the client knows what to ship first.</p>
@@ -385,11 +387,11 @@
     <h2>6 — Agency workflow (from intake to handoff)</h2>
     <p>The workflow is designed so a junior operator can run it and a senior can audit it. All state lives on the filesystem under <code>work/&lt;tenant&gt;/&lt;slug&gt;/</code>; the database only tracks project index and job metadata.</p>
     <ol>
-      <li><strong>Intake — create project and run audit.</strong> Create the project with the client's canonical domain, market, and language. Run the site audit. Review <code>02-site-audit.pdf</code> for P0 blocks before sampling — there is no point measuring mentions if the site returns a JS shell with no extractable HTML.</li>
-      <li><strong>Sample — run a labeled cohort.</strong> Configure the question bank (10–20 buyer questions, no "tell me about [brand]" prompts), select sampling mode, and run the cohort. Review <code>03-visibility-matrix.pdf</code>: mention rate is shown as <code>mentioned / successful_answers</code> with the cohort ID and question set hash. Unmeasured providers remain unmeasured.</li>
+      <li><strong>Intake — create project and run audit.</strong> Create the project with the client's canonical domain, market, and language. Run the site audit and review the audit report for P0 blocks before sampling.</li>
+      <li><strong>Sample — run a labeled cohort.</strong> Configure the question bank, select a sampling mode, and run the cohort. The ticket log and evidence exports retain the cohort ID, question set hash, and mode; unmeasured providers remain unmeasured.</li>
       <li><strong>Ticket — convert findings to tickets.</strong> The audit auto-generates tickets for each finding (robots block, extractability failure, missing JSON-LD, heading structure). Operators triage severity, assign owners, and edit the requested diff. Every ticket must have an acceptance check before it leaves <code>OPEN</code>.</li>
-      <li><strong>Brand — configure white-label.</strong> Under Delivery → White-Label Branding, set agency name, logo, domain, confidentiality notice, and accent color. Save, then trigger a pack build. Verify the header on <code>01-executive-summary.pdf</code> before any client-facing send. Branding is snapshotted at build time.</li>
-      <li><strong>Build — compile the pack.</strong> Click <strong>Build Pack</strong>. The job zips the six documents plus <code>assets/</code> and writes <code>manifest.json</code>. Review readiness: diagnosis and visibility can be green while implementation assets are still <code>draft</code>. Do not ship draft assets — they are marked <em>not for deploy</em> in the guide.</li>
+      <li><strong>Brand — configure white-label.</strong> Under Delivery → White-Label Branding, set agency name, logo, domain, confidentiality notice, and accent color. Save, then trigger a pack build and verify the header on the generated report.</li>
+      <li><strong>Build — compile the pack.</strong> Click <strong>Build Pack</strong>. The job writes the numbered documents, evidence directories, <code>assets/</code>, and <code>manifest.json</code>. Review readiness: diagnosis and visibility can be green while implementation assets are still <code>draft</code>.</li>
       <li><strong>Verify — re-crawl after deploy.</strong> After the client ships a ticket, run <strong>Verify</strong> on that ticket. The pipeline re-crawls the target, evaluates the acceptance check, and promotes the ticket to <code>VERIFIED</code> only on pass. Rebuild the pack so the new evidence page and closed ticket state are included.</li>
       <li><strong>Handoff — deliver the ZIP and the checklist.</strong> Send the ZIP with the client handoff checklist (Section 8). Include the reading order: executive summary → audit → visibility matrix → action matrix → evidence → implementation guide. Raw exports are optional and off by default.</li>
     </ol>
@@ -417,7 +419,7 @@
         <tr style="border-bottom:1px solid var(--border, #e5e7eb);">
           <td style="padding:8px 10px;"><strong>Diagnostic + Verify</strong><br>Project-based</td>
           <td style="padding:8px 10px;">Everything in Diagnostic plus acceptance checks and one re-crawl pass after client deploy.</td>
-          <td style="padding:8px 10px;">Docs 01–06 + <code>assets/</code> with reviewed assets + evidence pages for verified tickets.</td>
+          <td style="padding:8px 10px;">Numbered documents + <code>07-Evidence/</code>, <code>08-Before-After/</code>, and reviewed <code>assets/</code>.</td>
           <td style="padding:8px 10px;">One verification cycle. Tickets promoted to <code>VERIFIED</code> on pass; pack rebuilt.</td>
         </tr>
         <tr>
@@ -429,27 +431,27 @@
       </tbody>
     </table>
 
-    <p>Agencies that resell CiteAura workspaces map these tiers to tenant plans for quota enforcement: sample runs per month, active projects, and raw export eligibility are tracked in <code>usage_counters</code>. BYOK (bring your own API key) is available on all tiers — the workspace injects the tenant's encrypted key at runtime and never ships it in the pack.</p>
+    <p>Workspace plans are <code>trial</code>, <code>starter</code>, <code>pro</code>, <code>agency</code>, and <code>enterprise</code>; quotas such as sample runs and active projects are enforced per tenant. BYOK is supported: the encrypted tenant key is injected at runtime and is not included in the delivery pack.</p>
 
     <h2>8 — Client handoff checklist</h2>
     <p>Before you send the ZIP, run this checklist. It exists to prevent the two most common agency errors: shipping draft assets and shipping an outdated snapshot.</p>
     <ul>
-      <li><input type="checkbox" disabled> <strong>Branding verified</strong> — opened <code>01-executive-summary.pdf</code>; header shows agency name/logo/domain, no vendor mark.</li>
+      <li><input type="checkbox" disabled> <strong>Branding verified</strong> — opened the generated audit report; header shows agency name/logo/domain, no vendor mark.</li>
       <li><input type="checkbox" disabled> <strong>Build is current</strong> — <code>manifest.json:built_at</code> is after the last site change, question set edit, or verification run.</li>
-      <li><input type="checkbox" disabled> <strong>No draft assets in the deploy path</strong> — <code>assets/</code> files marked <code>draft</code> are flagged not-for-deploy; only <code>reviewed</code> or <code>approved</code> assets are listed as shippable in Doc 06.</li>
-      <li><input type="checkbox" disabled> <strong>Acceptance checks are explicit</strong> — every ticket in Doc 04 has a written acceptance check; no ticket says "optimize" or "improve visibility."</li>
-      <li><input type="checkbox" disabled> <strong>Verification evidence attached</strong> — every ticket marked <code>VERIFIED</code> has a page in Doc 05 with before/after hashes and re-crawl timestamp. Unverified tickets remain <code>OPEN</code>/<code>IN_REVIEW</code> and are not presented as complete.</li>
-      <li><input type="checkbox" disabled> <strong>Cohort is labeled</strong> — Doc 03 shows question set hash, sampling mode, n, model ID, date, and market. No screenshot is presented as a baseline.</li>
+      <li><input type="checkbox" disabled> <strong>No draft assets in the deploy path</strong> — <code>assets/</code> files marked <code>draft</code> are flagged not-for-deploy; only reviewed or approved assets are listed as shippable in the build map.</li>
+      <li><input type="checkbox" disabled> <strong>Acceptance checks are explicit</strong> — every ticket in the acceptance checklist has a written acceptance check; no ticket says "optimize" or "improve visibility."</li>
+      <li><input type="checkbox" disabled> <strong>Verification evidence attached</strong> — every verified ticket has evidence in <code>07-Evidence/</code> with the applicable crawl or sample details. Unverified tickets remain in review.</li>
+      <li><input type="checkbox" disabled> <strong>Cohort is labeled</strong> — the ticket log and evidence exports retain question set hash, sampling mode, model ID, date, and market. No screenshot is presented as a baseline.</li>
       <li><input type="checkbox" disabled> <strong>No guarantees</strong> — the pack and the cover email contain no language promising mentions, citations, or rankings. The executive summary states the pack is a point-in-time evidence trail.</li>
       <li><input type="checkbox" disabled> <strong>Raw exports gated</strong> — <code>raw/</code> is included only if the engagement explicitly includes machine-readable exports; otherwise it is omitted.</li>
-      <li><input type="checkbox" disabled> <strong>Reading order communicated</strong> — cover email tells the client to read 01 → 02 → 03 → 04 → 05 → 06 in order, not to jump to assets.</li>
+      <li><input type="checkbox" disabled> <strong>Reading order communicated</strong> — cover email points the client through the numbered reports, then Evidence and Before-After, without jumping to draft assets.</li>
     </ul>
     <p>If any box is unchecked, do not send. Fix the workspace state, rebuild, and re-check. A rebuilt pack is cheap; a client deploying a draft <code>llms.txt</code> with unchecked claims is not.</p>
 
     <h2>9 — Anonymized case: B2B SaaS site, 19 tickets, 2 verification cycles</h2>
     <p><strong>Client profile:</strong> Series B B2B SaaS, ~180 marketing pages, docs on a subdomain, pricing behind a JS pricing widget. Domain anonymized as <code>client-example.com</code>. Market: en-US. Agency: mid-size performance agency reselling GEO diagnostics as a project engagement (Diagnostic + Verify tier).</p>
 
-    <p><strong>Baseline audit (Build 1 — 2026-07-09):</strong> Site audit flagged 7 P0/P1 blocks. GPTBot was allowed via <code>User-agent: *</code> but the marketing pages returned a client-rendered shell: <code>extractable: false</code> on 62% of product URLs, heading hierarchy missing on 4 key pages, no <code>SoftwareApplication</code> JSON-LD, and no <code>llms.txt</code>. The cohort (20 buyer questions, <code>API · Model knowledge</code>, n=20) returned 2 mentions (10%). Two tickets were P0: <code>GEO-001</code> (extractability) and <code>GEO-004</code> (robots wildcard <code>Disallow: /docs/</code> inherited from a staging template). The agency built the pack with white-label headers and handed off Docs 01–04 plus draft assets. No verification yet.</p>
+    <p><strong>Illustrative baseline (Build 1 — 2026-07-09):</strong> An anonymized B2B SaaS audit flagged extractability and robots issues, and a 20-question <code>API · Model knowledge</code> sample returned 2 mentions (10%). The agency packaged the findings with white-label headers and marked implementation assets as draft. These values describe an example workflow, not a CiteAura customer result.</p>
 
     <p><strong>Client deploy and verification cycle 1 (Build 2 — 2026-07-22):</strong> Client shipped 9 tickets: server-rendered the product pages, removed the stale <code>/docs/</code> disallow, fixed heading structure on 4 pages, and added <code>SoftwareApplication</code> + <code>FAQPage</code> JSON-LD. Verification re-crawl: extractability flipped to <code>true</code> on 94% of product URLs, structured data validator passed on 6/6 target pages, and <code>robots.txt</code> evaluation showed GPTBot <code>Allow: /docs/</code>. Six tickets promoted to <code>VERIFIED</code>; three remained <code>IN_REVIEW</code> due to a CDN cache serving stale HTML (evidence page marked <em>stale edge — purge and re-verify</em>).</p>
 
@@ -475,13 +477,13 @@
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: white-label GEO reports</h2>
       <h3>What belongs in a white-label GEO diagnostic report?</h3>
-      <p>Site findings with evidence pointers, labeled samples (question, raw answer, date, sampling mode), action tickets with acceptance checks, verification evidence with before/after hashes, and clear readiness states. CiteAura formalizes this as 6 documents plus an assets folder.</p>
+      <p>Site findings with evidence pointers, labeled samples, action tickets with acceptance checks, raw answer and citation exports, before/after visibility when comparable, and clear readiness states. The exact files are listed in the delivery manifest.</p>
       <h3>Can a GEO diagnostic report guarantee AI mentions?</h3>
       <p>No. It records a dated evidence trail and the actions to take; it does not guarantee a future mention, citation, or ranking. A re-sample after a fix is a new cohort with its own cohort ID, not a warranty.</p>
       <h3>When should an agency rebuild a GEO diagnostic pack?</h3>
       <p>Rebuild after the site, question set, audit parameters, branding config, or verification evidence changes. The manifest's <code>built_at</code> and content hashes make the snapshot current; an older ZIP is historical.</p>
       <h3>How does white-label header injection work?</h3>
-      <p>Agency branding (name, logo, domain, confidentiality notice, accent color) is configured under Delivery → White-Label Branding and injected at build time into every page header of all six documents. No vendor cover remains in the client-facing ZIP.</p>
+      <p>Agency branding (name, logo, domain, confidentiality notice, accent color) is configured under Delivery → White-Label Branding and injected at build time into the client-facing documents. No vendor cover remains in the white-label ZIP.</p>
       <h3>What triggers a ticket state transition?</h3>
       <p>Re-crawl or re-sample evidence that satisfies the ticket's written acceptance check. The Verify job promotes <code>IN_REVIEW</code> to <code>VERIFIED</code> only on pass; a failed check leaves the failure reason recorded and the ticket in review.</p>
     </section>

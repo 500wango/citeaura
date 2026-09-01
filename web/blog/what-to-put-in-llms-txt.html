@@ -65,7 +65,7 @@
       {
         "@type": "Article",
         "headline": "What to Put in llms.txt for Your Brand",
-        "description": "What belongs in a brand llms.txt file and what to leave out before you publish it at the site root. Spec, Markdown shape, canonical host, text/plain serving, Zod-like validation, anti-patterns, generation pipeline, and deployment verification.",
+        "description": "What belongs in a brand llms.txt file and what to leave out before you publish it at the site root. Proposed format, Markdown shape, canonical host, text/plain serving, schema-style validation, anti-patterns, generation pipeline, and deployment verification.",
         "url": "https://citeaura.com/blog/what-to-put-in-llms-txt",
         "datePublished": "2026-08-17",
         "dateModified": "2026-08-20",
@@ -115,7 +115,7 @@
             "name": "How do I validate llms.txt before deploy?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Parse the Markdown, enforce heading order (single H1, then H2 sections), check every URL is absolute https on your canonical host or allow-listed, and assert each fact line has a source URL you control. A Zod-like schema catches stale pricing, relative links, and forbidden sections before deploy."
+              "text": "Parse the Markdown, enforce heading order (single H1, then H2 sections), check every URL is absolute https on your canonical host or allow-listed, and assert each fact line has a source URL you control. Schema-style checks catch stale pricing, relative links, and forbidden sections before deploy."
             }
           }
         ]
@@ -187,7 +187,7 @@
     <header class="blog-header">
       <span class="blog-kicker" data-i18n="g4.kicker">Discovery file — Engineering guide</span>
       <h1 data-i18n="g4.h1">What to Put in llms.txt for Your Brand</h1>
-      <p class="blog-lead" data-i18n="g4.lead">A production-grade <code>/llms.txt</code> is a tiny plain-text index at your canonical root: one verifiable H1, one blockquote definition, and a handful of curated Markdown sections that point to public pages you already maintain. This guide covers the spec, exact Markdown shape, canonical-host and <code>text/plain</code> serving, Zod-like validation, anti-patterns that break trust, a generation pipeline from your brand fact library, and deployment plus <code>curl</code> verification — so the file stays correct after every deploy.</p>
+      <p class="blog-lead" data-i18n="g4.lead">A production-grade <code>/llms.txt</code> is a small plain-text index at your canonical root: one verifiable H1, one blockquote definition, and a few Markdown sections linking to public pages you already maintain. This guide covers the proposed format, canonical-host and <code>text/plain</code> serving, pre-deploy validation, common trust failures, and a generation workflow from a reviewed brand facts library. The goal is a file you can regenerate and check after each deploy, not a new ranking lever.</p>
       <p class="blog-meta">Updated 20 August 2026 · 13 min read · Technical</p>
       <p class="blog-byline">By CiteAura Editorial Team</p>
       <p class="blog-byline">By Elena Torres — Docs &amp; LLM Discovery · CiteAura</p>
@@ -203,7 +203,7 @@
         <li><a href="#serving">Serving as text/plain</a></li>
         <li><a href="#what-belongs">What belongs in the file</a></li>
         <li><a href="#anti-patterns">What to leave out — anti-patterns</a></li>
-        <li><a href="#validation">Zod-like validation before deploy</a></li>
+        <li><a href="#validation">Schema-style validation before deploy</a></li>
         <li><a href="#pipeline">Generation pipeline: from fact library to file</a></li>
         <li><a href="#deploy">Deployment</a></li>
         <li><a href="#verify">Verification: curl and CI</a></li>
@@ -326,7 +326,7 @@ async headers() {
     <h3>Stale pricing (the top failure)</h3>
     <p>Copying a pricing table into llms.txt and then updating the pricing page but not the file is the fastest way to teach a crawler that your index is unreliable. If you must mention pricing, do it as a pointer, not a copy:</p>
     <pre><code>- Pricing: https://example.com/pricing — plans, billing interval, and current prices live on this page.</code></pre>
-    <p>Never write <code>- Pro: $49/mo</code> in llms.txt unless that line is generated from the same source that renders the pricing page, atomically on the same deploy. CiteAura treats any naked price in llms.txt without a co-deployed pricing-page change as a validation failure.</p>
+    <p>Do not write <code>- Pro: $49/mo</code> unless the same source renders the pricing page and the index in one deploy. In CiteAura, a generated asset with an unsynchronized or unreviewed fact is held for review; the platform does not publish it to your site.</p>
 
     <h3>Other anti-patterns</h3>
     <ul>
@@ -342,7 +342,7 @@ async headers() {
       <p><strong>Rule of thumb:</strong> If you would not keep the line correct for 90 days without thinking about it, it does not belong. Facts rot; links to living pages do not.</p>
     </div>
 
-    <h2 id="validation">7. Zod-like validation before deploy</h2>
+    <h2 id="validation">7. Schema-style validation before deploy</h2>
     <p>A short file is easy to review by eye once. It is easy to break silently on every deploy after that. Validate the file in CI the same way you validate an API schema: parse, check structure, assert invariants, fail the build.</p>
     <p>Invariants to enforce:</p>
     <ul>
@@ -498,7 +498,7 @@ echo "llms.txt OK ($bytes bytes)"
     <p>Run the CI check against the preview deploy URL before promoting to production, and again against production after promotion. A file that passes in preview but fails in production means the CDN is serving a stale cached copy — purge and re-check.</p>
 
     <h2 id="citeaura">11. How CiteAura drafts it</h2>
-    <p>The CiteAura workspace generates a draft from the brand fact library so you never hand-copy a claim. Open <strong>Execution → Assets</strong>, enable the resources and verified facts you want indexed, and preview the rendered Markdown. The UI enforces the same schema described above: one H1, allow-listed H2s, absolute https URLs, and a required source per fact. Unsupported claims are shown as disabled toggles with the reason (“no public source page”).</p>
+    <p>The CiteAura workspace can generate a draft from the brand fact library, so claims are selected from reviewed source material instead of being copied by hand. In <strong>Execution → Assets</strong>, choose the resources and verified facts, preview the Markdown, and review the asset status. The generator checks one H1, approved sections, absolute HTTPS URLs, and a source for each fact. Unsupported claims remain unavailable with a reason such as “no public source page.” CiteAura delivers the file for your team to publish; it does not deploy <code>/llms.txt</code> to the customer site.</p>
     <p>Review every line before you publish. Remove any fact you would not defend on a call with a customer, confirm every URL is public and 200, and delete the Optional section if you have nothing stable to put there. Deploy the file yourself — the workspace does not push to your origin. After deploy, run the curl checks above and trigger a re-crawl from the verification panel; verification checks that the path returns <code>text/plain</code> and that its links are reachable, not that a model consumed it.</p>
     <p><span>Product steps are in</span> <a href="/docs#llms-txt">Using /llms.txt</a><span>. Thin official facts are a separate problem:</span> <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT Does Not Mention Your Brand</a><span>.</span></p>
 

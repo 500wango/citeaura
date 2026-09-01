@@ -110,7 +110,7 @@
     </nav>
 
     <h2 id="bucket" data-i18n="public.g2.sec1_h2">The 4 buckets — pick one before you edit</h2>
-    <p>Every “ChatGPT skipped us” case we triage falls into one of four buckets. Name the bucket first, then fix the bucket.</p>
+    <p>When a brand is missing from an answer, start by naming the failure mode. In practice the useful first pass is four buckets; each points to a different owner and a different check.</p>
     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
       <thead><tr style="background:var(--surface-2)"><th style="border:1px solid var(--border);padding:8px;text-align:left;">Bucket</th><th style="border:1px solid var(--border);padding:8px;">Signal in logs/audit</th><th style="border:1px solid var(--border);padding:8px;">Fix owner</th></tr></thead>
       <tbody>
@@ -159,7 +159,7 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
       <tr><td style="border:1px solid var(--border);padding:8px;">Pricing</td><td style="border:1px solid var(--border);padding:8px;">$79/$199/$499</td><td style="border:1px solid var(--border);padding:8px;">Missing</td><td style="border:1px solid var(--border);padding:8px;">$79</td><td style="border:1px solid var(--border);padding:8px;">Inconsistent → ticket</td></tr>
       <tr><td style="border:1px solid var(--border);padding:8px;">Category</td><td style="border:1px solid var(--border);padding:8px;">GEO</td><td style="border:1px solid var(--border);padding:8px;">GEO</td><td style="border:1px solid var(--border);padding:8px;">—</td><td style="border:1px solid var(--border);padding:8px;">Add to docs + schema</td></tr>
     </tbody></table>
-    <p>Rule: any claim you want cited must exist as HTML prose on a public route with a stable URL. If it only lives in a sales deck, it does not exist for retrieval.</p>
+    <p>For a claim to be retrievable, publish it as HTML prose on a public route with a stable URL. A sales deck can support a conversation, but it is not a dependable retrieval surface.</p>
 
     <h2 id="variance">Variance vs defect — when not to rewrite</h2>
     <p>Avoid reacting to a single chat. Repeat the same 10–20 questions, same market/language, same sampling mode (<code>API · Model knowledge</code> vs <code>API · Web-grounded retrieval</code> vs <code>Manual · Product surface</code>). Compute mention rate as <code>mentioned / successful</code> per cohort. See <a href="/blog/measure-if-chatgpt-mentions-your-brand">How to Measure ChatGPT Brand Mentions</a> for cohort and Wilson interval method.</p>
@@ -171,12 +171,12 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
     <h2 id="competitor">Why competitors are easier to cite</h2>
     <p>Category prompts (“best tools for X”) reward brands that already answer that sentence in public HTML plus supporting pages: comparison tables, third-party listings (G2/Capterra), and docs. If a competitor has a clear H2 “Best AI Visibility Tools — Comparison” and you have a PDF, the model has a citable path for them and a dead end for you. Publish a comparison page in HTML, not as a gated asset.</p>
     <h3>Anonymized teardown</h3>
-    <p>We audited two B2B tools chasing “AI visibility tool” prompts. Brand A: homepage H1 rendered client-side, pricing behind a gated PDF, no comparison page. Brand B: H1 + subhead in initial HTML, pricing as an HTML table with JSON-LD Offer, plus a public “vs alternatives” page with an H2 table. Same cohort (15 questions × 3 runs = 45, <code>API · Model knowledge</code>): Brand A 2/45 (4.4%), Brand B 19/45 (42.2%). The gap was not authority — both DR ~68 — it was extractability and answerability. After Brand A shipped server-rendered hero and a public comparison page, the next cohort (same questions, same mode, 2 weeks later) moved to 11/45 (24.4%). No guarantee of ranking, but the official text became retrievable and quotable, which changed what the sample could observe.</p>
+    <p><strong>Anonymized example:</strong> two B2B tools were tested against the same “AI visibility tool” cohort. One exposed its definition only after hydration and kept pricing in a gated PDF; the other had plain HTML, a pricing table, and a public comparison page. Across 15 questions × 3 runs (45 samples, <code>API · Model knowledge</code>), the first appeared 2 times (4.4%) and the second 19 times (42.2%). After the first site published a server-rendered hero and comparison page, a repeat cohort reached 11/45 (24.4%). This is an illustration of what extractability can change, not a CiteAura customer benchmark or a ranking promise.</p>
     <h3>What to publish so you are citable</h3>
     <ul>
       <li><strong>Category answer page:</strong> one HTML page that literally answers “best tools for [your category]” with a headed table (columns: tool, best for, pricing, citation URL). Each row links to a public source you control or to a third-party listing.</li>
       <li><strong>Comparison page:</strong> “CiteAura vs X” in plain HTML with an H2 per differentiator and a prose paragraph, not just a feature tick grid. Models quote sentences, not checkmarks.</li>
-      <li><strong>Third-party footprint:</strong> at least 2 listings on high-DR directories (G2/Capterra/AlternativeTo) so the model sees corroborating mentions outside your domain. This is reference support, not a mention guarantee.</li>
+      <li><strong>Third-party footprint:</strong> keep accurate profiles on relevant directories such as G2, Capterra, or AlternativeTo. They can corroborate your own pages, but there is no fixed listing count and no mention guarantee.</li>
     </ul>
     <div class="blog-callout"><p><strong>Anti-pattern:</strong> hiding the comparison in a gated PDF or Notion embed. If a URL requires a click to “Download PDF” with no HTML fallback, treat it as invisible for retrieval.</p></div>
     <h2 id="evidence">Field checklist — collect before you open a ticket</h2>
@@ -198,8 +198,8 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
 5) else → repeat cohort n=45, check variance before editing</code></pre>
 
     <h2 id="tickets">How CiteAura turns this into tickets</h2>
-    <p>The site audit maps each failure to a ticket with owner, severity, and an acceptance check (e.g., “curl -A GPTBot 200 + H1 in view-source”). After you deploy, Verify re-crawls the public pages and flips the check. A separate AI sample is needed for a new mention cohort — verification of site fixes is not a mention count.</p>
-    <p><strong>Real ticket example:</strong> <code>GEO-104 extractability-hero-ssr</code> — Severity: high. Target: <code>/</code> hero. Evidence: view-source shows 0 bytes of H1 at &lt;200B, rendered count 412B post-hydration. Diff: server-render H1 + subhead + JSON-LD SoftwareApplication. Acceptance: <code>curl -s https://citeaura.com/ | grep -F \"Generative Engine Optimization\"</code> returns 1. Owner: frontend. After verification passed, the next cohort (same 15Q × 3, Manual · Product surface) was run to observe change — kept as a separate measurement, not merged with the pre-fix cohort.</p>
+    <p>The site audit maps each failure to a ticket with owner, severity, and an acceptance check (for example, “curl -A GPTBot returns 200 and the H1 is present in view-source”). After deployment, Verify re-crawls the public pages and records whether that check passes. A new AI sample is separate; a passed crawl check is not a mention count.</p>
+    <p><strong>Illustrative ticket:</strong> <code>GEO-104 extractability-hero-ssr</code> targets <code>/</code>, asks for a server-rendered H1 and JSON-LD, and uses a curl probe as its acceptance check. The ID and values are examples of the ticket shape, not a live customer record.</p>
     <p>Start with the audit at <a href="/ai-visibility-audit">AI visibility audit</a>, then re-check <a href="/blog/gptbot-blocked-by-robots-txt">GPTBot robots.txt</a> and <a href="/blog/what-to-put-in-llms-txt">llms.txt</a> before opening content tickets. Keep cohorts labeled and do not merge before/after into one percentage.</p>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
