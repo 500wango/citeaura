@@ -152,7 +152,7 @@
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><strong>1. Unlinked Text Mention</strong></td>
             <td style="padding:0.75rem;">Generated summary prose</td>
-            <td style="padding:0.75rem;">Retrieved from secondary articles, reviews, or base training weights</td>
+            <td style="padding:0.75rem;">May originate from retrieved third-party sources or information not attributed to your canonical domain</td>
             <td style="padding:0.75rem;">Low (No direct click-through, risk of outdated facts)</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
@@ -220,7 +220,7 @@ Disallow: /api/</code></pre>
     <p>If Cloudflare Managed Challenge or Bot Fight Mode blocks requests matching Perplexity user-agents with CAPTCHA challenges (HTTP 403), automated indexers cannot retrieve the page.</p>
 
     <h3>3. Heavy Client-Side Hydration (SPA Lag)</h3>
-    <p>Pages that require extensive client-side JavaScript execution to render core body text risk being parsed as empty initial HTML payloads by search crawlers. Delivering primary product specifications in server-rendered HTML ensures immediate machine extractability.</p>
+    <p>Pages that deliver core content in server-rendered HTML are easier for search crawlers to inspect and less dependent on client-side JavaScript execution. Rendering essential product specifications directly in the initial HTML payload reduces extraction failures.</p>
 
     <h2>CiteAura's Recommended Perplexity Diagnostic Protocol</h2>
     <p>As a practical audit methodology, CiteAura recommends following this 4-step workflow:</p>
