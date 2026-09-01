@@ -208,15 +208,12 @@
     </div>
 
     <h2>Production-Ready robots.txt Configuration</h2>
-    <p>Below is a balanced configuration that explicitly allows AI search crawlers on public documentation and marketing pages while restricting private application routes:</p>
+    <p>Below is a balanced configuration that explicitly allows AI search crawlers on public documentation and marketing pages while restricting private application routes. Note that automated search indexers (<code>OAI-SearchBot</code>, <code>Claude-SearchBot</code>, <code>PerplexityBot</code>) are governed by <code>robots.txt</code>, whereas user-initiated request bots (<code>ChatGPT-User</code>, <code>Claude-User</code>, <code>Perplexity-User</code>) fetch on explicit user command and generally bypass <code>robots.txt</code> unless blocked at the CDN/WAF layer:</p>
 
-    <pre><code># Allow AI Search &amp; User Retrieval Bots on Public Routes
+    <pre><code># Allow AI Search Crawlers on Public Routes
 User-agent: OAI-SearchBot
-User-agent: ChatGPT-User
 User-agent: Claude-SearchBot
-User-agent: Claude-User
 User-agent: PerplexityBot
-User-agent: Perplexity-User
 Allow: /
 Allow: /docs
 Allow: /pricing

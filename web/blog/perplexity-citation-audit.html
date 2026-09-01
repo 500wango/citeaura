@@ -152,7 +152,7 @@
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><strong>1. Unlinked Text Mention</strong></td>
             <td style="padding:0.75rem;">Generated summary prose</td>
-            <td style="padding:0.75rem;">May originate from retrieved third-party sources or information not attributed to your canonical domain</td>
+            <td style="padding:0.75rem;">Retrieved from third-party sources or generated without a citation to the brand's canonical domain</td>
             <td style="padding:0.75rem;">Low (No direct click-through, risk of outdated facts)</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
@@ -203,15 +203,16 @@
   ]
 }</code></pre>
 
+    <p>If your brand appears in the summary but your canonical domain is absent from the <code>citations</code> array, the response is not attributing that claim to your primary site. Inspect the cited third-party sources before inferring where the brand information came from.</p>
+
     <h2>Common Failure Modes to Check in Site Audits</h2>
     <p>In CiteAura website audits and according to official Perplexity documentation, several practical failure modes prevent domains from being indexed and cited:</p>
 
-    <h3>1. PerplexityBot or Perplexity-User Blocked in robots.txt</h3>
-    <p>Perplexity operates two primary user-agents: <code>PerplexityBot</code> (crawler for search indexation) and <code>Perplexity-User</code> (user-initiated on-demand queries). Perplexity officially complies with <code>robots.txt</code>. Note that Perplexity documentation specifies that changes to <code>robots.txt</code> may take up to approximately 24 hours to be reflected across its systems.</p>
+    <h3>1. PerplexityBot Blocked in robots.txt vs. Perplexity-User</h3>
+    <p>Perplexity operates two distinct user-agents with different operational roles: <code>PerplexityBot</code> performs automated search indexing and strictly adheres to <code>robots.txt</code> rules (with changes taking up to approximately 24 hours to reflect across the index). In contrast, <code>Perplexity-User</code> handles user-triggered page fetches and generally ignores <code>robots.txt</code> because it acts on direct user instruction (though CDN, WAF, and IP-level security controls still apply).</p>
 
-    <pre><code># Proper configuration allowing Perplexity Search bots
+    <pre><code># Allow automated Perplexity search indexing in robots.txt
 User-agent: PerplexityBot
-User-agent: Perplexity-User
 Allow: /
 Disallow: /admin/
 Disallow: /api/</code></pre>
@@ -220,7 +221,7 @@ Disallow: /api/</code></pre>
     <p>If Cloudflare Managed Challenge or Bot Fight Mode blocks requests matching Perplexity user-agents with CAPTCHA challenges (HTTP 403), automated indexers cannot retrieve the page.</p>
 
     <h3>3. Heavy Client-Side Hydration (SPA Lag)</h3>
-    <p>Pages that deliver core content in server-rendered HTML are easier for search crawlers to inspect and less dependent on client-side JavaScript execution. Rendering essential product specifications directly in the initial HTML payload reduces extraction failures.</p>
+    <p>Pages that deliver core content in server-rendered HTML are easier to verify without depending on client-side execution. Pages that require extensive JavaScript before basic content appears introduce an additional retrieval risk.</p>
 
     <h2>CiteAura's Recommended Perplexity Diagnostic Protocol</h2>
     <p>As a practical audit methodology, CiteAura recommends following this 4-step workflow:</p>
