@@ -196,15 +196,10 @@
       <ol style="margin:0;padding-left:1.25rem;line-height:1.8;">
         <li><a href="#how-evaluated">How robots.txt is actually evaluated</a></li>
         <li><a href="#longest-match">The longest-match rule</a></li>
-        <li><a href="#user-agent-precedence">User-agent precedence: why GPTBot sees a different file than Googlebot</a></li>
-        <li><a href="#allow-vs-disallow">Allow vs Disallow: debugging when your fix does nothing</a></li>
+        <li><a href="#allow-vs-disallow">Rule precedence and debugging</a></li>
         <li><a href="#how-to-tell">How to tell GPTBot is blocked — with curl -A</a></li>
-        <li><a href="#canonical-check">Canonical-host check: the silent redirect trap</a></li>
-        <li><a href="#how-to-fix">How to fix the file correctly</a></li>
-        <li><a href="#cache-pitfalls">Caddy and Cloudflare cache pitfalls</a></li>
-        <li><a href="#log-analysis">Log analysis: proving GPTBot actually arrived</a></li>
-        <li><a href="#verification">Full verification checklist (copy-paste curl suite)</a></li>
-        <li><a href="#related-crawlers">Related crawlers to check at the same time</a></li>
+        <li><a href="#canonical-check">Canonical host, fixes, and cache</a></li>
+        <li><a href="#verification">Verification and logs</a></li>
         <li><a href="#citeaura-records">How CiteAura records the block</a></li>
         <li><a href="#not-a-ranking-promise">A crawl allow is not a ranking promise</a></li>
       </ol>
@@ -240,7 +235,7 @@ Allow: /products/$</code></pre>
       <p><strong>Rule of thumb:</strong> List the five public URLs you care about (<code>/</code>, <code>/pricing</code>, <code>/products/*</code>, <code>/docs/*</code>, <code>/blog/*</code>). For each, find the longest Allow and longest Disallow that prefix-match the path. The longer of the two decides. If equal length, Allow wins.</p>
     </div>
 
-    <h2 id="user-agent-precedence">User-agent precedence: why GPTBot sees a different file than you do</h2>
+    <h3 id="user-agent-precedence">User-agent precedence: why GPTBot sees a different file than you do</h3>
     <p>Robots.txt groups are selected by <strong>most-specific match</strong>, not first-match and not merged. The algorithm:</p>
     <ol>
       <li>Split the file into groups. A group is one or more <code>User-agent:</code> lines followed by rule lines until the next <code>User-agent:</code> or end of file.</li>
@@ -273,7 +268,7 @@ Allow: /
 Disallow: /app/</code></pre>
     <p>This single group serves both tokens. Preferred for a uniform public-page policy; split into separate groups only if you need different paths per token.</p>
 
-    <h2 id="allow-vs-disallow">Allow vs Disallow: debugging when your fix does nothing</h2>
+    <h3 id="allow-vs-disallow">Allow vs Disallow: debugging when your fix does nothing</h3>
     <p>Adding an <code>Allow</code> does not cancel a broader <code>Disallow</code> unless the Allow path is longer (more specific) for the URL you tested. The three failure modes we see most often:</p>
     <h3>1. Allow is shorter than Disallow — still blocked</h3>
 <pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code>User-agent: GPTBot
@@ -352,7 +347,7 @@ curl -sSI -A "GPTBot" https://yourdomain.com/pricing | grep -i "x-robots-tag\|ro
     <p>Interpreting the first fetch: look for the group that names <code>GPTBot</code> or <code>OAI-SearchBot</code>. If only <code>User-agent: *</code> exists, that group governs GPTBot too (lowest specificity). If a <code>Disallow: /</code> appears in the winning group, every product URL is blocked regardless of what other groups say.</p>
     <p>A WAF challenge (Cloudflare "Checking your browser," DataDome, Akamai Bot Manager) can look identical to a robots block from the model's perspective — the crawler gets a 403 or a JS challenge instead of HTML. Fix robots.txt first because it is deterministic and cheap; then verify the HTML fetch succeeds with a real HTTP 200 and non-empty body.</p>
 
-    <h2 id="canonical-check">Canonical-host check: the silent redirect trap</h2>
+    <h3 id="canonical-check">Canonical-host check: the silent redirect trap</h3>
     <p>Robots.txt is per-host and per-scheme. <code>https://example.com/robots.txt</code> and <code>https://www.example.com/robots.txt</code> are different files served by different vhosts. The canonical host — the one your <code>&lt;link rel="canonical"&gt;</code>, sitemap, and <code>og:url</code> point to — is the only file that matters. A perfect fix on the apex that never gets served because all traffic 301s to <code>www</code> is a phantom fix.</p>
 <pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code># Which host is canonical? Follow redirects and compare
 curl -sSI https://example.com/robots.txt | grep -E "HTTP|Location"
@@ -373,7 +368,7 @@ curl -sSL https://www.example.com/pricing | grep -i 'rel="canonical"'
       <p><strong>Deploy target:</strong> Fix the file on the host that the redirect chain terminates at. Then re-fetch with <code>curl -L</code> to confirm the final 200 body is your edited file, not a cached 301 page.</p>
     </div>
 
-    <h2 id="how-to-fix">How to fix the file correctly</h2>
+    <h3 id="how-to-fix">How to fix the file correctly</h3>
     <ol>
       <li><strong>Keep private routes closed.</strong> <code>/app/</code>, <code>/admin/</code>, <code>/account/</code>, <code>/cart/</code>, <code>/api/</code>, <code>/internal/</code> stay disallowed. Do not open them to punch a hole for marketing pages.</li>
       <li><strong>Allow the public product subgraph.</strong> Homepage, product, pricing, docs, blog, comparisons, and any page that states official facts.</li>
@@ -412,7 +407,7 @@ Allow: /comparisons/
 Disallow: /</code></pre>
     <p>Here <code>Disallow: /</code> is intentionally broad but the longer Allow paths win for the listed public URLs via longest-match. This is valid but harder to maintain — every new public section needs a new Allow line. Prefer the first pattern unless your security posture requires default-deny.</p>
 
-    <h2 id="cache-pitfalls">Caddy and Cloudflare cache pitfalls</h2>
+    <h3 id="cache-pitfalls">Caddy and Cloudflare cache pitfalls</h3>
     <p>Most "I deployed the fix but GPTBot is still blocked" reports are cache illusions. Robots.txt is a small text file that every cache layer loves to hold.</p>
     <h3>Cloudflare</h3>
     <ul>
@@ -455,7 +450,7 @@ curl -sSL -A "GPTBot" http://127.0.0.1:2019/robots.txt 2>&1 | head
 curl -sSL -A "GPTBot" --resolve www.example.com:443:127.0.0.1 https://www.example.com/robots.txt | head -n 40</code></pre>
     <p>General rule: after any fix, expect up to 24 hours of crawler-side caching even after your edge is purged. OpenAI, like Google, caches robots.txt per host for up to 24h. A re-fetch with <code>curl</code> proves <em>your</em> server is correct; it does not force the crawler to re-evaluate instantly. Schedule a re-crawl or wait one cache window before declaring failure.</p>
 
-    <h2 id="log-analysis">Log analysis: proving GPTBot actually arrived</h2>
+    <h3 id="log-analysis">Log analysis: proving GPTBot actually arrived</h3>
     <p>Fixing the file is half the job. You need evidence the crawler came back and got a 200.</p>
     <h3>What GPTBot looks like in logs</h3>
     <p>Look for these signals in your access log (Caddy JSON logs, nginx combined, Cloudflare Enterprise Log Share, or WAF logs):</p>
@@ -490,7 +485,7 @@ host gptbot.openai.com  # forward check of claimed hostname if rDNS returns one<
     </ul>
     <p>Keep the evidence window aligned: compare log hits <em>after</em> the verified deploy timestamp and after the edge purge. A hit from before the fix tells you nothing about after.</p>
 
-    <h2 id="verification">Full verification checklist (copy-paste curl suite)</h2>
+    <h2 id="verification">Verification and logs</h2>
     <p>Run this end-to-end after every robots.txt deploy. Replace <code>www.example.com</code> with your canonical host.</p>
 <pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code>#!/usr/bin/env bash
 set -euo pipefail
@@ -538,7 +533,7 @@ curl -sSL "https://${HOST}/pricing" | grep -i 'rel="canonical"' | head -n 1
 echo "== Done. If all public paths return 200 and robots diff is clean, purge Cloudflare and wait one crawler cache window (~24h) before re-testing in logs. =="</code></pre>
     <p>Save this as <code>scripts/verify-robots.sh</code> in your repo and run it in CI after any deploy that touches the site root. It is a practical acceptance check you can attach to a CiteAura ticket: the canonical host serves the expected file to GPTBot and the public paths return 200.</p>
 
-    <h2 id="related-crawlers">Related crawlers to check at the same time</h2>
+    <h3 id="related-crawlers">Related crawlers to check at the same time</h3>
     <ul>
       <li><strong>OAI-SearchBot</strong> and <strong>ChatGPT-User</strong> — OpenAI search and in-product browsing. If you opened GPTBot but not these, ChatGPT Search answers will still skip you.</li>
       <li><strong>ClaudeBot</strong> (Anthropic), <strong>PerplexityBot</strong>, <strong>Google-Extended</strong> — other training or retrieval agents you may want on public pages. Each respects its own User-agent group. Google-Extended specifically controls Gemini training; it does not affect Google Search crawling (that is Googlebot).</li>
@@ -547,12 +542,12 @@ echo "== Done. If all public paths return 200 and robots diff is clean, purge Cl
     </ul>
     <p><span>If the homepage is a JavaScript shell, opening robots is not enough. See</span> <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT Does Not Mention Your Brand</a> <span>for extractability checks after the crawler is allowed in.</span></p>
 
-    <h2 id="citeaura-records">How CiteAura records the block</h2>
+    <h3 id="citeaura-records">How CiteAura records the block</h3>
     <p>The site audit fetches the live robots.txt from the canonical host, follows its redirects, and parses RFC 9309 longest-match semantics per User-agent group. A Disallow covering a public product path becomes an action ticket containing the matching group, winning rule, affected URLs, and a reproducible curl probe. Your team still updates the file and purges the edge; CiteAura records the re-crawl result and marks the acceptance check only when it passes.</p>
     <p>A blocked crawler is an infrastructure finding, not a content finding. It gets fixed before the content tickets (headings, facts, schema) because no content fix matters if the crawler never fetched the page. After you deploy, run verification so the re-crawl can close the loop. A separate AI sample cohort is required if you also want a new mention measurement — the site audit and the mention sample are different signals.</p>
     <p><span>Workspace steps are in</span> <a href="/docs#diagnostics">Audit &amp; Brand Inputs</a><span>. The homepage workflow is on</span> <a href="/">citeaura.com</a><span>.</span></p>
 
-    <h2 id="not-a-ranking-promise">A crawl allow is not a ranking promise</h2>
+    <h3 id="not-a-ranking-promise">A crawl allow is not a ranking promise</h3>
     <p>Opening robots.txt lets a compliant crawler request the page. It does not guarantee that ChatGPT will fetch it, retrieve it at query time, mention it, cite it, or rank it. Retrieval depends on index freshness, query relevance, and the model's retrieval policy; citation depends on product surface and whether browsing was invoked; ranking depends on comparison with every other eligible source.</p>
     <p>Treat the fix as a prerequisite and measure the effect with a labeled cohort. Fix robots, purge cache, confirm 200s, wait one crawler cache window, then run the same question set again and compare mention rates within that cohort. A higher mention rate on a fixed question set is evidence about that sample — not a promise for every user prompt.</p>
 
