@@ -224,7 +224,7 @@
       </tbody>
     </table>
     <p><strong>Designing the question set.</strong> A practical baseline uses 10–20 prompts across category searches ("best X for Y"), comparisons ("X vs Y"), and problem-led searches ("how to solve Z"). Leave the brand name out. "Tell me about Acme" measures recall after prompting for Acme, not whether the brand surfaces in a competitive answer. Stable question IDs let you compare each intent across runs.</p>
-    <p><strong>Repeating the set.</strong> Run at least three passes per cohort. CiteAura uses three passes for each model-mode pair, spaced 6–12 hours apart. Fifteen questions produce n=15 in one pass and n=45 across three; because variance scales as 1/n, the larger sample cuts standard error by about 42%.</p>
+    <p><strong>Repeating the set.</strong> Run at least three passes per cohort. CiteAura's sampling API supports repeated calls for each model-mode pair; if you want a 6–12 hour gap between passes, schedule separate jobs rather than treating one immediate batch as a time-separated baseline. Fifteen questions produce n=15 in one pass and n=45 across three; because variance scales as 1/n, the larger sample cuts standard error by about 42%.</p>
     <div class="blog-callout">
       <p>A changed question, model, or sampling mode means a changed cohort. Label the two series explicitly, for example <code>qs_crm_v3/api_param/gpt-4o</code> and <code>qs_crm_v4/api_param/gpt-4o</code>, instead of joining them into one trend line.</p>
     </div>
@@ -248,35 +248,34 @@ curl -s https://api.citeaura.com/api/v1/projects/acme-crm/samples \
     <h2>Keep the raw answer</h2>
     <p>A mention boolean is derived data. The raw answer is the evidence behind it. Keeping both means you can change the matching rule later, inspect a disputed result, or correct an alias without running the model again.</p>
     <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code>{
-  "sample_id": "smp_9f3a1b2c",
+  "run_id": "sample-20260819T081422Z-9f3a1b2c",
   "cohort_id": "ch_qs_crm_v3_api_param_gpt4o_us_en",
   "question_id": "q_07",
-  "question_text": "What are the best CRM tools for early-stage SaaS teams?",
+  "question": "What are the best CRM tools for early-stage SaaS teams?",
   "market": "US",
   "lang": "en-US",
-  "model": "gpt-4o-2024-08-06",
+  "raw_model": "gpt-4o-2024-08-06",
   "sampling_mode": "api_param",
-  "created_at": "2026-08-19T08:14:22Z",
-  "latency_ms": 1824,
-  "raw_answer": "For early-stage SaaS, strong options include HubSpot, Pipedrive, and Attio. HubSpot offers a generous free tier... Pipedrive is lightweight for outbound... Attio is popular with modern teams that want a flexible data model...",
-  "tokens": { "prompt": 18, "completion": 212 },
-  "tool_calls": [],
+  "ts": "2026-08-19T08:14:22Z",
+  "platform": "openai",
+  "platform_name": "OpenAI",
+  "answer": "For early-stage SaaS, strong options include HubSpot, Pipedrive, and Attio. HubSpot offers a generous free tier... Pipedrive is lightweight for outbound... Attio is popular with modern teams that want a flexible data model...",
   "citations": [],
-  "mention": {
-    "brand": "Attio",
-    "matched": true,
-    "rule_id": "brand_match_v2",
-    "spans": [{ "start": 89, "end": 94, "surface": "Attio" }]
+  "analysis": {
+    "brand_mentioned": true,
+    "brand_rank": 0,
+    "own_domain_cited": false,
+    "competitors_mentioned": []
   }
 }</code></pre>
     <p>Four details make this record useful later:</p>
     <ul>
-      <li><code>raw_answer</code> is stored verbatim. If the provider truncates it, a separate <code>truncated</code> field records that fact.</li>
-      <li><code>tool_calls</code> and <code>citations</code> are empty here because <code>api_param</code> called no retrieval. In <code>api_grounded</code> they carry the search queries and returned URLs.</li>
-      <li><code>mention</code> is a derived field. Re-running detection with a new regex does not require re-sampling; it re-scores the stored traces.</li>
+      <li><code>answer</code> is stored verbatim. If the provider truncates it, the run keeps its stop metadata so the answer can be excluded from rank analysis.</li>
+      <li><code>citations</code> is empty here because <code>api_param</code> called no retrieval. In <code>api_grounded</code> it carries the returned source URLs.</li>
+      <li><code>analysis</code> is derived data. Re-running detection with a new alias rule can re-score the stored traces without another model call.</li>
       <li>Timeouts, content filters, and empty completions use <code>status: "failed"</code>. They are tracked, but they are not counted as successful answers without a mention.</li>
     </ul>
-    <p>CiteAura stores the file under <code>work/&lt;tenant&gt;/&lt;slug&gt;/samples/&lt;date&gt;/&lt;sample_id&gt;.json</code>. The filesystem remains the source of truth for pipeline artifacts, while Postgres indexes cohort and job metadata. Re-scoring reads those stored answers directly.</p>
+    <p>CiteAura stores API samples as JSONL under <code>work/&lt;tenant&gt;/&lt;slug&gt;/samples/&lt;run_id&gt;.jsonl</code>. The filesystem remains the source of truth for pipeline artifacts, while Postgres indexes cohort and job metadata. Re-scoring reads those stored answers directly.</p>
 
     <h2>Detect mentions with a rule you can inspect</h2>
     <p>A mention is a deterministic match against the configured brand name, aliases, or official domain. Citations are measured separately: an answer can name a brand without linking to it.</p>
@@ -322,9 +321,10 @@ assert not pat.search(normalize("attio-company is different"))  # no false alias
     <p>The useful result is the full line: "30.2% mention rate (13/43, 2 failed, cohort qs_crm_v3 / api_param / gpt-4o / US-en)." The percentage alone hides both sample size and failures.</p>
     <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code>import json, pathlib, re
 
-samples = [json.loads(p.read_text()) for p in pathlib.Path("work/acme/crm/samples/2026-08-19").glob("*.json")]
-successful = [s for s in samples if s.get("status", "ok") == "ok"]
-mentioned = [s for s in successful if s["mention"]["matched"]]
+path = pathlib.Path("work/acme/crm/samples/sample-20260819T081422Z-9f3a1b2c.jsonl")
+samples = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+successful = [s for s in samples if s.get("ok") is True]
+mentioned = [s for s in successful if (s.get("analysis") or {}).get("brand_mentioned")]
 rate = len(mentioned) / len(successful) if successful else None
 print(f"{rate:.1%} ({len(mentioned)}/{len(successful)}, {len(samples)-len(successful)} failed)")
 </code></pre>
@@ -361,13 +361,13 @@ for n in [15, 45, 90]:
     <table style="width:100%;border-collapse:collapse;font-size:14px;margin:12px 0;">
       <thead><tr style="background:var(--surface-1);text-align:left;"><th style="padding:8px;border:1px solid var(--border);">Failure</th><th style="padding:8px;border:1px solid var(--border);">What you see</th><th style="padding:8px;border:1px solid var(--border);">Correct handling</th></tr></thead>
       <tbody>
-        <tr><td style="padding:8px;border:1px solid var(--border);">Model update behind the same alias</td><td style="padding:8px;border:1px solid var(--border);">Sudden rate swing with no content change</td><td style="padding:8px;border:1px solid var(--border);">Pin exact model version in the cohort. Log <code>model</code> and <code>system_fingerprint</code> on every sample.</td></tr>
-        <tr><td style="padding:8px;border:1px solid var(--border);">Retrieval not triggered (api_grounded)</td><td style="padding:8px;border:1px solid var(--border);"><code>tool_calls: []</code> despite grounded mode</td><td style="padding:8px;border:1px solid var(--border);">Mark the sample, exclude from grounded analysis or treat as parametric. Do not average grounded and parametric draws.</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);">Model update behind the same alias</td><td style="padding:8px;border:1px solid var(--border);">Sudden rate swing with no content change</td><td style="padding:8px;border:1px solid var(--border);">Pin the exact model version in the cohort and keep the recorded <code>raw_model</code> with every sample.</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);">Retrieval not triggered (api_grounded)</td><td style="padding:8px;border:1px solid var(--border);">Grounded mode returns no citation evidence</td><td style="padding:8px;border:1px solid var(--border);">Mark the sample, exclude it from grounded analysis or treat it as parametric. Do not average the two modes.</td></tr>
         <tr><td style="padding:8px;border:1px solid var(--border);">Content filter / refusal</td><td style="padding:8px;border:1px solid var(--border);">Short refusal or empty completion</td><td style="padding:8px;border:1px solid var(--border);">Count as failed, not as "not mentioned." Track failure rate separately — a spike in refusals is a signal.</td></tr>
         <tr><td style="padding:8px;border:1px solid var(--border);">Answer truncated</td><td style="padding:8px;border:1px solid var(--border);"><code>finish_reason: "length"</code></td><td style="padding:8px;border:1px solid var(--border);">Flag <code>truncated: true</code>. A truncated answer may have mentioned the brand after the cutoff. Re-run with higher <code>max_tokens</code> or exclude from rank extraction.</td></tr>
         <tr><td style="padding:8px;border:1px solid var(--border);">Alias collision</td><td style="padding:8px;border:1px solid var(--border);">"Aura" matches "Aura CRM" and "Aura migraine"</td><td style="padding:8px;border:1px solid var(--border);">Require word boundaries and an explicit alias list. Review a random 20 matches per cohort for false positives.</td></tr>
         <tr><td style="padding:8px;border:1px solid var(--border);">Locale drift</td><td style="padding:8px;border:1px solid var(--border);">Rate differs US vs DE with same questions</td><td style="padding:8px;border:1px solid var(--border);">Expected. Separate cohorts by market. Do not compare US-en and DE-de rates as a single trend.</td></tr>
-        <tr><td style="padding:8px;border:1px solid var(--border);">Sampling at temperature &gt; 0 without repeats</td><td style="padding:8px;border:1px solid var(--border);">High run-to-run variance, anecdotal screenshots</td><td style="padding:8px;border:1px solid var(--border);">Fix temperature (0 or 0.2) and repeat. CiteAura defaults to 0.2 for realistic variance while keeping draws comparable.</td></tr>
+        <tr><td style="padding:8px;border:1px solid var(--border);">Unpinned provider settings</td><td style="padding:8px;border:1px solid var(--border);">High run-to-run variance with no content change</td><td style="padding:8px;border:1px solid var(--border);">Record the provider/model settings that affect generation, including temperature where the API exposes it, and repeat the same cohort.</td></tr>
       </tbody>
     </table>
     <p>Most reporting errors come from collapsing distinctions the data still needs. Averaging API, grounded, and product-surface samples produces a score with no stable interpretation. Filling an unmeasured provider with 0% has the same problem: absence of a measurement is not evidence that the brand was absent.</p>
@@ -375,35 +375,32 @@ for n in [15, 45, 90]:
     <h2>How CiteAura records the measurement</h2>
     <p>In the workspace, the question bank is defined once and sampled in a chosen mode. Raw answers sit beside the aggregate, while mention rate, sample count, and mode remain attached to the cohort. Providers that were not sampled do not appear as measured results.</p>
     <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code># Run a cohort (api_param, 15 questions x 3 passes = 45 samples)
-curl -s -X POST https://api.citeaura.com/api/v1/projects/acme-crm/jobs \
+curl -s -X POST https://api.citeaura.com/api/v1/projects/123/sample \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
-    "action": "sample",
-    "question_set_id": "qs_crm_v3",
-    "sampling_mode": "api_param",
-    "model": "gpt-4o-2024-08-06",
-    "repeats": 3,
-    "market": "US",
-    "lang": "en-US"
+    "platforms": ["openai"],
+    "limit": 15,
+    "repeat": 3
   }' | jq .
 
-# Poll and read the cohort rollup
-curl -s https://api.citeaura.com/api/v1/projects/acme-crm/cohorts/ch_qs_crm_v3_api_param_gpt4o_us_en \
-  -H "Authorization: Bearer $TOKEN" | jq '{mention_rate, n_successful, n_failed, wilson_95}'</code></pre>
-    <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code># Re-score a past cohort with a new alias list — no re-sampling needed
+# Read the current report rollup (project ID is numeric in the API)
+curl -s https://api.citeaura.com/api/v1/projects/123/report \
+  -H "Authorization: Bearer $TOKEN" | jq '.report.engines[] | {platform, sampling_mode, mention_rate, sample_count, mention_interval}'</code></pre>
+    <pre style="overflow:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;"><code># Re-score stored JSONL with a new alias list — no re-sampling needed
 from pathlib import Path
 import json, re
 
-# edit aliases, rebuild regex, re-score stored raw answers
+# edit aliases, rebuild regex, re-score stored answers
 aliases = ["Attio", "Attio CRM", "getattio.com"]
 pat = re.compile(r"\b(?:attio|attio crm|getattio\.com)\b")
 
-for p in Path("work/acme/acme-crm/samples/2026-08-19").glob("*.json"):
-    s = json.loads(p.read_text())
-    raw = s["raw_answer"]
+path = Path("work/acme/acme-crm/samples/sample-20260819T081422Z-9f3a1b2c.jsonl")
+rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+for s in rows:
+    raw = s["answer"]
     matched = bool(pat.search(raw.lower()))
-    s["mention"] = {"matched": matched, "rule_id": "brand_match_v3", "rule": pat.pattern}
-    p.write_text(json.dumps(s, indent=2, ensure_ascii=False))
+    s.setdefault("analysis", {})["brand_mentioned"] = matched
+path.write_text("".join(json.dumps(s, ensure_ascii=False) + "\n" for s in rows))
 </code></pre>
     <p>See <a href="/docs#measurement">Measurement Concepts</a> for the product labels and the <a href="/">CiteAura homepage</a> for the broader audit-to-verification workflow.</p>
 
