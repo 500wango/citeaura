@@ -161,7 +161,7 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
     <p>Publish core technical specifications and product features as crawlable HTML text on stable URLs rather than locking them inside downloadable PDFs or gated slides.</p>
 
     <h2 id="variance">Distinguishing variance from defects</h2>
-    <p>Do not evaluate visibility from a single manual prompt. Execute a fixed set of 10 to 20 buyer questions across multiple runs using a constant sampling mode. Compute mention rates across the complete cohort:</p>
+    <p>Do not evaluate visibility from a single manual prompt. Execute a fixed set of 10 to 20 buyer questions across multiple runs using a constant sampling mode (such as <code>API · Model knowledge</code>, <code>API · Web-grounded retrieval</code>, or <code>Manual · Product surface</code>). Compute mention rates across the complete cohort:</p>
     <ul>
       <li><strong>Normal sampling variance:</strong> An outcome of 3/15 on one pass followed by 7/15 on the next represents expected variance. Expand the sample to n=45 to establish a reliable baseline.</li>
       <li><strong>Technical defect:</strong> A result of 0/45 across three independent passes indicates a systematic issue across Buckets 1–4.</li>
@@ -201,7 +201,7 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: why ChatGPT skips a brand</h2>
-      <h3>Does allowing GPTBot guarantee a ChatGPT mention?</h3><p>No. It removes crawler access restrictions. Your pages must also be extractable and relevant to the user query.</p>
+      <h3>Does allowing GPTBot guarantee a ChatGPT mention?</h3><p>No. It removes crawler access restrictions, but it does not guarantee retrieval, a mention, or a ranking. Your pages must also be extractable and relevant to the user query.</p>
       <h3>Is llms.txt enough to make a brand appear?</h3><p>No. The file provides an optional plain-text summary. Core product facts must be present in public HTML.</p>
       <h3>When is a missing mention a measurement issue?</h3><p>When visibility varies from prompt to prompt. Establish a cohort baseline with n≥45 before diagnosing site defects.</p>
       <h3>Should I rewrite marketing copy after a single missing mention?</h3><p>No. Verify crawl access, HTML rendering, and WAF rules across a multi-pass cohort before revising copy.</p>
