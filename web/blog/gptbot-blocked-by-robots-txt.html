@@ -487,59 +487,16 @@ host gptbot.openai.com  # forward check of claimed hostname if rDNS returns one<
 
     <h2 id="verification">Verification and logs</h2>
     <p>Run this end-to-end after every robots.txt deploy. Replace <code>www.example.com</code> with your canonical host.</p>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code>#!/usr/bin/env bash
-set -euo pipefail
-HOST="www.example.com"
+<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code>HOST="www.example.com"
+curl -sSI -A "GPTBot" -H "Cache-Control: no-cache" "https://${HOST}/robots.txt"
+curl -sSL -A "GPTBot" "https://${HOST}/robots.txt" | tee /tmp/robots.live.txt
+for path in / /pricing /products/ /docs/ /blog/; do
+  curl -sSL -A "GPTBot" -o /dev/null -w "$path %{http_code}\n" "https://${HOST}${path}"
+done</code></pre>
+    <p>Use the output as the acceptance evidence: the canonical host serves the edited file, public paths return 200, and private routes remain protected. Keep a fuller CI or proxy-specific script in your infrastructure documentation.</p>
 
-echo "== 1. Canonical robots.txt via GPTBot =="
-curl -sSL -A "GPTBot" -H "Cache-Control: no-cache" "https://${HOST}/robots.txt" | tee /tmp/robots.live.txt
-echo ""; echo "--- file ---"; cat /tmp/robots.live.txt; echo "---"
-
-echo "== 2. HTTP status + headers (expect 200 text/plain) =="
-curl -sSI -A "GPTBot" "https://${HOST}/robots.txt" | grep -iE "HTTP|content-type|cache-control|cf-cache-status|age"
-
-echo "== 3. Canonical vs apex vs www divergence =="
-for h in example.com www.example.com; do
-  echo "--- $h ---"
-  curl -sSI "https://$h/robots.txt" | grep -E "HTTP|Location" | head -n 3
-done
-
-echo "== 4. Per-token diff (GPTBot vs OAI-SearchBot vs ChatGPT-User) =="
-for ua in GPTBot OAI-SearchBot ChatGPT-User; do
-  curl -sSL -A "$ua" -H "Cache-Control: no-cache" "https://${HOST}/robots.txt" -o "/tmp/robots.$ua.txt"
-  echo "$ua: $(wc -l < /tmp/robots.$ua.txt) lines"
-done
-diff -u /tmp/robots.GPTBot.txt /tmp/robots.OAI-SearchBot.txt && echo "GPTBot == SearchBot" || echo "Groups differ — review"
-diff -u /tmp/robots.GPTBot.txt /tmp/robots.ChatGPT-User.txt && echo "GPTBot == ChatGPT-User" || echo "Groups differ — review"
-
-echo "== 5. Spot-check public paths are reachable (200 expected) =="
-for path in "/" "/pricing" "/products/" "/docs/" "/blog/"; do
-  code=$(curl -sSL -A "GPTBot" -o /dev/null -w "%{http_code}" "https://${HOST}${path}")
-  printf "%-15s -> %s\n" "$path" "$code"
-done
-
-echo "== 6. Spot-check private paths stay blocked at app level (302/401/200+auth) =="
-for path in "/app/" "/admin/" "/api/"; do
-  code=$(curl -sSL -A "GPTBot" -o /dev/null -w "%{http_code}" "https://${HOST}${path}")
-  printf "%-15s -> %s\n" "$path" "$code"
-done
-
-echo "== 7. No X-Robots-Tag noindex on public pages =="
-curl -sSI -A "GPTBot" "https://${HOST}/pricing" | grep -i "x-robots-tag" || echo "No x-robots-tag (good)"
-
-echo "== 8. Canonical link matches robots host =="
-curl -sSL "https://${HOST}/pricing" | grep -i 'rel="canonical"' | head -n 1
-
-echo "== Done. If all public paths return 200 and robots diff is clean, purge Cloudflare and wait one crawler cache window (~24h) before re-testing in logs. =="</code></pre>
-    <p>Save this as <code>scripts/verify-robots.sh</code> in your repo and run it in CI after any deploy that touches the site root. It is a practical acceptance check you can attach to a CiteAura ticket: the canonical host serves the expected file to GPTBot and the public paths return 200.</p>
-
-    <h3 id="related-crawlers">Related crawlers to check at the same time</h3>
-    <ul>
-      <li><strong>OAI-SearchBot</strong> and <strong>ChatGPT-User</strong> — OpenAI search and in-product browsing. If you opened GPTBot but not these, ChatGPT Search answers will still skip you.</li>
-      <li><strong>ClaudeBot</strong> (Anthropic), <strong>PerplexityBot</strong>, <strong>Google-Extended</strong> — other training or retrieval agents you may want on public pages. Each respects its own User-agent group. Google-Extended specifically controls Gemini training; it does not affect Google Search crawling (that is Googlebot).</li>
-      <li><strong>A sitewide <code>Disallow: /</code></strong> — often copied from a staging template and left on production. <code>grep -r "Disallow: /" robots.txt</code> after deploy. Staging should serve <code>Disallow: /</code> via a separate host or basic-auth, never by shipping the same file to prod.</li>
-      <li><strong>CCBot (Common Crawl)</strong> — indirectly feeds many models. If you block CCBot sitewide, downstream training datasets lose your pages even if GPTBot is allowed.</li>
-    </ul>
+    <h3 id="related-crawlers">Other crawler policies</h3>
+    <p><code>OAI-SearchBot</code>, <code>ChatGPT-User</code>, ClaudeBot, PerplexityBot and CCBot have separate policies. Decide them deliberately; an allow rule for GPTBot does not change any other crawler's access.</p>
     <p><span>If the homepage is a JavaScript shell, opening robots is not enough. See</span> <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT Does Not Mention Your Brand</a> <span>for extractability checks after the crawler is allowed in.</span></p>
 
     <h3 id="citeaura-records">How CiteAura records the block</h3>
@@ -587,6 +544,7 @@ echo "== Done. If all public paths return 200 and robots diff is clean, purge Cl
       <p>Audit the live robots file on the canonical host, keep private routes closed, and verify with curl -A that GPTBot can reach the public product pages.</p>
       <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
     </div>
+    <p class="blog-closing-note"><strong>Field note:</strong> a clean robots response is a prerequisite, not a visibility result. Measure the model response separately.</p>
   </article>
 
   <footer class="site-footer">
