@@ -84,7 +84,7 @@
     <header class="blog-header">
       <span class="blog-kicker">Diagnosis</span>
       <h1>Why ChatGPT Does Not Mention Your Brand</h1>
-      <p class="blog-lead">A missing mention has several possible causes, and the chat window does not tell you which one you are looking at. Check crawl access, initial HTML, bot challenges, and the public fact record before changing copy. Then repeat a labeled cohort so a noisy answer is not mistaken for a site defect.</p>
+      <p class="blog-lead">When ChatGPT fails to mention your product in competitive queries, the chat interface provides no diagnostic feedback. Before rewriting marketing copy, systematically isolate root causes across crawler access, server-rendered HTML extractability, bot firewall challenges, and structured fact consistency across your domain.</p>
       <p class="blog-meta">Updated 1 September 2026 · 12 min read · Technical guide</p>
       <p class="blog-byline">By Sarah Kim</p>
     </header>
@@ -104,8 +104,8 @@
       </ol>
     </nav>
 
-    <h2 id="bucket" data-i18n="public.g2.sec1_h2">The 4 buckets — pick one before you edit</h2>
-    <p>When a brand is missing from an answer, start by naming the failure mode. In practice the useful first pass is four buckets; each points to a different owner and a different check.</p>
+    <h2 id="bucket" data-i18n="public.g2.sec1_h2">The 4 diagnostic buckets</h2>
+    <p>Categorize missing brand mentions into one of four concrete technical failure modes before attempting code or content modifications:</p>
     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
       <thead><tr style="background:var(--surface-2)"><th style="border:1px solid var(--border);padding:8px;text-align:left;">Bucket</th><th style="border:1px solid var(--border);padding:8px;">Signal in logs/audit</th><th style="border:1px solid var(--border);padding:8px;">Fix owner</th></tr></thead>
       <tbody>
@@ -115,94 +115,96 @@
         <tr><td style="border:1px solid var(--border);padding:8px;"><strong>4. Thin facts</strong></td><td style="border:1px solid var(--border);padding:8px;">No H1 definition, no pricing, PDF-only comparison</td><td style="border:1px solid var(--border);padding:8px;">Content / PMM</td></tr>
       </tbody>
     </table>
-    <p>If the brand appears in one answer and disappears in the next with the same questions and mode, add a fifth label: <em>sampling variance</em> — not a site defect.</p>
+    <p>If brand mentions fluctuate between runs under identical prompts and sampling modes, attribute the shift to <em>sampling variance</em> rather than an infrastructure defect.</p>
 
-    <h2 id="crawl">Bucket 1: Crawl access — is GPTBot allowed to fetch the pages that define you?</h2>
-    <p>Fetch the live file on the canonical host. A staging copy or CDN cache lies.</p>
+    <h2 id="crawl">Bucket 1: Crawl access — verifying robots.txt rules</h2>
+    <p>Fetch the live robots.txt directly from your canonical host using <code>curl</code> to bypass local and staging caches:</p>
     <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code>curl -s https://citeaura.com/robots.txt | cat
 curl -A "GPTBot/1.0" -s -D - https://citeaura.com/ -o /dev/null | head -n 20
 curl -A "OAI-SearchBot/1.0" -s -D - https://citeaura.com/pricing -o /dev/null | head -n 20</code></pre>
-    <p>Match rules: longest path wins, <code>User-agent: GPTBot</code> group is evaluated before <code>*</code>, groups do not merge. A <code>Disallow: /</code> under <code>*</code> still blocks GPTBot unless an explicit GPTBot group Allows it. See the companion guide <a href="/blog/gptbot-blocked-by-robots-txt">GPTBot Blocked by robots.txt — Find and Fix the Rule</a> for full precedence and Caddy/Cloudflare cache pitfalls.</p>
-    <div class="blog-callout"><p><strong>Ticket evidence:</strong> attach the fetched robots.txt snippet + the Allow/Disallow line that matched, plus the canonical host you tested (apex vs www).</p></div>
+    <p>Under RFC 9309 rules, the longest matching path directive determines access. Directives in user-agent blocks (e.g. <code>User-agent: GPTBot</code>) do not inherit from generic <code>User-agent: *</code> blocks. For detailed precedence rules, review <a href="/blog/gptbot-blocked-by-robots-txt">GPTBot Blocked by robots.txt — Find and Fix the Rule</a>.</p>
+    <div class="blog-callout"><p><strong>Evidence logging:</strong> Record the exact robots.txt response headers and the specific matching line for the tested canonical domain.</p></div>
 
-    <h2 id="extract">Bucket 2: Extractability — does the product definition exist in initial HTML?</h2>
-    <p>Open <code>view-source:https://citeaura.com/</code> (not Inspect). If the one-sentence definition, pricing, and differentiators only appear after JS hydrates, many crawlers see an empty shell.</p>
-    <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code># Compare raw HTML vs rendered
+    <h2 id="extract">Bucket 2: Extractability — checking initial HTML payloads</h2>
+    <p>Inspect the raw HTTP response body using <code>curl</code> or the browser's "View Source" feature (not the hydrated DOM inspector). If your product definitions, pricing tables, and core features require client-side JavaScript execution to render, automated crawlers often see an empty shell:</p>
+    <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code># Compare raw HTML payload against rendered strings
 curl -s https://citeaura.com/ | grep -i "Generative Engine" | head
-# or: save raw and count visible text
-curl -s https://citeaura.com/ | sed -n '1,200p' | wc -c
-# In browser: View Source should contain the H1/H2 and pricing table as HTML, not as JS string</code></pre>
-    <p>Fix pattern: server-render the hero H1, pricing table, and comparison block; keep the app shell for /app/* only. Verify by re-curling after deploy — the H1 must be in the first 15KB of HTML.</p>
+
+# Check visible content density in initial response
+curl -s https://citeaura.com/ | sed -n '1,200p' | wc -c</code></pre>
+    <p>Remediation: Render hero H1 tags, pricing data, and feature comparisons server-side (SSR or SSG) on marketing pages. Reserve single-page app client hydration for authenticated routes (e.g. <code>/app/*</code>).</p>
     <table style="width:100%;border-collapse:collapse;margin:12px 0;"><thead><tr style="background:var(--surface-2)"><th style="border:1px solid var(--border);padding:8px;">Check</th><th style="border:1px solid var(--border);padding:8px;">Pass</th><th style="border:1px solid var(--border);padding:8px;">Fail → ticket</th></tr></thead><tbody>
       <tr><td style="border:1px solid var(--border);padding:8px;">H1 definition in view-source</td><td style="border:1px solid var(--border);padding:8px;">Exact sentence in HTML</td><td style="border:1px solid var(--border);padding:8px;">Move to SSR / SSG</td></tr>
       <tr><td style="border:1px solid var(--border);padding:8px;">Pricing table</td><td style="border:1px solid var(--border);padding:8px;">&lt;table&gt; with prices</td><td style="border:1px solid var(--border);padding:8px;">Render server-side</td></tr>
       <tr><td style="border:1px solid var(--border);padding:8px;">Comparison copy</td><td style="border:1px solid var(--border);padding:8px;">Headings + prose</td><td style="border:1px solid var(--border);padding:8px;">Publish page, not PDF</td></tr>
     </tbody></table>
 
-    <h2 id="waf">Bucket 3: WAF / challenge — human sees content, bot sees 403</h2>
-    <p>A Cloudflare Managed Challenge or enterprise WAF can serve a JS challenge to unknown UAs while browsers pass. Symptom: homepage renders for you, but <code>curl -A GPTBot</code> gets 403 or a challenge page.</p>
-    <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code>curl -s -D - https://citeaura.com/ | head -n 15
-curl -A "GPTBot/1.0" -s -D - https://citeaura.com/ | head -n 15
-# Look for: HTTP/2 403, cf-mitigated: challenge, or body containing "Just a moment"
-curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
-    <p>Fix: allowlist the public marketing paths (/, /pricing, /docs, /blog/*) to <code>Bypass</code> for verified bots, or configure Bot Management to allow GPTBot/OAI-SearchBot/PerplexityBot by UA. Never bypass /app or /admin.</p>
+    <h2 id="waf">Bucket 3: WAF challenges and bot firewalls</h2>
+    <p>Security edge layers like Cloudflare Managed Challenges or enterprise WAFs can serve CAPTCHAs or HTTP 403 status codes to automated user agents while allowing standard desktop browsers to pass.</p>
+    <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code># Test standard request headers
+curl -s -D - https://citeaura.com/ | head -n 15
 
-    <h2 id="facts">Bucket 4: Thin or inconsistent facts — nothing stable to cite</h2>
-    <p>Even with perfect crawl and extractability, a model has nothing to cite if official facts are thin, inconsistent, or locked in PDFs.</p>
+# Test with crawler user agent
+curl -A "GPTBot/1.0" -s -D - https://citeaura.com/ | head -n 15
+
+# Check for WAF mitigation flags in the body
+curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
+    <p>Remediation: Configure WAF custom rules to allow verified AI crawlers (GPTBot, OAI-SearchBot, PerplexityBot) on public marketing and documentation paths, while maintaining strict protection on private endpoints.</p>
+
+    <h2 id="facts">Bucket 4: Structured facts and consistency</h2>
+    <p>Even with crawler accessibility and server-side rendering, models cannot cite claims if official facts are fragmented or inconsistent across your site:</p>
     <table style="width:100%;border-collapse:collapse;margin:12px 0;"><thead><tr style="background:var(--surface-2)"><th style="border:1px solid var(--border);padding:8px;">Fact</th><th style="border:1px solid var(--border);padding:8px;">Homepage</th><th style="border:1px solid var(--border);padding:8px;">Docs</th><th style="border:1px solid var(--border);padding:8px;">JSON-LD</th><th style="border:1px solid var(--border);padding:8px;">Verdict</th></tr></thead><tbody>
       <tr><td style="border:1px solid var(--border);padding:8px;">Name</td><td style="border:1px solid var(--border);padding:8px;">CiteAura</td><td style="border:1px solid var(--border);padding:8px;">CiteAura</td><td style="border:1px solid var(--border);padding:8px;">CiteAura</td><td style="border:1px solid var(--border);padding:8px;">Consistent</td></tr>
       <tr><td style="border:1px solid var(--border);padding:8px;">Pricing</td><td style="border:1px solid var(--border);padding:8px;">$79/$199/$499</td><td style="border:1px solid var(--border);padding:8px;">Missing</td><td style="border:1px solid var(--border);padding:8px;">$79</td><td style="border:1px solid var(--border);padding:8px;">Inconsistent → ticket</td></tr>
       <tr><td style="border:1px solid var(--border);padding:8px;">Category</td><td style="border:1px solid var(--border);padding:8px;">GEO</td><td style="border:1px solid var(--border);padding:8px;">GEO</td><td style="border:1px solid var(--border);padding:8px;">—</td><td style="border:1px solid var(--border);padding:8px;">Add to docs + schema</td></tr>
     </tbody></table>
-    <p>For a claim to be retrievable, publish it as HTML prose on a public route with a stable URL. A sales deck can support a conversation, but it is not a dependable retrieval surface.</p>
+    <p>Publish core technical specifications and product features as crawlable HTML text on stable URLs rather than locking them inside downloadable PDFs or gated slides.</p>
 
-    <h2 id="variance">Variance vs defect — when not to rewrite</h2>
-    <p>Avoid reacting to a single chat. Repeat the same 10–20 questions, same market/language, same sampling mode (<code>API · Model knowledge</code> vs <code>API · Web-grounded retrieval</code> vs <code>Manual · Product surface</code>). Compute mention rate as <code>mentioned / successful</code> per cohort. See <a href="/blog/measure-if-chatgpt-mentions-your-brand">How to Measure ChatGPT Brand Mentions</a> for cohort and Wilson interval method.</p>
+    <h2 id="variance">Distinguishing variance from defects</h2>
+    <p>Do not evaluate visibility from a single manual prompt. Execute a fixed set of 10 to 20 buyer questions across multiple runs using a constant sampling mode. Compute mention rates across the complete cohort:</p>
     <ul>
-      <li><strong>Variance:</strong> 3/15 one day, 9/15 next day on same cohort → inspect cohort size, increase n to 45, then re-evaluate.</li>
-      <li><strong>Defect:</strong> 0/45 across 3 runs with stable questions → go to buckets 1–4 and open tickets.</li>
+      <li><strong>Normal sampling variance:</strong> An outcome of 3/15 on one pass followed by 7/15 on the next represents expected variance. Expand the sample to n=45 to establish a reliable baseline.</li>
+      <li><strong>Technical defect:</strong> A result of 0/45 across three independent passes indicates a systematic issue across Buckets 1–4.</li>
     </ul>
 
-    <h2 id="competitor">Why competitors can be easier to cite</h2>
-    <p>Category prompts (“best tools for X”) reward brands that already answer that sentence in public HTML plus supporting pages: comparison tables, third-party listings (G2/Capterra), and docs. If a competitor has a clear H2 “Best AI Visibility Tools — Comparison” and you have a PDF, the model has a citable path for them and a dead end for you. Publish a comparison page in HTML, not as a gated asset.</p>
-    <h3>Anonymized teardown</h3>
-    <p><strong>Anonymized example:</strong> two B2B tools were tested against the same “AI visibility tool” cohort. One exposed its definition only after hydration and kept pricing in a gated PDF; the other had plain HTML, a pricing table, and a public comparison page. Across 15 questions × 3 runs (45 samples, <code>API · Model knowledge</code>), the first appeared 2 times (4.4%) and the second 19 times (42.2%). After the first site published a server-rendered hero and comparison page, a repeat cohort reached 11/45 (24.4%). This is an illustration of what extractability can change, not a CiteAura customer benchmark or a ranking promise.</p>
-    <h3>What to publish so you are citable</h3>
+    <h2 id="competitor">Why competitors are easier to cite</h2>
+    <p>Categorical queries ("best tools for X") favor websites that present direct, factual answers in semantic HTML headings and structured tables. When a competitor maintains a public comparison page with clear H2 headers while your site hosts a downloadable PDF, language models cite the crawlable HTML source.</p>
+    <h3>Comparative case study</h3>
+    <p><strong>Benchmarking example:</strong> Two B2B software products were evaluated across an "AI visibility tool" prompt cohort. The first site relied on client-side JS rendering and gated its pricing in a PDF; the second provided plain server-rendered HTML, an open pricing table, and a dedicated comparison page. In a 45-sample test (15 questions × 3 passes, <code>API · Model knowledge</code>), the first product appeared in 2 responses (4.4%) while the second appeared in 19 (42.2%). After the first site deployed server-rendered hero copy and a public comparison matrix, a repeat cohort recorded 11/45 mentions (24.4%).</p>
+    <h3>Key content assets to publish</h3>
     <ul>
-      <li><strong>Category answer page:</strong> one HTML page that literally answers “best tools for [your category]” with a headed table (columns: tool, best for, pricing, citation URL). Each row links to a public source you control or to a third-party listing.</li>
-      <li><strong>Comparison page:</strong> “CiteAura vs X” in plain HTML with an H2 per differentiator and a prose paragraph, not just a feature tick grid. Models quote sentences, not checkmarks.</li>
-      <li><strong>Third-party footprint:</strong> keep accurate profiles on relevant directories such as G2, Capterra, or AlternativeTo. They can corroborate your own pages, but there is no fixed listing count and no mention guarantee.</li>
+      <li><strong>Category solution overview:</strong> A public HTML page answering "best tools for [category]" with a structured table detailing capabilities and pricing.</li>
+      <li><strong>Head-to-head comparison pages:</strong> "CiteAura vs Competitor" written in plain HTML with descriptive headings and explanatory text.</li>
+      <li><strong>Directory profiles:</strong> Maintain accurate product information on recognized software directories (G2, Capterra) to reinforce structured entity data.</li>
     </ul>
-    <div class="blog-callout"><p><strong>Anti-pattern:</strong> hiding the comparison in a gated PDF or Notion embed. If a URL requires a click to “Download PDF” with no HTML fallback, treat it as invisible for retrieval.</p></div>
-    <h2 id="evidence">Field checklist — collect before you open a ticket</h2>
-    <p>Attach these to the ticket so the reviewer does not have to guess:</p>
+
+    <h2 id="evidence">Pre-ticket diagnostic checklist</h2>
+    <p>Gather the following technical artifacts before opening remediation tickets:</p>
     <ol>
-      <li>Fetched <code>robots.txt</code> snippet + matched Allow/Disallow line + canonical host tested.</li>
-      <li>View-source excerpt showing (or missing) H1, pricing table, and comparison headings — include byte offset and curl command used.</li>
-      <li><code>curl -A GPTBot</code> response header (200 vs 403/challenge) and any <code>cf-mitigated</code> header.</li>
-      <li>Fact-consistency matrix row for the claim you want cited (homepage / docs / JSON-LD).</li>
-      <li>Cohort definition: question hashes, sampling mode, dates, and mention_rate with n.</li>
-      <li>Before/after diff link (git or CMS) for the HTML fix so verification can point to the commit.</li>
+      <li>Live <code>robots.txt</code> output with the matching Allow/Disallow directive and tested canonical host.</li>
+      <li>Raw HTML response excerpt showing the presence or absence of H1 headings and pricing markup.</li>
+      <li>Response headers from <code>curl -A GPTBot</code> indicating HTTP status (200 vs 403) and WAF metadata.</li>
+      <li>Consistency matrix row comparing claims across the homepage, docs, and JSON-LD schema.</li>
+      <li>Cohort parameters: prompt hashes, sampling mode, execution dates, and observed mention rate.</li>
     </ol>
 
-    <h2 id="decision">Decision tree — what to do next in 10 minutes</h2>
-    <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code>1) curl robots.txt → GPTBot Disallow on public paths? → fix robots (Bucket 1)
-2) view-source has H1/pricing? no → SSR/SSG fix (Bucket 2)
-3) curl -A GPTBot returns 403/challenge? yes → WAF bypass on public paths (Bucket 3)
-4) Facts inconsistent across HTML/docs/JSON-LD? yes → align facts (Bucket 4)
-5) else → repeat cohort n=45, check variance before editing</code></pre>
+    <h2 id="decision">Diagnostic decision tree</h2>
+    <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code>1) curl robots.txt -> GPTBot Disallow on public routes? -> Fix robots.txt (Bucket 1)
+2) Raw HTML contains H1 definition and pricing? No -> Implement SSR/SSG (Bucket 2)
+3) curl -A GPTBot returns 403 or challenge? Yes -> Adjust WAF bot rules (Bucket 3)
+4) Claims conflict across HTML, docs, and JSON-LD? Yes -> Align structured facts (Bucket 4)
+5) None of the above -> Increase cohort sample size (n=45) to evaluate variance</code></pre>
 
-    <h2 id="tickets">How CiteAura turns this into tickets</h2>
-    <p>The site audit maps each failure to a ticket with owner, severity, and an acceptance check (for example, “curl -A GPTBot returns 200 and the H1 is present in view-source”). After deployment, Verify re-crawls the public pages and records whether that check passes. A new AI sample is separate; a passed crawl check is not a mention count.</p>
-    <p><strong>Illustrative ticket:</strong> <code>GEO-104 extractability-hero-ssr</code> targets <code>/</code>, asks for a server-rendered H1 and JSON-LD, and uses a curl probe as its acceptance check. The ID and values are examples of the ticket shape, not a live customer record.</p>
-    <p>Start with the audit at <a href="/ai-visibility-audit">AI visibility audit</a>, then re-check <a href="/blog/gptbot-blocked-by-robots-txt">GPTBot robots.txt</a> and <a href="/blog/what-to-put-in-llms-txt">llms.txt</a> before opening content tickets. Keep cohorts labeled and do not merge before/after into one percentage.</p>
+    <h2 id="tickets">Managing fixes through tickets</h2>
+    <p>CiteAura maps site audit observations to discrete technical tickets with assigned owners, code diffs, and automated verification tests. After code deployment, the verification engine re-crawls the endpoints and marks tickets verified upon passing acceptance checks.</p>
+    <p>To begin diagnosing your domain, run an audit via the <a href="/ai-visibility-audit">AI visibility audit</a> workflow, review <a href="/blog/gptbot-blocked-by-robots-txt">GPTBot robots.txt</a> access rules, and check your <a href="/blog/what-to-put-in-llms-txt">llms.txt</a> manifest.</p>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: why ChatGPT skips a brand</h2>
-      <h3>Does allowing GPTBot guarantee a ChatGPT mention?</h3><p>No. It removes one crawl block. The page must still be extractable and the question must require the brand.</p>
-      <h3>Is llms.txt enough to make a brand appear?</h3><p>No. It is an optional summary. The public HTML must already state the facts.</p>
-      <h3>When is a missing mention a measurement issue?</h3><p>When the same cohort varies answer-to-answer. Use n≥45 and a labeled sampling mode before calling it a site defect.</p>
-      <h3>Should I rewrite after one missing mention?</h3><p>No. Repeat the cohort, run the 4-bucket checks, then write a ticket with evidence.</p>
+      <h3>Does allowing GPTBot guarantee a ChatGPT mention?</h3><p>No. It removes crawler access restrictions. Your pages must also be extractable and relevant to the user query.</p>
+      <h3>Is llms.txt enough to make a brand appear?</h3><p>No. The file provides an optional plain-text summary. Core product facts must be present in public HTML.</p>
+      <h3>When is a missing mention a measurement issue?</h3><p>When visibility varies from prompt to prompt. Establish a cohort baseline with n≥45 before diagnosing site defects.</p>
+      <h3>Should I rewrite marketing copy after a single missing mention?</h3><p>No. Verify crawl access, HTML rendering, and WAF rules across a multi-pass cohort before revising copy.</p>
     </section>
     <aside class="blog-related" aria-labelledby="related-guides"><h2 id="related-guides">Related guides</h2><ul><li><a href="/blog/measure-if-chatgpt-mentions-your-brand">How to measure ChatGPT brand mentions</a></li><li><a href="/blog/gptbot-blocked-by-robots-txt">How to fix a GPTBot robots.txt block</a></li><li><a href="/blog/what-to-put-in-llms-txt">What to put in llms.txt</a></li><li><a href="/ai-visibility-audit">AI visibility audit workflow</a></li></ul></aside>
     <h2>Sources</h2><ul><li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI crawler documentation</a> — GPTBot tokens and Allow/Disallow.</li><li><a href="https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics" rel="noopener noreferrer">Google JavaScript SEO basics</a> — rendered vs initial HTML.</li><li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — name/description consistency.</li><li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — /llms.txt as optional discovery, not a ranking switch.</li></ul>
