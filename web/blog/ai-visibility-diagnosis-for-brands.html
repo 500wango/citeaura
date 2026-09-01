@@ -90,7 +90,7 @@
             "@type": "HowToStep",
             "position": 1,
             "name": "Benchmark baseline mention and citation rates",
-            "text": "Sample a cohort of 20–30 high-intent buyer prompts across ChatGPT, Perplexity, and Claude to calculate your baseline mention and citation percentages."
+            "text": "Sample a cohort of 20–30 high-intent buyer prompts across ChatGPT, Perplexity, and Claude to calculate baseline mention and citation percentages."
           },
           {
             "@type": "HowToStep",
@@ -115,36 +115,6 @@
             "position": 5,
             "name": "Verify deployments and monitor for regressions",
             "text": "Trigger an automated re-crawl and re-sample prompt cohorts to verify mention gains and track long-term stability."
-          }
-        ]
-      },
-      {
-        "@type": "FAQPage",
-        "@id": "https://citeaura.com/blog/ai-visibility-diagnosis-for-brands#faq",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "Why should brand marketers prioritize Generative Engine Optimization today?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "B2B buyers increasingly ask ChatGPT, Claude, and Perplexity for software evaluations rather than browsing traditional search pages. If your brand is not mentioned or cited in AI syntheses, you lose high-intent pipeline before prospects visit your website."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How much developer time is required to execute a GEO diagnosis?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Most technical GEO fixes (robots.txt allow rules, JSON-LD schemas, llms.txt generation) require less than 4–8 engineering hours when managed through ready-to-deploy tickets with pre-built acceptance criteria."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How does CiteAura support multi-brand and agency accounts?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "CiteAura provides multi-tenant workspaces with isolated project scopes, role-based access control, and white-label exportable reports."
-            }
           }
         ]
       }
@@ -176,7 +146,7 @@
       <div class="nav-actions">
         <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" title="Switch Theme">
           <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
 
         <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
@@ -197,55 +167,12 @@
     <header class="blog-header">
       <span class="blog-kicker">Brand Growth Strategy</span>
       <h1>For Brands: AI Visibility Diagnosis in 5 Steps</h1>
-      <p class="blog-lead">When enterprise software buyers evaluate solutions in 2026, they ask generative AI models before they visit Google. If your brand is missing or mischaracterized in ChatGPT, Perplexity, and Claude, your organic pipeline suffers. Here is an actionable 5-step diagnostic playbook for brand leaders.</p>
+      <p class="blog-lead">When enterprise software buyers evaluate solutions in 2026, they ask generative AI models before they visit classic search engines. If your brand is missing or mischaracterized in ChatGPT, Perplexity, and Claude, your organic pipeline suffers. Here is an actionable 5-step diagnostic playbook for brand marketing leaders.</p>
       <p class="blog-meta">Updated 1 September 2026 · 11 min read · Practical Playbook</p>
       <p class="blog-byline">By Elena Torres</p>
     </header>
 
-    <div class="blog-callout">
-      <p><strong>The 5-step roadmap:</strong></p>
-      <ul>
-        <li><strong>Step 1:</strong> Benchmark baseline mention and citation rates across prompt cohorts.</li>
-        <li><strong>Step 2:</strong> Audit technical crawlability and clean DOM extractability.</li>
-        <li><strong>Step 3:</strong> Resolve brand fact conflicts and publish canonical <code>llms.txt</code>.</li>
-        <li><strong>Step 4:</strong> Deploy prioritized engineering and copy remediation tickets.</li>
-        <li><strong>Step 5:</strong> Close the loop with automated re-crawling and regression verification.</li>
-      </ul>
-    </div>
-
-    <nav class="blog-toc" aria-labelledby="toc-heading">
-      <h2 id="toc-heading" style="font-size:0.95rem;margin-bottom:0.5rem;">Contents</h2>
-      <ol style="margin:0;padding-left:1.2rem;line-height:1.8;">
-        <li><a href="#why-brands-lose-ai-share">Why brands lose visibility in generative search</a></li>
-        <li><a href="#five-step-playbook">The 5-Step Brand Audit Playbook</a></li>
-        <li><a href="#cross-functional-roles">Cross-functional ownership matrix</a></li>
-        <li><a href="#sample-findings">Sample brand diagnostic report breakdown</a></li>
-        <li><a href="#getting-started">How to launch your brand's first GEO sprint</a></li>
-      </ol>
-    </nav>
-
-    <h2 id="why-brands-lose-ai-share">1. Why brands lose visibility in generative search</h2>
-    <p>In traditional search, strong backlink authority and brand recognition were enough to ensure top 3 rankings. In generative AI, models evaluate factual density and crawl accessibility in real time. If a competitor has structured their pricing and feature tables cleanly, AI search engines will cite them as the definitive answer while overlooking your brand.</p>
-
-    <h2 id="five-step-playbook">2. The 5-Step Brand Audit Playbook</h2>
-
-    <h3>Step 1: Benchmark baseline mention and citation rates</h3>
-    <p>Define a cohort of 20–30 high-intent buyer prompts reflecting your core market categories. Sample these prompts across ChatGPT, Claude, and Perplexity under both <code>API · Parametric Knowledge</code> and <code>API · Web Retrieval</code> modes to record your starting mention and citation rates.</p>
-
-    <h3>Step 2: Audit technical crawlability and DOM extractability</h3>
-    <p>Run a technical inspection of your public domain. Verify that <code>GPTBot</code>, <code>ClaudeBot</code>, and <code>PerplexityBot</code> are allowed in <code>robots.txt</code>, and ensure that headless extractors can recover your core pricing and documentation text without JavaScript hydration delays.</p>
-
-    <h3>Step 3: Resolve brand fact conflicts and publish llms.txt</h3>
-    <p>Audit AI model answers for hallucinated facts (outdated pricing, non-existent features). Establish a canonical <a href="/blog/brand-fact-library-guide">Brand Fact Library</a>, deploy JSON-LD schemas, and publish a validated <a href="/blog/what-to-put-in-llms-txt">llms.txt file</a> at your root domain.</p>
-
-    <h3>Step 4: Deploy prioritized engineering and copy remediation tickets</h3>
-    <p>Convert audit gaps into structured sprint tickets. Replace nested div wrappers with semantic HTML tables and rewrite key product definitions using the inverted pyramid answer structure.</p>
-
-    <h3>Step 5: Verify deployments and monitor for regressions</h3>
-    <p>Once changes are deployed to production, run an automated re-crawl and cohort re-sample via CiteAura's <a href="/blog/geo-verification-loop">verification loop</a> to prove citation growth and detect regressions.</p>
-
-    <h2 id="cross-functional-roles">3. Cross-functional ownership matrix</h2>
-    <p>A successful GEO program requires collaboration between Marketing, Product, and Engineering:</p>
+    <h2>The 5-Step Brand Audit Playbook</h2>
 
     <div style="overflow-x:auto;margin:1.5rem 0;">
       <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
@@ -259,31 +186,31 @@
         </thead>
         <tbody>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;">1. Cohort Benchmarking</td>
+            <td style="padding:0.75rem;"><strong>1. Cohort Benchmarking</strong></td>
             <td style="padding:0.75rem;">Product Marketing</td>
             <td style="padding:0.75rem;">25-prompt buyer intent cohort &amp; baseline metrics</td>
             <td style="padding:0.75rem;">2–3 hours</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;">2. Technical Crawl Audit</td>
-            <td style="padding:0.75rem;">Web Engineering / DevOps</td>
-            <td style="padding:0.75rem;">Robots.txt &amp; Cloudflare WAF crawl clearance</td>
+            <td style="padding:0.75rem;"><strong>2. Technical Crawl Audit</strong></td>
+            <td style="padding:0.75rem;">DevOps / Engineering</td>
+            <td style="padding:0.75rem;"><code>robots.txt</code> &amp; Cloudflare WAF crawl clearance</td>
             <td style="padding:0.75rem;">1–2 hours</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;">3. Fact Library &amp; llms.txt</td>
+            <td style="padding:0.75rem;"><strong>3. Fact Library &amp; llms.txt</strong></td>
             <td style="padding:0.75rem;">Content Strategy</td>
             <td style="padding:0.75rem;">Canonical brand fact registry &amp; root <code>/llms.txt</code></td>
             <td style="padding:0.75rem;">3–4 hours</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;">4. Answerability Fixes</td>
+            <td style="padding:0.75rem;"><strong>4. Answerability Fixes</strong></td>
             <td style="padding:0.75rem;">Frontend Engineering</td>
             <td style="padding:0.75rem;">Semantic HTML tables &amp; JSON-LD schema deployment</td>
             <td style="padding:0.75rem;">4–6 hours</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;">5. Verification &amp; Monitoring</td>
+            <td style="padding:0.75rem;"><strong>5. Verification &amp; Monitoring</strong></td>
             <td style="padding:0.75rem;">Growth Lead / SEO</td>
             <td style="padding:0.75rem;">Before/after delta verification report &amp; alerts</td>
             <td style="padding:0.75rem;">1 hour / week</td>
@@ -292,11 +219,24 @@
       </table>
     </div>
 
-    <h2 id="sample-findings">4. Sample brand diagnostic report breakdown</h2>
-    <p>When you run an audit in CiteAura, the platform outputs an executive diagnostic summary linking technical findings directly to business outcomes. Explore an un-gated example in our <a href="/sample-report">Sample GEO Diagnostic Report</a>.</p>
+    <h2>Detailed Step Breakdown</h2>
 
-    <h2 id="getting-started">5. How to launch your brand's first GEO sprint</h2>
-    <p>Getting started takes less than ten minutes. Enter your domain into CiteAura, review your automated crawlability and extractability score, and export your initial ticket backlog.</p>
+    <h3>Step 1: Benchmark Baseline Mention &amp; Citation Rates</h3>
+    <p>Define a cohort of 20–30 high-intent buyer queries reflecting your primary software categories. Sample these prompts across ChatGPT, Claude, and Perplexity under both <code>API · Parametric Knowledge</code> and <code>API · Web Retrieval</code> modes to record your starting mention and citation rates.</p>
+
+    <h3>Step 2: Audit Crawl Accessibility &amp; Extractability</h3>
+    <p>Run a technical inspection of your public domain. Verify that <code>OAI-SearchBot</code>, <code>ClaudeBot</code>, and <code>PerplexityBot</code> are allowed in <code>robots.txt</code>, and ensure headless extractors can recover your core pricing and feature text without client JavaScript execution.</p>
+
+    <h3>Step 3: Resolve Brand Fact Conflicts &amp; Publish llms.txt</h3>
+    <p>Audit AI answers for hallucinated facts (obsolete pricing, non-existent features). Establish a canonical <a href="/blog/brand-fact-library-guide">Brand Fact Library</a>, deploy JSON-LD schemas, and publish an <a href="/blog/what-to-put-in-llms-txt">llms.txt file</a> at your site root.</p>
+
+    <h3>Step 4: Deploy Prioritized Engineering Tickets</h3>
+    <p>Convert audit gaps into structured sprint tickets. Replace nested div wrappers with semantic HTML tables and rewrite key product definitions using the inverted pyramid answer pattern.</p>
+
+    <h3>Step 5: Verify Deployments &amp; Monitor Regressions</h3>
+    <p>Once changes are deployed to production, run an automated re-crawl and cohort re-sample via CiteAura's <a href="/blog/geo-verification-loop">verification loop</a> to prove citation growth and detect regressions.</p>
+
+    <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
 
     <div class="blog-cta">
       <p>Audit your brand's AI search visibility and build a verifiable GEO execution plan today.</p>
@@ -310,19 +250,6 @@
       <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI GPTBot Overview</a> — Official guidance on managing crawler access for AI search visibility.</li>
       <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/table" rel="noopener noreferrer">MDN: HTML Table</a> — Clean tabular structure standards for comparative product specifications.</li>
     </ul>
-
-    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
-      <h2 id="faq-heading">Frequently asked questions</h2>
-      <h3>How quickly can a brand see measurable citation gains?</h3>
-      <p>Technical crawlability and extractability improvements typically yield measurable citation improvements in SearchGPT and Perplexity within 14 to 30 days of deployment.</p>
-
-      <h3>Does CiteAura require installing trackers or JavaScript on our site?</h3>
-      <p>No. CiteAura audits your public website from the outside, exactly as AI web crawlers encounter it. No tracking scripts or DNS changes are required.</p>
-
-      <h3>How does pricing scale for multiple brands or product lines?</h3>
-      <p>CiteAura plans offer flexible project capacity, from Starter (3 projects) to Enterprise (unlimited workspaces with custom model integrations). See our <a href="/pricing">Pricing page</a> for tier comparisons.</p>
-      <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
-    </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>

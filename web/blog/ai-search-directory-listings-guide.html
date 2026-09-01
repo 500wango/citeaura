@@ -80,44 +80,6 @@
           "logo": "https://citeaura.com/site-assets/logo.png"
         },
         "mainEntityOfPage": "https://citeaura.com/blog/ai-search-directory-listings-guide"
-      },
-      {
-        "@type": "FAQPage",
-        "@id": "https://citeaura.com/blog/ai-search-directory-listings-guide#faq",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "Do AI directory listings help generative search visibility?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Yes, but only if the directory possesses high domain authority (DR >= 30) and is actively crawled by AI web fetchers. High-authority directories serve as third-party consensus nodes during RAG comparison queries."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Why is a DR 30+ threshold necessary for directory outreach?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Hundreds of low-quality, automated directory farms launch weekly. Low-DR directories (DR < 30) are ignored or penalized as spam by major search indexes and have zero weighting in LLM training corpora."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "What information should be submitted to AI directories?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Submit canonical brand descriptions, accurate pricing tier summaries, primary category tags, and direct links to official documentation matching your Brand Fact Library."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How does CiteAura manage directory prospects?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "CiteAura automatically filters directory prospects against a DR >= 30 threshold, checking whether target directories are actively indexed by AI crawlers before recommending submission."
-            }
-          }
-        ]
       }
     ]
   }
@@ -173,30 +135,11 @@
       <p class="blog-byline">By David Park</p>
     </header>
 
-    <div class="blog-callout">
-      <p><strong>The directory reality:</strong> Submitting to low-quality AI directory farms produces zero citation lift. However, listings on verified high-authority directories (DR &ge; 30) serve as crucial consensus anchors for RAG retrieval during category searches.</p>
-      <ul>
-        <li><strong>Enforce the DR 30+ Gate:</strong> Never pay for or submit to directories with a Domain Rating below 30.</li>
-        <li><strong>Sync with Brand Fact Library:</strong> Ensure directory listings state identical product categories, pricing, and canonical URLs.</li>
-        <li><strong>Track ingestion status:</strong> Verify that target directories allow AI crawlers in their own <code>robots.txt</code> files.</li>
-      </ul>
-    </div>
-
-    <nav class="blog-toc" aria-labelledby="toc-heading">
-      <h2 id="toc-heading" style="font-size:0.95rem;margin-bottom:0.5rem;">Contents</h2>
-      <ol style="margin:0;padding-left:1.2rem;line-height:1.8;">
-        <li><a href="#how-llms-use-directories">How generative search engines consume directory data</a></li>
-        <li><a href="#directory-matrix">High-Authority Directory Evaluation Matrix</a></li>
-        <li><a href="#the-dr-gate">Why the DR &ge; 30 threshold is non-negotiable</a></li>
-        <li><a href="#submission-protocol">The 4-step canonical submission protocol</a></li>
-      </ol>
-    </nav>
-
-    <h2 id="how-llms-use-directories">1. How generative search engines consume directory data</h2>
+    <h2>How Generative Search Engines Consume Directory Data</h2>
     <p>When a user asks: <em>"What are the best automated GEO diagnostic tools for B2B SaaS?"</em>, generative engines rarely search for single brand homepages. Instead, they retrieve structured listicle pages from trusted third-party directories.</p>
     <p>If your product is listed on a high-authority directory with consistent category tags and feature summaries, the RAG synthesizer uses that listing to validate your product's category membership and include it in comparative answers.</p>
 
-    <h2 id="directory-matrix">2. High-Authority Directory Evaluation Matrix</h2>
+    <h2>High-Authority Directory Evaluation Matrix</h2>
     <p>The table below highlights established platforms that meet CiteAura's authority and crawler-ingestion criteria:</p>
 
     <div style="overflow-x:auto;margin:1.5rem 0;">
@@ -243,26 +186,27 @@
       </table>
     </div>
 
-    <h2 id="the-dr-gate">3. Why the DR &ge; 30 threshold is non-negotiable</h2>
-    <p>The explosion of AI has spawned thousands of automated affiliate directories running on scraped data. Submitting to these sites wastes marketing budget and carries significant risks:</p>
+    <h2>Why We Recommend the DR &ge; 30 Threshold as a Practical Gate</h2>
+    <p>The explosion of AI software has spawned thousands of automated affiliate directories running on scraped data. We recommend enforcing a <strong>Domain Rating (DR) &ge; 30 filter</strong> as a practical rule of thumb to protect marketing resources and brand credibility:</p>
     <ul>
-      <li>They frequently hallucinate or mislabel pricing to capture affiliate clicks.</li>
+      <li>Low-tier directory farms frequently hallucinate or mislabel pricing to capture affiliate clicks.</li>
       <li>Search engines de-index automated low-DR sites during core spam updates.</li>
       <li>LLM retrieval systems discard low-authority domains during RAG reranking passes.</li>
     </ul>
-    <p>Enforcing a strict <strong>DR &ge; 30 quality gate</strong> ensures your earned citation efforts focus entirely on domains that AI models actively trust.</p>
 
-    <h2 id="submission-protocol">4. The 4-step canonical submission protocol</h2>
+    <h2>The 4-Step Canonical Submission Protocol</h2>
     <ol>
       <li><strong>Extract canonical facts:</strong> Copy official descriptions and pricing directly from your <a href="/blog/brand-fact-library-guide">Brand Fact Library</a>.</li>
-      <li><strong>Verify directory crawl status:</strong> Inspect the directory's <code>robots.txt</code> to ensure <code>GPTBot</code> and <code>PerplexityBot</code> are not blocked.</li>
+      <li><strong>Verify directory crawl status:</strong> Inspect the directory's <code>robots.txt</code> to ensure <code>OAI-SearchBot</code> and <code>PerplexityBot</code> are not blocked.</li>
       <li><strong>Submit canonical HTTPS URLs:</strong> Always use your primary apex or www domain matching your site's <code>rel="canonical"</code> tags.</li>
-      <li><strong>Audit citation presence:</strong> Run a post-submission audit in <a href="/ai-visibility-audit">CiteAura</a> to verify when the directory listing begins appearing in third-party citation arrays.</li>
+      <li><strong>Audit citation presence:</strong> Run a post-submission audit in CiteAura's <a href="/ai-visibility-audit">AI visibility audit</a> to verify when the directory listing begins appearing in third-party citation arrays.</li>
     </ol>
+
+    <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
 
     <div class="blog-cta">
       <p>Audit your brand's third-party citation authority across high-DR directories with CiteAura.</p>
-      <a class="btn btn-primary" href="/ai-visibility-audit">Start citation audit</a>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
     </div>
 
     <h2>Sources</h2>
@@ -272,19 +216,6 @@
       <li><a href="https://www.wikidata.org/wiki/Wikidata:Main_Page" rel="noopener noreferrer">Wikidata Knowledge Graph</a> — Cross-referencing directory profiles with open entity identifiers.</li>
       <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a" rel="noopener noreferrer">MDN: HTML Anchor Element</a> — Web linking standards, rel attributes, and canonical referral tracking.</li>
     </ul>
-
-    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
-      <h2 id="faq-heading">Frequently asked questions</h2>
-      <h3>Do NoFollow links in AI directories still pass citation value?</h3>
-      <p>Yes. Traditional search engines ignore NoFollow links for PageRank passing, but generative LLM chunkers read the actual text content and URLs on the page regardless of link rel attributes.</p>
-
-      <h3>How long does it take for a directory submission to influence AI answers?</h3>
-      <p>High-DR directories (like Product Hunt or There's An AI For That) are typically re-indexed by AI search bots within 48 to 96 hours, influencing live web retrieval queries almost immediately.</p>
-
-      <h3>Can directory listings cause brand fact hallucinations?</h3>
-      <p>Yes, if the directory contains outdated pricing or feature descriptions. Always maintain a record of active directory listings and update them whenever your product pricing or positioning changes.</p>
-      <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
-    </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>

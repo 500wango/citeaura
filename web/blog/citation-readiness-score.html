@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Citation Readiness Score: 5 Dimensions | CiteAura</title>
-  <meta name="description" content="Discover how the 5-Dimension Citation Readiness Score audits your website's technical and content infrastructure for AI citations across ChatGPT, Perplexity, and Google AI Overviews.">
+  <meta name="description" content="Discover how CiteAura's Citation Readiness Score audits your website across 5 technical dimensions: Crawlability, Extractability, Entities, Answerability, and Authority.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/runtime-assets/theme-init.js"></script>
@@ -24,7 +24,7 @@
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/citation-readiness-score">
   <meta property="og:title" content="Citation Readiness Score: 5 Dimensions | CiteAura">
-  <meta property="og:description" content="A comprehensive guide to the 5 dimensions of AI citation readiness: crawlability, extractability, structured entities, answerability, and authority.">
+  <meta property="og:description" content="A comprehensive architectural breakdown of the 5 dimensions of AI citation readiness.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -32,7 +32,7 @@
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Citation Readiness Score: 5 Dimensions">
-  <meta name="twitter:description" content="How to evaluate and optimize your website for AI search citations across 5 technical dimensions.">
+  <meta name="twitter:description" content="How CiteAura evaluates technical website readiness for AI search citations across 5 dimensions.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
@@ -80,44 +80,6 @@
           "logo": "https://citeaura.com/site-assets/logo.png"
         },
         "mainEntityOfPage": "https://citeaura.com/blog/citation-readiness-score"
-      },
-      {
-        "@type": "FAQPage",
-        "@id": "https://citeaura.com/blog/citation-readiness-score#faq",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "What is the Citation Readiness Score?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "The Citation Readiness Score is a composite technical metric (0–100) evaluated across 5 core dimensions: Crawl Accessibility, DOM Extractability, Structured Entities, Content Answerability, and Authority Signals."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Does a score of 100 guarantee that AI models will cite my site?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "No. The score measures technical and structural readiness. Because generative models evaluate proprietary ranking algorithms and user query intent dynamically, high readiness maximizes your eligibility but does not guarantee placement."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Which dimension carries the highest weighting in citation readiness?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Crawl Accessibility and DOM Extractability are prerequisite gates. If crawlers cannot fetch or extract clean text from your HTML, subsequent entity and answerability scores cannot function."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How does CiteAura turn low dimension scores into action?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "CiteAura maps failing check thresholds directly to automated Jira/Markdown remediation tickets with predefined code snippets, schema templates, and acceptance criteria."
-            }
-          }
-        ]
       }
     ]
   }
@@ -168,110 +130,80 @@
     <header class="blog-header">
       <span class="blog-kicker">Diagnostic Framework</span>
       <h1>Citation Readiness Score: 5 Dimensions</h1>
-      <p class="blog-lead">Before you can fix an AI visibility gap, you need a deterministic way to measure whether your website meets the technical standards required for LLM citation. CiteAura's Citation Readiness Score breaks down site evaluation across five quantitative dimensions.</p>
+      <p class="blog-lead">Before you can fix an AI visibility gap, you need a deterministic metric to measure whether your website meets the technical standards required for LLM citations. CiteAura's Citation Readiness Score evaluates domain infrastructure across five quantitative dimensions, mapping failing checks directly to automated engineering tickets.</p>
       <p class="blog-meta">Updated 1 September 2026 · 11 min read · Technical Framework</p>
       <p class="blog-byline">By Marcus Vance</p>
     </header>
 
-    <div class="blog-callout">
-      <p><strong>The 5 dimensions at a glance:</strong></p>
-      <ul>
-        <li><strong>D1: Crawl Accessibility (25%):</strong> HTTP status, robots.txt allow rules, and WAF clearance for AI crawlers.</li>
-        <li><strong>D2: DOM Extractability (25%):</strong> SSR HTML density, clean text extraction ratio, and heading hierarchy.</li>
-        <li><strong>D3: Structured Entities (20%):</strong> JSON-LD schema validity (Organization, Product, FAQPage) and entity disambiguation.</li>
-        <li><strong>D4: Content Answerability (15%):</strong> Inverted pyramid definitions, tabular facts, and unambiguous entity references.</li>
-        <li><strong>D5: Authority &amp; Consensual Links (15%):</strong> DR &ge; 30 directory presence, root <code>/llms.txt</code> manifest, and citation references.</li>
-      </ul>
-    </div>
+    <h2>The 5-Dimension Scoring Matrix</h2>
+    <p>In CiteAura's diagnostic engine, a domain's overall readiness (0–100) is calculated as a weighted composite score across five foundational dimensions:</p>
 
-    <nav class="blog-toc" aria-labelledby="toc-heading">
-      <h2 id="toc-heading" style="font-size:0.95rem;margin-bottom:0.5rem;">Contents</h2>
-      <ol style="margin:0;padding-left:1.2rem;line-height:1.8;">
-        <li><a href="#scoring-breakdown">The 5-Dimension Scoring Matrix</a></li>
-        <li><a href="#d1-crawl">Dimension 1: Crawl Accessibility</a></li>
-        <li><a href="#d2-extract">Dimension 2: DOM Extractability</a></li>
-        <li><a href="#d3-schema">Dimension 3: Structured Entities &amp; Schema</a></li>
-        <li><a href="#d4-answer">Dimension 4: Content Answerability</a></li>
-        <li><a href="#d5-authority">Dimension 5: Authority &amp; Knowledge Signals</a></li>
-        <li><a href="#action-tickets">Automated ticket generation from failing checks</a></li>
-      </ol>
-    </nav>
-
-    <h2 id="scoring-breakdown">1. The 5-Dimension Scoring Matrix</h2>
-    <p>CiteAura calculates a composite readiness score out of 100 based on the following diagnostic checks:</p>
-
-    <div style="overflow-x:auto;margin:1.5rem 0;">
+    <div style="overflow-x:auto;margin:1.75rem 0;">
       <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
         <thead>
           <tr style="border-bottom:2px solid var(--border-color, #e2e8f0);background:var(--bg-subtle, #f8fafc);">
             <th style="padding:0.75rem;">Dimension</th>
-            <th style="padding:0.75rem;">Weight</th>
-            <th style="padding:0.75rem;">Key Checks</th>
-            <th style="padding:0.75rem;">Pass Threshold</th>
-            <th style="padding:0.75rem;">Remediation Rule</th>
+            <th style="padding:0.75rem;">Model Weight</th>
+            <th style="padding:0.75rem;">Key Diagnostic Checks</th>
+            <th style="padding:0.75rem;">Pass Criteria</th>
+            <th style="padding:0.75rem;">Automated Remediation Rule</th>
           </tr>
         </thead>
         <tbody>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><strong>D1: Crawl Accessibility</strong></td>
             <td style="padding:0.75rem;">25%</td>
-            <td style="padding:0.75rem;">GPTBot, ClaudeBot, PerplexityBot HTTP status</td>
+            <td style="padding:0.75rem;"><code>robots.txt</code> allow rules &amp; WAF clearance for GPTBot, ClaudeBot, PerplexityBot</td>
             <td style="padding:0.75rem;">HTTP 200 on all public canonical routes</td>
-            <td style="padding:0.75rem;">Auto-generates <code>robots.txt</code> patch ticket</td>
+            <td style="padding:0.75rem;">Generates <code>robots.txt</code> / Cloudflare allow patch ticket</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><strong>D2: DOM Extractability</strong></td>
             <td style="padding:0.75rem;">25%</td>
-            <td style="padding:0.75rem;">Clean text ratio, SSR text &gt; 500w, table elements</td>
-            <td style="padding:0.75rem;">&gt; 85% text recovery without JS execution</td>
-            <td style="padding:0.75rem;">Auto-generates SSR hydration fix ticket</td>
+            <td style="padding:0.75rem;">Headless HTML-to-Markdown text recovery ratio without client JS execution</td>
+            <td style="padding:0.75rem;">&gt; 85% clean body text recovered by headless parsers</td>
+            <td style="padding:0.75rem;">Generates SSR hydration / semantic HTML ticket</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><strong>D3: Structured Entities</strong></td>
             <td style="padding:0.75rem;">20%</td>
-            <td style="padding:0.75rem;">JSON-LD Organization, Product, FAQPage</td>
-            <td style="padding:0.75rem;">Valid Schema.org syntax &amp; sameAs links</td>
-            <td style="padding:0.75rem;">Auto-generates JSON-LD payload ticket</td>
+            <td style="padding:0.75rem;">JSON-LD Organization, Product, and FAQPage syntax and sameAs linking</td>
+            <td style="padding:0.75rem;">Valid Schema.org markup without syntax errors</td>
+            <td style="padding:0.75rem;">Generates JSON-LD schema payload ticket</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><strong>D4: Content Answerability</strong></td>
             <td style="padding:0.75rem;">15%</td>
-            <td style="padding:0.75rem;">Inverted pyramid definitions, table comparison density</td>
-            <td style="padding:0.75rem;">&gt; 2 native comparison tables on product routes</td>
-            <td style="padding:0.75rem;">Auto-generates answer block rewrite ticket</td>
+            <td style="padding:0.75rem;">Inverted pyramid definitions, native HTML comparison tables, pronoun clarity</td>
+            <td style="padding:0.75rem;">Direct entity definitions in section headers</td>
+            <td style="padding:0.75rem;">Generates copy answerability rewrite ticket</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><strong>D5: Authority &amp; Signals</strong></td>
+            <td style="padding:0.75rem;"><strong>D5: Authority Signals</strong></td>
             <td style="padding:0.75rem;">15%</td>
-            <td style="padding:0.75rem;">Root <code>llms.txt</code> validity, DR &ge; 30 directory links</td>
-            <td style="padding:0.75rem;">Valid <code>llms.txt</code> + 3 verified citations</td>
-            <td style="padding:0.75rem;">Auto-generates llms.txt and directory ticket</td>
+            <td style="padding:0.75rem;">Root <code>/llms.txt</code> discovery file validity + presence on DR &ge; 30 platforms</td>
+            <td style="padding:0.75rem;">Valid root <code>llms.txt</code> + verified profiles</td>
+            <td style="padding:0.75rem;">Generates llms.txt template &amp; directory outreach ticket</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <h2 id="d1-crawl">2. Dimension 1: Crawl Accessibility</h2>
-    <p>Crawl accessibility evaluates whether AI fetchers can retrieve your pages without receiving 403 Forbidden, 503 Service Unavailable, or Cloudflare challenge pages. If this dimension scores below 80%, all downstream visibility is blocked.</p>
+    <h2>How the Composite Score is Calculated</h2>
+    <p>CiteAura calculates the composite score using the weighted formula:</p>
 
-    <h2 id="d2-extract">3. Dimension 2: DOM Extractability</h2>
-    <p>Extractability measures what percentage of your core text survives headless HTML-to-Markdown parsing. It flags pages where critical information is trapped behind client-side React mounts, nested unsemantic divs, or modal overlays.</p>
+    <pre><code>Score = (D1 × 0.25) + (D2 × 0.25) + (D3 × 0.20) + (D4 × 0.15) + (D5 × 0.15)</code></pre>
 
-    <h2 id="d3-schema">4. Dimension 3: Structured Entities &amp; Schema</h2>
-    <p>Structured entities provide explicit machine-readable facts (pricing, founder, compliance certifications) that LLMs use to verify claims. This dimension validates syntax and cross-references assertions against public copy.</p>
+    <p>In CiteAura's scoring engine, a score of <strong>85/100 or higher</strong> indicates high readiness for AI search engine extraction. Scores below <strong>60/100</strong> indicate severe crawl blocking or SPA extraction failures that prevent citation in generative search engines.</p>
 
-    <h2 id="d4-answer">5. Dimension 4: Content Answerability</h2>
-    <p>Answerability audits how well your copy resolves specific search questions within the first 40 words of each section, penalizing introductory fluff and pronoun ambiguity.</p>
+    <h2>Automated Ticket Backlog Generation</h2>
+    <p>Unlike passive audit scorecards, CiteAura converts every failed check into a discrete engineering or content ticket in your workspace backlog. Each ticket includes complete acceptance criteria, code fixes, and schema payloads ready to import into Jira, GitHub, or Linear.</p>
 
-    <h2 id="d5-authority">6. Dimension 5: Authority &amp; Knowledge Signals</h2>
-    <p>This dimension checks for a live root <a href="/blog/what-to-put-in-llms-txt">llms.txt file</a> and presence across authoritative third-party directories (DR &ge; 30) that corroborate your brand identity.</p>
-
-    <h2 id="action-tickets">7. Automated ticket generation from failing checks</h2>
-    <p>CiteAura does not leave you with a passive scorecard. Any check scoring below the pass threshold triggers an automated remediation ticket in your workspace backlog, ready to assign to engineering or content teams.</p>
+    <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
 
     <div class="blog-cta">
       <p>Audit your website across all 5 Citation Readiness Dimensions in under 60 seconds with CiteAura.</p>
-      <a class="btn btn-primary" href="/ai-visibility-audit">Calculate citation readiness</a>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
     </div>
 
     <h2>Sources</h2>
@@ -281,18 +213,6 @@
       <li><a href="https://www.rfc-editor.org/rfc/rfc9309.html" rel="noopener noreferrer">RFC 9309: Robots Exclusion Protocol</a> — Standardized robots.txt parsing and crawl accessibility requirements.</li>
       <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org Standard</a> — Plain-text index validation rules and canonical host serving requirements.</li>
     </ul>
-
-    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
-      <h2 id="faq-heading">Frequently asked questions</h2>
-      <h3>How often should citation readiness be re-calculated?</h3>
-      <p>CiteAura recalculates readiness automatically after every deployment or on a scheduled weekly cadence to catch regression drift.</p>
-
-      <h3>What is considered a good Citation Readiness Score?</h3>
-      <p>A score above 85/100 indicates high readiness for AI citations. Scores below 60/100 typically indicate severe crawl blocks or JavaScript hydration extraction failures.</p>
-
-      <h3>Can an agency white-label the Citation Readiness report?</h3>
-      <p>Yes. Agencies can export the complete 5-dimension report with custom branding, radar charts, and ticket backlogs as part of client delivery packs.</p>
-    </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>

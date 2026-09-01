@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Google AI Overviews: How to Get Cited | CiteAura</title>
-  <meta name="description" content="A technical guide on how to get cited in Google AI Overviews. Learn how Google Gemini selects citation source cards, why DR alone is insufficient, and how to optimize page structure for AI passage extraction.">
+  <meta name="description" content="Discover how Google Gemini selects citation source cards in AI Overviews. Learn passage optimization, semantic HTML structuring, and schema entity validation.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/runtime-assets/theme-init.js"></script>
@@ -24,7 +24,7 @@
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/google-ai-overviews-citation-guide">
   <meta property="og:title" content="Google AI Overviews: How to Get Cited | CiteAura">
-  <meta property="og:description" content="Technical guide to earning citations in Google AI Overviews: query decomposition, passage ranking, JSON-LD schema, and answerability optimization.">
+  <meta property="og:description" content="A comprehensive technical guide to passage structuring, schema markup, and earning citation cards in Google AI Overviews.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -32,7 +32,7 @@
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Google AI Overviews: How to Get Cited">
-  <meta name="twitter:description" content="How Google Gemini selects citation source cards and how to structure pages for AI Overviews.">
+  <meta name="twitter:description" content="Technical passage structuring and schema requirements for Google AI Overview citations.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
@@ -65,13 +65,13 @@
       {
         "@type": "Article",
         "headline": "Google AI Overviews: How to Get Cited",
-        "description": "How to optimize websites to earn source link citations in Google AI Overviews using passage indexing, structured schema, and high-answerability formatting.",
+        "description": "How Google Gemini retrieves, ranks, and attributes web passages in AI Overviews, with specific recommendations for HTML structure and schema markup.",
         "url": "https://citeaura.com/blog/google-ai-overviews-citation-guide",
         "datePublished": "2026-09-01",
         "dateModified": "2026-09-01",
         "author": {
           "@type": "Person",
-          "name": "David Park"
+          "name": "Marcus Vance"
         },
         "publisher": {
           "@type": "Organization",
@@ -80,44 +80,6 @@
           "logo": "https://citeaura.com/site-assets/logo.png"
         },
         "mainEntityOfPage": "https://citeaura.com/blog/google-ai-overviews-citation-guide"
-      },
-      {
-        "@type": "FAQPage",
-        "@id": "https://citeaura.com/blog/google-ai-overviews-citation-guide#faq",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "How does Google select source URLs for AI Overviews?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Google combines core web index rankings with Gemini-driven passage extraction. It identifies specific semantic sections that directly answer sub-intents of the query, selecting source links that corroborate synthesized facts."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Do you need to rank in the top 3 traditional organic results to be cited in AI Overviews?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "No. While top organic ranking correlates with AI Overview inclusion, studies show over 40% of cited links come from pages ranking outside the top 3 organic positions, provided the page offers high factual extractability and answer density."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Does Google-Extended bot control AI Overview indexing?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Google-Extended controls whether Google uses your content for training generative models like Gemini. It does not block Googlebot from indexing your pages for Google Search or AI Overviews."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "What page format performs best for AI Overview citations?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Pages with clear H2/H3 question headers, immediate 40-word definitive answer summaries, structured HTML comparison tables, and valid JSON-LD schemas perform best."
-            }
-          }
-        ]
       }
     ]
   }
@@ -147,7 +109,7 @@
       <div class="nav-actions">
         <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" title="Switch Theme">
           <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
 
         <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
@@ -162,173 +124,98 @@
       <span aria-hidden="true">/</span>
       <a href="/blog">Guides</a>
       <span aria-hidden="true">/</span>
-      <span>Google AI Overviews Citation Guide</span>
+      <span>Google AI Overviews Citation</span>
     </nav>
 
     <header class="blog-header">
-      <span class="blog-kicker">Search Engine Optimization</span>
+      <span class="blog-kicker">Mechanism Explanation</span>
       <h1>Google AI Overviews: How to Get Cited</h1>
-      <p class="blog-lead">Google AI Overviews (formerly Search Generative Experience) display multi-source AI answers at the top of search results. Securing one of the coveted citation link cards requires more than traditional PageRank—it demands high-answerability page architecture, clean semantic HTML, and explicit entity validation.</p>
-      <p class="blog-meta">Updated 1 September 2026 · 11 min read · Practical Engineering</p>
-      <p class="blog-byline">By David Park</p>
+      <p class="blog-lead">Google AI Overviews (formerly SGE) represent the biggest transformation in organic search layout in two decades. Instead of directing users to the top blue link, Google's Gemini-powered retrieval pipeline synthesizes direct answers and links to candidate source cards. Understanding how passage extraction works is critical to earning citations.</p>
+      <p class="blog-meta">Updated 1 September 2026 · 11 min read · Search Engineering</p>
+      <p class="blog-byline">By Marcus Vance</p>
     </header>
 
-    <div class="blog-callout">
-      <p><strong>Quick checklist for AI Overview inclusion:</strong></p>
-      <ul>
-        <li><strong>Answer in the first 40 words:</strong> Provide a direct, unambiguous declarative summary beneath every primary H2.</li>
-        <li><strong>Use tabular comparison data:</strong> Structured HTML tables are extracted into AI Overviews at more than triple the rate of narrative paragraphs.</li>
-        <li><strong>Maintain Schema.org integrity:</strong> Implement strict <code>Organization</code>, <code>FAQPage</code>, and <code>HowTo</code> JSON-LD schemas.</li>
-      </ul>
-    </div>
-
-    <nav class="blog-toc" aria-labelledby="toc-heading">
-      <h2 id="toc-heading" style="font-size:0.95rem;margin-bottom:0.5rem;">Contents</h2>
-      <ol style="margin:0;padding-left:1.2rem;line-height:1.8;">
-        <li><a href="#how-ai-overviews-work">The anatomy of a Google AI Overview citation</a></li>
-        <li><a href="#serp-vs-aio">Traditional SERP snippets vs AI Overview link cards</a></li>
-        <li><a href="#answerability-principles">The 4 answerability rules for passage extraction</a></li>
-        <li><a href="#structured-data-schema">Schema.org patterns that trigger entity recognition</a></li>
-        <li><a href="#audit-and-verify">How to audit your Google AI Overview readiness</a></li>
-      </ol>
-    </nav>
-
-    <h2 id="how-ai-overviews-work">1. The anatomy of a Google AI Overview citation</h2>
-    <p>Google AI Overviews are synthesized using customized Gemini models fine-tuned on web index retrieval. When a query triggers an overview, Google's pipeline operates in distinct phases:</p>
+    <h2>The Passage-Level Retrieval Pipeline</h2>
+    <p>Traditional Google search ranks entire web documents based on aggregate domain authority, backlink graphs, and page-level signals. In contrast, AI Overviews operate on a two-tier pipeline:</p>
     <ol>
-      <li><strong>Query decomposition:</strong> Complex queries are split into discrete sub-questions (e.g., <em>"what is X"</em>, <em>"pricing of X"</em>, <em>"pros and cons"</em>).</li>
-      <li><strong>Passage retrieval:</strong> Google fetches top organic passages from its index, evaluating specific sections of pages rather than whole documents.</li>
-      <li><strong>Fact verification &amp; agreement:</strong> The model evaluates whether claims appear across multiple high-authority sources.</li>
-      <li><strong>Citation mapping:</strong> Links are placed in the expandable carousel on desktop and inline drop-down icons on mobile.</li>
+      <li><strong>Broad Retrieval:</strong> Google retrieves a candidate pool of top-ranking documents matching the user query.</li>
+      <li><strong>Passage Chunking &amp; Reranking:</strong> Gemini parses each candidate document into discrete semantic passages, scoring each chunk for direct answerability, entity clarity, and factual density. High-scoring chunks are synthesized into the overview and attributed via clickable source cards.</li>
     </ol>
-    <p>Because Google evaluates passage-level answer density, smaller and more focused technical pages frequently out-cite massive generalist domains if their answers are structurally cleaner.</p>
 
-    <h2 id="serp-vs-aio">2. Traditional SERP snippets vs AI Overview link cards</h2>
-    <p>To win AI Overview citations, marketing teams must shift from traditional keyword targeting to answer-focused passage optimization:</p>
+    <h2>Why High-Ranking Pages Often Lose AI Overview Citations</h2>
+    <p>It is increasingly common to see a page ranking #1 or #2 in classic organic results while being completely excluded from the AI Overview carousel above it. This occurs when the page buries its core answer beneath long introductory narratives, marketing fluff, or ambiguous pronoun references.</p>
 
-    <div style="overflow-x:auto;margin:1.5rem 0;">
-      <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
-        <thead>
-          <tr style="border-bottom:2px solid var(--border-color, #e2e8f0);background:var(--bg-subtle, #f8fafc);">
-            <th style="padding:0.75rem;">Dimension</th>
-            <th style="padding:0.75rem;">Traditional Organic SERP</th>
-            <th style="padding:0.75rem;">Google AI Overviews</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><strong>Primary Ranking Asset</strong></td>
-            <td style="padding:0.75rem;">Page-level PageRank, title tag match, and backlink authority.</td>
-            <td style="padding:0.75rem;">Passage answerability, entity clarity, and factual extractability.</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><strong>Click-Through Behavior</strong></td>
-            <td style="padding:0.75rem;">Direct clicks to top 3 blue links.</td>
-            <td style="padding:0.75rem;">High-intent clicks from users seeking deeper verification of synthesized facts.</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><strong>Content Preference</strong></td>
-            <td style="padding:0.75rem;">Comprehensive 2,500-word skyscraper articles with repeated keywords.</td>
-            <td style="padding:0.75rem;">Modular sections with direct answers, definitions, and clean HTML tables.</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><strong>Schema Utilization</strong></td>
-            <td style="padding:0.75rem;">Used for SERP rich snippet enhancements (stars, prices).</td>
-            <td style="padding:0.75rem;">Used as ground-truth entity assertions for Gemini's RAG pipeline.</td>
-          </tr>
-        </tbody>
-      </table>
+    <div style="background:var(--bg-subtle, #f8fafc);border:1px solid var(--border-color, #e2e8f0);border-radius:8px;padding:1.25rem;margin:1.75rem 0;">
+      <h3 style="margin-top:0;">Before vs. After: Passage Structuring for Gemini</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1rem;">
+        <div>
+          <strong style="color:var(--text-danger, #ef4444);">❌ Low Extractability (Fails Retrieval):</strong>
+          <p style="font-size:0.875rem;margin-top:0.5rem;line-height:1.6;color:var(--text-muted, #64748b);">"In today's fast-paced digital ecosystem, companies need modern solutions to thrive. When evaluating software, our revolutionary platform empowers modern teams with seamless insights."</p>
+          <p style="font-size:0.8rem;color:var(--text-muted, #64748b);"><em>Problem: Zero concrete entities, passive voice, no definitive answer within the first 40 words.</em></p>
+        </div>
+        <div>
+          <strong style="color:var(--text-success, #10b981);">✅ High Extractability (Earns Citation):</strong>
+          <p style="font-size:0.875rem;margin-top:0.5rem;line-height:1.6;">"CiteAura is an automated GEO diagnostic platform that audits whether AI search engines can crawl, parse, and cite a domain's public content."</p>
+          <p style="font-size:0.8rem;color:var(--text-muted, #64748b);"><em>Strength: Subject-predicate definition, clear category entity, immediate factual clarity.</em></p>
+        </div>
+      </div>
     </div>
 
-    <h2 id="answerability-principles">3. The 4 answerability rules for passage extraction</h2>
-    <p>To ensure Google's passage extractors parse and select your content, format each key section following these guidelines:</p>
+    <h2>Technical Implementation for Passage Optimization</h2>
 
-    <h3>Rule 1: Direct definition opening</h3>
-    <p>Begin each conceptual section with a definitive subject-predicate statement rather than introductory rhetorical questions:</p>
+    <h3>1. Use Semantic HTML Over Div Soup</h3>
+    <p>Gemini chunkers segment content using standard HTML block tags. Wrapping key definitions in <code>&lt;p&gt;</code>, <code>&lt;dl&gt;</code>, or <code>&lt;table&gt;</code> tags allows the extractor to identify self-contained semantic units cleanly.</p>
 
-    <pre><code>&lt;!-- Poor format: Vague intro --&gt;
-&lt;h2&gt;What is Generative Engine Optimization?&lt;/h2&gt;
-&lt;p&gt;In the modern era of marketing, many professionals wonder how AI is changing search...&lt;/p&gt;
+    <pre><code>&lt;dl&gt;
+  &lt;dt&gt;Generative Engine Optimization (GEO)&lt;/dt&gt;
+  &lt;dd&gt;The practice of optimizing website crawlability, DOM extractability, and factual consistency to earn citations in AI search engines.&lt;/dd&gt;
+&lt;/dl&gt;</code></pre>
 
-&lt;!-- High-answerability format: Immediate definition --&gt;
-&lt;h2&gt;What is Generative Engine Optimization?&lt;/h2&gt;
-&lt;p&gt;Generative Engine Optimization (GEO) is the technical and editorial discipline of optimizing 
-websites to improve brand citations, factual accuracy, and visibility within AI-generated answers.&lt;/p&gt;</code></pre>
-
-    <h3>Rule 2: Semantic list and table markup</h3>
-    <p>Do not simulate lists with styled <code>&lt;div&gt;</code> tags. Use standard HTML <code>&lt;ol&gt;</code>, <code>&lt;ul&gt;</code>, and <code>&lt;table&gt;</code> elements. Google's web scrapers prioritize semantic DOM trees during context building.</p>
-
-    <h3>Rule 3: Eliminate pronoun ambiguity</h3>
-    <p>Avoid referring to your platform as "it", "this tool", or "we" in isolated paragraphs. Write the explicit brand name so extracted passages remain self-contained and attributable when isolated by RAG chunkers.</p>
-
-    <h3>Rule 4: Keep paragraphs under 75 words</h3>
-    <p>Dense blocks of 200+ words are frequently truncated or split mid-sentence by embedding chunkers, destroying the context needed for attribution.</p>
-
-    <h2 id="structured-data-schema">4. Schema.org patterns that trigger entity recognition</h2>
-    <p>Deploy valid JSON-LD on your canonical URLs. The following <code>SoftwareApplication</code> schema provides Google with explicit product attributes:</p>
+    <h3>2. Deploy Entity-Rich JSON-LD Schemas</h3>
+    <p>Structured data provides unambiguous machine-readable confirmation of entity names, relationships, and attributes. Deploying valid Schema.org markup allows Google's Knowledge Graph to verify facts asserted in your body copy:</p>
 
     <pre><code>&lt;script type="application/ld+json"&gt;
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "CiteAura",
-  "operatingSystem": "Web",
   "applicationCategory": "BusinessApplication",
-  "description": "Generative Engine Optimization platform for AI visibility diagnosis and engineering remediation.",
+  "operatingSystem": "Cloud-based",
   "offers": {
     "@type": "Offer",
-    "price": "79.00",
+    "price": "0",
     "priceCurrency": "USD"
-  },
-  "publisher": {
-    "@type": "Organization",
-    "name": "CiteAura",
-    "url": "https://citeaura.com"
   }
 }
 &lt;/script&gt;</code></pre>
 
-    <h2 id="audit-and-verify">5. How to audit your Google AI Overview readiness</h2>
-    <p>Auditing AI Overview readiness requires evaluating both technical crawl accessibility and content answerability:</p>
-    <ol>
-      <li><strong>Check crawl logs:</strong> Confirm Googlebot is fetching your pages without 4xx errors or JavaScript hydration delays.</li>
-      <li><strong>Audit DOM extractability:</strong> Use CiteAura to inspect your clean text-to-code ratio and verify that core answer passages are not buried inside client-only JavaScript.</li>
-      <li><strong>Benchmark sample cohorts:</strong> Sample your key industry queries under the <code>API · Web Retrieval</code> sampling mode to measure your current citation presence against competitors.</li>
-      <li><strong>Deploy and re-verify:</strong> Implement structured schema and inverted-pyramid copy, then track citation rate changes in your workspace.</li>
-    </ol>
+    <h3>3. Structure Data in Native HTML Tables</h3>
+    <p>When comparing features, pricing tiers, or performance benchmarks, avoid CSS grid wrappers or images of tables. Native HTML <code>&lt;table&gt;</code>, <code>&lt;th&gt;</code>, and <code>&lt;td&gt;</code> elements are recognized by Gemini as high-confidence tabular facts.</p>
+
+    <h2>Measuring Google AI Overview Visibility</h2>
+    <p>To audit whether your optimizations are earning citations, track your brand across a cohort of 20–30 category queries using CiteAura's <a href="/ai-visibility-audit">AI visibility audit</a>. The platform evaluates whether your domain appears in generative citation arrays and flags extractability bottlenecks in your code.</p>
+
+    <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
 
     <div class="blog-cta">
-      <p>Measure your brand's AI citation readiness across Google AI Overviews, Perplexity, and ChatGPT with CiteAura's automated audit workspace.</p>
-      <a class="btn btn-primary" href="/ai-visibility-audit">Run technical AI audit</a>
+      <p>Audit your website's passage extractability and readiness for Google AI Overviews.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
     </div>
 
     <h2>Sources</h2>
     <ul>
       <li><a href="https://developers.google.com/search/docs/fundamentals/how-search-works" rel="noopener noreferrer">Google Search Central: How Search Works</a> — Passage indexing, ranking signals, and AI Overview retrieval pipelines.</li>
       <li><a href="https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data" rel="noopener noreferrer">Google Structured Data Guide</a> — JSON-LD implementations for Organization, FAQPage, and HowTo entities.</li>
-      <li><a href="https://schema.org/HowTo" rel="noopener noreferrer">Schema.org HowTo Specification</a> — Structured procedural markup for generative answer extraction.</li>
+      <li><a href="https://schema.org/SoftwareApplication" rel="noopener noreferrer">Schema.org SoftwareApplication Specification</a> — Structured procedural and software markup for generative answer extraction.</li>
       <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/table" rel="noopener noreferrer">MDN: HTML Table Elements</a> — Semantic tabular data structures for comparative fact extraction.</li>
     </ul>
-
-    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
-      <h2 id="faq-heading">Frequently asked questions</h2>
-      <h3>How quickly do Google AI Overviews update after a site change?</h3>
-      <p>AI Overviews pull from Google's main search index. Once Googlebot recrawls and reindexes your updated HTML (typically 3 to 14 days), the new passage content becomes eligible for citation in AI Overviews.</p>
-
-      <h3>Can I opt out of AI Overviews without losing traditional search ranking?</h3>
-      <p>Google offers the <code>nosnippet</code>, <code>max-snippet</code>, and <code>data-nosnippet</code> robots directives to restrict text snippets. However, applying these directives limits your visibility across both traditional SERP featured snippets and AI Overviews simultaneously.</p>
-
-      <h3>Do AI Overviews cite PDFs or only HTML pages?</h3>
-      <p>Google indexes and extracts text from publicly accessible PDFs. However, standard HTML pages with clean semantic headings and schema markup earn citation cards at a significantly higher frequency.</p>
-      <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
-    </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>
       <ul>
+        <li><a href="/blog/extractability-audit">Extractability Audit: Can AI Read Your Pages?</a></li>
         <li><a href="/blog/how-to-get-ai-to-cite-your-site">How to Write Pages That AI Cites (Answerability)</a></li>
-        <li><a href="/blog/geo-vs-seo">GEO vs SEO: What Changes and What Stays</a></li>
-        <li><a href="/docs">CiteAura Technical Documentation</a></li>
+        <li><a href="/methodology">CiteAura GEO Measurement Methodology</a></li>
       </ul>
     </aside>
   </article>
