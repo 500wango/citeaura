@@ -203,10 +203,8 @@
   ]
 }</code></pre>
 
-    <p>If your official domain is missing from the <code>citations</code> array even when your brand is named in the text, Perplexity is sourcing information from third-party aggregators rather than your primary site.</p>
-
-    <h2>Common Technical Obstacles to Perplexity Indexation</h2>
-    <p>According to official Perplexity documentation and practical server audits, several technical factors directly prevent Perplexity from indexing and citing websites:</p>
+    <h2>Common Failure Modes to Check in Site Audits</h2>
+    <p>In CiteAura website audits and according to official Perplexity documentation, several practical failure modes prevent domains from being indexed and cited:</p>
 
     <h3>1. PerplexityBot or Perplexity-User Blocked in robots.txt</h3>
     <p>Perplexity operates two primary user-agents: <code>PerplexityBot</code> (crawler for search indexation) and <code>Perplexity-User</code> (user-initiated on-demand queries). Perplexity officially complies with <code>robots.txt</code>. Note that Perplexity documentation specifies that changes to <code>robots.txt</code> may take up to approximately 24 hours to be reflected across its systems.</p>
@@ -222,7 +220,7 @@ Disallow: /api/</code></pre>
     <p>If Cloudflare Managed Challenge or Bot Fight Mode blocks requests matching Perplexity user-agents with CAPTCHA challenges (HTTP 403), automated indexers cannot retrieve the page.</p>
 
     <h3>3. Heavy Client-Side Hydration (SPA Lag)</h3>
-    <p>Perplexity's web fetcher is optimized for fast server-delivered HTML. Pages that require extensive client-side JavaScript execution to render basic text risk being parsed as empty shells.</p>
+    <p>Pages that require extensive client-side JavaScript execution to render core body text risk being parsed as empty initial HTML payloads by search crawlers. Delivering primary product specifications in server-rendered HTML ensures immediate machine extractability.</p>
 
     <h2>CiteAura's Recommended Perplexity Diagnostic Protocol</h2>
     <p>As a practical audit methodology, CiteAura recommends following this 4-step workflow:</p>

@@ -192,13 +192,18 @@
         assert res.headers["content-type"].startswith("text/plain")
         return TicketStatus.VERIFIED</code></pre>
 
-    <h2>Measuring Before-and-After Citation Deltas (Illustrative Diagnostic Run)</h2>
-    <p>Once deployment verification passes, CiteAura initiates an automated re-sampling run across your defined prompt cohort under <code>API · Web Retrieval</code> mode to record the delta. Below is an illustrative example from a diagnostic run after unblocking search crawlers and deploying structured tables:</p>
-    <ul>
-      <li><strong>Baseline Cohort (Pre-fix):</strong> Mention Rate: 15.0% | Citation Rate: 0.0%</li>
-      <li><strong>Verification Cohort (Post-fix):</strong> Mention Rate: 65.0% | Citation Rate: 45.0%</li>
-      <li><strong>Illustrative Delta:</strong> +50.0% Mention Rate | +45.0% Citation Rate</li>
-    </ul>
+    <h2>Measuring Before-and-After Citation Deltas</h2>
+    <p>Once deployment verification passes, CiteAura initiates an automated re-sampling run across your defined prompt cohort under <code>API · Web Retrieval</code> mode to record the measurable delta.</p>
+
+    <div style="background:var(--bg-subtle, #f8fafc);border:1px solid var(--border-color, #e2e8f0);border-radius:8px;padding:1.25rem;margin:1.5rem 0;">
+      <strong style="display:block;margin-bottom:0.5rem;">Illustrative Example (Hypothetical Diagnostic Run):</strong>
+      <p style="font-size:0.9rem;line-height:1.6;margin-bottom:0.75rem;">To illustrate how CiteAura calculates citation and mention deltas following a fix (such as unblocking search crawlers and deploying structured HTML tables):</p>
+      <ul style="margin-bottom:0;">
+        <li><strong>Pre-Fix Baseline Cohort:</strong> Mention Rate: 15.0% | Citation Rate: 0.0%</li>
+        <li><strong>Post-Fix Verification Cohort:</strong> Mention Rate: 65.0% | Citation Rate: 45.0%</li>
+        <li><strong>Calculated Illustrative Delta:</strong> +50.0% Mention Rate | +45.0% Citation Rate</li>
+      </ul>
+    </div>
 
     <h2>Continuous Regression Monitoring</h2>
     <p>Frontend framework updates frequently cause accidental SEO regressions—such as a component refactor removing JSON-LD schemas or breaking server-side rendering. CiteAura's scheduled monitoring runs periodic health checks to ensure verified fixes remain active in production.</p>
