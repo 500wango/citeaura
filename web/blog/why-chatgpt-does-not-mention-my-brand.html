@@ -166,6 +166,18 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
       <li><strong>Technical defect:</strong> A result of 0/45 across three independent passes indicates a systematic issue across Buckets 1–4.</li>
     </ul>
 
+    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
+      <h2 id="faq-heading">FAQ: why ChatGPT skips a brand</h2>
+      <h3>Does allowing GPTBot guarantee a ChatGPT mention?</h3>
+      <p>No. It removes crawler access restrictions, but it does not guarantee retrieval, a mention, or a ranking. Your pages must also be extractable and relevant to the user query.</p>
+      <h3>Is llms.txt enough to make a brand appear?</h3>
+      <p>No. The file provides an optional plain-text summary. Core product facts must be present in public HTML.</p>
+      <h3>When is a missing mention a measurement issue?</h3>
+      <p>When visibility varies from prompt to prompt. Establish a cohort baseline with n≥45 before diagnosing site defects.</p>
+      <h3>Should I rewrite marketing copy after a single missing mention?</h3>
+      <p>No. Verify crawl access, HTML rendering, and WAF rules across a multi-pass cohort before revising copy.</p>
+    </section>
+
     <h2 id="competitor">Why competitors are easier to cite</h2>
     <p>Categorical queries ("best tools for X") favor websites that present direct, factual answers in semantic HTML headings and structured tables. When a competitor publishes an open comparison page with clear H2 headings while your site gates pricing inside a downloadable PDF, language models cite the crawlable HTML source.</p>
     <p>In comparative benchmarks, websites that migrate core differentiation from client-rendered JavaScript to plain server-rendered HTML consistently increase their retrievable surface area across multiple testing passes.</p>
@@ -187,18 +199,6 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
       <li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — Structured entity name and description schemas.</li>
       <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — Lightweight plain-text discovery file specification.</li>
     </ul>
-
-    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
-      <h2 id="faq-heading">FAQ: why ChatGPT skips a brand</h2>
-      <h3>Does allowing GPTBot guarantee a ChatGPT mention?</h3>
-      <p>No. It removes crawler access restrictions, but it does not guarantee retrieval, a mention, or a ranking. Your pages must also be extractable and relevant to the user query.</p>
-      <h3>Is llms.txt enough to make a brand appear?</h3>
-      <p>No. The file provides an optional plain-text summary. Core product facts must be present in public HTML.</p>
-      <h3>When is a missing mention a measurement issue?</h3>
-      <p>When visibility varies from prompt to prompt. Establish a cohort baseline with n≥45 before diagnosing site defects.</p>
-      <h3>Should I rewrite marketing copy after a single missing mention?</h3>
-      <p>No. Verify crawl access, HTML rendering, and WAF rules across a multi-pass cohort before revising copy.</p>
-    </section>
 
     <div class="blog-cta">
       <p>Run a 4-bucket diagnostic audit across your domain and generate engineering tickets for crawler and rendering blocks.</p>

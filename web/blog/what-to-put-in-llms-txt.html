@@ -220,6 +220,14 @@
       <p>Public HTML pages remain the authoritative source of truth. The <code>llms.txt</code> file is an index referencing those pages. Any discrepancy between the two means the index is outdated.</p>
     </div>
 
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — The proposed /llms.txt standard for plain-text fact indexes at the site root.</li>
+      <li><a href="https://github.com/AnswerDotAI/llms-txt" rel="noopener noreferrer">Answer.AI llms-txt repository</a> — Schema specifications, parsers, and reference implementations.</li>
+      <li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — Ensuring entity attributes align between public HTML, structured data, and plain-text indexes.</li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type" rel="noopener noreferrer">MDN: Content-Type</a> — HTTP header compatibility for text/plain plain-text indexes.</li>
+    </ul>
+
     <h2 id="shape">2. Markdown structure and formatting</h2>
     <p>While the specification allows standard Markdown syntax, following a consistent structural schema ensures predictable parsing across different LLM ingestion tools:</p>
     <pre><code># Brand Name
@@ -339,16 +347,13 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
     <h2 id="citeaura">7. How CiteAura manages llms.txt</h2>
     <p>CiteAura workspace projects generate reviewed <code>llms.txt</code> assets directly from your verified brand entity registry. In <strong>Execution → Assets</strong>, teams can select approved resource links, verify supporting citations, and export production-ready Markdown files for deployment. CiteAura provides the validated artifact for your engineering team to publish to your hosting infrastructure.</p>
 
+    <div class="blog-cta">
+      <p>Generate valid, pre-verified llms.txt markdown assets from your brand entity library in CiteAura.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+    </div>
+
     <h2 id="limits">Scope and realistic expectations</h2>
     <p>An accurate <code>/llms.txt</code> file provides clean reference material for retrieval tools, but it does not guarantee automatic AI citations or search ranking changes. Real-world model visibility depends on overall crawl accessibility, content extractability, and search relevance. Treat <code>llms.txt</code> as a clear, maintainable index that complements well-structured HTML markup.</p>
-
-    <h2>Sources</h2>
-    <ul>
-      <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — The proposed /llms.txt standard for plain-text fact indexes at the site root.</li>
-      <li><a href="https://github.com/AnswerDotAI/llms-txt" rel="noopener noreferrer">Answer.AI llms-txt repository</a> — Schema specifications, parsers, and reference implementations.</li>
-      <li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — Ensuring entity attributes align between public HTML, structured data, and plain-text indexes.</li>
-      <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type" rel="noopener noreferrer">MDN: Content-Type</a> — HTTP header compatibility for text/plain plain-text indexes.</li>
-    </ul>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: publishing llms.txt</h2>
@@ -361,11 +366,6 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
       <h3>How do I validate llms.txt before deploy?</h3>
       <p>Check that the file contains clean Markdown headings, absolute HTTPS links, reachable source URLs for all factual claims, and valid UTF-8 encoding.</p>
     </section>
-
-    <div class="blog-cta">
-      <p>Generate valid, pre-verified llms.txt markdown assets from your brand entity library in CiteAura.</p>
-      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
-    </div>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>

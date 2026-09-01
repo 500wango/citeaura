@@ -213,6 +213,15 @@
       <p>A delivery package is an immutable point-in-time snapshot. If target websites, prompt banks, audit configurations, or verification tests change, compile a new build rather than editing past archives.</p>
     </div>
 
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://schema.org/Report" rel="noopener noreferrer">Schema.org Report</a> — Structured diagnostic reporting specifications.</li>
+      <li><a href="https://schema.org/TechArticle" rel="noopener noreferrer">Schema.org TechArticle</a> — Actionable technical ticket schemas with code diffs and acceptance criteria.</li>
+      <li><a href="https://www.w3.org/WAI/presenting/" rel="noopener noreferrer">W3C Guidance on Presenting Findings</a> — Leading technical deliverables with actionable remediation steps.</li>
+      <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI Crawler Documentation</a> — Crawler user agents and robots evaluation rules.</li>
+      <li><a href="/docs#verification-delivery">CiteAura Delivery Documentation</a> — Architecture of multi-phase readiness states (diagnosis, visibility, implementation).</li>
+    </ul>
+
     <h2>2 — Delivery pack structure: documents, evidence, and assets</h2>
     <p>CiteAura compiles client deliverables into a standardized archive from <code>work/&lt;tenant&gt;/&lt;slug&gt;/delivery/</code>. The compiler reads active <code>audit.json</code>, <code>tasks.json</code>, <code>metrics/</code>, and <code>delivery/</code> states, bundling numbered HTML reports, implementation assets, raw evidence JSONL files, and comparative visibility deltas with cryptographic SHA-256 manifests.</p>
 
@@ -412,6 +421,11 @@
       </tbody>
     </table>
 
+    <div class="blog-cta">
+      <p>Deliver branded GEO audit packs with verifiable technical tickets and automated client reporting in CiteAura for Agencies.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+    </div>
+
     <h2>8 — Client handoff checklist</h2>
     <p>Review these quality gates before transmitting reports to clients:</p>
     <ul>
@@ -439,15 +453,6 @@
       <li>Report unmeasured model platforms as <em>unmeasured</em> rather than 0%.</li>
     </ul>
 
-    <h2>Sources</h2>
-    <ul>
-      <li><a href="https://schema.org/Report" rel="noopener noreferrer">Schema.org Report</a> — Structured diagnostic reporting specifications.</li>
-      <li><a href="https://schema.org/TechArticle" rel="noopener noreferrer">Schema.org TechArticle</a> — Actionable technical ticket schemas with code diffs and acceptance criteria.</li>
-      <li><a href="https://www.w3.org/WAI/presenting/" rel="noopener noreferrer">W3C Guidance on Presenting Findings</a> — Leading technical deliverables with actionable remediation steps.</li>
-      <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI Crawler Documentation</a> — Crawler user agents and robots evaluation rules.</li>
-      <li><a href="/docs#verification-delivery">CiteAura Delivery Documentation</a> — Architecture of multi-phase readiness states (diagnosis, visibility, implementation).</li>
-    </ul>
-
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: white-label GEO reports</h2>
       <h3>What belongs in a white-label GEO diagnostic report?</h3>
@@ -461,11 +466,6 @@
       <h3>What triggers a ticket state transition?</h3>
       <p>Automated re-crawling or sample verification probes that satisfy the ticket's acceptance test transition tickets to <code>VERIFIED</code> status.</p>
     </section>
-
-    <div class="blog-cta">
-      <p>Deliver branded GEO audit packs with verifiable technical tickets and automated client reporting in CiteAura for Agencies.</p>
-      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
-    </div>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>

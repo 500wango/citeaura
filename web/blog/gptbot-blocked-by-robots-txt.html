@@ -313,6 +313,11 @@ curl -sSL -A "GPTBot" -H "Cache-Control: no-cache" https://yourdomain.com/robots
 curl -sSI -A "GPTBot" https://yourdomain.com/pricing | grep -E "HTTP|x-robots-tag"</code></pre>
     <p>Check the matched group in the response. If <code>User-agent: GPTBot</code> or <code>OAI-SearchBot</code> is defined, those directives govern access. Otherwise, fallback rules under <code>User-agent: *</code> apply.</p>
 
+    <div class="blog-cta">
+      <p>Inspect crawler access across your public routes and generate verified robots.txt fixes with CiteAura's automated site audit.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+    </div>
+
     <h3 id="canonical-check">The canonical redirect trap</h3>
     <p>Robots.txt files apply per host and protocol. <code>https://example.com/robots.txt</code> and <code>https://www.example.com/robots.txt</code> are evaluated independently. Crawlers inspect only the file hosted on your canonical domain (the host declared in <code>&lt;link rel="canonical"&gt;</code> and sitemaps). Modifying the apex domain while your web server redirects visitors to <code>www</code> leaves crawlers reading the unedited <code>www</code> configuration.</p>
 <pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code># Confirm host redirect destinations and live headers
@@ -346,17 +351,8 @@ Allow: /docs/
 Disallow: /</code></pre>
     <p>Because the specific <code>Allow</code> paths are longer than <code>Disallow: /</code>, they take precedence under longest-match evaluation.</p>
 
-    <h3 id="cache-pitfalls">Edge caching: Caddy and Cloudflare pitfalls</h3>
-    <p>When robots.txt changes fail to take effect immediately, stale cache layers are the primary cause:</p>
-    <ul>
-      <li><strong>Cloudflare edge caching:</strong> Cloudflare caches <code>/robots.txt</code> based on default static file rules. Purge the cache directly via <em>Caching → Custom Purge</em> for <code>https://www.example.com/robots.txt</code>, and set origin headers to <code>Cache-Control: max-age=3600, must-revalidate</code>.</li>
-      <li><strong>Caddy proxy routing:</strong> In Caddyfile configurations, catch-all <code>reverse_proxy</code> blocks can intercept <code>/robots.txt</code> before static file handlers process it. Place an explicit <code>handle /robots.txt { file_server }</code> block ahead of general application proxies.</li>
-    </ul>
-
-    <h3 id="log-analysis">Access log verification</h3>
-    <p>Inspect web server access logs to confirm crawlers are actively retrieving your public endpoints:</p>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code># Search Nginx or Caddy logs for OpenAI crawler requests
-grep -Ei "gptbot|oai-searchbot" /var/log/nginx/access.log | tail -n 10</code></pre>
+    <h3 id="cache-pitfalls">Edge caching and log verification</h3>
+    <p>When robots.txt changes fail to take effect live, stale edge cache layers (Cloudflare) or reverse proxy handler precedence (Caddy) are common causes. For complete Caddyfile server configuration blocks and journalctl log queries, refer to <a href="/docs#troubleshooting">Jobs &amp; Troubleshooting in Documentation</a>.</p>
 
     <h2 id="verification">Verification and model expectations</h2>
     <p>CiteAura audits fetch the live robots.txt from your canonical domain, resolve redirect chains, and evaluate RFC 9309 precedence rules. If a public marketing route is blocked, the audit generates an actionable engineering ticket with reproducible test commands.</p>
@@ -381,11 +377,6 @@ grep -Ei "gptbot|oai-searchbot" /var/log/nginx/access.log | tail -n 10</code></p
       <h3>Why does my fix not appear even after deploy?</h3>
       <p>This is usually caused by CDN edge caching or proxy routing precedence. Purge the cache for <code>/robots.txt</code> and ensure static file handling takes precedence over reverse proxies.</p>
     </section>
-
-    <div class="blog-cta">
-      <p>Inspect crawler access across your public routes and generate verified robots.txt fixes with CiteAura's automated site audit.</p>
-      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
-    </div>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>

@@ -1031,6 +1031,33 @@
               </tbody>
             </table>
           </div>
+          <h3 id="crawler-caching-proxy">Crawler Edge Caching &amp; Proxy Configuration</h3>
+          <p>When robots.txt or discovery file updates fail to take effect, edge caches or proxy directive ordering are typically responsible:</p>
+          <div class="code-block">
+# Caddyfile example: ensure robots.txt is served before reverse proxy handlers
+www.example.com {
+  root * /srv/www
+  handle /robots.txt {
+    file_server
+    header Cache-Control "public, max-age=3600, must-revalidate"
+    header Content-Type "text/plain; charset=utf-8"
+  }
+  handle {
+    reverse_proxy localhost:3000
+  }
+}
+          </div>
+          <p><strong>Cloudflare Edge Purge:</strong> When using Cloudflare CDN, purge the path directly via <em>Caching → Custom Purge</em> for <code>https://yourdomain.com/robots.txt</code>, and set origin headers to <code>Cache-Control: max-age=3600, must-revalidate</code>.</p>
+
+          <h3 id="crawler-log-analysis">Crawler Log Analysis</h3>
+          <p>Inspect server access logs to confirm AI crawlers (GPTBot, OAI-SearchBot) are reaching your origin and receiving valid HTTP 200 responses:</p>
+          <div class="code-block">
+# Filter Nginx access logs for OpenAI crawler requests
+grep -Ei "gptbot|oai-searchbot" /var/log/nginx/access.log | tail -n 20
+
+# Filter Caddy systemd journal logs
+journalctl -u caddy --since "7 days ago" | grep -Ei "gptbot|oai-searchbot"
+          </div>
           <p data-i18n="public.docs.failure_report">When reporting a persistent failure, include the project, job ID, action, stage, and telemetry error. Do not include full API keys or access tokens.</p>
         </section>
 

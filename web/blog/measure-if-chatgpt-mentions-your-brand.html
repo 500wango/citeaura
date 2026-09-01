@@ -366,6 +366,12 @@ curl -s -X POST https://api.citeaura.com/api/v1/projects/123/sample \
 # Fetch visibility report metrics
 curl -s https://api.citeaura.com/api/v1/projects/123/report \
   -H "Authorization: Bearer $TOKEN" | jq '.report.engines[] | {platform, sampling_mode, mention_rate, sample_count, mention_interval}'</code></pre>
+
+    <div class="blog-cta">
+      <p>Configure automated multi-engine prompt cohorts and track Wilson confidence intervals in the CiteAura workspace.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+    </div>
+
     <p>For more details on evaluation models, refer to <a href="/docs#measurement">Measurement Concepts</a>.</p>
 
     <h2>Scope and limits of mention rates</h2>
@@ -400,11 +406,6 @@ curl -s https://api.citeaura.com/api/v1/projects/123/report \
       <h3>How many samples are needed to detect a real change?</h3>
       <p>Because variance scales as <code>p(1-p)/n</code>, testing 15 questions across 3 passes (n=45) provides a workable baseline with manageable confidence intervals for tracking directional shifts.</p>
     </section>
-
-    <div class="blog-cta">
-      <p>Configure automated multi-engine prompt cohorts and track Wilson confidence intervals in the CiteAura workspace.</p>
-      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
-    </div>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>
