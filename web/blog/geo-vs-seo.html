@@ -193,7 +193,7 @@
     <h2>What Changes Fundamentally</h2>
 
     <h3>1. From Document Ranking to Passage Extraction</h3>
-    <p>A 3,000-word blog post that hides its primary answer on paragraph 14 may rank well in traditional search due to historic backlinks. However, RAG chunkers extract passages in 200–500 token windows. If the relevant passage lacks clear subject nouns or unambiguous data, the reranker discards it in favor of a competitor's concise table.</p>
+    <p>A 3,000-word blog post that hides its primary answer on paragraph 14 may rank well in traditional search due to historic backlinks. However, generative search retrieval systems extract focused text passages rather than full documents. If the extracted section lacks clear subject nouns or unambiguous data, retrieval systems may favor a competitor's concise table.</p>
 
     <h3>2. From Slogans to Entity Libraries</h3>
     <p>AI models require clear factual consensus to generate confident answers. Inconsistent pricing, conflicting feature descriptions, and obsolete changelogs across disparate pages cause model uncertainty, leading to brand omission. Maintaining a canonical <a href="/blog/brand-fact-library-guide">Brand Fact Library</a> and publishing a root <a href="/blog/what-to-put-in-llms-txt">llms.txt file</a> creates the machine-readable ground truth models need.</p>
@@ -203,7 +203,7 @@
 
     <h2>A 4-Phase Transition Plan for Marketing Teams</h2>
     <ol>
-      <li><strong>Phase 1 (Audit Crawlability):</strong> Unblock <code>OAI-SearchBot</code>, <code>PerplexityBot</code>, and <code>ClaudeBot</code> in <code>robots.txt</code> and verify WAF clearance.</li>
+      <li><strong>Phase 1 (Audit Crawlability):</strong> Unblock <code>OAI-SearchBot</code>, <code>Claude-SearchBot</code>, and <code>PerplexityBot</code> in <code>robots.txt</code> and verify WAF clearance.</li>
       <li><strong>Phase 2 (Extractability Refactor):</strong> Replace nested client-rendered divs on core product pages with semantic HTML tables, definition lists, and JSON-LD schemas.</li>
       <li><strong>Phase 3 (Fact Synchronization):</strong> Publish an <code>/llms.txt</code> file and reconcile pricing and feature descriptions across public touchpoints.</li>
       <li><strong>Phase 4 (Cohort Benchmarking):</strong> Monitor brand mention and citation rates using CiteAura's <a href="/ai-visibility-audit">AI visibility audit</a>.</li>

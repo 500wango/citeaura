@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Perplexity Citation Audit: Are You Cited or Just Mentioned? | CiteAura</title>
-  <meta name="description" content="Audit how Perplexity cites your brand. Learn how PerplexityBot crawls pages, how Sonar models extract citations into source arrays, and how to fix citation gaps.">
+  <meta name="description" content="Audit how Perplexity cites your brand. Learn how PerplexityBot crawls pages, how Sonar models return citations arrays, and how to diagnose citation gaps.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/runtime-assets/theme-init.js"></script>
@@ -68,7 +68,7 @@
         "description": "A technical breakdown of how Perplexity attributes sources, how PerplexityBot crawls websites, and how to verify that your official canonical domain is indexed in Sonar citation arrays.",
         "url": "https://citeaura.com/blog/perplexity-citation-audit",
         "datePublished": "2026-09-01",
-        "dateModified": "2026-09-01",
+        "dateModified": "2026-09-02",
         "author": {
           "@type": "Person",
           "name": "Elena Torres"
@@ -130,13 +130,13 @@
     <header class="blog-header">
       <span class="blog-kicker">Technical Diagnosis</span>
       <h1>Perplexity Citation Audit: Are You Cited or Just Mentioned?</h1>
-      <p class="blog-lead">When a prospective buyer asks Perplexity to evaluate your product category, seeing your brand name in the generated summary is only half the battle. If Perplexity derives its answer from a third-party directory while ignoring your official website, you risk showing outdated pricing, hallucinated features, and zero direct referral traffic.</p>
-      <p class="blog-meta">Updated 1 September 2026 · 10 min read · Diagnostic Guide</p>
+      <p class="blog-lead">When a prospective buyer asks Perplexity to evaluate your product category, seeing your brand name in the generated summary is only half the battle. If Perplexity derives its answer from third-party aggregators while omitting your official website from its citations array, you risk showing outdated pricing and missing direct referral traffic.</p>
+      <p class="blog-meta">Updated 2 September 2026 · 10 min read · Diagnostic Guide</p>
       <p class="blog-byline">By Elena Torres</p>
     </header>
 
     <h2>The Three Levels of Perplexity Brand Attribution</h2>
-    <p>In Perplexity's user interface and API response streams, brand presence occurs across three distinct tiers with vastly different business values:</p>
+    <p>In Perplexity's user interface and API response streams, brand presence occurs across three distinct tiers:</p>
 
     <div style="overflow-x:auto;margin:1.5rem 0;">
       <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
@@ -152,19 +152,19 @@
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><strong>1. Unlinked Text Mention</strong></td>
             <td style="padding:0.75rem;">Generated summary prose</td>
-            <td style="padding:0.75rem;">Extracted from secondary blogs, Reddit, or training corpus</td>
-            <td style="padding:0.75rem;">Low (No traffic, high risk of hallucinated facts)</td>
+            <td style="padding:0.75rem;">Retrieved from secondary articles, reviews, or base training weights</td>
+            <td style="padding:0.75rem;">Low (No direct click-through, risk of outdated facts)</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><strong>2. Footnote Citation Link</strong></td>
             <td style="padding:0.75rem;">Numbered bracket links <code>[1]</code>, <code>[2]</code></td>
-            <td style="padding:0.75rem;">Direct sentence-level attribution supporting a specific claim</td>
-            <td style="padding:0.75rem;">Moderate-to-High (Validates claims, generates clicks)</td>
+            <td style="padding:0.75rem;">Sentence-level attribution supporting a specific factual statement</td>
+            <td style="padding:0.75rem;">High (Validates claims and enables user verification)</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><strong>3. Verified Source Domain Card</strong></td>
-            <td style="padding:0.75rem;">Top carousel cards + <code>citations</code> array</td>
-            <td style="padding:0.75rem;">PerplexityBot crawled canonical HTML directly</td>
+            <td style="padding:0.75rem;">Top carousel cards + API <code>citations</code> array</td>
+            <td style="padding:0.75rem;">Perplexity search indexing successfully crawled and retrieved canonical URL</td>
             <td style="padding:0.75rem;">Highest (Authoritative entity citation)</td>
           </tr>
         </tbody>
@@ -172,7 +172,7 @@
     </div>
 
     <h2>How Perplexity's Sonar API Structures Citations</h2>
-    <p>Under the hood, Perplexity's Sonar models retrieve candidate search pages, rerank relevant passages, and return a structured JSON response containing the generated text and a dedicated <code>citations</code> array:</p>
+    <p>Under the hood, Perplexity's Sonar models retrieve candidate search pages from its web index, synthesize answers, and return a structured JSON response containing the generated text and a dedicated <code>citations</code> array:</p>
 
     <pre><code>curl -s https://api.perplexity.ai/chat/completions \
   -H "Authorization: Bearer $PERPLEXITY_API_KEY" \
@@ -199,44 +199,38 @@
   ],
   "citations": [
     "https://citeaura.com/ai-visibility-audit",
-    "https://techcrunch.com/...",
     "https://producthunt.com/products/citeaura"
   ]
 }</code></pre>
 
-    <p>If your official domain is missing from the <code>citations</code> array even when your brand is named in the text, Perplexity is pulling facts from third-party aggregators rather than your primary site.</p>
+    <p>If your official domain is missing from the <code>citations</code> array even when your brand is named in the text, Perplexity is sourcing information from third-party aggregators rather than your primary site.</p>
 
-    <h2>Why Perplexity Ignores Your Primary Domain</h2>
-    <p>When our audit engine analyzes domains that suffer from missing Perplexity citations, four technical root causes account for the vast majority of failures:</p>
+    <h2>Common Technical Obstacles to Perplexity Indexation</h2>
+    <p>According to official Perplexity documentation and practical server audits, several technical factors directly prevent Perplexity from indexing and citing websites:</p>
 
-    <h3>1. PerplexityBot is Blocked in robots.txt</h3>
-    <p>Perplexity operates two primary user-agents: <code>PerplexityBot</code> (an indexing crawler) and <code>Perplexity-User</code> (on-demand user retrieval). If your <code>robots.txt</code> contains a broad Disallow rule, Perplexity falls back on cached third-party descriptions:</p>
+    <h3>1. PerplexityBot or Perplexity-User Blocked in robots.txt</h3>
+    <p>Perplexity operates two primary user-agents: <code>PerplexityBot</code> (crawler for search indexation) and <code>Perplexity-User</code> (user-initiated on-demand queries). Perplexity officially complies with <code>robots.txt</code>. Note that Perplexity documentation specifies that changes to <code>robots.txt</code> may take up to approximately 24 hours to be reflected across its systems.</p>
 
-    <pre><code># Incorrect configuration blocking Perplexity
+    <pre><code># Proper configuration allowing Perplexity Search bots
 User-agent: PerplexityBot
-Disallow: /
-
-# Correct configuration allowing public routes
-User-agent: PerplexityBot
+User-agent: Perplexity-User
 Allow: /
 Disallow: /admin/
 Disallow: /api/</code></pre>
 
-    <h3>2. Cloudflare Bot Fight Mode or WAF Challenge</h3>
-    <p>Many web properties configure Cloudflare Managed Challenges or strict rate limits that inadvertently challenge Perplexity's AWS IP ranges with Javascript/CAPTCHA walls. Because automated retrieval agents do not solve CAPTCHAs, the request returns HTTP 403 or 503.</p>
+    <h3>2. Cloudflare Bot Challenges &amp; WAF Blocking</h3>
+    <p>If Cloudflare Managed Challenge or Bot Fight Mode blocks requests matching Perplexity user-agents with CAPTCHA challenges (HTTP 403), automated indexers cannot retrieve the page.</p>
 
     <h3>3. Heavy Client-Side Hydration (SPA Lag)</h3>
-    <p>Perplexity's web fetcher uses fast headless request pipelines optimized for server-rendered HTML. If your pricing, product features, and documentation are rendered entirely through client-side React or Vue after hydration, the parser recovers only empty root <code>&lt;div&gt;</code> tags.</p>
+    <p>Perplexity's web fetcher is optimized for fast server-delivered HTML. Pages that require extensive client-side JavaScript execution to render basic text risk being parsed as empty shells.</p>
 
-    <h3>4. Ambiguous Entity Definition</h3>
-    <p>If your homepage lacks Schema.org <code>Organization</code> or <code>Product</code> structured data and has no root <a href="/blog/what-to-put-in-llms-txt">llms.txt discovery file</a>, retrieval models struggle to disambiguate your product name from generic industry terms.</p>
-
-    <h2>The 4-Step Perplexity Diagnostic Protocol</h2>
+    <h2>CiteAura's Recommended Perplexity Diagnostic Protocol</h2>
+    <p>As a practical audit methodology, CiteAura recommends following this 4-step workflow:</p>
     <ol>
-      <li><strong>Test live PerplexityBot fetch:</strong> Run a cURL request with <code>-A "PerplexityBot"</code> to verify your server returns HTTP 200 with complete body text.</li>
-      <li><strong>Sample high-intent buyer prompts:</strong> Query Perplexity across 15–20 core category questions under <code>API · Web Retrieval</code> mode to establish baseline citation rates.</li>
-      <li><strong>Inspect the citations array:</strong> Verify whether citations point to your canonical apex domain or third-party review directories.</li>
-      <li><strong>Deploy structured schema:</strong> Implement JSON-LD schemas and semantic HTML tables to make feature comparisons easily extractable.</li>
+      <li><strong>Test live PerplexityBot fetch:</strong> Execute a cURL request with <code>-A "PerplexityBot"</code> to verify your server returns HTTP 200 with complete body text.</li>
+      <li><strong>Sample category prompt cohorts:</strong> Query Perplexity across high-intent buyer questions using CiteAura's <code>API · Web Retrieval</code> mode.</li>
+      <li><strong>Inspect the citations array:</strong> Check whether citations resolve to your canonical domain or secondary directory listings.</li>
+      <li><strong>Verify semantic HTML delivery:</strong> Ensure pricing and core features are rendered in static server HTML rather than client-hydrated widgets.</li>
     </ol>
 
     <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
@@ -248,8 +242,8 @@ Disallow: /api/</code></pre>
 
     <h2>Sources</h2>
     <ul>
-      <li><a href="https://docs.perplexity.ai/" rel="noopener noreferrer">Perplexity API Documentation</a> — Sonar model endpoints, citation array schemas, and search context windows.</li>
-      <li><a href="https://docs.perplexity.ai/docs/perplexitybot" rel="noopener noreferrer">PerplexityBot Crawler Specification</a> — User-agent strings, IP ranges, and robots.txt compliance rules.</li>
+      <li><a href="https://docs.perplexity.ai/" rel="noopener noreferrer">Perplexity API Documentation</a> — Sonar model endpoints, citation array schemas, and search parameters.</li>
+      <li><a href="https://docs.perplexity.ai/docs/perplexitybot" rel="noopener noreferrer">PerplexityBot Crawler Specification</a> — User-agent strings, robots.txt compliance, and indexation rules.</li>
       <li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — Entity definitions and canonical verification schemas for brand properties.</li>
       <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/article" rel="noopener noreferrer">MDN: HTML Article Element</a> — Semantic DOM scoping for headless RAG content extractors.</li>
     </ul>
@@ -257,7 +251,7 @@ Disallow: /api/</code></pre>
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>
       <ul>
-        <li><a href="/blog/ai-crawler-access-checklist">AI Crawler Access Checklist: GPTBot, ClaudeBot, PerplexityBot</a></li>
+        <li><a href="/blog/ai-crawler-access-checklist">AI Crawler Access Checklist: GPTBot, Claude-SearchBot, PerplexityBot</a></li>
         <li><a href="/blog/extractability-audit">Extractability Audit: Can AI Read Your Pages?</a></li>
         <li><a href="/ai-visibility-audit">Run an AI Visibility Audit</a></li>
       </ul>

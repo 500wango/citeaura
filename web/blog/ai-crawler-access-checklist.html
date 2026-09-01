@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Crawler Access Checklist: GPTBot, ClaudeBot, PerplexityBot | CiteAura</title>
-  <meta name="description" content="Configure robots.txt, Cloudflare WAF policies, and server headers for major AI crawlers including GPTBot, OAI-SearchBot, ClaudeBot, and PerplexityBot.">
+  <title>AI Crawler Access Checklist: GPTBot, Claude-SearchBot, PerplexityBot | CiteAura</title>
+  <meta name="description" content="Configure robots.txt, Cloudflare WAF policies, and server headers for AI crawlers including OAI-SearchBot, Claude-SearchBot, and PerplexityBot based on 2026 vendor specifications.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/runtime-assets/theme-init.js"></script>
@@ -23,15 +23,15 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/ai-crawler-access-checklist">
-  <meta property="og:title" content="AI Crawler Access Checklist: GPTBot, ClaudeBot, PerplexityBot | CiteAura">
-  <meta property="og:description" content="Technical guide and robots.txt configurations for AI search crawlers.">
+  <meta property="og:title" content="AI Crawler Access Checklist: GPTBot, Claude-SearchBot, PerplexityBot | CiteAura">
+  <meta property="og:description" content="Technical guide and robots.txt configurations for AI search crawlers based on official vendor specifications.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="AI crawler access checklist.">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="AI Crawler Access Checklist: GPTBot, ClaudeBot, PerplexityBot">
+  <meta name="twitter:title" content="AI Crawler Access Checklist: GPTBot, Claude-SearchBot, PerplexityBot">
   <meta name="twitter:description" content="Step-by-step server configuration and verification for AI web crawlers.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
@@ -64,11 +64,11 @@
       },
       {
         "@type": "Article",
-        "headline": "AI Crawler Access Checklist: GPTBot, ClaudeBot, PerplexityBot",
-        "description": "An actionable server configuration reference for engineering and DevOps teams managing web crawler access for generative AI search engines.",
+        "headline": "AI Crawler Access Checklist: GPTBot, Claude-SearchBot, PerplexityBot",
+        "description": "An actionable server configuration reference for engineering and DevOps teams managing web crawler access across official OpenAI, Anthropic, and Perplexity user-agents.",
         "url": "https://citeaura.com/blog/ai-crawler-access-checklist",
         "datePublished": "2026-09-01",
-        "dateModified": "2026-09-01",
+        "dateModified": "2026-09-02",
         "author": {
           "@type": "Person",
           "name": "David Park"
@@ -129,14 +129,14 @@
 
     <header class="blog-header">
       <span class="blog-kicker">Engineering Checklist</span>
-      <h1>AI Crawler Access Checklist: GPTBot, ClaudeBot, PerplexityBot</h1>
-      <p class="blog-lead">Blocking AI scrapers used to be a blanket security recommendation. Today, blocking AI search bots prevents ChatGPT Search, Claude, and Perplexity from indexing your product documentation, pricing, and changelogs. Here is how to configure <code>robots.txt</code>, WAF rules, and server headers to manage AI access with precision.</p>
-      <p class="blog-meta">Updated 1 September 2026 · 10 min read · Server Configuration</p>
+      <h1>AI Crawler Access Checklist: GPTBot, Claude-SearchBot, PerplexityBot</h1>
+      <p class="blog-lead">Managing crawler access in 2026 requires understanding the exact distinction between model training scrapers, live search indexing bots, and user-initiated page fetchers across OpenAI, Anthropic, Perplexity, and Google. Here is the verified taxonomy and production configuration guide.</p>
+      <p class="blog-meta">Updated 2 September 2026 · 10 min read · Server Configuration</p>
       <p class="blog-byline">By David Park</p>
     </header>
 
     <h2>The 2026 AI Web Crawler Taxonomy</h2>
-    <p>AI providers maintain separate user-agents for broad training data harvesting versus real-time search retrieval:</p>
+    <p>Major AI providers separate user-agents by functional role, allowing webmasters to permit search indexation while optionally opting out of general pre-training datasets:</p>
 
     <div style="overflow-x:auto;margin:1.5rem 0;">
       <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
@@ -144,7 +144,7 @@
           <tr style="border-bottom:2px solid var(--border-color, #e2e8f0);background:var(--bg-subtle, #f8fafc);">
             <th style="padding:0.75rem;">User-Agent Token</th>
             <th style="padding:0.75rem;">Operator</th>
-            <th style="padding:0.75rem;">Primary Purpose</th>
+            <th style="padding:0.75rem;">Official Purpose</th>
             <th style="padding:0.75rem;">Impact if Blocked</th>
           </tr>
         </thead>
@@ -152,45 +152,71 @@
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><code>OAI-SearchBot</code></td>
             <td style="padding:0.75rem;">OpenAI</td>
-            <td style="padding:0.75rem;">SearchGPT &amp; ChatGPT Search retrieval</td>
-            <td style="padding:0.75rem;">Site will not appear in ChatGPT live search results</td>
+            <td style="padding:0.75rem;">Search indexing for ChatGPT Search &amp; SearchGPT</td>
+            <td style="padding:0.75rem;">Site will not be indexed or cited in ChatGPT Search results</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><code>ChatGPT-User</code></td>
+            <td style="padding:0.75rem;">OpenAI</td>
+            <td style="padding:0.75rem;">User-initiated live web browsing requests in ChatGPT</td>
+            <td style="padding:0.75rem;">ChatGPT cannot browse your site when a user prompts it</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><code>GPTBot</code></td>
             <td style="padding:0.75rem;">OpenAI</td>
-            <td style="padding:0.75rem;">General model training &amp; indexing</td>
-            <td style="padding:0.75rem;">Site excluded from future base model training sets</td>
+            <td style="padding:0.75rem;">Automated model training data collection</td>
+            <td style="padding:0.75rem;">Excluded from OpenAI foundation model training sets</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><code>Claude-SearchBot</code></td>
+            <td style="padding:0.75rem;">Anthropic</td>
+            <td style="padding:0.75rem;">Search indexing and retrieval for Claude web search</td>
+            <td style="padding:0.75rem;">Claude search features cannot index or surface your domain</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><code>Claude-User</code></td>
+            <td style="padding:0.75rem;">Anthropic</td>
+            <td style="padding:0.75rem;">User-triggered on-demand page fetch (e.g. user submits URL)</td>
+            <td style="padding:0.75rem;">Claude chat cannot read specific links provided by users</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><code>ClaudeBot</code></td>
+            <td style="padding:0.75rem;">Anthropic</td>
+            <td style="padding:0.75rem;">Automated training data collection for Claude models</td>
+            <td style="padding:0.75rem;">Excluded from Anthropic model training corpora</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><code>PerplexityBot</code></td>
             <td style="padding:0.75rem;">Perplexity</td>
             <td style="padding:0.75rem;">Web search indexing &amp; answer grounding</td>
-            <td style="padding:0.75rem;">Excluded from Perplexity source citation arrays</td>
+            <td style="padding:0.75rem;">Excluded from Perplexity search index and citation arrays</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><code>ClaudeBot</code></td>
-            <td style="padding:0.75rem;">Anthropic</td>
-            <td style="padding:0.75rem;">Claude web retrieval &amp; training data</td>
-            <td style="padding:0.75rem;">Claude cannot fetch live pages or documentation</td>
+            <td style="padding:0.75rem;"><code>Perplexity-User</code></td>
+            <td style="padding:0.75rem;">Perplexity</td>
+            <td style="padding:0.75rem;">User-initiated live search queries</td>
+            <td style="padding:0.75rem;">Real-time query fallback cannot fetch page</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
             <td style="padding:0.75rem;"><code>Google-Extended</code></td>
             <td style="padding:0.75rem;">Google</td>
             <td style="padding:0.75rem;">Gemini &amp; Vertex AI model training</td>
-            <td style="padding:0.75rem;">Does NOT affect classic Google Search (Googlebot)</td>
+            <td style="padding:0.75rem;">Does NOT affect Google Search or Google AI Overviews</td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <h2>Production-Ready robots.txt Configuration</h2>
-    <p>Below is a balanced configuration that protects private application paths while ensuring public marketing pages, documentation, and pricing remain accessible to AI search engines:</p>
+    <p>Below is a balanced configuration that explicitly allows AI search crawlers on public documentation and marketing pages while restricting private application routes:</p>
 
-    <pre><code># Allow AI Search Crawlers on Public Routes
+    <pre><code># Allow AI Search &amp; User Retrieval Bots on Public Routes
 User-agent: OAI-SearchBot
-User-agent: GPTBot
+User-agent: ChatGPT-User
+User-agent: Claude-SearchBot
+User-agent: Claude-User
 User-agent: PerplexityBot
-User-agent: ClaudeBot
+User-agent: Perplexity-User
 Allow: /
 Allow: /docs
 Allow: /pricing
@@ -201,20 +227,25 @@ Disallow: /admin/
 Disallow: /api/
 Disallow: /checkout/
 
-# Optional: Opt out of Gemini training without affecting Google Search
+# Optional: Opt out of automated model training datasets
+User-agent: GPTBot
+User-agent: ClaudeBot
 User-agent: Google-Extended
 Disallow: /
 
 Sitemap: https://example.com/sitemap.xml</code></pre>
 
     <h2>Debugging Cloudflare and WAF Blocks</h2>
-    <p>Even with an open <code>robots.txt</code>, your CDN or Web Application Firewall may silently reject AI crawlers with HTTP 403 Forbidden or Cloudflare Managed Challenges.</p>
+    <p>Even with an open <code>robots.txt</code>, your CDN or Web Application Firewall may challenge AI crawlers with HTTP 403 Forbidden or Cloudflare Managed Challenges.</p>
 
     <h3>1. Simulating Crawler User-Agents via cURL</h3>
     <p>Run these terminal commands against your production domain to verify response headers:</p>
 
-    <pre><code># Test OAI-SearchBot
+    <pre><code># Test OpenAI SearchBot
 curl -I -A "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; OAI-SearchBot/1.0; +https://openai.com/bot)" https://yourdomain.com/
+
+# Test Anthropic SearchBot
+curl -I -A "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-SearchBot/1.0; +https://www.anthropic.com/claudebot)" https://yourdomain.com/
 
 # Test PerplexityBot
 curl -I -A "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)" https://yourdomain.com/
@@ -227,7 +258,7 @@ curl -I -A "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Perpl
     <p>If the response returns HTTP 403 or includes <code>cf-mitigated: challenge</code>:</p>
     <ul>
       <li>Navigate to <strong>Cloudflare Dashboard → Security → WAF → Custom Rules</strong>.</li>
-      <li>Create an Allow rule for verified bots: <code>(cf.client.bot) or (http.user_agent contains "OAI-SearchBot") or (http.user_agent contains "PerplexityBot")</code>.</li>
+      <li>Create an Allow rule for verified bots matching user-agent substrings (<code>OAI-SearchBot</code>, <code>Claude-SearchBot</code>, <code>PerplexityBot</code>).</li>
       <li>Ensure <strong>Bot Fight Mode</strong> is configured to permit verified search engine user-agents.</li>
     </ul>
 
@@ -243,17 +274,17 @@ curl -I -A "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Perpl
 
     <h2>Sources</h2>
     <ul>
-      <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI Crawler Documentation</a> — GPTBot, ChatGPT-User, and OAI-SearchBot User-Agent and IP range specifications.</li>
-      <li><a href="https://docs.anthropic.com/en/docs/claude-bot" rel="noopener noreferrer">Anthropic ClaudeBot Specification</a> — Crawler identity, crawl-rate behavior, and verification guidelines.</li>
+      <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI Crawler Documentation</a> — Specifications for GPTBot, ChatGPT-User, and OAI-SearchBot.</li>
+      <li><a href="https://docs.anthropic.com/en/docs/claude-bot" rel="noopener noreferrer">Anthropic Crawler Documentation</a> — Specifications for ClaudeBot, Claude-SearchBot, and Claude-User.</li>
+      <li><a href="https://docs.perplexity.ai/docs/perplexitybot" rel="noopener noreferrer">Perplexity Crawler Documentation</a> — Specifications for PerplexityBot and Perplexity-User.</li>
       <li><a href="https://developers.google.com/search/docs/crawling-indexing/google-extended" rel="noopener noreferrer">Google-Extended Documentation</a> — Managing generative AI training data collection independently of Google Search.</li>
-      <li><a href="https://www.rfc-editor.org/rfc/rfc9309.html" rel="noopener noreferrer">RFC 9309: Robots Exclusion Protocol</a> — Internet standard for robots.txt syntax, path matching, and longest-match rules.</li>
     </ul>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>
       <ul>
-        <li><a href="/blog/gptbot-blocked-by-robots-txt">GPTBot Blocked by robots.txt? Find and Fix the Rule</a></li>
         <li><a href="/blog/extractability-audit">Extractability Audit: Can AI Read Your Pages?</a></li>
+        <li><a href="/blog/perplexity-citation-audit">Perplexity Citation Audit: Are You Cited or Just Mentioned?</a></li>
         <li><a href="/docs">CiteAura Documentation</a></li>
       </ul>
     </aside>
