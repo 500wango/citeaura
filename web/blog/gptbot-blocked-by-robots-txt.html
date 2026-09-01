@@ -304,68 +304,23 @@ for path in ['/', '/pricing', '/app/dashboard', '/products/widget']:
       <p>Removing an obsolete <code>Disallow: /</code> is cleaner and less error-prone than stacking multiple <code>Allow</code> exceptions to punch holes through it.</p>
     </div>
 
-    <h2 id="how-to-tell">How to tell GPTBot is blocked — with curl -A verification</h2>
-    <p>Testing in a desktop browser only checks the generic fallback group because browsers do not transmit crawler user-agent strings. Accurate testing requires fetching the file with the exact crawler token in the request headers.</p>
-    <h3>Tokens to test</h3>
-    <p>OpenAI uses three primary user-agent tokens:</p>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code>GPTBot
-OAI-SearchBot
-ChatGPT-User</code></pre>
-    <p>Full user-agent headers in access logs typically appear as:</p>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code>Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.2; +https://openai.com/gptbot
-Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot
-Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot</code></pre>
-    <p>Because robots.txt parsers perform substring matching on user-agent names, testing with the short token in <code>curl -A</code> accurately reproduces production evaluation.</p>
-    <h3>Step-by-step verification commands</h3>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code># 1. Fetch robots.txt as seen by GPTBot on the canonical host
-curl -sSL -A "GPTBot" -H "Cache-Control: no-cache" https://yourdomain.com/robots.txt -D - -o /tmp/robots.gptbot.txt
-cat /tmp/robots.gptbot.txt
+    <h2 id="how-to-tell">Diagnosing crawler blocks with curl</h2>
+    <p>Desktop browsers transmit standard browser user-agent headers and only evaluate the generic fallback block. To inspect the exact directives returned to OpenAI crawlers, send the explicit crawler token via <code>curl -A</code>:</p>
+<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code># Fetch active robots.txt on the canonical host as GPTBot
+curl -sSL -A "GPTBot" -H "Cache-Control: no-cache" https://yourdomain.com/robots.txt
 
-# 2. Check the response for OAI-SearchBot (ChatGPT Search crawler)
-curl -sSL -A "OAI-SearchBot" -H "Cache-Control: no-cache" https://yourdomain.com/robots.txt -o /tmp/robots.searchbot.txt
-diff -u /tmp/robots.gptbot.txt /tmp/robots.searchbot.txt || echo "Crawler groups differ"
+# Probe public landing and pricing endpoints
+curl -sSI -A "GPTBot" https://yourdomain.com/pricing | grep -E "HTTP|x-robots-tag"</code></pre>
+    <p>Check the matched group in the response. If <code>User-agent: GPTBot</code> or <code>OAI-SearchBot</code> is defined, those directives govern access. Otherwise, fallback rules under <code>User-agent: *</code> apply.</p>
 
-# 3. Compare crawler response against standard browser response
-curl -sSL -H "Cache-Control: no-cache" https://yourdomain.com/robots.txt -o /tmp/robots.browser.txt
-diff -u /tmp/robots.browser.txt /tmp/robots.gptbot.txt && echo "Identical content served across user agents"
-
-# 4. Verify HTTP status and headers (must return 200 text/plain, not redirects)
-curl -sSI -A "GPTBot" https://yourdomain.com/robots.txt | head -n 20
-
-# 5. Check whether the target page itself sends blocking headers
-curl -sSI -A "GPTBot" https://yourdomain.com/pricing | grep -i "x-robots-tag\|robots"</code></pre>
-    <p>When reviewing the response, find the block matching <code>GPTBot</code> or <code>OAI-SearchBot</code>. If only <code>User-agent: *</code> is present, those fallback rules apply. A <code>Disallow: /</code> in the winning block blocks all subpaths on the host.</p>
-    <p>WAF layers (such as Cloudflare Managed Challenges or Akamai Bot Manager) can produce the same visibility symptoms as a robots.txt block by returning a 403 status or JavaScript challenge page. Verify that the response returns an HTTP 200 status with valid text content.</p>
-
-    <h3 id="canonical-check">Canonical-host check: the redirect trap</h3>
-    <p>Robots.txt files apply per host and protocol. <code>https://example.com/robots.txt</code> and <code>https://www.example.com/robots.txt</code> are evaluated independently. The only file that controls crawler behavior is the one hosted on your canonical domain (the host specified in <code>&lt;link rel="canonical"&gt;</code>, your sitemap, and open graph tags). Editing apex while your site redirects all traffic to <code>www</code> leaves crawlers reading the unedited <code>www</code> file.</p>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code># Confirm which host serves canonical traffic by inspecting redirects
+    <h3 id="canonical-check">The canonical redirect trap</h3>
+    <p>Robots.txt files apply per host and protocol. <code>https://example.com/robots.txt</code> and <code>https://www.example.com/robots.txt</code> are evaluated independently. Crawlers inspect only the file hosted on your canonical domain (the host declared in <code>&lt;link rel="canonical"&gt;</code> and sitemaps). Modifying the apex domain while your web server redirects visitors to <code>www</code> leaves crawlers reading the unedited <code>www</code> configuration.</p>
+<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code># Confirm host redirect destinations and live headers
 curl -sSI https://example.com/robots.txt | grep -E "HTTP|Location"
-curl -sSI https://www.example.com/robots.txt | grep -E "HTTP|Location"
+curl -sSI -A "GPTBot" https://www.example.com/robots.txt | head -n 15</code></pre>
 
-# Probe both host variants to ensure rule consistency
-for host in example.com www.example.com; do
-  echo "=== $host ==="
-  curl -sSL -A "GPTBot" -H "Cache-Control: no-cache" "https://$host/robots.txt" | head -n 30
-done
-
-# Confirm the canonical tag on public pages matches your active robots host
-curl -sSL https://www.example.com/pricing | grep -i 'rel="canonical"'</code></pre>
-    <p>Keep your robots.txt at the origin root. Crawlers do not check subdirectory paths like <code>/app/robots.txt</code>.</p>
-    <div class="blog-callout">
-      <p>Deploy robots.txt updates directly to the final host in your redirect chain, then use <code>curl -sSL</code> to confirm the terminal response body matches your new configuration.</p>
-    </div>
-
-    <h3 id="how-to-fix">Production-ready robots.txt patterns</h3>
-    <p>When updating crawler access:</p>
-    <ol>
-      <li><strong>Keep private endpoints restricted:</strong> routes such as <code>/app/</code>, <code>/admin/</code>, <code>/account/</code>, <code>/cart/</code>, and <code>/api/</code> should remain disallowed.</li>
-      <li><strong>Open public marketing and documentation paths:</strong> homepage, product pages, pricing, documentation, blog articles, and comparison matrices.</li>
-      <li><strong>Add explicit crawler blocks when isolating AI policies:</strong> this allows fine-tuning AI crawler access without modifying established Googlebot or Bingbot SEO rules.</li>
-      <li><strong>Deploy to the canonical domain target:</strong> ensure your changes land on the domain handling canonical traffic.</li>
-      <li><strong>Test live responses with <code>curl -A</code>:</strong> confirm the live server and edge caches return the updated rules.</li>
-    </ol>
-    <p>A standard configuration for a SaaS marketing site:</p>
+    <h3 id="how-to-fix">Production configuration patterns</h3>
+    <p>Standard configuration for a web application marketing site:</p>
 <pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code># Public product pages — open to OpenAI crawlers
 User-agent: GPTBot
 User-agent: OAI-SearchBot
@@ -374,9 +329,7 @@ Allow: /
 Disallow: /app/
 Disallow: /admin/
 Disallow: /account/
-Disallow: /cart/
 Disallow: /api/
-Disallow: /internal/
 
 # General search crawlers
 User-agent: *
@@ -384,93 +337,38 @@ Allow: /
 Disallow: /app/
 Disallow: /admin/
 Sitemap: https://www.example.com/sitemap.xml</code></pre>
-    <p>For environments requiring strict default-deny policies, you can explicitly enumerate permitted routes:</p>
+    <p>For environments requiring strict default-deny policies, specify explicit permitted routes:</p>
 <pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code>User-agent: GPTBot
 Allow: /$
 Allow: /pricing$
 Allow: /products/
 Allow: /docs/
-Allow: /blog/
-Allow: /comparisons/
 Disallow: /</code></pre>
-    <p>Because the specific <code>Allow</code> paths are longer than <code>Disallow: /</code>, they take precedence under longest-match evaluation. Note that this requires adding an explicit <code>Allow</code> rule for every new public section you create.</p>
+    <p>Because the specific <code>Allow</code> paths are longer than <code>Disallow: /</code>, they take precedence under longest-match evaluation.</p>
 
     <h3 id="cache-pitfalls">Edge caching: Caddy and Cloudflare pitfalls</h3>
-    <p>Unreflected robots.txt updates are frequently caused by stale CDN or proxy cache layers.</p>
-    <h3>Cloudflare</h3>
+    <p>When robots.txt changes fail to take effect immediately, stale cache layers are the primary cause:</p>
     <ul>
-      <li><strong>Edge cache:</strong> Cloudflare may cache <code>/robots.txt</code> based on default static file rules. After deployment, purge that specific URL directly via Caching → Purge Cache → Custom Purge for <code>https://www.example.com/robots.txt</code>.</li>
-      <li><strong>Origin cache headers:</strong> If the origin server returns <code>Cache-Control: max-age=86400</code>, edge nodes will retain the file. Configure <code>Cache-Control: max-age=3600, must-revalidate</code> specifically for robots.txt, or create a Cache Rule to bypass edge caching for that path.</li>
-      <li><strong>Worker rewrites:</strong> Cloudflare Workers that intercept traffic or modify headers can inadvertently serve synthetic responses to specific user agents. Compare responses from the edge and direct origin fetches to detect discrepancies.</li>
-    </ul>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code># Check Cloudflare cache status headers
-curl -sSI -A "GPTBot" https://www.example.com/robots.txt | grep -i "cf-cache-status\|age\|cache-control"
-
-# Request a cache-bypassing fetch through the CDN
-curl -sSL -A "GPTBot" -H "Cache-Control: no-cache" -H "Pragma: no-cache" \
-  https://www.example.com/robots.txt | head -n 40</code></pre>
-    <h3>Caddy</h3>
-    <ul>
-      <li><strong>Site root configuration:</strong> Ensure Caddy's <code>file_server</code> serves robots.txt from the active deployment directory. If <code>root</code> points to an older directory, updates will not reflect live.</li>
-      <li><strong>Reverse proxy precedence:</strong> In Caddy, catch-all <code>reverse_proxy</code> directives can intercept <code>/robots.txt</code> before static file handlers process it. Place an explicit <code>handle /robots.txt { file_server }</code> block before the general proxy handler.</li>
-    </ul>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code>www.example.com {
-  root * /srv/www
-  handle /robots.txt {
-    file_server
-    header Cache-Control "public, max-age=3600, must-revalidate"
-    header Content-Type "text/plain; charset=utf-8"
-  }
-  handle {
-    reverse_proxy localhost:3000
-  }
-}</code></pre>
-    <p>After edge caches are cleared, note that crawler engines may maintain their own DNS and robots.txt cache for up to 24 hours. Validating your origin response ensures your infrastructure is ready for the next crawl cycle.</p>
-
-    <h3 id="log-analysis">Log analysis: tracking crawler requests</h3>
-    <p>Access logs provide empirical confirmation that crawlers are reaching your endpoints and receiving valid responses.</p>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code># Filter systemd logs for Caddy
-journalctl -u caddy --since "7 days ago" | grep -i "gptbot"
-
-# Inspect Nginx access logs for OpenAI user agents
-grep -i "gptbot" /var/log/nginx/access.log | tail -n 20
-grep -i "oai-searchbot\|chatgpt-user" /var/log/nginx/access.log | tail -n 20
-
-# Count requests by crawler token over the past two weeks
-grep -i "gptbot" /var/log/caddy/access.log | wc -l
-grep -i "oai-searchbot" /var/log/caddy/access.log | wc -l</code></pre>
-    <p>A typical valid request entry in access logs:</p>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code>23.102.140.112 - - [18/Aug/2026:14:22:05 +0000] "GET /pricing HTTP/1.1" 200 18432 "-" "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.2; +https://openai.com/gptbot"</code></pre>
-    <p>To verify IP legitimacy and rule out spoofed user-agent headers, perform a reverse DNS lookup:</p>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code>dig +short -x 23.102.140.112
-# Valid crawls resolve to OpenAI or Microsoft search host domains</code></pre>
-    <p>Common log patterns and their underlying causes:</p>
-    <ul>
-      <li><strong>Zero crawler hits post-deployment:</strong> The site may have low crawl priority or the crawler cache has not expired. Trigger a fresh fetch by submitting an updated sitemap or prompting ChatGPT with a direct link.</li>
-      <li><strong>200 on /robots.txt but no subsequent page requests:</strong> The robots.txt was fetched successfully, but the requested subpaths remain disallowed under longest-match evaluation. Recheck user-agent group logic.</li>
-      <li><strong>403, 429, or 503 response codes:</strong> The request was blocked by WAF rules, rate limits, or origin server errors rather than robots.txt directives.</li>
-      <li><strong>200 with minimal payload size:</strong> The crawler accessed the URL, but the page returned an empty client-rendered JavaScript shell. Crawlers need extractable HTML content.</li>
+      <li><strong>Cloudflare edge caching:</strong> Cloudflare caches <code>/robots.txt</code> based on default static file rules. Purge the cache directly via <em>Caching → Custom Purge</em> for <code>https://www.example.com/robots.txt</code>, and set origin headers to <code>Cache-Control: max-age=3600, must-revalidate</code>.</li>
+      <li><strong>Caddy proxy routing:</strong> In Caddyfile configurations, catch-all <code>reverse_proxy</code> blocks can intercept <code>/robots.txt</code> before static file handlers process it. Place an explicit <code>handle /robots.txt { file_server }</code> block ahead of general application proxies.</li>
     </ul>
 
-    <h2 id="verification">Verification and logs</h2>
-    <p>Run an end-to-end status check across your key routes after updating robots.txt:</p>
-<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code>HOST="www.example.com"
-curl -sSI -A "GPTBot" -H "Cache-Control: no-cache" "https://${HOST}/robots.txt"
-curl -sSL -A "GPTBot" "https://${HOST}/robots.txt" | tee /tmp/robots.live.txt
-for path in / /pricing /products/ /docs/ /blog/; do
-  curl -sSL -A "GPTBot" -o /dev/null -w "$path %{http_code}\n" "https://${HOST}${path}"
-done</code></pre>
-    <p>Ensure public endpoints return HTTP 200 while protected internal paths remain blocked.</p>
+    <h3 id="log-analysis">Access log verification</h3>
+    <p>Inspect web server access logs to confirm crawlers are actively retrieving your public endpoints:</p>
+<pre style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:1rem;overflow-x:auto;font-size:0.88rem;line-height:1.6;"><code># Search Nginx or Caddy logs for OpenAI crawler requests
+grep -Ei "gptbot|oai-searchbot" /var/log/nginx/access.log | tail -n 10</code></pre>
 
-    <h3 id="related-crawlers">Other crawler policies</h3>
-    <p><code>OAI-SearchBot</code>, <code>ChatGPT-User</code>, <code>ClaudeBot</code>, <code>PerplexityBot</code>, and <code>CCBot</code> operate under separate user-agent tokens. An allow directive configured for GPTBot has no bearing on other AI crawlers. If your frontend relies on client-side JavaScript rendering, review <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT Does Not Mention Your Brand</a> for HTML extractability requirements.</p>
-
-    <h3 id="citeaura-records">How CiteAura records the block</h3>
-    <p>CiteAura's automated site audit fetches the live robots.txt from your canonical host, follows redirect chains, and evaluates RFC 9309 longest-match rules for each crawler group. When a <code>Disallow</code> rule matches a public marketing path, CiteAura creates an action ticket containing the winning directive, affected URLs, and a reproducible <code>curl</code> test command. Once your team updates the file and clears the cache, CiteAura re-crawls the endpoints and marks the ticket verified upon receiving clean 200 responses.</p>
-
-    <h3 id="not-a-ranking-promise">A crawl allow is not a ranking promise</h3>
+    <h2 id="verification">Verification and model expectations</h2>
+    <p>CiteAura audits fetch the live robots.txt from your canonical domain, resolve redirect chains, and evaluate RFC 9309 precedence rules. If a public marketing route is blocked, the audit generates an actionable engineering ticket with reproducible test commands.</p>
     <p>Permitting crawler access in robots.txt allows compliant bots to retrieve your pages. It does not guarantee that a model will index the content, retrieve it during prompt evaluation, cite your domain, or rank your brand favorably in answers. Retrieval depends on index recency, prompt relevance, and runtime search intent.</p>
-    <p>Treat robots.txt configuration as a foundational infrastructure prerequisite. To measure real-world AI visibility improvements after unblocking crawlers, establish a fixed question cohort and compare mention rates across multiple controlled runs.</p>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI crawler documentation</a> — GPTBot tokens and robots.txt directives.</li>
+      <li><a href="https://www.robotstxt.org/robotstxt.html" rel="noopener noreferrer">RFC 9309 Specification</a> — User-agent group selection and longest-match Allow/Disallow semantics.</li>
+      <li><a href="https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt" rel="noopener noreferrer">Google robots.txt documentation</a> — Longest-match path evaluation rules.</li>
+      <li><a href="https://developers.cloudflare.com/cache/" rel="noopener noreferrer">Cloudflare Cache documentation</a> — Edge cache purge and Cache Rules for /robots.txt.</li>
+    </ul>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: GPTBot and robots.txt</h2>
@@ -481,8 +379,13 @@ done</code></pre>
       <h3>Will an allowed crawler guarantee a ChatGPT mention?</h3>
       <p>No. An allow rule enables crawler retrieval; it does not guarantee prompt inclusion, citation generation, or answer ranking.</p>
       <h3>Why does my fix not appear even after deploy?</h3>
-      <p>This is usually caused by CDN edge caching (such as Cloudflare) or proxy routing precedence in web servers like Caddy. Purge the cache for <code>/robots.txt</code> and ensure static file handling takes precedence over reverse proxies.</p>
+      <p>This is usually caused by CDN edge caching or proxy routing precedence. Purge the cache for <code>/robots.txt</code> and ensure static file handling takes precedence over reverse proxies.</p>
     </section>
+
+    <div class="blog-cta">
+      <p>Inspect crawler access across your public routes and generate verified robots.txt fixes with CiteAura's automated site audit.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+    </div>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>
@@ -492,23 +395,6 @@ done</code></pre>
         <li><a href="/ai-visibility-audit">AI visibility audit workflow</a></li>
       </ul>
     </aside>
-
-    <h2>Sources</h2>
-    <ul>
-      <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI crawler documentation</a> — <span>GPTBot, OAI-SearchBot, and ChatGPT-User tokens and robots.txt handling.</span></li>
-      <li><a href="https://www.robotstxt.org/robotstxt.html" rel="noopener noreferrer">The robots.txt specification (RFC 9309)</a> — <span>User-agent group selection and longest-match Allow/Disallow semantics.</span></li>
-      <li><a href="https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt" rel="noopener noreferrer">Google robots.txt guidance</a> — <span>longest-match path rules and Allow tie-break, implemented by Google and OpenAI.</span></li>
-      <li><a href="https://github.com/google/robotstxt" rel="noopener noreferrer">Google robotstxt parser (GitHub)</a> — <span>reference implementation for offline longest-match verification.</span></li>
-      <li><a href="https://support.anthropic.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web" rel="noopener noreferrer">Anthropic crawler note</a> — <span>ClaudeBot access is separate from the OpenAI allow list.</span></li>
-      <li><a href="https://developers.cloudflare.com/cache/" rel="noopener noreferrer">Cloudflare Cache documentation</a> — <span>edge cache purge and Cache Rules for /robots.txt.</span></li>
-      <li><a href="https://caddyserver.com/docs/caddyfile/directives/handle" rel="noopener noreferrer">Caddy handle directive</a> — <span>ordering file_server before reverse_proxy for /robots.txt.</span></li>
-    </ul>
-
-    <div class="blog-cta">
-      <p>Audit the live robots file on the canonical host, keep private routes closed, and verify with curl -A that GPTBot can reach the public product pages.</p>
-      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
-    </div>
-    <p class="blog-closing-note"><strong>Field note:</strong> a clean robots response is a prerequisite, not a visibility result. Measure the model response separately.</p>
   </article>
 
   <footer class="site-footer">

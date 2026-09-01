@@ -372,15 +372,22 @@ curl -s https://api.citeaura.com/api/v1/projects/123/report \
     <p>A higher mention rate within a controlled cohort indicates stronger brand visibility under those specific testing parameters; it does not guarantee that ChatGPT will mention or rank your brand across all consumer queries. Personalization, regional routing, retrieval updates, and conversational context all shape real-world model outputs.</p>
     <p>Mention tracking is valuable for identifying positioning blind spots, verifying technical extractability improvements, and monitoring relative visibility over time. When a brand consistently logs 0% visibility across repeated runs, review site crawlability and structured content availability as outlined in <a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT Does Not Mention Your Brand</a>.</p>
 
-    <h2>Standard measurement procedure</h2>
+    <h2>Measurement methodology and procedure</h2>
     <ol>
       <li><strong>Lock the prompt bank:</strong> Compile 15 realistic buyer intent questions, hash the contents, and assign immutable IDs.</li>
       <li><strong>Define the cohort:</strong> Pin the model identifier, target market locale, and sampling mode (e.g. <code>api_param</code>).</li>
       <li><strong>Execute repeated runs:</strong> Complete at least 3 passes (45 samples) and log all raw payloads with timestamp metadata.</li>
       <li><strong>Apply deterministic matching:</strong> Run versioned regex patterns to compute <code>mention_rate = mentioned / n_successful</code> alongside Wilson confidence intervals.</li>
-      <li><strong>Review per-prompt performance:</strong> Identify high-performing intents and persistent coverage gaps.</li>
-      <li><strong>Maintain baseline integrity:</strong> If prompts or parameters change, increment the cohort version and start a fresh comparison series.</li>
+      <li><strong>Track longitudinal deltas:</strong> When prompts or model versions update, increment the cohort version and start a fresh comparison series.</li>
     </ol>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://platform.openai.com/docs/guides/latest-model" rel="noopener noreferrer">OpenAI model API guide</a> — Developer APIs measure parametric knowledge unless search grounding is explicitly enabled.</li>
+      <li><a href="https://platform.openai.com/docs/guides/tools-web-search" rel="noopener noreferrer">OpenAI web search documentation</a> — Grounded retrieval returns citable source URLs for real-time verification.</li>
+      <li><a href="https://schema.org/SoftwareApplication" rel="noopener noreferrer">Schema.org SoftwareApplication</a> — Entity attribute consistency across product schemas and knowledge bases.</li>
+      <li><a href="/docs#measurement">CiteAura measurement documentation</a> — Interpretation of raw sample completions and Wilson confidence bounds.</li>
+    </ul>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: measuring ChatGPT brand mentions</h2>
@@ -394,6 +401,11 @@ curl -s https://api.citeaura.com/api/v1/projects/123/report \
       <p>Because variance scales as <code>p(1-p)/n</code>, testing 15 questions across 3 passes (n=45) provides a workable baseline with manageable confidence intervals for tracking directional shifts.</p>
     </section>
 
+    <div class="blog-cta">
+      <p>Configure automated multi-engine prompt cohorts and track Wilson confidence intervals in the CiteAura workspace.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+    </div>
+
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>
       <ul>
@@ -402,19 +414,6 @@ curl -s https://api.citeaura.com/api/v1/projects/123/report \
         <li><a href="/ai-visibility-audit">AI visibility audit workflow</a></li>
       </ul>
     </aside>
-
-    <h2>Sources</h2>
-    <ul>
-      <li><a href="https://platform.openai.com/docs/guides/latest-model" rel="noopener noreferrer">OpenAI model API guide</a> — developer APIs measure parametric knowledge unless search is enabled.</li>
-      <li><a href="https://platform.openai.com/docs/guides/tools-web-search" rel="noopener noreferrer">OpenAI web search tool</a> — retrieval-enabled API calls can return source URLs; the ChatGPT app is a different surface.</li>
-      <li><a href="https://schema.org/SoftwareApplication" rel="noopener noreferrer">Schema.org SoftwareApplication</a> — structured product facts that measurement should stay consistent with.</li>
-      <li><a href="/docs#measurement">CiteAura measurement documentation</a> — how labeled sample traces are interpreted.</li>
-    </ul>
-
-    <div class="blog-cta">
-      <p>Measure a fixed question set, keep the sampling mode attached, and inspect the raw answers behind each cohort rate.</p>
-      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
-    </div>
   </article>
 
   <footer class="site-footer">

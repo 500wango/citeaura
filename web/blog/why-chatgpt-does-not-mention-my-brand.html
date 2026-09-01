@@ -92,15 +92,14 @@
     <nav class="toc" aria-label="Contents">
       <strong>Contents</strong>
       <ol>
-        <li><a href="#bucket">The 4 buckets</a></li>
+        <li><a href="#bucket">The 4 diagnostic buckets</a></li>
         <li><a href="#crawl">Bucket 1: Crawl access</a></li>
         <li><a href="#extract">Bucket 2: Extractability (JS shell)</a></li>
-        <li><a href="#waf">Bucket 3: WAF / challenge</a></li>
-        <li><a href="#facts">Bucket 4: Thin or inconsistent facts</a></li>
-        <li><a href="#variance">Variance vs defect</a></li>
+        <li><a href="#waf">Bucket 3: WAF challenges</a></li>
+        <li><a href="#facts">Bucket 4: Structured fact consistency</a></li>
+        <li><a href="#variance">Distinguishing variance from defects</a></li>
         <li><a href="#competitor">Why competitors are easier to cite</a></li>
-        <li><a href="#decision">Decision tree</a></li>
-        <li><a href="#tickets">From diagnosis to tickets</a></li>
+        <li><a href="#tickets">Packaging evidence into tickets</a></li>
       </ol>
     </nav>
 
@@ -168,47 +167,53 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
     </ul>
 
     <h2 id="competitor">Why competitors are easier to cite</h2>
-    <p>Categorical queries ("best tools for X") favor websites that present direct, factual answers in semantic HTML headings and structured tables. When a competitor maintains a public comparison page with clear H2 headers while your site hosts a downloadable PDF, language models cite the crawlable HTML source.</p>
-    <h3>Comparative case study</h3>
-    <p><strong>Benchmarking example:</strong> Two B2B software products were evaluated across an "AI visibility tool" prompt cohort. The first site relied on client-side JS rendering and gated its pricing in a PDF; the second provided plain server-rendered HTML, an open pricing table, and a dedicated comparison page. In a 45-sample test (15 questions × 3 passes, <code>API · Model knowledge</code>), the first product appeared in 2 responses (4.4%) while the second appeared in 19 (42.2%). After the first site deployed server-rendered hero copy and a public comparison matrix, a repeat cohort recorded 11/45 mentions (24.4%).</p>
-    <h3>Key content assets to publish</h3>
+    <p>Categorical queries ("best tools for X") favor websites that present direct, factual answers in semantic HTML headings and structured tables. When a competitor publishes an open comparison page with clear H2 headings while your site gates pricing inside a downloadable PDF, language models cite the crawlable HTML source.</p>
+    <p>In comparative benchmarks, websites that migrate core differentiation from client-rendered JavaScript to plain server-rendered HTML consistently increase their retrievable surface area across multiple testing passes.</p>
+
+    <h2 id="tickets">Packaging evidence into engineering tickets</h2>
+    <p>CiteAura translates each diagnostic failure into a discrete engineering ticket with assigned owners, code diffs, and reproducible acceptance tests. Before opening a ticket, capture the necessary verification artifacts:</p>
     <ul>
-      <li><strong>Category solution overview:</strong> A public HTML page answering "best tools for [category]" with a structured table detailing capabilities and pricing.</li>
-      <li><strong>Head-to-head comparison pages:</strong> "CiteAura vs Competitor" written in plain HTML with descriptive headings and explanatory text.</li>
-      <li><strong>Directory profiles:</strong> Maintain accurate product information on recognized software directories (G2, Capterra) to reinforce structured entity data.</li>
+      <li><strong>Crawl directive:</strong> Active <code>robots.txt</code> response headers and the matching Allow/Disallow rule on the canonical host.</li>
+      <li><strong>HTML payload diff:</strong> Raw <code>curl</code> response showing the missing server-rendered H1 or pricing markup.</li>
+      <li><strong>WAF status:</strong> HTTP response codes from <code>curl -A GPTBot</code> and edge cache headers.</li>
+      <li><strong>Fact consistency:</strong> The discrepancy between homepage copy, documentation, and JSON-LD structured data.</li>
     </ul>
+    <p>Once deployed, the verification engine re-probes the live endpoints to confirm resolution before tickets transition to verified status.</p>
 
-    <h2 id="evidence">Pre-ticket diagnostic checklist</h2>
-    <p>Gather the following technical artifacts before opening remediation tickets:</p>
-    <ol>
-      <li>Live <code>robots.txt</code> output with the matching Allow/Disallow directive and tested canonical host.</li>
-      <li>Raw HTML response excerpt showing the presence or absence of H1 headings and pricing markup.</li>
-      <li>Response headers from <code>curl -A GPTBot</code> indicating HTTP status (200 vs 403) and WAF metadata.</li>
-      <li>Consistency matrix row comparing claims across the homepage, docs, and JSON-LD schema.</li>
-      <li>Cohort parameters: prompt hashes, sampling mode, execution dates, and observed mention rate.</li>
-    </ol>
-
-    <h2 id="decision">Diagnostic decision tree</h2>
-    <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code>1) curl robots.txt -> GPTBot Disallow on public routes? -> Fix robots.txt (Bucket 1)
-2) Raw HTML contains H1 definition and pricing? No -> Implement SSR/SSG (Bucket 2)
-3) curl -A GPTBot returns 403 or challenge? Yes -> Adjust WAF bot rules (Bucket 3)
-4) Claims conflict across HTML, docs, and JSON-LD? Yes -> Align structured facts (Bucket 4)
-5) None of the above -> Increase cohort sample size (n=45) to evaluate variance</code></pre>
-
-    <h2 id="tickets">Managing fixes through tickets</h2>
-    <p>CiteAura maps site audit observations to discrete technical tickets with assigned owners, code diffs, and automated verification tests. After code deployment, the verification engine re-crawls the endpoints and marks tickets verified upon passing acceptance checks.</p>
-    <p>To begin diagnosing your domain, run an audit via the <a href="/ai-visibility-audit">AI visibility audit</a> workflow, review <a href="/blog/gptbot-blocked-by-robots-txt">GPTBot robots.txt</a> access rules, and check your <a href="/blog/what-to-put-in-llms-txt">llms.txt</a> manifest.</p>
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI crawler documentation</a> — GPTBot tokens and Allow/Disallow directives.</li>
+      <li><a href="https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics" rel="noopener noreferrer">Google JavaScript SEO basics</a> — Rendered versus initial HTML extraction.</li>
+      <li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — Structured entity name and description schemas.</li>
+      <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — Lightweight plain-text discovery file specification.</li>
+    </ul>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: why ChatGPT skips a brand</h2>
-      <h3>Does allowing GPTBot guarantee a ChatGPT mention?</h3><p>No. It removes crawler access restrictions, but it does not guarantee retrieval, a mention, or a ranking. Your pages must also be extractable and relevant to the user query.</p>
-      <h3>Is llms.txt enough to make a brand appear?</h3><p>No. The file provides an optional plain-text summary. Core product facts must be present in public HTML.</p>
-      <h3>When is a missing mention a measurement issue?</h3><p>When visibility varies from prompt to prompt. Establish a cohort baseline with n≥45 before diagnosing site defects.</p>
-      <h3>Should I rewrite marketing copy after a single missing mention?</h3><p>No. Verify crawl access, HTML rendering, and WAF rules across a multi-pass cohort before revising copy.</p>
+      <h3>Does allowing GPTBot guarantee a ChatGPT mention?</h3>
+      <p>No. It removes crawler access restrictions, but it does not guarantee retrieval, a mention, or a ranking. Your pages must also be extractable and relevant to the user query.</p>
+      <h3>Is llms.txt enough to make a brand appear?</h3>
+      <p>No. The file provides an optional plain-text summary. Core product facts must be present in public HTML.</p>
+      <h3>When is a missing mention a measurement issue?</h3>
+      <p>When visibility varies from prompt to prompt. Establish a cohort baseline with n≥45 before diagnosing site defects.</p>
+      <h3>Should I rewrite marketing copy after a single missing mention?</h3>
+      <p>No. Verify crawl access, HTML rendering, and WAF rules across a multi-pass cohort before revising copy.</p>
     </section>
-    <aside class="blog-related" aria-labelledby="related-guides"><h2 id="related-guides">Related guides</h2><ul><li><a href="/blog/measure-if-chatgpt-mentions-your-brand">How to measure ChatGPT brand mentions</a></li><li><a href="/blog/gptbot-blocked-by-robots-txt">How to fix a GPTBot robots.txt block</a></li><li><a href="/blog/what-to-put-in-llms-txt">What to put in llms.txt</a></li><li><a href="/ai-visibility-audit">AI visibility audit workflow</a></li></ul></aside>
-    <h2>Sources</h2><ul><li><a href="https://platform.openai.com/docs/bots" rel="noopener noreferrer">OpenAI crawler documentation</a> — GPTBot tokens and Allow/Disallow.</li><li><a href="https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics" rel="noopener noreferrer">Google JavaScript SEO basics</a> — rendered vs initial HTML.</li><li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — name/description consistency.</li><li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — /llms.txt as optional discovery, not a ranking switch.</li></ul>
-    <div class="blog-cta"><p>Run the 4-bucket audit, keep facts in HTML, and repeat a labeled cohort before you rewrite.</p><a class="btn btn-primary" href="/app?auth=register">Start free trial</a></div>
+
+    <div class="blog-cta">
+      <p>Run a 4-bucket diagnostic audit across your domain and generate engineering tickets for crawler and rendering blocks.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+    </div>
+
+    <aside class="blog-related" aria-labelledby="related-guides">
+      <h2 id="related-guides">Related guides</h2>
+      <ul>
+        <li><a href="/blog/measure-if-chatgpt-mentions-your-brand">How to measure ChatGPT brand mentions</a></li>
+        <li><a href="/blog/gptbot-blocked-by-robots-txt">How to fix a GPTBot robots.txt block</a></li>
+        <li><a href="/blog/what-to-put-in-llms-txt">What to put in llms.txt</a></li>
+        <li><a href="/ai-visibility-audit">AI visibility audit workflow</a></li>
+      </ul>
+    </aside>
   </article>
   <footer class="site-footer"><div class="page-shell footer-layout"><div class="footer-brand"><a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a><p class="footer-tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p><span class="footer-copy">© 2026 CiteAura</span></div><nav class="footer-links" aria-label="Footer Navigation"><a href="/docs">Docs</a><a href="/blog">Guides</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/app?auth=login">Sign In</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></nav></div></footer>
   <script defer src="/site-assets/landing.js"></script><script defer src="/site-assets/site-nav.js"></script><script defer src="/site-assets/seo-attribution.js"></script>
