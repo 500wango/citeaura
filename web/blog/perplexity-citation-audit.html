@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perplexity Citation Audit: Are You Cited or Just Mentioned? | CiteAura</title>
+  <meta name="description" content="Audit whether Perplexity cites your official domain or merely mentions your brand name. Learn how PerplexityBot RAG indexing works, how footnotes are attributed, and how to verify your citation readiness.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <script src="/runtime-assets/theme-init.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/blog.css">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="canonical" href="https://citeaura.com/blog/perplexity-citation-audit">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/blog/perplexity-citation-audit">
+  <meta property="og:title" content="Perplexity Citation Audit: Are You Cited or Just Mentioned? | CiteAura">
+  <meta property="og:description" content="Step-by-step technical audit for Perplexity AI citations: text mentions vs linked footnotes, PerplexityBot crawl validation, and citation rate benchmarking.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Perplexity citation audit technical guide.">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Perplexity Citation Audit: Are You Cited or Just Mentioned?">
+  <meta name="twitter:description" content="How to audit and diagnose Perplexity brand citations, crawl logs, and footnote link attribution.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://citeaura.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Guides",
+            "item": "https://citeaura.com/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Perplexity Citation Audit",
+            "item": "https://citeaura.com/blog/perplexity-citation-audit"
+          }
+        ]
+      },
+      {
+        "@type": "Article",
+        "headline": "Perplexity Citation Audit: Are You Cited or Just Mentioned?",
+        "description": "A deep technical guide on auditing Perplexity brand citations, understanding PerplexityBot RAG indexing, and converting unlinked brand mentions into verified referral links.",
+        "url": "https://citeaura.com/blog/perplexity-citation-audit",
+        "datePublished": "2026-09-01",
+        "dateModified": "2026-09-01",
+        "author": {
+          "@type": "Person",
+          "name": "Elena Torres"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com",
+          "logo": "https://citeaura.com/site-assets/logo.png"
+        },
+        "mainEntityOfPage": "https://citeaura.com/blog/perplexity-citation-audit"
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://citeaura.com/blog/perplexity-citation-audit#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is the difference between a mention and a citation in Perplexity?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A mention is text containing your brand name in Perplexity's generated summary. A citation is a numbered footnote and clickable source card linking directly to your domain URL. Citations deliver referral traffic and indicate that Perplexity retrieved your actual webpage."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why does Perplexity mention my product but cite a third-party review site instead?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "This occurs when third-party sites (like G2, Reddit, or industry blogs) have higher extractability, clear comparative tables, or fewer crawl restrictions than your official site. Perplexity cites the source where it retrieved the synthesized fact."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does blocking PerplexityBot stop Perplexity from citing your brand?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. If your robots.txt or WAF blocks PerplexityBot, Perplexity cannot index your official pages during real-time web retrieval. It will rely entirely on third-party aggregators and historical index data."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How can I measure my Perplexity citation rate?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sample a cohort of buyer-intent prompts under the API · Web Retrieval sampling mode across multiple runs. Record the ratio of responses containing your clickable canonical domain in the source card array."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Open navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+
+      <nav id="primary-nav" class="nav-links" aria-label="Main Navigation">
+        <details class="nav-group"><summary>Product <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/#about">Overview</a><a href="/#workflow">How It Works</a><a href="/#product">Features</a><a href="/ai-visibility-audit">AI visibility audit</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">For brands</a><a href="/for-agencies">For agencies</a></div></details>
+        <details class="nav-group"><summary>Resources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Docs</a><a href="/blog" class="is-current" aria-current="page">Guides</a><a href="/methodology">Methodology</a><a href="/sample-report">Sample report</a></div></details>
+        <a href="/pricing">Pricing</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" title="Switch Theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <article class="blog-shell blog-article">
+    <nav class="blog-crumb" aria-label="Breadcrumb">
+      <a href="/">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/blog">Guides</a>
+      <span aria-hidden="true">/</span>
+      <span>Perplexity Citation Audit</span>
+    </nav>
+
+    <header class="blog-header">
+      <span class="blog-kicker">Technical Investigation</span>
+      <h1>Perplexity Citation Audit: Are You Cited or Just Mentioned?</h1>
+      <p class="blog-lead">Perplexity AI combines live web indexing with dense footnote citations. However, many brands find their names written into answers while their official URLs are completely absent from the source cards. This guide breaks down the mechanics of Perplexity citation indexing and shows you how to audit your citation rate with verifiable evidence.</p>
+      <p class="blog-meta">Updated 1 September 2026 · 10 min read · Technical Audit</p>
+      <p class="blog-byline">By Elena Torres</p>
+    </header>
+
+    <div class="blog-callout">
+      <p><strong>Key takeaways:</strong></p>
+      <ul>
+        <li><strong>Mentions without citations</strong> mean Perplexity retrieved your brand information from a third-party review site, directory, or forum rather than your canonical domain.</li>
+        <li><strong>PerplexityBot crawl access</strong> is a prerequisite: if your web application firewall or <code>robots.txt</code> blocks PerplexityBot, direct citations are impossible.</li>
+        <li><strong>Citation readiness</strong> requires concise, self-contained semantic blocks with structured data that match Perplexity's RAG chunking window.</li>
+      </ul>
+    </div>
+
+    <nav class="blog-toc" aria-labelledby="toc-heading">
+      <h2 id="toc-heading" style="font-size:0.95rem;margin-bottom:0.5rem;">Contents</h2>
+      <ol style="margin:0;padding-left:1.2rem;line-height:1.8;">
+        <li><a href="#how-perplexity-cites">How Perplexity indexes and attributes web sources</a></li>
+        <li><a href="#mention-vs-citation">Mention vs Footnote Citation vs Source Card</a></li>
+        <li><a href="#why-official-domains-are-missed">Why Perplexity cites third parties instead of your official site</a></li>
+        <li><a href="#step-by-step-audit">Step-by-step Perplexity citation audit workflow</a></li>
+        <li><a href="#crawler-verification">Verifying PerplexityBot crawl accessibility</a></li>
+        <li><a href="#closing-the-citation-gap">Actionable engineering fixes to capture direct citations</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="how-perplexity-cites">1. How Perplexity indexes and attributes web sources</h2>
+    <p>Unlike conversational models operating purely on parametric memory, Perplexity functions as an active RAG search engine. When a prompt is submitted, Perplexity executes a fast retrieval pipeline:</p>
+    <ol>
+      <li><strong>Query expansion:</strong> The user prompt is transformed into targeted search queries sent to Perplexity's real-time web index.</li>
+      <li><strong>Document fetching &amp; snippet chunking:</strong> Top-ranking pages are fetched and broken into small semantic text passages (typically 200–500 tokens).</li>
+      <li><strong>Context reranking:</strong> Chunks are evaluated for relevance and factual density against the query intent.</li>
+      <li><strong>Answer generation with bracketed citations:</strong> The LLM synthesizes an answer, inserting inline footnote tokens (e.g., <code>[1]</code>, <code>[2]</code>) tied directly to the retrieved chunk URLs.</li>
+      <li><strong>Source card rendering:</strong> Perplexity displays top domain cards in the header and attaches linked footnotes throughout the body text.</li>
+    </ol>
+    <p>Understanding this architecture reveals a critical truth: <em>Perplexity does not cite a domain because it likes the brand; it cites the specific URL that supplied the most extractable answer chunk.</em></p>
+
+    <h2 id="mention-vs-citation">2. Mention vs Footnote Citation vs Source Card</h2>
+    <p>When analyzing Perplexity performance in <a href="/methodology">CiteAura's measurement framework</a>, we categorize visibility into three distinct tiers:</p>
+
+    <div style="overflow-x:auto;margin:1.5rem 0;">
+      <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border-color, #e2e8f0);background:var(--bg-subtle, #f8fafc);">
+            <th style="padding:0.75rem;">Visibility Level</th>
+            <th style="padding:0.75rem;">What Appears in Perplexity</th>
+            <th style="padding:0.75rem;">Underlying Mechanism</th>
+            <th style="padding:0.75rem;">Business Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Unlinked Brand Mention</strong></td>
+            <td style="padding:0.75rem;">Brand name is in the text, but the footnote points to G2, Reddit, or a competitor's blog.</td>
+            <td style="padding:0.75rem;">Fact was retrieved from an aggregator. Your official site was not crawled or lacked an extractable snippet.</td>
+            <td style="padding:0.75rem;">Moderate brand awareness, zero direct referral traffic, high risk of hallucinated pricing.</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Inline Footnote Citation</strong></td>
+            <td style="padding:0.75rem;">Brand name is followed by <code>[1]</code> linking directly to your canonical documentation or product URL.</td>
+            <td style="padding:0.75rem;">PerplexityBot fetched your HTML and extracted a high-confidence factual chunk.</td>
+            <td style="padding:0.75rem;">High direct referral clicks, authoritative attribution, accurate product positioning.</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Header Source Card</strong></td>
+            <td style="padding:0.75rem;">Your domain favicon and title appear in the horizontal carousel above the answer.</td>
+            <td style="padding:0.75rem;">Domain was in the top 3–5 primary retrieval sources for the overall query topic.</td>
+            <td style="padding:0.75rem;">Maximum CTR and category leadership perception.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="why-official-domains-are-missed">3. Why Perplexity cites third parties instead of your official site</h2>
+    <p>A common frustration among SaaS companies is seeing prompts like <em>"What are the top features of Acme Cloud?"</em> answer accurately, but with citations pointing to a Reddit thread or an outdated 2024 review site.</p>
+    <p>There are four technical root causes for this behavior:</p>
+    <ul>
+      <li><strong>Client-side rendering (CSR) latency:</strong> If your product details are rendered via complex Single Page Application (SPA) JavaScript, Perplexity's fast-fetch crawler may capture an empty <code>&lt;div id="root"&gt;&lt;/div&gt;</code> before hydration completes.</li>
+      <li><strong>Marketing fluff vs direct answers:</strong> If your homepage says <em>"Empowering teams with seamless synergy"</em> while a third-party directory says <em>"Acme provides automated SOC 2 audit logging for AWS"</em>, Perplexity's RAG ranker selects the third party because it contains concrete answer tokens.</li>
+      <li><strong>Robots.txt or WAF blocks:</strong> Cloudflare "Bot Fight Mode" or misconfigured <code>User-agent: * Disallow: /</code> rules silently reject PerplexityBot requests.</li>
+      <li><strong>Missing Schema.org entity definitions:</strong> Without clear JSON-LD markup, Perplexity cannot easily disambiguate your product from similarly named tools.</li>
+    </ul>
+
+    <h2 id="step-by-step-audit">4. Step-by-step Perplexity citation audit workflow</h2>
+    <p>To run a thorough citation audit across your brand's core topics, follow this 5-step procedure:</p>
+
+    <h3>Step 1: Define a high-intent prompt cohort</h3>
+    <p>Assemble 20–30 search prompts that represent direct buyer queries in your sector (e.g., comparison prompts, feature evaluations, and pricing inquiries).</p>
+
+    <h3>Step 2: Sample with explicit web retrieval</h3>
+    <p>Run the prompt cohort under the <code>API · Web Retrieval</code> sampling mode. Record the raw JSON response containing the generated text and the <code>sources</code> metadata array.</p>
+
+    <pre><code># Sample Perplexity API Response Inspection
+{
+  "id": "cmpl-8f92a1...",
+  "model": "sonar-reasoning-pro",
+  "choices": [{
+    "message": {
+      "content": "CiteAura is an evidence-based GEO platform [1] that audits crawlability and generates engineering tickets [2]..."
+    }
+  }],
+  "citations": [
+    "https://citeaura.com/ai-visibility-audit",
+    "https://citeaura.com/methodology"
+  ]
+}</code></pre>
+
+    <h3>Step 3: Calculate Mention Rate vs Citation Rate</h3>
+    <p>Calculate two separate ratios across your cohort:</p>
+    <ul>
+      <li><strong>Mention Rate:</strong> <code>(Prompts containing Brand Name / Total Prompts) * 100</code></li>
+      <li><strong>Citation Rate:</strong> <code>(Prompts with Official Domain in citations / Total Prompts) * 100</code></li>
+    </ul>
+    <p>If your Mention Rate is 70% but your Citation Rate is 15%, you have a severe <strong>Citation Gap</strong> that can be fixed through technical on-site improvements.</p>
+
+    <h2 id="crawler-verification">5. Verifying PerplexityBot crawl accessibility</h2>
+    <p>Before modifying content, confirm that PerplexityBot can actually fetch your pages without receiving HTTP 403 or 503 errors.</p>
+    <p>Run this diagnostic cURL command against your key product URLs:</p>
+
+    <pre><code># Test PerplexityBot access from the command line
+curl -i -s -A "Mozilla/5.0 (compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)" \
+  https://example.com/pricing | head -n 25</code></pre>
+
+    <p>Inspect the HTTP status code. If you see HTTP 200 and clean HTML markup in the response, crawl access is functional. If you see HTTP 403, Cloudflare challenge pages, or immediate redirects to login screens, review our <a href="/blog/ai-crawler-access-checklist">AI Crawler Access Checklist</a> to resolve the block.</p>
+
+    <h2 id="closing-the-citation-gap">6. Actionable engineering fixes to capture direct citations</h2>
+    <p>Once crawl accessibility is confirmed, implement these three content structure adjustments to maximize Perplexity footnote citations:</p>
+
+    <h3>1. Inverted pyramid answer blocks</h3>
+    <p>Place a concise, 40–60 word factual summary immediately beneath each <code>&lt;h2&gt;</code> heading. RAG chunkers prioritize concise opening paragraphs that directly resolve the heading's search intent.</p>
+
+    <h3>2. Structured comparison tables</h3>
+    <p>Perplexity's ingestion parser extracts HTML <code>&lt;table&gt;</code> elements with high confidence during multi-brand comparison queries. Ensure tables include explicit <code>&lt;th&gt;</code> headers and clean textual data.</p>
+
+    <h3>3. Publish a validated root llms.txt</h3>
+    <p>Maintain a canonical <code>/llms.txt</code> index at your site root linking to your primary factual resources. See our <a href="/blog/what-to-put-in-llms-txt">llms.txt publishing guide</a> for syntax standards and CI validation.</p>
+
+    <div class="blog-cta">
+      <p>Audit your brand's citation rate on Perplexity, ChatGPT, and Claude. Turn citation gaps into verified engineering tickets with CiteAura.</p>
+      <a class="btn btn-primary" href="/ai-visibility-audit">Start free AI visibility audit</a>
+    </div>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://docs.perplexity.ai/" rel="noopener noreferrer">Perplexity API Documentation</a> — Sonar model endpoints, citation array schemas, and search context windows.</li>
+      <li><a href="https://docs.perplexity.ai/docs/perplexitybot" rel="noopener noreferrer">PerplexityBot Crawler Specification</a> — User-agent strings, IP ranges, and robots.txt compliance rules.</li>
+      <li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — Entity definitions and canonical verification schemas for brand properties.</li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/article" rel="noopener noreferrer">MDN: HTML Article Element</a> — Semantic DOM scoping for headless RAG content extractors.</li>
+    </ul>
+
+    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
+      <h2 id="faq-heading">Frequently asked questions</h2>
+      <h3>How often does Perplexity re-crawl websites?</h3>
+      <p>Perplexity crawls high-priority domains on a near-daily cycle and executes on-demand live retrieval for real-time queries. However, caching layers and index partitions mean content updates can take between 24 and 72 hours to reflect in live citations.</p>
+
+      <h3>Does Schema.org structured data directly influence Perplexity citations?</h3>
+      <p>Yes. Schema types like <code>Organization</code>, <code>SoftwareApplication</code>, and <code>FAQPage</code> provide explicit entity signals that help Perplexity verify that your domain is the authoritative primary source for claims about your product.</p>
+
+      <h3>Can I submit my website directly to Perplexity's index?</h3>
+      <p>Perplexity does not offer a public URL submission console like Google Search Console. Index discovery relies on crawler access via PerplexityBot, standard sitemap XML files, and crawlable inbound links.</p>
+      <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
+    </section>
+
+    <aside class="blog-related" aria-labelledby="related-guides">
+      <h2 id="related-guides">Related guides</h2>
+      <ul>
+        <li><a href="/blog/ai-crawler-access-checklist">AI Crawler Access Checklist: GPTBot, ClaudeBot, PerplexityBot</a></li>
+        <li><a href="/blog/best-ai-visibility-tools">Best AI Visibility Tools 2026: Tested for Real Mentions</a></li>
+        <li><a href="/sample-report">Explore a Sample GEO Diagnostic Report</a></li>
+      </ul>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-word">CiteAura</span>
+        </a>
+        <p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/docs">Docs</a>
+        <a href="/blog">Guides</a>
+        <a href="/for-agencies">For agencies</a>
+        <a href="/for-brands">For brands</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+  <script defer src="/site-assets/landing.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
+</body>
+</html>

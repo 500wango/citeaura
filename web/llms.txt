@@ -15,11 +15,26 @@
 - [Pricing](https://citeaura.com/pricing): Starter, Pro, Agency, and Enterprise plan capacity and trial terms.
 - [Sample GEO Diagnostic Report](https://citeaura.com/sample-report): Example diagnostic with evidence, action tickets, and verification gates.
 - [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
+- [Best AI Visibility Tools 2026: Tested for Real Mentions](https://citeaura.com/blog/best-ai-visibility-tools)
 - [How to Measure ChatGPT Brand Mentions](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
 - [Why ChatGPT Does Not Mention Your Brand](https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand)
-- [GPTBot Blocked by robots.txt? Find and Fix the Rule](https://citeaura.com/blog/gptbot-blocked-by-robots-txt)
+- [Perplexity Citation Audit: Are You Cited or Just Mentioned?](https://citeaura.com/blog/perplexity-citation-audit)
+- [Google AI Overviews: How to Get Cited](https://citeaura.com/blog/google-ai-overviews-citation-guide)
 - [What to Put in llms.txt for Your Brand](https://citeaura.com/blog/what-to-put-in-llms-txt)
+- [GPTBot Blocked by robots.txt? Find and Fix the Rule](https://citeaura.com/blog/gptbot-blocked-by-robots-txt)
+- [AI Crawler Access Checklist: GPTBot, ClaudeBot, PerplexityBot](https://citeaura.com/blog/ai-crawler-access-checklist)
+- [GEO vs SEO: What Changes and What Stays](https://citeaura.com/blog/geo-vs-seo)
+- [Extractability Audit: Can AI Read Your Pages?](https://citeaura.com/blog/extractability-audit)
 - [White-Label GEO Diagnostic Reports for Agencies](https://citeaura.com/blog/white-label-geo-diagnostic-report)
+- [Brand Fact Library: Stop AI Hallucinating Your Brand](https://citeaura.com/blog/brand-fact-library-guide)
+- [How to Write Pages That AI Cites (Answerability)](https://citeaura.com/blog/how-to-get-ai-to-cite-your-site)
+- [GEO Blueprint: Channel Coverage + Content Plan](https://citeaura.com/blog/geo-blueprint-guide)
+- [Sampling Modes Explained: Model Knowledge vs Web Retrieval vs Manual](https://citeaura.com/blog/sampling-modes-explained)
+- [Citation Readiness Score: 5 Dimensions](https://citeaura.com/blog/citation-readiness-score)
+- [Verification Loop: How to Prove a Fix Worked](https://citeaura.com/blog/geo-verification-loop)
+- [For Brands: AI Visibility Diagnosis in 5 Steps](https://citeaura.com/blog/ai-visibility-diagnosis-for-brands)
+- [For Agencies: Sell GEO Retainers With Delivery Packs](https://citeaura.com/blog/sell-geo-retainers-with-delivery-packs)
+- [AI Search Directory Listings: Are They Worth It? (DR Gate)](https://citeaura.com/blog/ai-search-directory-listings-guide)
 - [Privacy Policy](https://citeaura.com/privacy): Data handling and privacy terms.
 - [Terms of Service](https://citeaura.com/terms): Service terms and acceptable use.
 

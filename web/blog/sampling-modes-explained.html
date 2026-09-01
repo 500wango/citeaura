@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sampling Modes Explained: Model Knowledge vs Web Retrieval vs Manual | CiteAura</title>
+  <meta name="description" content="Understand the 3 core AI sampling modes: API Parametric Knowledge, API Web Retrieval, and Manual Product Interface. Learn why explicit sampling mode labels are mandatory for reliable GEO metrics.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <script src="/runtime-assets/theme-init.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/blog.css">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="canonical" href="https://citeaura.com/blog/sampling-modes-explained">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/blog/sampling-modes-explained">
+  <meta property="og:title" content="Sampling Modes Explained: Model Knowledge vs Web Retrieval vs Manual | CiteAura">
+  <meta property="og:description" content="Technical guide to AI sampling modes: Parametric Knowledge vs Web Retrieval vs Manual Interface, variance control, and measurement honesty.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Sampling modes explained guide.">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Sampling Modes Explained: Model Knowledge vs Web Retrieval vs Manual">
+  <meta name="twitter:description" content="Why explicit sampling mode labeling is critical for AI visibility audits and GEO reporting.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://citeaura.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Guides",
+            "item": "https://citeaura.com/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Sampling Modes Explained",
+            "item": "https://citeaura.com/blog/sampling-modes-explained"
+          }
+        ]
+      },
+      {
+        "@type": "Article",
+        "headline": "Sampling Modes Explained: Model Knowledge vs Web Retrieval vs Manual",
+        "description": "An in-depth explanation of the three AI visibility sampling modes, how to control temperature variance, and why data provenance standards matter in Generative Engine Optimization.",
+        "url": "https://citeaura.com/blog/sampling-modes-explained",
+        "datePublished": "2026-09-01",
+        "dateModified": "2026-09-01",
+        "author": {
+          "@type": "Person",
+          "name": "Elena Torres"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com",
+          "logo": "https://citeaura.com/site-assets/logo.png"
+        },
+        "mainEntityOfPage": "https://citeaura.com/blog/sampling-modes-explained"
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://citeaura.com/blog/sampling-modes-explained#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is the Parametric Knowledge sampling mode?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The Parametric Knowledge sampling mode evaluates what a base LLM knows from its pre-training weights with live web retrieval completely disabled. It measures long-term brand recall and core training associations."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is the Web Retrieval sampling mode?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The Web Retrieval sampling mode evaluates an engine when search grounding is active (e.g., Perplexity, SearchGPT). It tests real-time crawlability, extractability, and live citation attribution."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why is Manual Product Interface sampling necessary?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Manual sampling captures the exact user-facing responses returned inside consumer product interfaces (ChatGPT Plus, Claude.ai, Gemini Advanced), including system prompts and multi-turn UI contexts not exposed via direct API endpoints."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why is it misleading to combine sampling modes without labels?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Combining ungrounded model outputs with live web retrieval outputs produces unrepeatable metrics. A brand might score 0% on parametric memory but 90% on live search; blending them obscures the true root cause."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Open navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+
+      <nav id="primary-nav" class="nav-links" aria-label="Main Navigation">
+        <details class="nav-group"><summary>Product <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/#about">Overview</a><a href="/#workflow">How It Works</a><a href="/#product">Features</a><a href="/ai-visibility-audit">AI visibility audit</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">For brands</a><a href="/for-agencies">For agencies</a></div></details>
+        <details class="nav-group"><summary>Resources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Docs</a><a href="/blog" class="is-current" aria-current="page">Guides</a><a href="/methodology">Methodology</a><a href="/sample-report">Sample report</a></div></details>
+        <a href="/pricing">Pricing</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" title="Switch Theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <article class="blog-shell blog-article">
+    <nav class="blog-crumb" aria-label="Breadcrumb">
+      <a href="/">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/blog">Guides</a>
+      <span aria-hidden="true">/</span>
+      <span>Sampling Modes Explained</span>
+    </nav>
+
+    <header class="blog-header">
+      <span class="blog-kicker">Measurement Methodology</span>
+      <h1>Sampling Modes Explained: Model Knowledge vs Web Retrieval vs Manual</h1>
+      <p class="blog-lead">In Generative Engine Optimization, where and how an AI engine gets its facts determines whether a measurement is scientifically valid. This guide explains the three fundamental sampling modes, why mixing them creates misleading data, and how CiteAura enforces measurement integrity.</p>
+      <p class="blog-meta">Updated 1 September 2026 · 11 min read · Methodology Guide</p>
+      <p class="blog-byline">By Elena Torres</p>
+    </header>
+
+    <div class="blog-callout">
+      <p><strong>The golden rule of GEO sampling:</strong> Never compare a metric derived from base model weights against a metric derived from live web search without labeling the sampling mode.</p>
+      <ul>
+        <li><strong>API · Parametric Knowledge:</strong> Raw model memory. Tests pre-training recall without web search.</li>
+        <li><strong>API · Web Retrieval:</strong> RAG grounded search. Tests live crawlability, extractability, and source citations.</li>
+        <li><strong>Manual · Product Interface:</strong> Consumer web UI logging. Captures user-facing conversational outputs with full provenance.</li>
+      </ul>
+    </div>
+
+    <nav class="blog-toc" aria-labelledby="toc-heading">
+      <h2 id="toc-heading" style="font-size:0.95rem;margin-bottom:0.5rem;">Contents</h2>
+      <ol style="margin:0;padding-left:1.2rem;line-height:1.8;">
+        <li><a href="#why-modes-matter">Why sampling modes dictate metric validity</a></li>
+        <li><a href="#sampling-decision-matrix">The Sampling Mode Decision Matrix</a></li>
+        <li><a href="#parametric-deep-dive">Mode 1: API · Parametric Knowledge</a></li>
+        <li><a href="#retrieval-deep-dive">Mode 2: API · Web Retrieval</a></li>
+        <li><a href="#manual-deep-dive">Mode 3: Manual · Product Interface</a></li>
+        <li><a href="#integrity-standards">CiteAura's data provenance and honesty standards</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="why-modes-matter">1. Why sampling modes dictate metric validity</h2>
+    <p>When you ask a model like GPT-4o a question via an API call, you have two choices: call the base model directly, or call an endpoint connected to a search tool. The resulting answers come from two entirely different data pathways:</p>
+    <ul>
+      <li><strong>Path A (Parametric):</strong> The model queries billions of neural connection weights created during pre-training.</li>
+      <li><strong>Path B (Retrieval):</strong> The model generates search queries, executes a web search, parses the top 5 HTML pages, and summarizes the findings.</li>
+    </ul>
+    <p>If an SEO tool claims your brand has an "AI Visibility Score of 45%" without disclosing whether Path A or Path B was used, the score is meaningless. A drop from 80% to 20% might simply mean the tool switched from a web-grounded query to an ungrounded API call.</p>
+
+    <h2 id="sampling-decision-matrix">2. The Sampling Mode Decision Matrix</h2>
+    <p>The table below summarizes the technical specifications and use cases of each sampling mode:</p>
+
+    <div style="overflow-x:auto;margin:1.5rem 0;">
+      <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border-color, #e2e8f0);background:var(--bg-subtle, #f8fafc);">
+            <th style="padding:0.75rem;">Sampling Mode Label</th>
+            <th style="padding:0.75rem;">Execution Method</th>
+            <th style="padding:0.75rem;">Retrieval Active?</th>
+            <th style="padding:0.75rem;">Primary Variable Tested</th>
+            <th style="padding:0.75rem;">Reproducibility</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>API · Parametric Knowledge</strong></td>
+            <td style="padding:0.75rem;">Direct API call (temperature=0.0)</td>
+            <td style="padding:0.75rem;">No</td>
+            <td style="padding:0.75rem;">Base training data entity associations</td>
+            <td style="padding:0.75rem;">High (Deterministic at temp=0)</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>API · Web Retrieval</strong></td>
+            <td style="padding:0.75rem;">Grounded API (Perplexity, SearchGPT)</td>
+            <td style="padding:0.75rem;">Yes</td>
+            <td style="padding:0.75rem;">Live crawlability, extractability, citations</td>
+            <td style="padding:0.75rem;">Moderate (Reflects live web index)</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Manual · Product Interface</strong></td>
+            <td style="padding:0.75rem;">Logged web UI chat session</td>
+            <td style="padding:0.75rem;">Variable (UI managed)</td>
+            <td style="padding:0.75rem;">Consumer chat experience &amp; system prompts</td>
+            <td style="padding:0.75rem;">Audit-logged with raw transcripts</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="parametric-deep-dive">3. Mode 1: API · Parametric Knowledge</h2>
+    <p>Parametric testing strips away real-time search to evaluate the model's unassisted memory. This mode answers the question: <em>"Does this AI model know who we are without looking us up?"</em></p>
+    <p>Use cases for parametric evaluation:</p>
+    <ul>
+      <li>Evaluating category dominance (e.g., <em>"List the top 5 database providers"</em>).</li>
+      <li>Measuring training data bias or entity confusion.</li>
+      <li>Establishing whether your brand is part of core model weights.</li>
+    </ul>
+
+    <h2 id="retrieval-deep-dive">4. Mode 2: API · Web Retrieval</h2>
+    <p>Web retrieval mode connects the model to live search engines (e.g., Perplexity's Sonar models, OpenAI SearchGPT endpoints). This mode answers the question: <em>"When an AI searches the web for our category, does it cite our official site or our competitors?"</em></p>
+    <p>Use cases for retrieval evaluation:</p>
+    <ul>
+      <li>Auditing citation link attribution and source footnote capture.</li>
+      <li>Verifying whether recent <code>robots.txt</code> or pricing page updates resolved an exclusion.</li>
+      <li>Measuring live mention rates across commercial comparison queries.</li>
+    </ul>
+
+    <h2 id="manual-deep-dive">5. Mode 3: Manual · Product Interface</h2>
+    <p>Consumer chat interfaces (ChatGPT Plus with o1/GPT-4o, Claude.ai Pro, Gemini Advanced) use proprietary system prompts, dynamic browsing heuristics, and internal temperature settings that differ from raw API endpoints.</p>
+    <p>CiteAura supports structured manual logging where teams paste verbatim consumer UI responses alongside prompt metadata, preserving raw evidence for agency delivery packs.</p>
+
+    <h2 id="integrity-standards">6. CiteAura's data provenance and honesty standards</h2>
+    <p>To eliminate ambiguity in client reports and executive presentations, CiteAura mandates three data provenance rules:</p>
+    <ol>
+      <li><strong>Explicit Mode Tagging:</strong> Every chart, table, and exported CSV must explicitly display the sampling mode tag.</li>
+      <li><strong>Temperature Transparency:</strong> API evaluations record the exact temperature and model version hash used during sampling.</li>
+      <li><strong>No Hallucinated Estimates:</strong> Unsampled providers or engines with insufficient runs are explicitly marked as <em>"Unmeasured"</em> rather than populated with synthetic estimates.</li>
+    </ol>
+
+    <div class="blog-cta">
+      <p>Audit your brand across all three sampling modes with full data provenance in CiteAura.</p>
+      <a class="btn btn-primary" href="/ai-visibility-audit">Start free technical audit</a>
+    </div>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://platform.openai.com/docs/api-reference/chat" rel="noopener noreferrer">OpenAI API Reference: Chat Completions</a> — Temperature parameters, seed determinism, and parametric output controls.</li>
+      <li><a href="https://docs.anthropic.com/en/api/getting-started" rel="noopener noreferrer">Anthropic API Documentation</a> — Claude model invocations, prompt caching, and temperature settings.</li>
+      <li><a href="https://docs.perplexity.ai/api-reference" rel="noopener noreferrer">Perplexity API Reference</a> — Sonar online retrieval parameters and search domain filter specifications.</li>
+      <li><a href="https://schema.org/Dataset" rel="noopener noreferrer">Schema.org Dataset Schema</a> — Data provenance and sampling metadata modeling standards.</li>
+    </ul>
+
+    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
+      <h2 id="faq-heading">Frequently asked questions</h2>
+      <h3>Why does a brand score 0% on parametric mode but 80% on web retrieval?</h3>
+      <p>If a company launched or rebranded recently, its name will not exist in the training dataset of older base models (e.g. GPT-4). However, if its public website is crawlable and extractable, search-grounded models will easily find and cite it during live web retrieval.</p>
+
+      <h3>What sampling temperature should be used for GEO audits?</h3>
+      <p>We recommend setting <code>temperature=0.0</code> for API audits to minimize stochastic variance and ensure deterministic, reproducible benchmarking across runs.</p>
+
+      <h3>Can manual product interface logs be exported into client reports?</h3>
+      <p>Yes. CiteAura includes manual interface logs in white-label delivery packs, displaying verbatim transcripts alongside verified API metrics.</p>
+      <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
+    </section>
+
+    <aside class="blog-related" aria-labelledby="related-guides">
+      <h2 id="related-guides">Related guides</h2>
+      <ul>
+        <li><a href="/blog/best-ai-visibility-tools">Best AI Visibility Tools 2026: Tested for Real Mentions</a></li>
+        <li><a href="/methodology">CiteAura GEO Measurement Methodology</a></li>
+        <li><a href="/sample-report">Explore a Sample GEO Diagnostic Report</a></li>
+      </ul>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-word">CiteAura</span>
+        </a>
+        <p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/docs">Docs</a>
+        <a href="/blog">Guides</a>
+        <a href="/for-agencies">For agencies</a>
+        <a href="/for-brands">For brands</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+  <script defer src="/site-assets/landing.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
+</body>
+</html>

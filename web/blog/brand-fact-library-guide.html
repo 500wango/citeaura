@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brand Fact Library: Stop AI Hallucinating Your Brand | CiteAura</title>
+  <meta name="description" content="Learn how to build a canonical Brand Fact Library to stop ChatGPT, Claude, and Perplexity from hallucinating pricing, founding facts, and capabilities.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <script src="/runtime-assets/theme-init.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/blog.css">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="canonical" href="https://citeaura.com/blog/brand-fact-library-guide">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/blog/brand-fact-library-guide">
+  <meta property="og:title" content="Brand Fact Library: Stop AI Hallucinating Your Brand | CiteAura">
+  <meta property="og:description" content="Build a canonical Brand Fact Library: prevent LLM hallucinations, synchronize JSON-LD schemas with llms.txt, and verify public facts.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Brand fact library guide.">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Brand Fact Library: Stop AI Hallucinating Your Brand">
+  <meta name="twitter:description" content="How to stop generative AI models from hallucinating brand facts with structured knowledge architecture.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://citeaura.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Guides",
+            "item": "https://citeaura.com/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Brand Fact Library",
+            "item": "https://citeaura.com/blog/brand-fact-library-guide"
+          }
+        ]
+      },
+      {
+        "@type": "Article",
+        "headline": "Brand Fact Library: Stop AI Hallucinating Your Brand",
+        "description": "How to establish a single source of truth brand fact library that aligns public HTML, JSON-LD structured data, and llms.txt to eliminate model hallucinations.",
+        "url": "https://citeaura.com/blog/brand-fact-library-guide",
+        "datePublished": "2026-09-01",
+        "dateModified": "2026-09-01",
+        "author": {
+          "@type": "Person",
+          "name": "Elena Torres"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com",
+          "logo": "https://citeaura.com/site-assets/logo.png"
+        },
+        "mainEntityOfPage": "https://citeaura.com/blog/brand-fact-library-guide"
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://citeaura.com/blog/brand-fact-library-guide#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Why do LLMs hallucinate brand pricing and capabilities?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "LLMs hallucinate when public sources present conflicting or outdated information (e.g., stale blog posts, conflicting third-party reviews, or missing schema assertions). The model predicts statistically plausible tokens rather than retrieving verified facts."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is a Brand Fact Library?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A Brand Fact Library is a centralized, structured registry of verified corporate assertions (product definitions, pricing, compliance, integrations, founder details) maintained as a single source of truth across public HTML, JSON-LD, and llms.txt."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does llms.txt complement a brand fact library?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The llms.txt file exports verified assertions and canonical URLs from your fact library into a standardized plain-text index hosted at your root domain for AI crawler discovery."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does CiteAura detect fact conflicts?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "CiteAura crawls your public website, compares stated claims across pages against AI engine sample responses, and flags discrepancies between your official pricing/features and model outputs."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Open navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+
+      <nav id="primary-nav" class="nav-links" aria-label="Main Navigation">
+        <details class="nav-group"><summary>Product <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/#about">Overview</a><a href="/#workflow">How It Works</a><a href="/#product">Features</a><a href="/ai-visibility-audit">AI visibility audit</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">For brands</a><a href="/for-agencies">For agencies</a></div></details>
+        <details class="nav-group"><summary>Resources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Docs</a><a href="/blog" class="is-current" aria-current="page">Guides</a><a href="/methodology">Methodology</a><a href="/sample-report">Sample report</a></div></details>
+        <a href="/pricing">Pricing</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" title="Switch Theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <article class="blog-shell blog-article">
+    <nav class="blog-crumb" aria-label="Breadcrumb">
+      <a href="/">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/blog">Guides</a>
+      <span aria-hidden="true">/</span>
+      <span>Brand Fact Library</span>
+    </nav>
+
+    <header class="blog-header">
+      <span class="blog-kicker">Knowledge Architecture</span>
+      <h1>Brand Fact Library: Stop AI Hallucinating Your Brand</h1>
+      <p class="blog-lead">Generative AI models often state inaccurate pricing, phantom features, or fabricated company histories when answering customer prompts. Building a canonical Brand Fact Library establishes the structured ground truth required to eliminate hallucinations across ChatGPT, Perplexity, and Claude.</p>
+      <p class="blog-meta">Updated 1 September 2026 · 11 min read · Architectural Guide</p>
+      <p class="blog-byline">By Elena Torres</p>
+    </header>
+
+    <div class="blog-callout">
+      <p><strong>Core principle:</strong> LLMs do not invent facts maliciously; they fill information vacuums. If your official website lacks explicit, structured assertions, models generate plausible-sounding assumptions from noisy training data.</p>
+      <ul>
+        <li><strong>Single Source of Truth (SSOT):</strong> Maintain one central repository of verified facts for pricing, compliance, integrations, and positioning.</li>
+        <li><strong>Multi-layer synchronization:</strong> Mirror verified facts across public HTML, JSON-LD Schema, and root <code>/llms.txt</code> files.</li>
+        <li><strong>Automated drift alerts:</strong> Monitor multi-engine prompt cohorts to catch and fix model hallucinations before they mislead buyers.</li>
+      </ul>
+    </div>
+
+    <nav class="blog-toc" aria-labelledby="toc-heading">
+      <h2 id="toc-heading" style="font-size:0.95rem;margin-bottom:0.5rem;">Contents</h2>
+      <ol style="margin:0;padding-left:1.2rem;line-height:1.8;">
+        <li><a href="#why-models-hallucinate">The anatomy of an AI brand hallucination</a></li>
+        <li><a href="#fact-conflict-matrix">The Fact Conflict Resolution Matrix</a></li>
+        <li><a href="#structuring-the-library">Structuring your canonical Brand Fact Library</a></li>
+        <li><a href="#synchronizing-channels">Synchronizing HTML, JSON-LD, and llms.txt</a></li>
+        <li><a href="#conflict-detection">Automated fact auditing with CiteAura</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="why-models-hallucinate">1. The anatomy of an AI brand hallucination</h2>
+    <p>When an AI model is asked: <em>"Does Acme Platform integrate with Salesforce and what is their enterprise pricing?"</em>, it initiates a probability calculation. If your public site lacks an explicit, extractable answer, the model relies on:</p>
+    <ul>
+      <li>Outdated community forum posts discussing legacy versions.</li>
+      <li>Competitor comparison articles that misrepresent your capabilities.</li>
+      <li>Statistical pattern completion that guesses standard enterprise pricing.</li>
+    </ul>
+    <p>The result is a convincing but false response that can derail sales conversations. Establishing a Brand Fact Library replaces stochastic guessing with verifiable data.</p>
+
+    <h2 id="fact-conflict-matrix">2. The Fact Conflict Resolution Matrix</h2>
+    <p>The following table illustrates common brand hallucinations and the technical assets required to correct them:</p>
+
+    <div style="overflow-x:auto;margin:1.5rem 0;">
+      <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border-color, #e2e8f0);background:var(--bg-subtle, #f8fafc);">
+            <th style="padding:0.75rem;">Fact Category</th>
+            <th style="padding:0.75rem;">Common Model Hallucination</th>
+            <th style="padding:0.75rem;">Canonical Verification Source</th>
+            <th style="padding:0.75rem;">Technical Implementation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Pricing &amp; Tiers</strong></td>
+            <td style="padding:0.75rem;">Quotes retired legacy prices or invents a non-existent free tier.</td>
+            <td style="padding:0.75rem;"><code>https://example.com/pricing</code></td>
+            <td style="padding:0.75rem;">HTML table + <code>SoftwareApplication.offers</code> schema</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Security &amp; Compliance</strong></td>
+            <td style="padding:0.75rem;">Claims product is not HIPAA compliant when it is.</td>
+            <td style="padding:0.75rem;"><code>https://example.com/security</code></td>
+            <td style="padding:0.75rem;">Explicit bullet assertions linked in <code>llms.txt</code></td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Integration Support</strong></td>
+            <td style="padding:0.75rem;">States missing integration with AWS/Snowflake.</td>
+            <td style="padding:0.75rem;"><code>https://example.com/integrations</code></td>
+            <td style="padding:0.75rem;">Structured integration catalog with direct outbound docs links</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Founding &amp; Headquarters</strong></td>
+            <td style="padding:0.75rem;">Confuses company with an unrelated namesake firm.</td>
+            <td style="padding:0.75rem;"><code>https://example.com/about</code></td>
+            <td style="padding:0.75rem;"><code>Organization.sameAs</code> (Wikidata, Crunchbase) links</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="structuring-the-library">3. Structuring your canonical Brand Fact Library</h2>
+    <p>A maintainable Fact Library should be stored in structured JSON format within your documentation repository, feeding both human-readable pages and automated manifests:</p>
+
+    <pre><code>// brand-facts.json
+{
+  "entity": {
+    "name": "CiteAura",
+    "canonical_url": "https://citeaura.com",
+    "category": "Generative Engine Optimization (GEO) Software",
+    "tagline": "Next-gen GEO diagnosis, execution, and delivery platform.",
+    "founded_year": 2026,
+    "security": {
+      "encryption": "AES-256-GCM for all API keys",
+      "tenant_isolation": "Strict multi-tenant workspace separation"
+    },
+    "pricing_tiers": [
+      { "name": "Starter", "price_usd_monthly": 79, "projects": 3 },
+      { "name": "Pro", "price_usd_monthly": 199, "projects": 10 },
+      { "name": "Agency", "price_usd_monthly": 499, "projects": 30 }
+    ]
+  }
+}</code></pre>
+
+    <h2 id="synchronizing-channels">4. Synchronizing HTML, JSON-LD, and llms.txt</h2>
+    <p>To ensure AI models encounter identical facts regardless of ingestion path, publish assertions across three interconnected layers:</p>
+    <ol>
+      <li><strong>Human-readable HTML:</strong> Plain text and tables on canonical URLs (<code>/pricing</code>, <code>/about</code>, <code>/security</code>).</li>
+      <li><strong>Machine-readable Schema:</strong> JSON-LD embedded on those pages referencing official URLs.</li>
+      <li><strong>Root plain-text discovery:</strong> A validated <a href="/blog/what-to-put-in-llms-txt">llms.txt file</a> at <code>https://example.com/llms.txt</code> mapping entity assertions directly to supporting URLs.</li>
+    </ol>
+
+    <h2 id="conflict-detection">5. Automated fact auditing with CiteAura</h2>
+    <p>CiteAura continuously audits the consistency between your live website and generative AI outputs:</p>
+    <ul>
+      <li><strong>Automated crawling:</strong> Extracts public claims directly from your rendered DOM.</li>
+      <li><strong>Sampling verification:</strong> Samples prompt cohorts across ChatGPT, Claude, and Perplexity under both <code>API · Parametric Knowledge</code> and <code>API · Web Retrieval</code> modes.</li>
+      <li><strong>Discrepancy alerts:</strong> Flags when a model output contradicts your canonical facts and issues immediate engineering tickets to update schemas or clarify page copy.</li>
+    </ul>
+
+    <div class="blog-cta">
+      <p>Stop AI engines from hallucinating your pricing and product capabilities. Build and verify your Brand Fact Library with CiteAura.</p>
+      <a class="btn btn-primary" href="/ai-visibility-audit">Start free brand audit</a>
+    </div>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — Standardized plain-text discovery file format for verified brand facts and canonical URLs.</li>
+      <li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — Structured entity definitions, sameAs disambiguation properties, and brand identity modeling.</li>
+      <li><a href="https://www.wikidata.org/wiki/Wikidata:Main_Page" rel="noopener noreferrer">Wikidata Knowledge Base</a> — Open entity graph linking official brand registries and knowledge panels.</li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control" rel="noopener noreferrer">MDN: Cache-Control HTTP Headers</a> — Caching strategies for plain-text index manifests and API responses.</li>
+    </ul>
+
+    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
+      <h2 id="faq-heading">Frequently asked questions</h2>
+      <h3>How quickly can a Brand Fact Library fix ChatGPT hallucinations?</h3>
+      <p>For SearchGPT and Perplexity (which use live web retrieval), updating public HTML and <code>llms.txt</code> can resolve hallucinations within 24–72 hours. For base parametric training weights, corrections take effect in subsequent model training or fine-tuning cycles.</p>
+
+      <h3>Should sensitive internal company facts be included in the library?</h3>
+      <p>No. Include only public, verified assertions that you want search engines and customers to reference. Never put non-public roadmaps or internal financial numbers in public fact libraries.</p>
+
+      <h3>How does Wikidata integration help stop entity confusion?</h3>
+      <p>Linking your <code>Organization</code> schema <code>sameAs</code> property to an official Wikidata entry or Crunchbase profile provides an unambiguous entity identifier, preventing models from conflating your brand with identically named companies.</p>
+      <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
+    </section>
+
+    <aside class="blog-related" aria-labelledby="related-guides">
+      <h2 id="related-guides">Related guides</h2>
+      <ul>
+        <li><a href="/blog/what-to-put-in-llms-txt">What to Put in llms.txt for Your Brand</a></li>
+        <li><a href="/blog/how-to-get-ai-to-cite-your-site">How to Write Pages That AI Cites (Answerability)</a></li>
+        <li><a href="/methodology">CiteAura GEO Measurement Methodology</a></li>
+      </ul>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-word">CiteAura</span>
+        </a>
+        <p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/docs">Docs</a>
+        <a href="/blog">Guides</a>
+        <a href="/for-agencies">For agencies</a>
+        <a href="/for-brands">For brands</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+  <script defer src="/site-assets/landing.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
+</body>
+</html>

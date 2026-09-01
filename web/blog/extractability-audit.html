@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extractability Audit: Can AI Read Your Pages? | CiteAura</title>
+  <meta name="description" content="Learn how to audit web page extractability for AI crawlers. Discover why client-side rendering, DOM bloat, and broken semantics cause extraction failures, and how to fix them.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <script src="/runtime-assets/theme-init.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/blog.css">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="canonical" href="https://citeaura.com/blog/extractability-audit">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/blog/extractability-audit">
+  <meta property="og:title" content="Extractability Audit: Can AI Read Your Pages? | CiteAura">
+  <meta property="og:description" content="Technical audit guide for AI extractability: DOM noise, hydration timeouts, semantic HTML, and sample engineering remediation tickets.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="AI extractability audit guide.">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Extractability Audit: Can AI Read Your Pages?">
+  <meta name="twitter:description" content="How to audit and optimize your HTML extractability for LLM RAG pipelines.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://citeaura.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Guides",
+            "item": "https://citeaura.com/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Extractability Audit",
+            "item": "https://citeaura.com/blog/extractability-audit"
+          }
+        ]
+      },
+      {
+        "@type": "Article",
+        "headline": "Extractability Audit: Can AI Read Your Pages?",
+        "description": "A deep technical guide on auditing web page extractability for AI search engines, fixing DOM bloat, and solving JavaScript hydration extraction failures.",
+        "url": "https://citeaura.com/blog/extractability-audit",
+        "datePublished": "2026-09-01",
+        "dateModified": "2026-09-01",
+        "author": {
+          "@type": "Person",
+          "name": "David Park"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com",
+          "logo": "https://citeaura.com/site-assets/logo.png"
+        },
+        "mainEntityOfPage": "https://citeaura.com/blog/extractability-audit"
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://citeaura.com/blog/extractability-audit#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is the difference between crawlability and extractability?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Crawlability is whether a bot can fetch your raw HTTP response without 4xx/5xx errors. Extractability is whether an automated parser (like Trafilatura or readability engines) can strip away boilerplate and isolate your core text and tabular facts without data loss."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why do modern JavaScript frameworks often fail extractability checks?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Client-rendered SPAs (Single Page Applications) deliver empty HTML containers that require JavaScript execution to render text. Fast AI search crawlers often fetch raw HTML with strict execution timeouts, capturing empty pages or loading skeletons."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is a healthy text-to-DOM ratio for AI extractability?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Aim for a text-to-HTML size ratio above 15% on content pages. Excessive nested wrapper divs, inline SVG definitions, and large serialized JSON state blocks dilute the content density."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does CiteAura score page extractability?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "CiteAura tests the page against headless extraction parsers, measuring word count recovery, semantic heading preservation, table extractability, and DOM noise ratios."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Open navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+
+      <nav id="primary-nav" class="nav-links" aria-label="Main Navigation">
+        <details class="nav-group"><summary>Product <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/#about">Overview</a><a href="/#workflow">How It Works</a><a href="/#product">Features</a><a href="/ai-visibility-audit">AI visibility audit</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">For brands</a><a href="/for-agencies">For agencies</a></div></details>
+        <details class="nav-group"><summary>Resources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Docs</a><a href="/blog" class="is-current" aria-current="page">Guides</a><a href="/methodology">Methodology</a><a href="/sample-report">Sample report</a></div></details>
+        <a href="/pricing">Pricing</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" title="Switch Theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <article class="blog-shell blog-article">
+    <nav class="blog-crumb" aria-label="Breadcrumb">
+      <a href="/">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/blog">Guides</a>
+      <span aria-hidden="true">/</span>
+      <span>Extractability Audit</span>
+    </nav>
+
+    <header class="blog-header">
+      <span class="blog-kicker">Technical Diagnosis</span>
+      <h1>Extractability Audit: Can AI Read Your Pages?</h1>
+      <p class="blog-lead">A web page can return HTTP 200 and rank in Google yet remain completely unreadable to AI RAG parsers. Extractability auditing identifies the DOM bottlenecks, JavaScript rendering gaps, and structural flaws that prevent LLMs from citing your product facts.</p>
+      <p class="blog-meta">Updated 1 September 2026 · 11 min read · Technical Audit</p>
+      <p class="blog-byline">By David Park</p>
+    </header>
+
+    <div class="blog-callout">
+      <p><strong>Extractability rule of thumb:</strong> If a headless parser converting your HTML into Markdown loses your pricing numbers, feature list, or heading hierarchy, an LLM RAG crawler will fail to cite your page.</p>
+      <ul>
+        <li><strong>Server-Side Render (SSR):</strong> Critical text must exist in the initial HTML payload, not behind client JS hydration.</li>
+        <li><strong>Semantic structure:</strong> Use native <code>&lt;main&gt;</code>, <code>&lt;article&gt;</code>, and <code>&lt;table&gt;</code> tags rather than deeply nested unsemantic divs.</li>
+        <li><strong>Prune DOM bloat:</strong> Remove massive inline SVG icons and giant JSON state scripts embedded in the body.</li>
+      </ul>
+    </div>
+
+    <nav class="blog-toc" aria-labelledby="toc-heading">
+      <h2 id="toc-heading" style="font-size:0.95rem;margin-bottom:0.5rem;">Contents</h2>
+      <ol style="margin:0;padding-left:1.2rem;line-height:1.8;">
+        <li><a href="#how-ai-parsers-read">How LLM ingestion parsers read the web</a></li>
+        <li><a href="#top-extraction-failures">The 4 most common extractability failure modes</a></li>
+        <li><a href="#benchmarking-metrics">Extractability benchmarks and scoring metrics</a></li>
+        <li><a href="#sample-remediation-ticket">Sample engineering remediation ticket (TICKET-EXT-01)</a></li>
+        <li><a href="#audit-steps">How to run an extractability audit on your site</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="how-ai-parsers-read">1. How LLM ingestion parsers read the web</h2>
+    <p>When an AI engine like Perplexity or ChatGPT fetches a URL during a web retrieval run, it does not view the rendered pixel layout like a human user. Instead, it passes the raw HTTP response through an HTML content extraction pipeline (such as Trafilatura, Readability, or proprietary scrapers):</p>
+    <ol>
+      <li><strong>DOM stripping:</strong> Removing <code>&lt;script&gt;</code>, <code>&lt;style&gt;</code>, <code>&lt;nav&gt;</code>, <code>&lt;footer&gt;</code>, and cookie banner overlays.</li>
+      <li><strong>Density analysis:</strong> Computing the ratio of text characters to HTML markup across DOM branches to identify the primary content container.</li>
+      <li><strong>Markdown conversion:</strong> Flattening the primary content into clean Markdown text with headings and lists.</li>
+      <li><strong>Embedding chunking:</strong> Splitting the clean Markdown into 256–512 token chunks for vector similarity matching.</li>
+    </ol>
+    <p>If your core facts are trapped in non-standard DOM nodes or require client-side execution, the parser extracts an empty string or irrelevant navigation boilerplate.</p>
+
+    <h2 id="top-extraction-failures">2. The 4 most common extractability failure modes</h2>
+
+    <h3>1. Client-Side Rendering (CSR) Hydration Lag</h3>
+    <p>Modern frontend frameworks (React, Vue, Angular) often output an initial HTML shell:</p>
+    <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;&lt;title&gt;Acme Analytics&lt;/title&gt;&lt;/head&gt;
+&lt;body&gt;
+  &lt;div id="app"&gt;&lt;/div&gt;
+  &lt;script src="/bundle.js"&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+    <p>While Googlebot renders JavaScript asynchronously over several days, real-time AI retrieval crawlers (like <code>ChatGPT-User</code> and <code>PerplexityBot</code>) fetch raw HTML with strict sub-second timeouts. If the content is not in the initial HTML, the bot indexes an empty document.</p>
+
+    <h3>2. "Div Soup" and Missing Semantic Elements</h3>
+    <p>Simulating tables and headings using nested <code>&lt;div&gt;</code> tags confuses extraction algorithms:</p>
+    <pre><code>&lt;!-- Poor: Parser cannot recognize table relationships --&gt;
+&lt;div class="pricing-row"&gt;
+  &lt;div class="col-1"&gt;Pro Plan&lt;/div&gt;
+  &lt;div class="col-2"&gt;$79/mo&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- High extractability: Native HTML table --&gt;
+&lt;table&gt;
+  &lt;thead&gt;&lt;tr&gt;&lt;th&gt;Plan&lt;/th&gt;&lt;th&gt;Price&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+  &lt;tbody&gt;&lt;tr&gt;&lt;td&gt;Pro Plan&lt;/td&gt;&lt;td&gt;$79/mo&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;
+&lt;/table&gt;</code></pre>
+
+    <h3>3. Modal and Overlay DOM Obscuration</h3>
+    <p>Cookie consent modals, newsletter popups, and age-verification gates placed at the top of the <code>&lt;body&gt;</code> tag can cause parsers to mistake the modal text for the page's primary topic.</p>
+
+    <h3>4. Low Text-to-DOM Ratio (< 10%)</h3>
+    <p>Pages bloated with tens of thousands of lines of utility CSS classes, embedded base64 images, and inline SVGs dilute text density, causing parsers to classify the page as low-quality boilerplate.</p>
+
+    <h2 id="benchmarking-metrics">3. Extractability benchmarks and scoring metrics</h2>
+    <p>In CiteAura's diagnostic engine, extractability is evaluated across four core quantitative metrics:</p>
+
+    <div style="overflow-x:auto;margin:1.5rem 0;">
+      <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border-color, #e2e8f0);background:var(--bg-subtle, #f8fafc);">
+            <th style="padding:0.75rem;">Metric</th>
+            <th style="padding:0.75rem;">Target Threshold</th>
+            <th style="padding:0.75rem;">Diagnostic Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Clean Text Extraction Ratio</strong></td>
+            <td style="padding:0.75rem;">&gt; 85% of visible text</td>
+            <td style="padding:0.75rem;">Percentage of visible body copy recovered by headless parsers.</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Heading Hierarchy Integrity</strong></td>
+            <td style="padding:0.75rem;">Single H1, structured H2/H3</td>
+            <td style="padding:0.75rem;">Ensures RAG chunkers maintain question-to-answer semantic links.</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Table Extraction Fidelity</strong></td>
+            <td style="padding:0.75rem;">100% native <code>&lt;table&gt;</code></td>
+            <td style="padding:0.75rem;">Ensures multi-column comparative data is preserved in Markdown.</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Initial HTML Payload Density</strong></td>
+            <td style="padding:0.75rem;">&gt; 500 words SSR text</td>
+            <td style="padding:0.75rem;">Guarantees instant indexing without requiring JS execution.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="sample-remediation-ticket">4. Sample engineering remediation ticket (TICKET-EXT-01)</h2>
+    <p>When CiteAura detects an extraction failure on a client domain, it generates an action-ready engineering ticket:</p>
+
+    <div class="blog-callout" style="background:var(--bg-subtle, #f8fafc);border-left:4px solid #3b82f6;">
+      <h3 style="margin-top:0;">TICKET-EXT-01: Fix CSR Hydration &amp; Table Structure on /pricing</h3>
+      <p><strong>Priority:</strong> High · <strong>Category:</strong> Extractability &amp; GEO Readiness</p>
+      <p><strong>Problem:</strong> AI crawlers fetching <code>https://example.com/pricing</code> receive an empty <code>&lt;div id="pricing-root"&gt;</code> because tier comparisons are rendered purely on client-side React mount. Perplexity cites third-party review sites for pricing information.</p>
+      <p><strong>Remediation Steps:</strong></p>
+      <ol>
+        <li>Enable Server-Side Rendering (SSR) or Static Site Generation (SSG) for <code>/pricing</code> so tier names and numbers exist in the initial HTML.</li>
+        <li>Replace nested flexbox divs with a semantic HTML <code>&lt;table&gt;</code> containing <code>&lt;thead&gt;</code> and <code>&lt;th&gt;</code> scopes.</li>
+        <li>Deploy <code>SoftwareApplication</code> JSON-LD schema with explicit <code>offers</code> pricing tiers.</li>
+      </ol>
+      <p><strong>Acceptance Criteria:</strong> <code>curl -s https://example.com/pricing | grep "79.00"</code> returns the pricing string without JavaScript execution.</p>
+    </div>
+
+    <h2 id="audit-steps">5. How to run an extractability audit on your site</h2>
+    <p>To audit extractability on your core product and documentation pages:</p>
+    <ol>
+      <li><strong>Run raw cURL fetches:</strong> Inspect what your server returns to a non-JavaScript client.</li>
+      <li><strong>Test with Python Trafilatura:</strong> Run <code>trafilatura.extract(html)</code> to view the exact text and table output an AI model consumes.</li>
+      <li><strong>Inspect with CiteAura:</strong> Use <a href="/ai-visibility-audit">CiteAura's automated audit</a> to scan your entire sitemap, flag unextractable pages, and auto-generate Jira/Markdown remediation tickets.</li>
+    </ol>
+
+    <div class="blog-cta">
+      <p>Identify why AI crawlers miss your content. Run an automated extractability audit for your domain today.</p>
+      <a class="btn btn-primary" href="/ai-visibility-audit">Run extractability audit</a>
+    </div>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://trafilatura.readthedocs.io/" rel="noopener noreferrer">Trafilatura Documentation</a> — Text extraction algorithms, DOM tree pruning, and precision metrics for web text ingestion.</li>
+      <li><a href="https://github.com/mozilla/readability" rel="noopener noreferrer">Mozilla Readability Repository</a> — Algorithmic heuristics for identifying standalone article content and stripping boilerplate.</li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Glossary/SSR" rel="noopener noreferrer">MDN: Server-Side Rendering (SSR)</a> — Best practices for delivering initial HTML payloads to headless web clients.</li>
+      <li><a href="https://schema.org/FAQPage" rel="noopener noreferrer">Schema.org FAQPage Schema</a> — Semantic Q&A markup designed for automated extraction pipelines.</li>
+    </ul>
+
+    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
+      <h2 id="faq-heading">Frequently asked questions</h2>
+      <h3>Does Googlebot render JavaScript better than AI crawlers?</h3>
+      <p>Yes. Google Search maintains a massive headless Chromium rendering farm. However, real-time AI retrieval engines (Perplexity, SearchGPT) prioritize speed and often skip JavaScript rendering entirely to return prompt answers within 1–2 seconds.</p>
+
+      <h3>Will improving extractability also help traditional SEO?</h3>
+      <p>Yes. Fast server-side rendered HTML, semantic headings, and clean table markup improve Core Web Vitals, reduce TTFB, and make content easier for Googlebot to index as featured snippets.</p>
+
+      <h3>Can I check page extractability using browser Developer Tools?</h3>
+      <p>You can disable JavaScript in Chrome DevTools (Settings → Debugger → Disable JavaScript) and refresh the page. If critical pricing, feature descriptions, or documentation disappear, the page will fail AI extractability checks.</p>
+      <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
+    </section>
+
+    <aside class="blog-related" aria-labelledby="related-guides">
+      <h2 id="related-guides">Related guides</h2>
+      <ul>
+        <li><a href="/blog/ai-crawler-access-checklist">AI Crawler Access Checklist: GPTBot, ClaudeBot, PerplexityBot</a></li>
+        <li><a href="/blog/citation-readiness-score">Citation Readiness Score: 5 Dimensions</a></li>
+        <li><a href="/sample-report">Explore a Sample GEO Diagnostic Report</a></li>
+      </ul>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-word">CiteAura</span>
+        </a>
+        <p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/docs">Docs</a>
+        <a href="/blog">Guides</a>
+        <a href="/for-agencies">For agencies</a>
+        <a href="/for-brands">For brands</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+  <script defer src="/site-assets/landing.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
+</body>
+</html>

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How to Write Pages That AI Cites (Answerability) | CiteAura</title>
+  <meta name="description" content="Master the art of content answerability. Learn how to write web pages that ChatGPT, Perplexity, Claude, and Google AI Overviews extract, summarize, and cite as authoritative sources.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <script src="/runtime-assets/theme-init.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/blog.css">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="canonical" href="https://citeaura.com/blog/how-to-get-ai-to-cite-your-site">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/blog/how-to-get-ai-to-cite-your-site">
+  <meta property="og:title" content="How to Write Pages That AI Cites (Answerability) | CiteAura">
+  <meta property="og:description" content="Technical guide to writing high-answerability web content that earns citations across ChatGPT, Perplexity, and AI Overviews.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="How to write pages AI cites guide.">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="How to Write Pages That AI Cites (Answerability)">
+  <meta name="twitter:description" content="Content engineering principles for maximizing generative AI citations.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://citeaura.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Guides",
+            "item": "https://citeaura.com/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "How to Write Pages That AI Cites",
+            "item": "https://citeaura.com/blog/how-to-get-ai-to-cite-your-site"
+          }
+        ]
+      },
+      {
+        "@type": "Article",
+        "headline": "How to Write Pages That AI Cites (Answerability)",
+        "description": "A comprehensive content engineering guide for structuring web pages, headings, definitions, and tables to maximize citation attribution in generative AI answers.",
+        "url": "https://citeaura.com/blog/how-to-get-ai-to-cite-your-site",
+        "datePublished": "2026-09-01",
+        "dateModified": "2026-09-01",
+        "author": {
+          "@type": "Person",
+          "name": "Marcus Vance"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com",
+          "logo": "https://citeaura.com/site-assets/logo.png"
+        },
+        "mainEntityOfPage": "https://citeaura.com/blog/how-to-get-ai-to-cite-your-site"
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://citeaura.com/blog/how-to-get-ai-to-cite-your-site#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is answerability in Generative Engine Optimization?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Answerability is a measure of how efficiently, directly, and unambiguously a piece of text resolves a specific question or search intent when processed by an AI retrieval and chunking algorithm."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why do traditional storytelling introductions hurt AI citation rates?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Storytelling introductions delay the core factual assertion. When RAG chunkers break a page into 300-token passages, introductory filler creates low-relevance chunks that fail semantic similarity thresholds during model retrieval."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How long should an answer block be?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The ideal immediate answer block is 35 to 60 words placed directly beneath an H2 question heading, written in declarative subject-predicate sentence structure."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why are HTML tables so effective for AI citations?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "HTML tables provide clear multidimensional relationships (feature vs pricing vs competitor) with zero linguistic ambiguity, making them easy for RAG chunkers to convert into high-confidence Markdown tables."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Open navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+
+      <nav id="primary-nav" class="nav-links" aria-label="Main Navigation">
+        <details class="nav-group"><summary>Product <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/#about">Overview</a><a href="/#workflow">How It Works</a><a href="/#product">Features</a><a href="/ai-visibility-audit">AI visibility audit</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">For brands</a><a href="/for-agencies">For agencies</a></div></details>
+        <details class="nav-group"><summary>Resources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Docs</a><a href="/blog" class="is-current" aria-current="page">Guides</a><a href="/methodology">Methodology</a><a href="/sample-report">Sample report</a></div></details>
+        <a href="/pricing">Pricing</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Switch to dark theme" title="Switch Theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <article class="blog-shell blog-article">
+    <nav class="blog-crumb" aria-label="Breadcrumb">
+      <a href="/">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/blog">Guides</a>
+      <span aria-hidden="true">/</span>
+      <span>How to Write Pages That AI Cites</span>
+    </nav>
+
+    <header class="blog-header">
+      <span class="blog-kicker">Content Engineering</span>
+      <h1>How to Write Pages That AI Cites (Answerability)</h1>
+      <p class="blog-lead">Getting cited by generative search engines is not a matter of keyword density. It requires engineering your copy for high answerability—writing modular, self-contained semantic units that RAG chunkers can isolate, verify, and attribute with zero ambiguity.</p>
+      <p class="blog-meta">Updated 1 September 2026 · 11 min read · Practical Copywriting</p>
+      <p class="blog-byline">By Marcus Vance</p>
+    </header>
+
+    <div class="blog-callout">
+      <p><strong>The answerability formula:</strong></p>
+      <ul>
+        <li><strong>Inverted pyramid headers:</strong> Pose explicit questions in H2/H3 tags and resolve them in the immediate opening sentence.</li>
+        <li><strong>Eliminate pronoun dependency:</strong> Use concrete entity names instead of "we", "it", or "our platform" so passages make sense in isolation.</li>
+        <li><strong>Tabular facts over prose lists:</strong> Convert complex feature matrices and pricing structures into native HTML tables.</li>
+      </ul>
+    </div>
+
+    <nav class="blog-toc" aria-labelledby="toc-heading">
+      <h2 id="toc-heading" style="font-size:0.95rem;margin-bottom:0.5rem;">Contents</h2>
+      <ol style="margin:0;padding-left:1.2rem;line-height:1.8;">
+        <li><a href="#how-chunking-works">The mechanics of RAG chunking and semantic embeddings</a></li>
+        <li><a href="#before-after-examples">Before &amp; After: transforming marketing copy into citable assets</a></li>
+        <li><a href="#structural-rules">The 4 structural copywriting rules for AI citations</a></li>
+        <li><a href="#table-optimization">Why structured HTML tables win AI comparison citations</a></li>
+        <li><a href="#auditing-answerability">How to audit page answerability in CiteAura</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="how-chunking-works">1. The mechanics of RAG chunking and semantic embeddings</h2>
+    <p>When an AI engine processes your page during a retrieval pass, it cuts your HTML into discrete text chunks (typically 200–500 tokens). Each chunk is converted into a mathematical vector embedding that represents its semantic meaning.</p>
+    <p>When a user asks a question, the engine calculates the cosine similarity between the user's prompt vector and your page's chunk vectors. If your answer is scattered across five different paragraphs separated by marketing rhetoric, no single chunk will achieve a high enough similarity score to earn an attribution link.</p>
+
+    <h2 id="before-after-examples">2. Before &amp; After: transforming marketing copy into citable assets</h2>
+    <p>Examine how the same technical capability is received by AI models when structured differently:</p>
+
+    <div class="blog-callout" style="background:var(--bg-subtle, #f8fafc);border-left:4px solid #ef4444;margin-bottom:1rem;">
+      <h3 style="margin-top:0;color:#b91c1c;">Low Answerability (Traditional Marketing Copy)</h3>
+      <p><em>"At CloudSync, we believe that modern teams deserve a better way to manage data. Our innovative, enterprise-ready platform breaks down silos and unlocks potential, giving your team the peace of mind that comes with industry-standard compliance."</em></p>
+      <p><strong>Result:</strong> Zero citations. The model cannot determine what compliance standards are supported or what the product actually does.</p>
+    </div>
+
+    <div class="blog-callout" style="background:var(--bg-subtle, #f8fafc);border-left:4px solid #10b981;">
+      <h3 style="margin-top:0;color:#047857;">High Answerability (GEO Engineered Copy)</h3>
+      <p><em>"CloudSync provides automated database replication for PostgreSQL and MySQL across AWS and GCP regions. The platform is SOC 2 Type II and HIPAA compliant, offering automated 15-minute incremental snapshot backups on all Enterprise plans."</em></p>
+      <p><strong>Result:</strong> High citation rate. When a user asks <em>"Is CloudSync HIPAA compliant on AWS?"</em>, the chunk matches the prompt vector with near-perfect confidence and earns an immediate footnote citation.</p>
+    </div>
+
+    <h2 id="structural-rules">3. The 4 structural copywriting rules for AI citations</h2>
+
+    <h3>1. The Inverted Pyramid Paragraph</h3>
+    <p>Structure every conceptual section like a wire service news report:</p>
+    <ol>
+      <li><strong>Sentence 1 (Core Fact):</strong> Direct definition or factual answer.</li>
+      <li><strong>Sentence 2 (Scope / Boundary):</strong> Supporting details, supported platforms, or quantitative tiers.</li>
+      <li><strong>Sentence 3 (Verification Reference):</strong> Citation link to official documentation or benchmark evidence.</li>
+    </ol>
+
+    <h3>2. Standalone Semantic Units</h3>
+    <p>Ensure each section under an H2 or H3 heading can be understood completely if copy-pasted in isolation. Never rely on the previous section to establish subject context.</p>
+
+    <h3>3. Direct Numeric Claims</h3>
+    <p>State concrete numbers rather than vague adjectives. Write <em>"under 250ms response latency"</em> instead of <em>"ultra-fast performance"</em>; write <em>"$79 per month"</em> instead of <em>"affordable pricing"</em>.</p>
+
+    <h3>4. Schema-Aligned Copy</h3>
+    <p>Ensure the words written on the page match the JSON-LD schema properties verbatim. If your <code>Organization</code> schema specifies founding year 2026, ensure your <code>/about</code> copy states 2026 rather than ambiguous phrases like <em>"recently founded"</em>.</p>
+
+    <h2 id="table-optimization">4. Why structured HTML tables win AI comparison citations</h2>
+    <p>Generative models excel at processing tabular data. When answering comparison queries (e.g. <em>"Compare CiteAura vs Semrush for GEO"</em>), engines prioritize HTML tables because columns and rows define unambiguous attribute pairs.</p>
+
+    <div style="overflow-x:auto;margin:1.5rem 0;">
+      <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border-color, #e2e8f0);background:var(--bg-subtle, #f8fafc);">
+            <th style="padding:0.75rem;">Feature</th>
+            <th style="padding:0.75rem;">Traditional SEO Article</th>
+            <th style="padding:0.75rem;">High-Answerability GEO Page</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Primary Format</strong></td>
+            <td style="padding:0.75rem;">Narrative text with repeated keywords</td>
+            <td style="padding:0.75rem;">Structured HTML tables and concise summaries</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Chunk Quality</strong></td>
+            <td style="padding:0.75rem;">Diluted with transition phrases</td>
+            <td style="padding:0.75rem;">Dense factual statements with high vector similarity</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+            <td style="padding:0.75rem;"><strong>Pronoun Usage</strong></td>
+            <td style="padding:0.75rem;">Frequent "we", "our tool"</td>
+            <td style="padding:0.75rem;">Explicit canonical brand names</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="auditing-answerability">5. How to audit page answerability in CiteAura</h2>
+    <p>CiteAura's citation readiness engine analyzes your public pages against these answerability heuristics:</p>
+    <ul>
+      <li><strong>Definition density:</strong> Flags sections that lack clear declarative opening sentences.</li>
+      <li><strong>Pronoun ambiguity score:</strong> Highlights isolated paragraphs where entity attribution is missing.</li>
+      <li><strong>Table extraction readiness:</strong> Verifies that all comparison data is rendered in native semantic HTML tables.</li>
+    </ul>
+
+    <div class="blog-cta">
+      <p>Audit your content's AI answerability score and generate engineering remediation tickets with CiteAura.</p>
+      <a class="btn btn-primary" href="/ai-visibility-audit">Run technical content audit</a>
+    </div>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://arxiv.org/abs/2005.11401" rel="noopener noreferrer">Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks (Lewis et al.)</a> — Core RAG architecture, semantic vector retrieval, and passage synthesis.</li>
+      <li><a href="https://platform.openai.com/docs/guides/embeddings" rel="noopener noreferrer">OpenAI Embeddings Documentation</a> — Text chunking strategies, token windows, and cosine similarity thresholds.</li>
+      <li><a href="https://schema.org/TechArticle" rel="noopener noreferrer">Schema.org TechArticle</a> — Machine-readable technical specifications for documentation and educational copy.</li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/dl" rel="noopener noreferrer">MDN: HTML Description List Elements</a> — Semantic definition lists for unambiguous term-definition pairings.</li>
+    </ul>
+
+    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
+      <h2 id="faq-heading">Frequently asked questions</h2>
+      <h3>Does writing for answerability make copy sound robotic to human readers?</h3>
+      <p>No. High answerability mirrors top technical documentation and journalistic prose: clear, direct, and respectful of the reader's time. B2B buyers prefer direct answers over marketing fluff.</p>
+
+      <h3>Can I optimize blog posts for both human SEO and AI citations simultaneously?</h3>
+      <p>Yes. Providing an immediate 40-word summary beneath each H2 heading captures AI citations and Google featured snippets while the subsequent paragraphs provide in-depth context for human readers.</p>
+
+      <h3>How many citations can a single well-structured page earn?</h3>
+      <p>A comprehensive, high-answerability page with modular H2 question blocks can earn citations across dozens of related long-tail prompts, as RAG systems pull different chunks for different user queries.</p>
+      <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
+    </section>
+
+    <aside class="blog-related" aria-labelledby="related-guides">
+      <h2 id="related-guides">Related guides</h2>
+      <ul>
+        <li><a href="/blog/geo-vs-seo">GEO vs SEO: What Changes and What Stays</a></li>
+        <li><a href="/blog/citation-readiness-score">Citation Readiness Score: 5 Dimensions</a></li>
+        <li><a href="/docs">CiteAura Technical Documentation</a></li>
+      </ul>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-word">CiteAura</span>
+        </a>
+        <p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/docs">Docs</a>
+        <a href="/blog">Guides</a>
+        <a href="/for-agencies">For agencies</a>
+        <a href="/for-brands">For brands</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+  <script defer src="/site-assets/landing.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
+</body>
+</html>
