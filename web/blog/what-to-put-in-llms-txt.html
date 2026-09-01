@@ -187,7 +187,7 @@
       <span class="blog-kicker" data-i18n="g4.kicker">Discovery file — Engineering guide</span>
       <h1 data-i18n="g4.h1">What to Put in llms.txt for Your Brand</h1>
       <p class="blog-lead" data-i18n="g4.lead">A production-grade <code>/llms.txt</code> is a small plain-text index at your canonical root: one verifiable H1, one blockquote definition, and a few Markdown sections linking to public pages you already maintain. This guide covers the proposed format, canonical-host and <code>text/plain</code> serving, pre-deploy validation, common trust failures, and a generation workflow from a reviewed brand facts library. The goal is a file you can regenerate and check after each deploy, not a new ranking lever.</p>
-      <p class="blog-meta">Updated 20 August 2026 · 13 min read · Technical</p>
+      <p class="blog-meta">Updated 20 August 2026 · 9 min read · Technical</p>
       <p class="blog-byline">By Elena Torres</p>
     </header>
 
@@ -274,33 +274,7 @@ Content-Length: &lt;bytes&gt;
 Cache-Control: public, max-age=3600, stale-while-revalidate=86400
 X-Content-Type-Options: nosniff
 </code></pre>
-    <p>Implementation notes by stack:</p>
-    <ul>
-      <li><strong>Nginx (static file):</strong>
-        <pre><code>location = /llms.txt {
-  default_type text/plain;
-  charset utf-8;
-  add_header Cache-Control "public, max-age=3600, stale-while-revalidate=86400" always;
-  add_header X-Content-Type-Options nosniff always;
-  # file lives at /var/www/site/llms.txt
-}</code></pre>
-      </li>
-      <li><strong>Cloudflare / CDN:</strong> cache the path at the edge but purge on deploy. Set a single Cache Rule for <code>/llms.txt</code> and <code>/llms-full.txt</code> — do not inherit a blanket <code>cache-everything</code> that pins stale pricing for days.</li>
-      <li><strong>Vercel / Next.js:</strong> place <code>llms.txt</code> in <code>public/</code>. Next will serve it as <code>text/plain</code> automatically, but add a <code>headers()</code> entry in <code>next.config.js</code> to set charset and Cache-Control explicitly:
-        <pre><code>// next.config.js
-async headers() {
-  return [{
-    source: '/llms.txt',
-    headers: [
-      { key: 'Content-Type', value: 'text/plain; charset=utf-8' },
-      { key: 'Cache-Control', value: 'public, max-age=3600, stale-while-revalidate=86400' },
-    ],
-  }];
-}</code></pre>
-      </li>
-      <li><strong>S3 + CloudFront:</strong> set <code>ContentType: text/plain; charset=utf-8</code> on upload. S3 defaults to <code>binary/octet-stream</code> if you omit it.</li>
-    </ul>
-    <p>Do not serve the file through client-side JS, edge workers that inject HTML wrappers, or localized middleware that appends a banner. <code>curl -s https://example.com/llms.txt | head -c 200</code> should return Markdown bytes, not <code>&lt;!doctype</code>.</p>
+    <p>Serve the file from the same deployment artifact as the pages it indexes. The stack does not matter as long as an anonymous request returns the raw Markdown with <code>text/plain; charset=utf-8</code>; do not pass it through client-side rendering, authentication, or a middleware wrapper.</p>
 
     <h2 id="what-belongs">5. What belongs in the file</h2>
     <p>Every line must satisfy two gates: it is already published in public HTML, and a stranger can verify it by opening one link. The minimal useful set is:</p>
@@ -335,53 +309,8 @@ async headers() {
       <p><strong>Rule of thumb:</strong> If you would not keep the line correct for 90 days without thinking about it, it does not belong. Facts rot; links to living pages do not.</p>
     </div>
 
-    <h3 id="validation">Schema-style validation before deploy</h3>
-    <p>A short file is easy to review by eye once. It is easy to break silently on every deploy after that. Validate the file in CI the same way you validate an API schema: parse, check structure, assert invariants, fail the build.</p>
-    <p>Invariants to enforce:</p>
-    <ul>
-      <li>Exactly one H1, starts with <code># </code>, length 2–60 chars, matches your brand registry.</li>
-      <li>One blockquote line directly after H1, 20–200 chars, no links inside the quote.</li>
-      <li>H2 sections from an allow-list: <code>Official resources</code>, <code>Verified facts</code>, <code>Optional</code>. No other H2 unless explicitly added to the allow-list.</li>
-      <li>Every list item contains an absolute <code>https://</code> URL on the canonical host or allow-listed subdomain. No relative links, no http, no bare domains.</li>
-      <li>Every Verified facts bullet contains a <code>— see https://</code> suffix or an inline link. No orphan claims.</li>
-      <li>No forbidden sections: <code>Pricing</code> as a standalone H2 with naked prices is rejected — use a link instead.</li>
-      <li>File is UTF-8, LF, ends with newline, under 5 KB.</li>
-    </ul>
-    <p>Example validation with Zod (TypeScript). Adapt the schema to your stack, but keep the same predicates:</p>
-    <pre><code>import { z } from "zod";
-
-const CanonicalUrl = z.string().url().refine(
-  (u) =&gt; u.startsWith("https://example.com/") || u.startsWith("https://status.example.com/"),
-  "URL must be on the canonical host or allow-list"
-);
-
-const LlmsTxt = z.object({
-  h1: z.string().min(2).max(60),
-  tagline: z.string().min(20).max(200),
-  sections: z.array(z.object({
-    heading: z.enum(["Official resources", "Verified facts", "Optional"]),
-    items: z.array(z.object({
-      label: z.string().min(2).max(80),
-      url: CanonicalUrl,
-      hint: z.string().max(120).optional(),
-      source: z.string().url().optional(), // required for Verified facts
-    })).min(1).max(12),
-  })),
-  raw: z.string().max(5120).refine(s =&gt; s.endsWith("\n"), "must end with newline")
-    .refine(s =&gt; !s.includes("\r"), "LF only")
-    .refine(s =&gt; (s.match(/^# /gm) || []).length === 1, "exactly one H1"),
-});
-
-// Usage in CI: parse Markdown to LlmsTxt shape, then LlmsTxt.parse(obj).
-// Extra checks: fetch every URL, assert 200, assert claim substring in HTML.
-
-const FORBIDDEN = [/^\$\d+/, /#1 in/i, /staging\./i];
-function noForbidden(s: string) {
-  for (const re of FORBIDDEN) if (re.test(s)) throw new Error(`Forbidden pattern ${re} in: ${s}`);
-}
-</code></pre>
-    <p>For Python pipelines (closer to the CiteAura engine style), the same checks translate to <code>pydantic</code> or plain regex guards in <code>scripts/validate_llms.py</code>. The important move is not the library — it is failing the deploy when the file drifts.</p>
-    <p>Live link checks should run after the preview deploy, not just on the Markdown string. Fetch each URL, assert <code>200</code>, assert the response is <code>text/html</code> with the claim substring, and assert <code>robots.txt</code> does not block the path for the crawler you care about.</p>
+    <h3 id="validation">A small validation gate</h3>
+    <p>Keep validation close to the build: assert one H1 and blockquote, absolute HTTPS links, source URLs for factual bullets, UTF-8/LF encoding, a trailing newline, and a size limit such as 5 KB. After preview deploy, fetch the file and each linked page; a 200 response and matching claim are more useful than a large schema. Fail the build when a link breaks or a fact no longer appears in public HTML.</p>
 
     <h2 id="pipeline">8. Generation pipeline: from fact library to file</h2>
     <p>Hand-editing llms.txt scales to one site and one owner. Teams need a pipeline that treats the file as a built artifact, not a hand-maintained page.</p>
@@ -389,7 +318,7 @@ function noForbidden(s: string) {
     <p><strong>Pipeline steps (single deploy, atomic):</strong></p>
     <ol>
       <li><strong>Collect:</strong> read the fact library (stored alongside <code>work/&lt;tenant&gt;/&lt;slug&gt;/brand.json</code> or your CMS). Resolve canonical host, resource list, and enabled facts.</li>
-      <li><strong>Filter:</strong> drop any fact whose source URL is not 200 at build time, any resource whose target is not public, and any label that fails the Zod schema. Emit warnings, not silent drops.</li>
+      <li><strong>Filter:</strong> drop any fact whose source URL is not 200 at build time or any resource whose target is not public. Emit warnings, not silent drops.</li>
       <li><strong>Render:</strong> template to Markdown. Keep the renderer trivial — string interpolation, no Markdown library — so the output is deterministic.
         <pre><code># ${brand.name}
 
@@ -405,90 +334,20 @@ ${facts.map(f =&gt; `- ${f.claim} — see ${f.source}`).join("\n")}
 ${optional.map(r =&gt; `- [${r.label}](${r.url}): ${r.hint}`).join("\n")}
 </code></pre>
       </li>
-      <li><strong>Validate:</strong> run the Zod/pydantic schema and live link checks against the preview URL. Fail if any invariant breaks.</li>
+      <li><strong>Validate:</strong> apply the small shape and link checks above against the preview URL. Fail if any invariant breaks.</li>
       <li><strong>Write:</strong> emit <code>public/llms.txt</code> (or <code>dist/llms.txt</code>) as UTF-8 LF. Do not pretty-print, do not inject build metadata comments.</li>
       <li><strong>Deploy atomically:</strong> the file ships in the same artifact as the HTML it indexes. No separate manual upload that can lag behind a pricing change.</li>
     </ol>
     <p>Keep the pipeline stateless. The file at <code>https://example.com/llms.txt</code> should be reproducible from the commit that produced the HTML. If you cannot regenerate the file from <code>main</code> without a manual step, the next on-call rotation will ship a stale file.</p>
     <p><strong>Scheduling:</strong> rebuild on every content deploy, not on a cron. A nightly cron that regenerates the file without re-validating HTML consistency recreates the stale-pricing problem on a timer.</p>
 
-    <h3 id="deploy">Deployment</h3>
-    <p>Ship the file the same way you ship HTML: as part of the build artifact, cached at the edge, purged on deploy.</p>
-    <ul>
-      <li><strong>Static hosts (S3, GCS, Netlify):</strong> include <code>llms.txt</code> in the upload set. Set <code>Content-Type</code> explicitly on upload; object storage will not infer <code>charset=utf-8</code>.</li>
-      <li><strong>CDN (Cloudflare, Fastly, CloudFront):</strong> add an explicit cache rule for the path. After deploy, purge <code>/llms.txt</code> by URL. Do not rely on TTL alone if you change pricing mid-day.</li>
-      <li><strong>Container / Nginx:</strong> bake the file into the image at <code>/usr/share/nginx/html/llms.txt</code> or mount it from the same volume as the rendered site. A sidecar that writes the file after the container starts introduces a race.</li>
-      <li><strong>Preview deploys:</strong> do not expose <code>llms.txt</code> on preview hosts with the production canonical URL inside. Either omit the file on previews or render it with the preview host as canonical and block indexing via <code>X-Robots-Tag: noindex</code>.</li>
-    </ul>
-    <p>Do not gate the path behind authentication, A/B middleware, or geo-blocking. A crawler from <code>us-east-1</code> must see the same bytes as a browser in Berlin. If you run edge personalization, exclude <code>/llms.txt</code> and <code>/llms-full.txt</code> from the variant logic.</p>
-
-    <h3 id="verify">Verification: curl and CI</h3>
-    <p>Verification has two layers: the file is correctly served, and its claims still match the live site. Both belong in CI and in a post-deploy smoke check.</p>
-
-    <h3>Manual curl checks (run after every deploy)</h3>
-    <pre><code># 1. Status, content-type, and cache headers
-curl -i https://example.com/llms.txt
-
-# Expected:
-# HTTP/2 200
-# content-type: text/plain; charset=utf-8
-# cache-control: public, max-age=3600, stale-while-revalidate=86400
-# x-content-type-options: nosniff
-
-# 2. Body sanity — no HTML wrapper
-curl -s https://example.com/llms.txt | head -n 20
-# Should start with "# Brand Name" and "&gt; "
-
-# 3. No redirect on the canonical host (www should redirect, canonical should not)
-curl -i https://www.example.com/llms.txt
-# Expected: 301 to https://example.com/llms.txt if apex is canonical
-
-# 4. Every link in the file returns 200 and is not blocked by robots
-grep -oE 'https://[^) ]+' https://example.com/llms.txt | while read url; do
-  echo "→ $url"
-  curl -s -o /dev/null -w "%{http_code} %{content_type}\n" "$url"
-done
-
-# 5. Robots allows the file and its targets for the crawler you care about
-curl -s https://example.com/robots.txt | grep -i -A2 -B2 "llms"
-curl -s https://example.com/robots.txt | grep -i "gptbot"
-
-# 6. Charset and line endings
-curl -s https://example.com/llms.txt | file -
-# Expected: ASCII text, with very long lines, UTF-8 Unicode text
-curl -s https://example.com/llms.txt | cat -A | head -n 5
-# Lines should end with $ (LF), not ^M$ (CRLF)
-</code></pre>
-
-    <h3>CI smoke (fail the pipeline if any check fails)</h3>
-    <pre><code>#!/usr/bin/env bash
-set -euo pipefail
-HOST="https://example.com"
-FILE="$HOST/llms.txt"
-
-# headers
-ctype=$(curl -s -D - "$FILE" -o /tmp/llms.txt | tr -d '\r' | grep -i '^content-type:' | cut -d' ' -f2-)
-[[ "$ctype" == "text/plain; charset=utf-8"* ]] || { echo "bad content-type: $ctype"; exit 1; }
-
-# shape
-grep -q '^# ' /tmp/llms.txt || { echo "missing H1"; exit 1; }
-[[ $(grep -c '^# ' /tmp/llms.txt) -eq 1 ]] || { echo "more than one H1"; exit 1; }
-grep -q '^&gt; ' /tmp/llms.txt || { echo "missing blockquote tagline"; exit 1; }
-grep -q '^## Official resources' /tmp/llms.txt || { echo "missing Official resources"; exit 1; }
-
-# size
-bytes=$(wc -c &lt; /tmp/llms.txt)
-(( bytes &lt; 5120 )) || { echo "file too large: $bytes bytes"; exit 1; }
-
-# links
-grep -oE 'https://[^) ]+' /tmp/llms.txt | while read url; do
-  code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
-  [[ "$code" == "200" ]] || { echo "broken link $url: $code"; exit 1; }
-done
-
-echo "llms.txt OK ($bytes bytes)"
-</code></pre>
-    <p>Run the CI check against the preview deploy URL before promoting to production, and again against production after promotion. A file that passes in preview but fails in production means the CDN is serving a stale cached copy — purge and re-check.</p>
+    <h3 id="deploy">Build and verify together</h3>
+    <p>Generate <code>llms.txt</code> from the reviewed facts library in the same build as the HTML it indexes. The practical smoke test is short:</p>
+    <pre><code>curl -i https://example.com/llms.txt
+curl -s https://example.com/llms.txt | tee /tmp/llms.txt | head -n 20
+grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{http_code}\n'</code></pre>
+    <p>Check the canonical host, <code>200</code> status, <code>text/plain</code> response, and live links after each content deploy. CiteAura can draft the asset from reviewed facts, but it does not publish it to a customer site.</p>
+    <p>Run the smoke test against the preview URL before promoting to production, and again against production after promotion. A file that passes in preview but fails in production usually means the CDN is serving a stale cached copy — purge and re-check.</p>
 
     <h2 id="citeaura">How CiteAura drafts it</h2>
     <p>The CiteAura workspace can generate a draft from the brand fact library, so claims are selected from reviewed source material instead of being copied by hand. In <strong>Execution → Assets</strong>, choose the resources and verified facts, preview the Markdown, and review the asset status. The generator checks one H1, approved sections, absolute HTTPS URLs, and a source for each fact. Unsupported claims remain unavailable with a reason such as “no public source page.” CiteAura delivers the file for your team to publish; it does not deploy <code>/llms.txt</code> to the customer site.</p>
@@ -528,7 +387,6 @@ echo "llms.txt OK ($bytes bytes)"
       <li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — official name and description should match the HTML and JSON-LD, not only the text file.</li>
       <li><a href="https://www.robotstxt.org/robotstxt.html" rel="noopener noreferrer">robots.txt specification</a> — if GPTBot cannot reach the homepage, fix crawl access before relying on /llms.txt.</li>
       <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type" rel="noopener noreferrer">MDN: Content-Type</a> — why <code>text/plain; charset=utf-8</code> is the interoperable choice for plain-text indexes.</li>
-      <li><a href="https://zod.dev/" rel="noopener noreferrer">Zod</a> — schema validation pattern used for pre-deploy checks.</li>
     </ul>
 
     <div class="blog-cta">
