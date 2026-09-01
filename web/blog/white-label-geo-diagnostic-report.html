@@ -65,16 +65,14 @@
       {
         "@type": "Article",
         "headline": "White-Label GEO Diagnostic Reports for Agencies: Architecture, Delivery Pack & Handoff",
-        "description": "Technical specification for white-label GEO diagnostic reports: delivery pack structure, white-label header injection, ticket lifecycle, verification evidence, agency workflow, pricing tiers, and client handoff checklist.",
+        "description": "Technical specification for white-label GEO diagnostic reports: delivery pack structure, evidence exports, before/after visibility, ticket lifecycle, agency workflow, and client handoff checklist.",
         "url": "https://citeaura.com/blog/white-label-geo-diagnostic-report",
         "datePublished": "2026-08-17",
         "dateModified": "2026-08-24",
         "wordCount": 2150,
         "author": {
           "@type": "Person",
-          "name": "James Liu",
-          "jobTitle": "Agency Solutions Architect",
-          "url": "https://citeaura.com/about"
+          "name": "James Liu"
         },
         "publisher": {
           "@type": "Organization",
@@ -197,10 +195,9 @@
     <header class="blog-header">
       <span class="blog-kicker" data-i18n="g5.kicker">Agency delivery — Technical specification</span>
       <h1 data-i18n="g5.h1">White-Label GEO Diagnostic Reports for Agencies</h1>
-      <p class="blog-lead" data-i18n="g5.lead">A white-label GEO diagnostic report is a versioned, client-ready artifact that proves what the site does and does not expose to AI retrieval, what sampled models actually said, and which tickets the client must ship to change the odds. It carries agency branding on the cover, not the vendor's. It is a point-in-time evidence pack — audit, tickets, verification — compiled from the current workspace state and hashed at build time. This spec documents the delivery pack structure, header injection, ticket lifecycle, verification evidence model, and the handoff checklist CiteAura uses for agency delivery.</p>
+      <p class="blog-lead" data-i18n="g5.lead">A white-label GEO report gives an agency a dated record of what a client site exposes, what a labeled AI sample returned, and which changes still need to ship. The pack carries the agency's branding and keeps the evidence separate from the recommendation. This guide covers the generated files, ticket and verification lifecycle, and the checks to run before handoff.</p>
       <p class="blog-meta">Updated 24 August 2026 · 12 min read · Technical specification</p>
-      <p class="blog-byline">By CiteAura Editorial Team</p>
-      <p class="blog-byline">By James Liu — Agency Solutions Architect · CiteAura Delivery Engineering</p>
+      <p class="blog-byline">By James Liu</p>
     </header>
 
     <h2>1 — What the report is and is not</h2>
@@ -284,7 +281,7 @@
     </ul>
 
     <h2>3 — White-label header injection</h2>
-    <p>White-label is not a logo swap. It is a <strong>build-time header injection</strong> that replaces every occurrence of vendor identity with agency identity before the PDF renderer runs. The agency config lives at <strong>Delivery → White-Label Branding</strong> and is tenant-scoped.</p>
+    <p>White-label is a build-time branding option. The agency configuration lives at <strong>Delivery → White-Label Branding</strong> and is scoped to the tenant; generated client-facing documents use that snapshot.</p>
 
     <h3>Configuration surface</h3>
     <ul>
@@ -292,7 +289,7 @@
       <li><strong>Logo</strong> — SVG or PNG, max 512 KB, rendered at 140×32 px in the header bar. Transparent background recommended; the build pipeline rejects logos with embedded scripts.</li>
       <li><strong>Domain and contact</strong> — agency domain (e.g. <code>acme-digital.com</code>) and optional contact email for the cover block.</li>
       <li><strong>Confidentiality notice</strong> — free-text footer, e.g. "Confidential — Prepared for [Client Name] by [Agency]. Do not distribute."</li>
-      <li><strong>Accent color</strong> — hex token injected into the PDF stylesheet for headers, table rules, and callout borders. Defaults to the agency's brand token if unset.</li>
+      <li><strong>Accent color</strong> — hex token used in generated document styles for headers, table rules, and callout borders.</li>
       <li><strong>Cover toggle: vendor attribution</strong> — when off (default for white-label), no CiteAura mark appears in the client-facing documents. The workspace UI still shows the vendor for the agency operator; the ZIP does not.</li>
     </ul>
 
@@ -308,7 +305,7 @@
       <p><strong>Check before you send.</strong> Open <code>01-Audit-Report.html</code> and confirm the header shows the agency, not the vendor. Branding is snapshotted at build time.</p>
     </div>
 
-    <p>Header injection is idempotent: rebuilding with identical branding and identical workspace state produces byte-identical PDFs except for the <code>built_at</code> timestamp in the footer. That timestamp is intentional — it is the snapshot claim.</p>
+    <p>Branding is applied at build time. Rebuilding after a branding or workspace change creates a new timestamped snapshot; the manifest records the build metadata and file hashes.</p>
 
     <h2>4 — Ticket lifecycle</h2>
     <p>Findings become <strong>tickets</strong> so they can be assigned, shipped, and verified. CiteAura tracks them in <code>tasks.json</code> and exports the ticket log and acceptance checklist.</p>
@@ -382,18 +379,18 @@
       <p><strong>Do not conflate verification with mention improvement.</strong> Verifying that GPTBot can now fetch <code>/products/</code> is a site fact. Measuring whether mentions rose from 2/20 to 7/20 on the same cohort after the fix is a separate sample fact. The pack reports both, on different pages, with different timestamps.</p>
     </div>
 
-    <p>Each page in <code>05-verification-evidence.pdf</code> carries: ticket ID, target, acceptance check, before hash, after hash, timestamp of the re-crawl, and the operator who triggered verification. If the evidence hash matches the audit hash, the page is marked <em>no change detected — not verified</em>.</p>
+    <p>The generated evidence files carry the ticket, target, acceptance result, applicable hashes, and re-crawl details. If the current evidence is not comparable or shows no change, the report says so instead of inventing a delta.</p>
 
     <h2>6 — Agency workflow (from intake to handoff)</h2>
     <p>The workflow is designed so a junior operator can run it and a senior can audit it. All state lives on the filesystem under <code>work/&lt;tenant&gt;/&lt;slug&gt;/</code>; the database only tracks project index and job metadata.</p>
     <ol>
       <li><strong>Intake — create project and run audit.</strong> Create the project with the client's canonical domain, market, and language. Run the site audit and review the audit report for P0 blocks before sampling.</li>
       <li><strong>Sample — run a labeled cohort.</strong> Configure the question bank, select a sampling mode, and run the cohort. The ticket log and evidence exports retain the cohort ID, question set hash, and mode; unmeasured providers remain unmeasured.</li>
-      <li><strong>Ticket — convert findings to tickets.</strong> The audit auto-generates tickets for each finding (robots block, extractability failure, missing JSON-LD, heading structure). Operators triage severity, assign owners, and edit the requested diff. Every ticket must have an acceptance check before it leaves <code>OPEN</code>.</li>
+      <li><strong>Ticket — convert findings to tickets.</strong> Supported findings can be turned into scoped tickets for triage. Operators assign owners, edit the requested diff, and add an acceptance check before a ticket leaves <code>OPEN</code>.</li>
       <li><strong>Brand — configure white-label.</strong> Under Delivery → White-Label Branding, set agency name, logo, domain, confidentiality notice, and accent color. Save, then trigger a pack build and verify the header on the generated report.</li>
       <li><strong>Build — compile the pack.</strong> Click <strong>Build Pack</strong>. The job writes the numbered documents, evidence directories, <code>assets/</code>, and <code>manifest.json</code>. Review readiness: diagnosis and visibility can be green while implementation assets are still <code>draft</code>.</li>
       <li><strong>Verify — re-crawl after deploy.</strong> After the client ships a ticket, run <strong>Verify</strong> on that ticket. The pipeline re-crawls the target, evaluates the acceptance check, and promotes the ticket to <code>VERIFIED</code> only on pass. Rebuild the pack so the new evidence page and closed ticket state are included.</li>
-      <li><strong>Handoff — deliver the ZIP and the checklist.</strong> Send the ZIP with the client handoff checklist (Section 8). Include the reading order: executive summary → audit → visibility matrix → action matrix → evidence → implementation guide. Raw exports are optional and off by default.</li>
+      <li><strong>Handoff — deliver the ZIP and the checklist.</strong> Send the ZIP with the client handoff checklist. Point the client from the numbered reports to Evidence and Before-After; raw exports are included only when enabled.</li>
     </ol>
     <p>The entire cycle is repeatable: audit → sample → ticket → brand → build → verify → rebuild. Each rebuild gets a new <code>build_id</code> and <code>built_at</code>. Old packs are retained as historical snapshots; only the latest build is "current."</p>
 
@@ -425,7 +422,7 @@
         <tr>
           <td style="padding:8px 10px;"><strong>Retainer</strong><br>Monthly</td>
           <td style="padding:8px 10px;">Recurring audit + cohort re-samples (same question set) + ongoing tickets + raw exports.</td>
-          <td style="padding:8px 10px;">Full pack on each cycle + <code>raw/</code> exports + cohort-over-cohort delta page in Doc 03.</td>
+          <td style="padding:8px 10px;">Full pack on each cycle + optional <code>raw/</code> exports + cohort comparison in <code>08-Before-After/</code> when comparable.</td>
           <td style="padding:8px 10px;">Continuous: verification on every ticket close; cohort comparison is a new measurement, not a promise.</td>
         </tr>
       </tbody>

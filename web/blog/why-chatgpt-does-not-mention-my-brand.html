@@ -51,7 +51,7 @@
         "url": "https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand",
         "datePublished": "2026-08-17",
         "dateModified": "2026-09-01",
-        "author": {"@type": "Person","name": "Sarah Kim","jobTitle": "Site Diagnostics Lead","url": "https://citeaura.com"},
+        "author": {"@type": "Person","name": "Sarah Kim"},
         "publisher": {"@type": "Organization","name": "CiteAura","url": "https://citeaura.com","logo": "https://citeaura.com/site-assets/logo.png"},
         "mainEntityOfPage": "https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand",
         "wordCount": 3100
@@ -84,14 +84,9 @@
     <header class="blog-header">
       <span class="blog-kicker">Diagnosis</span>
       <h1>Why ChatGPT Does Not Mention Your Brand</h1>
-      <p class="blog-lead">A missing mention looks the same in the chat window whether the cause is a crawler block, a JavaScript shell, a WAF challenge, or simply a thin public record. This guide separates those four buckets with concrete checks you can run today — curl, view-source, and header audits — so you ship a ticket with evidence, not a rewrite on a hunch. We also show when “not mentioned” is sampling variance and not a site defect.</p>
+      <p class="blog-lead">A missing mention has several possible causes, and the chat window does not tell you which one you are looking at. Check crawl access, initial HTML, bot challenges, and the public fact record before changing copy. Then repeat a labeled cohort so a noisy answer is not mistaken for a site defect.</p>
       <p class="blog-meta">Updated 1 September 2026 · 12 min read · Technical guide</p>
-      <p class="blog-byline">By CiteAura Editorial Team</p>
-      <p class="blog-byline">By <strong>Sarah Kim — Site Diagnostics Lead</strong> · CiteAura Engineering · 9 years crawling and indexing diagnostics for B2B SaaS</p>
-      <div class="author-card" style="display:flex;gap:12px;align-items:center;margin:16px 0;padding:12px;border:1px solid var(--border);border-radius:8px;">
-        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:grid;place-items:center;color:white;font-weight:700;">SK</div>
-        <div><div style="font-weight:600;">Sarah Kim</div><div style="font-size:14px;opacity:0.8;">Site Diagnostics Lead — owns crawlability, extractability, and fact-consistency checks in CiteAura Verify. Previously search infra at a Series B martech.</div></div>
-      </div>
+      <p class="blog-byline">By Sarah Kim</p>
     </header>
 
     <nav class="toc" aria-label="Contents">
@@ -168,7 +163,7 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
       <li><strong>Defect:</strong> 0/45 across 3 runs with stable questions → go to buckets 1–4 and open tickets.</li>
     </ul>
 
-    <h2 id="competitor">Why competitors are easier to cite</h2>
+    <h2 id="competitor">Why competitors can be easier to cite</h2>
     <p>Category prompts (“best tools for X”) reward brands that already answer that sentence in public HTML plus supporting pages: comparison tables, third-party listings (G2/Capterra), and docs. If a competitor has a clear H2 “Best AI Visibility Tools — Comparison” and you have a PDF, the model has a citable path for them and a dead end for you. Publish a comparison page in HTML, not as a gated asset.</p>
     <h3>Anonymized teardown</h3>
     <p><strong>Anonymized example:</strong> two B2B tools were tested against the same “AI visibility tool” cohort. One exposed its definition only after hydration and kept pricing in a gated PDF; the other had plain HTML, a pricing table, and a public comparison page. Across 15 questions × 3 runs (45 samples, <code>API · Model knowledge</code>), the first appeared 2 times (4.4%) and the second 19 times (42.2%). After the first site published a server-rendered hero and comparison page, a repeat cohort reached 11/45 (24.4%). This is an illustration of what extractability can change, not a CiteAura customer benchmark or a ranking promise.</p>

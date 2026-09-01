@@ -575,7 +575,7 @@ def test_blog_index_and_articles_are_static_html():
         assert page.text.count("<h1") == 1
         assert '"@type": "FAQPage"' in page.text
         assert 'class="blog-related"' in page.text
-        assert "By CiteAura Editorial Team" in page.text
+        assert re.search(r"<p class=\"blog-byline\">By [^<]+</p>", page.text)
         assert 'class="blog-cta"' in page.text
         assert 'href="/app?auth=register"' in page.text and "Start free trial</a>" in page.text
         title = re.search(r"<title(?:\s[^>]*)?>([^<]+)</title>", page.text)
