@@ -691,6 +691,25 @@ h1 {
 body:has(.site-header) { background:#080d12; color:#d9e2e8; }
 .site-header { background:#080d12; border-bottom:1px solid #22303a; }
 .site-header .brand-word,.site-header .nav-links a,.site-header .nav-group summary,.site-header .nav-sign-in { color:#d9e2e8; }
+.site-header .nav-group-menu {
+  background:#0e171f;
+  border-color:#263943;
+}
+.site-header .nav-group-menu a {
+  color:#d9e2e8;
+}
+.site-header .nav-group-menu a:hover,
+.site-header .nav-group-menu a:focus-visible {
+  color:#ffffff;
+  background:#15222b;
+}
+.site-header .nav-group-menu a.is-current {
+  color:#9df22f;
+}
+.site-header .nav-group-menu a:focus-visible {
+  outline:2px solid #9df22f;
+  outline-offset:-2px;
+}
 .site-header .brand-mark { border-color:#9df22f; box-shadow:0 0 0 3px rgba(157,242,47,.08); }
 .site-header .nav-group summary:hover,.site-header .nav-links > a:hover,.site-header .nav-sign-in:hover { color:#9df22f; }
 .site-header .nav-cta,.hero-scanner-btn { background:#9df22f; color:#09100b; border-color:#9df22f; box-shadow:0 0 22px rgba(157,242,47,.18); }
@@ -718,6 +737,18 @@ h1 { color:#eef4f7; font-size:clamp(2.45rem,4.35vw,4.05rem); line-height:1.02; l
 .hero-evidence-chain,.hero-trust-row,.hero-scanner-presets,.modes-note { color:#a9bac3; }
 .section-heading > p:not(.section-index),.truth-intro p:not(.section-index),.agency-proof-layout p:not(.section-index),.workflow-card p,.operations-list dd,.plan-summary,.faq-list details p,.blog-preview-card p { color:#a9bac3; }
 .site-footer { border-top:1px solid #22303a; }
+.hero-scanner-input-wrap svg,
+.hero-scanner-input::placeholder,
+.radar-meta-row,
+.visibility-baseline-label,
+.ribbon-head,
+.extract-note,
+.price span,
+.pricing-note,
+.faq-list summary::after,
+.footer-copy {
+  color:#71858f;
+}
 @media (max-width:900px) { .hero-layout { grid-template-columns:1fr; } .hero-shot { order:2; } }
 
 [data-theme="dark"] select option {

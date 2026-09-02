@@ -1321,7 +1321,7 @@ button.project-opt {
 }
 
 /* Shared observability workbench presentation */
-.app-layout { --page:#080d12; --surface:#0e171f; --deep:#14212a; --ink:#e9f1f4; --ink-2:#c2d0d7; --muted:#8499a5; --faint:#617783; --line:#243742; --divider:#304955; --accent:#9df22f; --accent-strong:#b5ff5b; --accent-soft:rgba(157,242,47,.10); --accent-line:rgba(157,242,47,.38); background:#080d12; background-image:linear-gradient(rgba(157,242,47,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(157,242,47,.025) 1px,transparent 1px); background-size:32px 32px; }
+.app-layout { --page:#080d12; --surface:#0e171f; --deep:#14212a; --ink:#e9f1f4; --ink-2:#c2d0d7; --muted:#8499a5; --faint:#71858f; --line:#243742; --divider:#304955; --accent:#9df22f; --accent-strong:#b5ff5b; --accent-soft:rgba(157,242,47,.10); --accent-line:rgba(157,242,47,.38); background:#080d12; background-image:linear-gradient(rgba(157,242,47,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(157,242,47,.025) 1px,transparent 1px); background-size:32px 32px; }
 .app-rail { background:#080d12; border-right:1px solid #243742; box-shadow:none; }
 .rail-brand { width:42px; height:42px; border-radius:4px; background:transparent; border-color:#9df22f; color:#9df22f; }
 .rail-btn { border-radius:3px; color:#78909c; }
