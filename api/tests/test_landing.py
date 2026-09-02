@@ -489,6 +489,12 @@ def test_seo_technical_files_are_served():
     assert "User-agent: ClaudeBot" in robots_res.text
     assert "User-agent: Google-Extended" in robots_res.text
 
+    indexnow_res = client.get("/59f477dc828647979b6a25acfbbfca7d.txt")
+    assert indexnow_res.status_code == 200
+    assert indexnow_res.headers["content-type"].startswith("text/plain")
+    assert "59f477dc828647979b6a25acfbbfca7d" in indexnow_res.text
+    assert client.head("/59f477dc828647979b6a25acfbbfca7d.txt").status_code == 200
+
     sitemap_res = client.get("/sitemap.xml")
     assert sitemap_res.status_code == 200
     assert "xml" in sitemap_res.headers["content-type"]

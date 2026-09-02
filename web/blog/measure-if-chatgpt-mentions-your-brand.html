@@ -91,6 +91,14 @@
         "mainEntity": [
           {
             "@type": "Question",
+            "name": "How do I calculate and track brand mention frequency in ChatGPT?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "To measure brand mention frequency, execute a standardized prompt cohort (e.g. 15 fixed buyer queries across 3 passes = 45 draws), evaluate raw responses with regex word-boundary matching, and calculate Mention Rate as (positive mentions / total successful draws)."
+            }
+          },
+          {
+            "@type": "Question",
             "name": "Can one ChatGPT reply measure brand visibility?",
             "acceptedAnswer": {
               "@type": "Answer",
@@ -397,6 +405,8 @@ curl -s https://api.citeaura.com/api/v1/projects/123/report \
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: measuring ChatGPT brand mentions</h2>
+      <h3>How do I calculate and track brand mention frequency in ChatGPT?</h3>
+      <p>To measure brand mention frequency, execute a standardized prompt cohort (e.g. 15 fixed buyer queries across 3 passes = 45 draws), evaluate raw responses with regex word-boundary matching, and calculate Mention Rate as (positive mentions / total successful draws).</p>
       <h3>Can one ChatGPT reply measure brand visibility?</h3>
       <p>No. A single reply is an unrepeatable point-in-time sample from a probabilistic model. Accurate tracking requires repeated sampling against a fixed question cohort.</p>
       <h3>What should a ChatGPT mention log include?</h3>

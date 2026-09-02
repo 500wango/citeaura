@@ -60,6 +60,8 @@
         "@type": "FAQPage",
         "@id": "https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand#faq",
         "mainEntity": [
+          {"@type": "Question","name": "Why does ChatGPT cite my competitor but not my brand?","acceptedAnswer": {"@type": "Answer","text": "Competitors are cited when their websites present direct, factual answers in crawlable semantic HTML, unblocked robots.txt rules, and public comparison tables, while your core facts may be trapped behind client JavaScript or gated PDFs."}},
+          {"@type": "Question","name": "Why is my brand never mentioned when people ask ChatGPT about our industry?","acceptedAnswer": {"@type": "Answer","text": "When categorical queries return competitors, ChatGPT's retrieval pipeline typically finds clear entity definitions and structured data on competitor domains while failing to extract consistent, machine-readable facts from yours."}},
           {"@type": "Question","name": "Does allowing GPTBot guarantee a ChatGPT mention?","acceptedAnswer": {"@type": "Answer","text": "No. Crawl access removes one obstacle, but it does not guarantee retrieval, mention, cite, or rank. You still need extractable HTML and a question that requires the brand."}},
           {"@type": "Question","name": "Is llms.txt enough to make a brand appear?","acceptedAnswer": {"@type": "Answer","text": "No. It is an optional summary. The public HTML must already state the facts, and crawlers must be able to fetch it."}},
           {"@type": "Question","name": "When is missing mention a measurement issue?","acceptedAnswer": {"@type": "Answer","text": "When the same cohort varies answer-to-answer. If the brand is absent across a stable cohort (n>=45, same questions/mode), treat it as a site signal."}},
@@ -168,6 +170,10 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: why ChatGPT skips a brand</h2>
+      <h3>Why does ChatGPT cite my competitor but not my brand?</h3>
+      <p>Competitors are cited when their websites present direct, factual answers in crawlable semantic HTML, unblocked robots.txt rules, and public comparison tables, while your core facts may be trapped behind client JavaScript or gated PDFs.</p>
+      <h3>Why is my brand never mentioned when people ask ChatGPT about our industry?</h3>
+      <p>When categorical queries return competitors, ChatGPT's retrieval pipeline typically finds clear entity definitions and structured data on competitor domains while failing to extract consistent, machine-readable facts from yours.</p>
       <h3>Does allowing GPTBot guarantee a ChatGPT mention?</h3>
       <p>No. It removes crawler access restrictions, but it does not guarantee retrieval, a mention, or a ranking. Your pages must also be extractable and relevant to the user query.</p>
       <h3>Is llms.txt enough to make a brand appear?</h3>

@@ -87,6 +87,22 @@
         "mainEntity": [
           {
             "@type": "Question",
+            "name": "How do I detect GPTBot requests in server logs?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Search access logs for the GPTBot user-agent token (e.g. Mozilla/5.0 ... GPTBot/1.0). To verify legitimate requests, verify that the reverse DNS of the client IP resolves to an official openai.com domain."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I block GPTBot without affecting traditional search engines?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Declare a dedicated User-agent: GPTBot block with Disallow: / in robots.txt. RFC 9309 rules ensure that specific user-agent blocks do not affect Googlebot or other general search crawlers."
+            }
+          },
+          {
+            "@type": "Question",
             "name": "Should GPTBot be allowed to crawl every route?",
             "acceptedAnswer": {
               "@type": "Answer",
@@ -368,6 +384,10 @@ Disallow: /</code></pre>
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: GPTBot and robots.txt</h2>
+      <h3>How do I detect GPTBot requests in server logs?</h3>
+      <p>Search web server access logs (Nginx/Apache/Caddy) for the <code>GPTBot/1.0</code> user-agent string. To confirm legitimate requests from OpenAI, perform reverse DNS lookups on the client IP address (which resolve to <code>*.openai.com</code>).</p>
+      <h3>How do I block GPTBot without affecting traditional search engines?</h3>
+      <p>Declare a dedicated <code>User-agent: GPTBot</code> block containing <code>Disallow: /</code> in robots.txt. RFC 9309 rules ensure that specific user-agent blocks do not affect Googlebot or other general search crawlers.</p>
       <h3>Should GPTBot be allowed to crawl every route?</h3>
       <p>No. Keep internal application routes, admin panels, user accounts, shopping carts, and private APIs closed. Allow only public marketing, documentation, and product pages.</p>
       <h3>How do I confirm a GPTBot robots.txt fix with curl?</h3>

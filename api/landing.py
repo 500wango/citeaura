@@ -179,6 +179,17 @@ def serve_robots_txt():
     return FileResponse(WEB_ROOT / "robots.txt", media_type="text/plain; charset=utf-8")
 
 
+@router.get("/59f477dc828647979b6a25acfbbfca7d.txt")
+@router.head("/59f477dc828647979b6a25acfbbfca7d.txt")
+def serve_indexnow_key_file():
+    """返回 Bing / IndexNow 验证密钥文件。"""
+    return FileResponse(
+        WEB_ROOT / "59f477dc828647979b6a25acfbbfca7d.txt",
+        media_type="text/plain; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
 def build_sitemap_xml():
     """由 PUBLIC_PAGES 生成 sitemap，避免与 BLOG_SLUGS、llms.txt 三处手工同步。"""
     lines = [

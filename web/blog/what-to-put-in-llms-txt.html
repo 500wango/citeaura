@@ -87,6 +87,14 @@
         "mainEntity": [
           {
             "@type": "Question",
+            "name": "What are the official llms.txt syntax conventions and best practices?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "According to llmstxt.org conventions: serve the file at /llms.txt as text/plain; charset=utf-8, begin with an H1 brand title, include a concise blockquote summary, and structure canonical documentation links with Markdown unordered lists."
+            }
+          },
+          {
+            "@type": "Question",
             "name": "What should not go in llms.txt?",
             "acceptedAnswer": {
               "@type": "Answer",
@@ -357,6 +365,8 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: publishing llms.txt</h2>
+      <h3>What are the official llms.txt syntax conventions and best practices?</h3>
+      <p>According to llmstxt.org conventions: serve the file at <code>/llms.txt</code> as <code>text/plain; charset=utf-8</code> directly at the site root, begin with an H1 brand title, include a concise blockquote summary, and structure canonical documentation links with clean Markdown unordered lists.</p>
       <h3>What should not go in llms.txt?</h3>
       <p>Do not include private internal endpoints, staging environments, login-protected content, or unsubstantiated claims. Avoid hardcoding raw pricing figures; link to your live pricing page instead.</p>
       <h3>Does llms.txt guarantee AI mentions?</h3>
