@@ -255,15 +255,23 @@ function sanitizeLandingHtml(value) {
   }
 
   function initTheme() {
-    if (document.documentElement.dataset.themeLock === 'dark') {
-      setTheme('dark', false);
-      return;
+    var actions = $('.nav-actions');
+    var toggle = $('.theme-toggle');
+    if (!toggle && actions) {
+      toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'theme-toggle';
+      toggle.setAttribute('aria-pressed', 'false');
+      toggle.setAttribute('aria-label', 'Switch to dark theme');
+      toggle.title = 'Switch Theme';
+      toggle.innerHTML = '<svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l1.41-1.41M19.07 4.93l1.41-1.41"/></svg><svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      actions.insertBefore(toggle, actions.firstChild);
     }
     var param = new URLSearchParams(location.search).get('theme');
     var saved = null;
     try { saved = localStorage.getItem('utheme'); } catch (e) {}
     setTheme(param || saved || (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'), false);
-    var toggle = $('.theme-toggle');
+    toggle = $('.theme-toggle');
     if (toggle) {
       toggle.addEventListener('click', function () {
         setTheme(state.theme === 'dark' ? 'light' : 'dark', true);
