@@ -222,3 +222,53 @@
     display: none;
   }
 }
+
+.blog-article table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--fs-3);
+  margin: var(--sp-6) 0;
+}
+
+.blog-article thead tr {
+  background: var(--bg-subtle, var(--deep));
+  border-bottom: 2px solid var(--border-color, var(--divider));
+}
+
+.blog-article th {
+  padding: var(--sp-3);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.blog-article td {
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--border-color, var(--divider));
+  color: var(--ink-2);
+}
+
+.blog-article pre {
+  background: var(--surface);
+  border: 1px solid var(--divider);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+  margin: var(--sp-5) 0;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  line-height: 1.6;
+}
+
+.blog-article code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.blog-article :not(pre) > code {
+  background: var(--deep);
+  padding: 0.15em 0.35em;
+  border-radius: var(--r-sm);
+  color: var(--ink);
+}
+

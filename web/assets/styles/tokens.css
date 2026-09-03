@@ -20,6 +20,8 @@
   --faint: #93a19a;
   --line: #dbe6e0;
   --divider: #dbe6e0;
+  --bg-subtle: var(--deep);
+  --border-color: var(--line);
 
   /* ---- 语义色 ---- */
   --good: #0e7a52;
@@ -132,6 +134,8 @@
   --faint: #465650;
   --line: #1c2b25;
   --divider: #152019;
+  --bg-subtle: var(--deep);
+  --border-color: var(--line);
 
   --good: #22e3a6;
   --good-soft: #123227;
