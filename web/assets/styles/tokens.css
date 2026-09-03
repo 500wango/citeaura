@@ -17,11 +17,16 @@
   --ink: #10201a;
   --ink-2: #3c4a44;
   --muted: #62716a;
-  --faint: #93a19a;
+  --faint: #677871;
   --line: #dbe6e0;
   --divider: #dbe6e0;
-  --bg-subtle: var(--deep);
+  --border: var(--line);
   --border-color: var(--line);
+  --bg-subtle: var(--deep);
+  --surface-1: var(--surface);
+  --surface-2: var(--deep);
+  --text-success: var(--good);
+  --text-danger: var(--bad);
 
   /* ---- 语义色 ---- */
   --good: #0e7a52;
@@ -134,8 +139,13 @@
   --faint: #465650;
   --line: #1c2b25;
   --divider: #152019;
-  --bg-subtle: var(--deep);
+  --border: var(--line);
   --border-color: var(--line);
+  --bg-subtle: var(--deep);
+  --surface-1: var(--surface);
+  --surface-2: var(--deep);
+  --text-success: var(--good);
+  --text-danger: var(--bad);
 
   --good: #22e3a6;
   --good-soft: #123227;
