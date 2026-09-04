@@ -275,7 +275,7 @@ def test_landing_auth_calls_to_action_use_explicit_routes():
     html = TestClient(app).get("/").text
 
     assert 'class="nav-sign-in" href="/app?auth=login"' in html
-    assert html.count('href="/app?auth=register"') == 3
+    assert html.count('href="/app?auth=register"') == 4
     assert re.search(r'href="/app"[^>]*>Start (?:free|14-day) trial', html) is None
 
 
