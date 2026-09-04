@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CiteAura: AI 正在推荐你的竞争对手，而不是你</title>
-  <meta name="description" content="诊断你的品牌在 AI 引擎中的可见性缺口，转化为可执行的工程票据，验证改进效果。">
+  <title data-i18n="landing.title">CiteAura: AI Visibility &amp; Generative Engine Optimization</title>
+  <meta name="description" content="Measure AI brand visibility, audit your public site, turn evidence into engineering tickets, and verify changes with CiteAura." data-i18n-content="landing.meta_description">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#070b0a" data-theme-color>
   <script src="/runtime-assets/theme-init.js"></script>
@@ -12,1177 +12,1184 @@
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
   <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <script defer src="/site-assets/landing.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
   <link rel="canonical" href="https://citeaura.com/">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
-  <!-- Open Graph -->
+  <!-- Open Graph / Social Sharing -->
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/">
-  <meta property="og:title" content="CiteAura: AI 正在推荐你的竞争对手">
-  <meta property="og:description" content="诊断 AI 可见性缺口，转化为工程票据，验证改进效果">
+  <meta property="og:title" content="CiteAura: AI Visibility &amp; Generative Engine Optimization">
+  <meta property="og:description" content="Measure AI brand visibility, audit your public site, turn evidence into engineering tickets, and verify changes with CiteAura.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-default.png">
-
-  <style>
-/* ========================================================================
-   CiteAura Landing - Refactored 2026
-   ======================================================================== */
-
-:root {
-  --sig: #22e3a6;
-  --sig-deep: #0aa87d;
-  --sig-dim: #123227;
-  --warn: #ffb020;
-  --bad: #ff5c6c;
-  --bad-dim: #3a1218;
-  --ink: #eef4f1;
-  --ink-2: #a9bab3;
-  --muted: #6f8079;
-  --faint: #465650;
-  --bg: #070b0a;
-  --panel: #0d1512;
-  --panel-2: #111c17;
-  --line: #1c2b25;
-  --line-soft: #152019;
-  --sp-1: 4px;
-  --sp-2: 8px;
-  --sp-3: 12px;
-  --sp-4: 16px;
-  --sp-5: 24px;
-  --sp-6: 32px;
-  --sp-7: 48px;
-  --sp-8: 64px;
-  --sp-9: 96px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --font-sans: 'Space Grotesk', -apple-system, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
-}
-
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-}
-
-.shell {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 var(--sp-6);
-}
-
-/* ========================================================================
-   Header
-   ======================================================================== */
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(7, 11, 10, 0.92);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--line);
-}
-
-.header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 72px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 18px;
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.brand-mark {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--sig);
-  display: grid;
-  place-items: center;
-  color: #04140f;
-  font-size: 14px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-}
-
-.brand-mark::before { content: 'CA'; }
-
-.nav {
-  display: flex;
-  gap: var(--sp-6);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.nav a {
-  color: var(--ink-2);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.nav a:hover { color: var(--ink); }
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 11px 20px;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  font-size: 14px;
-  font-family: var(--font-mono);
-  text-decoration: none;
-  transition: all 0.2s;
-  border: 0;
-  cursor: pointer;
-}
-
-.btn-primary {
-  background: var(--sig);
-  color: #04140f;
-}
-
-.btn-primary:hover {
-  background: var(--sig-deep);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(34, 227, 166, 0.3);
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--ink-2);
-}
-
-.btn-ghost:hover { color: var(--ink); }
-
-/* ========================================================================
-   Hero Section - Refactored
-   ======================================================================== */
-.hero {
-  position: relative;
-  padding: var(--sp-9) 0 var(--sp-8);
-  overflow: hidden;
-}
-
-.hero::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 100%;
-  background:
-    linear-gradient(135deg, rgba(34, 227, 166, 0.03) 0%, transparent 50%),
-    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(28, 43, 37, 0.3) 2px, rgba(28, 43, 37, 0.3) 4px);
-  pointer-events: none;
-}
-
-.hero-content {
-  position: relative;
-  max-width: 760px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: 6px 14px;
-  background: var(--sig-dim);
-  color: var(--sig);
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: var(--font-mono);
-  letter-spacing: 0.02em;
-  margin-bottom: var(--sp-5);
-}
-
-.hero-badge::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--sig);
-  box-shadow: 0 0 8px var(--sig);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.hero h1 {
-  font-size: 52px;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  margin: 0 0 var(--sp-5);
-}
-
-.hero h1 .highlight {
-  color: var(--bad);
-  position: relative;
-}
-
-.hero-lede {
-  font-size: 19px;
-  line-height: 1.5;
-  color: var(--ink-2);
-  max-width: 620px;
-  margin: 0 auto var(--sp-6);
-}
-
-.hero-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-5);
-  margin: var(--sp-7) 0;
-  padding: var(--sp-6) 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-
-.metric-card {
-  text-align: center;
-}
-
-.metric-value {
-  display: block;
-  font-size: 40px;
-  font-weight: 700;
-  color: var(--sig);
-  font-family: var(--font-mono);
-  margin-bottom: var(--sp-2);
-}
-
-.metric-label {
-  font-size: 13px;
-  color: var(--muted);
-  font-weight: 500;
-}
-
-.hero-cta {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-4);
-}
-
-.hero-cta-primary {
-  font-size: 16px;
-  padding: 16px 36px;
-}
-
-.hero-cta-secondary {
-  color: var(--ink-2);
-  text-decoration: none;
-  font-size: 14px;
-  transition: color 0.2s;
-}
-
-.hero-cta-secondary:hover { color: var(--ink); }
-
-.trust-signals {
-  display: flex;
-  justify-content: center;
-  gap: var(--sp-6);
-  margin-top: var(--sp-6);
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.trust-item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-}
-
-.trust-item svg {
-  width: 16px;
-  height: 16px;
-  color: var(--sig);
-}
-
-/* ========================================================================
-   Problem Section - Competitor Matrix
-   ======================================================================== */
-.problem-section {
-  padding: var(--sp-8) 0;
-  border-top: 1px solid var(--line);
-}
-
-.section-header {
-  max-width: 680px;
-  margin: 0 auto var(--sp-7);
-  text-align: center;
-}
-
-.section-kicker {
-  display: block;
-  color: var(--sig);
-  font-size: 12px;
-  font-weight: 600;
-  font-family: var(--font-mono);
-  letter-spacing: 0.05em;
-  margin-bottom: var(--sp-3);
-}
-
-.section-header h2 {
-  font-size: 36px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  margin: 0 0 var(--sp-3);
-}
-
-.section-header p {
-  font-size: 17px;
-  color: var(--ink-2);
-}
-
-.matrix-container {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-.matrix-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.matrix-table thead {
-  background: var(--panel-2);
-}
-
-.matrix-table th {
-  padding: var(--sp-4);
-  text-align: left;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: var(--font-mono);
-  color: var(--muted);
-  border-bottom: 1px solid var(--line);
-}
-
-.matrix-table th:not(:first-child) {
-  text-align: center;
-}
-
-.matrix-table td {
-  padding: var(--sp-4);
-  border-bottom: 1px solid var(--line-soft);
-  font-size: 14px;
-}
-
-.matrix-table td:not(:first-child) {
-  text-align: center;
-}
-
-.matrix-table tr.brand-row {
-  background: var(--sig-dim);
-}
-
-.matrix-table tr.brand-row td:first-child {
-  color: var(--sig);
-  font-weight: 700;
-}
-
-.stat-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.stat-badge.hit {
-  background: var(--sig-dim);
-  color: var(--sig);
-}
-
-.stat-badge.miss {
-  background: var(--bad-dim);
-  color: var(--bad);
-}
-
-/* ========================================================================
-   Solution Section - 3 Step Process
-   ======================================================================== */
-.solution-section {
-  padding: var(--sp-8) 0;
-}
-
-.workflow-steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-5);
-  margin-top: var(--sp-7);
-}
-
-.step-card {
-  position: relative;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: var(--sp-6);
-  transition: all 0.3s;
-}
-
-.step-card:hover {
-  border-color: var(--sig);
-  transform: translateY(-4px);
-}
-
-.step-number {
-  position: absolute;
-  top: -16px;
-  left: var(--sp-6);
-  width: 48px;
-  height: 48px;
-  background: var(--sig);
-  color: #04140f;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-}
-
-.step-card h3 {
-  font-size: 20px;
-  margin: var(--sp-5) 0 var(--sp-3);
-}
-
-.step-card p {
-  color: var(--ink-2);
-  font-size: 15px;
-  margin: 0;
-}
-
-.step-output {
-  margin-top: var(--sp-4);
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--line-soft);
-  font-size: 13px;
-  font-family: var(--font-mono);
-  color: var(--muted);
-}
-
-/* ========================================================================
-   Product Section - Screenshots
-   ======================================================================== */
-.product-section {
-  padding: var(--sp-8) 0;
-}
-
-.product-showcase {
-  margin-top: var(--sp-7);
-}
-
-.product-shot {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  margin-bottom: var(--sp-5);
-}
-
-.shot-header {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-3) var(--sp-4);
-  background: var(--panel-2);
-  border-bottom: 1px solid var(--line);
-}
-
-.shot-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--faint);
-}
-
-.shot-img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.shot-caption {
-  padding: var(--sp-4) var(--sp-5);
-  border-top: 1px solid var(--line);
-}
-
-.shot-label {
-  display: block;
-  font-size: 12px;
-  font-family: var(--font-mono);
-  color: var(--sig);
-  margin-bottom: var(--sp-2);
-}
-
-.shot-caption strong {
-  font-size: 16px;
-  color: var(--ink);
-}
-
-/* ========================================================================
-   Pricing Section - Simplified
-   ======================================================================== */
-.pricing-section {
-  padding: var(--sp-8) 0;
-  border-top: 1px solid var(--line);
-}
-
-.pricing-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-5);
-  margin-top: var(--sp-7);
-}
-
-.price-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: var(--sp-6);
-  position: relative;
-  transition: all 0.3s;
-}
-
-.price-card:hover {
-  border-color: var(--sig);
-  transform: translateY(-4px);
-}
-
-.price-card.featured {
-  border-color: var(--sig);
-  background: linear-gradient(135deg, var(--panel) 0%, var(--sig-dim) 100%);
-}
-
-.plan-badge {
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--sig);
-  color: #04140f;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-}
-
-.plan-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--muted);
-  margin: 0 0 var(--sp-3);
-}
-
-.plan-price {
-  font-size: 42px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  color: var(--ink);
-  margin: 0 0 var(--sp-2);
-}
-
-.plan-price span {
-  font-size: 16px;
-  color: var(--muted);
-  font-weight: 400;
-}
-
-.plan-desc {
-  color: var(--ink-2);
-  font-size: 14px;
-  margin: 0 0 var(--sp-5);
-  min-height: 42px;
-}
-
-.plan-features {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 var(--sp-5);
-}
-
-.plan-features li {
-  padding: var(--sp-2) 0;
-  font-size: 14px;
-  color: var(--ink-2);
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-2);
-}
-
-.plan-features li::before {
-  content: '✓';
-  color: var(--sig);
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.btn-block {
-  width: 100%;
-}
-
-/* ========================================================================
-   FAQ Section
-   ======================================================================== */
-.faq-section {
-  padding: var(--sp-8) 0;
-}
-
-.faq-list {
-  max-width: 800px;
-  margin: var(--sp-7) auto 0;
-}
-
-.faq-item {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--sp-4);
-  overflow: hidden;
-}
-
-.faq-item summary {
-  padding: var(--sp-4) var(--sp-5);
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-  position: relative;
-}
-
-.faq-item summary::after {
-  content: '+';
-  position: absolute;
-  right: var(--sp-5);
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 24px;
-  color: var(--sig);
-  transition: transform 0.3s;
-}
-
-.faq-item[open] summary::after {
-  transform: translateY(-50%) rotate(45deg);
-}
-
-.faq-answer {
-  padding: 0 var(--sp-5) var(--sp-5);
-  color: var(--ink-2);
-  font-size: 15px;
-  line-height: 1.6;
-}
-
-/* ========================================================================
-   Final CTA
-   ======================================================================== */
-.final-cta {
-  padding: var(--sp-9) 0;
-  text-align: center;
-  border-top: 1px solid var(--line);
-  background: linear-gradient(180deg, var(--bg) 0%, var(--panel) 100%);
-}
-
-.final-cta h2 {
-  font-size: 38px;
-  font-weight: 700;
-  margin: 0 0 var(--sp-4);
-}
-
-.final-cta p {
-  font-size: 18px;
-  color: var(--ink-2);
-  margin: 0 0 var(--sp-6);
-}
-
-.final-cta-actions {
-  display: flex;
-  justify-content: center;
-  gap: var(--sp-4);
-}
-
-/* ========================================================================
-   Footer
-   ======================================================================== */
-.site-footer {
-  border-top: 1px solid var(--line);
-  padding: var(--sp-7) 0 var(--sp-6);
-  background: var(--panel);
-}
-
-.footer-content {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr;
-  gap: var(--sp-7);
-}
-
-.footer-brand {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-}
-
-.footer-tagline {
-  font-size: 14px;
-  color: var(--muted);
-  line-height: 1.5;
-}
-
-.footer-links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-
-.footer-links a {
-  color: var(--ink-2);
-  text-decoration: none;
-  font-size: 14px;
-  transition: color 0.2s;
-}
-
-.footer-links a:hover { color: var(--ink); }
-
-.footer-bottom {
-  margin-top: var(--sp-6);
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--line-soft);
-  text-align: center;
-  font-size: 13px;
-  color: var(--faint);
-}
-
-/* ========================================================================
-   Responsive
-   ======================================================================== */
-@media (max-width: 1024px) {
-  .hero h1 { font-size: 42px; }
-  .hero-metrics { grid-template-columns: 1fr; }
-  .workflow-steps { grid-template-columns: 1fr; }
-  .pricing-grid { grid-template-columns: 1fr; }
-  .footer-content { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 768px) {
-  .nav { display: none; }
-  .hero h1 { font-size: 36px; }
-  .section-header h2 { font-size: 28px; }
-}
-  </style>
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="CiteAura — do AI engines cite your brand?">
+
+  <!-- Twitter / X Cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://citeaura.com/">
+  <meta name="twitter:title" content="CiteAura: AI Visibility &amp; Generative Engine Optimization">
+  <meta name="twitter:description" content="Measure AI brand visibility, audit your public site, turn evidence into engineering tickets, and verify changes.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-default.png">
+
+  <!-- Schema.org JSON-LD Structured Data (Google Rich Snippets & AI Knowledge Graph) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://citeaura.com/#organization",
+        "name": "CiteAura",
+        "url": "https://citeaura.com",
+        "logo": "https://citeaura.com/site-assets/logo.png",
+        "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification."
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://citeaura.com/#website",
+        "url": "https://citeaura.com",
+        "name": "CiteAura",
+        "publisher": { "@id": "https://citeaura.com/#organization" },
+        "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.",
+        "dateModified": "2026-08-20"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://citeaura.com/#software",
+        "name": "CiteAura",
+        "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web Application",
+        "dateModified": "2026-08-20",
+        "offers": [
+          {
+            "@type": "Offer",
+            "name": "Starter",
+            "price": "79",
+            "priceCurrency": "USD",
+            "description": "3 active brand projects, full audit reports, action tickets, and verification runs."
+          },
+          {
+            "@type": "Offer",
+            "name": "Pro",
+            "price": "199",
+            "priceCurrency": "USD",
+            "description": "10 active brand projects, multi-model matrix, and advanced perception gap diagnostics."
+          },
+          {
+            "@type": "Offer",
+            "name": "Agency",
+            "price": "499",
+            "priceCurrency": "USD",
+            "description": "30 active brand projects, team permissions, white-label client headers, and delivery packs."
+          }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://citeaura.com/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Do API samples match what users see in the product UI?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Most APIs measure parametric model knowledge, not live product search. CiteAura clearly labels each engine as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface for complete scientific integrity."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Must I bring my own model API keys (BYOK)?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "BYOK is the most secure and cost-effective method. You only configure the engines you intend to use; others are honestly shown as unmeasured. Model APIs are extremely affordable with zero middleman markup."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can CiteAura guarantee my brand will be ranked or mentioned by AI?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Any vendor promising guaranteed AI recommendations is untruthful. CiteAura provides rigorous diagnosis, standardized engineering tickets, and repeatable verification evidence to help teams improve visibility over time."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is included in the 7-day free trial?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The 7-day free trial includes all Starter plan features: 3 projects, full audit reports, action tickets, verification, and customer delivery packages—no credit card required."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is CiteAura suitable for digital marketing agencies delivering to clients?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Absolutely. The Agency plan is tailored for agencies with 30 active projects, team role permissions, white-label client headers, and downloadable client-ready delivery packs."
+            }
+          }
+        ]
+      },
+      {
+        "@type": "HowTo",
+        "@id": "https://citeaura.com/#howto",
+        "name": "How to run a CiteAura diagnostic",
+        "description": "How to start from a public website and produce a CiteAura diagnostic pack with tickets and verification evidence.",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "position": 1,
+            "name": "Step 1. Add the official website",
+            "text": "Create a workspace and submit the public HTTPS URL for the brand."
+          },
+          {
+            "@type": "HowToStep",
+            "position": 2,
+            "name": "Step 2. Review extracted facts and questions",
+            "text": "Confirm brand facts, competitors, and the target question set before sampling."
+          },
+          {
+            "@type": "HowToStep",
+            "position": 3,
+            "name": "Step 3. Connect a model endpoint",
+            "text": "Save a built-in provider key or a custom OpenAI-compatible endpoint."
+          },
+          {
+            "@type": "HowToStep",
+            "position": 4,
+            "name": "Step 4. Sample and read the audit",
+            "text": "Run labeled sampling, then open the site audit, tickets, and mention-rate matrix."
+          },
+          {
+            "@type": "HowToStep",
+            "position": 5,
+            "name": "Step 5. Verify and export the pack",
+            "text": "Implement tickets, re-crawl, and export the diagnostic delivery pack."
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
-<body>
+<body class="home-redesign">
+  <a class="skip-link" href="#main" data-i18n="nav.skip">Skip to main content</a>
+  
+  <!--  -->
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home" data-i18n-aria="nav.home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+      
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" data-i18n-aria="nav.open" aria-label="Open navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only" data-i18n="nav.menu">Menu</span>
+      </button>
+      
+      <nav id="primary-nav" class="nav-links" aria-label="Main navigation" data-i18n-aria="nav.main">
+        <details class="nav-group">
+          <summary>Product <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <div class="nav-group-menu">
+            <a href="#about" data-i18n="public.nav.what_it_is">Overview</a>
+            <a href="#workflow" data-i18n="nav.workflow">How It Works</a>
+            <a href="#product" data-i18n="nav.product">Features</a>
+            <a href="/ai-visibility-audit">AI visibility audit</a>
+          </div>
+        </details>
+        <details class="nav-group">
+          <summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <div class="nav-group-menu">
+            <a href="/for-brands">For brands</a>
+            <a href="/for-agencies">For agencies</a>
+          </div>
+        </details>
+        <details class="nav-group">
+          <summary>Resources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <div class="nav-group-menu">
+            <a href="/docs" data-i18n="nav.docs">Docs</a>
+            <a href="/blog" data-i18n="nav.guides">Guides</a>
+            <a href="/methodology">Methodology</a>
+            <a href="/sample-report">Sample report</a>
+          </div>
+        </details>
+        <a href="/pricing" data-i18n="nav.pricing">Pricing</a>
+      </nav>
+      
+      <div class="nav-actions">
 
-<!-- Header -->
-<header class="site-header">
-  <div class="shell header-row">
-    <a class="brand" href="/" aria-label="CiteAura Home">
-      <span class="brand-mark" aria-hidden="true"></span>
-      <span>CiteAura</span>
-    </a>
-
-    <nav class="nav">
-      <a href="#problem">问题</a>
-      <a href="#solution">解决方案</a>
-      <a href="#product">产品</a>
-      <a href="#pricing">定价</a>
-    </nav>
-
-    <div class="header-actions">
-      <a class="btn btn-ghost" href="/app?auth=login">登录</a>
-      <a class="btn btn-primary" href="/app?auth=register">开始免费试用</a>
-    </div>
-  </div>
-</header>
-
-<!-- Hero -->
-<section class="hero">
-  <div class="shell">
-    <div class="hero-content">
-      <span class="hero-badge">下一代生成式引擎优化 (GEO)</span>
-
-      <h1>
-        AI 正在推荐你的<br>
-        <span class="highlight">竞争对手</span>，而不是你
-      </h1>
-
-      <p class="hero-lede">
-        诊断你的品牌在 ChatGPT、Claude、Gemini 等 AI 引擎中的可见性缺口，
-        转化为可执行的工程票据，验证改进效果。
-      </p>
-
-      <div class="hero-metrics">
-        <div class="metric-card">
-          <span class="metric-value">84%</span>
-          <span class="metric-label">B2B 品牌被 AI 忽略</span>
-        </div>
-        <div class="metric-card">
-          <span class="metric-value">13</span>
-          <span class="metric-label">标准化行动票据</span>
-        </div>
-        <div class="metric-card">
-          <span class="metric-value">72h</span>
-          <span class="metric-label">平均首次可见性提升</span>
-        </div>
-      </div>
-
-      <div class="hero-cta">
-        <a class="btn btn-primary hero-cta-primary" href="/app?auth=register">
-          运行免费技术审计 →
-        </a>
-        <a class="hero-cta-secondary" href="/sample-report">查看示例报告</a>
-      </div>
-
-      <div class="trust-signals">
-        <div class="trust-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="20 6 9 17 4 12"/>
+        <div class="lang-picker-btn" title="Change Language" data-i18n-title="public.nav.change_language">
+          <svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
           </svg>
-          <span>7天免费试用</span>
+          <label class="sr-only" for="site-locale" data-i18n="lang.label">Language</label>
+          <select id="site-locale" class="site-locale-compact" aria-label="Language">
+            <option value="en">English (EN)</option>
+            <option value="zh">简体中文 (ZH)</option>
+            <option value="ja">日本語 (JA)</option>
+            <option value="ko">한국어 (KO)</option>
+            <option value="es">Español (ES)</option>
+            <option value="fr">Français (FR)</option>
+            <option value="de">Deutsch (DE)</option>
+          </select>
         </div>
-        <div class="trust-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-          </svg>
-          <span>100% BYOK 原生</span>
-        </div>
-        <div class="trust-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-          </svg>
-          <span>100% 可追溯证据</span>
-        </div>
+        
+        <a class="nav-sign-in" href="/app?auth=login" data-i18n="nav.sign_in">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
       </div>
     </div>
-  </div>
-</section>
+  </header>
 
-<!-- Problem: Competitor Matrix -->
-<section class="problem-section" id="problem">
-  <div class="shell">
-    <div class="section-header">
-      <span class="section-kicker">问题可视化</span>
-      <h2>你的竞争对手正在赢得 AI 推荐</h2>
-      <p>在相同的用户问题下，AI 引擎推荐竞品的频率远超你的品牌</p>
-    </div>
+  <main id="main">
+    <!-- Hero  -->
+    <section class="hero" id="simulator" aria-labelledby="hero-title">
+      <div class="page-shell hero-layout">
+        <div class="hero-copy-block">
+          <a class="hero-eyebrow" href="/app">
+            <span data-i18n="landing.eyebrow">Next-Gen Generative Engine Optimization (GEO)</span>
+          </a>
 
-    <div class="matrix-container">
-      <table class="matrix-table">
-        <thead>
-          <tr>
-            <th>用户问题 × AI 引擎</th>
-            <th>ChatGPT</th>
-            <th>Claude</th>
-            <th>Gemini</th>
-            <th>Perplexity</th>
-            <th>Grok</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Best CRM for startups</td>
-            <td><span class="stat-badge miss">✗</span></td>
-            <td><span class="stat-badge miss">✗</span></td>
-            <td><span class="stat-badge hit">✓</span></td>
-            <td><span class="stat-badge hit">✓</span></td>
-            <td><span class="stat-badge miss">✗</span></td>
-          </tr>
-          <tr>
-            <td>CRM alternatives to Salesforce</td>
-            <td><span class="stat-badge miss">✗</span></td>
-            <td><span class="stat-badge hit">✓</span></td>
-            <td><span class="stat-badge miss">✗</span></td>
-            <td><span class="stat-badge miss">✗</span></td>
-            <td><span class="stat-badge miss">✗</span></td>
-          </tr>
-          <tr>
-            <td>Affordable CRM for small business</td>
-            <td><span class="stat-badge miss">✗</span></td>
-            <td><span class="stat-badge miss">✗</span></td>
-            <td><span class="stat-badge miss">✗</span></td>
-            <td><span class="stat-badge miss">✗</span></td>
-            <td><span class="stat-badge miss">✗</span></td>
-          </tr>
-          <tr class="brand-row">
-            <td>你的品牌 — 总命中率</td>
-            <td><span class="stat-badge miss">0/6</span></td>
-            <td><span class="stat-badge hit">1/6</span></td>
-            <td><span class="stat-badge hit">1/6</span></td>
-            <td><span class="stat-badge hit">1/6</span></td>
-            <td><span class="stat-badge miss">0/6</span></td>
-          </tr>
-          <tr>
-            <td>竞争对手 A — 总命中率</td>
-            <td><span class="stat-badge hit">4/6</span></td>
-            <td><span class="stat-badge hit">5/6</span></td>
-            <td><span class="stat-badge hit">3/6</span></td>
-            <td><span class="stat-badge hit">4/6</span></td>
-            <td><span class="stat-badge hit">2/6</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
+          <h1 id="hero-title" data-i18n="landing.hero_title">Turn AI visibility gaps into action-ready engineering tickets.</h1>
+          
+          <p class="hero-evidence-chain" data-i18n="landing.evidence_chain">AI answer → citation gap → page change → acceptance check → re-test</p>
+          
+          <!--  -->
+          <div class="hero-scanner-box">
+            <form class="hero-scanner-form">
+              <div class="hero-scanner-input-wrap">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+                <input type="text" class="hero-scanner-input" value="yourbrand.com" placeholder="Enter your domain (e.g. yourbrand.com)" aria-label="Website domain to audit" data-i18n-placeholder="public.landing.domain_placeholder" data-i18n-aria="public.landing.domain_aria">
+              </div>
+              <button type="submit" class="btn btn-primary hero-scanner-btn" data-i18n="landing.scan_btn">Run free technical audit →</button>
+            </form>
+            <a class="hero-sample-link" href="/sample-report" data-i18n="landing.hero_cta_secondary">View a sample report</a>
+            <div class="hero-scanner-presets">
+              <span data-i18n="landing.presets_label">Example domains:</span>
+              <button type="button" class="preset-pill" data-domain="stripe.com">stripe.com</button>
+              <button type="button" class="preset-pill" data-domain="linear.app">linear.app</button>
+              <button type="button" class="preset-pill" data-domain="supabase.com">supabase.com</button>
+              <button type="button" class="preset-pill" data-domain="yourbrand.com">yourbrand.com</button>
+            </div>
+          </div>
+          
+          <div class="hero-trust-row">
+            <div class="hero-trust-item">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+              <span data-i18n="landing.trust_tickets">13 Standard Action Tickets</span>
+            </div>
+            <div class="hero-trust-item">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span data-i18n="landing.trust_byok">100% BYOK Native</span>
+            </div>
+            <div class="hero-trust-item">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              <span data-i18n="landing.trust_evidence">100% Traceable Evidence</span>
+            </div>
+          </div>
+        </div>
+        
+        <!--  GEO Console  -->
+        <figure class="hero-shot">
+          <div class="console-frame">
+            <div class="console-header-wrap">
+              <div class="console-topbar">
+                <span class="console-crumb">citeaura / <b>yourbrand.com</b></span>
+                <div class="console-health-strip" aria-label="Site 6-dimension health checks">
+                  <span class="health-indicator is-ok" title="Robots.txt unblocked"><span class="status-dot"></span>robots.txt 200</span>
+                  <span class="health-indicator is-ok" title="WAF crawler policy"><span class="status-dot"></span>WAF clear</span>
+                  <span class="health-indicator is-ok" title="LLMs.txt detected"><span class="status-dot"></span>llms.txt</span>
+                  <span class="health-indicator is-warn" title="Schema JSON-LD gap detected"><span class="status-dot"></span>Schema gap</span>
+                  <span class="health-indicator is-ok" title="Brand facts library verified"><span class="status-dot"></span>Brand facts</span>
+                  <span class="health-indicator is-ok" title="AI extraction clean"><span class="status-dot"></span>Crawl clean</span>
+                </div>
+                <span class="demo-provenance-pill" title="Demo preview with synthetic baseline">[DEMO · SYNTHETIC BASELINE]</span>
+              </div>
+              <div class="console-header">
+                <div class="console-tabs" role="tablist">
+                  <button type="button" class="console-tab-btn is-active" data-target="summary" data-i18n="landing.tab_summary">Executive Summary</button>
+                  <button type="button" class="console-tab-btn" data-target="radar" data-i18n="landing.tab_radar">AI Radar</button>
+                  <button type="button" class="console-tab-btn" data-target="tickets" data-i18n="landing.tab_tickets">Action Tickets</button>
+                  <button type="button" class="console-tab-btn" data-target="compare" data-i18n="landing.tab_compare">Before / After</button>
+                  <button type="button" class="console-tab-btn" data-target="assets" data-i18n="landing.tab_assets">Deploy Assets</button>
+                </div>
+                <div class="console-live-ping" data-i18n="public.landing.preview_live_ping_static">Example workspace preview · yourbrand.com</div>
+              </div>
+            </div>
+            
+            <div class="console-body">
+              <!-- Example onboarding overlay -->
+              <div class="console-scan-overlay" id="console-scanner">
+                <div class="scan-overlay-head">
+                  <div class="scan-status-text">
+                    <strong class="scan-domain-title" data-i18n="public.landing.preview_preparing_static">Preparing yourbrand.com workspace...</strong>
+                    <span class="scan-sub-status" data-i18n="public.landing.preview_sub_status">This preview shows the setup flow. Full audits run inside the product workspace.</span>
+                  </div>
+                  <span class="scan-pct" id="scan-pct-val">0%</span>
+                </div>
+                <div class="scan-progress-bar">
+                  <div class="scan-progress-fill" id="scan-progress-fill"></div>
+                </div>
+                <div class="scan-terminal-log" id="scan-terminal-log">
+                  <div class="log-line" data-i18n="public.landing.preview_log_open">▶ Opening guided workspace setup preview...</div>
+                </div>
+              </div>
 
-<!-- Solution: 3-Step Workflow -->
-<section class="solution-section" id="solution">
-  <div class="shell">
-    <div class="section-header">
-      <span class="section-kicker">解决方案</span>
-      <h2>从诊断到验证的闭环工作流</h2>
-      <p>将 AI 可见性问题转化为可执行的工程任务，验证改进效果</p>
-    </div>
+              <div class="console-result-banner is-hidden" id="console-result-banner">
+                <div class="banner-info">
+                  <span class="banner-badge" data-i18n="public.landing.preview_only_badge">Preview only — continue in workspace</span>
+                  <span class="banner-title"><strong id="banner-domain-name">yourbrand.com</strong>: <span id="banner-title-prefix" data-i18n="public.landing.preview_loaded_title">Setup preview loaded</span> <span id="banner-grade-val" data-i18n="public.landing.preview_ready">Preview ready</span></span>
+                  <div id="banner-audit-details" class="audit-result-chips" aria-live="polite"></div>
+                </div>
+                <a href="/app" class="btn btn-primary btn-sm banner-action-btn" id="banner-open-app-btn">
+                  <span id="banner-open-app-label" data-i18n="public.landing.preview_open_workspace">Open Workspace →</span>
+                </a>
+              </div>
 
-    <div class="workflow-steps">
-      <div class="step-card">
-        <span class="step-number">01</span>
-        <h3>多模型审计</h3>
-        <p>扫描你的网站在 ChatGPT、Claude、Gemini、Perplexity 等 6+ AI 引擎中的可见性表现，识别结构化数据缺失、爬虫封禁、事实提取障碍</p>
-        <div class="step-output">输出: 可见性矩阵 + 缺口诊断</div>
+              <!-- Panel 0: Flagship Executive Report Summary (Wope + Dovetail + Linear) -->
+              <div class="console-panel is-active" data-panel="summary">
+                <!-- Wope Dark Data Panel (Score & 5 Core Ratios) -->
+                <div class="visibility-baseline" aria-label="Example visibility metrics" data-i18n-aria="public.landing.metrics_aria">
+                  <div class="wope-score-strip">
+                    <div class="wope-score-left">
+                      <span class="wope-score-num">84</span>
+                      <span class="wope-score-label">/100 Total AI Visibility</span>
+                      <span class="wope-score-delta">▲ +14% vs unoptimized</span>
+                    </div>
+                    <div class="visibility-baseline-label" data-i18n="landing.metrics_label">Example visibility baseline · 14 valid samples · 4 platforms · API · Web-grounded retrieval · 2026-09-05 UTC</div>
+                  </div>
+                  <div class="visibility-metric-grid">
+                    <div><strong>68%</strong><span data-i18n="landing.metric_mention">Mention Rate</span></div>
+                    <div><strong>78%</strong><span data-i18n="landing.metric_citation">Citation Rate</span></div>
+                    <div><strong>94%</strong><span data-i18n="landing.metric_prompt">Prompt Coverage</span></div>
+                    <div><strong>22%</strong><span data-i18n="landing.metric_competitor">Competitor Gap</span></div>
+                    <div><strong>4</strong><span data-i18n="landing.metric_platform">Platform Coverage</span></div>
+                  </div>
+                </div>
+
+                <!-- Bento Split: Dovetail Citation Evidence + Linear Asks Action Tickets -->
+                <div class="bento-split-grid">
+                  <!-- Dovetail Evidence Card -->
+                  <div class="bento-dovetail-card">
+                    <div class="dovetail-header">
+                      <span class="dovetail-query-badge">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        QUERY #04: "Best GEO platforms for B2B SaaS"
+                      </span>
+                      <span class="dovetail-engine-badge">Perplexity Sonar · API · Web-grounded</span>
+                    </div>
+                    <div class="dovetail-body">
+                      <p class="dovetail-quote">
+                        "...While competitors are cited for structured brand catalogs, <mark class="dovetail-highlight">yourbrand.com is omitted because pricing and FAQ schema are unextractable</mark>."
+                      </p>
+                    </div>
+                    <div class="dovetail-footer">
+                      <div class="dovetail-tags">
+                        <span class="dovetail-tag tag-gap">#Citation-Gap</span>
+                        <span class="dovetail-tag">#Missing-FAQ-Schema</span>
+                        <span class="dovetail-tag">#Ticket-GEO-01</span>
+                      </div>
+                      <span class="dovetail-provenance">Trace: prompt_04 · sonar-pro · 2026-09-05 UTC</span>
+                    </div>
+                  </div>
+
+                  <!-- Linear Asks Action Tickets -->
+                  <div class="bento-linear-card">
+                    <div class="linear-card-header">
+                      <span class="linear-title">Actionable Engineering Tickets</span>
+                      <span class="linear-count">2 Pending Verification</span>
+                    </div>
+                    <div class="linear-ticket-list">
+                      <div class="linear-ticket-item">
+                        <div class="linear-ticket-left">
+                          <span class="linear-priority p0">P0</span>
+                          <span class="linear-ticket-id">GEO-01</span>
+                          <span class="linear-ticket-title">Inject Schema JSON-LD Knowledge Graph</span>
+                        </div>
+                        <div class="linear-ticket-right">
+                          <span class="linear-status-badge ready">Ready to verify</span>
+                        </div>
+                      </div>
+                      <div class="linear-ticket-item">
+                        <div class="linear-ticket-left">
+                          <span class="linear-priority p1">P1</span>
+                          <span class="linear-ticket-id">GEO-03</span>
+                          <span class="linear-ticket-title">Deploy /llms.txt Machine Ingestion File</span>
+                        </div>
+                        <div class="linear-ticket-right">
+                          <span class="linear-status-badge passed">Passed</span>
+                        </div>
+                      </div>
+                      <div class="linear-ticket-item">
+                        <div class="linear-ticket-left">
+                          <span class="linear-priority p1">P1</span>
+                          <span class="linear-ticket-id">GEO-10</span>
+                          <span class="linear-ticket-title">AI Crawler WAF Directives &amp; Robots</span>
+                        </div>
+                        <div class="linear-ticket-right">
+                          <span class="linear-status-badge ready">Ready to verify</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bento Footer Note & Direct Links -->
+                <div class="bento-report-footer">
+                  <span class="bento-footer-note">⚡ 13 tickets generated · All outputs linked to ground-truth AI traces</span>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <a href="/sample-report" class="btn btn-secondary btn-sm hero-sample-link" data-i18n="landing.view_sample">View a sample report →</a>
+                    <a href="/app" class="btn btn-primary btn-sm">Open Workspace →</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Panel 1：AI Radar -->
+              <div class="console-panel" data-panel="radar">
+                <div class="dovetail-evidence-card">
+                  <div class="dovetail-header">
+                    <span class="dovetail-query">QUERY #04: "Best Generative Engine Optimization platforms for B2B SaaS"</span>
+                    <span class="dovetail-engine-badge">Perplexity Sonar · API · Web-grounded retrieval</span>
+                  </div>
+                  <p class="dovetail-quote">
+                    "...While competitors are cited for structured brand catalogs, <mark class="dovetail-highlight">yourbrand.com is omitted because pricing and FAQ schema are unextractable</mark>."
+                  </p>
+                  <div class="dovetail-tags">
+                    <span class="dovetail-tag">#Citation-Gap</span>
+                    <span class="dovetail-tag">#Missing-FAQ-Schema</span>
+                    <span class="dovetail-tag">#Actionable-Ticket-GEO-01</span>
+                  </div>
+                </div>
+                <div class="radar-grid">
+                  <div class="radar-card">
+                    <div class="radar-card-head">
+                      <span class="radar-engine-name">DeepSeek-V4 / R1</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="deepseek" data-i18n="public.landing.radar_deepseek_badge">Example API trace</span>
+                    </div>
+                    <div class="radar-bar-track">
+                      <div class="radar-bar-fill" data-radar-bar="deepseek" style="width: 68%"></div>
+                    </div>
+                    <div class="radar-meta-row">
+                      <span data-i18n="landing.mode_parametric">API · Model knowledge</span>
+                      <strong data-radar-val="deepseek" data-i18n="literal.e2d7b87a0545">Prompt log</strong>
+                    </div>
+                  </div>
+                  
+                  <div class="radar-card">
+                    <div class="radar-card-head">
+                      <span class="radar-engine-name">OpenAI GPT-5.6 (Sol / Terra)</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="chatgpt" data-i18n="public.landing.radar_chatgpt_badge">Example grounded run</span>
+                    </div>
+                    <div class="radar-bar-track">
+                      <div class="radar-bar-fill" data-radar-bar="chatgpt" style="width: 72%"></div>
+                    </div>
+                    <div class="radar-meta-row">
+                      <span data-i18n="public.landing.radar_chatgpt_mode">API · Web-grounded retrieval example</span>
+                      <strong data-radar-val="chatgpt" data-i18n="public.landing.radar_source_links">Source links</strong>
+                    </div>
+                  </div>
+                  
+                  <div class="radar-card">
+                    <div class="radar-card-head">
+                      <span class="radar-engine-name">Claude Sonnet 5 / Opus 5</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="claude" data-i18n="public.landing.radar_claude_badge">Example answer replay</span>
+                    </div>
+                    <div class="radar-bar-track">
+                      <div class="radar-bar-fill" data-radar-bar="claude" style="width: 64%"></div>
+                    </div>
+                    <div class="radar-meta-row">
+                      <span data-i18n="public.landing.radar_claude_mode">API · Response replay example</span>
+                      <strong data-radar-val="claude" data-i18n="public.landing.radar_answer_diff">Answer diff</strong>
+                    </div>
+                  </div>
+                  
+                  <div class="radar-card">
+                    <div class="radar-card-head">
+                      <span class="radar-engine-name">Google Gemini 3.6 Flash / 3.1 Pro</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="gemini" data-i18n="public.landing.radar_gemini_badge">Example retrieval view</span>
+                    </div>
+                    <div class="radar-bar-track">
+                      <div class="radar-bar-fill" data-radar-bar="gemini" style="width: 58%"></div>
+                    </div>
+                    <div class="radar-meta-row">
+                      <span data-i18n="public.landing.radar_gemini_mode">API · Retrieval notes example</span>
+                      <strong data-radar-val="gemini" data-i18n="public.landing.radar_crawl_notes">Crawl notes</strong>
+                    </div>
+                  </div>
+                  
+                  <div class="radar-card">
+                    <div class="radar-card-head">
+                      <span class="radar-engine-name">xAI Grok 4</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="grok" data-i18n="public.landing.radar_grok_badge">Example search replay</span>
+                    </div>
+                    <div class="radar-bar-track">
+                      <div class="radar-bar-fill" data-radar-bar="grok" style="width: 61%"></div>
+                    </div>
+                    <div class="radar-meta-row">
+                      <span data-i18n="public.landing.radar_grok_mode">API · Web-grounded retrieval example</span>
+                      <strong data-radar-val="grok" data-i18n="public.landing.radar_search_notes">Search notes</strong>
+                    </div>
+                  </div>
+                  
+                  <div class="radar-card">
+                    <div class="radar-card-head">
+                      <span class="radar-engine-name">Perplexity Sonar 2 (Deep Research)</span>
+                      <span class="radar-badge radar-badge-good" data-radar-badge="perplexity" data-i18n="public.landing.radar_perplexity_badge">Example research replay</span>
+                    </div>
+                    <div class="radar-bar-track">
+                      <div class="radar-bar-fill" data-radar-bar="perplexity" style="width: 76%"></div>
+                    </div>
+                    <div class="radar-meta-row">
+                      <span data-i18n="public.landing.radar_perplexity_mode">API · Research replay example</span>
+                      <strong data-radar-val="perplexity" data-i18n="public.landing.radar_citation_trail">Citation trail</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!--  2：13  -->
+              <div class="console-panel" data-panel="tickets">
+                <div class="tickets-preview-list">
+                  <div class="ticket-preview-item">
+                    <div class="ticket-preview-info">
+                      <span class="ticket-id">GEO-01</span>
+                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo01">Inject Schema.org JSON-LD Knowledge Graph</span>
+                    </div>
+                    <span class="ticket-chip chip-high" data-i18n="public.landing.impact_high">Impact: High</span>
+                  </div>
+                  <div class="ticket-preview-item">
+                    <div class="ticket-preview-info">
+                      <span class="ticket-id">GEO-03</span>
+                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo03">Deploy /llms.txt Machine Ingestion File</span>
+                    </div>
+                    <span class="ticket-chip chip-quick" data-i18n="public.landing.effort_quick">Effort: Quick</span>
+                  </div>
+                  <div class="ticket-preview-item">
+                    <div class="ticket-preview-info">
+                      <span class="ticket-id">GEO-05</span>
+                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo05">Competitor Differentiation Feature Matrix</span>
+                    </div>
+                    <span class="ticket-chip chip-high" data-i18n="public.landing.impact_high">Impact: High</span>
+                  </div>
+                  <div class="ticket-preview-item">
+                    <div class="ticket-preview-info">
+                      <span class="ticket-id">GEO-07</span>
+                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo07">Semantic Headings &amp; Fact Extraction Blocks</span>
+                    </div>
+                    <span class="ticket-chip chip-quick" data-i18n="public.landing.effort_medium">Effort: Medium</span>
+                  </div>
+                  <div class="ticket-preview-item">
+                    <div class="ticket-preview-info">
+                      <span class="ticket-id">GEO-10</span>
+                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo10">AI Crawler WAF Bypass &amp; Robots.txt Directives</span>
+                    </div>
+                    <span class="ticket-chip chip-high" data-i18n="public.landing.impact_high">Impact: High</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!--  3： -->
+              <div class="console-panel" data-panel="compare">
+                <div class="compare-sim-grid">
+                  <div class="compare-sim-box compare-sim-before">
+                    <div class="compare-sim-title" data-i18n="public.landing.compare_before_title">✕ Before CiteAura GEO</div>
+                    <p><strong data-i18n="public.landing.compare_prompt_label">User Prompt:</strong> <span data-i18n="public.landing.compare_prompt">"What are the best platforms for modern generative search optimization?"</span></p>
+                    <p style="color: var(--bad);"><strong data-i18n="public.landing.compare_output_label">AI Output:</strong> <span data-i18n="public.landing.compare_before_output">"There are several legacy SEO tools, but I don't have verified data on this domain's core capabilities or pricing structure."</span></p>
+                  </div>
+                  <div class="compare-sim-box compare-sim-after">
+                    <div class="compare-sim-title" data-i18n="public.landing.compare_after_title">✓ After guided remediation</div>
+                    <p><strong data-i18n="public.landing.compare_prompt_label">User Prompt:</strong> <span data-i18n="public.landing.compare_prompt">"What are the best platforms for modern generative search optimization?"</span></p>
+                    <p style="color: var(--good);"><strong data-i18n="public.landing.compare_output_label">AI Output:</strong> <span data-i18n="public.landing.compare_after_output">"The official site now exposes clearer product definitions, structured facts, and sourceable deployment assets for retrieval."</span></p>
+                  </div>
+                </div>
+              </div>
+              
+              <!--  4： -->
+              <div class="console-panel" data-panel="assets">
+                <div class="code-action-bar">
+                  <span style="font-family: var(--font-mono); font-size: 11px; color: var(--accent);">/llms.txt</span>
+                  <button type="button" class="code-copy-btn" data-i18n="public.landing.copy_code">Copy Code</button>
+                </div>
+                <div class="code-preview-box">
+                  <pre><code># CiteAura Machine Ingestion Guide
+# Title: CiteAura Next-Gen GEO Platform
+# Summary: Evidence-based Generative Engine Optimization SaaS
+
+## Brand Identity & Canonical Facts
+- Product: CiteAura
+- URL: https://citeaura.com
+- Classification: Next-Gen Generative Engine Optimization (GEO)
+- Supported 2026 Models: OpenAI GPT-5.6, Claude Sonnet 5, Gemini 3.6 Flash, Grok 4, Perplexity Sonar 2, DeepSeek-V4
+- Architecture: 100% BYOK Native, Multi-tenant Isolated, Open Files SSOT
+- Core Pipeline: Setup -> Multi-Model Audit -> Action Tickets -> Verification -> Delivery Pack</code></pre>
+                </div>
+              </div>
+            </div>
+            
+            <figcaption class="hero-modes" data-i18n-aria="landing.modes_label" aria-label="Supported sampling modes">
+              <span class="modes-note" data-i18n="landing.modes_note">Scientific rigor · Sampling method labeled</span>
+              <span class="mode-chip" data-i18n="landing.mode_parametric">API · Model knowledge</span>
+              <span class="mode-chip" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
+              <span class="mode-chip" data-i18n="landing.mode_manual">Manual · Product surface</span>
+            </figcaption>
+          </div>
+        </figure>
       </div>
+    </section>
 
-      <div class="step-card">
-        <span class="step-number">02</span>
-        <h3>工程化票据</h3>
-        <p>将诊断结果转化为 13 个标准化工程票据，按影响 × 难度排序，包含清晰的验收标准和部署资产（JSON-LD、llms.txt）</p>
-        <div class="step-output">输出: 13 个优先级票据</div>
-      </div>
-
-      <div class="step-card">
-        <span class="step-number">03</span>
-        <h3>验证与交付</h3>
-        <p>实施改进后重新爬取并采样，生成前后对比报告，导出白标客户交付包，包含证据链、票据日志和改进轨迹</p>
-        <div class="step-output">输出: 验证报告 + 交付包</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Product Screenshots -->
-<section class="product-section" id="product">
-  <div class="shell">
-    <div class="section-header">
-      <span class="section-kicker">产品界面</span>
-      <h2>统一工作空间，从审计到交付</h2>
-      <p>每个可见性缺口都链接到具体页面，每个缺口都映射到工程票据和验证历史</p>
-    </div>
-
-    <div class="product-showcase">
-      <div class="product-shot">
-        <div class="shot-header">
-          <span class="shot-dot"></span>
-          <span class="shot-dot"></span>
-          <span class="shot-dot"></span>
-        </div>
-        <img class="shot-img" src="/site-assets/product-overview-real-v2.png" alt="CiteAura 品牌概览工作空间" loading="lazy">
-        <div class="shot-caption">
-          <span class="shot-label">站点级 GEO 审计</span>
-          <strong>精准定位提取缺口和技术障碍，阻止 AI 推荐的根源</strong>
+    <!--  -->
+    <section class="model-matrix-ribbon" aria-label="Supported AI Search Engines" data-i18n-aria="public.landing.models_aria">
+      <div class="page-shell">
+        <p class="ribbon-head" data-i18n="landing.models_head">Continuous Multi-Model Matrix Measurement</p>
+        <span class="sr-only" data-i18n="public.landing.models_count">6 API engines + 9 product surfaces + custom</span>
+        <div class="ribbon-grid">
+          <div class="model-ribbon-card">
+            <span class="model-ribbon-name">OpenAI</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
+          </div>
+          <div class="model-ribbon-card">
+            <span class="model-ribbon-name">Claude</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
+          </div>
+          <div class="model-ribbon-card">
+            <span class="model-ribbon-name">Gemini</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
+          </div>
+          <div class="model-ribbon-card">
+            <span class="model-ribbon-name">Grok</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
+          </div>
+          <div class="model-ribbon-card">
+            <span class="model-ribbon-name">Perplexity</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
+          </div>
+          <div class="model-ribbon-card">
+            <span class="model-ribbon-name">DeepSeek</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_parametric">API · Model knowledge</span>
+          </div>
+          <div class="model-ribbon-card">
+            <span class="model-ribbon-name" data-i18n="public.landing.custom_endpoint_name">Custom OpenAI-compatible</span>
+            <span class="model-ribbon-badge" data-i18n="public.landing.custom_endpoint_badge">Bring your own endpoint</span>
+          </div>
         </div>
       </div>
+    </section>
 
-      <div class="product-shot">
-        <div class="shot-header">
-          <span class="shot-dot"></span>
-          <span class="shot-dot"></span>
-          <span class="shot-dot"></span>
+    <section class="extract-band section" id="about" aria-labelledby="about-title">
+      <div class="page-shell">
+        <div class="section-heading">
+          <h2 id="about-title" data-i18n="landing.about_title">What CiteAura is</h2>
+          <p data-i18n="landing.about_body">CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.</p>
         </div>
-        <img class="shot-img" src="/site-assets/product-tickets-real-v2.png" alt="CiteAura 工程行动票据" loading="lazy">
-        <div class="shot-caption">
-          <span class="shot-label">行动计划矩阵</span>
-          <strong>按影响 × 难度优先级排序任务，最大化优化 ROI</strong>
+
+        <div class="extract-grid">
+          <article class="extract-card">
+            <h3 data-i18n="public.landing.key_facts">Key facts</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="public.landing.fact">Fact</th>
+                  <th data-i18n="public.landing.value">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td data-i18n="public.landing.starter_trial">Starter trial length</td>
+                  <td data-i18n="public.landing.trial_days">7 days</td>
+                </tr>
+                <tr>
+                  <td data-i18n="public.landing.typical_sampling_cost">Typical API sampling cost versus Starter</td>
+                  <td data-i18n="public.landing.typical_sampling_cost_value">under 1 percent of one month</td>
+                </tr>
+                <tr>
+                  <td data-i18n="public.landing.priority_ticket_windows">Priority ticket windows</td>
+                  <td data-i18n="public.landing.priority_windows_value">30 days or 60 days</td>
+                </tr>
+                <tr>
+                  <td data-i18n="public.landing.starter_price">Starter price</td>
+                  <td data-i18n="public.landing.starter_price_value">$79 / month</td>
+                </tr>
+                <tr>
+                  <td data-i18n="public.landing.key_encryption">Key encryption</td>
+                  <td>AES-256-GCM</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="extract-note" data-i18n="public.landing.facts_note">Updated 2026-08-19. Source: CiteAura official site and published pricing.</p>
+          </article>
+
+          <article class="extract-card">
+            <h3 data-i18n="public.landing.who_for">Who it is for</h3>
+            <ul>
+              <li data-i18n="public.landing.who_for_1">Independent creators and single brands that need measurable AI visibility work</li>
+              <li data-i18n="public.landing.who_for_2">Teams that want diagnosis, assigned tickets, and verification evidence</li>
+              <li data-i18n="public.landing.who_for_3">Agencies that need white-label diagnostic packs for clients</li>
+            </ul>
+            <h3 data-i18n="public.landing.who_not_for">Who it is not for</h3>
+            <ul>
+              <li data-i18n="public.landing.who_not_for_1">Teams that only want traditional keyword rankings and click reports</li>
+              <li data-i18n="public.landing.who_not_for_2">Work without a public website that CiteAura can crawl</li>
+            </ul>
+          </article>
+        </div>
+
+        <details id="compare-title" class="extract-card extract-card-wide disclosure-card">
+          <summary><span role="heading" aria-level="2" data-i18n="public.landing.compare_title">CiteAura versus traditional SEO tools and mention dashboards</span></summary>
+          <div class="disclosure-content">
+            <p data-i18n="public.landing.compare_intro">Use this comparison when choosing alternatives. CiteAura does not guarantee mentions, rankings, or citations.</p>
+            <div class="extract-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="public.landing.dimension">Dimension</th>
+                  <th>CiteAura</th>
+                  <th data-i18n="public.landing.traditional_seo">Traditional SEO tools</th>
+                  <th data-i18n="public.landing.mention_dashboards">Mention-only AI dashboards</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td data-i18n="public.landing.what_measures">What it measures</td>
+                  <td data-i18n="public.landing.what_measures_citeaura">Citations, mentions, and visibility in generative AI engines</td>
+                  <td data-i18n="public.landing.what_measures_seo">Keyword rank and click-through</td>
+                  <td data-i18n="public.landing.what_measures_dashboards">Presence in AI answers</td>
+                </tr>
+                <tr>
+                  <td data-i18n="public.landing.primary_output">Primary output</td>
+                  <td data-i18n="public.landing.primary_output_citeaura">Site audit, action tickets, verification, delivery pack</td>
+                  <td data-i18n="public.landing.primary_output_seo">Rank and traffic reports</td>
+                  <td data-i18n="public.landing.primary_output_dashboards">Mention scores</td>
+                </tr>
+                <tr>
+                  <td data-i18n="public.landing.sampling_modes">Sampling modes</td>
+                  <td>API · Model knowledge, API · Web-grounded retrieval, Manual · Product surface</td>
+                  <td data-i18n="public.landing.not_applicable">Not applicable</td>
+                  <td data-i18n="public.landing.often_unlabeled">Often unlabeled</td>
+                </tr>
+                <tr>
+                  <td data-i18n="public.landing.official_facts_index">Official facts index</td>
+                  <td><a href="/llms.txt">/llms.txt</a></td>
+                  <td data-i18n="public.landing.sitemap_focused">Sitemap-focused</td>
+                  <td data-i18n="landing.compare_rarely_published">Rarely published</td>
+                </tr>
+                <tr>
+                  <td data-i18n="public.landing.limitation">Limitation</td>
+                  <td data-i18n="public.landing.limitation_citeaura">Does not guarantee AI mentions</td>
+                  <td data-i18n="public.landing.limitation_seo">Does not measure generative engines</td>
+                  <td data-i18n="public.landing.limitation_dashboards">Does not convert findings into assigned work</td>
+                </tr>
+              </tbody>
+            </table>
+            </div>
+          </div>
+        </details>
+
+        <details id="howto-title" class="extract-card extract-card-wide disclosure-card">
+          <summary><span role="heading" aria-level="2" data-i18n="landing.howto_title">How to run a CiteAura diagnostic</span></summary>
+          <div class="disclosure-content">
+            <ul class="extract-steps">
+            <li>
+              <span data-i18n="landing.howto_1_body">Add the official website URL and create a workspace.</span>
+            </li>
+            <li>
+              <span data-i18n="landing.howto_2_body">Review extracted brand facts and the target question set.</span>
+            </li>
+            <li>
+              <span data-i18n="landing.howto_3_body">Connect a built-in model key or a custom OpenAI-compatible endpoint.</span>
+            </li>
+            <li>
+              <span data-i18n="landing.howto_4_body">Sample labeled engines and read the site audit plus tickets.</span>
+            </li>
+            <li>
+              <span data-i18n="landing.howto_5_body">Implement changes, verify, and export the diagnostic pack.</span>
+            </li>
+            </ul>
+            <p class="extract-note">
+              <span data-i18n="landing.howto_note">Sources and definitions:</span>
+              <a href="/docs#measurement" data-i18n="landing.howto_docs">CiteAura measurement documentation</a>,
+              <a href="https://platform.openai.com/docs/bots" data-i18n="landing.howto_openai">OpenAI crawler documentation</a>,
+              <a href="https://schema.org/SoftwareApplication" data-i18n="landing.howto_schema">Schema.org SoftwareApplication</a>.
+            </p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- 01 /  -->
+    <section class="truth-band section" aria-labelledby="truth-title">
+      <div class="page-shell truth-layout reveal">
+        <div class="truth-intro">
+          <h2 id="truth-title" data-i18n="landing.truth_title">Zero guesswork. Measure real AI visibility with rigorous data boundaries.</h2>
+          <p data-i18n="landing.truth_body">AI outputs vary by knowledge source. CiteAura strictly distinguishes between parametric model memory, web-grounded retrieval, and product-surface interaction. Unmeasured engines are reported honestly—empowering marketing teams with verifiable, multi-period trendlines.</p>
+        </div>
+        
+        <div class="truth-pillars-grid">
+          <div class="truth-pillar-card reveal">
+            <div class="truth-pillar-head">
+              <span class="truth-pillar-title" data-i18n="landing.truth_engines">Full AI matrix coverage</span>
+              <span class="truth-pillar-pill" data-i18n="public.landing.truth_engines_list">OpenAI · Claude · Gemini · Grok · Perplexity · DeepSeek</span>
+            </div>
+            <p data-i18n="landing.truth_engines_dd">Unified measurement across OpenAI, Claude, Gemini, Grok, Perplexity, DeepSeek, and custom OpenAI-compatible endpoints with exact prompt tracing.</p>
+          </div>
+          
+          <div class="truth-pillar-card reveal">
+            <div class="truth-pillar-head">
+              <span class="truth-pillar-title" data-i18n="landing.truth_sampling">Multi-source sampling</span>
+              <span class="truth-pillar-pill" data-i18n="public.landing.truth_sampling_pill">API + UI Verification</span>
+            </div>
+            <p data-i18n="landing.truth_sampling_dd">Combine automated API sampling with manual product-surface checks in a single unified dashboard.</p>
+          </div>
+          
+          <div class="truth-pillar-card reveal">
+            <div class="truth-pillar-head">
+              <span class="truth-pillar-title" data-i18n="landing.truth_principle">Honest transparency</span>
+              <span class="truth-pillar-pill" data-i18n="public.landing.truth_principle_pill">Zero False Claims</span>
+            </div>
+            <p data-i18n="landing.truth_principle_dd">Unmeasured engines are never masked as 0%; every citation is grounded in reproducible prompts.</p>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<!-- Pricing -->
-<section class="pricing-section" id="pricing">
-  <div class="shell">
-    <div class="section-header">
-      <span class="section-kicker">透明定价</span>
-      <h2>选择适合你增长阶段的计划</h2>
-      <p>无隐藏费用，无 token 加价。每个计划都包含完整的审计循环、票据和交付物</p>
-    </div>
-
-    <div class="pricing-grid">
-      <div class="price-card">
-        <p class="plan-name">STARTER</p>
-        <p class="plan-price">$79<span>/月</span></p>
-        <p class="plan-desc">独立创作者和单一品牌的理想选择</p>
-        <ul class="plan-features">
-          <li>3 个活跃项目</li>
-          <li>13 个标准行动票据</li>
-          <li>验证运行和完整报告</li>
-          <li>客户交付包</li>
-        </ul>
-        <a class="btn btn-primary btn-block" href="/app?auth=register">开始 7 天试用</a>
+    <!-- 02 / 5  -->
+    <section class="agency-proof section" aria-labelledby="agency-proof-title">
+      <div class="page-shell agency-proof-layout">
+        <div><h2 id="agency-proof-title" data-i18n="landing.agency_delivery_title">White-label delivery your clients can verify</h2></div>
+        <p data-i18n="landing.agency_delivery_body">Give every client a clear evidence trail: original AI answers, prioritized tickets, acceptance criteria, deployment assets, and before/after verification—not a vague visibility score.</p>
       </div>
+    </section>
 
-      <div class="price-card featured">
-        <span class="plan-badge">最受欢迎</span>
-        <p class="plan-name">PRO</p>
-        <p class="plan-price">$199<span>/月</span></p>
-        <p class="plan-desc">增长品牌的持续多模型跟踪</p>
-        <ul class="plan-features">
-          <li>10 个活跃项目</li>
-          <li>无限 BYOK 采样</li>
-          <li>计划重采样和提及率下降警报</li>
-          <li>多引擎矩阵视图</li>
-        </ul>
-        <a class="btn btn-primary btn-block" href="/app?plan=pro">订阅 Pro 计划</a>
+    <section class="workflow section" id="workflow" aria-labelledby="workflow-title">
+      <div class="page-shell">
+        <div class="section-heading reveal">
+          <h2 id="workflow-title" data-i18n="landing.workflow_title">From domain to verifiable delivery in 5 closed-loop steps</h2>
+            <p data-i18n="landing.workflow_body">Unify AI diagnosis, strategy, engineering tickets, verification runs, and client delivery into one standard pipeline.</p>
+        </div>
+        
+        <ol class="workflow-list reveal-stagger">
+          <li class="workflow-card reveal">
+            <span class="workflow-number">01</span>
+            <h3 data-i18n="landing.workflow_1_title">Step 1. Scan & extract facts</h3>
+            <p data-i18n="landing.workflow_1_body">Crawl core site content, automatically map brand facts, competitor matrices, and target question sets.</p>
+            <div class="workflow-deliverable" data-i18n="public.landing.output_audit">Output: audit.json &amp; fact-graph</div>
+          </li>
+          
+          <li class="workflow-card reveal">
+            <span class="workflow-number">02</span>
+            <h3 data-i18n="landing.workflow_2_title">Step 2. Deep multi-model audit</h3>
+            <p data-i18n="landing.workflow_2_body">Inspect crawlability, structural semantics, extraction blocks, and authority signals across model matrices.</p>
+            <div class="workflow-deliverable" data-i18n="public.landing.output_matrix">Output: Multi-engine Visibility Matrix</div>
+          </li>
+          
+          <li class="workflow-card reveal">
+            <span class="workflow-number">03</span>
+            <h3 data-i18n="landing.workflow_3_title">Step 3. Prioritize engineering tickets</h3>
+            <p data-i18n="landing.workflow_3_body">Convert diagnosis into 13 standardized engineering tickets prioritized by Impact × Effort with clear acceptance criteria.</p>
+            <div class="workflow-deliverable" data-i18n="public.landing.output_tickets">Output: 13 Standard Action Tickets</div>
+          </li>
+          
+          <li class="workflow-card reveal">
+            <span class="workflow-number">04</span>
+            <h3 data-i18n="landing.workflow_4_title">Step 4. Re-crawl & verification runs</h3>
+            <p data-i18n="landing.workflow_4_body">Re-crawl deployed pages, compare AI sampling, and run verification explicitly when you are ready to evaluate progress.</p>
+            <div class="workflow-deliverable" data-i18n="public.landing.output_verification">Output: Verification Delta Report</div>
+          </li>
+          
+          <li class="workflow-card reveal">
+            <span class="workflow-number">05</span>
+            <h3 data-i18n="landing.workflow_5_title">Step 5. Export white-label delivery pack</h3>
+            <p data-i18n="landing.workflow_5_body">Generate executive audit decks, action matrices, ticket logs, comparisons, and assets with explicit readiness checks.</p>
+            <div class="workflow-deliverable" data-i18n="public.landing.output_delivery">Output: White-Label Delivery Pack</div>
+          </li>
+        </ol>
       </div>
+    </section>
 
-      <div class="price-card">
-        <p class="plan-name">AGENCY</p>
-        <p class="plan-price">$499<span>/月</span></p>
-        <p class="plan-desc">数字代理商的并行客户交付</p>
-        <ul class="plan-features">
-          <li>30 个活跃项目</li>
-          <li>白标客户包</li>
-          <li>团队多角色权限</li>
-          <li>白标交付品牌</li>
-        </ul>
-        <a class="btn btn-primary btn-block" href="/app?plan=agency">订阅 Agency 计划</a>
+    <!-- 03 /  -->
+    <section class="product section" id="product" aria-labelledby="product-title">
+      <div class="page-shell">
+        <div class="section-heading reveal">
+          <h2 id="product-title" data-i18n="landing.product_title">Actionable evidence and engineering next steps on one unified screen.</h2>
+          <p data-i18n="landing.product_body">Every visibility score links directly to page-level gaps; every gap maps to engineering tickets and verification history.</p>
+        </div>
+        
+        <div class="product-gallery">
+          <figure class="product-shot product-shot-main reveal">
+            <div class="shot-frame">
+              <div class="shot-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+              <img src="/site-assets/product-overview-real-v2.png" width="3838" height="1664" data-i18n-alt="landing.shot_audit_alt" alt="CiteAura live Brand Overview workspace for Stripe" loading="lazy">
+            </div>
+            <figcaption>
+              <span class="shot-label" data-i18n="landing.shot_audit">Site-wide GEO audit</span>
+              <strong data-i18n="landing.shot_audit_cap">Pinpoint extraction gaps and technical blockers preventing AI recommendations</strong>
+            </figcaption>
+          </figure>
+          
+          <figure class="product-shot product-shot-sub reveal">
+            <div class="shot-frame">
+              <div class="shot-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+              <img src="/site-assets/product-tickets-real-v2.png" width="3836" height="1660" data-i18n-alt="landing.shot_plan_alt" alt="CiteAura live Engineering Action Tickets workspace for Stripe" loading="lazy">
+            </div>
+            <figcaption>
+              <span class="shot-label" data-i18n="landing.shot_plan">Action plan matrix</span>
+              <strong data-i18n="landing.shot_plan_cap">Prioritize tasks by Impact × Effort for maximum optimization ROI</strong>
+            </figcaption>
+          </figure>
+          
+          <figure class="product-shot product-shot-sub reveal">
+            <div class="shot-frame">
+              <div class="shot-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+              <img src="/site-assets/product-delivery-real-v2.png" width="3840" height="1668" data-i18n-alt="landing.shot_report_alt" alt="CiteAura live Client Delivery Packs workspace for Stripe" loading="lazy">
+            </div>
+            <figcaption>
+              <span class="shot-label" data-i18n="landing.shot_report">Ready-to-deploy assets</span>
+              <strong data-i18n="landing.shot_report_cap">Production-ready JSON-LD, /llms.txt, and semantic blocks with clear placement guidance</strong>
+            </figcaption>
+          </figure>
+        </div>
       </div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<!-- FAQ -->
-<section class="faq-section">
-  <div class="shell">
-    <div class="section-header">
-      <span class="section-kicker">常见问题</span>
-      <h2>你需要知道的一切</h2>
-    </div>
-
-    <div class="faq-list">
-      <details class="faq-item">
-        <summary>API 样本是否匹配用户在产品 UI 中看到的内容？</summary>
-        <div class="faq-answer">
-          大多数 API 测量的是参数化模型知识，而非实时产品搜索。CiteAura 明确标记每个引擎为「API · 模型知识」、「API · Web 检索」或「手动 · 产品界面」，以确保完整的科学严谨性。
+    <!-- 05 /  BYOK -->
+    <section class="operations section" aria-labelledby="operations-title">
+      <div class="page-shell">
+        <div class="section-heading reveal">
+          <h2 id="operations-title" data-i18n="landing.ops_title">Enterprise-grade data isolation & zero model training commitment.</h2>
+          <p data-i18n="landing.ops_body">Secure tenant workspaces built for brand teams, growth consultants, and digital marketing agencies.</p>
         </div>
-      </details>
+        
+        <dl class="operations-list reveal-stagger">
+          <div class="reveal">
+            <dt data-i18n="landing.ops_byok">BYOK priority (Bring Your Own Key)</dt>
+            <dd data-i18n="landing.ops_byok_dd">Pay model providers directly with no markup; API keys encrypted with AES-256-GCM and injected only during runtime.</dd>
+          </div>
+          
+          <div class="reveal">
+            <dt data-i18n="landing.ops_tenant">Multi-tenant isolation</dt>
+            <dd data-i18n="landing.ops_tenant_dd">Project artifacts stored per tenant; team collaboration with owner, editor, and viewer permission controls.</dd>
+          </div>
+          
+          <div class="reveal">
+            <dt data-i18n="landing.ops_ssot">Open Files as Single Source of Truth</dt>
+            <dd data-i18n="landing.ops_ssot_dd">Audits, tickets, metrics, and packs stored as inspectable open files—preventing vendor lock-in.</dd>
+          </div>
+          
+          <div class="reveal">
+            <dt data-i18n="landing.ops_enterprise">Enterprise controls</dt>
+            <dd data-i18n="landing.ops_enterprise_dd">OIDC SSO and audit event logs. Technical security controls in place (CiteAura is not SOC 2 certified).</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
 
-      <details class="faq-item">
-        <summary>我必须自带模型 API 密钥（BYOK）吗？</summary>
-        <div class="faq-answer">
-          BYOK 是最安全且最具成本效益的方法。你只需配置打算使用的引擎；其他引擎会诚实显示为"未测量"。模型 API 非常实惠（单次审计通常成本约 $0.08-$0.15），无中间商加价。
+    <!-- 06 /  -->
+    <section class="pricing section" id="pricing" aria-labelledby="pricing-title">
+      <div class="page-shell">
+        <div class="pricing-head reveal">
+          <div class="section-heading">
+            <h2 id="pricing-title" data-i18n="landing.pricing_title">Choose the AI visibility plan that fits your growth</h2>
+            <p data-i18n="landing.pricing_body">Transparent pricing with no hidden token markups. Every plan includes full audit loops, tickets, and deliverables.</p>
+          </div>
+          
+          <div class="seg billing-toggle" role="group" data-i18n-aria="landing.billing_label" aria-label="Billing interval">
+            <button type="button" class="seg-opt is-active" data-billing="monthly" aria-pressed="true" data-i18n="landing.billing_monthly">Monthly</button>
+            <button type="button" class="seg-opt" data-billing="annual" aria-pressed="false" data-i18n="landing.billing_annual">Annual · save ~20%</button>
+          </div>
         </div>
-      </details>
-
-      <details class="faq-item">
-        <summary>CiteAura 能保证我的品牌被 AI 提及或排名吗？</summary>
-        <div class="faq-answer">
-          不能。任何承诺保证 AI 推荐的供应商都不诚实。CiteAura 提供严格的诊断、标准化工程票据和可重复的验证证据，帮助团队随时间改进可见性。
+        
+        <div class="pricing-grid reveal-stagger">
+          <article class="price-card reveal" data-plan-code="starter">
+            <p class="plan-name" data-i18n="public.landing.plan_starter_name">Starter</p>
+            <p class="price"><strong data-monthly="$79" data-annual="$759">$79</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
+            <p class="plan-summary" data-monthly="Ideal for indie makers & single brands" data-annual="About $63 / month billed annually" data-i18n-monthly="landing.plan_starter_summary" data-i18n-annual="landing.plan_starter_summary_annual">Ideal for indie makers & single brands</p>
+            <ul>
+              <li data-i18n="landing.plan_starter_1">3 active projects</li>
+              <li data-i18n="landing.plan_starter_2">13 standard action tickets & verification runs</li>
+              <li data-i18n="landing.plan_starter_3">Full reports & customer delivery packs</li>
+            </ul>
+            <a class="btn btn-secondary btn-block" href="/app?auth=register" data-i18n="landing.plan_starter_cta">Start 7-day trial</a>
+          </article>
+          
+          <article class="price-card price-card-featured reveal" data-plan-code="pro">
+            <p class="plan-badge" data-i18n="landing.plan_pro_badge">Most popular</p>
+            <p class="plan-name" data-i18n="public.landing.plan_pro_name">Pro</p>
+            <p class="price"><strong data-monthly="$199" data-annual="$1,910">$199</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
+            <p class="plan-summary" data-monthly="Continuous multi-model tracking for growth brands" data-annual="About $159 / month billed annually" data-i18n-monthly="landing.plan_pro_summary" data-i18n-annual="landing.plan_pro_summary_annual">Continuous multi-model tracking for growth brands</p>
+            <ul>
+              <li data-i18n="landing.plan_pro_1">10 active projects</li>
+              <li data-i18n="landing.plan_pro_2">Unlimited BYOK sampling</li>
+              <li data-i18n="landing.plan_pro_3">Scheduled re-sampling and email alerts on mention-rate drops</li>
+            </ul>
+            <a class="btn btn-primary btn-block" href="/app?plan=pro" data-i18n="landing.plan_pro_cta">Subscribe Pro</a>
+          </article>
+          
+          <article class="price-card reveal" data-plan-code="agency">
+            <p class="plan-name" data-i18n="public.landing.plan_agency_name">Agency</p>
+            <p class="price"><strong data-monthly="$499" data-annual="$4,990">$499</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
+            <p class="plan-summary" data-monthly="Parallel client delivery for digital agencies" data-annual="About $416 / month billed annually" data-i18n-monthly="landing.plan_agency_summary" data-i18n-annual="landing.plan_agency_summary_annual">Parallel client delivery for digital agencies</p>
+            <ul>
+              <li data-i18n="landing.plan_agency_1">30 active projects</li>
+              <li data-i18n="landing.plan_agency_2">One-click sendable white-label client pack</li>
+              <li data-i18n="landing.plan_agency_3">Team multi-role permissions & white-label delivery branding</li>
+            </ul>
+            <a class="btn btn-secondary btn-block" href="/app?plan=agency" data-i18n="landing.plan_agency_cta">Subscribe Agency</a>
+          </article>
+          
+          <article class="price-card reveal">
+            <p class="plan-name" data-i18n="public.landing.plan_enterprise_name">Enterprise</p>
+            <p class="price"><strong data-i18n="landing.plan_ent_price">Custom</strong></p>
+            <p class="plan-summary" data-i18n="landing.plan_ent_summary">Organization-scale private deployment</p>
+            <ul>
+              <li data-i18n="landing.plan_ent_1">Dedicated private deploy & custom SLA</li>
+              <li data-i18n="landing.plan_ent_2">Enterprise OIDC SSO & audit events</li>
+              <li data-i18n="landing.plan_ent_3">Custom data retention & dedicated support team</li>
+            </ul>
+            <a class="btn btn-secondary btn-block" href="/app?plan=enterprise" data-i18n="landing.plan_ent_cta">Request a plan</a>
+          </article>
         </div>
-      </details>
-
-      <details class="faq-item">
-        <summary>7 天免费试用包含什么？</summary>
-        <div class="faq-answer">
-          7 天免费试用包含试用工作空间配额：3 个项目、每个项目 2 次采样运行、完整报告、行动票据和交付包，无需信用卡。
-        </div>
-      </details>
-
-      <details class="faq-item">
-        <summary>CiteAura 适合向客户交付的数字营销代理商吗？</summary>
-        <div class="faq-answer">
-          绝对适合。Agency 计划专为代理商定制，包含 30 个活跃项目、团队角色权限、白标客户标题和可下载的客户就绪交付包。
-        </div>
-      </details>
-    </div>
-  </div>
-</section>
-
-<!-- Final CTA -->
-<section class="final-cta">
-  <div class="shell">
-    <h2>在 AI 搜索时代捕获高意向品牌推荐</h2>
-    <p>启动 7 天免费试用，为基于证据的 AI 可见性工作设置你的第一个品牌工作空间</p>
-
-    <div class="final-cta-actions">
-      <a class="btn btn-primary" href="/app?auth=register" style="font-size: 16px; padding: 16px 36px;">开始免费试用</a>
-      <a class="btn btn-ghost" href="/sample-report" style="font-size: 16px; padding: 16px 36px;">查看示例报告</a>
-    </div>
-  </div>
-</section>
-
-<!-- Footer -->
-<footer class="site-footer">
-  <div class="shell">
-    <div class="footer-content">
-      <div class="footer-brand">
-        <a class="brand" href="/">
-          <span class="brand-mark"></span>
-          <span>CiteAura</span>
-        </a>
-        <p class="footer-tagline">
-          下一代生成式引擎优化 (GEO) 诊断、执行和交付平台
+        
+        <p class="pricing-note reveal" style="text-align: center !important; margin-left: auto !important; margin-right: auto !important; max-width: 100% !important; display: block !important;">
+          <span data-i18n="landing.pricing_note">No guarantee of mention or ranking. AI answers are noisy; trends need multiple sampling rounds.</span> 
+          <span data-i18n="landing.pricing_currency">Prices in USD.</span>
         </p>
-        <p style="font-size: 13px; color: var(--faint);">© 2026 CiteAura</p>
       </div>
+    </section>
 
-      <div class="footer-links">
-        <a href="/docs">文档</a>
-        <a href="/blog">指南</a>
-        <a href="/methodology">方法论</a>
-        <a href="/pricing">定价</a>
-        <a href="/about">关于</a>
-        <a href="/contact">联系</a>
+    <!-- 07 / FAQ  -->
+    <section class="faq section" id="faq" aria-labelledby="faq-title">
+      <div class="page-shell">
+        <div class="section-heading reveal" style="text-align: center; margin: 0 auto var(--sp-9);">
+          <h2 id="faq-title" data-i18n="landing.faq_title">Frequently asked questions</h2>
+        </div>
+        
+        <div class="faq-list">
+          <details class="reveal">
+            <summary data-i18n="landing.faq_1_q">Do API samples match what users see in the product UI?</summary>
+            <p data-i18n="landing.faq_1_a">Most APIs measure parametric model knowledge, not live product search. CiteAura clearly labels each engine as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface for complete scientific integrity.</p>
+          </details>
+          
+          <details class="reveal">
+            <summary data-i18n="landing.faq_2_q">Must I bring my own model API keys (BYOK)?</summary>
+            <p data-i18n="landing.faq_2_a">BYOK is the most secure and cost-effective method. You only configure the engines you intend to use; others are honestly shown as unmeasured. Model APIs are extremely affordable (single audits typically cost ~$0.08–$0.15) with zero middleman markup.</p>
+          </details>
+          
+          <details class="reveal">
+            <summary data-i18n="landing.faq_3_q">Can CiteAura guarantee my brand will be ranked or mentioned by AI?</summary>
+            <p data-i18n="landing.faq_3_a">No. Any vendor promising guaranteed AI recommendations is untruthful. CiteAura provides rigorous diagnosis, standardized engineering tickets, and repeatable verification evidence to help teams improve visibility over time.</p>
+          </details>
+          
+          <details class="reveal">
+            <summary data-i18n="landing.faq_4_q">What is included in the 7-day free trial?</summary>
+            <p data-i18n="landing.faq_4_a">The 7-day free trial includes the trial workspace allocation: 3 projects, 2 sample runs per project, full reports, action tickets, and delivery packages with no credit card required.</p>
+          </details>
+          
+          <details class="reveal">
+            <summary data-i18n="landing.faq_5_q">Is CiteAura suitable for digital marketing agencies delivering to clients?</summary>
+            <p data-i18n="landing.faq_5_a">Absolutely. The Agency plan is tailored for agencies with 30 active projects, team role permissions, white-label client headers, and downloadable client-ready delivery packs.</p>
+          </details>
+        </div>
       </div>
+    </section>
 
-      <div class="footer-links">
-        <a href="/for-brands">For Brands</a>
-        <a href="/for-agencies">For Agencies</a>
-        <a href="/app?auth=login">登录</a>
-        <a href="/privacy">隐私政策</a>
-        <a href="/terms">服务条款</a>
+    <section class="blog-band section" id="blog" aria-labelledby="blog-title">
+      <div class="page-shell">
+        <div class="section-heading reveal">
+          <h2 id="blog-title" data-i18n="landing.blog_title">Guides</h2>
+          <p data-i18n="landing.blog_body">Practical notes on measuring mentions, crawl access, llms.txt, and client diagnostic packs.</p>
+        </div>
+
+        <div class="blog-preview-grid reveal-stagger">
+          <a class="blog-preview-card reveal" href="/blog/measure-if-chatgpt-mentions-your-brand">
+            <span class="blog-preview-kicker" data-i18n="public.landing.guide_measurement">Measurement</span>
+            <h3 data-i18n="public.landing.guide_measurement_title">How to Measure ChatGPT Brand Mentions</h3>
+            <p data-i18n="public.landing.guide_measurement_desc">Fix a question set, log raw answers, and keep API knowledge separate from the product UI.</p>
+          </a>
+          <a class="blog-preview-card reveal" href="/blog/why-chatgpt-does-not-mention-my-brand">
+            <span class="blog-preview-kicker" data-i18n="public.landing.guide_diagnosis">Diagnosis</span>
+            <h3 data-i18n="public.landing.guide_diagnosis_title">Why ChatGPT Does Not Mention Your Brand</h3>
+            <p data-i18n="public.landing.guide_diagnosis_desc">Separate extractability problems and thin official facts from ordinary answer noise.</p>
+          </a>
+          <a class="blog-preview-card reveal" href="/blog/gptbot-blocked-by-robots-txt">
+            <span class="blog-preview-kicker" data-i18n="public.landing.guide_crawl">Crawl access</span>
+            <h3 data-i18n="public.landing.guide_crawl_title">GPTBot Blocked by robots.txt? Find and Fix the Rule</h3>
+            <p data-i18n="public.landing.guide_crawl_desc">Find the Disallow rule, allow public product pages, and re-check the live file.</p>
+          </a>
+          <a class="blog-preview-card reveal" href="/blog/what-to-put-in-llms-txt">
+            <span class="blog-preview-kicker" data-i18n="public.landing.guide_llms">Discovery file</span>
+            <h3 data-i18n="public.landing.guide_llms_title">What to Put in llms.txt for Your Brand</h3>
+            <p data-i18n="public.landing.guide_llms_desc">Publish official facts and canonical links. Skip slogans you cannot source.</p>
+          </a>
+          <a class="blog-preview-card reveal" href="/blog/white-label-geo-diagnostic-report">
+            <span class="blog-preview-kicker" data-i18n="public.landing.guide_agency">Agency delivery</span>
+            <h3 data-i18n="public.landing.guide_agency_title">White-Label GEO Diagnostic Reports for Agencies</h3>
+            <p data-i18n="public.landing.guide_agency_desc">Send site findings, labeled samples, and tickets—not a vendor-branded guarantee slide.</p>
+          </a>
+        </div>
+
+        <p class="blog-preview-more reveal">
+          <a href="/blog" data-i18n="landing.blog_all">All guides →</a>
+        </p>
       </div>
+    </section>
+
+    <!-- 08 /  Final CTA -->
+    <section class="final-cta">
+      <div class="page-shell">
+        <div class="final-cta-shell reveal">
+          <div>
+            <h2 data-i18n="landing.final_title">Capture high-intent brand recommendations in the AI search era.</h2>
+            <p data-i18n="landing.final_desc">Start your 7-day free trial and set up your first brand workspace for evidence-based AI visibility work.</p>
+          </div>
+          
+          <div class="final-cta-actions">
+            <a class="btn btn-primary btn-lg" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
+            <a class="btn btn-secondary btn-lg" href="#simulator" data-i18n="landing.final_secondary">View setup preview</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!--  -->
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-word">CiteAura</span>
+        </a>
+        <p class="footer-tagline" data-i18n="landing.footer_tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
+        <p class="footer-copy">© 2026 CiteAura</p>
+      </div>
+      
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/docs" data-i18n="nav.docs">Docs</a>
+        <a href="/blog" data-i18n="nav.guides">Guides</a>
+        <a href="/for-agencies">For agencies</a>
+        <a href="/for-brands">For brands</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about" data-i18n="public.nav.about">About</a>
+        <a href="/contact" data-i18n="public.nav.contact">Contact</a>
+        <a href="/app?auth=login" data-i18n="nav.sign_in">Sign In</a>
+        <a href="/privacy" data-i18n="nav.privacy">Privacy Policy</a>
+        <a href="/terms" data-i18n="nav.terms">Terms of Service</a>
+      </nav>
     </div>
-  </div>
-</footer>
-
-<script defer src="/site-assets/landing-refactored.js"></script>
+  </footer>
 </body>
 </html>
