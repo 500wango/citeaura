@@ -149,55 +149,55 @@
           </tr>
         </thead>
         <tbody>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+          <tr style="border-bottom:1px solid var(--divider);">
             <td style="padding:0.75rem;"><code>OAI-SearchBot</code></td>
             <td style="padding:0.75rem;">OpenAI</td>
             <td style="padding:0.75rem;">Search indexing for ChatGPT Search &amp; SearchGPT</td>
             <td style="padding:0.75rem;">Site will not be indexed or cited in ChatGPT Search results</td>
           </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+          <tr style="border-bottom:1px solid var(--divider);">
             <td style="padding:0.75rem;"><code>ChatGPT-User</code></td>
             <td style="padding:0.75rem;">OpenAI</td>
             <td style="padding:0.75rem;">User-initiated live web browsing requests in ChatGPT</td>
             <td style="padding:0.75rem;">ChatGPT cannot browse your site when a user prompts it</td>
           </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+          <tr style="border-bottom:1px solid var(--divider);">
             <td style="padding:0.75rem;"><code>GPTBot</code></td>
             <td style="padding:0.75rem;">OpenAI</td>
             <td style="padding:0.75rem;">Automated model training data collection</td>
             <td style="padding:0.75rem;">Excluded from OpenAI foundation model training sets</td>
           </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+          <tr style="border-bottom:1px solid var(--divider);">
             <td style="padding:0.75rem;"><code>Claude-SearchBot</code></td>
             <td style="padding:0.75rem;">Anthropic</td>
             <td style="padding:0.75rem;">Search indexing and retrieval for Claude web search</td>
             <td style="padding:0.75rem;">Claude search features cannot index or surface your domain</td>
           </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+          <tr style="border-bottom:1px solid var(--divider);">
             <td style="padding:0.75rem;"><code>Claude-User</code></td>
             <td style="padding:0.75rem;">Anthropic</td>
             <td style="padding:0.75rem;">User-triggered on-demand page fetch (e.g. user submits URL)</td>
             <td style="padding:0.75rem;">Claude chat cannot read specific links provided by users</td>
           </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+          <tr style="border-bottom:1px solid var(--divider);">
             <td style="padding:0.75rem;"><code>ClaudeBot</code></td>
             <td style="padding:0.75rem;">Anthropic</td>
             <td style="padding:0.75rem;">Automated training data collection for Claude models</td>
             <td style="padding:0.75rem;">Excluded from Anthropic model training corpora</td>
           </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+          <tr style="border-bottom:1px solid var(--divider);">
             <td style="padding:0.75rem;"><code>PerplexityBot</code></td>
             <td style="padding:0.75rem;">Perplexity</td>
             <td style="padding:0.75rem;">Web search indexing &amp; answer grounding</td>
             <td style="padding:0.75rem;">Excluded from Perplexity search index and citation arrays</td>
           </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+          <tr style="border-bottom:1px solid var(--divider);">
             <td style="padding:0.75rem;"><code>Perplexity-User</code></td>
             <td style="padding:0.75rem;">Perplexity</td>
             <td style="padding:0.75rem;">User-initiated live search queries</td>
             <td style="padding:0.75rem;">Real-time query fallback cannot fetch page</td>
           </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
+          <tr style="border-bottom:1px solid var(--divider);">
             <td style="padding:0.75rem;"><code>Google-Extended</code></td>
             <td style="padding:0.75rem;">Google</td>
             <td style="padding:0.75rem;">Gemini &amp; Vertex AI model training</td>
@@ -262,7 +262,7 @@ curl -I -A "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Perpl
     <h2>Automating Crawler Health Monitoring</h2>
     <p>Crawl rules often regress during frontend redeployments or DNS migrations. CiteAura's <a href="/ai-visibility-audit">AI visibility audit</a> monitors your domain's live crawler status, alerting your engineering team when an allow rule is accidentally broken.</p>
 
-    <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
+    <p class="measurement-notice"><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
 
     <div class="blog-cta">
       <p>Audit your server's robots.txt and WAF clearance for all major AI web crawlers in under 60 seconds.</p>

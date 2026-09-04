@@ -47,6 +47,7 @@ citeaura/
 5. **产品名统一 CiteAura**。统一官网为 `citeaura.com`。
 6. **引擎测试必须保持全绿**：`cd engine && python3 -m unittest discover -s tests`。
 7. **采样模式必须标注**。UI/API 返回时标明 "API·参数化知识" 或 "API·联网检索" 或 "人工·产品端"。
+8. **数据真实与下钻溯源**。所有示例指标必须明确标注为 Demo/合成基准；所有真实指标必须能够下钻到样本（Prompt/Query）、来源（模型/版本）、采样模式和时间戳。
 
 ## 适配层要做的 5 件事
 

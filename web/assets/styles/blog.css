@@ -57,15 +57,17 @@
 }
 
 .blog-meta {
-  color: var(--muted);
+  color: var(--ink-2);
   font-size: var(--fs-2);
   font-family: var(--font-mono);
+  font-weight: 500;
 }
 
 .blog-byline {
-  color: var(--muted);
+  color: var(--ink-2);
   font-size: var(--fs-2);
   margin-top: var(--sp-2);
+  font-weight: 500;
 }
 
 .blog-article h2 {
@@ -118,6 +120,23 @@
 .blog-callout p {
   margin: 0;
   color: var(--ink);
+}
+
+.measurement-notice {
+  font-size: var(--fs-2);
+  line-height: 1.6;
+  color: var(--ink-2);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-2, var(--deep));
+  border-left: 2px solid var(--accent);
+  border-radius: var(--r-sm);
+  margin: var(--sp-6) 0;
+}
+
+.measurement-notice em {
+  font-style: normal;
+  color: var(--ink);
+  font-weight: 500;
 }
 
 .blog-cta {

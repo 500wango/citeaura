@@ -302,18 +302,29 @@
           </div>
         </div>
         
-        <!--  GEO  -->
+        <!--  GEO Console  -->
         <figure class="hero-shot">
           <div class="console-frame">
-            <div class="console-header">
-              <span class="console-crumb">citeaura / <b>yourbrand.com</b></span>
-              <div class="console-tabs" role="tablist">
-                <button type="button" class="console-tab-btn is-active" data-target="radar" data-i18n="landing.tab_radar">AI Radar</button>
-                <button type="button" class="console-tab-btn" data-target="tickets" data-i18n="landing.tab_tickets">Action Tickets</button>
-                <button type="button" class="console-tab-btn" data-target="compare" data-i18n="landing.tab_compare">Before / After</button>
-                <button type="button" class="console-tab-btn" data-target="assets" data-i18n="landing.tab_assets">Deploy Assets</button>
+            <div class="console-header-wrap">
+              <div class="console-topbar">
+                <span class="console-crumb">citeaura / <b>yourbrand.com</b></span>
+                <div class="console-health-strip" aria-label="Site health checks">
+                  <span class="health-indicator is-ok" title="Robots.txt unblocked"><span class="status-dot"></span>robots.txt 200</span>
+                  <span class="health-indicator is-ok" title="WAF policy verified"><span class="status-dot"></span>WAF clear</span>
+                  <span class="health-indicator is-ok" title="LLMs.txt detected"><span class="status-dot"></span>llms.txt</span>
+                  <span class="health-indicator is-warn" title="Schema JSON-LD gap detected"><span class="status-dot"></span>Schema gap</span>
+                </div>
+                <span class="demo-provenance-pill" title="Demo preview with synthetic baseline">[DEMO · SYNTHETIC BASELINE]</span>
               </div>
-              <div class="console-live-ping" data-i18n="public.landing.preview_live_ping_static">Example workspace preview · yourbrand.com</div>
+              <div class="console-header">
+                <div class="console-tabs" role="tablist">
+                  <button type="button" class="console-tab-btn is-active" data-target="radar" data-i18n="landing.tab_radar">AI Radar</button>
+                  <button type="button" class="console-tab-btn" data-target="tickets" data-i18n="landing.tab_tickets">Action Tickets</button>
+                  <button type="button" class="console-tab-btn" data-target="compare" data-i18n="landing.tab_compare">Before / After</button>
+                  <button type="button" class="console-tab-btn" data-target="assets" data-i18n="landing.tab_assets">Deploy Assets</button>
+                </div>
+                <div class="console-live-ping" data-i18n="public.landing.preview_live_ping_static">Example workspace preview · yourbrand.com</div>
+              </div>
             </div>
             
             <div class="console-body">
@@ -336,7 +347,14 @@
 
               <!--  (Result Action Banner) -->
               <div class="visibility-baseline" aria-label="Example visibility metrics" data-i18n-aria="public.landing.metrics_aria">
-                <div class="visibility-baseline-label" data-i18n="landing.metrics_label">Example visibility baseline · 14 valid samples · 2 platforms · API · Web-grounded retrieval · 21 Aug 2026</div>
+                <div class="wope-score-strip">
+                  <div class="wope-score-left">
+                    <span class="wope-score-num">84</span>
+                    <span class="wope-score-label">/100 Total AI Visibility</span>
+                    <span class="wope-score-delta">▲ +14% vs unoptimized</span>
+                  </div>
+                  <div class="visibility-baseline-label" data-i18n="landing.metrics_label">Example visibility baseline · 14 valid samples · 2 platforms · API · Web-grounded retrieval · 21 Aug 2026</div>
+                </div>
                 <div class="visibility-metric-grid">
                   <div><strong>0%</strong><span data-i18n="landing.metric_mention">Mention Rate</span></div>
                   <div><strong>0%</strong><span data-i18n="landing.metric_citation">Citation Rate</span></div>
@@ -352,13 +370,26 @@
                   <span class="banner-title"><strong id="banner-domain-name">yourbrand.com</strong>: <span id="banner-title-prefix" data-i18n="public.landing.preview_loaded_title">Setup preview loaded</span> <span id="banner-grade-val" data-i18n="public.landing.preview_ready">Preview ready</span></span>
                   <div id="banner-audit-details" class="audit-result-chips" aria-live="polite"></div>
                 </div>
-                <a href="/app" class="btn btn-primary btn-sm banner-action-btn" id="banner-open-app-btn">
                   <span id="banner-open-app-label" data-i18n="public.landing.preview_open_workspace">Open Workspace →</span>
                 </a>
               </div>
 
-              <!--  1：AI  -->
+              <!--  1：AI Radar & Dovetail Citation Evidence  -->
               <div class="console-panel is-active" data-panel="radar">
+                <div class="dovetail-evidence-card">
+                  <div class="dovetail-header">
+                    <span class="dovetail-query">QUERY #04: "Best Generative Engine Optimization platforms for B2B SaaS"</span>
+                    <span class="dovetail-engine-badge">Perplexity Sonar · API · Web-grounded retrieval</span>
+                  </div>
+                  <p class="dovetail-quote">
+                    "...While competitors are cited for structured brand catalogs, <mark class="dovetail-highlight">yourbrand.com is omitted because pricing and FAQ schema are unextractable</mark>."
+                  </p>
+                  <div class="dovetail-tags">
+                    <span class="dovetail-tag">#Citation-Gap</span>
+                    <span class="dovetail-tag">#Missing-FAQ-Schema</span>
+                    <span class="dovetail-tag">#Actionable-Ticket-GEO-01</span>
+                  </div>
+                </div>
                 <div class="radar-grid">
                   <div class="radar-card">
                     <div class="radar-card-head">
