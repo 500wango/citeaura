@@ -34,7 +34,7 @@ function sanitizeLandingHtml(value) {
   var THEME_COLORS = { light: '#f7f9fa', dark: '#070b0a' };
   // Product marketing pages are intentionally English-only for now.
   var LOCALES = ['en'];
-  var state = { locale: 'en', theme: 'light', billing: 'monthly', catalog: {}, fallbackCatalog: {}, literalCatalog: {}, defaults: new WeakMap(), activeDomain: 'yourbrand.com' };
+  var state = { locale: 'en', theme: 'dark', billing: 'monthly', catalog: {}, fallbackCatalog: {}, literalCatalog: {}, defaults: new WeakMap(), activeDomain: 'yourbrand.com' };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
@@ -270,7 +270,7 @@ function sanitizeLandingHtml(value) {
     var param = new URLSearchParams(location.search).get('theme');
     var saved = null;
     try { saved = localStorage.getItem('utheme'); } catch (e) {}
-    setTheme(param || saved || (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'), false);
+    setTheme(param || saved || (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'dark'), false);
     toggle = $('.theme-toggle');
     if (toggle) {
       toggle.addEventListener('click', function () {

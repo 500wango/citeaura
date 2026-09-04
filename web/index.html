@@ -8,7 +8,9 @@
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#070b0a" data-theme-color>
   <script src="/runtime-assets/theme-init.js"></script>
-  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
   <link rel="stylesheet" href="/site-assets/styles/components.css">
@@ -255,620 +257,164 @@
   </header>
 
   <main id="main">
-    <!-- Hero  -->
+    <!-- Hero -->
     <section class="hero" id="simulator" aria-labelledby="hero-title">
-      <div class="page-shell hero-layout">
-        <div class="hero-copy-block">
+      <div class="page-shell">
+        <div class="hero-center">
+
           <a class="hero-eyebrow" href="/app">
-            <span data-i18n="landing.eyebrow">Next-Gen Generative Engine Optimization (GEO)</span>
+            <span data-i18n="landing.eyebrow">Next-Gen Generative Engine Optimization</span>
           </a>
 
-          <h1 id="hero-title" data-i18n="landing.hero_title">Turn AI visibility gaps into action-ready engineering tickets.</h1>
-          
-          <p class="hero-evidence-chain" data-i18n="landing.evidence_chain">AI answer → citation gap → page change → acceptance check → re-test</p>
-          
-          <!--  -->
-          <div class="hero-scanner-box">
-            <form class="hero-scanner-form">
-              <div class="hero-scanner-input-wrap">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
-                <input type="text" class="hero-scanner-input" value="yourbrand.com" placeholder="Enter your domain (e.g. yourbrand.com)" aria-label="Website domain to audit" data-i18n-placeholder="public.landing.domain_placeholder" data-i18n-aria="public.landing.domain_aria">
-              </div>
-              <button type="submit" class="btn btn-primary hero-scanner-btn" data-i18n="landing.scan_btn">Run free technical audit →</button>
-            </form>
-            <a class="hero-sample-link" href="/sample-report" data-i18n="landing.hero_cta_secondary">View a sample report</a>
-            <div class="hero-scanner-presets">
-              <span data-i18n="landing.presets_label">Example domains:</span>
-              <button type="button" class="preset-pill" data-domain="stripe.com">stripe.com</button>
-              <button type="button" class="preset-pill" data-domain="linear.app">linear.app</button>
-              <button type="button" class="preset-pill" data-domain="supabase.com">supabase.com</button>
-              <button type="button" class="preset-pill" data-domain="yourbrand.com">yourbrand.com</button>
-            </div>
+          <h1 id="hero-title" data-i18n="landing.hero_title">Turn AI visibility gaps into engineering tickets.</h1>
+
+          <p class="hero-subtitle" data-i18n="landing.hero_subtitle">Measure real AI citations, diagnose extraction gaps, get prioritized tickets, and verify fixes with reproducible evidence.</p>
+
+          <div class="hero-actions">
+            <a class="btn btn-primary btn-lg" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
+            <a class="btn btn-secondary btn-lg" href="/sample-report" data-i18n="landing.hero_secondary">View sample report</a>
           </div>
-          
-          <div class="hero-trust-row">
-            <div class="hero-trust-item">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-              <span data-i18n="landing.trust_tickets">13 Standard Action Tickets</span>
+
+          <div class="hero-trust-labels">
+            <span class="trust-label">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+              Free 7-day trial
+            </span>
+            <span class="trust-label">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              100% BYOK
+            </span>
+            <span class="trust-label">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              Evidence-based
+            </span>
+          </div>
+
+        </div>
+
+        <!-- Product Preview -->
+        <div class="hero-product-preview">
+          <div class="preview-card">
+            <div class="preview-header">
+              <div class="preview-dots">
+                <i></i><i></i><i></i>
+              </div>
+              <span class="preview-title">Brand Overview · yourbrand.com</span>
             </div>
-            <div class="hero-trust-item">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              <span data-i18n="landing.trust_byok">100% BYOK Native</span>
-            </div>
-            <div class="hero-trust-item">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-              <span data-i18n="landing.trust_evidence">100% Traceable Evidence</span>
+            <div class="preview-content">
+              <div class="preview-section">
+                <div class="preview-label">MENTION RATE</div>
+                <div class="preview-metric">68<span>%</span></div>
+              </div>
+              <div class="preview-section">
+                <div class="preview-label">CITATION GAP MATRIX</div>
+                <div class="preview-mini-table">
+                  <div class="mini-row">
+                    <span>GPT-4o</span>
+                    <span class="mini-badge miss">3 gaps</span>
+                  </div>
+                  <div class="mini-row">
+                    <span>Claude 3.7</span>
+                    <span class="mini-badge hit">2 cited</span>
+                  </div>
+                  <div class="mini-row">
+                    <span>Gemini 2.0</span>
+                    <span class="mini-badge miss">4 gaps</span>
+                  </div>
+                </div>
+              </div>
+              <div class="preview-section">
+                <div class="preview-label">TOP PRIORITY TICKET</div>
+                <div class="preview-ticket">
+                  <div class="ticket-id">GEO-01</div>
+                  <div class="ticket-title">Inject Schema.org Product Graph</div>
+                  <div class="ticket-badges">
+                    <span class="ticket-badge p0">P0</span>
+                    <span class="ticket-badge impact">High Impact</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        
-        <!--  GEO Console  -->
-        <figure class="hero-shot">
-          <div class="console-frame">
-            <div class="console-header-wrap">
-              <div class="console-topbar">
-                <span class="console-crumb">citeaura / <b>yourbrand.com</b></span>
-                <div class="console-health-strip" aria-label="Site 6-dimension health checks">
-                  <span class="health-indicator is-ok" title="Robots.txt unblocked"><span class="status-dot"></span>robots.txt 200</span>
-                  <span class="health-indicator is-ok" title="WAF crawler policy"><span class="status-dot"></span>WAF clear</span>
-                  <span class="health-indicator is-ok" title="LLMs.txt detected"><span class="status-dot"></span>llms.txt</span>
-                  <span class="health-indicator is-warn" title="Schema JSON-LD gap detected"><span class="status-dot"></span>Schema gap</span>
-                  <span class="health-indicator is-ok" title="Brand facts library verified"><span class="status-dot"></span>Brand facts</span>
-                  <span class="health-indicator is-ok" title="AI extraction clean"><span class="status-dot"></span>Crawl clean</span>
-                </div>
-                <span class="demo-provenance-pill" title="Demo preview with synthetic baseline">[DEMO · SYNTHETIC BASELINE]</span>
-              </div>
-              <div class="console-header">
-                <div class="console-tabs" role="tablist">
-                  <button type="button" class="console-tab-btn is-active" data-target="summary" data-i18n="landing.tab_summary">Executive Summary</button>
-                  <button type="button" class="console-tab-btn" data-target="radar" data-i18n="landing.tab_radar">AI Radar</button>
-                  <button type="button" class="console-tab-btn" data-target="tickets" data-i18n="landing.tab_tickets">Action Tickets</button>
-                  <button type="button" class="console-tab-btn" data-target="compare" data-i18n="landing.tab_compare">Before / After</button>
-                  <button type="button" class="console-tab-btn" data-target="assets" data-i18n="landing.tab_assets">Deploy Assets</button>
-                </div>
-                <div class="console-live-ping" data-i18n="public.landing.preview_live_ping_static">Example workspace preview · yourbrand.com</div>
-              </div>
-            </div>
-            
-            <div class="console-body">
-              <!-- Example onboarding overlay -->
-              <div class="console-scan-overlay" id="console-scanner">
-                <div class="scan-overlay-head">
-                  <div class="scan-status-text">
-                    <strong class="scan-domain-title" data-i18n="public.landing.preview_preparing_static">Preparing yourbrand.com workspace...</strong>
-                    <span class="scan-sub-status" data-i18n="public.landing.preview_sub_status">This preview shows the setup flow. Full audits run inside the product workspace.</span>
-                  </div>
-                  <span class="scan-pct" id="scan-pct-val">0%</span>
-                </div>
-                <div class="scan-progress-bar">
-                  <div class="scan-progress-fill" id="scan-progress-fill"></div>
-                </div>
-                <div class="scan-terminal-log" id="scan-terminal-log">
-                  <div class="log-line" data-i18n="public.landing.preview_log_open">▶ Opening guided workspace setup preview...</div>
-                </div>
-              </div>
 
-              <div class="console-result-banner is-hidden" id="console-result-banner">
-                <div class="banner-info">
-                  <span class="banner-badge" data-i18n="public.landing.preview_only_badge">Preview only — continue in workspace</span>
-                  <span class="banner-title"><strong id="banner-domain-name">yourbrand.com</strong>: <span id="banner-title-prefix" data-i18n="public.landing.preview_loaded_title">Setup preview loaded</span> <span id="banner-grade-val" data-i18n="public.landing.preview_ready">Preview ready</span></span>
-                  <div id="banner-audit-details" class="audit-result-chips" aria-live="polite"></div>
-                </div>
-                <a href="/app" class="btn btn-primary btn-sm banner-action-btn" id="banner-open-app-btn">
-                  <span id="banner-open-app-label" data-i18n="public.landing.preview_open_workspace">Open Workspace →</span>
-                </a>
-              </div>
-
-              <!-- Panel 0: Flagship Executive Report Summary (Wope + Dovetail + Linear) -->
-              <div class="console-panel is-active" data-panel="summary">
-                <!-- Wope Dark Data Panel (Score & 5 Core Ratios) -->
-                <div class="visibility-baseline" aria-label="Example visibility metrics" data-i18n-aria="public.landing.metrics_aria">
-                  <div class="wope-score-strip">
-                    <div class="wope-score-left">
-                      <span class="wope-score-num">84</span>
-                      <span class="wope-score-label">/100 Total AI Visibility</span>
-                      <span class="wope-score-delta">▲ +14% vs unoptimized</span>
-                    </div>
-                    <div class="visibility-baseline-label" data-i18n="landing.metrics_label">Example visibility baseline · 14 valid samples · 4 platforms · API · Web-grounded retrieval · 2026-09-05 UTC</div>
-                  </div>
-                  <div class="visibility-metric-grid">
-                    <div><strong>68%</strong><span data-i18n="landing.metric_mention">Mention Rate</span></div>
-                    <div><strong>78%</strong><span data-i18n="landing.metric_citation">Citation Rate</span></div>
-                    <div><strong>94%</strong><span data-i18n="landing.metric_prompt">Prompt Coverage</span></div>
-                    <div><strong>22%</strong><span data-i18n="landing.metric_competitor">Competitor Gap</span></div>
-                    <div><strong>4</strong><span data-i18n="landing.metric_platform">Platform Coverage</span></div>
-                  </div>
-                </div>
-
-                <!-- Bento Split: Dovetail Citation Evidence + Linear Asks Action Tickets -->
-                <div class="bento-split-grid">
-                  <!-- Dovetail Evidence Card -->
-                  <div class="bento-dovetail-card">
-                    <div class="dovetail-header">
-                      <span class="dovetail-query-badge">
-                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        QUERY #04: "Best GEO platforms for B2B SaaS"
-                      </span>
-                      <span class="dovetail-engine-badge">Perplexity Sonar · API · Web-grounded</span>
-                    </div>
-                    <div class="dovetail-body">
-                      <p class="dovetail-quote">
-                        "...While competitors are cited for structured brand catalogs, <mark class="dovetail-highlight">yourbrand.com is omitted because pricing and FAQ schema are unextractable</mark>."
-                      </p>
-                    </div>
-                    <div class="dovetail-footer">
-                      <div class="dovetail-tags">
-                        <span class="dovetail-tag tag-gap">#Citation-Gap</span>
-                        <span class="dovetail-tag">#Missing-FAQ-Schema</span>
-                        <span class="dovetail-tag">#Ticket-GEO-01</span>
-                      </div>
-                      <span class="dovetail-provenance">Trace: prompt_04 · sonar-pro · 2026-09-05 UTC</span>
-                    </div>
-                  </div>
-
-                  <!-- Linear Asks Action Tickets -->
-                  <div class="bento-linear-card">
-                    <div class="linear-card-header">
-                      <span class="linear-title">Actionable Engineering Tickets</span>
-                      <span class="linear-count">2 Pending Verification</span>
-                    </div>
-                    <div class="linear-ticket-list">
-                      <div class="linear-ticket-item">
-                        <div class="linear-ticket-left">
-                          <span class="linear-priority p0">P0</span>
-                          <span class="linear-ticket-id">GEO-01</span>
-                          <span class="linear-ticket-title">Inject Schema JSON-LD Knowledge Graph</span>
-                        </div>
-                        <div class="linear-ticket-right">
-                          <span class="linear-status-badge ready">Ready to verify</span>
-                        </div>
-                      </div>
-                      <div class="linear-ticket-item">
-                        <div class="linear-ticket-left">
-                          <span class="linear-priority p1">P1</span>
-                          <span class="linear-ticket-id">GEO-03</span>
-                          <span class="linear-ticket-title">Deploy /llms.txt Machine Ingestion File</span>
-                        </div>
-                        <div class="linear-ticket-right">
-                          <span class="linear-status-badge passed">Passed</span>
-                        </div>
-                      </div>
-                      <div class="linear-ticket-item">
-                        <div class="linear-ticket-left">
-                          <span class="linear-priority p1">P1</span>
-                          <span class="linear-ticket-id">GEO-10</span>
-                          <span class="linear-ticket-title">AI Crawler WAF Directives &amp; Robots</span>
-                        </div>
-                        <div class="linear-ticket-right">
-                          <span class="linear-status-badge ready">Ready to verify</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Bento Footer Note & Direct Links -->
-                <div class="bento-report-footer">
-                  <span class="bento-footer-note">⚡ 13 tickets generated · All outputs linked to ground-truth AI traces</span>
-                  <div style="display:flex;align-items:center;gap:8px;">
-                    <a href="/sample-report" class="btn btn-secondary btn-sm hero-sample-link" data-i18n="landing.view_sample">View a sample report →</a>
-                    <a href="/app" class="btn btn-primary btn-sm">Open Workspace →</a>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Panel 1：AI Radar -->
-              <div class="console-panel" data-panel="radar">
-                <div class="dovetail-evidence-card">
-                  <div class="dovetail-header">
-                    <span class="dovetail-query">QUERY #04: "Best Generative Engine Optimization platforms for B2B SaaS"</span>
-                    <span class="dovetail-engine-badge">Perplexity Sonar · API · Web-grounded retrieval</span>
-                  </div>
-                  <p class="dovetail-quote">
-                    "...While competitors are cited for structured brand catalogs, <mark class="dovetail-highlight">yourbrand.com is omitted because pricing and FAQ schema are unextractable</mark>."
-                  </p>
-                  <div class="dovetail-tags">
-                    <span class="dovetail-tag">#Citation-Gap</span>
-                    <span class="dovetail-tag">#Missing-FAQ-Schema</span>
-                    <span class="dovetail-tag">#Actionable-Ticket-GEO-01</span>
-                  </div>
-                </div>
-                <div class="radar-grid">
-                  <div class="radar-card">
-                    <div class="radar-card-head">
-                      <span class="radar-engine-name">DeepSeek-V4 / R1</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="deepseek" data-i18n="public.landing.radar_deepseek_badge">Example API trace</span>
-                    </div>
-                    <div class="radar-bar-track">
-                      <div class="radar-bar-fill" data-radar-bar="deepseek" style="width: 68%"></div>
-                    </div>
-                    <div class="radar-meta-row">
-                      <span data-i18n="landing.mode_parametric">API · Model knowledge</span>
-                      <strong data-radar-val="deepseek" data-i18n="literal.e2d7b87a0545">Prompt log</strong>
-                    </div>
-                  </div>
-                  
-                  <div class="radar-card">
-                    <div class="radar-card-head">
-                      <span class="radar-engine-name">OpenAI GPT-5.6 (Sol / Terra)</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="chatgpt" data-i18n="public.landing.radar_chatgpt_badge">Example grounded run</span>
-                    </div>
-                    <div class="radar-bar-track">
-                      <div class="radar-bar-fill" data-radar-bar="chatgpt" style="width: 72%"></div>
-                    </div>
-                    <div class="radar-meta-row">
-                      <span data-i18n="public.landing.radar_chatgpt_mode">API · Web-grounded retrieval example</span>
-                      <strong data-radar-val="chatgpt" data-i18n="public.landing.radar_source_links">Source links</strong>
-                    </div>
-                  </div>
-                  
-                  <div class="radar-card">
-                    <div class="radar-card-head">
-                      <span class="radar-engine-name">Claude Sonnet 5 / Opus 5</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="claude" data-i18n="public.landing.radar_claude_badge">Example answer replay</span>
-                    </div>
-                    <div class="radar-bar-track">
-                      <div class="radar-bar-fill" data-radar-bar="claude" style="width: 64%"></div>
-                    </div>
-                    <div class="radar-meta-row">
-                      <span data-i18n="public.landing.radar_claude_mode">API · Response replay example</span>
-                      <strong data-radar-val="claude" data-i18n="public.landing.radar_answer_diff">Answer diff</strong>
-                    </div>
-                  </div>
-                  
-                  <div class="radar-card">
-                    <div class="radar-card-head">
-                      <span class="radar-engine-name">Google Gemini 3.6 Flash / 3.1 Pro</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="gemini" data-i18n="public.landing.radar_gemini_badge">Example retrieval view</span>
-                    </div>
-                    <div class="radar-bar-track">
-                      <div class="radar-bar-fill" data-radar-bar="gemini" style="width: 58%"></div>
-                    </div>
-                    <div class="radar-meta-row">
-                      <span data-i18n="public.landing.radar_gemini_mode">API · Retrieval notes example</span>
-                      <strong data-radar-val="gemini" data-i18n="public.landing.radar_crawl_notes">Crawl notes</strong>
-                    </div>
-                  </div>
-                  
-                  <div class="radar-card">
-                    <div class="radar-card-head">
-                      <span class="radar-engine-name">xAI Grok 4</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="grok" data-i18n="public.landing.radar_grok_badge">Example search replay</span>
-                    </div>
-                    <div class="radar-bar-track">
-                      <div class="radar-bar-fill" data-radar-bar="grok" style="width: 61%"></div>
-                    </div>
-                    <div class="radar-meta-row">
-                      <span data-i18n="public.landing.radar_grok_mode">API · Web-grounded retrieval example</span>
-                      <strong data-radar-val="grok" data-i18n="public.landing.radar_search_notes">Search notes</strong>
-                    </div>
-                  </div>
-                  
-                  <div class="radar-card">
-                    <div class="radar-card-head">
-                      <span class="radar-engine-name">Perplexity Sonar 2 (Deep Research)</span>
-                      <span class="radar-badge radar-badge-good" data-radar-badge="perplexity" data-i18n="public.landing.radar_perplexity_badge">Example research replay</span>
-                    </div>
-                    <div class="radar-bar-track">
-                      <div class="radar-bar-fill" data-radar-bar="perplexity" style="width: 76%"></div>
-                    </div>
-                    <div class="radar-meta-row">
-                      <span data-i18n="public.landing.radar_perplexity_mode">API · Research replay example</span>
-                      <strong data-radar-val="perplexity" data-i18n="public.landing.radar_citation_trail">Citation trail</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <!--  2：13  -->
-              <div class="console-panel" data-panel="tickets">
-                <div class="tickets-preview-list">
-                  <div class="ticket-preview-item">
-                    <div class="ticket-preview-info">
-                      <span class="ticket-id">GEO-01</span>
-                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo01">Inject Schema.org JSON-LD Knowledge Graph</span>
-                    </div>
-                    <span class="ticket-chip chip-high" data-i18n="public.landing.impact_high">Impact: High</span>
-                  </div>
-                  <div class="ticket-preview-item">
-                    <div class="ticket-preview-info">
-                      <span class="ticket-id">GEO-03</span>
-                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo03">Deploy /llms.txt Machine Ingestion File</span>
-                    </div>
-                    <span class="ticket-chip chip-quick" data-i18n="public.landing.effort_quick">Effort: Quick</span>
-                  </div>
-                  <div class="ticket-preview-item">
-                    <div class="ticket-preview-info">
-                      <span class="ticket-id">GEO-05</span>
-                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo05">Competitor Differentiation Feature Matrix</span>
-                    </div>
-                    <span class="ticket-chip chip-high" data-i18n="public.landing.impact_high">Impact: High</span>
-                  </div>
-                  <div class="ticket-preview-item">
-                    <div class="ticket-preview-info">
-                      <span class="ticket-id">GEO-07</span>
-                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo07">Semantic Headings &amp; Fact Extraction Blocks</span>
-                    </div>
-                    <span class="ticket-chip chip-quick" data-i18n="public.landing.effort_medium">Effort: Medium</span>
-                  </div>
-                  <div class="ticket-preview-item">
-                    <div class="ticket-preview-info">
-                      <span class="ticket-id">GEO-10</span>
-                      <span class="ticket-title-text" data-i18n="public.landing.ticket_geo10">AI Crawler WAF Bypass &amp; Robots.txt Directives</span>
-                    </div>
-                    <span class="ticket-chip chip-high" data-i18n="public.landing.impact_high">Impact: High</span>
-                  </div>
-                </div>
-              </div>
-              
-              <!--  3： -->
-              <div class="console-panel" data-panel="compare">
-                <div class="compare-sim-grid">
-                  <div class="compare-sim-box compare-sim-before">
-                    <div class="compare-sim-title" data-i18n="public.landing.compare_before_title">✕ Before CiteAura GEO</div>
-                    <p><strong data-i18n="public.landing.compare_prompt_label">User Prompt:</strong> <span data-i18n="public.landing.compare_prompt">"What are the best platforms for modern generative search optimization?"</span></p>
-                    <p style="color: var(--bad);"><strong data-i18n="public.landing.compare_output_label">AI Output:</strong> <span data-i18n="public.landing.compare_before_output">"There are several legacy SEO tools, but I don't have verified data on this domain's core capabilities or pricing structure."</span></p>
-                  </div>
-                  <div class="compare-sim-box compare-sim-after">
-                    <div class="compare-sim-title" data-i18n="public.landing.compare_after_title">✓ After guided remediation</div>
-                    <p><strong data-i18n="public.landing.compare_prompt_label">User Prompt:</strong> <span data-i18n="public.landing.compare_prompt">"What are the best platforms for modern generative search optimization?"</span></p>
-                    <p style="color: var(--good);"><strong data-i18n="public.landing.compare_output_label">AI Output:</strong> <span data-i18n="public.landing.compare_after_output">"The official site now exposes clearer product definitions, structured facts, and sourceable deployment assets for retrieval."</span></p>
-                  </div>
-                </div>
-              </div>
-              
-              <!--  4： -->
-              <div class="console-panel" data-panel="assets">
-                <div class="code-action-bar">
-                  <span style="font-family: var(--font-mono); font-size: 11px; color: var(--accent);">/llms.txt</span>
-                  <button type="button" class="code-copy-btn" data-i18n="public.landing.copy_code">Copy Code</button>
-                </div>
-                <div class="code-preview-box">
-                  <pre><code># CiteAura Machine Ingestion Guide
-# Title: CiteAura Next-Gen GEO Platform
-# Summary: Evidence-based Generative Engine Optimization SaaS
-
-## Brand Identity & Canonical Facts
-- Product: CiteAura
-- URL: https://citeaura.com
-- Classification: Next-Gen Generative Engine Optimization (GEO)
-- Supported 2026 Models: OpenAI GPT-5.6, Claude Sonnet 5, Gemini 3.6 Flash, Grok 4, Perplexity Sonar 2, DeepSeek-V4
-- Architecture: 100% BYOK Native, Multi-tenant Isolated, Open Files SSOT
-- Core Pipeline: Setup -> Multi-Model Audit -> Action Tickets -> Verification -> Delivery Pack</code></pre>
-                </div>
-              </div>
-            </div>
-            
-            <figcaption class="hero-modes" data-i18n-aria="landing.modes_label" aria-label="Supported sampling modes">
-              <span class="modes-note" data-i18n="landing.modes_note">Scientific rigor · Sampling method labeled</span>
-              <span class="mode-chip" data-i18n="landing.mode_parametric">API · Model knowledge</span>
-              <span class="mode-chip" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
-              <span class="mode-chip" data-i18n="landing.mode_manual">Manual · Product surface</span>
-            </figcaption>
-          </div>
-        </figure>
       </div>
     </section>
 
-    <!--  -->
-    <section class="model-matrix-ribbon" aria-label="Supported AI Search Engines" data-i18n-aria="public.landing.models_aria">
-      <div class="page-shell">
-        <p class="ribbon-head" data-i18n="landing.models_head">Continuous Multi-Model Matrix Measurement</p>
-        <span class="sr-only" data-i18n="public.landing.models_count">6 API engines + 9 product surfaces + custom</span>
-        <div class="ribbon-grid">
-          <div class="model-ribbon-card">
-            <span class="model-ribbon-name">OpenAI</span>
-            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
-          </div>
-          <div class="model-ribbon-card">
-            <span class="model-ribbon-name">Claude</span>
-            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
-          </div>
-          <div class="model-ribbon-card">
-            <span class="model-ribbon-name">Gemini</span>
-            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
-          </div>
-          <div class="model-ribbon-card">
-            <span class="model-ribbon-name">Grok</span>
-            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
-          </div>
-          <div class="model-ribbon-card">
-            <span class="model-ribbon-name">Perplexity</span>
-            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
-          </div>
-          <div class="model-ribbon-card">
-            <span class="model-ribbon-name">DeepSeek</span>
-            <span class="model-ribbon-badge" data-i18n="landing.mode_parametric">API · Model knowledge</span>
-          </div>
-          <div class="model-ribbon-card">
-            <span class="model-ribbon-name" data-i18n="public.landing.custom_endpoint_name">Custom OpenAI-compatible</span>
-            <span class="model-ribbon-badge" data-i18n="public.landing.custom_endpoint_badge">Bring your own endpoint</span>
-          </div>
-        </div>
-      </div>
-    </section>
 
-    <section class="extract-band section" id="about" aria-labelledby="about-title">
+    <!-- Core Value Bento Grid -->
+    <section class="section bento-section" id="core-value" aria-labelledby="value-title">
       <div class="page-shell">
         <div class="section-heading">
-          <h2 id="about-title" data-i18n="landing.about_title">What CiteAura is</h2>
-          <p data-i18n="landing.about_body">CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.</p>
+          <p class="section-index">Core Value</p>
+          <h2 id="value-title">Evidence-based AI visibility with zero guesswork.</h2>
+          <p>Measure real citations, diagnose gaps, get engineering tickets, verify changes.</p>
         </div>
 
-        <div class="extract-grid">
-          <article class="extract-card">
-            <h3 data-i18n="public.landing.key_facts">Key facts</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th data-i18n="public.landing.fact">Fact</th>
-                  <th data-i18n="public.landing.value">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td data-i18n="public.landing.starter_trial">Starter trial length</td>
-                  <td data-i18n="public.landing.trial_days">7 days</td>
-                </tr>
-                <tr>
-                  <td data-i18n="public.landing.typical_sampling_cost">Typical API sampling cost versus Starter</td>
-                  <td data-i18n="public.landing.typical_sampling_cost_value">under 1 percent of one month</td>
-                </tr>
-                <tr>
-                  <td data-i18n="public.landing.priority_ticket_windows">Priority ticket windows</td>
-                  <td data-i18n="public.landing.priority_windows_value">30 days or 60 days</td>
-                </tr>
-                <tr>
-                  <td data-i18n="public.landing.starter_price">Starter price</td>
-                  <td data-i18n="public.landing.starter_price_value">$79 / month</td>
-                </tr>
-                <tr>
-                  <td data-i18n="public.landing.key_encryption">Key encryption</td>
-                  <td>AES-256-GCM</td>
-                </tr>
-              </tbody>
-            </table>
-            <p class="extract-note" data-i18n="public.landing.facts_note">Updated 2026-08-19. Source: CiteAura official site and published pricing.</p>
+        <div class="bento-grid">
+          <!-- Card 1: Evidence (1×2 tall) -->
+          <article class="bento-card bento-1x2 bento-evidence">
+            <div class="bento-quote-header">
+              <span class="bento-query-badge">QUERY #04: "Best GEO platforms for B2B SaaS"</span>
+              <span class="bento-engine-badge">Perplexity Sonar · API</span>
+            </div>
+            <blockquote class="bento-quote">
+              "...While competitors are cited for structured brand catalogs, <mark>yourbrand.com is omitted because pricing and FAQ schema are unextractable</mark>."
+            </blockquote>
+            <div class="bento-quote-footer">
+              <span>#Citation-Gap</span>
+              <span>#Ticket-GEO-01</span>
+            </div>
           </article>
 
-          <article class="extract-card">
-            <h3 data-i18n="public.landing.who_for">Who it is for</h3>
-            <ul>
-              <li data-i18n="public.landing.who_for_1">Independent creators and single brands that need measurable AI visibility work</li>
-              <li data-i18n="public.landing.who_for_2">Teams that want diagnosis, assigned tickets, and verification evidence</li>
-              <li data-i18n="public.landing.who_for_3">Agencies that need white-label diagnostic packs for clients</li>
-            </ul>
-            <h3 data-i18n="public.landing.who_not_for">Who it is not for</h3>
-            <ul>
-              <li data-i18n="public.landing.who_not_for_1">Teams that only want traditional keyword rankings and click reports</li>
-              <li data-i18n="public.landing.who_not_for_2">Work without a public website that CiteAura can crawl</li>
+          <!-- Card 2: What It Is (2×1 wide) -->
+          <article class="bento-card bento-2x1">
+            <h3>What CiteAura does</h3>
+            <ul class="bento-list">
+              <li>Measure AI citations across 6+ engines with labeled sampling</li>
+              <li>Convert diagnosis into 13 standardized engineering tickets</li>
+              <li>Verify fixes with before/after evidence and delivery packs</li>
             </ul>
           </article>
-        </div>
 
-        <details id="compare-title" class="extract-card extract-card-wide disclosure-card">
-          <summary><span role="heading" aria-level="2" data-i18n="public.landing.compare_title">CiteAura versus traditional SEO tools and mention dashboards</span></summary>
-          <div class="disclosure-content">
-            <p data-i18n="public.landing.compare_intro">Use this comparison when choosing alternatives. CiteAura does not guarantee mentions, rankings, or citations.</p>
-            <div class="extract-table-wrap">
-            <table>
+          <!-- Card 3: Mention Rate Metric (1×1) -->
+          <article class="bento-card bento-1x1 bento-metric">
+            <div class="bento-metric-value">68%</div>
+            <div class="bento-metric-label">Mention Rate</div>
+            <div class="bento-metric-sub">Typical optimized baseline</div>
+          </article>
+
+          <!-- Card 4: Matrix Preview (2×1 wide) -->
+          <article class="bento-card bento-2x1">
+            <h3>Gap Matrix Preview</h3>
+            <table class="bento-matrix">
               <thead>
-                <tr>
-                  <th data-i18n="public.landing.dimension">Dimension</th>
-                  <th>CiteAura</th>
-                  <th data-i18n="public.landing.traditional_seo">Traditional SEO tools</th>
-                  <th data-i18n="public.landing.mention_dashboards">Mention-only AI dashboards</th>
-                </tr>
+                <tr><th>Question</th><th>GPT</th><th>Claude</th><th>Gemini</th></tr>
               </thead>
               <tbody>
-                <tr>
-                  <td data-i18n="public.landing.what_measures">What it measures</td>
-                  <td data-i18n="public.landing.what_measures_citeaura">Citations, mentions, and visibility in generative AI engines</td>
-                  <td data-i18n="public.landing.what_measures_seo">Keyword rank and click-through</td>
-                  <td data-i18n="public.landing.what_measures_dashboards">Presence in AI answers</td>
-                </tr>
-                <tr>
-                  <td data-i18n="public.landing.primary_output">Primary output</td>
-                  <td data-i18n="public.landing.primary_output_citeaura">Site audit, action tickets, verification, delivery pack</td>
-                  <td data-i18n="public.landing.primary_output_seo">Rank and traffic reports</td>
-                  <td data-i18n="public.landing.primary_output_dashboards">Mention scores</td>
-                </tr>
-                <tr>
-                  <td data-i18n="public.landing.sampling_modes">Sampling modes</td>
-                  <td>API · Model knowledge, API · Web-grounded retrieval, Manual · Product surface</td>
-                  <td data-i18n="public.landing.not_applicable">Not applicable</td>
-                  <td data-i18n="public.landing.often_unlabeled">Often unlabeled</td>
-                </tr>
-                <tr>
-                  <td data-i18n="public.landing.official_facts_index">Official facts index</td>
-                  <td><a href="/llms.txt">/llms.txt</a></td>
-                  <td data-i18n="public.landing.sitemap_focused">Sitemap-focused</td>
-                  <td data-i18n="landing.compare_rarely_published">Rarely published</td>
-                </tr>
-                <tr>
-                  <td data-i18n="public.landing.limitation">Limitation</td>
-                  <td data-i18n="public.landing.limitation_citeaura">Does not guarantee AI mentions</td>
-                  <td data-i18n="public.landing.limitation_seo">Does not measure generative engines</td>
-                  <td data-i18n="public.landing.limitation_dashboards">Does not convert findings into assigned work</td>
-                </tr>
+                <tr><td>Best CRM for startups</td><td>✗</td><td>✗</td><td>✓</td></tr>
+                <tr><td>CRM alternatives to Salesforce</td><td>✗</td><td>✓</td><td>✗</td></tr>
+                <tr><td>Cheapest CRM 2026</td><td>✗</td><td>✗</td><td>✗</td></tr>
               </tbody>
             </table>
+          </article>
+
+          <!-- Card 5: Ticket Preview (1×1) -->
+          <article class="bento-card bento-1x1">
+            <span class="bento-ticket-id">GEO-01</span>
+            <h3>Inject Schema.org Graph</h3>
+            <div class="bento-ticket-meta">
+              <span class="bento-priority">P0</span>
+              <span class="bento-impact">Impact: High</span>
             </div>
-          </div>
-        </details>
+          </article>
 
-        <details id="howto-title" class="extract-card extract-card-wide disclosure-card">
-          <summary><span role="heading" aria-level="2" data-i18n="landing.howto_title">How to run a CiteAura diagnostic</span></summary>
-          <div class="disclosure-content">
-            <ul class="extract-steps">
-            <li>
-              <span data-i18n="landing.howto_1_body">Add the official website URL and create a workspace.</span>
-            </li>
-            <li>
-              <span data-i18n="landing.howto_2_body">Review extracted brand facts and the target question set.</span>
-            </li>
-            <li>
-              <span data-i18n="landing.howto_3_body">Connect a built-in model key or a custom OpenAI-compatible endpoint.</span>
-            </li>
-            <li>
-              <span data-i18n="landing.howto_4_body">Sample labeled engines and read the site audit plus tickets.</span>
-            </li>
-            <li>
-              <span data-i18n="landing.howto_5_body">Implement changes, verify, and export the diagnostic pack.</span>
-            </li>
-            </ul>
-            <p class="extract-note">
-              <span data-i18n="landing.howto_note">Sources and definitions:</span>
-              <a href="/docs#measurement" data-i18n="landing.howto_docs">CiteAura measurement documentation</a>,
-              <a href="https://platform.openai.com/docs/bots" data-i18n="landing.howto_openai">OpenAI crawler documentation</a>,
-              <a href="https://schema.org/SoftwareApplication" data-i18n="landing.howto_schema">Schema.org SoftwareApplication</a>.
-            </p>
-          </div>
-        </details>
-      </div>
-    </section>
-
-    <!-- 01 /  -->
-    <section class="truth-band section" aria-labelledby="truth-title">
-      <div class="page-shell truth-layout reveal">
-        <div class="truth-intro">
-          <h2 id="truth-title" data-i18n="landing.truth_title">Zero guesswork. Measure real AI visibility with rigorous data boundaries.</h2>
-          <p data-i18n="landing.truth_body">AI outputs vary by knowledge source. CiteAura strictly distinguishes between parametric model memory, web-grounded retrieval, and product-surface interaction. Unmeasured engines are reported honestly—empowering marketing teams with verifiable, multi-period trendlines.</p>
+          <!-- Card 6: Honest Measurement (1×1) -->
+          <article class="bento-card bento-1x1">
+            <h3>Zero Guesswork</h3>
+            <p>Every citation is grounded in reproducible prompts. Unmeasured engines are labeled honestly—not masked as 0%.</p>
+          </article>
         </div>
-        
-        <div class="truth-pillars-grid">
-          <div class="truth-pillar-card reveal">
-            <div class="truth-pillar-head">
-              <span class="truth-pillar-title" data-i18n="landing.truth_engines">Full AI matrix coverage</span>
-              <span class="truth-pillar-pill" data-i18n="public.landing.truth_engines_list">OpenAI · Claude · Gemini · Grok · Perplexity · DeepSeek</span>
-            </div>
-            <p data-i18n="landing.truth_engines_dd">Unified measurement across OpenAI, Claude, Gemini, Grok, Perplexity, DeepSeek, and custom OpenAI-compatible endpoints with exact prompt tracing.</p>
-          </div>
-          
-          <div class="truth-pillar-card reveal">
-            <div class="truth-pillar-head">
-              <span class="truth-pillar-title" data-i18n="landing.truth_sampling">Multi-source sampling</span>
-              <span class="truth-pillar-pill" data-i18n="public.landing.truth_sampling_pill">API + UI Verification</span>
-            </div>
-            <p data-i18n="landing.truth_sampling_dd">Combine automated API sampling with manual product-surface checks in a single unified dashboard.</p>
-          </div>
-          
-          <div class="truth-pillar-card reveal">
-            <div class="truth-pillar-head">
-              <span class="truth-pillar-title" data-i18n="landing.truth_principle">Honest transparency</span>
-              <span class="truth-pillar-pill" data-i18n="public.landing.truth_principle_pill">Zero False Claims</span>
-            </div>
-            <p data-i18n="landing.truth_principle_dd">Unmeasured engines are never masked as 0%; every citation is grounded in reproducible prompts.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 02 / 5  -->
-    <section class="agency-proof section" aria-labelledby="agency-proof-title">
-      <div class="page-shell agency-proof-layout">
-        <div><h2 id="agency-proof-title" data-i18n="landing.agency_delivery_title">White-label delivery your clients can verify</h2></div>
-        <p data-i18n="landing.agency_delivery_body">Give every client a clear evidence trail: original AI answers, prioritized tickets, acceptance criteria, deployment assets, and before/after verification—not a vague visibility score.</p>
       </div>
     </section>
 
@@ -890,21 +436,21 @@
           <li class="workflow-card reveal">
             <span class="workflow-number">02</span>
             <h3 data-i18n="landing.workflow_2_title">Step 2. Deep multi-model audit</h3>
-            <p data-i18n="landing.workflow_2_body">Inspect crawlability, structural semantics, extraction blocks, and authority signals across model matrices.</p>
+            <p data-i18n="landing.workflow_2_body">Inspect crawlability and extraction blocks across all configured engines.</p>
             <div class="workflow-deliverable" data-i18n="public.landing.output_matrix">Output: Multi-engine Visibility Matrix</div>
           </li>
           
           <li class="workflow-card reveal">
             <span class="workflow-number">03</span>
             <h3 data-i18n="landing.workflow_3_title">Step 3. Prioritize engineering tickets</h3>
-            <p data-i18n="landing.workflow_3_body">Convert diagnosis into 13 standardized engineering tickets prioritized by Impact × Effort with clear acceptance criteria.</p>
+            <p data-i18n="landing.workflow_3_body">Convert diagnosis into 13 standardized tickets prioritized by Impact × Effort.</p>
             <div class="workflow-deliverable" data-i18n="public.landing.output_tickets">Output: 13 Standard Action Tickets</div>
           </li>
           
           <li class="workflow-card reveal">
             <span class="workflow-number">04</span>
             <h3 data-i18n="landing.workflow_4_title">Step 4. Re-crawl & verification runs</h3>
-            <p data-i18n="landing.workflow_4_body">Re-crawl deployed pages, compare AI sampling, and run verification explicitly when you are ready to evaluate progress.</p>
+            <p data-i18n="landing.workflow_4_body">Re-crawl deployed pages and run verification when ready to evaluate progress.</p>
             <div class="workflow-deliverable" data-i18n="public.landing.output_verification">Output: Verification Delta Report</div>
           </li>
           
@@ -964,37 +510,6 @@
     </section>
 
     <!-- 05 /  BYOK -->
-    <section class="operations section" aria-labelledby="operations-title">
-      <div class="page-shell">
-        <div class="section-heading reveal">
-          <h2 id="operations-title" data-i18n="landing.ops_title">Enterprise-grade data isolation & zero model training commitment.</h2>
-          <p data-i18n="landing.ops_body">Secure tenant workspaces built for brand teams, growth consultants, and digital marketing agencies.</p>
-        </div>
-        
-        <dl class="operations-list reveal-stagger">
-          <div class="reveal">
-            <dt data-i18n="landing.ops_byok">BYOK priority (Bring Your Own Key)</dt>
-            <dd data-i18n="landing.ops_byok_dd">Pay model providers directly with no markup; API keys encrypted with AES-256-GCM and injected only during runtime.</dd>
-          </div>
-          
-          <div class="reveal">
-            <dt data-i18n="landing.ops_tenant">Multi-tenant isolation</dt>
-            <dd data-i18n="landing.ops_tenant_dd">Project artifacts stored per tenant; team collaboration with owner, editor, and viewer permission controls.</dd>
-          </div>
-          
-          <div class="reveal">
-            <dt data-i18n="landing.ops_ssot">Open Files as Single Source of Truth</dt>
-            <dd data-i18n="landing.ops_ssot_dd">Audits, tickets, metrics, and packs stored as inspectable open files—preventing vendor lock-in.</dd>
-          </div>
-          
-          <div class="reveal">
-            <dt data-i18n="landing.ops_enterprise">Enterprise controls</dt>
-            <dd data-i18n="landing.ops_enterprise_dd">OIDC SSO and audit event logs. Technical security controls in place (CiteAura is not SOC 2 certified).</dd>
-          </div>
-        </dl>
-      </div>
-    </section>
-
     <!-- 06 /  -->
     <section class="pricing section" id="pricing" aria-labelledby="pricing-title">
       <div class="page-shell">
@@ -1082,11 +597,6 @@
           </details>
           
           <details class="reveal">
-            <summary data-i18n="landing.faq_2_q">Must I bring my own model API keys (BYOK)?</summary>
-            <p data-i18n="landing.faq_2_a">BYOK is the most secure and cost-effective method. You only configure the engines you intend to use; others are honestly shown as unmeasured. Model APIs are extremely affordable (single audits typically cost ~$0.08–$0.15) with zero middleman markup.</p>
-          </details>
-          
-          <details class="reveal">
             <summary data-i18n="landing.faq_3_q">Can CiteAura guarantee my brand will be ranked or mentioned by AI?</summary>
             <p data-i18n="landing.faq_3_a">No. Any vendor promising guaranteed AI recommendations is untruthful. CiteAura provides rigorous diagnosis, standardized engineering tickets, and repeatable verification evidence to help teams improve visibility over time.</p>
           </details>
@@ -1101,47 +611,6 @@
             <p data-i18n="landing.faq_5_a">Absolutely. The Agency plan is tailored for agencies with 30 active projects, team role permissions, white-label client headers, and downloadable client-ready delivery packs.</p>
           </details>
         </div>
-      </div>
-    </section>
-
-    <section class="blog-band section" id="blog" aria-labelledby="blog-title">
-      <div class="page-shell">
-        <div class="section-heading reveal">
-          <h2 id="blog-title" data-i18n="landing.blog_title">Guides</h2>
-          <p data-i18n="landing.blog_body">Practical notes on measuring mentions, crawl access, llms.txt, and client diagnostic packs.</p>
-        </div>
-
-        <div class="blog-preview-grid reveal-stagger">
-          <a class="blog-preview-card reveal" href="/blog/measure-if-chatgpt-mentions-your-brand">
-            <span class="blog-preview-kicker" data-i18n="public.landing.guide_measurement">Measurement</span>
-            <h3 data-i18n="public.landing.guide_measurement_title">How to Measure ChatGPT Brand Mentions</h3>
-            <p data-i18n="public.landing.guide_measurement_desc">Fix a question set, log raw answers, and keep API knowledge separate from the product UI.</p>
-          </a>
-          <a class="blog-preview-card reveal" href="/blog/why-chatgpt-does-not-mention-my-brand">
-            <span class="blog-preview-kicker" data-i18n="public.landing.guide_diagnosis">Diagnosis</span>
-            <h3 data-i18n="public.landing.guide_diagnosis_title">Why ChatGPT Does Not Mention Your Brand</h3>
-            <p data-i18n="public.landing.guide_diagnosis_desc">Separate extractability problems and thin official facts from ordinary answer noise.</p>
-          </a>
-          <a class="blog-preview-card reveal" href="/blog/gptbot-blocked-by-robots-txt">
-            <span class="blog-preview-kicker" data-i18n="public.landing.guide_crawl">Crawl access</span>
-            <h3 data-i18n="public.landing.guide_crawl_title">GPTBot Blocked by robots.txt? Find and Fix the Rule</h3>
-            <p data-i18n="public.landing.guide_crawl_desc">Find the Disallow rule, allow public product pages, and re-check the live file.</p>
-          </a>
-          <a class="blog-preview-card reveal" href="/blog/what-to-put-in-llms-txt">
-            <span class="blog-preview-kicker" data-i18n="public.landing.guide_llms">Discovery file</span>
-            <h3 data-i18n="public.landing.guide_llms_title">What to Put in llms.txt for Your Brand</h3>
-            <p data-i18n="public.landing.guide_llms_desc">Publish official facts and canonical links. Skip slogans you cannot source.</p>
-          </a>
-          <a class="blog-preview-card reveal" href="/blog/white-label-geo-diagnostic-report">
-            <span class="blog-preview-kicker" data-i18n="public.landing.guide_agency">Agency delivery</span>
-            <h3 data-i18n="public.landing.guide_agency_title">White-Label GEO Diagnostic Reports for Agencies</h3>
-            <p data-i18n="public.landing.guide_agency_desc">Send site findings, labeled samples, and tickets—not a vendor-branded guarantee slide.</p>
-          </a>
-        </div>
-
-        <p class="blog-preview-more reveal">
-          <a href="/blog" data-i18n="landing.blog_all">All guides →</a>
-        </p>
       </div>
     </section>
 
