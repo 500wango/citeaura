@@ -1,0 +1,55 @@
+/* CiteAura Landing - Critical CSS for Above-the-Fold Content */
+/* This file can be inlined in <head> for better FCP */
+
+:root {
+  --sig: #22e3a6;
+  --sig-deep: #0aa87d;
+  --sig-dim: #123227;
+  --ink: #eef4f1;
+  --ink-2: #a9bab3;
+  --bg: #070b0a;
+  --panel: #0d1512;
+  --line: #1c2b25;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(7, 11, 10, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+
+.hero {
+  padding: 96px 32px 64px;
+  position: relative;
+}
+
+.hero h1 {
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0 0 24px;
+  text-align: center;
+}
+
+.btn-primary {
+  background: var(--sig);
+  color: #04140f;
+  padding: 16px 36px;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-block;
+}
