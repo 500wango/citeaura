@@ -130,6 +130,13 @@ scripts/acceptance.py --base-url https://your-domain.example --production
 
 数据库每日备份由宿主机 `/usr/local/sbin/citeaura-postgres-backup` 执行，cron 时刻为 03:17，保留 14 天且备份文件权限为 600。`/var/backups/citeaura/` 仍属于本机故障域，必须复制到异机或对象存储。
 
+可将仓库内的只读检查脚本接入 cron、systemd timer 或监控探针；它会检查最近 dump 的新鲜度、`600` 权限和 custom-format 可读性，失败时返回非零状态：
+
+```bash
+BACKUP_DIR=/var/backups/citeaura/daily MAX_AGE_HOURS=26 \
+  scripts/verify-postgres-backup.sh
+```
+
 ## 平台管理员密码恢复
 
 生产管理员密码必须在正在运行的 API 容器内重置，确保命令使用与线上 API 完全相同的 `.env.production` 和数据库。不要在生产宿主机直接运行本地 `reset-admin-password` 目标。

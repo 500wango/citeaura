@@ -63,6 +63,8 @@ def retry_project_job(
         _error(status.HTTP_409_CONFLICT, "job_not_failed")
     if source.action not in RETRYABLE_ACTIONS:
         _error(status.HTTP_409_CONFLICT, "job_retry_not_supported")
+    if int(source.attempt or 1) >= MAX_JOB_ATTEMPTS:
+        _error(status.HTTP_409_CONFLICT, "job_retry_attempt_limit")
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     if source.action == "sample":

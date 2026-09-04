@@ -52,6 +52,16 @@ def test_deploy_script_leaves_tls_to_host_caddy():
     assert '--profile local-postgres' in deploy
 
 
+def test_backup_verification_script_checks_freshness_permissions_and_restore_readability():
+    script = ROOT / "scripts/verify-postgres-backup.sh"
+    assert os.access(script, os.X_OK)
+    text = script.read_text("utf-8")
+    assert "MAX_AGE_HOURS" in text
+    assert "stat -c '%a'" in text
+    assert 'mode 600' in text
+    assert "pg_restore --list" in text
+
+
 def test_long_revision_expands_alembic_version_before_schema_changes():
     migration = (ROOT / "api/migrations/versions/0011_session_and_project_lifecycle.py").read_text("utf-8")
 

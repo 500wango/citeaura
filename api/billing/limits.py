@@ -31,8 +31,19 @@ def _iso(value):
 
 def _row_sampled(action, request_json):
     """判断轻量查询行是否包含实际采样。"""
-    if action in ("sample", "sample-import"):
+    if action == "sample":
         return True
+    if action == "sample-import":
+        try:
+            payload = json.loads(request_json or "{}")
+        except (TypeError, ValueError):
+            payload = {}
+        # 旧导入 Job 没有 sample_count，按历史行为视为一次有效导入。
+        value = payload.get("sample_count", 1)
+        try:
+            return int(value or 0) > 0
+        except (TypeError, ValueError):
+            return True
     if action not in ("cycle", "autopilot", "serve", "bootstrap"):
         return False
     try:
@@ -56,11 +67,8 @@ def _count_sampled_jobs(db, *, project_id=None, tenant_id=None, created_from=Non
         query = query.filter(Job.created_at >= created_from)
     if created_to is not None:
         query = query.filter(Job.created_at < created_to)
-    direct_count = query.filter(Job.action.in_(("sample", "sample-import"))).count()
-    conditional_rows = query.filter(Job.action.in_(("cycle", "autopilot", "serve", "bootstrap"))).with_entities(
-        Job.action, Job.request_json,
-    ).all()
-    return direct_count + sum(1 for action, request_json in conditional_rows if _row_sampled(action, request_json))
+    rows = query.with_entities(Job.action, Job.request_json).all()
+    return sum(1 for action, request_json in rows if _row_sampled(action, request_json))
 
 
 def activation_funnel(db: Session, tenant: Tenant) -> dict:

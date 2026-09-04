@@ -232,6 +232,56 @@ def test_started_failed_sample_still_counts_against_trial_quota(billing_client):
         assert _count_sampled_jobs(db, project_id=project.id) == 1
 
 
+def test_empty_sample_import_does_not_consume_trial_quota(billing_client):
+    _, session_factory = billing_client
+    with session_factory() as db:
+        tenant = Tenant(name="empty-import", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="empty-import-project",
+            url="https://empty-import.example",
+            market="both",
+        )
+        db.add(project)
+        db.flush()
+        db.add(Job(
+            project_id=project.id,
+            action="sample-import",
+            status="done",
+            request_json=json.dumps({"source": "manual", "sample_count": 0}),
+        ))
+        db.commit()
+
+        assert _count_sampled_jobs(db, project_id=project.id) == 0
+
+
+def test_malformed_sample_import_count_is_conservative(billing_client):
+    _, session_factory = billing_client
+    with session_factory() as db:
+        tenant = Tenant(name="malformed-import", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="malformed-import-project",
+            url="https://malformed-import.example",
+            market="both",
+        )
+        db.add(project)
+        db.flush()
+        db.add(Job(
+            project_id=project.id,
+            action="sample-import",
+            status="done",
+            request_json=json.dumps({"sample_count": "unknown"}),
+        ))
+        db.commit()
+
+        assert _count_sampled_jobs(db, project_id=project.id) == 1
+
+
 def test_trial_sample_limit_is_per_project(billing_client, monkeypatch):
     client, session_factory = billing_client
     headers = _register(client, "owner@example.com")

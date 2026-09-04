@@ -1,5 +1,6 @@
 """问题库、资产、事实库和内容工作台 API。"""
 
+import json
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -464,6 +465,7 @@ def import_project_samples(
         db.delete(job)
         db.commit()
         raise
+    job.request_json = json.dumps({"source": "manual", "sample_count": int(metrics.get("sample_count", 0) or 0)})
     job.status = "done"
     job.stage = "complete"
     job.progress = 100
@@ -514,6 +516,7 @@ def import_product_surface_samples(
         db.delete(job)
         db.commit()
         raise
+    job.request_json = json.dumps({"source": "product_surface", "sample_count": int(metrics.get("sample_count", 0) or 0)})
     job.status = "done"
     job.stage = "complete"
     job.progress = 100

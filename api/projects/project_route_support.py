@@ -37,6 +37,7 @@ from api import config
 from api.models import Job, Project, PublicAudit, Tenant, User
 from api.product_events import record_product_event
 from api.worker.tasks import (
+    MAX_JOB_ATTEMPTS,
     task_bootstrap,
     task_cycle,
     task_deliver,

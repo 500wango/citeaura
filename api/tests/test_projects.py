@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import CustomProvider, Job, Tenant
+from api.models import CustomProvider, Job, Project, Tenant
 from api.projects import router as project_router
 from api.adapters import engine as engine_adapter, sampling_control
 from api.adapters.network import validate_outbound_url as real_validate_outbound_url
@@ -756,6 +756,42 @@ def test_sampling_budget_blocks_direct_pipeline_retry_and_schedule(project_clien
     )
     assert retry.status_code == 409
     assert retry.json()["error"] == "sample_call_limit_exceeded"
+
+
+def test_retry_rejects_job_attempt_limit(project_client, monkeypatch):
+    client, session_factory = project_client
+    headers = _register(client, "retry-limit@example.com")
+    with session_factory() as db:
+        tenant = db.query(Tenant).one()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="retry-limit",
+            url="https://retry-limit.example",
+            market="both",
+            status="failed",
+        )
+        db.add(project)
+        db.flush()
+        source = Job(
+            project_id=project.id,
+            action="verify",
+            status="failed",
+            attempt=3,
+            request_json="{}",
+        )
+        db.add(source)
+        db.commit()
+        project_id, source_id = project.id, source.id
+
+    monkeypatch.setattr(project_router.task_verify, "delay", lambda *args, **kwargs: pytest.fail("retry should be blocked"))
+    response = client.post(
+        f"/api/v1/projects/{project_id}/jobs/{source_id}/retry",
+        headers=headers,
+    )
+    assert response.status_code == 409
+    assert response.json()["error"] == "job_retry_attempt_limit"
+    with session_factory() as db:
+        assert db.query(Job).filter(Job.project_id == project_id).count() == 1
 
 
 @contextmanager
