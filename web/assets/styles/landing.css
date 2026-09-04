@@ -529,6 +529,231 @@ h1 {
   padding: 1px 5px; border-radius: var(--r-sm);
 }
 
+/* ============ Flagship Bento Report Summary ============ */
+.bento-report-summary {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--divider); border-radius: var(--r-lg);
+  background: var(--surface); box-shadow: 0 16px 40px rgba(0,0,0,0.24);
+  overflow: hidden;
+}
+
+.bento-report-header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: 10px 16px; background: color-mix(in srgb, var(--deep) 75%, var(--surface));
+  border-bottom: 1px solid var(--line); flex-wrap: wrap;
+}
+.bento-report-brand {
+  display: flex; align-items: center; gap: 8px;
+}
+.report-status-pulse {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--good); box-shadow: 0 0 8px var(--good);
+  animation: pulse-dot 2s infinite ease-in-out;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.bento-wope-grid {
+  display: grid; grid-template-columns: 140px 170px 1fr;
+  gap: 1px; background: var(--line); border-bottom: 1px solid var(--line);
+}
+@media (max-width: 900px) {
+  .bento-wope-grid { grid-template-columns: 1fr; }
+}
+.bento-card {
+  background: var(--surface); padding: 12px 14px;
+}
+.bento-card-label {
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+  margin-bottom: 6px;
+}
+.bento-score-val-wrap {
+  display: flex; align-items: baseline; gap: 2px;
+}
+.bento-score-val {
+  font-family: var(--font-mono); font-size: 2.2rem; font-weight: 700;
+  line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums;
+}
+.bento-score-denom {
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-weight: 500;
+}
+.bento-score-trend {
+  display: flex; align-items: center; gap: 5px; margin-top: 6px;
+}
+.trend-pill {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--good) 28%, transparent);
+  padding: 1px 6px; border-radius: var(--r-pill);
+}
+.trend-sub {
+  font-size: 10px; color: var(--muted);
+}
+.bento-metric-val {
+  font-family: var(--font-mono); font-size: 1.6rem; font-weight: 700;
+  line-height: 1.1; color: var(--ink);
+}
+.bento-metric-sub {
+  font-size: 11px; color: var(--ink-2); margin-top: 3px;
+}
+.bento-provenance-tag {
+  display: inline-block; margin-top: 6px; font-family: var(--font-mono);
+  font-size: 9.5px; color: var(--faint);
+}
+.bento-rates-card {
+  padding: 10px 14px; display: flex; flex-direction: column; justify-content: center;
+}
+.bento-rates-card .visibility-baseline {
+  background: transparent; border-top: none; padding: 0; margin: 0;
+}
+
+/* Bento Split Grid (Dovetail + Linear side by side) */
+.bento-split-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  margin: var(--sp-3) 0;
+  background: var(--deep);
+}
+@media (max-width: 860px) {
+  .bento-split-grid { grid-template-columns: 1fr; }
+}
+.bento-split-grid .bento-dovetail-card {
+  border-bottom: none;
+  border-right: 1px solid var(--line);
+  margin: 0;
+}
+@media (max-width: 860px) {
+  .bento-split-grid .bento-dovetail-card {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+}
+.bento-split-grid .bento-linear-card {
+  border-bottom: none;
+  margin: 0;
+}
+
+/* Dovetail Evidence */
+.bento-dovetail-card {
+  padding: 14px 16px; border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--deep) 35%, var(--surface));
+}
+.dovetail-header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  margin-bottom: 8px; flex-wrap: wrap;
+}
+.dovetail-query-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  color: var(--accent);
+}
+.dovetail-engine-badge {
+  font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+  background: var(--surface); border: 1px solid var(--line);
+  padding: 2px 7px; border-radius: var(--r-sm);
+}
+.dovetail-body { margin-bottom: 8px; }
+.dovetail-quote {
+  font-size: 12.5px; line-height: 1.6; color: var(--ink-2); margin: 0;
+  border-left: 2px solid var(--accent); padding-left: 10px;
+}
+.dovetail-highlight {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--ink); font-weight: 600; padding: 1px 4px; border-radius: 2px;
+}
+.dovetail-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  flex-wrap: wrap; margin-top: 6px;
+}
+.dovetail-tags { display: flex; gap: 5px; }
+.dovetail-tag {
+  font-family: var(--font-mono); font-size: 9.5px; padding: 1px 6px;
+  border-radius: var(--r-sm); background: var(--surface); border: 1px solid var(--line);
+  color: var(--muted);
+}
+.dovetail-tag.tag-gap {
+  color: var(--bad); border-color: color-mix(in srgb, var(--bad) 35%, transparent);
+  background: color-mix(in srgb, var(--bad) 8%, transparent);
+}
+.dovetail-provenance {
+  font-family: var(--font-mono); font-size: 10px; color: var(--faint);
+}
+
+/* Linear Asks Tickets */
+.bento-linear-card {
+  padding: 12px 16px; border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.linear-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.linear-title {
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+}
+.linear-count {
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); font-weight: 500;
+}
+.linear-ticket-list {
+  display: grid; gap: 6px;
+}
+.linear-ticket-item {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: 7px 10px; border-radius: var(--r-sm);
+  background: var(--deep); border: 1px solid var(--line);
+}
+.linear-ticket-left {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+}
+.linear-priority {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+  padding: 1px 5px; border-radius: 2px; flex: none;
+}
+.linear-priority.p0 {
+  background: color-mix(in srgb, var(--bad) 15%, transparent);
+  color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent);
+}
+.linear-priority.p1 {
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+  color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+}
+.linear-ticket-id {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--muted); flex: none;
+}
+.linear-ticket-title {
+  font-size: 12px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.linear-ticket-right { flex: none; }
+.linear-status-badge {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  padding: 2px 7px; border-radius: var(--r-sm);
+}
+.linear-status-badge.ready {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.linear-status-badge.passed {
+  background: color-mix(in srgb, var(--good) 12%, transparent);
+  color: var(--good); border: 1px solid color-mix(in srgb, var(--good) 30%, transparent);
+}
+
+.bento-report-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: 10px 16px; background: color-mix(in srgb, var(--deep) 60%, var(--surface));
+  flex-wrap: wrap;
+}
+.bento-footer-note {
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+}
+.bento-action-btn { flex: none; }
+
 /* ============ 通用区块 ============ */
 .section { padding: var(--sp-11) 0; border-bottom: 1px solid var(--line); }
 .page-shell { max-width: var(--shell); margin: 0 auto; padding: 0 var(--sp-6); }

@@ -1265,6 +1265,8 @@
   "literal.3188af42d0d2": "작업 공간을 만들",
   "literal.15eaf8d58b11": "오픈 작업 공간",
   "landing.presets_label": "예시 도메인:",
+  "landing.tab_summary": "보고서 요약",
+  "landing.view_sample": "샘플 보고서 보기 →",
   "landing.tab_radar": "AI 레이더",
   "landing.tab_tickets": "액션 티켓",
   "landing.tab_compare": "최적화 전후 비교",

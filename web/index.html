@@ -308,17 +308,20 @@
             <div class="console-header-wrap">
               <div class="console-topbar">
                 <span class="console-crumb">citeaura / <b>yourbrand.com</b></span>
-                <div class="console-health-strip" aria-label="Site health checks">
+                <div class="console-health-strip" aria-label="Site 6-dimension health checks">
                   <span class="health-indicator is-ok" title="Robots.txt unblocked"><span class="status-dot"></span>robots.txt 200</span>
-                  <span class="health-indicator is-ok" title="WAF policy verified"><span class="status-dot"></span>WAF clear</span>
+                  <span class="health-indicator is-ok" title="WAF crawler policy"><span class="status-dot"></span>WAF clear</span>
                   <span class="health-indicator is-ok" title="LLMs.txt detected"><span class="status-dot"></span>llms.txt</span>
                   <span class="health-indicator is-warn" title="Schema JSON-LD gap detected"><span class="status-dot"></span>Schema gap</span>
+                  <span class="health-indicator is-ok" title="Brand facts library verified"><span class="status-dot"></span>Brand facts</span>
+                  <span class="health-indicator is-ok" title="AI extraction clean"><span class="status-dot"></span>Crawl clean</span>
                 </div>
                 <span class="demo-provenance-pill" title="Demo preview with synthetic baseline">[DEMO · SYNTHETIC BASELINE]</span>
               </div>
               <div class="console-header">
                 <div class="console-tabs" role="tablist">
-                  <button type="button" class="console-tab-btn is-active" data-target="radar" data-i18n="landing.tab_radar">AI Radar</button>
+                  <button type="button" class="console-tab-btn is-active" data-target="summary" data-i18n="landing.tab_summary">Executive Summary</button>
+                  <button type="button" class="console-tab-btn" data-target="radar" data-i18n="landing.tab_radar">AI Radar</button>
                   <button type="button" class="console-tab-btn" data-target="tickets" data-i18n="landing.tab_tickets">Action Tickets</button>
                   <button type="button" class="console-tab-btn" data-target="compare" data-i18n="landing.tab_compare">Before / After</button>
                   <button type="button" class="console-tab-btn" data-target="assets" data-i18n="landing.tab_assets">Deploy Assets</button>
@@ -345,37 +348,117 @@
                 </div>
               </div>
 
-              <!--  (Result Action Banner) -->
-              <div class="visibility-baseline" aria-label="Example visibility metrics" data-i18n-aria="public.landing.metrics_aria">
-                <div class="wope-score-strip">
-                  <div class="wope-score-left">
-                    <span class="wope-score-num">84</span>
-                    <span class="wope-score-label">/100 Total AI Visibility</span>
-                    <span class="wope-score-delta">▲ +14% vs unoptimized</span>
-                  </div>
-                  <div class="visibility-baseline-label" data-i18n="landing.metrics_label">Example visibility baseline · 14 valid samples · 2 platforms · API · Web-grounded retrieval · 21 Aug 2026</div>
-                </div>
-                <div class="visibility-metric-grid">
-                  <div><strong>0%</strong><span data-i18n="landing.metric_mention">Mention Rate</span></div>
-                  <div><strong>0%</strong><span data-i18n="landing.metric_citation">Citation Rate</span></div>
-                  <div><strong>71%</strong><span data-i18n="landing.metric_prompt">Prompt Coverage</span></div>
-                  <div><strong>42%</strong><span data-i18n="landing.metric_competitor">Competitor Gap</span></div>
-                  <div><strong>2</strong><span data-i18n="landing.metric_platform">Platform Coverage</span></div>
-                </div>
-              </div>
-
               <div class="console-result-banner is-hidden" id="console-result-banner">
                 <div class="banner-info">
                   <span class="banner-badge" data-i18n="public.landing.preview_only_badge">Preview only — continue in workspace</span>
                   <span class="banner-title"><strong id="banner-domain-name">yourbrand.com</strong>: <span id="banner-title-prefix" data-i18n="public.landing.preview_loaded_title">Setup preview loaded</span> <span id="banner-grade-val" data-i18n="public.landing.preview_ready">Preview ready</span></span>
                   <div id="banner-audit-details" class="audit-result-chips" aria-live="polite"></div>
                 </div>
+                <a href="/app" class="btn btn-primary btn-sm banner-action-btn" id="banner-open-app-btn">
                   <span id="banner-open-app-label" data-i18n="public.landing.preview_open_workspace">Open Workspace →</span>
                 </a>
               </div>
 
-              <!--  1：AI Radar & Dovetail Citation Evidence  -->
-              <div class="console-panel is-active" data-panel="radar">
+              <!-- Panel 0: Flagship Executive Report Summary (Wope + Dovetail + Linear) -->
+              <div class="console-panel is-active" data-panel="summary">
+                <!-- Wope Dark Data Panel (Score & 5 Core Ratios) -->
+                <div class="visibility-baseline" aria-label="Example visibility metrics" data-i18n-aria="public.landing.metrics_aria">
+                  <div class="wope-score-strip">
+                    <div class="wope-score-left">
+                      <span class="wope-score-num">84</span>
+                      <span class="wope-score-label">/100 Total AI Visibility</span>
+                      <span class="wope-score-delta">▲ +14% vs unoptimized</span>
+                    </div>
+                    <div class="visibility-baseline-label" data-i18n="landing.metrics_label">Example visibility baseline · 14 valid samples · 4 platforms · API · Web-grounded retrieval · 2026-09-05 UTC</div>
+                  </div>
+                  <div class="visibility-metric-grid">
+                    <div><strong>68%</strong><span data-i18n="landing.metric_mention">Mention Rate</span></div>
+                    <div><strong>78%</strong><span data-i18n="landing.metric_citation">Citation Rate</span></div>
+                    <div><strong>94%</strong><span data-i18n="landing.metric_prompt">Prompt Coverage</span></div>
+                    <div><strong>22%</strong><span data-i18n="landing.metric_competitor">Competitor Gap</span></div>
+                    <div><strong>4</strong><span data-i18n="landing.metric_platform">Platform Coverage</span></div>
+                  </div>
+                </div>
+
+                <!-- Bento Split: Dovetail Citation Evidence + Linear Asks Action Tickets -->
+                <div class="bento-split-grid">
+                  <!-- Dovetail Evidence Card -->
+                  <div class="bento-dovetail-card">
+                    <div class="dovetail-header">
+                      <span class="dovetail-query-badge">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        QUERY #04: "Best GEO platforms for B2B SaaS"
+                      </span>
+                      <span class="dovetail-engine-badge">Perplexity Sonar · API · Web-grounded</span>
+                    </div>
+                    <div class="dovetail-body">
+                      <p class="dovetail-quote">
+                        "...While competitors are cited for structured brand catalogs, <mark class="dovetail-highlight">yourbrand.com is omitted because pricing and FAQ schema are unextractable</mark>."
+                      </p>
+                    </div>
+                    <div class="dovetail-footer">
+                      <div class="dovetail-tags">
+                        <span class="dovetail-tag tag-gap">#Citation-Gap</span>
+                        <span class="dovetail-tag">#Missing-FAQ-Schema</span>
+                        <span class="dovetail-tag">#Ticket-GEO-01</span>
+                      </div>
+                      <span class="dovetail-provenance">Trace: prompt_04 · sonar-pro · 2026-09-05 UTC</span>
+                    </div>
+                  </div>
+
+                  <!-- Linear Asks Action Tickets -->
+                  <div class="bento-linear-card">
+                    <div class="linear-card-header">
+                      <span class="linear-title">Actionable Engineering Tickets</span>
+                      <span class="linear-count">2 Pending Verification</span>
+                    </div>
+                    <div class="linear-ticket-list">
+                      <div class="linear-ticket-item">
+                        <div class="linear-ticket-left">
+                          <span class="linear-priority p0">P0</span>
+                          <span class="linear-ticket-id">GEO-01</span>
+                          <span class="linear-ticket-title">Inject Schema JSON-LD Knowledge Graph</span>
+                        </div>
+                        <div class="linear-ticket-right">
+                          <span class="linear-status-badge ready">Ready to verify</span>
+                        </div>
+                      </div>
+                      <div class="linear-ticket-item">
+                        <div class="linear-ticket-left">
+                          <span class="linear-priority p1">P1</span>
+                          <span class="linear-ticket-id">GEO-03</span>
+                          <span class="linear-ticket-title">Deploy /llms.txt Machine Ingestion File</span>
+                        </div>
+                        <div class="linear-ticket-right">
+                          <span class="linear-status-badge passed">Passed</span>
+                        </div>
+                      </div>
+                      <div class="linear-ticket-item">
+                        <div class="linear-ticket-left">
+                          <span class="linear-priority p1">P1</span>
+                          <span class="linear-ticket-id">GEO-10</span>
+                          <span class="linear-ticket-title">AI Crawler WAF Directives &amp; Robots</span>
+                        </div>
+                        <div class="linear-ticket-right">
+                          <span class="linear-status-badge ready">Ready to verify</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bento Footer Note & Direct Links -->
+                <div class="bento-report-footer">
+                  <span class="bento-footer-note">⚡ 13 tickets generated · All outputs linked to ground-truth AI traces</span>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <a href="/sample-report" class="btn btn-secondary btn-sm hero-sample-link" data-i18n="landing.view_sample">View a sample report →</a>
+                    <a href="/app" class="btn btn-primary btn-sm">Open Workspace →</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Panel 1：AI Radar -->
+              <div class="console-panel" data-panel="radar">
                 <div class="dovetail-evidence-card">
                   <div class="dovetail-header">
                     <span class="dovetail-query">QUERY #04: "Best Generative Engine Optimization platforms for B2B SaaS"</span>

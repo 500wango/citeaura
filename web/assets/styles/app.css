@@ -1353,5 +1353,38 @@ body:has(.auth-wrapper) { background:#080d12; }
 .auth-box { background:#0e171f; border:1px solid #304955; border-radius:4px; box-shadow:0 24px 64px rgba(0,0,0,.38); }
 .auth-title { color:#eef4f7; }
 .auth-box .input { background:#0b141c; border-color:#304955; color:#e9f1f4; border-radius:3px; }
-.auth-box .input:focus { border-color:#9df22f; box-shadow:0 0 0 3px rgba(157,242,47,.13); }
 @media (max-width:760px) { .app-header { padding:0 12px; } .app-view-container { padding:20px 14px; } .app-rail { border-top:1px solid #243742; } }
+
+/* Better Stack Health Indicators & Linear Priority Badges */
+.health-indicator {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  color: var(--muted); background: var(--deep); border: 1px solid var(--line);
+  padding: 3px 8px; border-radius: var(--r-sm);
+}
+.health-indicator .status-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--good);
+  box-shadow: 0 0 6px var(--good);
+}
+.health-indicator.is-warn .status-dot {
+  background: var(--warn); box-shadow: 0 0 6px var(--warn);
+}
+.health-indicator.is-bad .status-dot {
+  background: var(--bad); box-shadow: 0 0 6px var(--bad);
+}
+.linear-priority {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+  padding: 1px 5px; border-radius: 2px; flex: none;
+}
+.linear-priority.p0 {
+  background: color-mix(in srgb, var(--bad) 15%, transparent);
+  color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent);
+}
+.linear-priority.p1 {
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+  color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+}
+.linear-priority.p2 {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}

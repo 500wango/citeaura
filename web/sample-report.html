@@ -97,21 +97,89 @@
     .sample-section { padding: 34px 0; border-top: 1px solid var(--line); }
     .sample-section h2 { margin: 0 0 8px; font: 700 25px/1.2 var(--font-display); letter-spacing: 0; }
     .sample-section > p { margin: 0 0 20px; color: var(--muted); line-height: 1.6; }
-    .sample-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); }
-    .sample-table th, .sample-table td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-size: 13px; line-height: 1.5; }
-    .sample-table th { color: var(--muted); font: 700 11px/1.2 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
+    .sample-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
+    .sample-table th, .sample-table td { padding: 11px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; font-size: 13px; line-height: 1.5; }
+    .sample-table th { color: var(--muted); font: 700 10.5px/1.2 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; background: color-mix(in srgb, var(--deep) 60%, var(--surface)); }
     .sample-table tr:last-child td { border-bottom: 0; }
-    .sample-status { display: inline-flex; align-items: center; gap: 6px; color: var(--good); font-weight: 700; }
-    .sample-status::before { width: 7px; height: 7px; border-radius: 50%; background: currentColor; content: ''; }
+    .sample-table tr:hover td { background: color-mix(in srgb, var(--deep) 40%, var(--surface)); }
+    .sample-status { display: inline-flex; align-items: center; gap: 6px; color: var(--good); font-weight: 600; font-size: 12px; font-family: var(--font-mono); }
+    .sample-status::before { width: 7px; height: 7px; border-radius: 50%; background: currentColor; content: ''; flex: none; }
     .sample-status.warn { color: var(--warn); }
+    .sample-status.bad { color: var(--bad); }
+
+    /* Attio Badges */
+    .attio-priority { display: inline-block; font-family: var(--font-mono); font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px; }
+    .attio-priority.p0 { background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent); }
+    .attio-priority.p1 { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); }
+    .attio-priority.p2 { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+    .attio-tag { font-family: var(--font-mono); font-size: 10.5px; padding: 2px 7px; border-radius: 4px; background: var(--deep); border: 1px solid var(--line); color: var(--muted); }
+
+    /* Dovetail Insight Cards */
+    .dovetail-card {
+      padding: 16px 18px; border: 1px solid var(--line); border-left: 3px solid var(--accent);
+      background: var(--surface); border-radius: var(--r-md); margin-bottom: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    }
+    .dovetail-card-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .dovetail-card-query {
+      font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--accent);
+    }
+    .dovetail-card-engine {
+      font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
+      background: var(--deep); border: 1px solid var(--line); padding: 2px 8px; border-radius: 3px;
+    }
+    .dovetail-quote-box {
+      font-size: 13.5px; line-height: 1.65; color: var(--ink-2); margin: 0 0 12px;
+      padding-left: 12px; border-left: 2px solid var(--accent);
+    }
+    .dovetail-highlight {
+      background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--ink);
+      font-weight: 600; padding: 1px 4px; border-radius: 2px;
+    }
+    .dovetail-card-foot {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    }
+    .dovetail-card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .dovetail-tag {
+      font-family: var(--font-mono); font-size: 10px; padding: 2px 7px; border-radius: 3px;
+      background: var(--deep); border: 1px solid var(--line); color: var(--muted);
+    }
+    .dovetail-tag.tag-gap {
+      color: var(--bad); border-color: color-mix(in srgb, var(--bad) 35%, transparent);
+      background: color-mix(in srgb, var(--bad) 8%, transparent);
+    }
+    .dovetail-meta-stamp {
+      font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
+    }
+
     .ticket-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .sample-ticket { padding: 16px; border: 1px solid var(--line); background: var(--surface); }
+    .sample-ticket { padding: 16px; border: 1px solid var(--line); background: var(--surface); border-radius: var(--r-md); }
     .sample-ticket-head { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font: 700 11px/1.2 var(--font-mono); }
     .sample-ticket h3 { margin: 10px 0 8px; font-size: 15px; }
     .sample-ticket p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
-    .sample-cta { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 28px 0 70px; padding: 26px; background: var(--deep); border: 1px solid var(--line); }
+    .sample-cta { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 28px 0 70px; padding: 26px; background: var(--deep); border: 1px solid var(--line); border-radius: var(--r-md); }
     .sample-cta h2 { margin: 0 0 6px; font-size: 22px; }
     .sample-cta p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+    /* Print Stylesheet (PDF Export Ready) */
+    @media print {
+      .sample-header, .sample-cta, .sample-nav-actions, .btn { display: none !important; }
+      body, .sample-page { background: #ffffff !important; color: #111111 !important; font-size: 10pt; }
+      .sample-shell { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+      .sample-hero { padding: 20px 0 !important; }
+      .sample-grid, .ticket-list { break-inside: avoid; }
+      .sample-kpi, .sample-ticket, .sample-table, .dovetail-card {
+        border: 1px solid #d1d5db !important; background: #ffffff !important; color: #111111 !important;
+        box-shadow: none !important; break-inside: avoid;
+      }
+      .sample-table th { background: #f3f4f6 !important; color: #374151 !important; }
+      .dovetail-quote-box { border-left-color: #3b82f6 !important; }
+      .dovetail-highlight { background: #e0e7ff !important; color: #1e3a8a !important; }
+    }
+
     @media (max-width: 720px) {
       .sample-shell { width: min(100% - 28px, 1120px); }
       .sample-nav-actions .btn-secondary { display: none; }
@@ -128,6 +196,7 @@
     <div class="sample-shell sample-nav">
       <a class="sample-brand" href="/">CiteAura</a>
       <div class="sample-nav-actions">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-print-pack" title="Print or save as PDF client delivery pack">Print / Export PDF</button>
         <a class="btn btn-secondary btn-sm" href="/" data-i18n="public.sample.back">Back to site</a>
         <a class="btn btn-primary btn-sm" href="/app?auth=register" data-i18n="public.sample.run_audit">Run your audit</a>
       </div>
@@ -135,7 +204,7 @@
   </header>
   <main class="sample-shell">
     <section class="sample-hero" data-i18n-html="public.sample.hero">
-      <div class="sample-kicker">Example diagnostic pack · Fictional workspace</div>
+      <div class="sample-kicker">Example diagnostic pack · Fictional workspace · [DEMO · SYNTHETIC BASELINE]</div>
       <h1>From an AI answer to an evidence-backed action plan.</h1>
       <p>This sample shows how CiteAura turns a public-site crawl and a labeled AI baseline into prioritized tickets, acceptance checks, and a client-ready delivery pack.</p>
       <div class="sample-disclosure"><strong>Example only:</strong> all domain names, prompts, rates, and ticket outcomes on this page are illustrative. A real workspace reports the sampled engines, sampling mode, raw answer replay, and evidence coverage that were actually measured.</div>
@@ -164,9 +233,100 @@
       </table>
     </section>
 
+    <!-- Dovetail Research Insight Section -->
+    <section class="sample-section">
+      <h2>2. Dovetail Research Insight: AI Answer Citation Evidence</h2>
+      <p>Verbatim ground-truth traces from AI engine responses, showing exactly why competitors are cited while brand pages are omitted.</p>
+      
+      <div class="dovetail-card">
+        <div class="dovetail-card-head">
+          <span class="dovetail-card-query">QUERY #04: "Best Generative Engine Optimization platforms for B2B SaaS"</span>
+          <span class="dovetail-card-engine">Perplexity Sonar Pro · API · Web-grounded retrieval</span>
+        </div>
+        <div class="dovetail-quote-box">
+          "...While competitors are cited for structured brand catalogs, <mark class="dovetail-highlight">yourbrand.com is omitted because pricing and FAQ schema are unextractable</mark> by crawler bots."
+        </div>
+        <div class="dovetail-card-foot">
+          <div class="dovetail-card-tags">
+            <span class="dovetail-tag tag-gap">#Citation-Gap</span>
+            <span class="dovetail-tag">#Schema-Missing</span>
+            <span class="dovetail-tag">#Actionable-Ticket-GEO-014</span>
+          </div>
+          <span class="dovetail-meta-stamp">[DEMO · SYNTHETIC BASELINE] prompt_04 · sonar-pro · 2026-09-05 UTC</span>
+        </div>
+      </div>
+
+      <div class="dovetail-card">
+        <div class="dovetail-card-head">
+          <span class="dovetail-card-query">QUERY #11: "Enterprise AI crawler access and robots.txt directives"</span>
+          <span class="dovetail-card-engine">ChatGPT GPT-5.6 (Terra) · API · Web-grounded retrieval</span>
+        </div>
+        <div class="dovetail-quote-box">
+          "...According to public security documentation, <mark class="dovetail-highlight">GPTBot and OAI-SearchBot are blocked by default root directives</mark>, preventing the model from citing latest deployment specs."
+        </div>
+        <div class="dovetail-card-foot">
+          <div class="dovetail-card-tags">
+            <span class="dovetail-tag tag-gap">#Crawler-Blocked</span>
+            <span class="dovetail-tag">#Robots-Txt</span>
+            <span class="dovetail-tag">#Actionable-Ticket-GEO-021</span>
+          </div>
+          <span class="dovetail-meta-stamp">[DEMO · SYNTHETIC BASELINE] prompt_11 · gpt-5.6 · 2026-09-05 UTC</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Attio-Style High-Density Engineering Tickets -->
     <section class="sample-section" data-i18n-html="public.sample.sec2">
-      <h2>2. Action tickets with acceptance gates</h2>
+      <h2>3. Action tickets with acceptance gates (Attio Table Layout)</h2>
       <p>Every recommendation has an owner, an evidence link, and a checker that can reopen the ticket after a regression.</p>
+      
+      <table class="sample-table" style="margin-bottom: 20px;">
+        <thead>
+          <tr>
+            <th style="width: 80px;">Ticket</th>
+            <th style="width: 70px;">Priority</th>
+            <th>Action Item &amp; Acceptance Gate</th>
+            <th>Category</th>
+            <th>Checker</th>
+            <th style="width: 120px;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>GEO-014</strong></td>
+            <td><span class="attio-priority p0">P0</span></td>
+            <td><strong>Allow answer-engine crawlers on public docs</strong><br><span style="color:var(--muted);font-size:12px;">Acceptance: re-crawl confirms GPTBot &amp; OAI-SearchBot HTTP 200 without blocking.</span></td>
+            <td><span class="attio-tag">Robots</span></td>
+            <td><code>checker.robots</code></td>
+            <td><span class="sample-status warn">In verification</span></td>
+          </tr>
+          <tr>
+            <td><strong>GEO-021</strong></td>
+            <td><span class="attio-priority p1">P1</span></td>
+            <td><strong>Expose canonical product facts in JSON-LD</strong><br><span style="color:var(--muted);font-size:12px;">Acceptance: Schema graph parses and matches approved brand facts.</span></td>
+            <td><span class="attio-tag">Schema</span></td>
+            <td><code>checker.schema</code></td>
+            <td><span class="sample-status">Passed</span></td>
+          </tr>
+          <tr>
+            <td><strong>GEO-025</strong></td>
+            <td><span class="attio-priority p1">P1</span></td>
+            <td><strong>Publish reviewed /llms.txt machine ingestion file</strong><br><span style="color:var(--muted);font-size:12px;">Acceptance: Reachable at root and linked in delivery manifest.</span></td>
+            <td><span class="attio-tag">Machine</span></td>
+            <td><code>checker.llmstxt</code></td>
+            <td><span class="sample-status">Passed</span></td>
+          </tr>
+          <tr>
+            <td><strong>GEO-031</strong></td>
+            <td><span class="attio-priority p2">P2</span></td>
+            <td><strong>Close the highest-value citation gap</strong><br><span style="color:var(--muted);font-size:12px;">Acceptance: Comparable re-sample confirms citation link delta.</span></td>
+            <td><span class="attio-tag">Citation</span></td>
+            <td><code>checker.citation</code></td>
+            <td><span class="sample-status">Passed</span></td>
+          </tr>
+        </tbody>
+      </table>
+
       <div class="ticket-list">
         <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-014 · P0</span><span>Checker · robots</span></div><h3>Allow answer-engine crawlers on public docs</h3><p>Why: GPTBot and OAI-SearchBot are blocked at root. Acceptance: re-crawl confirms no blocking directive.</p></article>
         <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-021 · P1</span><span>Checker · JSON-LD</span></div><h3>Expose canonical product facts</h3><p>Why: the product page has no structured entity graph. Acceptance: JSON-LD parses and matches approved facts.</p></article>
@@ -176,7 +336,7 @@
     </section>
 
     <section class="sample-section" data-i18n-html="public.sample.sec3">
-      <h2>3. Delivery and verification</h2>
+      <h2>4. Delivery and verification</h2>
       <p>The final pack contains an audit report, execution plan, ticket log, acceptance checklist, draft risks, and build map. The pack is marked diagnostic-ready until implementation evidence is complete.</p>
       <table class="sample-table">
         <thead><tr><th>Milestone</th><th>Status</th><th>What the customer receives</th></tr></thead>
@@ -193,5 +353,11 @@
       <a class="btn btn-primary" href="/app?auth=register">Create free workspace <span aria-hidden="true">→</span></a>
     </section>
   </main>
+  <script>
+    var printBtn = document.getElementById('btn-print-pack');
+    if (printBtn) {
+      printBtn.addEventListener('click', function () { window.print(); });
+    }
+  </script>
 </body>
 </html>

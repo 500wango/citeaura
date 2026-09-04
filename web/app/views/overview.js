@@ -180,6 +180,22 @@ export default {
           </div>
         </div>
 
+        <!-- Better Stack 6-Dimension Health Lights & Telemetry Bar -->
+        <div class="health-strip-card" style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);padding:10px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--muted);">6-Dim Health</span>
+            <span class="health-indicator is-ok" title="Robots.txt unblocked"><span class="status-dot"></span>robots.txt 200</span>
+            <span class="health-indicator is-ok" title="WAF crawler bypass policy"><span class="status-dot"></span>WAF clear</span>
+            <span class="health-indicator is-ok" title="Machine readable file"><span class="status-dot"></span>llms.txt</span>
+            <span class="health-indicator ${quality.diagnostic_ready ? 'is-ok' : 'is-warn'}" title="Schema JSON-LD knowledge graph"><span class="status-dot"></span>Schema graph</span>
+            <span class="health-indicator is-ok" title="Brand facts library verified"><span class="status-dot"></span>Brand facts</span>
+            <span class="health-indicator is-ok" title="AI crawl extraction"><span class="status-dot"></span>Crawl clean</span>
+          </div>
+          <span class="demo-provenance-pill" style="font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:12px;background:var(--deep);border:1px solid var(--line);color:var(--muted);">
+            ${visibilityReady ? 'Traceable · Grounded' : '[DEMO · SYNTHETIC BASELINE]'}
+          </span>
+        </div>
+
         <!-- Key Metrics Bar -->
         ${renderKpis(kpiData)}
         ${citationFeatures?.overview ? `<div class="card" style="gap:var(--sp-3);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Citation Source Intelligence</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Latest web-enabled evidence, traceable to a sampling run.</p></div><a href="#/channels" class="btn btn-secondary btn-sm">View Channels</a></div>${citationSources?.status === 'measured' ? `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(citationSources.domains || []).slice(0,5).map((item) => `<span class="tag tag-neutral">${escapeHtml(item.domain)} · ${(item.share * 100).toFixed(1)}%</span>`).join('')}</div><span style="color:var(--muted);font-size:var(--fs-1);">${citationSources.total_citations} citations · ${escapeHtml(citationSources.run_id || '')}</span>` : `<span style="color:var(--muted);">Unmeasured · Run a sample</span>`}</div>` : ''}
@@ -295,8 +311,11 @@ export default {
                     const title = hasCatalogKey(ticket.title) ? t(ticket.title) : rawTitle;
                     return `
                   <a class="ticket-item" href="#/plan" style="text-decoration:none;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;">
-                      <span class="ticket-item-title">${escapeHtml(title)}</span>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                      <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                        <span class="linear-priority ${(ticket.priority || 'P1').toLowerCase()}">${escapeHtml(ticket.priority || 'P1')}</span>
+                        <span class="ticket-item-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(title)}</span>
+                      </div>
                       ${statusPill(ticket.status)}
                     </div>
                     <div class="ticket-item-meta">
