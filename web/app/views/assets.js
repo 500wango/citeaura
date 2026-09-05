@@ -109,11 +109,12 @@ export default {
       projects.get(projectId).catch(() => null),
     ]);
     const requestedQuestion = String(ctx.params?.question || '');
+    const requestedPath = String(ctx.params?.path || '');
     const requestedAsset = assets.find((item) => {
       const filename = String(item.path || '').split('/').pop() || '';
       return filename.split('.')[0] === requestedQuestion;
     });
-    const firstPath = requestedAsset?.path || assets[0]?.path || '';
+    const firstPath = assets.some((item) => item.path === requestedPath) ? requestedPath : requestedAsset?.path || assets[0]?.path || '';
     const first = firstPath
       ? await workspace.getAsset(projectId, firstPath).catch(() => ({ path: firstPath, text: '' }))
       : { path: '', text: '' };

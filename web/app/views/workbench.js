@@ -34,13 +34,13 @@ export default {
         <div class="card" style="gap:var(--sp-3);">
           <label class="kicker" for="workbench-question">${t('workbench.question_picker', {}, 'Question')}</label>
           <select id="workbench-question" class="input" style="max-width:720px;" aria-label="${t('workbench.question_picker', {}, 'Question')}">
-            <option value="">${t('workbench.all_questions', {}, 'Select a question')}</option>
+            <option value="">${t('workbench.all_questions', {}, 'All questions')}</option>
             ${(Array.isArray(questions) ? questions : []).map((item) => `<option value="${escapeHtml(item.id || '')}" ${item.id === qid ? 'selected' : ''}>${escapeHtml(item.id || '')} · ${escapeHtml(item.question || item.text || item.query || '')}</option>`).join('')}
           </select>
           <span class="kicker">${t('workbench.selected_q', {}, 'Selected Question')}</span>
           <strong>${escapeHtml(question?.text || t('workbench.select_prompt', {}, 'Select a question from the question bank.'))}</strong>
           <span style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(question?.id || t('workbench.no_qid', {}, 'No question ID'))}${data.sample_date ? ` | ${escapeHtml(t('workbench.latest_artifact', { date: data.sample_date }, `Latest sample artifact: ${data.sample_date}`))}` : ''}</span>
-          <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(data.sources || []).map((source) => `<a class="tag tag-neutral workbench-source" href="#/assets?question=${encodeURIComponent(qid)}" title="${escapeHtml(source.path)}">${escapeHtml(source.kind)}: ${escapeHtml(source.path)}</a>`).join('')}</div>
+          <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(data.sources || []).map((source) => `<a class="tag tag-neutral workbench-source" href="#/assets?question=${encodeURIComponent(qid)}&path=${encodeURIComponent(source.path || '')}" title="${escapeHtml(source.path)}">${escapeHtml(source.kind)}: ${escapeHtml(source.path)}</a>`).join('')}</div>
         </div>
         ${samples.length ? `<div class="card" style="display:flex;flex-wrap:wrap;gap:var(--sp-5);"><span><strong>${new Set(samples.map((s) => s.engine_code || s.engine_name)).size}</strong> ${t('workbench.models', {}, 'models')}</span><span><strong>${samples.filter((s) => s.ok && s.mentioned).length}/${samples.filter((s) => s.ok).length || 0}</strong> ${t('workbench.mentioned_summary', {}, 'mentioned')}</span><span>${escapeHtml(data.sample_date || '')}</span></div>` : ''}
         <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
@@ -65,7 +65,7 @@ export default {
                 <summary>${t('workbench.answer_summary', {}, 'Inspect model answer')}</summary>
                 <div class="sample-answer">${escapeHtml(sample.ok ? (sample.answer || t('workbench.empty_response', {}, 'Empty model response')) : t('workbench.sampling_failed', { error: sample.error || 'Unknown provider error' }, `Sampling failed: ${sample.error || 'Unknown provider error'}`))}</div>
               </details>
-              <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;"><a class="btn btn-ghost btn-sm" href="#/assets?question=${encodeURIComponent(qid)}">${t('workbench.view_assets', {}, 'View assets')}</a><a class="btn btn-ghost btn-sm" href="#/plan">${t('workbench.open_tickets', {}, 'Open tickets')}</a></div>
+              <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;"><a class="btn btn-ghost btn-sm" href="#/assets?question=${encodeURIComponent(qid)}">${t('workbench.view_assets', {}, 'View assets')}</a><a class="btn btn-ghost btn-sm" href="#/plan?question=${encodeURIComponent(qid)}">${t('workbench.open_tickets', {}, 'Open tickets')}</a></div>
               ${(sample.citations || []).length ? `<div class="sample-citations">${sample.citations.map((citation) => {
                 const url = typeof citation === 'string' ? citation : citation?.url;
                 const safe = safeHttpUrl(url);

@@ -80,7 +80,7 @@ function parseLogLine(raw) {
   let colorClass = 'term-normal';
   if (comparable.includes('done') || comparable.includes('100%') || comparable.includes('success') || comparable.includes('complete')) {
     colorClass = 'term-success';
-  } else if (comparable.includes('failed') || comparable.includes('error') || comparable.includes('die')) {
+  } else if (/^(?:\[[^\]]+\]\s*)?(?:error|failed|failure|fatal|exception|die)\b/i.test(line)) {
     colorClass = 'term-error';
   } else if (comparable.includes('warning') || comparable.includes('skip')) {
     colorClass = 'term-warn';

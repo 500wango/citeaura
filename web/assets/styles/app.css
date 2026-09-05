@@ -1132,7 +1132,7 @@ button.project-opt {
 .term-log-row.term-accent { color: #38bdf8; font-weight: 600; }
 .term-log-row.term-success { color: var(--good); font-weight: 600; }
 .term-log-row.term-warn { color: var(--warn); }
-.term-log-row.term-error { color: var(--bad); font-weight: 600; }
+.term-log-row.term-error { color: var(--ink-2); }
 
 .telemetry-footer {
   display: flex;
