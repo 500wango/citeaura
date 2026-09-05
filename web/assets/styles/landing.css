@@ -206,6 +206,18 @@
   margin-right: auto;
 }
 
+.hero-center .hero-evidence-chain {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  color: var(--muted);
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--sp-7);
+  text-wrap: balance;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* Action Buttons */
 .hero-actions {
   display: flex;

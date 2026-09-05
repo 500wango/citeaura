@@ -270,9 +270,11 @@
 
           <p class="hero-subtitle" data-i18n="landing.hero_subtitle">Measure real AI citations, diagnose extraction gaps, get prioritized tickets, and verify fixes with reproducible evidence.</p>
 
+          <p class="hero-evidence-chain" data-i18n="landing.evidence_chain">AI answer → citation gap → page change → acceptance check → re-test</p>
+
           <div class="hero-actions">
             <a class="btn btn-primary btn-lg" href="/app?auth=register" data-i18n="nav.cta">Start free trial</a>
-            <a class="btn btn-secondary btn-lg" href="/sample-report" data-i18n="landing.hero_secondary">View sample report</a>
+            <a class="btn btn-secondary btn-lg" href="/sample-report" data-i18n="landing.hero_secondary">View a sample report</a>
           </div>
 
           <div class="hero-trust-labels">
@@ -341,6 +343,77 @@
       </div>
     </section>
 
+    <section class="model-matrix-ribbon" aria-label="Supported sampling modes and AI engines" data-i18n-aria="public.landing.models_aria">
+      <div class="page-shell">
+        <p class="ribbon-head" data-i18n="landing.models_head">Continuous Multi-Model Matrix Measurement</p>
+        <span class="sr-only" data-i18n="public.landing.models_count">6 API engines + 9 product surfaces + custom</span>
+        <div class="ribbon-grid ribbon-modes" aria-label="Sampling modes" data-i18n-aria="landing.modes_label">
+          <div class="model-ribbon-card">
+            <span class="model-ribbon-name">Model knowledge</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_parametric">API · Model knowledge</span>
+          </div>
+          <div class="model-ribbon-card">
+            <span class="model-ribbon-name">Web-grounded retrieval</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span>
+          </div>
+          <div class="model-ribbon-card">
+            <span class="model-ribbon-name">Product surface</span>
+            <span class="model-ribbon-badge" data-i18n="landing.mode_manual">Manual · Product surface</span>
+          </div>
+        </div>
+        <div class="ribbon-grid" aria-label="Supported AI engines" data-i18n-aria="public.landing.models_aria">
+          <div class="model-ribbon-card"><span class="model-ribbon-name">OpenAI</span><span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span></div>
+          <div class="model-ribbon-card"><span class="model-ribbon-name">Claude</span><span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span></div>
+          <div class="model-ribbon-card"><span class="model-ribbon-name">Gemini</span><span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span></div>
+          <div class="model-ribbon-card" data-radar-bar="grok"><span class="model-ribbon-name">Grok</span><span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span></div>
+          <div class="model-ribbon-card"><span class="model-ribbon-name">Perplexity</span><span class="model-ribbon-badge" data-i18n="landing.mode_search">API · Web-grounded retrieval</span></div>
+          <div class="model-ribbon-card"><span class="model-ribbon-name">DeepSeek</span><span class="model-ribbon-badge" data-i18n="landing.mode_parametric">API · Model knowledge</span></div>
+          <div class="model-ribbon-card"><span class="model-ribbon-name" data-i18n="public.landing.custom_endpoint_name">Custom OpenAI-compatible</span><span class="model-ribbon-badge" data-i18n="public.landing.custom_endpoint_badge">Bring your own endpoint</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="extract-band section" id="about" aria-labelledby="about-title">
+      <div class="page-shell">
+        <div class="section-heading">
+          <h2 id="about-title" data-i18n="landing.about_title">What CiteAura is</h2>
+          <p data-i18n="landing.about_body">CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.</p>
+        </div>
+        <div class="extract-grid">
+          <article class="extract-card">
+            <h3 data-i18n="landing.ops_enterprise">Enterprise controls</h3>
+            <p data-i18n="landing.ops_enterprise_dd">OIDC SSO and audit event logs. Technical security controls in place (CiteAura is not SOC 2 certified).</p>
+          </article>
+          <article class="extract-card">
+            <h3>Evidence boundary</h3>
+            <p>Every result keeps the sampling mode, source, prompt cohort, and verification state visible. Unmeasured engines are reported as unmeasured.</p>
+            <p class="extract-note"><span data-i18n="public.landing.starter_trial">Starter trial length</span>: <span data-i18n="public.landing.trial_days">7 days</span></p>
+            <p class="extract-note">Updated 2026-08-19.</p>
+          </article>
+        </div>
+        <details class="extract-card extract-card-wide disclosure-card">
+          <summary><span role="heading" aria-level="3" data-i18n="public.landing.compare_title">CiteAura versus traditional SEO tools and mention dashboards</span></summary>
+          <div class="disclosure-content">
+            <p data-i18n="public.landing.compare_intro">Use this comparison when choosing alternatives. CiteAura does not guarantee mentions, rankings, or citations.</p>
+            <p><span data-i18n="public.landing.official_facts_index">Official facts index</span>: <a href="/llms.txt">/llms.txt</a> · <span data-i18n="landing.compare_rarely_published">Rarely published</span></p>
+          </div>
+        </details>
+        <details class="extract-card extract-card-wide disclosure-card">
+          <summary><span role="heading" aria-level="3" data-i18n="landing.howto_title">How to run a CiteAura diagnostic</span></summary>
+          <div class="disclosure-content">
+            <ol class="extract-steps">
+              <li><span data-i18n="landing.howto_1_body">Add the official website URL and create a workspace.</span></li>
+              <li><span data-i18n="landing.howto_2_body">Review extracted brand facts and the target question set.</span></li>
+              <li><span data-i18n="landing.howto_3_body">Connect a built-in model key or a custom OpenAI-compatible endpoint.</span></li>
+              <li><span data-i18n="landing.howto_4_body">Sample labeled engines and read the site audit plus tickets.</span></li>
+              <li><span data-i18n="landing.howto_5_body">Implement changes, verify, and export the diagnostic pack.</span></li>
+            </ol>
+            <p class="extract-note"><span data-i18n="landing.howto_note">Sources and definitions:</span> <a href="/docs#measurement" data-i18n="landing.howto_docs">CiteAura measurement documentation</a>.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
 
     <!-- Core Value Bento Grid -->
     <section class="section bento-section" id="core-value" aria-labelledby="value-title">
@@ -381,6 +454,13 @@
           <article class="bento-card bento-1x1 bento-metric">
             <div class="bento-metric-value">68%</div>
             <div class="bento-metric-label">Mention Rate</div>
+            <div class="bento-metric-sub">Typical optimized baseline</div>
+          </article>
+
+          <!-- Card 3b: Citation Rate Metric (1×1) -->
+          <article class="bento-card bento-1x1 bento-metric">
+            <div class="bento-metric-value">78%</div>
+            <div class="bento-metric-label">Citation Rate</div>
             <div class="bento-metric-sub">Typical optimized baseline</div>
           </article>
 
@@ -611,6 +691,23 @@
             <p data-i18n="landing.faq_5_a">Absolutely. The Agency plan is tailored for agencies with 30 active projects, team role permissions, white-label client headers, and downloadable client-ready delivery packs.</p>
           </details>
         </div>
+      </div>
+    </section>
+
+    <section class="blog-band section" id="blog" aria-labelledby="blog-title">
+      <div class="page-shell">
+        <div class="section-heading reveal">
+          <h2 id="blog-title" data-i18n="landing.blog_title">Guides</h2>
+          <p data-i18n="landing.blog_body">Practical notes on measuring mentions, crawl access, llms.txt, and client diagnostic packs.</p>
+        </div>
+        <div class="blog-preview-grid reveal-stagger">
+          <a class="blog-preview-card reveal" href="/blog/measure-if-chatgpt-mentions-your-brand"><span class="blog-preview-kicker" data-i18n="public.landing.guide_measurement">Measurement</span><h3 data-i18n="public.landing.guide_measurement_title">How to Measure ChatGPT Brand Mentions</h3><p data-i18n="public.landing.guide_measurement_desc">Fix a question set, log raw answers, and keep API knowledge separate from the product UI.</p></a>
+          <a class="blog-preview-card reveal" href="/blog/why-chatgpt-does-not-mention-my-brand"><span class="blog-preview-kicker" data-i18n="public.landing.guide_diagnosis">Diagnosis</span><h3 data-i18n="public.landing.guide_diagnosis_title">Why ChatGPT Does Not Mention Your Brand</h3><p data-i18n="public.landing.guide_diagnosis_desc">Separate extractability problems and thin official facts from ordinary answer noise.</p></a>
+          <a class="blog-preview-card reveal" href="/blog/gptbot-blocked-by-robots-txt"><span class="blog-preview-kicker" data-i18n="public.landing.guide_crawl">Crawl access</span><h3 data-i18n="public.landing.guide_crawl_title">GPTBot Blocked by robots.txt? Find and Fix the Rule</h3><p data-i18n="public.landing.guide_crawl_desc">Find the Disallow rule, allow public product pages, and re-check the live file.</p></a>
+          <a class="blog-preview-card reveal" href="/blog/what-to-put-in-llms-txt"><span class="blog-preview-kicker" data-i18n="public.landing.guide_llms">Discovery file</span><h3 data-i18n="public.landing.guide_llms_title">What to Put in llms.txt for Your Brand</h3><p data-i18n="public.landing.guide_llms_desc">Publish official facts and canonical links. Skip slogans you cannot source.</p></a>
+          <a class="blog-preview-card reveal" href="/blog/white-label-geo-diagnostic-report"><span class="blog-preview-kicker" data-i18n="public.landing.guide_agency">Agency delivery</span><h3 data-i18n="public.landing.guide_agency_title">White-Label GEO Diagnostic Reports for Agencies</h3><p data-i18n="public.landing.guide_agency_desc">Send site findings, labeled samples, and tickets, not a vendor-branded guarantee slide.</p></a>
+        </div>
+        <p class="blog-preview-more reveal"><a href="/blog" data-i18n="landing.blog_all">All guides →</a></p>
       </div>
     </section>
 
