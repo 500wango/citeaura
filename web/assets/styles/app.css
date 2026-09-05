@@ -1353,6 +1353,7 @@ body:has(.auth-wrapper) { background:#080d12; }
 .auth-box { background:#0e171f; border:1px solid #304955; border-radius:4px; box-shadow:0 24px 64px rgba(0,0,0,.38); }
 .auth-title { color:#eef4f7; }
 .auth-box .input { background:#0b141c; border-color:#304955; color:#e9f1f4; border-radius:3px; }
+.auth-box .input:focus { border-color:#9df22f; box-shadow:0 0 0 3px rgba(157,242,47,.13); }
 @media (max-width:760px) { .app-header { padding:0 12px; } .app-view-container { padding:20px 14px; } .app-rail { border-top:1px solid #243742; } }
 
 /* Better Stack Health Indicators & Linear Priority Badges */

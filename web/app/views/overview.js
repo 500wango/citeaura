@@ -184,12 +184,12 @@ export default {
         <div class="health-strip-card" style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);padding:10px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--muted);">6-Dim Health</span>
-            <span class="health-indicator is-ok" title="Robots.txt unblocked"><span class="status-dot"></span>robots.txt 200</span>
-            <span class="health-indicator is-ok" title="WAF crawler bypass policy"><span class="status-dot"></span>WAF clear</span>
-            <span class="health-indicator is-ok" title="Machine readable file"><span class="status-dot"></span>llms.txt</span>
+            <span class="health-indicator is-warn" title="No measured robots.txt result"><span class="status-dot"></span>robots.txt unmeasured</span>
+            <span class="health-indicator is-warn" title="No measured WAF result"><span class="status-dot"></span>WAF unmeasured</span>
+            <span class="health-indicator is-warn" title="No measured llms.txt result"><span class="status-dot"></span>llms.txt unmeasured</span>
             <span class="health-indicator ${quality.diagnostic_ready ? 'is-ok' : 'is-warn'}" title="Schema JSON-LD knowledge graph"><span class="status-dot"></span>Schema graph</span>
-            <span class="health-indicator is-ok" title="Brand facts library verified"><span class="status-dot"></span>Brand facts</span>
-            <span class="health-indicator is-ok" title="AI crawl extraction"><span class="status-dot"></span>Crawl clean</span>
+            <span class="health-indicator is-warn" title="No measured brand facts result"><span class="status-dot"></span>Brand facts unmeasured</span>
+            <span class="health-indicator is-warn" title="No measured crawl result"><span class="status-dot"></span>Crawl unmeasured</span>
           </div>
           <span class="demo-provenance-pill" style="font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:12px;background:var(--deep);border:1px solid var(--line);color:var(--muted);">
             ${visibilityReady ? 'Traceable · Grounded' : '[DEMO · SYNTHETIC BASELINE]'}
