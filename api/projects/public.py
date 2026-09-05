@@ -168,6 +168,27 @@ def _robots_blocked(root: str, text: str | None = None) -> list[str]:
     return [bot for bot in bots if robots_disallows_root(text, bot)]
 
 
+@router.post("/crawler-check")
+def public_crawler_check(payload: PublicAuditRequest, request: Request):
+    """匿名检查 robots.txt 是否阻断常见 AI 爬虫，不执行模型采样。"""
+    if not _allow_public_audit(request):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail={"error": "public_audit_rate_limited"})
+    robots = _machine_signal(payload.url, "/robots.txt", "robots")
+    body = robots.get("_body", "")
+    blocked = _robots_blocked(payload.url, body)
+    bots = ("GPTBot", "OAI-SearchBot", "ClaudeBot", "PerplexityBot", "Bytespider", "Google-Extended")
+    return {
+        "url": payload.url,
+        "kind": "public_crawler_check",
+        "sampling_mode": "No AI sampling · robots.txt inspection",
+        "robots_present": bool(body),
+        "robots_status": robots.get("status", 0),
+        "bots": [{"name": bot, "blocked": bot in blocked} for bot in bots],
+        "blocked": blocked,
+        "next_step": "Review the robots.txt directives, then run a full diagnostic for tickets and verification.",
+    }
+
+
 @router.post("/audit")
 def public_audit(payload: PublicAuditRequest, request: Request, db: Session = Depends(get_db)):
     """返回不调用模型的匿名站点诊断摘要，作为首次价值入口。"""

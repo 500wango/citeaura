@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Crawler Access Checker · CiteAura</title>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <script src="/runtime-assets/theme-init.js"></script>
+  <style>body{max-width:760px;margin:0 auto;padding:48px 20px;background:var(--page);color:var(--ink);font-family:var(--font-sans)}main{display:flex;flex-direction:column;gap:20px}.card{padding:20px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r-md)}form{display:flex;gap:10px;flex-wrap:wrap}.input{flex:1;min-width:240px}.results{display:grid;gap:8px}.row{display:flex;justify-content:space-between;padding:10px 12px;background:var(--deep);border:1px solid var(--line);font-size:14px}.muted{color:var(--muted);font-size:13px;line-height:1.5}</style>
+</head>
+<body><main>
+  <div><div class="kicker">CiteAura free tool</div><h1>AI crawler access checker</h1><p class="muted">Check whether common AI crawler user agents are blocked by your public robots.txt file. This checks crawl access only; it does not measure AI mentions or rankings.</p></div>
+  <section class="card"><form id="form"><input class="input" id="url" type="url" placeholder="https://example.com" required><button class="btn btn-primary" type="submit">Check robots.txt</button></form><p id="message" class="muted" aria-live="polite"></p></section>
+  <section id="result" class="card" hidden><h2>Observed directives</h2><p id="scope" class="muted"></p><div id="rows" class="results"></div><p class="muted">A blocked crawler does not prove that AI systems will ignore a site, and allowing a crawler does not guarantee recommendations. Use a full CiteAura diagnostic for page findings, tickets and verification.</p><a id="workspace-link" class="btn btn-secondary" href="/app#/onboarding">Create a workspace</a></section>
+</main><script>
+const form=document.getElementById('form'), message=document.getElementById('message'), result=document.getElementById('result'), rows=document.getElementById('rows'), scope=document.getElementById('scope'), workspaceLink=document.getElementById('workspace-link');
+form.addEventListener('submit',async(e)=>{e.preventDefault();message.textContent='Checking…';result.hidden=true;try{const r=await fetch('/api/v1/public/crawler-check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:document.getElementById('url').value})});const data=await r.json();if(!r.ok)throw new Error(data.detail?.error||data.detail||'Check failed');scope.textContent=`${data.url} · ${data.robots_present?'robots.txt found':'robots.txt not found'} · ${data.sampling_mode}`;rows.innerHTML=data.bots.map(item=>`<div class="row"><span>${item.name}</span><strong style="color:${item.blocked?'var(--bad)':'var(--good)'}">${item.blocked?'Blocked':'Not blocked'}</strong></div>`).join('');workspaceLink.href='/app#/onboarding?domain='+encodeURIComponent(data.url);result.hidden=false;message.textContent='Check complete.'}catch(err){message.textContent=err.message}});
+</script></body></html>

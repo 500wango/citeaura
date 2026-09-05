@@ -84,6 +84,10 @@ export default {
     const phaseLabels = { baseline: 'Baseline', technical: 'Technical crawl', citation: 'Citation readiness', content: 'Content opportunities', offsite: 'Off-site entity', review: 'Review & re-measure' };
     const goals = Array.isArray(plan.goals) ? plan.goals : [];
     const priorityRank = { P0: 0, P1: 1, P2: 2 };
+    const quickWins = (Array.isArray(tickets) ? tickets : [])
+      .filter((item) => item.status !== 'done' && String(item.priority || 'P1').toUpperCase() !== 'P2' && String(item.effort || 'M').toUpperCase() === 'S')
+      .sort((left, right) => (priorityRank[left.priority] ?? 99) - (priorityRank[right.priority] ?? 99))
+      .slice(0, 5);
     const hasQuestions = Array.isArray(project.questions) && project.questions.length > 0;
     const projectStatus = project.project?.status || project.status;
     const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
@@ -258,6 +262,11 @@ export default {
               </a>
             `).join('')}
           </div>` : ''}
+
+        <details class="card" style="gap:var(--sp-3);" open>
+          <summary style="cursor:pointer;font-size:var(--fs-4);font-weight:600;">${t('overview.quick_wins_title', {}, 'This week: quick wins')} <span style="color:var(--muted);font-size:var(--fs-2);font-weight:400;">${t('overview.quick_wins_desc', {}, 'High-impact actions with a small effort estimate')}</span></summary>
+          ${quickWins.length ? `<div style="display:flex;flex-direction:column;gap:var(--sp-2);margin-top:var(--sp-2);">${quickWins.map((ticket) => `<a href="#/plan" style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--line);background:var(--page);text-decoration:none;"><span><strong style="display:block;font-size:var(--fs-2);">${escapeHtml(ticket.title || ticket.name || ticket.id)}</strong><span style="display:block;color:var(--muted);font-size:var(--fs-1);margin-top:3px;">${escapeHtml(ticket.action || ticket.why || 'Review the linked action ticket')}</span></span><span class="tag pill-warn">${escapeHtml(ticket.priority || 'P1')} · ${escapeHtml(ticket.effort || 'S')}</span></a>`).join('')}</div>` : `<p style="margin:var(--sp-2) 0 0;color:var(--muted);font-size:var(--fs-2);">${t('overview.quick_wins_empty', {}, 'No small-effort actions are currently identified. Review the full action plan for pending work.')}</p>`}
+        </details>
 
         <div class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">

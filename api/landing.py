@@ -71,6 +71,13 @@ def serve_landing_page():
     return FileResponse(WEB_ROOT / "index.html", media_type="text/html; charset=utf-8")
 
 
+@router.get("/crawler-check")
+@router.head("/crawler-check")
+def serve_crawler_check_page():
+    """返回免登录 AI 爬虫封禁体检工具。"""
+    return FileResponse(WEB_ROOT / "crawler-check.html", media_type="text/html; charset=utf-8")
+
+
 @router.get("/about")
 @router.head("/about")
 def serve_about_page():

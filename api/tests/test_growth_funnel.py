@@ -50,6 +50,17 @@ def test_public_sample_report_is_available_without_auth(growth_client):
     assert "Create free workspace" in response.text
 
 
+def test_public_crawler_check_returns_bot_statuses(growth_client):
+    client, _ = growth_client
+    response = client.post("/api/v1/public/crawler-check", json={"url": "https://crawler.example"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["kind"] == "public_crawler_check"
+    assert payload["sampling_mode"] == "No AI sampling · robots.txt inspection"
+    assert payload["robots_present"] is True
+    assert {item["name"] for item in payload["bots"]} >= {"GPTBot", "PerplexityBot"}
+
+
 def test_public_audit_returns_cached_technical_summary_and_event(growth_client):
     client, sessions = growth_client
     first = client.post("/api/v1/public/audit", json={"url": "https://example.com"})
