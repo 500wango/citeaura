@@ -234,9 +234,43 @@ def project_report_payload(db, tenant, project):
         metrics = geolib.read_json(path, None)
         product = product_report(project.slug, metrics)
         quality = report_quality.assess(project.slug, has_sampling_access(db, tenant, project))
+        tasks_data = geolib.read_json(geolib.project_dir(project.slug) / "tasks.json", {}) or {}
+    issues = quality.get("issues") if isinstance(quality.get("issues"), list) else []
+    tickets = tasks_data.get("tasks") if isinstance(tasks_data.get("tasks"), list) else []
+    primary_issue = next((item for item in issues if item.get("severity") in {"critical", "warning"}), None) or (issues[0] if issues else None)
+    primary_ticket = next((item for item in tickets if item.get("status") not in {"done", "completed"}), None) or (tickets[0] if tickets else None)
+    confidence = quality.get("confidence") if isinstance(quality.get("confidence"), dict) else {}
+    measured = bool(product.get("measured"))
+    user_summary = {
+        "headline": (
+            primary_issue.get("message") if primary_issue else
+            ("AI visibility has been measured" if measured else "Your diagnostic is ready to review")
+        ),
+        "why_it_matters": (
+            "Review the highest-priority finding before interpreting visibility results."
+            if primary_issue else "Use the evidence and action plan to decide what to improve first."
+        ),
+        "recommended_action": (primary_issue or {}).get("action") or (primary_ticket or {}).get("action") or "Review the action plan",
+        "next_route": (primary_issue or {}).get("route") or "plan",
+        "evidence_scope": {
+            "sample_count": product.get("sample_count") or 0,
+            "measured": measured,
+            "confidence": confidence.get("label") or confidence.get("level") or "unmeasured",
+            "sampling_mode": (quality.get("measurement_quality") or {}).get("sampling_mode"),
+        },
+        "limitations": [
+            issue.get("message") for issue in issues
+            if issue.get("severity") in {"info", "warning"} and issue is not primary_issue
+        ][:3],
+        "primary_finding": {
+            "code": (primary_issue or {}).get("code"),
+            "ticket_id": (primary_ticket or {}).get("id"),
+        },
+    }
     return {
         "report": product,
         "date": metrics.get("date") if metrics else None,
         "sample_artifact": (metrics.get("run_id") or metrics.get("date")) if metrics else None,
         "report_quality": quality,
+        "user_summary": user_summary,
     }

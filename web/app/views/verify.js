@@ -45,6 +45,10 @@ export default {
             </button>
           </div>
         </div>
+        <div class="card" style="gap:var(--sp-2);border-left:3px solid var(--accent);margin-bottom:var(--sp-4);">
+          <strong>${t('verify.progress_title', {}, 'What verification proves')}</strong>
+          <span style="color:var(--ink-2);font-size:var(--fs-2);line-height:1.5;">${t('verify.progress_help', {}, 'A pass means the configured website check succeeded. It does not by itself prove that AI recommendations or traffic increased; those require a comparable measurement cycle.')}</span>
+        </div>
         ${!canVerify ? renderEmpty({ title: t('verify.no_tickets_title', {}, 'No action tickets yet'), description: t('verify.no_tickets_desc', {}, 'Generate or create tickets before running verification.') }) : ''}
         ${history.length ? `
           <div class="card" style="padding:0;overflow:hidden;margin-bottom:var(--sp-4);">

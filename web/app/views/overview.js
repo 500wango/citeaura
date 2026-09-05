@@ -65,6 +65,9 @@ export default {
     const doneTickets = Array.isArray(tickets) ? tickets.filter((item) => item.status === 'done').length : 0;
     const engines = (report && report.engines) || [];
     const quality = (report && report.report_quality) || project.report_quality || {};
+    const userSummary = (report && report.user_summary) || {};
+    const summaryScope = userSummary.evidence_scope || {};
+    const summaryFinding = userSummary.primary_finding || {};
     const qualityIssues = Array.isArray(quality.issues) ? quality.issues : [];
     const readiness = quality.readiness || {};
     const questionReadiness = readiness.question || {};
@@ -197,6 +200,24 @@ export default {
         </div>
 
         <!-- Key Metrics Bar -->
+        <section class="card overview-user-summary" style="gap:var(--sp-3);border-left:3px solid var(--accent);">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;">
+            <div style="min-width:0;max-width:760px;">
+              <span class="kicker">${t('overview.current_summary', {}, 'Current summary')}</span>
+              <h2 style="font-size:var(--fs-5);line-height:1.3;margin:var(--sp-1) 0 0;">${escapeHtml(userSummary.headline || t('overview.summary_pending', {}, 'Your diagnostic is being prepared'))}</h2>
+              <p style="margin:var(--sp-2) 0 0;color:var(--ink-2);line-height:1.5;">${escapeHtml(userSummary.why_it_matters || t('overview.summary_pending_detail', {}, 'Review the evidence and action plan when the diagnostic is ready.'))}</p>
+            </div>
+            <a href="#/${escapeHtml(userSummary.next_route || 'plan')}" class="btn btn-primary btn-sm">${escapeHtml(userSummary.recommended_action || t('overview.action_next', {}, 'Review next action'))}<span aria-hidden="true"> →</span></a>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;color:var(--muted);font-size:var(--fs-2);">
+            <span>${summaryScope.measured ? t('overview.summary_measured', {}, 'Measured evidence') : t('overview.summary_unmeasured', {}, 'Visibility not measured')}</span>
+            <span aria-hidden="true">·</span>
+            <span>${t('overview.summary_samples', { count: Number(summaryScope.sample_count || 0) }, `${Number(summaryScope.sample_count || 0)} samples`)}</span>
+            ${summaryScope.confidence ? `<span aria-hidden="true">·</span><span>${escapeHtml(summaryScope.confidence)}</span>` : ''}
+            ${summaryFinding.ticket_id ? `<span aria-hidden="true">·</span><span>${t('overview.summary_ticket', {}, 'Linked action ticket')} ${escapeHtml(summaryFinding.ticket_id)}</span>` : ''}
+          </div>
+          ${(userSummary.limitations || []).length ? `<div style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(userSummary.limitations[0])}</div>` : ''}
+        </section>
         ${renderKpis(kpiData)}
         ${citationFeatures?.overview ? `<div class="card" style="gap:var(--sp-3);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Citation Source Intelligence</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Latest web-enabled evidence, traceable to a sampling run.</p></div><a href="#/channels" class="btn btn-secondary btn-sm">View Channels</a></div>${citationSources?.status === 'measured' ? `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(citationSources.domains || []).slice(0,5).map((item) => `<span class="tag tag-neutral">${escapeHtml(item.domain)} · ${(item.share * 100).toFixed(1)}%</span>`).join('')}</div><span style="color:var(--muted);font-size:var(--fs-1);">${citationSources.total_citations} citations · ${escapeHtml(citationSources.run_id || '')}</span>` : `<span style="color:var(--muted);">Unmeasured · Run a sample</span>`}</div>` : ''}
         <div class="card" style="gap:var(--sp-3);">

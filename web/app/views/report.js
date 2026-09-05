@@ -34,6 +34,8 @@ export default {
     const overallGrade = report && report.grade;
     const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : 'Unmeasured';
     const quality = report && report.report_quality;
+    const userSummary = (report && report.user_summary) || {};
+    const summaryScope = userSummary.evidence_scope || {};
     const confidence = quality && quality.confidence;
     const confidenceLabel = confidence && confidence.label ? confidence.label : t('overview.no_baseline', {}, 'No baseline');
     const trend = (quality && quality.measurement_quality && quality.measurement_quality.trend) || {};
@@ -64,6 +66,20 @@ export default {
             </button>
           </div>
         </div>
+
+        <section class="card" style="gap:var(--sp-3);border-left:3px solid var(--accent);">
+          <span class="kicker">${t('report.current_summary', {}, 'What this report says')}</span>
+          <h2 style="font-size:var(--fs-5);line-height:1.3;margin:0;">${escapeHtml(userSummary.headline || t('report.summary_pending', {}, 'Review the diagnostic findings and evidence.'))}</h2>
+          <p style="margin:0;color:var(--ink-2);line-height:1.5;">${escapeHtml(userSummary.why_it_matters || t('report.summary_detail', {}, 'The report separates measured evidence from items that still need review.'))}</p>
+          <div style="display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;color:var(--muted);font-size:var(--fs-2);">
+            <span>${escapeHtml(userSummary.recommended_action || t('report.review_action', {}, 'Review the action plan'))}</span>
+            <span aria-hidden="true">·</span>
+            <span>${summaryScope.measured ? t('report.measured_evidence', {}, 'Measured evidence') : t('report.unmeasured_evidence', {}, 'Visibility not measured')}</span>
+            <span aria-hidden="true">·</span>
+            <span>${Number(summaryScope.sample_count || 0)} ${t('common.samples', {}, 'samples')}</span>
+          </div>
+          ${(userSummary.limitations || []).length ? `<div style="padding-top:var(--sp-2);border-top:1px solid var(--line);color:var(--muted);font-size:var(--fs-2);line-height:1.5;"><strong>${t('report.evidence_limits', {}, 'Evidence limits:')}</strong> ${escapeHtml(userSummary.limitations.join(' · '))}</div>` : ''}
+        </section>
 
         <!-- Deliverables Overview -->
         <div class="card" style="gap:var(--sp-4);">

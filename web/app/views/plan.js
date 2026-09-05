@@ -263,6 +263,8 @@ function renderTicketCard(ticket) {
   const isDone = ticket.status === 'done';
   const title = localizedTicketField(ticket, 'title', 'title_en', ticket.name || ticket.id);
   const role = localizedTicketField(ticket, 'owner', 'owner_en', ticket.role || t('plan.role_engineering', {}, 'Engineering'));
+  const action = localizedTicketField(ticket, 'action', 'action_en');
+  const acceptance = localizedTicketField(ticket.acceptance || {}, 'desc', 'desc_en');
   return `
     <div class="ticket-item ${isDone ? 'is-done' : ''}" data-tid="${escapeHtml(ticket.id)}">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-2);">
@@ -273,6 +275,8 @@ function renderTicketCard(ticket) {
         <span class="tag tag-dim" style="font-size:10px;">${escapeHtml(role)}</span>
         ${ticket.target_page ? `<span class="num" style="max-width:18ch;overflow:hidden;text-overflow:ellipsis;">${ticket.target_page}</span>` : ''}
       </div>
+      ${action ? `<p style="margin:var(--sp-2) 0 0;color:var(--ink-2);font-size:var(--fs-2);line-height:1.4;"><strong>${t('plan.action_label', {}, 'Action:')}</strong> ${escapeHtml(action)}</p>` : ''}
+      ${acceptance ? `<p style="margin:var(--sp-1) 0 0;color:var(--muted);font-size:var(--fs-1);line-height:1.4;"><strong>${t('plan.acceptance_label', {}, 'Acceptance:')}</strong> ${escapeHtml(acceptance)}</p>` : ''}
     </div>
   `;
 }
@@ -293,6 +297,12 @@ async function showTicketDetailModal(projectId, tid, ctx) {
   const notes = Array.isArray(ticket.notes)
     ? ticket.notes.map((item) => item?.text || item?.note || '').filter(Boolean).join('\n')
     : (ticket.note || '');
+  const verification = [...(ticket.activity || [])].reverse().find((item) => item.type === 'verification');
+  const websiteVerified = verification ? verification.verdict !== 'fail' : false;
+  const remeasured = Boolean(verification);
+  const affected = Array.isArray(ticket.affected) ? ticket.affected : (ticket.target_page ? [ticket.target_page] : []);
+  const questions = Array.isArray(ticket.influenced_questions) ? ticket.influenced_questions : (Array.isArray(ticket.question_ids) ? ticket.question_ids : []);
+  const evidence = Array.isArray(ticket.evidence) ? ticket.evidence : [];
 
   const content = `
     <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
@@ -301,6 +311,20 @@ async function showTicketDetailModal(projectId, tid, ctx) {
         <p style="color:var(--muted);font-size:var(--fs-2);margin:0;"><strong>${t('plan.why_label', {}, 'Why:')}</strong> ${escapeHtml(why || t('plan.no_rationale', {}, 'No rationale recorded.'))}</p>
         ${action ? `<div style="margin-top:var(--sp-2);padding:var(--sp-2) var(--sp-3);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);font-size:var(--fs-1);color:var(--ink);"><strong style="color:var(--accent);">${t('plan.action_label', {}, 'Action:')}</strong> ${escapeHtml(action)}</div>` : ''}
         ${acceptance ? `<div style="margin-top:var(--sp-1);font-size:var(--fs-2);"><strong>${t('plan.acceptance_label', {}, 'Acceptance:')}</strong> ${escapeHtml(acceptance)} ${ticket.acceptance?.type ? `(${escapeHtml(ticket.acceptance.type)})` : ''}</div>` : ''}
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-2);">
+        ${[
+          [t('plan.progress_change', {}, 'Change recorded'), isDone],
+          [t('plan.progress_site', {}, 'Website verified'), websiteVerified],
+          [t('plan.progress_ai', {}, 'AI result re-measured'), remeasured && websiteVerified],
+        ].map(([label, complete]) => `<div style="padding:var(--sp-2);border:1px solid var(--line);background:var(--page);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${label}</span><strong style="font-size:var(--fs-2);color:${complete ? 'var(--good)' : 'var(--muted)'};">${complete ? t('common.complete', {}, 'Complete') : t('common.pending', {}, 'Pending')}</strong></div>`).join('')}
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--sp-3);padding-top:var(--sp-2);border-top:1px solid var(--line);">
+        <div><strong style="display:block;font-size:var(--fs-2);">${t('plan.linked_pages', {}, 'Linked pages')}</strong><span style="color:var(--muted);font-size:var(--fs-2);">${affected.length ? affected.map((item) => escapeHtml(item)).join(', ') : t('common.unmeasured', {}, 'Unmeasured')}</span></div>
+        <div><strong style="display:block;font-size:var(--fs-2);">${t('plan.linked_questions', {}, 'Linked questions')}</strong><span style="color:var(--muted);font-size:var(--fs-2);">${questions.length ? questions.map((item) => escapeHtml(item)).join(', ') : t('common.unmeasured', {}, 'Unmeasured')}</span></div>
+        <div><strong style="display:block;font-size:var(--fs-2);">${t('plan.evidence_items', {}, 'Evidence items')}</strong><span style="color:var(--muted);font-size:var(--fs-2);">${evidence.length || 0}</span></div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);">
