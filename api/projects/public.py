@@ -38,6 +38,12 @@ class PublicAuditRequest(BaseModel):
         return preflight.normalize_url(value)
 
 
+class PublicToolRequest(PublicAuditRequest):
+    """公共工具只接受公开站点根 URL。"""
+
+    pass
+
+
 _AUDIT_CACHE: "OrderedDict[str, tuple[float, dict]]" = OrderedDict()
 _AUDIT_CACHE_LOCK = threading.Lock()
 _AUDIT_CACHE_TTL = 15 * 60
@@ -186,6 +192,69 @@ def public_crawler_check(payload: PublicAuditRequest, request: Request):
         "bots": [{"name": bot, "blocked": bot in blocked} for bot in bots],
         "blocked": blocked,
         "next_step": "Review the robots.txt directives, then run a full diagnostic for tickets and verification.",
+    }
+
+
+def _public_homepage_text(url: str) -> str:
+    """读取受限大小的首页 HTML，供公共工具提取公开信号。"""
+    try:
+        body = geolib.fetch_text(url, timeout=6, allow_machine_file=False)
+    except (OSError, ValueError, GeoEngineError):
+        return ""
+    return str(body or "")[:512 * 1024]
+
+
+@router.post("/llms-txt-tool")
+def public_llms_txt_tool(payload: PublicToolRequest, request: Request):
+    """生成并验证一份基于首页公开元数据的 llms.txt 草稿。"""
+    if not _allow_public_audit(request):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail={"error": "public_audit_rate_limited"})
+    html = _public_homepage_text(payload.url)
+    soup = geolib.parse_html(html)
+    title = str(soup.title.string or "").strip() if soup.title and soup.title.string else ""
+    description_tag = soup.find("meta", attrs={"name": "description"})
+    description = str(description_tag.get("content") or "").strip() if description_tag else ""
+    name = title or urlparse(payload.url).hostname or "Website"
+    lines = [f"# {name}", "", f"> {description}" if description else "> Official website summary pending review.", "", "## Canonical URL", payload.url, "", "## Review before publishing", "- Replace this draft with approved, source-backed brand facts.", "- Keep only canonical public links and remove unsupported claims."]
+    content = "\n".join(lines) + "\n"
+    existing = _machine_signal(payload.url, "/llms.txt", "llms_txt")
+    return {
+        "url": payload.url,
+        "kind": "public_llms_txt_tool",
+        "sampling_mode": "No AI sampling · public HTML and llms.txt inspection",
+        "draft": content,
+        "existing": {"present": bool(existing.get("_body")), "status": existing.get("status", 0)},
+        "validation": {"has_title": bool(title), "has_description": bool(description), "canonical_url": payload.url},
+        "next_step": "Review every claim, publish the file at /llms.txt, then re-run verification.",
+    }
+
+
+@router.post("/schema-tool")
+def public_schema_tool(payload: PublicToolRequest, request: Request):
+    """诊断首页 JSON-LD 实体类型并返回可下载的检查结果。"""
+    if not _allow_public_audit(request):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail={"error": "public_audit_rate_limited"})
+    html = _public_homepage_text(payload.url)
+    soup = geolib.parse_html(html)
+    blocks = geolib.jsonld(soup)
+    types = []
+    for block in blocks:
+        values = block.get("@type") if isinstance(block, dict) else None
+        values = values if isinstance(values, list) else [values]
+        types.extend(str(value) for value in values if value)
+    types = list(dict.fromkeys(types))
+    checks = [
+        {"key": "jsonld_present", "ok": bool(blocks), "message": "JSON-LD detected" if blocks else "No JSON-LD detected"},
+        {"key": "organization_or_product", "ok": any(value in {"Organization", "Corporation", "Product", "SoftwareApplication", "Service"} for value in types), "message": "Brand or product entity type detected" if types else "Add a brand or product entity"},
+    ]
+    return {
+        "url": payload.url,
+        "kind": "public_schema_tool",
+        "sampling_mode": "No AI sampling · public homepage JSON-LD inspection",
+        "types": types,
+        "jsonld_count": len(blocks),
+        "checks": checks,
+        "next_step": "Align entity properties with approved brand facts, then validate again.",
     }
 
 

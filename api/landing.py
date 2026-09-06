@@ -32,6 +32,9 @@ PUBLIC_PAGES = (
     {"path": "/methodology", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/pricing", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/sample-report", "lastmod": "2026-08-23", "changefreq": "monthly", "priority": "0.8"},
+    {"path": "/crawler-check", "lastmod": "2026-09-06", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/llms-txt-tool", "lastmod": "2026-09-06", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/schema-tool", "lastmod": "2026-09-06", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/about", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/contact", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog", "lastmod": "2026-08-20", "changefreq": "weekly", "priority": "0.7"},
@@ -76,6 +79,20 @@ def serve_landing_page():
 def serve_crawler_check_page():
     """返回免登录 AI 爬虫封禁体检工具。"""
     return FileResponse(WEB_ROOT / "crawler-check.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/llms-txt-tool")
+@router.head("/llms-txt-tool")
+def serve_llms_txt_tool_page():
+    """返回免登录 llms.txt 生成与验证工具。"""
+    return FileResponse(WEB_ROOT / "llms-txt-tool.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/schema-tool")
+@router.head("/schema-tool")
+def serve_schema_tool_page():
+    """返回免登录品牌实体与 Schema 诊断工具。"""
+    return FileResponse(WEB_ROOT / "schema-tool.html", media_type="text/html; charset=utf-8")
 
 
 @router.get("/about")

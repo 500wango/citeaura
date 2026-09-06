@@ -61,6 +61,18 @@ def test_public_crawler_check_returns_bot_statuses(growth_client):
     assert {item["name"] for item in payload["bots"]} >= {"GPTBot", "PerplexityBot"}
 
 
+def test_public_free_tools_return_downloadable_drafts_and_schema_findings(growth_client, monkeypatch):
+    client, _ = growth_client
+    monkeypatch.setattr(public.geolib, "fetch_text", lambda url, timeout=6, allow_machine_file=False: "<html><title>Acme</title><meta name='description' content='Official Acme site'><script type='application/ld+json'>{\"@type\":\"Organization\"}</script></html>" if not url.endswith("/llms.txt") else "")
+    llms = client.post("/api/v1/public/llms-txt-tool", json={"url": "https://acme.example"})
+    assert llms.status_code == 200
+    assert llms.json()["kind"] == "public_llms_txt_tool"
+    assert "# Acme" in llms.json()["draft"]
+    schema = client.post("/api/v1/public/schema-tool", json={"url": "https://acme.example"})
+    assert schema.status_code == 200
+    assert schema.json()["types"] == ["Organization"]
+
+
 def test_public_audit_returns_cached_technical_summary_and_event(growth_client):
     client, sessions = growth_client
     first = client.post("/api/v1/public/audit", json={"url": "https://example.com"})
