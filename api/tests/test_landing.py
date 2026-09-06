@@ -59,6 +59,20 @@ def test_landing_page_is_public_and_links_to_application():
     assert "7 days" in response.text
     assert "Updated 2026-08-19" in response.text
     assert "Sources and definitions:" in response.text
+
+
+def test_public_tools_load_csp_compatible_scripts():
+    tools = {
+        "/crawler-check": "/site-assets/free-tools-crawler.js",
+        "/llms-txt-tool": "/site-assets/free-tools-llms.js",
+        "/schema-tool": "/site-assets/free-tools-schema.js",
+    }
+
+    for path, script in tools.items():
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert f'<script defer src="{script}"></script>' in response.text
+        assert "form.addEventListener" not in response.text
     
 
 def test_public_verification_pages_support_head_requests():

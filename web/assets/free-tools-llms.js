@@ -1,0 +1,7 @@
+const form = document.getElementById('form');
+if (form) {
+  const message = document.getElementById('message'), result = document.getElementById('result'), summary = document.getElementById('summary'), draft = document.getElementById('draft'), download = document.getElementById('download');
+  let filename = 'llms.txt';
+  form.addEventListener('submit', async (event) => { event.preventDefault(); message.textContent = 'Generating...'; result.hidden = true; try { const response = await fetch('/api/v1/public/llms-txt-tool', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url: document.getElementById('url').value})}); const data = await response.json(); if (!response.ok) throw new Error(data.detail?.error || 'Generation failed'); draft.value = data.draft; filename = `${new URL(data.url).hostname}-llms.txt`; summary.textContent = `${data.url} · ${data.validation.has_title ? 'Title found' : 'Title missing'} · ${data.validation.has_description ? 'Description found' : 'Description missing'} · ${data.existing.present ? 'Existing llms.txt found' : 'No existing llms.txt found'} · ${data.sampling_mode}`; result.hidden = false; message.textContent = 'Draft ready. Review claims before publishing.'; } catch (error) { message.textContent = error.message; } });
+  download.addEventListener('click', () => { const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([draft.value], {type: 'text/plain;charset=utf-8'})); link.download = filename; link.click(); URL.revokeObjectURL(link.href); });
+}
