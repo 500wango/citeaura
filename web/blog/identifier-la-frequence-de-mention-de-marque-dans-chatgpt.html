@@ -134,7 +134,7 @@
 <body>
   <header class="site-header">
     <div class="page-shell header-layout">
-      <a class="brand" href="/" aria-label="CiteAura Home">
+      <a class="brand" href="/" aria-label="Accueil CiteAura">
         <span class="brand-mark" aria-hidden="true"></span>
         <span class="brand-word">CiteAura</span>
       </a>
@@ -157,8 +157,20 @@
           <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
           <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
+        <div class="lang-picker-btn" title="Changer de langue">
+          <svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <label class="sr-only" for="site-locale">Langue</label>
+          <select id="site-locale" class="site-locale-compact" aria-label="Langue">
+            <option value="en">English (EN)</option>
+            <option value="fr" selected>Français (FR)</option>
+          </select>
+        </div>
         <a class="nav-sign-in" href="/app?auth=login">Connexion</a>
-        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Démarrer l'essai gratuit</a>
       </div>
     </div>
   </header>
@@ -170,7 +182,7 @@
       <h1>Comment identifier la fréquence de mention d'une marque dans ChatGPT</h1>
       <p class="blog-lead">À l'ère de l'optimisation pour moteurs génératifs (GEO), savoir si ChatGPT recommande votre entreprise nécessite une méthodologie scientifique d'échantillonnage, des cohortes de requêtes fixes et un calcul précis de la variance statistique.</p>
       <p class="blog-meta">Publié le 7 septembre 2026 · 10 min de lecture · Méthodologie d'ingénierie</p>
-      <p class="blog-byline">By CiteAura Research</p>
+      <p class="blog-byline">Par l'équipe de recherche CiteAura</p>
     </header>
 
     <nav class="toc" aria-label="Sommaire">
@@ -190,7 +202,7 @@
     <p>Si votre marque est absente de cette synthèse, vous perdez le prospect avant même qu'il ne visite un moteur de recherche classique. Cependant, une capture d'écran unique ne prouve rien : les modèles d'IA comme GPT-4o sont stochastiques. Deux utilisateurs posant la même question peuvent recevoir des réponses différentes. Pour identifier véritablement la fréquence de mention, il est impératif d'utiliser une méthode reproductible par cohorte.</p>
 
     <div class="blog-callout">
-      <p><strong>Règle d'or de la mesure GEO :</strong> Ne comparez jamais deux scores de mention s'ils n'ont pas été obtenus avec le même ensemble de questions, les mêmes versions de modèle et le même mode d'échantillonnage. CiteAura does not guarantee a mention or ranking, but provides reproducible diagnostic evidence.</p>
+      <p><strong>Règle d'or de la mesure GEO :</strong> Ne comparez jamais deux scores de mention s'ils n'ont pas été obtenus avec le même ensemble de questions, les mêmes versions de modèle et le même mode d'échantillonnage. CiteAura ne garantit pas de mention ni de classement, mais fournit des preuves diagnostiques reproductibles.</p>
     </div>
 
     <h2 id="modes-echantillonnage">Les 3 modes d'échantillonnage indispensables</h2>
@@ -273,13 +285,13 @@ is_mentioned = bool(pattern.search(raw_answer_text))</code></pre>
 
     <div class="blog-cta">
       <p>Démarrez votre premier audit de visibilité IA et mesurez la fréquence de mention de votre marque sur 6 moteurs majeurs.</p>
-      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+      <a class="btn btn-primary" href="/app?auth=register">Démarrer l'essai gratuit</a>
     </div>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Guides connexes</h2>
       <ul>
-        <li><a href="/blog/measure-if-chatgpt-mentions-your-brand">How to Measure ChatGPT Brand Mentions (Version anglaise)</a></li>
+        <li><a href="/blog/measure-if-chatgpt-mentions-your-brand">Comment mesurer les mentions de marque dans ChatGPT (version anglaise)</a></li>
         <li><a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT Does Not Mention Your Brand: 4 Diagnostic Buckets</a></li>
         <li><a href="/blog/gptbot-blocked-by-robots-txt">GPTBot Blocked by robots.txt? Find and Fix the Rule</a></li>
         <li><a href="/crawler-check">Testeur gratuit de robots.txt pour robots IA</a></li>
@@ -290,7 +302,7 @@ is_mentioned = bool(pattern.search(raw_answer_text))</code></pre>
   <footer class="site-footer">
     <div class="page-shell footer-layout">
       <div class="footer-brand">
-        <a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
+        <a class="brand" href="/" aria-label="Accueil CiteAura"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
         <p class="footer-tagline">Plateforme de diagnostic, exécution et vérification GEO (Generative Engine Optimization).</p>
         <span class="footer-copy">© 2026 CiteAura</span>
       </div>

@@ -3,27 +3,17 @@
  * Every user-facing key must exist in every supported catalog.
  */
 
-export const SUPPORTED_LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
+export const SUPPORTED_LOCALES = ['en', 'fr'];
 export const DEFAULT_LOCALE = 'en';
 
 const HTML_LANG_MAP = {
   en: 'en',
-  zh: 'zh-CN',
-  ja: 'ja',
-  ko: 'ko',
-  es: 'es',
   fr: 'fr',
-  de: 'de',
 };
 
 export const LOCALE_LABELS = {
   en: 'English',
-  zh: '简体中文',
-  ja: '日本語',
-  ko: '한국어',
-  es: 'Español',
   fr: 'Français',
-  de: 'Deutsch',
 };
 
 let currentLocale = 'en';

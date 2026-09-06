@@ -471,7 +471,7 @@ def test_landing_js_supports_international_locales():
     assert response.status_code == 200
     assert "localStorage.setItem('ulang'" in response.text
     assert "function detectLocale()" in response.text
-    assert "var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de']" in response.text
+    assert "var LOCALES = ['en', 'fr']" in response.text
     assert "LOCALE_ASSET_VERSION" not in response.text
     assert "fetch('/i18n/en.json')" in response.text
     assert "fetch('/i18n/' + state.locale + '.json')" in response.text

@@ -32,7 +32,7 @@ function sanitizeLandingHtml(value) {
   'use strict';
 
   var THEME_COLORS = { light: '#f7f9fa', dark: '#070b0a' };
-  var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
+  var LOCALES = ['en', 'fr'];
   var state = { locale: 'en', theme: 'dark', billing: 'monthly', catalog: {}, fallbackCatalog: {}, literalCatalog: {}, defaults: new WeakMap(), activeDomain: 'yourbrand.com' };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -50,6 +50,13 @@ function sanitizeLandingHtml(value) {
   function detectLocale() {
     var query = new URLSearchParams(location.search).get('lang');
     if (query) return normalizeLocale(query);
+    var docLang = (document.documentElement.getAttribute('lang') || '').toLowerCase().split('-')[0];
+    if (docLang && LOCALES.indexOf(docLang) >= 0 && docLang !== 'en') {
+      return docLang;
+    }
+    if (document.querySelector('.blog-article') && docLang === 'en') {
+      return 'en';
+    }
     try {
       var stored = localStorage.getItem('ulang');
       if (stored) return normalizeLocale(stored);
@@ -113,6 +120,7 @@ function sanitizeLandingHtml(value) {
 
   function localizeLegacyText() {
     if (state.locale === 'en') return;
+    if (document.querySelector('.blog-article')) return;
     var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     var nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -356,7 +364,22 @@ function sanitizeLandingHtml(value) {
   function initLocale() {
     var selector = $('#site-locale');
     if (!selector) return;
-    selector.addEventListener('change', function () { setLocale(selector.value); });
+    selector.addEventListener('change', function () {
+      var next = normalizeLocale(selector.value);
+      var alt = $('link[rel="alternate"][hreflang="' + next + '"]');
+      if (alt && alt.getAttribute('href')) {
+        var href = alt.getAttribute('href');
+        try {
+          var targetUrl = new URL(href, location.origin);
+          if (targetUrl.pathname !== location.pathname) {
+            try { localStorage.setItem('ulang', next); } catch (e) {}
+            location.href = targetUrl.pathname + (targetUrl.search || location.search);
+            return;
+          }
+        } catch (e) {}
+      }
+      setLocale(next);
+    });
   }
 
   function initHeaderScroll() {
