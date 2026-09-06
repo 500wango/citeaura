@@ -157,6 +157,18 @@ function sanitizeLandingHtml(value) {
     });
   }
 
+  function updateLocaleLinks() {
+    $$('a[href]').forEach(function (link) {
+      try {
+        var target = new URL(link.href, location.href);
+        if (target.origin !== location.origin) return;
+        if (state.locale === 'en') target.searchParams.delete('lang');
+        else target.searchParams.set('lang', state.locale);
+        link.href = target.pathname + target.search + target.hash;
+      } catch (e) {}
+    });
+  }
+
   function ensureLocalePicker() {
     var actions = $('.nav-actions');
     if (!actions || $('#site-locale')) return;
@@ -247,15 +259,7 @@ function sanitizeLandingHtml(value) {
       selector.replaceChildren.apply(selector, LOCALES.map(function (locale) { var option = document.createElement('option'); option.value = locale; option.textContent = LOCALE_LABELS[locale]; return option; }));
       selector.value = state.locale;
     }
-    $$('#primary-nav a, .site-footer a').forEach(function (link) {
-      try {
-        var target = new URL(link.href, location.href);
-        if (target.origin !== location.origin) return;
-        if (state.locale === 'en') target.searchParams.delete('lang');
-        else target.searchParams.set('lang', state.locale);
-        link.href = target.pathname + target.search + target.hash;
-      } catch (e) {}
-    });
+    updateLocaleLinks();
     var requestId = ++state.catalogRequest;
       var catalogRequests = [
         fetch('/i18n/en.json').then(function (r) { return r.ok ? r.json() : {}; }),
@@ -409,12 +413,13 @@ function sanitizeLandingHtml(value) {
       var next = normalizeLocale(selector.value);
       var alt = $('link[rel="alternate"][hreflang="' + next + '"]');
       if (alt && alt.getAttribute('href')) {
-        var href = alt.getAttribute('href');
         try {
-          var targetUrl = new URL(href, location.origin);
+          var targetUrl = new URL(alt.getAttribute('href'), location.origin);
           if (targetUrl.pathname !== location.pathname) {
+            targetUrl.searchParams.delete('lang');
+            if (next !== 'en') targetUrl.searchParams.set('lang', next);
             try { localStorage.setItem('ulang', next); } catch (e) {}
-            location.href = targetUrl.pathname + (targetUrl.search || location.search);
+            location.href = targetUrl.pathname + targetUrl.search;
             return;
           }
         } catch (e) {}
