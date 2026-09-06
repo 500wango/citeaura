@@ -54,7 +54,13 @@ _AUDIT_REQUESTS: dict[str, list[float]] = {}
 
 
 def _client_key(request: Request, scope: str = "audit") -> str:
-    value = str(request.client.host if request.client else "unknown")
+    # Cloudflare/Caddy terminates the connection, so request.client.host is shared by visitors.
+    value = (
+        request.headers.get("cf-connecting-ip")
+        or request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
+    value = value or "unknown"
     return hashlib.sha256(f"{scope}:{value}".encode("utf-8")).hexdigest()
 
 
