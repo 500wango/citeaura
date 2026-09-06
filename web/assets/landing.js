@@ -32,8 +32,7 @@ function sanitizeLandingHtml(value) {
   'use strict';
 
   var THEME_COLORS = { light: '#f7f9fa', dark: '#070b0a' };
-  // Product marketing pages are intentionally English-only for now.
-  var LOCALES = ['en'];
+  var LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
   var state = { locale: 'en', theme: 'dark', billing: 'monthly', catalog: {}, fallbackCatalog: {}, literalCatalog: {}, defaults: new WeakMap(), activeDomain: 'yourbrand.com' };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -49,6 +48,17 @@ function sanitizeLandingHtml(value) {
   }
 
   function detectLocale() {
+    var query = new URLSearchParams(location.search).get('lang');
+    if (query) return normalizeLocale(query);
+    try {
+      var stored = localStorage.getItem('ulang');
+      if (stored) return normalizeLocale(stored);
+    } catch (e) {}
+    var languages = navigator.languages || [navigator.language];
+    for (var i = 0; i < languages.length; i += 1) {
+      var locale = normalizeLocale(languages[i]);
+      if (locale !== 'en' || String(languages[i] || '').toLowerCase().indexOf('en') === 0) return locale;
+    }
     return 'en';
   }
 
@@ -201,8 +211,8 @@ function sanitizeLandingHtml(value) {
   }
 
   function setLocale(locale) {
-    state.locale = 'en';
-    document.documentElement.lang = 'en';
+    state.locale = normalizeLocale(locale);
+    document.documentElement.lang = state.locale === 'zh' ? 'zh-CN' : state.locale;
     try { localStorage.setItem('ulang', state.locale); } catch (e) {}
     var selector = $('#site-locale');
     if (selector) selector.value = state.locale;
