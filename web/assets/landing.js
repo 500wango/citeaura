@@ -157,6 +157,20 @@ function sanitizeLandingHtml(value) {
     });
   }
 
+  function ensureLocalePicker() {
+    var actions = $('.nav-actions');
+    if (!actions || $('#site-locale')) return;
+    var wrapper = document.createElement('div');
+    wrapper.className = 'lang-picker-btn';
+    var select = document.createElement('select');
+    select.id = 'site-locale';
+    select.className = 'site-locale-compact';
+    select.setAttribute('aria-label', 'Language');
+    wrapper.appendChild(select);
+    var cta = $('.nav-cta', actions);
+    actions.insertBefore(wrapper, cta || null);
+  }
+
   function applyI18n() {
     $$('[data-i18n]').forEach(function (node) {
       var key = node.getAttribute('data-i18n');
@@ -227,11 +241,21 @@ function sanitizeLandingHtml(value) {
     state.locale = normalizeLocale(locale);
     document.documentElement.lang = LOCALE_HTML_LANG[state.locale] || 'en';
     try { localStorage.setItem('ulang', state.locale); } catch (e) {}
+    ensureLocalePicker();
     var selector = $('#site-locale');
     if (selector) {
       selector.replaceChildren.apply(selector, LOCALES.map(function (locale) { var option = document.createElement('option'); option.value = locale; option.textContent = LOCALE_LABELS[locale]; return option; }));
       selector.value = state.locale;
     }
+    $$('#primary-nav a, .site-footer a').forEach(function (link) {
+      try {
+        var target = new URL(link.href, location.href);
+        if (target.origin !== location.origin) return;
+        if (state.locale === 'en') target.searchParams.delete('lang');
+        else target.searchParams.set('lang', state.locale);
+        link.href = target.pathname + target.search + target.hash;
+      } catch (e) {}
+    });
     var requestId = ++state.catalogRequest;
       var catalogRequests = [
         fetch('/i18n/en.json').then(function (r) { return r.ok ? r.json() : {}; }),
@@ -352,6 +376,13 @@ function sanitizeLandingHtml(value) {
       });
     });
     links.forEach(function (link) {
+      try {
+        var target = new URL(link.href, location.href);
+        if (target.origin === location.origin && state.locale !== 'en' && !target.searchParams.has('lang')) {
+          target.searchParams.set('lang', state.locale);
+          link.href = target.pathname + target.search + target.hash;
+        }
+      } catch (e) {}
       link.addEventListener('click', function () { setMenuOpen(false); });
       try {
         var linkPath = new URL(link.href, location.href).pathname.replace(/\/$/, '') || '/';
