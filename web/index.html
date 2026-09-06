@@ -22,6 +22,8 @@
   <script defer src="/site-assets/site-nav.js"></script>
   <script defer src="/site-assets/seo-attribution.js"></script>
   <link rel="canonical" href="https://citeaura.com/">
+  <link rel="alternate" hreflang="x-default" href="https://citeaura.com/">
+  <link rel="alternate" hreflang="en" href="https://citeaura.com/">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
   <!-- Open Graph / Social Sharing -->
@@ -53,7 +55,11 @@
         "name": "CiteAura",
         "url": "https://citeaura.com",
         "logo": "https://citeaura.com/site-assets/logo.png",
-        "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification."
+        "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.",
+        "sameAs": [
+          "https://github.com/500wango/citeaura",
+          "https://x.com/citeaura"
+        ]
       },
       {
         "@type": "WebSite",
@@ -61,17 +67,41 @@
         "url": "https://citeaura.com",
         "name": "CiteAura",
         "publisher": { "@id": "https://citeaura.com/#organization" },
+        "author": { "@id": "https://citeaura.com/#organization" },
         "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.",
-        "dateModified": "2026-08-20"
+        "datePublished": "2026-08-01",
+        "dateModified": "2026-08-26"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://citeaura.com/#webpage",
+        "url": "https://citeaura.com/",
+        "name": "CiteAura: AI Visibility & Generative Engine Optimization",
+        "description": "Measure AI brand visibility, audit your public site, turn evidence into engineering tickets, and verify changes with CiteAura.",
+        "inLanguage": "en",
+        "isPartOf": { "@id": "https://citeaura.com/#website" },
+        "about": { "@id": "https://citeaura.com/#software" },
+        "author": {
+          "@type": "Organization",
+          "@id": "https://citeaura.com/#organization",
+          "name": "CiteAura Engineering & Research Team",
+          "url": "https://citeaura.com/about"
+        },
+        "publisher": { "@id": "https://citeaura.com/#organization" },
+        "datePublished": "2026-08-01",
+        "dateModified": "2026-08-26"
       },
       {
         "@type": "SoftwareApplication",
         "@id": "https://citeaura.com/#software",
         "name": "CiteAura",
+        "author": { "@id": "https://citeaura.com/#organization" },
+        "publisher": { "@id": "https://citeaura.com/#organization" },
         "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.",
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web Application",
-        "dateModified": "2026-08-20",
+        "datePublished": "2026-08-01",
+        "dateModified": "2026-08-26",
         "offers": [
           {
             "@type": "Offer",
@@ -388,7 +418,7 @@
           <article class="extract-card">
             <h3>Evidence boundary</h3>
             <p>Every result keeps the sampling mode, source, prompt cohort, and verification state visible. Unmeasured engines are reported as unmeasured.</p>
-            <p class="extract-note"><span data-i18n="public.landing.starter_trial">Starter trial length</span>: <span data-i18n="public.landing.trial_days">7 days</span></p>
+            <p class="extract-note">Authored by the <a href="/about" rel="author">CiteAura Engineering &amp; Research Team</a>. <span data-i18n="public.landing.starter_trial">Starter trial length</span>: <span data-i18n="public.landing.trial_days">7 days</span>.</p>
             <p class="extract-note">Updated 2026-08-19.</p>
           </article>
         </div>
@@ -409,7 +439,11 @@
               <li><span data-i18n="landing.howto_4_body">Sample labeled engines and read the site audit plus tickets.</span></li>
               <li><span data-i18n="landing.howto_5_body">Implement changes, verify, and export the diagnostic pack.</span></li>
             </ol>
-            <p class="extract-note"><span data-i18n="landing.howto_note">Sources and definitions:</span> <a href="/docs#measurement" data-i18n="landing.howto_docs">CiteAura measurement documentation</a>.</p>
+            <p class="extract-note"><span data-i18n="landing.howto_note">Sources and definitions:</span> <a href="/docs#measurement" data-i18n="landing.howto_docs">CiteAura measurement documentation</a>, <a href="https://platform.openai.com/docs/bots" target="_blank" rel="noopener noreferrer">OpenAI GPTBot Documentation</a>, <a href="https://llmstxt.org" target="_blank" rel="noopener noreferrer">llms.txt Standard</a>, and <a href="https://schema.org" target="_blank" rel="noopener noreferrer">W3C Schema.org</a>.</p>
+            <blockquote class="extract-quote" cite="https://arxiv.org/abs/2311.09735">
+              <p>"Generative Engine Optimization (GEO) demonstrates that authoritative citations, statistics, and structured technical data can increase domain citation visibility in generative AI search responses by 30% to 40%."</p>
+              <cite>— Aggarwal et al. (Princeton University, Georgia Tech, IIT Delhi), <a href="https://arxiv.org/abs/2311.09735" target="_blank" rel="noopener noreferrer">GEO: Generative Engine Optimization (arXiv:2311.09735)</a></cite>
+            </blockquote>
           </div>
         </details>
       </div>
@@ -419,7 +453,7 @@
       <div class="page-shell">
         <div class="section-heading">
           <h2 id="free-tool-title">Free GEO tools</h2>
-          <p>Run focused checks without a login, download the result, and decide whether a full diagnostic is worth running.</p>
+          <p><strong>Free GEO developer tools are</strong> standalone utilities to check AI crawler access, generate llms.txt discovery manifests, and inspect brand Schema.org structured data before running a full audit.</p>
         </div>
         <div class="bento-grid">
           <article class="bento-card"><p class="section-index">01</p><h3>AI crawler access checker</h3><p>See whether GPTBot, PerplexityBot, ClaudeBot and other crawlers are blocked by robots.txt.</p><a class="btn btn-secondary" href="/crawler-check">Open checker</a></article>
@@ -436,7 +470,7 @@
         <div class="section-heading">
           <p class="section-index">Core Value</p>
           <h2 id="value-title">Evidence-based AI visibility with zero guesswork.</h2>
-          <p>Measure real citations, diagnose gaps, get engineering tickets, verify changes.</p>
+          <p><strong>Generative Engine Optimization (GEO) is</strong> the engineering practice of auditing website extractability, official brand facts, and structured data so AI search engines accurately recommend and cite your brand. CiteAura measures real citations, diagnoses extraction gaps, delivers engineering tickets, and verifies changes.</p>
         </div>
 
         <div class="bento-grid">
@@ -754,6 +788,7 @@
           <span class="brand-word">CiteAura</span>
         </a>
         <p class="footer-tagline" data-i18n="landing.footer_tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
+        <p class="footer-byline">Authored and maintained by the <a href="/about" rel="author">CiteAura Engineering &amp; Research Team</a>.</p>
         <p class="footer-copy">© 2026 CiteAura</p>
       </div>
       

@@ -1026,6 +1026,26 @@
   color: var(--accent); font-weight: bold; font-size: var(--fs-4);
 }
 .extract-steps strong { color: var(--ink); }
+.extract-quote {
+  margin: var(--sp-4) 0 0 0;
+  padding: var(--sp-4);
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+.extract-quote p {
+  font-size: var(--fs-2);
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin: 0 0 var(--sp-2) 0;
+  font-style: italic;
+}
+.extract-quote cite {
+  font-size: var(--fs-1);
+  color: var(--muted);
+  font-style: normal;
+  display: block;
+}
 
 /* ============ truth ============ */
 .truth-band { background: var(--deep); }
@@ -1166,6 +1186,9 @@
 .footer-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; gap: var(--sp-7); }
 .footer-brand .brand { margin-bottom: var(--sp-3); }
 .footer-tagline { max-width: 44ch; color: var(--muted); font-size: var(--fs-2); line-height: 1.65; margin-bottom: var(--sp-3); }
+.footer-byline { font-size: var(--fs-2); color: var(--muted); margin-bottom: var(--sp-2); }
+.footer-byline a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.footer-byline a:hover { color: var(--accent); }
 .footer-copy { font-family: var(--font-mono); font-size: var(--fs-1); color: var(--faint); }
 .footer-links { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-5); align-content: start; }
 .footer-links a { font-size: var(--fs-2); color: var(--muted); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
