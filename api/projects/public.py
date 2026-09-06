@@ -53,14 +53,14 @@ _AUDIT_MAX_PER_WINDOW = 3
 _AUDIT_REQUESTS: dict[str, list[float]] = {}
 
 
-def _client_key(request: Request) -> str:
+def _client_key(request: Request, scope: str = "audit") -> str:
     value = str(request.client.host if request.client else "unknown")
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{scope}:{value}".encode("utf-8")).hexdigest()
 
 
-def _allow_public_audit(request: Request) -> bool:
+def _allow_public_audit(request: Request, scope: str = "audit") -> bool:
     now = time.time()
-    key = _client_key(request)
+    key = _client_key(request, scope)
     with _AUDIT_CACHE_LOCK:
         recent = [value for value in _AUDIT_REQUESTS.get(key, []) if value > now - _AUDIT_WINDOW]
         if len(recent) >= _AUDIT_MAX_PER_WINDOW:
@@ -177,7 +177,7 @@ def _robots_blocked(root: str, text: str | None = None) -> list[str]:
 @router.post("/crawler-check")
 def public_crawler_check(payload: PublicAuditRequest, request: Request):
     """匿名检查 robots.txt 是否阻断常见 AI 爬虫，不执行模型采样。"""
-    if not _allow_public_audit(request):
+    if not _allow_public_audit(request, "crawler-check"):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail={"error": "public_audit_rate_limited"})
     robots = _machine_signal(payload.url, "/robots.txt", "robots")
     body = robots.get("_body", "")
@@ -207,7 +207,7 @@ def _public_homepage_text(url: str) -> str:
 @router.post("/llms-txt-tool")
 def public_llms_txt_tool(payload: PublicToolRequest, request: Request):
     """生成并验证一份基于首页公开元数据的 llms.txt 草稿。"""
-    if not _allow_public_audit(request):
+    if not _allow_public_audit(request, "llms-txt-tool"):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail={"error": "public_audit_rate_limited"})
     html = _public_homepage_text(payload.url)
     soup = geolib.parse_html(html)
@@ -232,7 +232,7 @@ def public_llms_txt_tool(payload: PublicToolRequest, request: Request):
 @router.post("/schema-tool")
 def public_schema_tool(payload: PublicToolRequest, request: Request):
     """诊断首页 JSON-LD 实体类型并返回可下载的检查结果。"""
-    if not _allow_public_audit(request):
+    if not _allow_public_audit(request, "schema-tool"):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail={"error": "public_audit_rate_limited"})
     html = _public_homepage_text(payload.url)
     soup = geolib.parse_html(html)

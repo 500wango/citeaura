@@ -73,6 +73,15 @@ def test_public_free_tools_return_downloadable_drafts_and_schema_findings(growth
     assert schema.json()["types"] == ["Organization"]
 
 
+def test_public_tools_have_independent_rate_limit_buckets(growth_client, monkeypatch):
+    client, _ = growth_client
+    monkeypatch.setattr(public.geolib, "fetch_text", lambda url, timeout=6, allow_machine_file=False: "<html><title>Acme</title></html>")
+    for _ in range(public._AUDIT_MAX_PER_WINDOW):
+        assert client.post("/api/v1/public/crawler-check", json={"url": "https://acme.example"}).status_code == 200
+    assert client.post("/api/v1/public/llms-txt-tool", json={"url": "https://acme.example"}).status_code == 200
+    assert client.post("/api/v1/public/schema-tool", json={"url": "https://acme.example"}).status_code == 200
+
+
 def test_public_audit_returns_cached_technical_summary_and_event(growth_client):
     client, sessions = growth_client
     first = client.post("/api/v1/public/audit", json={"url": "https://example.com"})
