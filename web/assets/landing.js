@@ -407,6 +407,7 @@ function sanitizeLandingHtml(value) {
   }
 
   function initLocale() {
+    ensureLocalePicker();
     var selector = $('#site-locale');
     if (!selector) return;
     selector.addEventListener('change', function () {
