@@ -3,23 +3,34 @@
  * Every user-facing key must exist in every supported catalog.
  */
 
-export const SUPPORTED_LOCALES = ['en', 'fr'];
+export const SUPPORTED_LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
 export const DEFAULT_LOCALE = 'en';
 
 const HTML_LANG_MAP = {
   en: 'en',
+  zh: 'zh-CN',
+  ja: 'ja',
+  ko: 'ko',
+  es: 'es',
   fr: 'fr',
+  de: 'de',
 };
 
 export const LOCALE_LABELS = {
   en: 'English',
+  zh: '简体中文',
+  ja: '日本語',
+  ko: '한국어',
+  es: 'Español',
   fr: 'Français',
+  de: 'Deutsch',
 };
 
 let currentLocale = 'en';
 let currentCatalog = {};
 let fallbackCatalog = {};
 let reverseFallbackCatalog = {};
+let catalogRequest = 0;
 const subscribers = [];
 
 function normalizeLocale(locale) {
@@ -61,6 +72,7 @@ function notifySubscribers() {
 
 export async function loadCatalogs(locale = 'en') {
   currentLocale = normalizeLocale(locale);
+  const requestId = ++catalogRequest;
   try {
     localStorage.setItem('ulang', currentLocale);
   } catch (e) {}
@@ -77,23 +89,31 @@ export async function loadCatalogs(locale = 'en') {
     const responses = await Promise.all(requests);
     const fallbackRes = responses[0];
     const localeRes = responses[1] || fallbackRes;
-    fallbackCatalog = fallbackRes.ok ? await fallbackRes.json() : {};
+    const loadedFallback = fallbackRes.ok ? await fallbackRes.json() : {};
+    const loadedLocale = currentLocale === DEFAULT_LOCALE
+      ? loadedFallback
+      : (localeRes.ok ? await localeRes.json() : {});
+    if (requestId !== catalogRequest) return loadedLocale;
+    fallbackCatalog = loadedFallback;
     reverseFallbackCatalog = Object.entries(fallbackCatalog).reduce((result, [key, value]) => {
       if (typeof value === 'string' && !Object.prototype.hasOwnProperty.call(result, value)) result[value] = key;
       return result;
     }, {});
-    currentCatalog = currentLocale === DEFAULT_LOCALE
-      ? fallbackCatalog
-      : (localeRes.ok ? await localeRes.json() : {});
+    currentCatalog = loadedLocale;
     if (currentLocale !== DEFAULT_LOCALE) {
       const missing = Object.keys(fallbackCatalog).filter((key) => !Object.prototype.hasOwnProperty.call(currentCatalog, key));
       if (missing.length) console.error(`Incomplete ${currentLocale} catalog: ${missing.length} missing keys`, missing);
     }
   } catch (err) {
     console.warn('Failed to load locale catalog, using in-memory fallbacks', err);
+    if (requestId === catalogRequest) {
+      currentCatalog = {};
+      fallbackCatalog = {};
+      reverseFallbackCatalog = {};
+    }
   }
 
-  notifySubscribers(currentLocale);
+  if (requestId === catalogRequest) notifySubscribers(currentLocale);
   return currentCatalog;
 }
 
