@@ -1,19 +1,270 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI Crawler Access Checker · CiteAura</title>
+  <title>AI Crawler Access Checker · Test robots.txt for AI Search | CiteAura</title>
+  <meta name="description" content="Free AI crawler access checker. Test whether your public robots.txt allows or blocks AI search bots including GPTBot, PerplexityBot, ClaudeBot, and Bytespider.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
   <link rel="canonical" href="https://citeaura.com/crawler-check">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/crawler-check">
+  <meta property="og:title" content="AI Crawler Access Checker · Test robots.txt for AI Search | CiteAura">
+  <meta property="og:description" content="Test your robots.txt file to see which AI search crawlers are allowed or blocked, including GPTBot, ClaudeBot, PerplexityBot, and ByteSpider.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="CiteAura free AI crawler access checker">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="AI Crawler Access Checker · CiteAura">
+  <meta name="twitter:description" content="Check which AI search and retrieval crawlers can read your website's public pages.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-default.png">
+
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
   <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/seo-pages.css">
   <script src="/runtime-assets/theme-init.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
   <script defer src="/site-assets/free-tools-crawler.js"></script>
-  <style>body{max-width:760px;margin:0 auto;padding:48px 20px;background:var(--page);color:var(--ink);font-family:var(--font-sans)}main{display:flex;flex-direction:column;gap:20px}.card{padding:20px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r-md)}form{display:flex;gap:10px;flex-wrap:wrap}.input{flex:1;min-width:240px}.results{display:grid;gap:8px}.row{display:flex;justify-content:space-between;padding:10px 12px;background:var(--deep);border:1px solid var(--line);font-size:14px}.muted{color:var(--muted);font-size:13px;line-height:1.5}</style>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "@id": "https://citeaura.com/crawler-check#app",
+        "name": "AI Crawler Access Checker",
+        "url": "https://citeaura.com/crawler-check",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "All",
+        "description": "Test whether your public robots.txt allows or blocks AI search bots including GPTBot, PerplexityBot, ClaudeBot, and ByteSpider.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com"
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://citeaura.com/" },
+          { "@type": "ListItem", "position": 2, "name": "Free GEO Tools", "item": "https://citeaura.com/#free-tools" },
+          { "@type": "ListItem", "position": 3, "name": "AI Crawler Access Checker", "item": "https://citeaura.com/crawler-check" }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Which AI crawlers does this tool check?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "This tool inspects directives for GPTBot (OpenAI retrieval), ChatGPT-User (browsing), ClaudeBot and Anthropic-AI (Anthropic), PerplexityBot (Perplexity AI), Bytespider (Doubao/ByteDance), and Google-Extended (Google Gemini training control)."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does unblocking an AI crawler guarantee AI citations?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Crawler access is a necessary prerequisite for retrieval, but citations depend on entity disambiguation, factual density, passage extractability, and model perception."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I safely allow AI search engines without exposing private data?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Declare specific Disallow rules for internal application paths (such as /api/, /admin/, /account/) while keeping public product, documentation, and blog routes accessible under Allow: /."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    .tool-form-card { padding: var(--sp-6); border: 1px solid var(--divider); background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--sh-sm); margin: var(--sp-6) 0; }
+    .tool-input-row { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
+    .tool-input-row .input { flex: 1; min-width: 260px; }
+    .results { display: grid; gap: 8px; margin: var(--sp-4) 0; }
+    .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--deep); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: 14px; }
+    .row strong { font-family: var(--font-mono); font-size: 13px; }
+    .tool-guide-card { padding: var(--sp-6); border: 1px solid var(--divider); border-radius: var(--r-md); background: var(--surface); margin-top: var(--sp-6); }
+    .tool-links-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-4); margin-top: var(--sp-4); }
+    .tool-link-box { padding: var(--sp-4); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); text-decoration: none; color: inherit; transition: border-color .15s; }
+    .tool-link-box:hover { border-color: var(--accent); }
+    .tool-link-box h4 { margin: 0 0 var(--sp-1); font-size: var(--fs-3); color: var(--ink); }
+    .tool-link-box p { margin: 0; font-size: var(--fs-2); color: var(--muted); }
+  </style>
 </head>
-<body><main>
-  <div><div class="kicker">CiteAura free tool</div><h1>AI crawler access checker</h1><p class="muted">Check whether common AI crawler user agents are blocked by your public robots.txt file. This checks crawl access only; it does not measure AI mentions or rankings.</p></div>
-  <section class="card"><form id="form"><input class="input" id="url" type="url" placeholder="https://example.com" required><button class="btn btn-primary" type="submit">Check robots.txt</button></form><p id="message" class="muted" aria-live="polite"></p></section>
-  <section id="result" class="card" hidden><h2>Observed directives</h2><p id="scope" class="muted"></p><div id="rows" class="results"></div><p class="muted">A blocked crawler does not prove that AI systems will ignore a site, and allowing a crawler does not guarantee recommendations. Use a full CiteAura diagnostic for page findings, tickets and verification.</p><a id="workspace-link" class="btn btn-secondary" href="/app#/onboarding">Create a workspace</a></section>
-</main></body></html>
+<body>
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Open navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+      <nav id="primary-nav" class="nav-links" aria-label="Main navigation">
+        <details class="nav-group"><summary>Product <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/#about">Overview</a><a href="/#workflow">How It Works</a><a href="/#product">Features</a><a href="/ai-visibility-audit">AI visibility audit</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">For brands</a><a href="/for-agencies">For agencies</a></div></details>
+        <details class="nav-group"><summary>Resources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Docs</a><a href="/blog">Guides</a><a href="/#free-tools">Free GEO tools</a><a href="/methodology">Methodology</a><a href="/sample-report">Sample report</a></div></details>
+        <a href="/pricing">Pricing</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="seo-page">
+    <nav class="blog-crumb" aria-label="Breadcrumb" style="margin-bottom:var(--sp-4);">
+      <a href="/">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/#free-tools">Free tools</a>
+      <span aria-hidden="true">/</span>
+      <span>AI crawler access checker</span>
+    </nav>
+
+    <header>
+      <span class="seo-kicker">CiteAura Free GEO Tool</span>
+      <h1>AI crawler access checker</h1>
+      <p class="seo-lead">Test whether major generative AI and search crawlers are allowed or accidentally blocked by your public robots.txt file. This checks crawler accessibility; it does not measure AI model perceptions or rankings.</p>
+    </header>
+
+    <section class="tool-form-card">
+      <form id="form">
+        <div class="tool-input-row">
+          <input class="input" id="url" type="url" placeholder="https://example.com" required aria-label="Website URL">
+          <button class="btn btn-primary" type="submit">Check robots.txt</button>
+        </div>
+      </form>
+      <p id="message" class="seo-meta" aria-live="polite" style="margin-top:var(--sp-2);"></p>
+    </section>
+
+    <section id="result" class="tool-form-card" hidden>
+      <h2>Observed directives</h2>
+      <p id="scope" class="seo-meta"></p>
+      <div id="rows" class="results"></div>
+      <p class="seo-meta" style="margin-top:var(--sp-4);line-height:1.6;">
+        A blocked crawler prevents real-time retrieval by search models, while an allowed crawler is a baseline requirement rather than a guarantee of brand recommendations. Run a full CiteAura workspace audit to convert page gaps into verifiable tickets.
+      </p>
+      <div style="margin-top:var(--sp-4);">
+        <a id="workspace-link" class="btn btn-secondary" href="/app#/onboarding">Create a workspace</a>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="crawler-types-title">
+      <h2 id="crawler-types-title">Understanding AI crawlers and directives</h2>
+      <p class="seo-lead">AI crawlers serve different roles. Blocking all bots stops generative search engines from referencing your official documentation and comparison facts.</p>
+      <div class="seo-grid" style="margin-top:var(--sp-6);">
+        <article class="seo-panel">
+          <span class="seo-label">Search &amp; Retrieval</span>
+          <h3>GPTBot, PerplexityBot, ClaudeBot</h3>
+          <p>Used by Perplexity, ChatGPT Search, and Claude Web Search to fetch fresh content during real-time user inquiries. Blocking these bots removes your site from live citations.</p>
+        </article>
+        <article class="seo-panel">
+          <span class="seo-label">User-Directed Fetching</span>
+          <h3>ChatGPT-User</h3>
+          <p>Triggered when an end-user explicitly pastes a URL or asks ChatGPT to summarize a specific webpage. Requires HTTP 200 access to public routes.</p>
+        </article>
+        <article class="seo-panel">
+          <span class="seo-label">Training Control</span>
+          <h3>Google-Extended, Bytespider</h3>
+          <p>Controls whether public content is ingested into baseline training sets (such as Gemini or Doubao). Many sites allow search crawlers while disallowing training-only bots.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="related-tools-title">
+      <h2 id="related-tools-title">More free GEO utilities &amp; guides</h2>
+      <div class="tool-links-grid">
+        <a class="tool-link-box" href="/llms-txt-tool">
+          <h4>llms.txt Generator →</h4>
+          <p>Generate and validate your official /llms.txt discovery file.</p>
+        </a>
+        <a class="tool-link-box" href="/schema-tool">
+          <h4>Brand Schema Checker →</h4>
+          <p>Inspect JSON-LD structured data and entity declarations.</p>
+        </a>
+        <a class="tool-link-box" href="/blog/gptbot-blocked-by-robots-txt">
+          <h4>Fix GPTBot Block Guide →</h4>
+          <p>Step-by-step tutorial on resolving robots.txt Disallow directives.</p>
+        </a>
+        <a class="tool-link-box" href="/blog/ai-crawler-access-checklist">
+          <h4>AI Crawler Access Checklist →</h4>
+          <p>Comprehensive user-agent reference for modern search crawlers.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="faq-title">
+      <h2 id="faq-title">Frequently asked questions</h2>
+      <div class="seo-faq">
+        <details open>
+          <summary>Which AI crawlers does this tool test?</summary>
+          <p>This tool inspects directives for GPTBot (OpenAI retrieval), ChatGPT-User (browsing), ClaudeBot and Anthropic-AI (Anthropic), PerplexityBot (Perplexity AI), Bytespider (Doubao/ByteDance), and Google-Extended (Google Gemini training control).</p>
+        </details>
+        <details>
+          <summary>Does unblocking an AI crawler guarantee AI citations?</summary>
+          <p>No. Crawler access is a necessary prerequisite for retrieval, but citations depend on entity disambiguation, factual density, passage extractability, and model perception.</p>
+        </details>
+        <details>
+          <summary>How do I safely allow AI search engines without exposing private data?</summary>
+          <p>Declare specific Disallow rules for internal application paths (such as /api/, /admin/, /account/) while keeping public product, documentation, and blog routes accessible under Allow: /.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="seo-footer-cta" aria-labelledby="tool-cta-title">
+      <div>
+        <h2 id="tool-cta-title">Run a complete GEO diagnostic on your brand.</h2>
+        <p>Beyond robots.txt: test multi-model mention rates, find extraction gaps, and verify fixes.</p>
+      </div>
+      <a class="btn btn-primary" href="/ai-visibility-audit">Start full audit <span aria-hidden="true">→</span></a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
+        <p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/for-agencies">For agencies</a>
+        <a href="/for-brands">For brands</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/docs">Docs</a>
+        <a href="/blog">Guides</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

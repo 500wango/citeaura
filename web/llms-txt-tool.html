@@ -1,2 +1,265 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>llms.txt Generator · CiteAura</title><link rel="canonical" href="https://citeaura.com/llms-txt-tool"><link rel="stylesheet" href="/site-assets/styles/tokens.css"><link rel="stylesheet" href="/site-assets/styles/base.css"><link rel="stylesheet" href="/site-assets/styles/components.css"><script src="/runtime-assets/theme-init.js"></script><script defer src="/site-assets/free-tools-llms.js"></script><style>body{max-width:860px;margin:0 auto;padding:48px 20px;background:var(--page);color:var(--ink);font-family:var(--font-sans)}main{display:grid;gap:20px}.card{padding:20px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r-md)}form{display:flex;gap:10px;flex-wrap:wrap}.input{flex:1;min-width:240px}.muted{color:var(--muted);font-size:13px;line-height:1.5}textarea{width:100%;min-height:300px;box-sizing:border-box;background:var(--deep);color:var(--ink);border:1px solid var(--line);padding:14px;font:13px/1.6 ui-monospace,monospace}</style></head><body><main><header><div class="kicker">CiteAura free tool</div><h1>llms.txt generator</h1><p class="muted">Create a reviewable draft from public homepage metadata. The file is a discovery aid, not a ranking guarantee.</p></header><section class="card"><form id="form"><input class="input" id="url" type="url" placeholder="https://example.com" required><button class="btn btn-primary">Generate draft</button></form><p id="message" class="muted" aria-live="polite"></p></section><section id="result" class="card" hidden><h2>Draft and validation</h2><p id="summary" class="muted"></p><textarea id="draft" readonly></textarea><p><button id="download" class="btn btn-secondary" type="button">Download llms.txt</button> <a class="btn btn-secondary" href="/app#/onboarding">Run full diagnostic</a></p></section></main></body></html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Free llms.txt Generator &amp; Validator for AI Search | CiteAura</title>
+  <meta name="description" content="Generate and validate your official /llms.txt file from public homepage metadata. Provide AI search engines with clean, machine-readable brand facts.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <link rel="canonical" href="https://citeaura.com/llms-txt-tool">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/llms-txt-tool">
+  <meta property="og:title" content="Free llms.txt Generator &amp; Validator for AI Search | CiteAura">
+  <meta property="og:description" content="Build an official /llms.txt manifest that tells AI engines what your company does and which canonical pages matter.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="CiteAura free llms.txt generator">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="llms.txt Generator · CiteAura">
+  <meta name="twitter:description" content="Generate a clean, sourced llms.txt manifest from public homepage metadata.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-default.png">
+
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/seo-pages.css">
+  <script src="/runtime-assets/theme-init.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/free-tools-llms.js"></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "@id": "https://citeaura.com/llms-txt-tool#app",
+        "name": "llms.txt Generator & Validator",
+        "url": "https://citeaura.com/llms-txt-tool",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "All",
+        "description": "Generate and validate reviewable llms.txt drafts from public homepage metadata for generative AI search engines.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com"
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://citeaura.com/" },
+          { "@type": "ListItem", "position": 2, "name": "Free GEO Tools", "item": "https://citeaura.com/#free-tools" },
+          { "@type": "ListItem", "position": 3, "name": "llms.txt Generator", "item": "https://citeaura.com/llms-txt-tool" }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is an llms.txt file?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "An llms.txt file is a markdown-formatted plain text file deployed at your site root or /.well-known/llms.txt that provides AI crawlers with concise entity definitions, key facts, and curated links to essential documentation."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does publishing an llms.txt guarantee AI recommendations?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. The file is a discovery aid that reduces extraction ambiguity, not a ranking guarantee. Answer engines evaluate full page content, third-party corroboration, and user context."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Where should the llms.txt file be hosted?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Host it at https://yourdomain.com/llms.txt or https://yourdomain.com/.well-known/llms.txt with content-type text/plain; charset=utf-8, and reference it in your robots.txt or HTML link headers."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    .tool-form-card { padding: var(--sp-6); border: 1px solid var(--divider); background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--sh-sm); margin: var(--sp-6) 0; }
+    .tool-input-row { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
+    .tool-input-row .input { flex: 1; min-width: 260px; }
+    textarea#draft { width: 100%; min-height: 280px; box-sizing: border-box; background: var(--deep); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px; font: 13px/1.6 ui-monospace, monospace; margin: var(--sp-4) 0; }
+    .tool-links-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-4); margin-top: var(--sp-4); }
+    .tool-link-box { padding: var(--sp-4); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); text-decoration: none; color: inherit; transition: border-color .15s; }
+    .tool-link-box:hover { border-color: var(--accent); }
+    .tool-link-box h4 { margin: 0 0 var(--sp-1); font-size: var(--fs-3); color: var(--ink); }
+    .tool-link-box p { margin: 0; font-size: var(--fs-2); color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Open navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+      <nav id="primary-nav" class="nav-links" aria-label="Main navigation">
+        <details class="nav-group"><summary>Product <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/#about">Overview</a><a href="/#workflow">How It Works</a><a href="/#product">Features</a><a href="/ai-visibility-audit">AI visibility audit</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">For brands</a><a href="/for-agencies">For agencies</a></div></details>
+        <details class="nav-group"><summary>Resources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Docs</a><a href="/blog">Guides</a><a href="/#free-tools">Free GEO tools</a><a href="/methodology">Methodology</a><a href="/sample-report">Sample report</a></div></details>
+        <a href="/pricing">Pricing</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="seo-page">
+    <nav class="blog-crumb" aria-label="Breadcrumb" style="margin-bottom:var(--sp-4);">
+      <a href="/">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/#free-tools">Free tools</a>
+      <span aria-hidden="true">/</span>
+      <span>llms.txt generator</span>
+    </nav>
+
+    <header>
+      <span class="seo-kicker">CiteAura Free GEO Tool</span>
+      <h1>llms.txt generator &amp; validator</h1>
+      <p class="seo-lead">Create a clean, human-reviewed llms.txt draft from your public homepage metadata. The file acts as a machine-readable discovery index for generative AI engines.</p>
+    </header>
+
+    <section class="tool-form-card">
+      <form id="form">
+        <div class="tool-input-row">
+          <input class="input" id="url" type="url" placeholder="https://example.com" required aria-label="Website URL">
+          <button class="btn btn-primary" type="submit">Generate draft</button>
+        </div>
+      </form>
+      <p id="message" class="seo-meta" aria-live="polite" style="margin-top:var(--sp-2);"></p>
+    </section>
+
+    <section id="result" class="tool-form-card" hidden>
+      <h2>Draft and validation</h2>
+      <p id="summary" class="seo-meta"></p>
+      <textarea id="draft" readonly aria-label="Generated llms.txt content"></textarea>
+      <div style="display:flex;gap:var(--sp-3);flex-wrap:wrap;align-items:center;">
+        <button id="download" class="btn btn-secondary" type="button">Download llms.txt</button>
+        <a class="btn btn-secondary" href="/app#/onboarding">Run full diagnostic</a>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="llms-guide-title">
+      <h2 id="llms-guide-title">What belongs in an official llms.txt?</h2>
+      <p class="seo-lead">An llms.txt file is designed for automated parsers that need quick, reliable context about your brand without crawling thousands of promotional pages.</p>
+      <div class="seo-grid" style="margin-top:var(--sp-6);">
+        <article class="seo-panel">
+          <span class="seo-label">Identity</span>
+          <h3>Standard Brand Definition</h3>
+          <p>A single clear sentence defining what the company is, who it serves, and what primary problem it solves. Skip hyperbolic marketing claims.</p>
+        </article>
+        <article class="seo-panel">
+          <span class="seo-label">Architecture</span>
+          <h3>Canonical Documentation Links</h3>
+          <p>Links to the home, documentation, pricing, comparison, and technical FAQ pages so language models prioritize canonical URLs.</p>
+        </article>
+        <article class="seo-panel">
+          <span class="seo-label">Boundaries</span>
+          <h3>Limitations &amp; Evidence Grades</h3>
+          <p>Explicit statements of what your product does not do, avoiding AI hallucination and incorrect feature attribution in customer answers.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="related-tools-title">
+      <h2 id="related-tools-title">More free GEO utilities &amp; guides</h2>
+      <div class="tool-links-grid">
+        <a class="tool-link-box" href="/crawler-check">
+          <h4>AI Crawler Access Checker →</h4>
+          <p>Test your robots.txt against GPTBot, PerplexityBot, and ClaudeBot.</p>
+        </a>
+        <a class="tool-link-box" href="/schema-tool">
+          <h4>Brand Schema Checker →</h4>
+          <p>Inspect JSON-LD structured data and entity declarations.</p>
+        </a>
+        <a class="tool-link-box" href="/blog/what-to-put-in-llms-txt">
+          <h4>What to Put in llms.txt Guide →</h4>
+          <p>Detailed editorial standard for drafting your brand's facts manifest.</p>
+        </a>
+        <a class="tool-link-box" href="/methodology">
+          <h4>CiteAura Methodology →</h4>
+          <p>How GEO sampling, audit scoring, and verification loop work together.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="faq-title">
+      <h2 id="faq-title">Frequently asked questions</h2>
+      <div class="seo-faq">
+        <details open>
+          <summary>What is an llms.txt file?</summary>
+          <p>An llms.txt file is a markdown-formatted plain text file deployed at your site root or /.well-known/llms.txt that provides AI crawlers with concise entity definitions, key facts, and curated links to essential documentation.</p>
+        </details>
+        <details>
+          <summary>Does publishing an llms.txt guarantee AI recommendations?</summary>
+          <p>No. The file is a discovery aid that reduces extraction ambiguity, not a ranking guarantee. Answer engines evaluate full page content, third-party corroboration, and user context.</p>
+        </details>
+        <details>
+          <summary>Where should the llms.txt file be hosted?</summary>
+          <p>Host it at https://yourdomain.com/llms.txt or https://yourdomain.com/.well-known/llms.txt with content-type text/plain; charset=utf-8, and reference it in your robots.txt or HTML link headers.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="seo-footer-cta" aria-labelledby="tool-cta-title">
+      <div>
+        <h2 id="tool-cta-title">Audit your complete GEO readiness.</h2>
+        <p>Combine llms.txt with site crawlability, structured data, and multi-model visibility sampling.</p>
+      </div>
+      <a class="btn btn-primary" href="/ai-visibility-audit">Start full audit <span aria-hidden="true">→</span></a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
+        <p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/for-agencies">For agencies</a>
+        <a href="/for-brands">For brands</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/docs">Docs</a>
+        <a href="/blog">Guides</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

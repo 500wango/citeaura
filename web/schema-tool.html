@@ -1,2 +1,267 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Brand Schema Checker · CiteAura</title><link rel="canonical" href="https://citeaura.com/schema-tool"><link rel="stylesheet" href="/site-assets/styles/tokens.css"><link rel="stylesheet" href="/site-assets/styles/base.css"><link rel="stylesheet" href="/site-assets/styles/components.css"><script src="/runtime-assets/theme-init.js"></script><script defer src="/site-assets/free-tools-schema.js"></script><style>body{max-width:860px;margin:0 auto;padding:48px 20px;background:var(--page);color:var(--ink);font-family:var(--font-sans)}main{display:grid;gap:20px}.card{padding:20px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r-md)}form{display:flex;gap:10px;flex-wrap:wrap}.input{flex:1;min-width:240px}.muted{color:var(--muted);font-size:13px;line-height:1.5}.rows{display:grid;gap:8px}.row{display:flex;justify-content:space-between;padding:10px 12px;background:var(--deep);border:1px solid var(--line);font-size:14px}</style></head><body><main><header><div class="kicker">CiteAura free tool</div><h1>Brand entity and Schema checker</h1><p class="muted">Inspect JSON-LD types on the public homepage and download a compact diagnosis. This checks presence and entity type only.</p></header><section class="card"><form id="form"><input class="input" id="url" type="url" placeholder="https://example.com" required><button class="btn btn-primary">Check Schema</button></form><p id="message" class="muted" aria-live="polite"></p></section><section id="result" class="card" hidden><h2>Observed JSON-LD</h2><p id="summary" class="muted"></p><div id="rows" class="rows"></div><p><button id="download" class="btn btn-secondary" type="button">Download diagnosis</button> <a class="btn btn-secondary" href="/app#/onboarding">Run full diagnostic</a></p></section></main></body></html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Free Brand Schema &amp; Entity Checker for AI Search | CiteAura</title>
+  <meta name="description" content="Inspect JSON-LD structured data and Schema.org entity declarations on your public website. Find missing schemas that AI search engines rely on for brand attribution.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <link rel="canonical" href="https://citeaura.com/schema-tool">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/schema-tool">
+  <meta property="og:title" content="Free Brand Schema &amp; Entity Checker for AI Search | CiteAura">
+  <meta property="og:description" content="Check which Schema.org types your website declares and identify missing structured data needed for AI search citations.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="CiteAura free brand schema checker">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Brand Schema Checker · CiteAura">
+  <meta name="twitter:description" content="Inspect JSON-LD markup and entity declarations for generative search engines.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-default.png">
+
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/seo-pages.css">
+  <script src="/runtime-assets/theme-init.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/free-tools-schema.js"></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "@id": "https://citeaura.com/schema-tool#app",
+        "name": "Brand Schema & Entity Checker",
+        "url": "https://citeaura.com/schema-tool",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "All",
+        "description": "Inspect JSON-LD structured data and Schema.org entity declarations on public websites for AI search engines.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com"
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://citeaura.com/" },
+          { "@type": "ListItem", "position": 2, "name": "Free GEO Tools", "item": "https://citeaura.com/#free-tools" },
+          { "@type": "ListItem", "position": 3, "name": "Brand Schema Checker", "item": "https://citeaura.com/schema-tool" }
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Why does Schema.org markup matter for AI search?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Answer engines like Perplexity, ChatGPT, and Google Gemini ingest structured JSON-LD data to connect brand entities, product capabilities, official pricing, and author expertise into factual knowledge graphs."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which Schema types are most important for SaaS and brands?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Organization (official company identity and logo), SoftwareApplication or Product (features and offers), FAQPage (direct question-answer extraction), and Article (editorial authority and dateModified)."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can Schema markup compensate for missing text on the page?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Google and AI search engines enforce that structured data must match visible on-page content. Hidden or unsupported markup can result in manual penalties or extraction disregard."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    .tool-form-card { padding: var(--sp-6); border: 1px solid var(--divider); background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--sh-sm); margin: var(--sp-6) 0; }
+    .tool-input-row { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
+    .tool-input-row .input { flex: 1; min-width: 260px; }
+    .rows { display: grid; gap: 8px; margin: var(--sp-4) 0; }
+    .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--deep); border: 1px solid var(--line); border-radius: var(--r-sm); font-size: 14px; }
+    .row strong { font-family: var(--font-mono); font-size: 13px; }
+    .tool-links-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-4); margin-top: var(--sp-4); }
+    .tool-link-box { padding: var(--sp-4); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); text-decoration: none; color: inherit; transition: border-color .15s; }
+    .tool-link-box:hover { border-color: var(--accent); }
+    .tool-link-box h4 { margin: 0 0 var(--sp-1); font-size: var(--fs-3); color: var(--ink); }
+    .tool-link-box p { margin: 0; font-size: var(--fs-2); color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Open navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+      <nav id="primary-nav" class="nav-links" aria-label="Main navigation">
+        <details class="nav-group"><summary>Product <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/#about">Overview</a><a href="/#workflow">How It Works</a><a href="/#product">Features</a><a href="/ai-visibility-audit">AI visibility audit</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">For brands</a><a href="/for-agencies">For agencies</a></div></details>
+        <details class="nav-group"><summary>Resources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Docs</a><a href="/blog">Guides</a><a href="/#free-tools">Free GEO tools</a><a href="/methodology">Methodology</a><a href="/sample-report">Sample report</a></div></details>
+        <a href="/pricing">Pricing</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="nav-sign-in" href="/app?auth=login">Sign In</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="seo-page">
+    <nav class="blog-crumb" aria-label="Breadcrumb" style="margin-bottom:var(--sp-4);">
+      <a href="/">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/#free-tools">Free tools</a>
+      <span aria-hidden="true">/</span>
+      <span>Brand Schema checker</span>
+    </nav>
+
+    <header>
+      <span class="seo-kicker">CiteAura Free GEO Tool</span>
+      <h1>Brand entity and Schema checker</h1>
+      <p class="seo-lead">Inspect JSON-LD structured data on your public homepage and download a structured diagnosis. This tool verifies presence and declared Schema.org types.</p>
+    </header>
+
+    <section class="tool-form-card">
+      <form id="form">
+        <div class="tool-input-row">
+          <input class="input" id="url" type="url" placeholder="https://example.com" required aria-label="Website URL">
+          <button class="btn btn-primary" type="submit">Check Schema</button>
+        </div>
+      </form>
+      <p id="message" class="seo-meta" aria-live="polite" style="margin-top:var(--sp-2);"></p>
+    </section>
+
+    <section id="result" class="tool-form-card" hidden>
+      <h2>Observed JSON-LD</h2>
+      <p id="summary" class="seo-meta"></p>
+      <div id="rows" class="rows"></div>
+      <div style="display:flex;gap:var(--sp-3);flex-wrap:wrap;align-items:center;margin-top:var(--sp-4);">
+        <button id="download" class="btn btn-secondary" type="button">Download diagnosis</button>
+        <a class="btn btn-secondary" href="/app#/onboarding">Run full diagnostic</a>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="schema-importance-title">
+      <h2 id="schema-importance-title">Core Schema types for generative search</h2>
+      <p class="seo-lead">Structured data helps LLMs connect ambiguous brand mentions with authoritative entity attributes and official features.</p>
+      <div class="seo-grid" style="margin-top:var(--sp-6);">
+        <article class="seo-panel">
+          <span class="seo-label">Identity</span>
+          <h3>Organization &amp; WebSite</h3>
+          <p>Declares canonical brand name, official website URL, logo asset, and social proof links, eliminating confusion between products and founders.</p>
+        </article>
+        <article class="seo-panel">
+          <span class="seo-label">Product Context</span>
+          <h3>SoftwareApplication / Product</h3>
+          <p>Provides pricing tiers, operating systems, and feature sets in machine-readable format, directly feeding generative comparison answers.</p>
+        </article>
+        <article class="seo-panel">
+          <span class="seo-label">Q&amp;A Extraction</span>
+          <h3>FAQPage &amp; HowTo</h3>
+          <p>Structures procedural and informational content so retrieval engines extract verified answers verbatim without hallucinations.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="related-tools-title">
+      <h2 id="related-tools-title">More free GEO utilities &amp; guides</h2>
+      <div class="tool-links-grid">
+        <a class="tool-link-box" href="/crawler-check">
+          <h4>AI Crawler Access Checker →</h4>
+          <p>Test your robots.txt against GPTBot, PerplexityBot, and ClaudeBot.</p>
+        </a>
+        <a class="tool-link-box" href="/llms-txt-tool">
+          <h4>llms.txt Generator →</h4>
+          <p>Generate and validate your official /llms.txt discovery file.</p>
+        </a>
+        <a class="tool-link-box" href="/blog/brand-fact-library-guide">
+          <h4>Brand Fact Library Guide →</h4>
+          <p>How to organize verified facts and prevent AI hallucinations.</p>
+        </a>
+        <a class="tool-link-box" href="/blog/extractability-audit">
+          <h4>Content Extractability Audit →</h4>
+          <p>Best practices for passages, tables, and structured data.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="faq-title">
+      <h2 id="faq-title">Frequently asked questions</h2>
+      <div class="seo-faq">
+        <details open>
+          <summary>Why does Schema.org markup matter for AI search?</summary>
+          <p>Answer engines like Perplexity, ChatGPT, and Google Gemini ingest structured JSON-LD data to connect brand entities, product capabilities, official pricing, and author expertise into factual knowledge graphs.</p>
+        </details>
+        <details>
+          <summary>Which Schema types are most important for SaaS and brands?</summary>
+          <p>Organization (official company identity and logo), SoftwareApplication or Product (features and offers), FAQPage (direct question-answer extraction), and Article (editorial authority and dateModified).</p>
+        </details>
+        <details>
+          <summary>Can Schema markup compensate for missing text on the page?</summary>
+          <p>No. Google and AI search engines enforce that structured data must match visible on-page content. Hidden or unsupported markup can result in manual penalties or extraction disregard.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="seo-footer-cta" aria-labelledby="tool-cta-title">
+      <div>
+        <h2 id="tool-cta-title">Audit your complete GEO readiness.</h2>
+        <p>Run a comprehensive audit of structured data, robots.txt, and AI mention rates.</p>
+      </div>
+      <a class="btn btn-primary" href="/ai-visibility-audit">Start full audit <span aria-hidden="true">→</span></a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
+        <p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+      <nav class="footer-links" aria-label="Footer Navigation">
+        <a href="/for-agencies">For agencies</a>
+        <a href="/for-brands">For brands</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/docs">Docs</a>
+        <a href="/blog">Guides</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

@@ -14,6 +14,9 @@
 - [Methodology](https://citeaura.com/methodology): Evidence model, sampling modes, cohorts, and verification boundaries.
 - [Pricing](https://citeaura.com/pricing): Starter, Pro, Agency, and Enterprise plan capacity and trial terms.
 - [Sample GEO Diagnostic Report](https://citeaura.com/sample-report): Example diagnostic with evidence, action tickets, and verification gates.
+- [AI Crawler Checker](https://citeaura.com/crawler-check): Test robots.txt rules against GPTBot, ClaudeBot, and other AI crawlers.
+- [llms.txt Generator](https://citeaura.com/llms-txt-tool): Generate reviewable, standards-compliant llms.txt drafts from public content.
+- [Brand Schema Checker](https://citeaura.com/schema-tool): Inspect and validate JSON-LD structured data and entity signals.
 - [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
 - [Best AI Visibility Tools 2026: Tested for Real Mentions](https://citeaura.com/blog/best-ai-visibility-tools)
 - [How to Measure ChatGPT Brand Mentions](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
