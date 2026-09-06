@@ -40,6 +40,7 @@ PUBLIC_PAGES = (
     {"path": "/blog", "lastmod": "2026-08-20", "changefreq": "weekly", "priority": "0.7"},
     {"path": "/blog/best-ai-visibility-tools", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/measure-if-chatgpt-mentions-your-brand", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt", "lastmod": "2026-09-07", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/why-chatgpt-does-not-mention-my-brand", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/perplexity-citation-audit", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/google-ai-overviews-citation-guide", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},

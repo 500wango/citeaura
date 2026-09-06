@@ -61,7 +61,7 @@
         "@id": "https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand#faq",
         "mainEntity": [
           {"@type": "Question","name": "Why does ChatGPT cite my competitor but not my brand?","acceptedAnswer": {"@type": "Answer","text": "Competitors are cited when their websites present direct, factual answers in crawlable semantic HTML, unblocked robots.txt rules, and public comparison tables, while your core facts may be trapped behind client JavaScript or gated PDFs."}},
-          {"@type": "Question","name": "Why is my brand never mentioned when people ask ChatGPT about our industry?","acceptedAnswer": {"@type": "Answer","text": "When categorical queries return competitors, ChatGPT's retrieval pipeline typically finds clear entity definitions and structured data on competitor domains while failing to extract consistent, machine-readable facts from yours."}},
+          {"@type": "Question","name": "Why is my brand never mentioned in ChatGPT responses when people ask about my industry?","acceptedAnswer": {"@type": "Answer","text": "When categorical queries return competitors, ChatGPT's retrieval pipeline typically finds clear entity definitions and structured data on competitor domains while failing to extract consistent, machine-readable facts from yours."}},
           {"@type": "Question","name": "Does allowing GPTBot guarantee a ChatGPT mention?","acceptedAnswer": {"@type": "Answer","text": "No. Crawl access removes one obstacle, but it does not guarantee retrieval, mention, cite, or rank. You still need extractable HTML and a question that requires the brand."}},
           {"@type": "Question","name": "Is llms.txt enough to make a brand appear?","acceptedAnswer": {"@type": "Answer","text": "No. It is an optional summary. The public HTML must already state the facts, and crawlers must be able to fetch it."}},
           {"@type": "Question","name": "When is missing mention a measurement issue?","acceptedAnswer": {"@type": "Answer","text": "When the same cohort varies answer-to-answer. If the brand is absent across a stable cohort (n>=45, same questions/mode), treat it as a site signal."}},
@@ -100,7 +100,8 @@
         <li><a href="#waf">Bucket 3: WAF challenges</a></li>
         <li><a href="#facts">Bucket 4: Structured fact consistency</a></li>
         <li><a href="#variance">Distinguishing variance from defects</a></li>
-        <li><a href="#competitor">Why competitors are easier to cite</a></li>
+        <li><a href="#competitor">Why does ChatGPT cite my competitor but not my brand?</a></li>
+        <li><a href="#industry-queries">Why is my brand never mentioned in industry queries?</a></li>
         <li><a href="#tickets">Packaging evidence into tickets</a></li>
       </ol>
     </nav>
@@ -172,8 +173,8 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
       <h2 id="faq-heading">FAQ: why ChatGPT skips a brand</h2>
       <h3>Why does ChatGPT cite my competitor but not my brand?</h3>
       <p>Competitors are cited when their websites present direct, factual answers in crawlable semantic HTML, unblocked robots.txt rules, and public comparison tables, while your core facts may be trapped behind client JavaScript or gated PDFs.</p>
-      <h3>Why is my brand never mentioned when people ask ChatGPT about our industry?</h3>
-      <p>When categorical queries return competitors, ChatGPT's retrieval pipeline typically finds clear entity definitions and structured data on competitor domains while failing to extract consistent, machine-readable facts from yours.</p>
+      <h3>Why is my brand never mentioned in ChatGPT responses when people ask about my industry?</h3>
+      <p>When buyers ask categorical industry questions, ChatGPT's retrieval pipeline prioritizes domains with unambiguous entity definitions, clear Schema.org metadata, and open pricing and feature comparisons over sites where facts are obscured or missing from the initial HTML response.</p>
       <h3>Does allowing GPTBot guarantee a ChatGPT mention?</h3>
       <p>No. It removes crawler access restrictions, but it does not guarantee retrieval, a mention, or a ranking. Your pages must also be extractable and relevant to the user query.</p>
       <h3>Is llms.txt enough to make a brand appear?</h3>
@@ -184,9 +185,17 @@ curl -s https://citeaura.com/ | grep -i "challenge\|cf-ray" | head</code></pre>
       <p>No. Verify crawl access, HTML rendering, and WAF rules across a multi-pass cohort before revising copy.</p>
     </section>
 
-    <h2 id="competitor">Why competitors are easier to cite</h2>
+    <h2 id="competitor">Why does ChatGPT cite my competitor but not my brand?</h2>
     <p>Categorical queries ("best tools for X") favor websites that present direct, factual answers in semantic HTML headings and structured tables. When a competitor publishes an open comparison page with clear H2 headings while your site gates pricing inside a downloadable PDF, language models cite the crawlable HTML source.</p>
     <p>In comparative benchmarks, websites that migrate core differentiation from client-rendered JavaScript to plain server-rendered HTML consistently increase their retrievable surface area across multiple testing passes.</p>
+
+    <h2 id="industry-queries">Why is my brand never mentioned in ChatGPT responses when people ask about my industry?</h2>
+    <p>When users ask broad industry questions such as <em>"What software should I use for SOC 2 compliance?"</em> or <em>"Top GEO diagnostic platforms"</em>, ChatGPT does not browse every site in real time. It relies on two retrieval mechanics:</p>
+    <ul>
+      <li><strong>Parametric authority:</strong> Established during pre-training from high-reputation developer hubs, industry directories (with DR &ge; 40), and Wikipedia / Wikidata entities.</li>
+      <li><strong>Web-grounded search:</strong> Triggered when GPTBot can crawl and index concise, machine-readable facts and comparison tables on your canonical domain without being blocked by robots.txt or JavaScript hydration.</li>
+    </ul>
+    <p>If neither mechanic finds your brand within the top candidates, ChatGPT defaults to citing competitors that provide structured, indexable evidence.</p>
 
     <h2 id="tickets">Packaging evidence into engineering tickets</h2>
     <p>CiteAura translates each diagnostic failure into a discrete engineering ticket with assigned owners, code diffs, and reproducible acceptance tests. Before opening a ticket, capture the necessary verification artifacts:</p>

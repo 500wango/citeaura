@@ -221,6 +221,12 @@
       </ol>
     </nav>
 
+    <div class="blog-callout" style="background:var(--surface-2);border-left:4px solid var(--accent);margin:1.5rem 0;padding:1.25rem;">
+      <p style="margin:0 0 0.5rem;font-weight:600;color:var(--ink);">Test your domain's live GPTBot robots.txt rules instantly</p>
+      <p style="margin:0 0 0.75rem;font-size:0.92rem;color:var(--muted);">Check whether GPTBot, OAI-SearchBot, ClaudeBot, or PerplexityBot are permitted or blocked on your public pages with our free online inspector:</p>
+      <a class="btn btn-primary btn-sm" href="/crawler-check">Test your robots.txt with AI Crawler Checker</a>
+    </div>
+
     <h2 id="how-evaluated">How robots.txt is actually evaluated</h2>
     <p>Robots.txt evaluation operates strictly per host, per path, and per user-agent group. A crawler fetches <code>https://yourdomain.com/robots.txt</code> directly from the origin root, parses the document into distinct token blocks, selects the single most specific matching group for its identifier, and evaluates rules within that group against the requested path. Directives across different user-agent groups do not inherit or merge, and paths support only the <code>$</code> and <code>*</code> wildcards specified in RFC 9309.</p>
     <p>OpenAI operates three distinct crawlers with separate user-agent tokens:</p>
@@ -401,6 +407,7 @@ Disallow: /</code></pre>
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>
       <ul>
+        <li><a href="/crawler-check">AI Crawler Checker (Free Tool)</a></li>
         <li><a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT does not mention a brand</a></li>
         <li><a href="/blog/what-to-put-in-llms-txt">What to put in llms.txt</a></li>
         <li><a href="/ai-visibility-audit">AI visibility audit workflow</a></li>

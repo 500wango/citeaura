@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Identifier la fréquence de mention de marque dans ChatGPT | CiteAura</title>
+  <meta name="description" content="Guide d'ingénierie GEO : comment identifier et mesurer la fréquence de mention d'une marque dans ChatGPT, concevoir des cohortes de requêtes et analyser les citations.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <meta name="author" content="Équipe Recherche CiteAura">
+  <script src="/runtime-assets/theme-init.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/blog.css">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="canonical" href="https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt">
+  <link rel="alternate" hreflang="fr" href="https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt">
+  <link rel="alternate" hreflang="en" href="https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand">
+  <link rel="alternate" hreflang="x-default" href="https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt">
+  <meta property="og:title" content="Identifier la fréquence de mention de marque dans ChatGPT | CiteAura">
+  <meta property="og:description" content="Méthode rigoureuse pour mesurer la visibilité d'une marque dans ChatGPT : cohortes de prompts, modes d'échantillonnage et analyse statistique.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Guides CiteAura — optimisation pour moteurs génératifs.">
+  <meta property="article:author" content="Équipe Recherche CiteAura">
+  <meta property="article:published_time" content="2026-09-07T00:00:00Z">
+  <meta property="article:modified_time" content="2026-09-07T00:00:00Z">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Identifier la fréquence de mention de marque dans ChatGPT | CiteAura">
+  <meta name="twitter:description" content="Guide GEO : mesurer la visibilité IA de votre marque de manière reproductible et chiffrée.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Accueil",
+            "item": "https://citeaura.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Guides",
+            "item": "https://citeaura.com/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Identifier la fréquence de mention de marque dans ChatGPT",
+            "item": "https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt"
+          }
+        ]
+      },
+      {
+        "@type": "Article",
+        "headline": "Comment identifier la fréquence de mention d'une marque dans ChatGPT",
+        "description": "Guide d'ingénierie GEO pour mesurer la visibilité de marque dans ChatGPT avec des cohortes fixes, des modes d'échantillonnage étiquetés et une analyse statistique de variance.",
+        "url": "https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt",
+        "datePublished": "2026-09-07",
+        "dateModified": "2026-09-07",
+        "author": {
+          "@type": "Person",
+          "name": "Alex Chen"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com",
+          "logo": "https://citeaura.com/site-assets/logo.png"
+        },
+        "mainEntityOfPage": "https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt",
+        "wordCount": 2400
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Comment identifier la fréquence de mention d'une marque dans ChatGPT ?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Pour identifier la fréquence de mention, exécutez une cohorte standardisée de 15 à 30 requêtes acheteurs réparties sur plusieurs passes indépendantes (ex. 45 tirages au total), analysez les réponses brutes JSON avec une expression régulière délimitée (\bMarque\b) et calculez le Taux de Mention : (mentions positives / total des tirages valides) × 100%."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Comment comprendre la manière dont une marque est mentionnée par ChatGPT ?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Comprendre la mention implique de distinguer les connaissances paramétriques (mémoire du modèle sans navigation web) de la recherche connectée (web-grounded retrieval), et de vérifier si la marque fait l'objet d'une simple citation textuelle ou d'un lien source direct cliquable vers son domaine."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Une seule réponse ChatGPT suffit-elle pour évaluer la visibilité d'une marque ?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Non. Les modèles de langage sont stochastiques (non déterministes). Une unique question testée une fois ne constitue pas une métrique fiable. Il faut établir une référence stable avec un échantillon représentatif (n >= 45) au sein d'une cohorte fixe."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Pourquoi ChatGPT mentionne-t-il mon concurrent et pas ma marque ?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Les concurrents sont cités en priorité lorsque leurs sites web offrent des réponses factuelles directes en HTML sémantique rendu côté serveur, des robots.txt autorisant GPTBot, des données structurées Schema.org complètes et une présence vérifiée dans des répertoires tiers de confiance."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="CiteAura Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Ouvrir la navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+
+      <nav id="primary-nav" class="nav-links" aria-label="Navigation principale">
+        <details class="nav-group"><summary>Produit <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/#about">Présentation</a><a href="/#workflow">Fonctionnement</a><a href="/#product">Fonctionnalités</a><a href="/ai-visibility-audit">Audit visibilité IA</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">Pour les marques</a><a href="/for-agencies">Pour les agences</a></div></details>
+        <details class="nav-group"><summary>Ressources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Documentation</a><a href="/blog" class="is-current" aria-current="page">Guides</a><a href="/methodology">Méthodologie</a><a href="/sample-report">Exemple de rapport</a></div></details>
+        <a href="/pricing">Tarifs</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Basculer vers le thème sombre" title="Changer de thème">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a class="nav-sign-in" href="/app?auth=login">Connexion</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register">Start free trial</a>
+      </div>
+    </div>
+  </header>
+
+  <article class="blog-shell blog-article">
+    <nav class="blog-crumb" aria-label="Fil d'Ariane"><a href="/">Accueil</a><span aria-hidden="true">/</span><a href="/blog">Guides</a><span aria-hidden="true">/</span><span>Mesure GEO</span></nav>
+    <header class="blog-header">
+      <span class="blog-kicker">Guide GEO</span>
+      <h1>Comment identifier la fréquence de mention d'une marque dans ChatGPT</h1>
+      <p class="blog-lead">À l'ère de l'optimisation pour moteurs génératifs (GEO), savoir si ChatGPT recommande votre entreprise nécessite une méthodologie scientifique d'échantillonnage, des cohortes de requêtes fixes et un calcul précis de la variance statistique.</p>
+      <p class="blog-meta">Publié le 7 septembre 2026 · 10 min de lecture · Méthodologie d'ingénierie</p>
+      <p class="blog-byline">By CiteAura Research</p>
+    </header>
+
+    <nav class="toc" aria-label="Sommaire">
+      <strong>Sommaire</strong>
+      <ol>
+        <li><a href="#pourquoi-mesurer">Pourquoi mesurer la fréquence de mention dans l'IA ?</a></li>
+        <li><a href="#modes-echantillonnage">Les 3 modes d'échantillonnage indispensables</a></li>
+        <li><a href="#constitution-cohorte">Constitution d'une cohorte de requêtes d'acheteurs</a></li>
+        <li><a href="#calcul-taux-mention">Formule du taux de mention et variance statistique</a></li>
+        <li><a href="#comprendre-mention">Comprendre comment la marque est mentionnée</a></li>
+        <li><a href="#faq">Questions fréquentes (FAQ)</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="pourquoi-mesurer">Pourquoi mesurer la fréquence de mention dans l'IA ?</h2>
+    <p>Le SEO traditionnel se concentre sur les positions de mots-clés dans les pages de résultats (SERP) et les volumes de clics. Mais lorsqu'un décideur B2B ou un consommateur demande à ChatGPT <em>« Quels sont les meilleurs logiciels pour résoudre le problème X ? »</em>, le moteur génératif synthétise une réponse directe.</p>
+    <p>Si votre marque est absente de cette synthèse, vous perdez le prospect avant même qu'il ne visite un moteur de recherche classique. Cependant, une capture d'écran unique ne prouve rien : les modèles d'IA comme GPT-4o sont stochastiques. Deux utilisateurs posant la même question peuvent recevoir des réponses différentes. Pour identifier véritablement la fréquence de mention, il est impératif d'utiliser une méthode reproductible par cohorte.</p>
+
+    <div class="blog-callout">
+      <p><strong>Règle d'or de la mesure GEO :</strong> Ne comparez jamais deux scores de mention s'ils n'ont pas été obtenus avec le même ensemble de questions, les mêmes versions de modèle et le même mode d'échantillonnage. CiteAura does not guarantee a mention or ranking, but provides reproducible diagnostic evidence.</p>
+    </div>
+
+    <h2 id="modes-echantillonnage">Les 3 modes d'échantillonnage indispensables</h2>
+    <p>Pour comprendre comment une marque est mentionnée par ChatGPT, vous devez catégoriser le type d'interrogation utilisé :</p>
+    <ul>
+      <li><strong>API · Connaissances paramétriques (Model knowledge) :</strong> Interrogation directe du modèle sans accès web. Cela reflète ce que l'IA a mémorisé durant son pré-entraînement. Si vous êtes cité ici, votre marque possède une autorité sémantique historique très forte.</li>
+      <li><strong>API · Recherche web connectée (Web-grounded retrieval) :</strong> L'IA effectue une recherche en direct (via Bing ou son crawler web) avant de synthétiser la réponse. Ce mode dépend directement de l'accessibilité de vos pages (robots.txt, rendu HTML serveur, absence de blocage WAF).</li>
+      <li><strong>Humain · Surface produit (Product surface) :</strong> L'interface grand public de ChatGPT (chatgpt.com), qui inclut la mémoire utilisateur, les instructions personnalisées et des briques de reranking propriétaires.</li>
+    </ul>
+
+    <h2 id="constitution-cohorte">Constitution d'une cohorte de requêtes d'acheteurs</h2>
+    <p>Pour mesurer la visibilité sans biais, constituez une cohorte de <strong>15 à 30 requêtes neutres et réalistes</strong> représentant les différentes étapes du parcours d'achat :</p>
+    <ul>
+      <li><strong>Requêtes catégorielles :</strong> <em>« Quels sont les principaux outils de conformité SOC 2 pour startups ? »</em></li>
+      <li><strong>Requêtes par cas d'usage :</strong> <em>« Comment automatiser la préparation d'un audit de sécurité B2B ? »</em></li>
+      <li><strong>Requêtes comparatives :</strong> <em>« Quelles sont les alternatives crédibles à [Concurrent Principal] ? »</em></li>
+    </ul>
+    <p>N'incluez pas le nom de votre propre marque dans les requêtes de test : le but est de mesurer si l'IA pense à vous spontanément lorsque l'acheteur décrit son besoin.</p>
+
+    <h2 id="calcul-taux-mention">Formule du taux de mention et variance statistique</h2>
+    <p>Une fois les requêtes exécutées sur 3 passes distinctes (soit <code>n = 45</code> réponses au total), analysez chaque réponse brute (JSON) à l'aide d'une regex délimitée pour éviter les faux positifs :</p>
+    <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code># Détection précise avec frontière de mot
+import re
+
+pattern = re.compile(r'\b' + re.escape(brand_name) + r'\b', re.IGNORECASE)
+is_mentioned = bool(pattern.search(raw_answer_text))</code></pre>
+    <p>Le <strong>Taux de Mention (Mention Rate)</strong> est défini formellement par :</p>
+    <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code>Taux de Mention (%) = (Nombre de tirages avec mention positive / Nombre total de tirages réussis) × 100</code></pre>
+
+    <p>Pour un échantillon binomial de taille <code>n</code> avec une probabilité observée <code>p</code>, la variance est <code>p(1 - p) / n</code>. Avec <code>n = 45</code> et un taux observé de 30 %, l'intervalle de confiance à 95 % (méthode de Wilson) est d'environ 18 % à 45 %. Une variation de 25 % à 35 % entre deux semaines n'est donc souvent que du bruit statistique ; une vraie amélioration nécessite d'élargir la cohorte ou de constater une rupture de tendance sur plusieurs cycles consécutifs.</p>
+
+    <h2 id="comprendre-mention">Comprendre comment la marque est mentionnée</h2>
+    <p>Identifier la fréquence brute ne suffit pas. Une analyse GEO complète examine la qualité de l'apparition :</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <thead>
+        <tr style="background:var(--surface-2)">
+          <th style="border:1px solid var(--border);padding:10px;text-align:left;">Dimension</th>
+          <th style="border:1px solid var(--border);padding:10px;text-align:left;">Mention superficielle</th>
+          <th style="border:1px solid var(--border);padding:10px;text-align:left;">Citation d'autorité (GEO optimal)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="border:1px solid var(--border);padding:10px;"><strong>Type de citation</strong></td>
+          <td style="border:1px solid var(--border);padding:10px;">Simple nom dans une liste de 10 outils</td>
+          <td style="border:1px solid var(--border);padding:10px;">Lien source direct vers votre site ou citation comme référence de premier plan</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid var(--border);padding:10px;"><strong>Exactitude des faits</strong></td>
+          <td style="border:1px solid var(--border);padding:10px;">Fonctionnalités ou prix obsolètes / hallucinés</td>
+          <td style="border:1px solid var(--border);padding:10px;">Faits vérifiables alignés sur votre page tarifs et votre fichier <code>llms.txt</code></td>
+        </tr>
+        <tr>
+          <td style="border:1px solid var(--border);padding:10px;"><strong>Contexte de sentiment</strong></td>
+          <td style="border:1px solid var(--border);padding:10px;">Mention passive sans prise de position</td>
+          <td style="border:1px solid var(--border);padding:10px;">Mise en avant des points forts spécifiques à votre solution</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
+      <h2 id="faq-heading">Questions fréquentes (FAQ)</h2>
+      <h3>Comment identifier la fréquence de mention d'une marque dans ChatGPT ?</h3>
+      <p>Pour identifier la fréquence de mention, exécutez une cohorte standardisée de 15 à 30 requêtes acheteurs réparties sur plusieurs passes indépendantes (ex. 45 tirages au total), analysez les réponses brutes JSON avec une expression régulière délimitée (\bMarque\b) et calculez le Taux de Mention : (mentions positives / total des tirages valides) × 100%.</p>
+      <h3>Comment comprendre la manière dont une marque est mentionnée par ChatGPT ?</h3>
+      <p>Comprendre la mention implique de distinguer les connaissances paramétriques (mémoire du modèle sans navigation web) de la recherche connectée (web-grounded retrieval), et de vérifier si la marque fait l'objet d'une simple citation textuelle ou d'un lien source direct cliquable vers son domaine.</p>
+      <h3>Une seule réponse ChatGPT suffit-elle pour évaluer la visibilité d'une marque ?</h3>
+      <p>Non. Les modèles de langage sont stochastiques (non déterministes). Une unique question testée une fois ne constitue pas une métrique fiable. Il faut établir une référence stable avec un échantillon représentatif (n &ge; 45) au sein d'une cohorte fixe.</p>
+      <h3>Pourquoi ChatGPT mentionne-t-il mon concurrent et pas ma marque ?</h3>
+      <p>Les concurrents sont cités en priorité lorsque leurs sites web offrent des réponses factuelles directes en HTML sémantique rendu côté serveur, des robots.txt autorisant GPTBot, des données structurées Schema.org complètes et une présence vérifiée dans des répertoires tiers de confiance.</p>
+    </section>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://arxiv.org/abs/2311.09735" rel="noopener noreferrer">Princeton GEO Research (Aggarwal et al., 2023)</a> — Recherche fondatrice sur l'optimisation pour les moteurs génératifs.</li>
+      <li><a href="https://developers.openai.com/api/docs/bots" rel="noopener noreferrer">OpenAI Bot Documentation</a> — Directives d'exploration pour GPTBot et OAI-SearchBot.</li>
+      <li><a href="https://schema.org/Brand" rel="noopener noreferrer">Schema.org Brand &amp; Organization</a> — Standardisation des entités pour l'indexation sémantique.</li>
+      <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — Spécification ouverte des fichiers de contexte markdown pour LLM.</li>
+    </ul>
+
+    <div class="blog-cta">
+      <p>Démarrez votre premier audit de visibilité IA et mesurez la fréquence de mention de votre marque sur 6 moteurs majeurs.</p>
+      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
+    </div>
+
+    <aside class="blog-related" aria-labelledby="related-guides">
+      <h2 id="related-guides">Guides connexes</h2>
+      <ul>
+        <li><a href="/blog/measure-if-chatgpt-mentions-your-brand">How to Measure ChatGPT Brand Mentions (Version anglaise)</a></li>
+        <li><a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT Does Not Mention Your Brand: 4 Diagnostic Buckets</a></li>
+        <li><a href="/blog/gptbot-blocked-by-robots-txt">GPTBot Blocked by robots.txt? Find and Fix the Rule</a></li>
+        <li><a href="/crawler-check">Testeur gratuit de robots.txt pour robots IA</a></li>
+      </ul>
+    </aside>
+  </article>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
+        <p class="footer-tagline">Plateforme de diagnostic, exécution et vérification GEO (Generative Engine Optimization).</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+      <nav class="footer-links" aria-label="Liens de bas de page">
+        <a href="/docs">Documentation</a>
+        <a href="/blog">Guides</a>
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/app?auth=login">Connexion</a>
+        <a href="/privacy">Politique de confidentialité</a>
+        <a href="/terms">Conditions d'utilisation</a>
+      </nav>
+    </div>
+  </footer>
+  <script defer src="/site-assets/landing.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
+</body>
+</html>

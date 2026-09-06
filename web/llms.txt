@@ -20,6 +20,7 @@
 - [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
 - [Best AI Visibility Tools 2026: Tested for Real Mentions](https://citeaura.com/blog/best-ai-visibility-tools)
 - [How to Measure ChatGPT Brand Mentions](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
+- [Identifier la fréquence de mention de marque dans ChatGPT](https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt)
 - [Why ChatGPT Does Not Mention Your Brand](https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand)
 - [Perplexity Citation Audit: Are You Cited or Just Mentioned?](https://citeaura.com/blog/perplexity-citation-audit)
 - [Google AI Overviews: How to Get Cited](https://citeaura.com/blog/google-ai-overviews-citation-guide)
