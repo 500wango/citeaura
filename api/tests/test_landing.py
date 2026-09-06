@@ -617,6 +617,7 @@ def test_homepage_keeps_slogan_h1_and_links_guides():
     assert "View a sample report" in response.text
     assert 'id="primary-nav"' in response.text
     assert 'href="/blog" data-i18n="nav.guides">Guides</a>' in response.text
+    assert 'href="#free-tools">Free GEO tools</a>' in response.text
     assert 'class="header-status-badge"' not in response.text
     assert 'class="hero-status-badge"' not in response.text
     assert 'data-i18n="nav.status"' not in response.text
