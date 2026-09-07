@@ -83,6 +83,8 @@
   "landing.title": "CiteAura: AI Visibility & Generative Engine Optimization",
   "landing.eyebrow": "Next-Gen Generative Engine Optimization (GEO)",
   "landing.hero_copy": "CiteAura traces AI answers, missing citations, and competitor gaps across a defined sample. Turn each finding into an assigned fix, acceptance check, and repeatable verification run.",
+  "landing.hero_subtitle": "Measure real AI citations, diagnose extraction gaps, get prioritized tickets, and verify fixes with reproducible evidence.",
+  "landing.hero_secondary": "View a sample report",
   "landing.hero_copy_span": "tickets, and delivery packs.",
   "landing.hero_title": "Turn AI visibility gaps into <span style=\"color: #fe551b;\">engineering tickets</span>.",
   "landing.scan_btn": "Run free technical audit →",

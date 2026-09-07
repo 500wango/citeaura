@@ -83,6 +83,8 @@
   "landing.title": "CiteAura：AI 可见性与生成式引擎优化（GEO）平台",
   "landing.eyebrow": "新一代生成式引擎优化（GEO）",
   "landing.hero_copy": "CiteAura 在受控样本中精准追踪 AI 模型回答、引用缺失与竞品差距。将每项发现转化为可派发工单、机器验收检查与可复现验证。",
+  "landing.hero_subtitle": "测量真实 AI 引用，诊断内容提取缺口，获取优先级工单，并用可复现证据验证修复结果。",
+  "landing.hero_secondary": "查看示例报告",
   "landing.hero_copy_span": "工程工单与交付包。",
   "landing.hero_title": "找出 AI 遗漏您品牌的核心原因，获取提升可见性的精准工程修复方案。",
   "landing.scan_btn": "免费运行技术诊断 →",

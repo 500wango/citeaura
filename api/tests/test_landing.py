@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from api.main import app
+from api.i18n.catalog import load_all_catalogs
 
 
 client = TestClient(app)
@@ -24,6 +25,7 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'href="/sample-report"' in response.text
     assert "AI search era" in response.text
     assert "Google Search Console" not in response.text
+
     assert 'href="/app"' in response.text
     assert 'data-i18n="landing.mode_parametric"' in response.text
     assert 'data-i18n="landing.mode_search"' in response.text
@@ -73,6 +75,17 @@ def test_public_tools_load_csp_compatible_scripts():
         assert response.status_code == 200, path
         assert f'<script defer src="{script}"></script>' in response.text
         assert "form.addEventListener" not in response.text
+
+
+def test_home_data_i18n_keys_exist_in_all_product_catalogs():
+    root = Path(__file__).resolve().parents[2] / "web" / "index.html"
+    keys = {
+        key for key in re.findall(r'data-i18n(?:-[a-z]+)*="([^"]+)"', root.read_text("utf-8"))
+        if not key.startswith("public.")
+    }
+    catalogs = load_all_catalogs()
+    for locale, catalog in catalogs.items():
+        assert keys <= set(catalog), (locale, sorted(keys - set(catalog)))
     
 
 def test_public_verification_pages_support_head_requests():
