@@ -267,8 +267,8 @@ function sanitizeLandingHtml(value) {
       if (state.locale !== 'en') {
         catalogRequests.push(fetch('/i18n/' + state.locale + '.json').then(function (r) { return r.ok ? r.json() : {}; }));
       }
-      if (state.locale === 'zh') {
-        catalogRequests.push(fetch('/i18n/public/zh.json').then(function (r) { return r.ok ? r.json() : {}; }));
+      if (state.locale !== 'en') {
+        catalogRequests.push(fetch('/i18n/public/' + state.locale + '.json').then(function (r) { return r.ok ? r.json() : {}; }));
       }
       Promise.all(catalogRequests)
       .then(function (catalogs) {

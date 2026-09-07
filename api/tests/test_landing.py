@@ -276,6 +276,7 @@ def test_frontend_asset_cache_contract_is_explicit():
         "/i18n/en.json",
         "/i18n/zh.json",
         "/i18n/public/zh.json",
+        "/i18n/public/fr.json",
     ):
         response = client.get(path)
         assert response.status_code == 200, path
@@ -400,6 +401,17 @@ def test_public_zh_catalog_covers_docs_and_guides():
     assert "public.g2.sec1_h2" in (root / "blog" / "why-chatgpt-does-not-mention-my-brand.html").read_text("utf-8")
     assert "public.docs.admin_brand_use" in (root / "docs.html").read_text("utf-8")
     assert client.get("/i18n/public/en.json").status_code == 404
+
+
+def test_public_fr_catalog_covers_sample_report():
+    response = client.get("/i18n/public/fr.json")
+    assert response.status_code == 200
+    catalog = response.json()
+    root = Path(__file__).resolve().parents[2] / "web" / "sample-report.html"
+    keys = set(re.findall(r'data-i18n(?:-[a-z]+)*="([^"]+)"', root.read_text("utf-8")))
+    assert keys <= set(catalog), sorted(keys - set(catalog))
+    assert "D’une réponse IA" in catalog["public.sample.hero"]
+    assert "Tickets à fort impact" in catalog["public.sample.summary"]
 
 
 def test_public_zh_catalog_covers_all_localized_public_pages():
