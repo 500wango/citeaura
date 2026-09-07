@@ -127,6 +127,8 @@ volumes:
   postgres_data:
   redis_data:
   citeaura_work:
+    name: ${CITEAURA_WORK_VOLUME:-citeaura_citeaura_work}
+    external: ${CITEAURA_WORK_EXTERNAL:-false}
 
 networks:
   citeaura:

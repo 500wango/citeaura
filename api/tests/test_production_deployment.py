@@ -20,6 +20,8 @@ def test_production_compose_binds_api_to_loopback_and_profiles_nginx():
     assert "requirements.lock" in (ROOT / "docker-compose.yml").read_text("utf-8")
     assert 'profiles: ["standalone-nginx"]' in compose
     assert 'profiles: ["local-postgres"]' in compose
+    assert "name: ${CITEAURA_WORK_VOLUME:-citeaura_citeaura_work}" in compose
+    assert "external: ${CITEAURA_WORK_EXTERNAL:-false}" in compose
     app = compose.split("x-app: &app\n", 1)[1].split("\nservices:\n", 1)[0]
     assert "    redis:\n      condition: service_healthy" in app
     local_override = (ROOT / "docker-compose.prod.local-postgres.yml").read_text("utf-8")

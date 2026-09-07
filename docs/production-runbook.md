@@ -4,7 +4,7 @@
 
 ## 自托管快速开始
 
-本手册适用于在一台 Linux 主机上运行 CiteAura。要求主机已安装 Docker Engine、Docker Compose v2、Git、Python 3.12 和 `curl`；使用默认的一键部署路径时，还需要宿主机安装 Caddy。生产服务由 API、Celery Worker、Celery Beat、Redis 和 PostgreSQL 组成，管线产物写入 Docker volume `citeaura_work`，不要把 `/app/work` 改为临时目录。
+本手册适用于在一台 Linux 主机上运行 CiteAura。要求主机已安装 Docker Engine、Docker Compose v2、Git、Python 3.12 和 `curl`；使用默认的一键部署路径时，还需要宿主机安装 Caddy。生产服务由 API、Celery Worker、Celery Beat、Redis 和 PostgreSQL 组成，管线产物写入 Docker volume `citeaura_work`，不要把 `/app/work` 改为临时目录。物理卷名由 `CITEAURA_WORK_VOLUME` 指定，默认是 `citeaura_citeaura_work`；恢复已有卷时必须显式指定真实卷名并将 `CITEAURA_WORK_EXTERNAL=true`。
 
 ### 1. 获取代码并创建环境文件
 
@@ -92,6 +92,34 @@ scripts/one-click-deploy.sh --env-file .env.production
 ```
 
 更新前确认 `git status` 没有未提交的受管文件。脚本会重新构建 API/Worker/Beat、执行迁移并检查 readiness；Caddy 配置校验失败会自动恢复旧配置。不要删除 `citeaura_work`、`postgres_data` 或 `redis_data` volume。数据库备份不包含 `citeaura_work`，必须分别快照工作区 volume；本机备份还要复制到异机或对象存储。
+
+#### 工作卷恢复
+
+如果服务挂载到了空的新卷，先确认旧卷中仍有租户目录和项目文件。不要创建 `docker-compose.restore.yml` 覆盖文件，也不要删除任何卷；在 `/opt/citeaura/.env.production` 中设置旧卷的实际名称：
+
+```dotenv
+CITEAURA_WORK_VOLUME=citeaura_disvorai_work
+CITEAURA_WORK_EXTERNAL=true
+```
+
+将示例中的 `citeaura_disvorai_work` 替换为 `docker volume ls` 查到的旧卷名。保存后执行：
+
+```bash
+cd /opt/citeaura
+scripts/one-click-deploy.sh --env-file .env.production
+```
+
+部署前后可用以下命令确认 API、Worker、Beat 都挂载了同一个旧卷：
+
+```bash
+docker compose --env-file .env.production \
+  --profile local-postgres -f docker-compose.prod.yml ps
+docker inspect "$(docker compose --env-file .env.production \
+  --profile local-postgres -f docker-compose.prod.yml ps -q api)" \
+  --format '{{range .Mounts}}{{if eq .Destination "/app/work"}}{{.Name}}{{end}}{{end}}'
+```
+
+恢复完成并验收项目列表、报告、任务、交付物和 Snapshot 后，保留旧卷和原空卷备份；不要执行 `docker compose down -v`、`docker volume rm` 或 `docker volume prune`。
 
 发生故障时先保留容器日志和当前迁移版本：
 
