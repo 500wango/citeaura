@@ -2,13 +2,29 @@
  *  (Publishing Destinations)
  */
 
-import { publishing } from '../api.js';
+import { publishing, workspace, projects } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
 
 let publisherState = [];
+let projectState = null;
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function selectedPaths() {
+  return [...document.querySelectorAll('[data-github-asset]:checked')]
+    .map((input) => input.value)
+    .filter(Boolean);
+}
 
 export default {
   render: async (ctx) => {
@@ -19,16 +35,26 @@ export default {
 
     let state = {};
     let prs = [];
+    let project = null;
+    let assets = [];
     let prsUnavailable = false;
-    try {
-      state = await publishing.get(projectId);
-    } catch (e) {}
-    try {
-      prs = (await publishing.listGithubPrs(projectId)).prs || [];
-    } catch (e) {
-      prsUnavailable = true;
-    }
+    const refreshPrs = Boolean(ctx.params?.refresh);
+    const [publisherResult, prResult, projectResult, assetResult] = await Promise.allSettled([
+      publishing.get(projectId),
+      publishing.listGithubPrs(projectId, refreshPrs),
+      projects.get(projectId),
+      workspace.getAssets(projectId),
+    ]);
+    if (publisherResult.status === 'fulfilled') state = publisherResult.value;
+    if (prResult.status === 'fulfilled') prs = prResult.value.prs || [];
+    else prsUnavailable = true;
+    if (projectResult.status === 'fulfilled') project = projectResult.value;
+    if (assetResult.status === 'fulfilled') assets = assetResult.value;
     publisherState = Array.isArray(state.publishers) ? state.publishers : [];
+    projectState = project;
+    const github = publisherState.find((item) => item.code === 'github');
+    const deployableAssets = (Array.isArray(assets) ? assets : [])
+      .filter((item) => item?.status === 'deployable' && item?.path);
 
     return `
       <div class="app-view-container">
@@ -68,6 +94,21 @@ export default {
             `;
           }).join('')}
         </div>
+        ${github?.ready ? `<section class="card" style="margin-top:var(--sp-6);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-4);">
+            <div>
+              <h2 style="margin:0;font-size:var(--fs-4);">Create GitHub review request</h2>
+              <p style="margin:var(--sp-1) 0 0;color:var(--muted);">Select approved assets. CiteAura creates a branch and pull request; nothing is merged automatically.</p>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-create-github-pr" ${deployableAssets.length ? '' : 'disabled'}>Create pull request</button>
+          </div>
+          ${deployableAssets.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--sp-2);margin-top:var(--sp-4);">
+            ${deployableAssets.map((asset) => `<label style="display:flex;align-items:flex-start;gap:var(--sp-2);padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-sm);cursor:pointer;">
+              <input type="checkbox" data-github-asset value="assets/${escapeHtml(asset.path)}">
+              <span><strong style="display:block;overflow-wrap:anywhere;">${escapeHtml(asset.path)}</strong><span class="field-hint">Ready to publish</span></span>
+            </label>`).join('')}
+          </div>` : `<p style="margin:var(--sp-4) 0 0;color:var(--muted);">No approved assets are available. Review required assets in Campaigns & Assets before creating a pull request.</p>`}
+        </section>` : ''}
         <section class="card" style="margin-top:var(--sp-6);">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);">
             <div><h2 style="margin:0;font-size:var(--fs-4);">GitHub review queue</h2><p style="margin:var(--sp-1) 0 0;color:var(--muted);">Reviewable PRs never merge or deploy automatically.</p></div>
@@ -84,6 +125,14 @@ export default {
     if (!projectId) return;
 
     document.getElementById('btn-refresh-github-prs')?.addEventListener('click', () => ctx.navigate(`#/publishing?refresh=${Date.now()}`));
+    document.getElementById('btn-create-github-pr')?.addEventListener('click', () => {
+      const paths = selectedPaths();
+      if (!paths.length) {
+        toast.error('Select at least one approved asset');
+        return;
+      }
+      showGithubPrModal(projectId, paths, ctx);
+    });
     document.querySelectorAll('.btn-config-publisher').forEach((button) => {
       button.addEventListener('click', () => {
         const publisher = publisherState.find((item) => item.code === button.getAttribute('data-code'));
@@ -99,15 +148,22 @@ function showPublisherModal(projectId, publisher, ctx) {
   const credentialFields = Array.isArray(publisher.env) ? publisher.env : [];
   const content = `
     <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
-      ${configFields.map((field, index) => `
+      ${configFields.map((field, index) => {
+        const isGithubDirectory = publisher.code === 'github' && field.key === 'dir';
+        const label = isGithubDirectory ? 'Repository directory (optional)' : field.key;
+        const hint = isGithubDirectory
+          ? 'Leave blank for the repository root. For example, docs/geo writes selected assets to docs/geo/.'
+          : field.hint_en || field.hint || '';
+        return `
         <div class="field" style="margin:0;">
-          <label>${field.key}</label>
-          <input type="text" id="publisher-config-${index}" class="input" value="${field.value || ''}" placeholder="${field.hint_en || field.hint || ''}">
+          <label>${escapeHtml(label)}</label>
+          <input type="text" id="publisher-config-${index}" class="input" value="${escapeHtml(field.value || '')}" placeholder="${escapeHtml(hint)}">
         </div>
-      `).join('')}
+      `;
+      }).join('')}
       ${credentialFields.map((name, index) => `
         <div class="field" style="margin:0;">
-          <label>${name}</label>
+          <label>${escapeHtml(name)}</label>
           <input type="password" id="publisher-credential-${index}" class="input" autocomplete="new-password" placeholder="Leave blank to keep the saved credential">
         </div>
       `).join('')}
@@ -146,6 +202,52 @@ function showPublisherModal(projectId, publisher, ctx) {
         return true;
       } catch (err) {
         toast.error(tError(err));
+        return false;
+      }
+    },
+  });
+}
+
+function showGithubPrModal(projectId, paths, ctx) {
+  const defaultTicket = projectState?.tasks?.find((item) => item?.status !== 'done')?.id || 'ASSET';
+  const content = `
+    <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
+      <p style="margin:0;color:var(--muted);">${paths.length} approved asset${paths.length === 1 ? '' : 's'} will be committed to a new branch and submitted for review.</p>
+      <div class="field" style="margin:0;"><label for="github-pr-ticket">Ticket ID</label><input id="github-pr-ticket" class="input" value="${escapeHtml(defaultTicket)}" maxlength="128"></div>
+      <div class="field" style="margin:0;"><label for="github-pr-title">Pull request title</label><input id="github-pr-title" class="input" value="CiteAura: ${escapeHtml(projectState?.name || projectState?.slug || 'assets')}" maxlength="300"></div>
+      <div class="field" style="margin:0;"><label for="github-pr-criteria">Review notes <span style="color:var(--muted);font-weight:400;">(optional)</span></label><textarea id="github-pr-criteria" class="input" rows="4" maxlength="5000" placeholder="What should the reviewer verify before merging?"></textarea></div>
+      <div role="alert" id="github-pr-error" style="display:none;color:var(--danger);"></div>
+    </div>
+  `;
+  openModal({
+    title: 'Create GitHub pull request',
+    content,
+    confirmText: 'Create pull request',
+    onConfirm: async () => {
+      const ticketId = document.getElementById('github-pr-ticket')?.value.trim() || '';
+      const title = document.getElementById('github-pr-title')?.value.trim() || '';
+      const acceptanceCriteria = document.getElementById('github-pr-criteria')?.value.trim() || '';
+      const error = document.getElementById('github-pr-error');
+      if (!ticketId) {
+        error.textContent = 'Enter a ticket ID to name the review branch.';
+        error.style.display = 'block';
+        return false;
+      }
+      try {
+        const result = await publishing.createGithubPr(projectId, {
+          ticket_id: ticketId,
+          run_id: `assets-${Date.now()}`,
+          paths,
+          title,
+          acceptance_criteria: acceptanceCriteria || null,
+          confirmed: true,
+        });
+        toast.success(`Pull request #${result.number} created`);
+        ctx.navigate(`#/publishing?updated=${Date.now()}`);
+        return true;
+      } catch (err) {
+        error.textContent = tError(err);
+        error.style.display = 'block';
         return false;
       }
     },

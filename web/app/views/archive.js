@@ -110,8 +110,12 @@ export default {
         onConfirm: async () => {
           const note = document.getElementById('snap-note')?.value.trim();
           try {
-            await archive.create(projectId, note);
-            toast.success(t('archive.create_success', {}, 'Snapshot created successfully'));
+            const result = await archive.create(projectId, note);
+            toast.success(t('archive.create_queued', {}, 'Snapshot creation queued'));
+            ctx.pollActiveJobs?.();
+            if (result?.job_id && typeof ctx.openTelemetry === 'function') {
+              ctx.openTelemetry(result.job_id, t('archive.create_btn', {}, 'Create Snapshot'));
+            }
             ctx.navigate('#/archive');
             return true;
           } catch (err) {

@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from api.adapters import archive
@@ -22,6 +22,10 @@ class RestorePayload(BaseModel):
     overwrite: bool = False
     confirmed: bool = False
     confirmation_text: str = ""
+
+
+class CreatePayload(BaseModel):
+    note: str = Field(default="", max_length=500)
 
 
 def _error(status_code, message):
@@ -66,7 +70,9 @@ def _enqueue(db, tenant, project, action, task, *task_args):
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     previous_status = project.status
     request_json = {}
-    if action == "archive_restore":
+    if action == "archive":
+        request_json = {"note": task_args[0]}
+    elif action == "archive_restore":
         request_json = {"archive_id": task_args[0], "overwrite": bool(task_args[1])}
     job = Job(project_id=project.id, action=action, status="queued", request_json=json.dumps(request_json))
     db.add(job)
@@ -114,17 +120,17 @@ def archives(
 @router.post("/{project_id}/archives", status_code=status.HTTP_202_ACCEPTED)
 def create_project_archive(
     project_id: int,
+    payload: CreatePayload = CreatePayload(),
     current_user: User = Depends(require_owner),
     db: Session = Depends(get_db),
 ):
     """投递项目快照归档任务。"""
     tenant, project = _records(db, current_user, project_id)
     try:
-        if not archive.storage_status()["configured"]:
-            _error(status.HTTP_503_SERVICE_UNAVAILABLE, "object_storage_not_configured")
+        archive.storage_status()
     except archive.ArchiveError as exc:
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc))
-    return _enqueue(db, tenant, project, "archive", task_archive_project)
+    return _enqueue(db, tenant, project, "archive", task_archive_project, payload.note.strip())
 
 
 @router.post("/{project_id}/archives/{archive_id}/restore", status_code=status.HTTP_202_ACCEPTED)

@@ -1735,6 +1735,7 @@
   "archive.create_modal_title": "Créer un instantané du projet",
   "archive.note_label": "Note / description de l’instantané",
   "archive.create_success": "Instantané créé",
+  "archive.create_queued": "La création de l'instantané est en attente",
   "archive.restore_modal_title": "Confirmer la restauration de l’instantané",
   "archive.restore_warning": "Attention : restaurer cet instantané écrasera les fichiers du projet avec les données de {id}.",
   "archive.restore_type_label": "Saisissez {phrase} pour confirmer :",

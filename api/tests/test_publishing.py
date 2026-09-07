@@ -1,6 +1,5 @@
 import base64
 import json
-import os
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.adapters import engine as engine_adapter
 from api.adapters import github_pr, publishing
-from api.adapters.engine import load_tenant_keys, with_tenant_context
+from api.adapters.engine import load_tenant_keys
 from api.db import Base, get_db
 from api.main import app
 from api.models import ApiKey, Project
@@ -64,12 +63,16 @@ def _seed_project(session_factory, tmp_path, tenant_id, tenant_name="tenant-a"):
         project_id = project.id
     root = tmp_path / "work" / tenant_name / "example-com"
     (root / "content").mkdir(parents=True)
+    (root / "assets" / "custom").mkdir(parents=True)
+    (root / "assets" / "drafts").mkdir(parents=True)
     (root / "geo.json").write_text(json.dumps({
         "slug": "example-com",
         "market": "both",
         "brand": {"name": "Example", "site": "https://example.com"},
     }), "utf-8")
     (root / "content" / "q001-final.md").write_text("# Verified guide\n\nFinal content.", "utf-8")
+    (root / "assets" / "custom" / "final.md").write_text("# Approved asset\n\nFinal content.", "utf-8")
+    (root / "assets" / "drafts" / "q001.md").write_text("# Draft asset\n\nReview before publishing.", "utf-8")
     return project_id, root
 
 
@@ -145,89 +148,27 @@ def test_domestic_publisher_cannot_be_configured_through_api(publishing_client):
     assert "unsupported publishing platform" in response.json()["detail"]
 
 
-def test_publish_requires_confirmation_injects_only_tenant_credentials_and_records_result(
-    publishing_client, monkeypatch,
-):
+def test_github_direct_publish_requires_a_pull_request(publishing_client):
     client, session_factory, tmp_path = publishing_client
     tenant_id, headers = _register(client, "owner@example.com", "tenant-a")
     project_id, root = _seed_project(session_factory, tmp_path, tenant_id)
     assert _configure_github(client, project_id, headers).status_code == 200
-    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 
-    unconfirmed = client.post(
-        f"/api/v1/projects/{project_id}/publishing/github",
-        headers=headers,
-        json={"path": "content/q001-final.md"},
-    )
-    assert unconfirmed.status_code == 400
-    assert unconfirmed.json()["error"] == "publish_confirmation_required"
-
-    import publish as engine_publish
-
-    captured = {}
-
-    def fake_github(config, text, title, filename):
-        captured.update({
-            "config": config,
-            "text": text,
-            "title": title,
-            "filename": filename,
-            "token": os.environ.get("GITHUB_TOKEN"),
-        })
-        return {"ok": True, "url": "https://github.com/owner/site/blob/main/docs/geo/q001-final.md"}
-
-    monkeypatch.setitem(engine_publish._IMPL, "github", fake_github)
-    published = client.post(
+    response = client.post(
         f"/api/v1/projects/{project_id}/publishing/github",
         headers=headers,
         json={"path": "content/q001-final.md", "confirmed": True},
     )
-    assert published.status_code == 200
-    assert published.json()["ok"]
-    assert captured == {
-        "config": {"repo": "owner/site", "branch": "main", "dir": "docs/geo"},
-        "text": "# Verified guide\n\nFinal content.",
-        "title": "Verified guide",
-        "filename": "q001-final.md",
-        "token": "github-secret-token",
-    }
-    assert "GITHUB_TOKEN" not in os.environ
-    records = json.loads((root / "publish.json").read_text("utf-8"))
-    assert records[0]["platform"] == "github"
-    assert records[0]["path"] == "content/q001-final.md"
-
-    traversal = client.post(
-        f"/api/v1/projects/{project_id}/publishing/github",
-        headers=headers,
-        json={"path": "content/../../geo.json", "confirmed": True},
-    )
-    assert traversal.status_code == 200
-    assert traversal.json() == {"ok": False, "error": "File unavailable: content/../../geo.json"}
-
-    def unavailable(*args, **kwargs):
-        import requests
-
-        raise requests.ConnectionError("token must not appear in the API response")
-
-    monkeypatch.setitem(engine_publish._IMPL, "github", unavailable)
-    failed = client.post(
-        f"/api/v1/projects/{project_id}/publishing/github",
-        headers=headers,
-        json={"path": "content/q001-final.md", "confirmed": True},
-    )
-    assert failed.status_code == 200
-    assert failed.json() == {
-        "ok": False,
-        "error": "Publishing destination request failed; check URL, credentials, and network connectivity",
-    }
-    assert "token must not appear" not in failed.text
-    assert "GITHUB_TOKEN" not in os.environ
+    assert response.status_code == 400
+    assert response.json()["error"] == "github_pr_required"
+    assert not (root / "publish.json").exists()
 
 
 def test_github_pr_creation_persists_state(publishing_client, monkeypatch):
     client, session_factory, tmp_path = publishing_client
-    tenant_id, _ = _register(client, "owner@example.com", "tenant-a")
-    _, root = _seed_project(session_factory, tmp_path, tenant_id)
+    tenant_id, headers = _register(client, "owner@example.com", "tenant-a")
+    project_id, root = _seed_project(session_factory, tmp_path, tenant_id)
+    assert _configure_github(client, project_id, headers).status_code == 200
     requests = []
 
     class Response:
@@ -255,26 +196,47 @@ def test_github_pr_creation_persists_state(publishing_client, monkeypatch):
             return Response({})
 
     monkeypatch.setattr(github_pr, "_session", lambda token: Session())
-    with with_tenant_context("tenant-a", "example-com"):
-        assert github_pr.list_prs("example-com", {"repo": "owner/site"}, "token") == []
-        result = github_pr.create(
-            "example-com",
-            {"repo": "owner/site", "branch": "main", "dir": "docs/geo"},
-            "token",
-            ticket_id="ticket-1",
-            run_id="run-1",
-            paths=["content/q001-final.md"],
-        )
-        assert github_pr.list_prs("example-com", {"repo": "owner/site"}, "token") == [result]
+    rejected = client.post(
+        f"/api/v1/projects/{project_id}/publishing/github/pr",
+        headers=headers,
+        json={
+            "ticket_id": "ticket-1",
+            "run_id": "run-1",
+            "paths": ["assets/drafts/q001.md"],
+            "confirmed": True,
+        },
+    )
+    assert rejected.status_code == 400
+    assert rejected.json()["error"] == "github_pr_failed"
+    assert rejected.json()["detail"] == "GitHub PR assets must be approved before publishing"
+
+    created = client.post(
+        f"/api/v1/projects/{project_id}/publishing/github/pr",
+        headers=headers,
+        json={
+            "ticket_id": "ticket-1",
+            "run_id": "run-1",
+            "paths": ["assets/custom/final.md"],
+            "confirmed": True,
+        },
+    )
+    assert created.status_code == 200
+    result = created.json()
+    listed = client.get(f"/api/v1/projects/{project_id}/publishing/github/prs", headers=headers)
+    assert listed.status_code == 200
+    assert listed.json() == {"prs": [result]}
 
     assert result["number"] == 7
+    assert result["ticket_id"] == "ticket-1"
+    assert result["run_id"] == "run-1"
     assert json.loads((root / ".github-prs.json").read_text("utf-8")) == [result]
     assert [(item["method"], item["url"].rsplit("/", 1)[-1]) for item in requests] == [
         ("GET", "main"),
         ("POST", "refs"),
-        ("PUT", "q001-final.md"),
+        ("PUT", "final.md"),
         ("POST", "pulls"),
     ]
+    assert requests[2]["url"].endswith("/contents/docs/geo/custom/final.md")
 
 
 def test_wordpress_and_wechat_engine_contracts_create_drafts_only(monkeypatch):

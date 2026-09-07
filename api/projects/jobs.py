@@ -152,7 +152,7 @@ def dispatch_retry(task_name, tenant_name, project_slug, request, job_id, source
         return task_deliver.delay(tenant_name, project_slug, job_id=job_id)
     if source_action == "archive":
         from api.archive.router import task_archive_project
-        return task_archive_project.delay(tenant_name, project_slug, job_id=job_id)
+        return task_archive_project.delay(tenant_name, project_slug, request.get("note", ""), job_id=job_id)
     if source_action == "archive_restore":
         from api.archive.router import task_restore_project
         archive_id = request.get("archive_id")

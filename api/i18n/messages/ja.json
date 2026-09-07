@@ -1735,6 +1735,7 @@
   "archive.create_modal_title": "プロジェクトスナップショットを作成",
   "archive.note_label": "スナップショットメモ / 説明",
   "archive.create_success": "スナップショットを作成しました",
+  "archive.create_queued": "スナップショットの作成をキューに追加しました",
   "archive.restore_modal_title": "スナップショット復元の確認",
   "archive.restore_warning": "警告: このスナップショットを復元すると、現在のプロジェクトファイルが {id} のデータで上書きされます。",
   "archive.restore_type_label": "確認のため {phrase} と入力:",

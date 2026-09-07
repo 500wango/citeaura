@@ -1735,6 +1735,7 @@
   "archive.create_modal_title": "Crear instantánea del proyecto",
   "archive.note_label": "Nota / descripción de la instantánea",
   "archive.create_success": "Instantánea creada",
+  "archive.create_queued": "La creación de la instantánea está en cola",
   "archive.restore_modal_title": "Confirmar restauración de instantánea",
   "archive.restore_warning": "Aviso: restaurar esta instantánea sobrescribirá los archivos actuales del proyecto con los datos de {id}.",
   "archive.restore_type_label": "Escribe {phrase} para confirmar:",

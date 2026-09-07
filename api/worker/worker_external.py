@@ -63,15 +63,15 @@ def task_send_outreach(tenant_id: str, project_slug: str, draft_id: str, job_id=
 
 
 @celery_app.task(name="citeaura.archive_project")
-def task_archive_project(tenant_id: str, project_slug: str, job_id=None):
-    """将本地活动项目写成经校验的对象存储快照。"""
+def task_archive_project(tenant_id: str, project_slug: str, note="", job_id=None):
+    """将本地活动项目写成经校验的快照。"""
     from api.adapters import archive
 
     facade = _task_facade()
     with facade._job_status(tenant_id, project_slug, "archive", job_id) as claim:
         if claim is facade._JOB_NOT_CLAIMED:
             return {"status": "ignored", "reason": "job_not_queued"}
-        result = archive.create_archive(tenant_id, project_slug)
+        result = archive.create_archive(tenant_id, project_slug, note=note)
         return {"status": "done", "project_slug": project_slug, "archive": result}
 
 

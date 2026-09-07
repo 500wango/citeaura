@@ -1735,6 +1735,7 @@
   "archive.create_modal_title": "프로젝트 스냅샷 만들기",
   "archive.note_label": "스냅샷 메모 / 설명",
   "archive.create_success": "스냅샷이 생성되었습니다",
+  "archive.create_queued": "스냅샷 생성이 대기열에 추가되었습니다",
   "archive.restore_modal_title": "스냅샷 복원 확인",
   "archive.restore_warning": "경고: 이 스냅샷을 복원하면 현재 프로젝트 작업 공간 파일이 {id} 데이터로 덮어쓰입니다.",
   "archive.restore_type_label": "확인하려면 {phrase} 를 입력하세요:",

@@ -1,4 +1,4 @@
-"""将租户项目目录归档到 S3 兼容对象存储。"""
+"""将租户项目目录归档到本地文件系统或 S3 兼容对象存储。"""
 
 import hashlib
 import io
@@ -28,23 +28,23 @@ class ArchiveError(RuntimeError):
     pass
 
 
-def _settings(require_configured=True):
+def _settings():
     value = config.object_storage_settings()
     prefix = value["prefix"]
     if prefix and (not PREFIX_PATTERN.fullmatch(prefix) or ".." in PurePosixPath(prefix).parts):
         raise ArchiveError("object_storage_prefix_invalid")
-    if require_configured and not value["bucket"]:
-        raise ArchiveError("object_storage_not_configured")
     return value
 
 
 def storage_status():
-    """返回不含凭证的对象存储配置状态。"""
-    value = _settings(require_configured=False)
+    """返回不含凭证的快照存储状态。"""
+    value = _settings()
     return {
-        "configured": bool(value["bucket"]),
+        "configured": True,
         "bucket": value["bucket"] or None,
-        "endpoint_type": "s3_compatible" if value["endpoint_url"] else "aws_s3",
+        "endpoint_type": (
+            "s3_compatible" if value["endpoint_url"] else "aws_s3"
+        ) if value["bucket"] else "filesystem",
         "region": value["region"],
         "prefix": value["prefix"],
         "retention_count": value["retention_count"],
@@ -53,8 +53,70 @@ def storage_status():
     }
 
 
-def _client(settings=None):
+class _FilesystemArchiveClient:
+    """为未配置对象存储的工作区保存本地快照。"""
+
+    def __init__(self, project_directory):
+        self.project_directory = project_directory.resolve()
+        self.metadata = {}
+
+    def _path(self, key):
+        path = PurePosixPath(str(key or ""))
+        if (
+            len(path.parts) != 4
+            or path.parts[0] != "local"
+            or path.parts[1] != self.project_directory.parent.name
+            or path.parts[2] != self.project_directory.name
+            or any(part in ("", ".", "..") for part in path.parts)
+            or not path.name.endswith(".tar.gz")
+        ):
+            raise ArchiveError("archive_local_path_invalid")
+        snapshot_directory = self.project_directory / ".citeaura" / "snapshots"
+        if snapshot_directory.is_symlink() or snapshot_directory.parent.is_symlink():
+            raise ArchiveError("archive_local_path_invalid")
+        target = snapshot_directory / path.parts[3]
+        try:
+            target.resolve().relative_to(snapshot_directory.resolve())
+        except ValueError as exc:
+            raise ArchiveError("archive_local_path_invalid") from exc
+        return target
+
+    def upload_fileobj(self, handle, _bucket, key, ExtraArgs=None):
+        target = self._path(key)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            with temporary.open("wb") as output:
+                shutil.copyfileobj(handle, output)
+            os.replace(temporary, target)
+        finally:
+            temporary.unlink(missing_ok=True)
+        self.metadata[str(key)] = dict((ExtraArgs or {}).get("Metadata") or {})
+
+    def head_object(self, Bucket, Key):
+        path = self._path(Key)
+        return {
+            "ContentLength": path.stat().st_size,
+            "Metadata": self.metadata.get(str(Key), {}),
+        }
+
+    def download_fileobj(self, _bucket, key, output):
+        with self._path(key).open("rb") as source:
+            shutil.copyfileobj(source, output)
+
+    def delete_object(self, Bucket, Key):
+        self._path(Key).unlink()
+        self.metadata.pop(str(Key), None)
+
+
+def _client(settings=None, entry=None, project_directory=None):
     settings = settings or _settings()
+    if entry is not None and entry.get("storage") == "filesystem":
+        return _FilesystemArchiveClient(project_directory)
+    if entry is not None and entry.get("storage") in (None, "s3") and not settings["bucket"]:
+        raise ArchiveError("object_storage_not_configured")
+    if not settings["bucket"]:
+        return _FilesystemArchiveClient(project_directory)
     import boto3
     from botocore.config import Config
 
@@ -177,11 +239,12 @@ def _build_snapshot(project_directory, tenant_slug, project_slug, archive_id, cr
 
 def _object_key(settings, tenant_slug, project_slug, created_at, archive_id):
     timestamp = created_at.replace("-", "").replace(":", "").replace("+00:00", "Z")
-    parts = [settings["prefix"], tenant_slug, project_slug, f"{timestamp}-{archive_id}.tar.gz"]
+    prefix = settings["prefix"] if settings["bucket"] else "local"
+    parts = [prefix, tenant_slug, project_slug, f"{timestamp}-{archive_id}.tar.gz"]
     return "/".join(part for part in parts if part)
 
 
-def _apply_retention(client, settings, state):
+def _apply_retention(settings, state, project_directory):
     active = sorted(
         (item for item in state["archives"] if item.get("status") == "available"),
         key=lambda item: item.get("created_at", ""),
@@ -189,6 +252,7 @@ def _apply_retention(client, settings, state):
     )
     for item in active[settings["retention_count"]:]:
         try:
+            client = _client(settings, item, project_directory)
             client.delete_object(Bucket=settings["bucket"], Key=item["object_key"])
         except Exception as exc:  # noqa: BLE001 - 新归档成功不应被保留清理失败覆盖
             item["retention_error"] = type(exc).__name__
@@ -198,7 +262,7 @@ def _apply_retention(client, settings, state):
         item.pop("retention_error", None)
 
 
-def create_archive(tenant_name, project_slug):
+def create_archive(tenant_name, project_slug, note=""):
     """创建并校验一个不可变项目快照。"""
     settings = _settings()
     tenant_slug = engine_adapter.tenant_slug(tenant_name)
@@ -207,7 +271,7 @@ def create_archive(tenant_name, project_slug):
     created_at = datetime.now(timezone.utc).isoformat()
     archive_id = uuid.uuid4().hex[:16]
     object_key = _object_key(settings, tenant_slug, project_slug, created_at, archive_id)
-    client = _client(settings)
+    client = _client(settings, project_directory=project_directory)
     with tempfile.NamedTemporaryFile(suffix=".tar.gz") as temporary:
         manifest, sha256, size = _build_snapshot(
             project_directory,
@@ -251,10 +315,12 @@ def create_archive(tenant_name, project_slug):
         "sha256": sha256,
         "size_bytes": size,
         "file_count": len(manifest["files"]),
+        "note": str(note or ""),
+        "storage": "s3" if settings["bucket"] else "filesystem",
     }
     state = _read_state(project_directory)
     state["archives"].append(entry)
-    _apply_retention(client, settings, state)
+    _apply_retention(settings, state, project_directory)
     _write_state(project_directory, state)
     return entry
 
@@ -377,7 +443,7 @@ def restore_archive(tenant_name, project_slug, archive_id, overwrite=False):
         raise ArchiveError("archive_id_invalid")
     project_directory = _project_directory(tenant_slug, project_slug)
     state, entry = _archive_entry(project_directory, archive_id)
-    client = _client(settings)
+    client = _client(settings, entry, project_directory)
     with tempfile.TemporaryDirectory() as temporary_name:
         temporary_directory = Path(temporary_name)
         archive_path = temporary_directory / "snapshot.tar.gz"

@@ -154,6 +154,8 @@ def publish_content(
 ):
     """经用户明确确认后，把项目成稿发送到指定渠道。"""
     tenant, project = _tenant_project(db, current_user, project_id)
+    if platform == "github":
+        _error(status.HTTP_400_BAD_REQUEST, "github_pr_required")
     if not payload.confirmed:
         _error(status.HTTP_400_BAD_REQUEST, "publish_confirmation_required")
     try:

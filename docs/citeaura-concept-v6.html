@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CiteAura v6 — Evidence &amp; Gap Matrix</title>
+<link rel="stylesheet" href="http://127.0.0.1:8766/site-assets/styles/tokens.css">
+<style>
+@font-face{font-family:Space;src:url('http://127.0.0.1:8766/site-assets/fonts/space-grotesk-700.woff2');font-weight:700}
+@font-face{font-family:Space;src:url('http://127.0.0.1:8766/site-assets/fonts/space-grotesk-500.woff2');font-weight:500}
+@font-face{font-family:Space;src:url('http://127.0.0.1:8766/site-assets/fonts/space-grotesk-400.woff2');font-weight:400}
+@font-face{font-family:Mono;src:url('http://127.0.0.1:8766/site-assets/fonts/jetbrains-mono-400.woff2')}
+@font-face{font-family:Mono;src:url('http://127.0.0.1:8766/site-assets/fonts/jetbrains-mono-600.woff2');font-weight:600}
+:root{
+  --sig:#22e3a6; --sig-deep:#0aa87d; --sig-dim:#123227;
+  --miss:#ff5c6c; --miss-dim:#3a1218;
+  --warn:#ffb020;
+  --ink:#eef4f1; --ink-2:#a9bab3; --muted:#6f8079; --faint:#465650;
+  --bg:#070b0a; --panel:#0d1512; --panel-2:#111c17; --line:#1c2b25; --line-soft:#152019;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Space,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.mono{font-family:Mono,monospace}
+.shell{max-width:1240px;margin:0 auto;padding:0 32px}
+header{border-bottom:1px solid var(--line);background:rgba(7,11,10,.9)}
+.head-row{display:flex;align-items:center;justify-content:space-between;height:72px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--ink)}
+.brand .mark{width:28px;height:28px;border-radius:7px;background:var(--sig);display:grid;place-items:center;color:#04140f;font-size:12px;font-weight:700;font-family:Mono}
+nav{display:flex;gap:30px;font-size:14px;color:var(--ink-2);font-weight:500}
+.actions{display:flex;align-items:center;gap:14px}
+.actions a.ghost{color:var(--ink-2);font-size:14px;text-decoration:none}
+.btn{background:var(--sig);color:#04140f;padding:10px 18px;border-radius:7px;font-weight:600;font-size:13.5px;text-decoration:none;font-family:Mono}
+
+.hero{padding:68px 0 56px}
+.hero-grid{display:grid;grid-template-columns:.95fr 1.05fr;gap:48px;align-items:start}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;color:var(--sig);font-weight:600;font-size:12.5px;margin-bottom:20px;font-family:Mono;letter-spacing:.02em}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--sig);box-shadow:0 0 8px var(--sig)}
+h1{font-size:44px;line-height:1.12;letter-spacing:-.015em;margin:0 0 16px;font-weight:700}
+h1 .miss{color:var(--miss)}
+.lede{font-size:16px;line-height:1.6;color:var(--ink-2);max-width:460px;margin:0 0 26px}
+.chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:Mono;font-size:12px;color:var(--muted);margin-bottom:28px}
+.chain b{color:var(--sig);font-weight:600}
+.chain .arrow{color:var(--faint)}
+
+.scanner{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px;display:flex;max-width:480px}
+.scanner input{flex:1;background:transparent;border:0;padding:13px 14px;color:var(--ink);font-family:Mono;font-size:14px;outline:0}
+.scanner input::placeholder{color:var(--faint)}
+.scanner button{background:var(--sig);color:#04140f;border:0;border-radius:6px;padding:0 18px;font-weight:600;font-size:13px;font-family:Mono;cursor:pointer}
+.presets{margin-top:12px;font-size:12px;color:var(--faint);font-family:Mono}
+.presets span{color:var(--muted);background:var(--panel);border:1px solid var(--line-soft);padding:3px 9px;border-radius:5px;margin-right:6px}
+
+.evidence-panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.evidence-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+.evidence-head .q{font-size:12.5px;color:var(--muted);font-family:Mono}
+.evidence-head .live{display:flex;align-items:center;gap:6px;font-family:Mono;font-size:11px;color:var(--sig)}
+.evidence-head .live .pulse{width:6px;height:6px;border-radius:50%;background:var(--sig);box-shadow:0 0 6px var(--sig)}
+.evidence-body{padding:18px}
+.ai-quote{background:var(--bg);border:1px solid var(--line-soft);border-radius:10px;padding:14px 16px;font-size:13.5px;line-height:1.65;color:var(--ink-2);margin-bottom:14px}
+.ai-quote .engine{display:inline-block;font-family:Mono;font-size:10.5px;color:var(--faint);border:1px solid var(--line-soft);padding:2px 7px;border-radius:4px;margin-bottom:8px}
+.ai-quote mark{background:transparent;color:var(--sig);font-weight:600;padding:0}
+.ai-quote mark.gone{color:var(--miss);text-decoration:line-through;opacity:.7}
+
+.matrix-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.matrix-table th{text-align:left;color:var(--faint);font-weight:500;font-family:Mono;font-size:11px;padding:8px 6px;border-bottom:1px solid var(--line)}
+.matrix-table td{padding:9px 6px;border-bottom:1px solid var(--line-soft);color:var(--ink-2)}
+.matrix-table td.q{font-family:Mono;font-size:11.5px;color:var(--ink-2)}
+.stat{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;font-family:Mono;font-weight:700;font-size:12px}
+.stat.hit{background:var(--sig-dim);color:var(--sig)}
+.stat.miss{background:var(--miss-dim);color:var(--miss)}
+.row-you td:first-child{color:var(--sig);font-weight:600}
+
+.matrix-band{padding:60px 0;border-top:1px solid var(--line)}
+.section-head{max-width:620px;margin:0 auto 36px}
+.section-head .kicker{color:var(--sig);font-weight:600;font-size:12px;margin-bottom:10px;font-family:Mono;letter-spacing:.02em}
+.section-head h2{font-size:30px;letter-spacing:-.01em;margin:0 0 10px;font-weight:700}
+.section-head p{color:var(--muted);font-size:15px;line-height:1.6}
+
+.full-matrix{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.full-matrix table{width:100%;border-collapse:collapse}
+.full-matrix th{text-align:center;font-family:Mono;font-size:11px;color:var(--muted);padding:14px 8px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+.full-matrix th:first-child{text-align:left}
+.full-matrix td{text-align:center;padding:12px 8px;border-bottom:1px solid var(--line-soft)}
+.full-matrix td:first-child{text-align:left;font-size:13px;color:var(--ink-2);font-family:Mono}
+.full-matrix tr.you td:first-child{color:var(--sig);font-weight:700}
+.full-matrix tr.you{background:var(--sig-dim)}
+
+.diff-band{padding:60px 0;border-top:1px solid var(--line)}
+.diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.diff-card{border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.diff-card .dh{padding:12px 16px;font-family:Mono;font-size:11.5px;font-weight:600;display:flex;justify-content:space-between}
+.diff-card.before .dh{background:var(--miss-dim);color:var(--miss)}
+.diff-card.after .dh{background:var(--sig-dim);color:var(--sig)}
+.diff-card .db{background:var(--panel);padding:18px;font-size:13.5px;line-height:1.7;color:var(--ink-2)}
+.diff-card .db del{color:var(--miss);text-decoration:line-through;opacity:.6}
+.diff-card .db ins{color:var(--sig);text-decoration:none;font-weight:600}
+
+.ticket-band{padding:60px 0;border-top:1px solid var(--line)}
+.ticket{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:12px}
+.ticket-top{display:flex;align-items:center;justify-content:between;gap:12px;margin-bottom:10px}
+.ticket-id{font-family:Mono;font-size:11px;color:var(--faint)}
+.ticket h4{margin:6px 0 8px;font-size:15px;font-weight:600;color:var(--ink)}
+.ticket .link-gap{font-family:Mono;font-size:11.5px;color:var(--miss);background:var(--miss-dim);padding:3px 8px;border-radius:5px;display:inline-block;margin-bottom:10px}
+.ticket .ac{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line-soft);padding-top:10px;margin-top:4px}
+.ticket .ac b{color:var(--ink-2);display:block;margin-bottom:4px;font-weight:600}
+
+.cta-band{border-top:1px solid var(--line);padding:64px 0;text-align:center}
+.cta-band h2{font-size:28px;margin:0 0 10px}
+.cta-band p{color:var(--muted);margin:0 0 24px}
+</style></head>
+<body>
+
+<header><div class="shell head-row">
+  <div class="brand"><div class="mark">CA</div>CiteAura</div>
+  <nav><a href="#" style="color:inherit;text-decoration:none">Product</a><a href="#" style="color:inherit;text-decoration:none">Methodology</a><a href="#" style="color:inherit;text-decoration:none">Pricing</a></nav>
+  <div class="actions"><a class="ghost" href="#">Sign in</a><a class="btn" href="#">Run free audit →</a></div>
+</div></header>
+
+<section class="hero"><div class="shell hero-grid">
+  <div>
+    <div class="eyebrow"><span class="dot"></span>LIVE AI VISIBILITY SCANNER</div>
+    <h1>Your competitors are cited.<br>You're <span class="miss">not</span>.</h1>
+    <p class="lede">CiteAura shows exactly which questions AI engines answer without your brand, why, and what page change closes the gap.</p>
+    <div class="chain mono"><b>AI answer</b><span class="arrow">→</span><b>citation gap</b><span class="arrow">→</span><b>page change</b><span class="arrow">→</span><b>re-test</b></div>
+    <div class="scanner"><input class="mono" value="yourbrand.com" placeholder="yourbrand.com"><button class="mono">Scan →</button></div>
+    <div class="presets"><span>stripe.com</span><span>linear.app</span><span>supabase.com</span></div>
+  </div>
+
+  <div class="evidence-panel">
+    <div class="evidence-head">
+      <span class="q mono">Q: "best CRM for early-stage startups"</span>
+      <span class="live"><span class="pulse"></span>LIVE</span>
+    </div>
+    <div class="evidence-body">
+      <div class="ai-quote">
+        <span class="engine">ChatGPT · gpt-4o</span><br>
+        For early-stage startups, I'd recommend <mark>HubSpot CRM</mark> for its free tier, or <mark>Attio</mark> for a more modern workflow. <mark class="gone">Your Brand</mark> is not typically mentioned in this context —
+      </div>
+      <table class="matrix-table">
+        <tr><th>question</th><th style="text-align:center">GPT</th><th style="text-align:center">Claude</th><th style="text-align:center">Perplexity</th></tr>
+        <tr><td class="q">best CRM for startups</td><td style="text-align:center"><span class="stat miss">✗</span></td><td style="text-align:center"><span class="stat miss">✗</span></td><td style="text-align:center"><span class="stat hit">✓</span></td></tr>
+        <tr><td class="q">CRM alternatives to Salesforce</td><td style="text-align:center"><span class="stat miss">✗</span></td><td style="text-align:center"><span class="stat hit">✓</span></td><td style="text-align:center"><span class="stat miss">✗</span></td></tr>
+        <tr class="row-you"><td class="q">cheapest CRM 2026</td><td style="text-align:center"><span class="stat miss">✗</span></td><td style="text-align:center"><span class="stat miss">✗</span></td><td style="text-align:center"><span class="stat miss">✗</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div></section>
+
+<section class="matrix-band"><div class="shell">
+  <div class="section-head">
+    <div class="kicker">THE GAP MATRIX</div>
+    <h2>Every question, every engine, one table</h2>
+    <p>No vague "visibility score." See precisely where you lose — and to whom.</p>
+  </div>
+  <div class="full-matrix"><table>
+    <tr><th>question ×  engine</th><th>ChatGPT</th><th>Claude</th><th>Gemini</th><th>Perplexity</th><th>Grok</th></tr>
+    <tr><td>best CRM for startups</td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat hit">✓</span></td><td><span class="stat hit">✓</span></td><td><span class="stat miss">✗</span></td></tr>
+    <tr><td>CRM alternatives to Salesforce</td><td><span class="stat miss">✗</span></td><td><span class="stat hit">✓</span></td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td></tr>
+    <tr><td>cheapest CRM 2026</td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td></tr>
+    <tr class="you"><td>Your brand — total hits</td><td><span class="stat miss">0/6</span></td><td><span class="stat hit">1/6</span></td><td><span class="stat miss">1/6</span></td><td><span class="stat hit">1/6</span></td><td><span class="stat miss">0/6</span></td></tr>
+    <tr><td>Competitor A — total hits</td><td><span class="stat hit">4/6</span></td><td><span class="stat hit">5/6</span></td><td><span class="stat hit">3/6</span></td><td><span class="stat hit">4/6</span></td><td><span class="stat hit">2/6</span></td></tr>
+  </table></div>
+</div></section>
+
+<section class="diff-band"><div class="shell">
+  <div class="section-head">
+    <div class="kicker">VERIFY, DON'T GUESS</div>
+    <h2>Fix a page. Re-scan. See the exact wording change.</h2>
+    <p>Every ticket closes with a before/after AI-answer diff, not a self-reported checkbox.</p>
+  </div>
+  <div class="diff-grid">
+    <div class="diff-card before"><div class="dh"><span>BEFORE · Aug 12</span><span>ChatGPT</span></div>
+      <div class="db">"For CRM alternatives, consider <del>HubSpot or Pipedrive</del>. I don't have specific information about smaller providers in this space."</div>
+    </div>
+    <div class="diff-card after"><div class="dh"><span>AFTER · Aug 27</span><span>ChatGPT</span></div>
+      <div class="db">"For CRM alternatives, consider HubSpot, Pipedrive, or <ins>Your Brand</ins>, which offers a startup-friendly free tier with built-in AI lead scoring."</div>
+    </div>
+  </div>
+</div></section>
+
+<section class="ticket-band"><div class="shell">
+  <div class="section-head">
+    <div class="kicker">FROM GAP TO FIX</div>
+    <h2>Every gap is a ticket with acceptance criteria</h2>
+    <p>Not a suggestion list — an engineering task your team can close.</p>
+  </div>
+  <div class="ticket">
+    <div class="ticket-id mono">TICKET-014 · P1</div>
+    <div class="link-gap">↳ closes gap: "best CRM for startups" × ChatGPT, Gemini</div>
+    <h4>Add structured comparison table to /pricing</h4>
+    <div class="ac"><b>Acceptance criteria</b>Re-scan must show brand name cited in ≥2 of 3 target questions on GPT-4o and Gemini 2.0.</div>
+  </div>
+  <div class="ticket">
+    <div class="ticket-id mono">TICKET-021 · P2</div>
+    <div class="link-gap">↳ closes gap: "cheapest CRM 2026" × all engines</div>
+    <h4>Publish pricing transparency page with schema.org Offer markup</h4>
+    <div class="ac"><b>Acceptance criteria</b>AI-extractable price point must appear verbatim in re-scan citation text.</div>
+  </div>
+</div></section>
+
+<div class="cta-band shell">
+  <h2>Stop guessing. Start scanning.</h2>
+  <p>Free technical audit — see your first gap in 90 seconds.</p>
+  <a class="btn" href="#">Run free audit →</a>
+</div>
+
+</body></html>

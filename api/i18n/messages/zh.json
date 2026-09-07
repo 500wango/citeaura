@@ -1735,6 +1735,7 @@
   "archive.create_modal_title": "创建项目快照",
   "archive.note_label": "快照备注 / 说明",
   "archive.create_success": "快照创建成功",
+  "archive.create_queued": "快照创建已排队",
   "archive.restore_modal_title": "确认恢复快照",
   "archive.restore_warning": "警告：恢复此快照会用 {id} 的数据覆盖当前项目工作区文件。",
   "archive.restore_type_label": "输入 {phrase} 以确认：",

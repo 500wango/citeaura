@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CiteAura v6 — Workbench</title>
+<style>
+@font-face{font-family:Space;src:url('http://127.0.0.1:8766/site-assets/fonts/space-grotesk-700.woff2');font-weight:700}
+@font-face{font-family:Space;src:url('http://127.0.0.1:8766/site-assets/fonts/space-grotesk-500.woff2');font-weight:500}
+@font-face{font-family:Space;src:url('http://127.0.0.1:8766/site-assets/fonts/space-grotesk-400.woff2');font-weight:400}
+@font-face{font-family:Mono;src:url('http://127.0.0.1:8766/site-assets/fonts/jetbrains-mono-400.woff2')}
+@font-face{font-family:Mono;src:url('http://127.0.0.1:8766/site-assets/fonts/jetbrains-mono-600.woff2');font-weight:600}
+:root{
+  --sig:#22e3a6; --sig-deep:#0aa87d; --sig-dim:#123227;
+  --miss:#ff5c6c; --miss-dim:#3a1218;
+  --warn:#ffb020; --warn-dim:#3a2a10;
+  --ink:#eef4f1; --ink-2:#a9bab3; --muted:#6f8079; --faint:#465650;
+  --bg:#070b0a; --panel:#0d1512; --panel-2:#111c17; --line:#1c2b25; --line-soft:#152019;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Space,Arial,sans-serif;-webkit-font-smoothing:antialiased;font-size:14px}
+.mono{font-family:Mono,monospace}
+.app{display:grid;grid-template-columns:224px 1fr;height:900px;overflow:hidden}
+
+.sidebar{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 14px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;padding:0 6px 20px;margin-bottom:6px}
+.brand .mark{width:24px;height:24px;border-radius:6px;background:var(--sig);display:grid;place-items:center;color:#04140f;font-size:11px;font-weight:700;font-family:Mono}
+.navsec{color:var(--faint);font-family:Mono;font-size:10.5px;letter-spacing:.04em;padding:12px 8px 6px}
+.navitem{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:7px;color:var(--ink-2);font-size:13.5px;font-weight:500;cursor:default}
+.navitem .ic{width:16px;height:16px;flex:none;opacity:.8}
+.navitem.active{background:var(--sig-dim);color:var(--sig)}
+.navitem .count{margin-left:auto;font-family:Mono;font-size:11px;color:var(--faint)}
+.navitem.active .count{color:var(--sig)}
+.sidebar-bottom{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;display:flex;align-items:center;gap:9px}
+.avatar{width:26px;height:26px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line);display:grid;place-items:center;font-family:Mono;font-size:10px;color:var(--ink-2)}
+.sidebar-bottom .who{font-size:12.5px;color:var(--ink-2)}
+.sidebar-bottom .org{font-size:11px;color:var(--faint)}
+
+.main{overflow-y:auto;background:var(--bg)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--line);background:var(--panel)}
+.crumb{font-size:13px;color:var(--muted)}
+.crumb b{color:var(--ink);font-weight:600}
+.scan-meta{display:flex;align-items:center;gap:14px}
+.scan-meta .ts{font-family:Mono;font-size:11.5px;color:var(--faint)}
+.scan-meta .ts .live{color:var(--sig)}
+.btn{background:var(--sig);color:#04140f;padding:8px 14px;border-radius:6px;font-weight:600;font-size:12.5px;font-family:Mono;border:0;cursor:default}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink-2);padding:8px 14px;border-radius:6px;font-size:12.5px;font-family:Mono}
+
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+.kpi{background:var(--panel);padding:16px 24px}
+.kpi .lab{font-size:11px;color:var(--faint);font-family:Mono;margin-bottom:6px;letter-spacing:.02em}
+.kpi .val{font-size:22px;font-weight:700;font-family:Mono}
+.kpi .val.miss{color:var(--miss)}
+.kpi .val.sig{color:var(--sig)}
+.kpi .sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+
+.tabs{display:flex;gap:2px;padding:0 28px;border-bottom:1px solid var(--line)}
+.tab{padding:13px 4px;margin-right:22px;font-size:13.5px;color:var(--muted);border-bottom:2px solid transparent;font-weight:500}
+.tab.active{color:var(--ink);border-color:var(--sig);font-weight:600}
+
+.content{padding:22px 28px}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.panel-head h3{font-size:14px;margin:0;font-weight:600;color:var(--ink)}
+.filters{display:flex;gap:8px}
+.chip{font-family:Mono;font-size:11px;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);padding:5px 10px;border-radius:6px}
+
+table.matrix{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:26px}
+table.matrix th{text-align:center;font-family:Mono;font-size:10.5px;color:var(--muted);padding:10px 8px;border-bottom:1px solid var(--line);background:var(--panel-2);font-weight:500}
+table.matrix th:first-child{text-align:left}
+table.matrix td{text-align:center;padding:10px 8px;border-bottom:1px solid var(--line-soft);font-size:12.5px}
+table.matrix td:first-child{text-align:left;color:var(--ink-2);font-family:Mono;font-size:12px}
+table.matrix tr.you{background:var(--sig-dim)}
+table.matrix tr.you td:first-child{color:var(--sig);font-weight:700}
+table.matrix tr.sel{outline:1px solid var(--sig);outline-offset:-1px}
+.stat{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;font-family:Mono;font-weight:700;font-size:11px}
+.stat.hit{background:var(--sig-dim);color:var(--sig)}
+.stat.miss{background:var(--miss-dim);color:var(--miss)}
+
+.detail-row{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-bottom:28px}
+.evidence-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.evidence-card .engine{font-family:Mono;font-size:10.5px;color:var(--faint);border:1px solid var(--line-soft);padding:2px 7px;border-radius:4px;display:inline-block;margin-bottom:10px}
+.evidence-card .q{font-size:12px;color:var(--muted);margin-bottom:8px;font-family:Mono}
+.evidence-card .quote{font-size:13.5px;line-height:1.65;color:var(--ink-2)}
+.evidence-card mark{background:transparent;color:var(--sig);font-weight:600}
+.evidence-card mark.gone{color:var(--miss);text-decoration:line-through;opacity:.75}
+.evidence-card .foot{margin-top:12px;padding-top:10px;border-top:1px solid var(--line-soft);font-family:Mono;font-size:11px;color:var(--faint)}
+
+.linked-ticket{background:var(--panel);border:1px solid var(--sig);border-radius:10px;padding:16px 18px}
+.linked-ticket .lt-lab{font-family:Mono;font-size:10.5px;color:var(--sig);margin-bottom:8px}
+.linked-ticket h4{margin:0 0 8px;font-size:14px;font-weight:600}
+.linked-ticket .ac{font-size:12px;color:var(--muted);line-height:1.55}
+.linked-ticket .ac b{color:var(--ink-2);display:block;margin-bottom:3px}
+
+.ticket-row{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px 16px;margin-bottom:8px}
+.ticket-row .pri{font-family:Mono;font-weight:700;font-size:11px;width:26px;height:26px;border-radius:6px;display:grid;place-items:center;flex:none}
+.pri.p1{background:var(--miss-dim);color:var(--miss)}
+.pri.p2{background:var(--warn-dim);color:var(--warn)}
+.pri.p3{background:var(--sig-dim);color:var(--sig)}
+.ticket-row .tt{flex:1;min-width:0}
+.ticket-row .tt h5{margin:0 0 3px;font-size:13.5px;font-weight:600;color:var(--ink)}
+.ticket-row .tt p{margin:0;font-size:11.5px;color:var(--faint);font-family:Mono}
+.status-pill{font-family:Mono;font-size:10.5px;padding:4px 9px;border-radius:99px;flex:none}
+.status-pill.open{background:var(--panel-2);color:var(--ink-2);border:1px solid var(--line)}
+.status-pill.review{background:var(--warn-dim);color:var(--warn)}
+.status-pill.verified{background:var(--sig-dim);color:var(--sig)}
+</style></head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="brand"><div class="mark">CA</div>CiteAura</div>
+    <div class="navsec">WORKSPACE</div>
+    <div class="navitem"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Overview</div>
+    <div class="navitem active"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Gap Matrix<span class="count">14</span></div>
+    <div class="navitem"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Tickets<span class="count">9</span></div>
+    <div class="navitem"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Evidence Log</div>
+    <div class="navitem"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.65 4.36A9 9 0 0 0 20.5 15"/></svg>Verify</div>
+    <div class="navsec">SETTINGS</div>
+    <div class="navitem"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>API Keys (BYOK)</div>
+    <div class="sidebar-bottom">
+      <div class="avatar">JM</div>
+      <div><div class="who">Jamie Moss</div><div class="org">Acme CRM · Pro</div></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="crumb">Projects / <b>Acme CRM</b> / Gap Matrix</div>
+      <div class="scan-meta">
+        <span class="ts mono"><span class="live">●</span> Last scan 2h ago · next auto-scan in 22h</span>
+        <button class="btn-ghost mono">Export pack</button>
+        <button class="btn mono">Run new scan →</button>
+      </div>
+    </div>
+
+    <div class="kpi-strip">
+      <div class="kpi"><div class="lab mono">MENTION RATE</div><div class="val miss">21%</div><div class="sub">2/14 questions × primary engines</div></div>
+      <div class="kpi"><div class="lab mono">OPEN GAPS</div><div class="val miss">11</div><div class="sub">across 5 engines</div></div>
+      <div class="kpi"><div class="lab mono">TOP COMPETITOR LEAD</div><div class="val">+61pt</div><div class="sub">Competitor A · 82% mention rate</div></div>
+      <div class="kpi"><div class="lab mono">VERIFIED FIXES</div><div class="val sig">3</div><div class="sub">confirmed via re-scan diff</div></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab">Overview</div>
+      <div class="tab active">Gap Matrix</div>
+      <div class="tab">Tickets</div>
+      <div class="tab">Verify</div>
+    </div>
+
+    <div class="content">
+      <div class="panel-head">
+        <h3>Question × Engine — 14 tracked prompts</h3>
+        <div class="filters"><span class="chip">engine: all</span><span class="chip">status: gaps only ×</span><span class="chip">sort: worst first</span></div>
+      </div>
+
+      <table class="matrix">
+        <tr><th>question</th><th>ChatGPT</th><th>Claude</th><th>Gemini</th><th>Perplexity</th><th>Grok</th></tr>
+        <tr class="sel"><td>best CRM for early-stage startups</td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat hit">✓</span></td><td><span class="stat hit">✓</span></td><td><span class="stat miss">✗</span></td></tr>
+        <tr><td>CRM alternatives to Salesforce</td><td><span class="stat miss">✗</span></td><td><span class="stat hit">✓</span></td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td></tr>
+        <tr><td>cheapest CRM 2026</td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td></tr>
+        <tr><td>CRM with built-in AI lead scoring</td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat miss">✗</span></td><td><span class="stat hit">✓</span></td><td><span class="stat miss">✗</span></td></tr>
+        <tr class="you"><td>Your brand — total hits</td><td><span class="stat miss">0/14</span></td><td><span class="stat miss">2/14</span></td><td><span class="stat miss">1/14</span></td><td><span class="stat hit">3/14</span></td><td><span class="stat miss">0/14</span></td></tr>
+      </table>
+
+      <div class="detail-row">
+        <div class="evidence-card">
+          <span class="engine">ChatGPT · gpt-4o · sampled 2h ago</span>
+          <div class="q">Q: "best CRM for early-stage startups"</div>
+          <div class="quote">For early-stage startups, I'd recommend <mark>HubSpot CRM</mark> for its free tier, or <mark>Attio</mark> for a more modern workflow. <mark class="gone">Acme CRM</mark> is not typically mentioned in this context, though it does offer competitive pricing for small teams.</div>
+          <div class="foot">RUN #4021 · sample 3 of 5 · full transcript →</div>
+        </div>
+        <div class="linked-ticket">
+          <div class="lt-lab mono">↳ LINKED TICKET · TICKET-014</div>
+          <h4>Add structured comparison table to /pricing</h4>
+          <div class="ac"><b>Acceptance criteria</b>Re-scan must show brand cited in ≥2 of 3 target questions on GPT-4o and Gemini 2.0.</div>
+        </div>
+      </div>
+
+      <div class="panel-head"><h3>Open tickets from this matrix</h3></div>
+      <div class="ticket-row"><div class="pri p1 mono">P1</div><div class="tt"><h5>Add structured comparison table to /pricing</h5><p>closes 2 gaps · ChatGPT, Gemini</p></div><div class="status-pill open mono">OPEN</div></div>
+      <div class="ticket-row"><div class="pri p1 mono">P1</div><div class="tt"><h5>Publish pricing transparency page with schema.org Offer</h5><p>closes 1 gap · all engines</p></div><div class="status-pill review mono">IN REVIEW</div></div>
+      <div class="ticket-row"><div class="pri p2 mono">P2</div><div class="tt"><h5>Refresh outdated integrations doc cited by Claude</h5><p>closes 1 gap · Claude</p></div><div class="status-pill verified mono">VERIFIED</div></div>
+    </div>
+  </div>
+</div>
+
+</body></html>

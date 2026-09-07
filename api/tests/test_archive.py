@@ -129,14 +129,14 @@ def test_archive_api_is_tenant_isolated_and_requires_restore_confirmation(archiv
     )
     created = client.post(f"/api/v1/projects/{project_id}/archives", headers=headers)
     assert created.status_code == 202
-    assert queued[0][0] == ("tenant-a", "example-com")
+    assert queued[0][0] == ("tenant-a", "example-com", "")
     with session_factory() as db:
         job = db.get(Job, created.json()["job_id"])
         job.status = "done"
         db.commit()
 
     fake = FakeS3()
-    monkeypatch.setattr(archive, "_client", lambda settings=None: fake)
+    monkeypatch.setattr(archive, "_client", lambda settings=None, entry=None, project_directory=None: fake)
     entry = archive.create_archive("tenant-a", "example-com")
     wrong = client.post(
         f"/api/v1/projects/{project_id}/archives/{entry['id']}/restore",
@@ -169,12 +169,63 @@ def test_archive_api_is_tenant_isolated_and_requires_restore_confirmation(archiv
     assert client.post(f"/api/v1/projects/{project_id}/archives", headers=other_headers).status_code == 404
 
 
+def test_archive_uses_filesystem_storage_when_object_storage_is_not_configured(archive_client, monkeypatch):
+    client, session_factory, tmp_path = archive_client
+    registered, headers = _register(client)
+    project_id, root = _seed_project(session_factory, tmp_path, registered["tenant"]["id"])
+    for name in (
+        "OBJECT_STORAGE_BUCKET",
+        "OBJECT_STORAGE_ENDPOINT_URL",
+        "OBJECT_STORAGE_ACCESS_KEY_ID",
+        "OBJECT_STORAGE_SECRET_ACCESS_KEY",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    from api.archive import router as archive_router
+
+    queued = []
+    monkeypatch.setattr(
+        archive_router.task_archive_project,
+        "delay",
+        lambda *args, **kwargs: queued.append((args, kwargs)),
+    )
+    created = client.post(
+        f"/api/v1/projects/{project_id}/archives",
+        headers=headers,
+        json={"note": "Before publishing"},
+    )
+
+    assert created.status_code == 202
+    assert queued[0][0] == ("tenant-a", "example-com", "Before publishing")
+    overview = client.get(f"/api/v1/projects/{project_id}/archives", headers=headers)
+    assert overview.json()["storage"]["endpoint_type"] == "filesystem"
+
+    with session_factory() as db:
+        job_id = db.get(Job, created.json()["job_id"]).id
+
+    from api.worker import tasks
+
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    result = tasks.task_archive_project.run("tenant-a", "example-com", "Before publishing", job_id=job_id)
+
+    entry = result["archive"]
+    assert entry["note"] == "Before publishing"
+    assert entry["storage"] == "filesystem"
+    assert entry["object_key"].startswith("local/")
+    assert (tmp_path / "work" / "tenant-a" / "example-com" / ".citeaura" / "snapshots" / entry["object_key"].split("/")[-1]).is_file()
+
+    monkeypatch.setenv("OBJECT_STORAGE_BUCKET", "archive-bucket")
+    root.joinpath("audit.json").write_text('{"score":10}\n', "utf-8")
+    archive.restore_archive("tenant-a", "example-com", entry["id"], overwrite=True)
+    assert root.joinpath("audit.json").read_text("utf-8") == '{"score":80}\n'
+
+
 def test_archive_worker_verifies_snapshot_and_restore_conflicts(archive_client, monkeypatch):
     client, session_factory, tmp_path = archive_client
     registered, _headers = _register(client)
     project_id, root = _seed_project(session_factory, tmp_path, registered["tenant"]["id"])
     fake = FakeS3()
-    monkeypatch.setattr(archive, "_client", lambda settings=None: fake)
+    monkeypatch.setattr(archive, "_client", lambda settings=None, entry=None, project_directory=None: fake)
 
     with session_factory() as db:
         job = Job(project_id=project_id, action="archive", status="queued")
@@ -245,7 +296,7 @@ def test_archive_retention_expires_old_objects(archive_client, monkeypatch):
     _project_id, root = _seed_project(session_factory, tmp_path, registered["tenant"]["id"])
     monkeypatch.setenv("OBJECT_STORAGE_RETENTION_COUNT", "1")
     fake = FakeS3()
-    monkeypatch.setattr(archive, "_client", lambda settings=None: fake)
+    monkeypatch.setattr(archive, "_client", lambda settings=None, entry=None, project_directory=None: fake)
 
     first = archive.create_archive("tenant-a", "example-com")
     (root / "audit.json").write_text('{"score":81}\n', "utf-8")

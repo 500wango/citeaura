@@ -1735,6 +1735,7 @@
   "archive.create_modal_title": "Create Project Snapshot",
   "archive.note_label": "Snapshot Note / Description",
   "archive.create_success": "Snapshot created successfully",
+  "archive.create_queued": "Snapshot creation queued",
   "archive.restore_modal_title": "Confirm Snapshot Restoration",
   "archive.restore_warning": "Warning: Restoring this snapshot will overwrite current project workspace files with data from {id}.",
   "archive.restore_type_label": "Type {phrase} to confirm:",

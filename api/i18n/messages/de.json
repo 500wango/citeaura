@@ -1735,6 +1735,7 @@
   "archive.create_modal_title": "Projekt-Momentaufnahme erstellen",
   "archive.note_label": "Notiz / Beschreibung der Momentaufnahme",
   "archive.create_success": "Momentaufnahme erstellt",
+  "archive.create_queued": "Die Erstellung der Momentaufnahme wurde eingereiht",
   "archive.restore_modal_title": "Wiederherstellung der Momentaufnahme bestätigen",
   "archive.restore_warning": "Warnung: Das Wiederherstellen überschreibt die aktuellen Projektdateien mit Daten aus {id}.",
   "archive.restore_type_label": "Geben Sie {phrase} zur Bestätigung ein:",

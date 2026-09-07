@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CiteAura v5 — Marketing Report Aesthetic</title>
+<style>
+@font-face{font-family:Space;src:url('http://127.0.0.1:8766/site-assets/fonts/space-grotesk-700.woff2');font-weight:700}
+@font-face{font-family:Space;src:url('http://127.0.0.1:8766/site-assets/fonts/space-grotesk-500.woff2');font-weight:500}
+@font-face{font-family:Space;src:url('http://127.0.0.1:8766/site-assets/fonts/space-grotesk-400.woff2');font-weight:400}
+@font-face{font-family:Mono;src:url('http://127.0.0.1:8766/site-assets/fonts/jetbrains-mono-400.woff2')}
+@font-face{font-family:Mono;src:url('http://127.0.0.1:8766/site-assets/fonts/jetbrains-mono-600.woff2');font-weight:600}
+:root{
+  --accent:#0f9d78; --accent-deep:#0a7a5c; --accent-soft:#e3f7ee;
+  --amber:#e08a1f; --amber-soft:#fbf0dd;
+  --red:#d64550; --red-soft:#fbe6e7;
+  --ink:#14201c; --ink-2:#3d4d47; --muted:#6b7d76; --faint:#9aaba3;
+  --page:#f7f9f7; --surface:#ffffff; --deep:#eef3ef; --line:#e1e8e2; --divider:#c9d6cd;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:Space,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.shell{max-width:1240px;margin:0 auto;padding:0 32px}
+header{border-bottom:1px solid var(--line);background:var(--surface)}
+.head-row{display:flex;align-items:center;justify-content:space-between;height:76px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px}
+.brand .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-deep));display:grid;place-items:center;color:#fff;font-size:13px}
+nav{display:flex;gap:34px;font-size:14px;color:var(--ink-2);font-weight:500}
+.actions{display:flex;align-items:center;gap:14px}
+.actions a.ghost{color:var(--ink-2);font-size:14px;font-weight:500;text-decoration:none}
+.btn{background:var(--accent);color:#fff;padding:11px 20px;border-radius:9px;font-weight:600;font-size:14px;text-decoration:none;box-shadow:0 8px 20px rgba(15,157,120,.25)}
+
+.hero{padding:76px 0 64px;position:relative;overflow:hidden}
+.hero:before{content:"";position:absolute;top:-160px;right:-140px;width:560px;height:560px;border-radius:50%;background:radial-gradient(circle,var(--accent-soft),transparent 70%);z-index:0}
+.hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:1.02fr .98fr;gap:56px;align-items:center}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--accent-soft);color:var(--accent-deep);font-weight:600;font-size:13px;padding:7px 14px;border-radius:99px;margin-bottom:22px}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+h1{font-size:52px;line-height:1.08;letter-spacing:-.02em;margin:0 0 18px;font-weight:700}
+h1 em{font-style:normal;color:var(--accent-deep)}
+.lede{font-size:18px;line-height:1.55;color:var(--ink-2);max-width:480px;margin:0 0 30px}
+.hero-form{display:flex;max-width:460px;background:var(--surface);border:1px solid var(--divider);border-radius:12px;padding:5px;box-shadow:0 1px 2px rgba(20,32,28,.04)}
+.hero-form input{flex:1;border:0;background:transparent;padding:12px 14px;font-size:14px;color:var(--ink);outline:0;font-family:Space}
+.hero-form button{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:0 20px;font-weight:600;font-size:14px;cursor:pointer}
+.hero-note{margin-top:14px;font-size:13px;color:var(--faint)}
+.hero-note b{color:var(--muted)}
+
+.report-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 30px 60px -20px rgba(20,32,28,.18);overflow:hidden}
+.report-card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);background:var(--deep)}
+.report-card-head .title{font-size:13px;font-weight:600;color:var(--ink-2)}
+.report-card-head .badge{font-family:Mono;font-size:11px;font-weight:600;color:var(--accent-deep);background:var(--accent-soft);padding:4px 9px;border-radius:6px}
+.report-card-body{padding:20px}
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+.kpi{background:var(--page);border:1px solid var(--line);border-radius:12px;padding:14px}
+.kpi .lab{font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.kpi .val{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.kpi .val.good{color:var(--accent-deep)}
+.kpi .val.bad{color:var(--red)}
+.kpi .delta{font-size:12px;font-weight:600;margin-top:3px}
+.kpi .delta.up{color:var(--accent-deep)}
+.kpi .delta.down{color:var(--red)}
+.mini-chart{height:64px;display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;padding:0 2px}
+.mini-chart span{flex:1;background:linear-gradient(180deg,var(--accent),var(--accent-soft));border-radius:3px 3px 0 0}
+.compare-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);font-size:13.5px}
+.compare-row:first-of-type{border-top:0}
+.compare-row .name{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-weight:500}
+.compare-row .name .sw{width:8px;height:8px;border-radius:50%}
+.compare-row .pct{font-family:Mono;font-weight:600;color:var(--ink)}
+
+.matrix{border-top:1px solid var(--line);background:var(--surface)}
+.matrix-row{display:grid;grid-template-columns:repeat(4,1fr);padding:36px 0}
+.matrix-item{padding:0 28px;border-left:1px solid var(--line)}
+.matrix-item:first-child{border-left:0;padding-left:0}
+.matrix-item .n{font-size:34px;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+.matrix-item .n.accent{color:var(--accent-deep)}
+.matrix-item .l{font-size:14px;color:var(--muted);margin-top:4px}
+
+.section{padding:64px 0}
+.section-head{max-width:640px;margin:0 auto 40px;text-align:center}
+.section-head .kicker{color:var(--accent-deep);font-weight:600;font-size:13px;margin-bottom:10px;letter-spacing:.02em}
+.section-head h2{font-size:34px;letter-spacing:-.015em;margin:0 0 12px}
+.section-head p{color:var(--muted);font-size:16px;line-height:1.6}
+
+.finding-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.finding-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;transition:none}
+.finding-card .tag{display:inline-block;font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;margin-bottom:14px}
+.finding-card .tag.win{background:var(--accent-soft);color:var(--accent-deep)}
+.finding-card .tag.gap{background:var(--red-soft);color:var(--red)}
+.finding-card .tag.watch{background:var(--amber-soft);color:var(--amber)}
+.finding-card h3{font-size:17px;margin:0 0 8px;font-weight:700}
+.finding-card p{font-size:14px;color:var(--muted);line-height:1.6;margin:0 0 14px}
+.finding-card .impact{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);font-weight:600;padding-top:14px;border-top:1px solid var(--line)}
+
+.ticket-band{background:var(--deep)}
+.ticket-list{display:grid;gap:12px}
+.ticket{display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
+.ticket .pri{flex:none;width:44px;height:44px;border-radius:10px;display:grid;place-items:center;font-family:Mono;font-weight:700;font-size:13px}
+.ticket .pri.high{background:var(--red-soft);color:var(--red)}
+.ticket .pri.med{background:var(--amber-soft);color:var(--amber)}
+.ticket .pri.low{background:var(--accent-soft);color:var(--accent-deep)}
+.ticket .body{flex:1;min-width:0}
+.ticket .body h4{margin:0 0 3px;font-size:15px;font-weight:600}
+.ticket .body p{margin:0;font-size:13px;color:var(--muted)}
+.ticket .effort{flex:none;text-align:right;font-size:12px;color:var(--faint);font-weight:500}
+.ticket .effort b{display:block;color:var(--ink-2);font-size:13px}
+
+.cta-band{background:linear-gradient(135deg,var(--ink),#1f3a30);border-radius:24px;margin:0 32px 64px;padding:56px;display:flex;align-items:center;justify-content:space-between;gap:40px}
+.cta-band h2{color:#fff;font-size:30px;margin:0 0 8px;letter-spacing:-.01em}
+.cta-band p{color:rgba(255,255,255,.7);font-size:15px;margin:0;max-width:420px}
+.cta-band .btn{background:var(--accent);box-shadow:0 8px 24px rgba(15,157,120,.4)}
+</style></head>
+<body>
+
+<header><div class="shell head-row">
+  <div class="brand"><div class="mark">CA</div>CiteAura</div>
+  <nav><a href="#" style="color:inherit;text-decoration:none">Product</a><a href="#" style="color:inherit;text-decoration:none">Reports</a><a href="#" style="color:inherit;text-decoration:none">Pricing</a><a href="#" style="color:inherit;text-decoration:none">Customers</a></nav>
+  <div class="actions"><a class="ghost" href="#">Sign in</a><a class="btn" href="#">Start free report</a></div>
+</div></header>
+
+<section class="hero"><div class="shell hero-grid">
+  <div>
+    <div class="eyebrow"><span class="dot"></span>Trusted by 400+ marketing &amp; agency teams</div>
+    <h1>See what AI says about<br>your brand — <em>before your CEO asks</em>.</h1>
+    <p class="lede">CiteAura turns "does ChatGPT mention us" into a report you can show your boss: what AI engines say, where you lose to competitors, and exactly what to fix next.</p>
+    <form class="hero-form"><input value="yourbrand.com" placeholder="yourbrand.com"><button>Get my report →</button></form>
+    <p class="hero-note">Free visibility snapshot in 90 seconds · <b>no credit card</b></p>
+  </div>
+  <div class="report-card">
+    <div class="report-card-head"><span class="title">Visibility Report — Q3 Snapshot</span><span class="badge">UPDATED TODAY</span></div>
+    <div class="report-card-body">
+      <div class="kpi-row">
+        <div class="kpi"><div class="lab">Mention rate</div><div class="val good">42%</div><div class="delta up">↑ 12% this month</div></div>
+        <div class="kpi"><div class="lab">Sentiment</div><div class="val good">Positive</div><div class="delta up">↑ improving</div></div>
+        <div class="kpi"><div class="lab">vs top competitor</div><div class="val bad">-18pt</div><div class="delta down">still behind</div></div>
+      </div>
+      <div class="mini-chart">
+        <span style="height:38%"></span><span style="height:52%"></span><span style="height:44%"></span>
+        <span style="height:61%"></span><span style="height:58%"></span><span style="height:73%"></span>
+        <span style="height:69%"></span><span style="height:84%"></span><span style="height:100%;background:var(--accent-deep)"></span>
+      </div>
+      <div class="compare-row"><span class="name"><span class="sw" style="background:var(--accent)"></span>Your brand</span><span class="pct">42%</span></div>
+      <div class="compare-row"><span class="name"><span class="sw" style="background:var(--amber)"></span>Competitor A</span><span class="pct">60%</span></div>
+      <div class="compare-row"><span class="name"><span class="sw" style="background:var(--faint)"></span>Competitor B</span><span class="pct">31%</span></div>
+    </div>
+  </div>
+</div></section>
+
+<div class="matrix"><div class="shell matrix-row">
+  <div class="matrix-item"><div class="n accent">36%</div><div class="l">Average mention lift after fixes</div></div>
+  <div class="matrix-item"><div class="n">14</div><div class="l">AI engines monitored per scan</div></div>
+  <div class="matrix-item"><div class="n">400+</div><div class="l">Brands &amp; agencies tracking weekly</div></div>
+  <div class="matrix-item"><div class="n accent">90s</div><div class="l">Time to your first report</div></div>
+</div></div>
+
+<section class="section"><div class="shell">
+  <div class="section-head">
+    <div class="kicker">WHAT YOU'LL FIND</div>
+    <h2>Three things every report answers</h2>
+    <p>No dashboards to interpret. Just the story your team and clients need to hear.</p>
+  </div>
+  <div class="finding-grid">
+    <div class="finding-card">
+      <span class="tag gap">Citation gap</span>
+      <h3>ChatGPT recommends 3 competitors before you</h3>
+      <p>When users ask "best CRM for startups," your brand appears on page 2 of the AI's reasoning — if at all.</p>
+      <div class="impact">📉 Affects 60% of buyer-intent queries</div>
+    </div>
+    <div class="finding-card">
+      <span class="tag win">Quick win</span>
+      <h3>Your pricing page is AI-invisible</h3>
+      <p>No structured data, no clear claims — AI engines can't extract facts to cite. One content fix could close this.</p>
+      <div class="impact">✅ Est. 2 hrs to implement</div>
+    </div>
+    <div class="finding-card">
+      <span class="tag watch">Worth watching</span>
+      <h3>Perplexity sentiment turned neutral</h3>
+      <p>Down from "positive" last quarter. Root cause: an outdated review being cited as a current source.</p>
+      <div class="impact">👀 Re-check after next scan</div>
+    </div>
+  </div>
+</div></section>
+
+<section class="ticket-band section"><div class="shell">
+  <div class="section-head">
+    <div class="kicker">FROM FINDING TO ACTION</div>
+    <h2>Every gap becomes a ticket your team can execute</h2>
+    <p>No more "AI visibility" as a vague initiative — it's a prioritized, assignable to-do list.</p>
+  </div>
+  <div class="ticket-list">
+    <div class="ticket"><div class="pri high">P1</div><div class="body"><h4>Add FAQ schema to /pricing</h4><p>Closes the biggest citation gap found in this scan</p></div><div class="effort">Effort<b>Low</b></div></div>
+    <div class="ticket"><div class="pri med">P2</div><div class="body"><h4>Refresh outdated case study cited by Perplexity</h4><p>Currently dragging sentiment score down</p></div><div class="effort">Effort<b>Medium</b></div></div>
+    <div class="ticket"><div class="pri low">P3</div><div class="body"><h4>Publish comparison page vs Competitor A</h4><p>Fills a gap AI engines currently answer with competitor content</p></div><div class="effort">Effort<b>High</b></div></div>
+  </div>
+</div></section>
+
+<div class="cta-band">
+  <div><h2>Your next board update writes itself.</h2><p>Run your first free report and see exactly what to tell your team this week.</p></div>
+  <a class="btn" href="#">Start free report →</a>
+</div>
+
+</body></html>

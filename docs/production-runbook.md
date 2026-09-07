@@ -115,7 +115,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml ps
 7. Worker 固定使用 Celery `prefork` 池；不要在生产覆盖为 `threads`、`gevent` 或 `eventlet`，因为引擎租户上下文会临时注入进程环境和供应商注册表。
 8. 镜像和 CI 使用提交到仓库的 `requirements.lock`；依赖变更时同步更新 `requirements.txt` 与锁文件并重新跑全量测试。
 9. 配置 `AUTH_SMTP_*` 全局发件账号后，CiteAura 会发送注册欢迎邮件、付款成功通知、密码重置、交付包分享和回归告警；密码重置仍由 `PASSWORD_RESET_EMAIL_ENABLED` 单独控制。自建邮件服务器使用隐式 TLS 时配置 `AUTH_SMTP_PORT=465` 与 `AUTH_SMTP_SECURITY=ssl`；使用提交端口时配置 `AUTH_SMTP_PORT=587` 与 `AUTH_SMTP_SECURITY=starttls`，两者不能混用。SMTP 未配置时，欢迎/付款通知会记录跳过，且不会阻断注册或付款 Webhook。外链联络 SMTP 仍由各租户在工作台单独配置。
-10. 如果启用归档，填写 S3 或 R2 兼容对象存储配置。外链 SMTP 和 OIDC 凭证在租户工作台内配置，并由对应连接测试确认。
+10. 未配置对象存储时，Snapshot 保存在持久化的 `work/` 卷中；填写 S3 或 R2 兼容对象存储配置后，快照写入远端，用于异机留存。外链 SMTP 和 OIDC 凭证在租户工作台内配置，并由对应连接测试确认。
 
 ## 预检与部署
 

@@ -154,7 +154,7 @@ PUBLISHER_NAMES_EN = {
 }
 
 PUBLISHER_NOTES_EN = {
-    "github": "Submit Markdown to your repository via Contents API (deploys instantly with GitHub Pages or static site generators).",
+    "github": "Create a branch and pull request for human review. CiteAura never merges or deploys automatically.",
     "wordpress": "Create draft posts via REST API; review and publish from your WordPress admin console.",
     "webhook": "POST JSON payload {title, markdown, html, slug, path} to your custom webhook endpoint, Zapier, Make, Ghost, or Webflow.",
 }

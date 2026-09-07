@@ -10,6 +10,7 @@ from urllib.parse import quote
 import requests
 
 from api.adapters.engine import geolib
+from api.adapters import generated_assets
 
 
 API_BASE = "https://api.github.com"
@@ -34,7 +35,10 @@ def _read_state(project_slug):
             continue
         cleaned.append({
             key: row[key]
-            for key in ("number", "url", "status", "title", "branch", "updated_at")
+            for key in (
+                "number", "url", "status", "title", "branch", "ticket_id",
+                "run_id", "updated_at",
+            )
             if isinstance(row.get(key), (str, int))
         })
     return cleaned[-100:]
@@ -73,6 +77,34 @@ def _asset_path(project_slug, value):
     if project_dir not in target.parents or not target.is_file():
         raise ValueError("GitHub asset must be an existing project file")
     return target.relative_to(project_dir)
+
+
+def _remote_asset_path(relative):
+    """Map a project asset path to the configured repository directory."""
+    parts = relative.parts
+    if parts and parts[0] == "assets":
+        return Path(*parts[1:])
+    return relative
+
+
+def _approved_assets(project_slug, paths):
+    """Return deployable project assets that are eligible for a review PR."""
+    records = {
+        str(item.get("path")): item
+        for item in generated_assets.read_project_assets(project_slug).get("tree", [])
+        if isinstance(item, dict) and item.get("path")
+    }
+    assets = []
+    for value in paths:
+        relative = _asset_path(project_slug, value)
+        remote_relative = _remote_asset_path(relative)
+        if relative == remote_relative or not remote_relative.parts:
+            raise ValueError("GitHub PRs can only include generated assets")
+        record = records.get(remote_relative.as_posix())
+        if not record or record.get("status") != "deployable":
+            raise ValueError("GitHub PR assets must be approved before publishing")
+        assets.append(relative)
+    return assets
 
 
 def _session(token):
@@ -141,7 +173,7 @@ def create(
     if not ticket or not run:
         raise ValueError("invalid GitHub branch identifier")
     branch = f"citeaura/{ticket}-{run}"[:240]
-    assets = [_asset_path(project_slug, value) for value in paths]
+    assets = _approved_assets(project_slug, paths)
     if len(set(assets)) != len(assets):
         raise ValueError("duplicate GitHub asset path")
     session = _session(token)
@@ -156,7 +188,8 @@ def create(
         raise RuntimeError(error)
     project_dir = geolib.project_dir(project_slug).resolve()
     for relative in assets:
-        destination = "/".join(part for part in (directory, relative.as_posix()) if part)
+        remote_relative = _remote_asset_path(relative)
+        destination = "/".join(part for part in (directory, remote_relative.as_posix()) if part)
         contents = base64.b64encode((project_dir / relative).read_bytes()).decode("ascii")
         _, error = _api(
             session,
@@ -192,6 +225,8 @@ def create(
         "status": str(pull.get("state") or "open"),
         "title": str(pull.get("title") or title or f"CiteAura: {ticket}"),
         "branch": branch,
+        "ticket_id": ticket,
+        "run_id": run,
         "updated_at": pull.get("updated_at"),
     }
     with geolib.project_lock(project_slug):
