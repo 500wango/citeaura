@@ -322,6 +322,7 @@ def test_api_error_codes_are_catalogued():
     for key in (
         "error.generic",
         "trial_limit_exceeded",
+        "subscription_required",
         "email_already_registered",
         "project_job_already_running",
         "insufficient_role",

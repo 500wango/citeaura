@@ -6,6 +6,8 @@ from api.models import Subscription, Tenant
 
 
 CURRENT_STATUSES = frozenset(("active", "trialing", "past_due"))
+EXPIRED_PLAN = "expired"
+TRIAL_PRESERVING_SUBSCRIPTION_STATUSES = frozenset(("pending", "incomplete"))
 
 
 def as_utc(value):
@@ -41,6 +43,14 @@ def _tenant_subscriptions(db, tenant_id):
     ).order_by(Subscription.started_at.desc(), Subscription.id.desc()).all()
 
 
+def _subscription_lifecycle_started(rows):
+    """未完成的 Checkout 不消耗首次试用资格。"""
+    return any(
+        row.status not in TRIAL_PRESERVING_SUBSCRIPTION_STATUSES
+        for row in rows
+    )
+
+
 def effective_tenant_plan(db, tenant_id, now=None):
     """计算当前授权套餐，不修改 SQLAlchemy 实体或提交事务。"""
     tenant = db.get(Tenant, tenant_id)
@@ -50,7 +60,9 @@ def effective_tenant_plan(db, tenant_id, now=None):
     active = next((row for row in rows if subscription_is_current(row, now)), None)
     if active is not None:
         return active.plan
-    return "trial" if rows else tenant.plan
+    if _subscription_lifecycle_started(rows):
+        return EXPIRED_PLAN
+    return tenant.plan
 
 
 def sync_tenant_plan(db, tenant_id, now=None):
@@ -64,13 +76,6 @@ def sync_tenant_plan(db, tenant_id, now=None):
     if active is not None:
         tenant.plan = active.plan
         return active
-    if rows:
-        tenant.plan = "trial"
-    latest = rows[0] if rows else None
-    if tenant.trial_ends_at is None:
-        tenant.trial_ends_at = (
-            latest.expires_at if latest is not None and latest.expires_at is not None
-            else latest.started_at if latest is not None
-            else now
-        )
+    if _subscription_lifecycle_started(rows):
+        tenant.plan = EXPIRED_PLAN
     return None

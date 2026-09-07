@@ -833,7 +833,7 @@ def test_underpaid_invoice_does_not_reactivate_existing_subscription(billing_cli
 
 def test_subscription_deleted_webhook_revokes_paid_plan(billing_client):
     client, session_factory = billing_client
-    _register(client, "cancel-owner@example.com")
+    headers = _register(client, "cancel-owner@example.com")
     with session_factory() as db:
         tenant = db.query(Tenant).filter(Tenant.name == "cancel-owner").one()
         tenant.plan = "pro"
@@ -862,9 +862,19 @@ def test_subscription_deleted_webhook_revokes_paid_plan(billing_client):
     assert stale_invoice.json()["processed"] is False
     with session_factory() as db:
         tenant = db.get(Tenant, tenant_id)
-        assert tenant.plan == "trial"
+        assert tenant.plan == "expired"
         assert tenant.trial_ends_at is not None
         assert db.query(Subscription).one().status == "canceled"
+    blocked = client.post(
+        "/api/v1/projects",
+        headers=headers,
+        json={"url": "cancel-owner.example"},
+    )
+    assert blocked.status_code == 403
+    assert blocked.json() == {
+        "error": "subscription_required",
+        "detail": "an active subscription is required",
+    }
 
 
 def test_active_subscription_can_change_plan_with_proration(billing_client, monkeypatch):

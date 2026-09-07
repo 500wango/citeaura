@@ -122,6 +122,9 @@ PIPELINE_ACTIONS = {
     action: {"label": value["label"], "args": list(value["args"])}
     for action, value in ACTION_CATALOG.items()
 }
+ENTITLEMENT_REQUIRED_ACTIONS = frozenset(PIPELINE_ACTIONS) | frozenset((
+    "cycle", "outreach_send",
+))
 ACTION_METHODS = {action: value["method"] for action, value in ACTION_CATALOG.items()}
 ACTION_DEFAULTS = {action: dict(value["defaults"]) for action, value in ACTION_CATALOG.items()}
 RETRYABLE_ACTIONS = frozenset(action for action, value in ACTION_CATALOG.items() if value["retryable"])

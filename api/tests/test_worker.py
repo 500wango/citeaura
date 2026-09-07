@@ -11,7 +11,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
 from api.db import Base
-from api.models import Job, Project, Tenant
+from api.models import Job, Project, Subscription, Tenant
 from api.worker import tasks
 from api.worker.celery_app import celery_app
 
@@ -553,6 +553,55 @@ def test_job_status_updates_project_on_success_and_failure(tmp_path, monkeypatch
     assert "engine output" in bootstrap_log
     assert "bootstrap done" in bootstrap_log
     assert "verify failed: RuntimeError: verification failed" in verify_log
+
+
+def test_job_status_rejects_queued_work_after_subscription_expires(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'subscription-expired.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with session_factory() as db:
+        tenant = Tenant(name="tenant-a", plan="pro")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="example",
+            url="https://example.com",
+            market="both",
+            status="processing",
+        )
+        db.add(project)
+        db.flush()
+        db.add(Subscription(
+            tenant_id=tenant.id,
+            plan="pro",
+            billing_interval="monthly",
+            status="canceled",
+        ))
+        job = Job(
+            project_id=project.id,
+            action="sample",
+            status="queued",
+            budget_reservation_status="reserved",
+        )
+        db.add(job)
+        db.commit()
+        job_id = job.id
+        project_id = project.id
+        tenant_id = tenant.id
+
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+
+    with tasks._job_status("tenant-a", "example", "sample", job_id) as claim:
+        assert claim is tasks._JOB_NOT_CLAIMED
+
+    with session_factory() as db:
+        assert db.get(Tenant, tenant_id).plan == "expired"
+        job = db.get(Job, job_id)
+        assert job.status == "failed"
+        assert job.error == "subscription_required"
+        assert job.budget_reservation_status == "released"
+        assert db.get(Project, project_id).status == "ready"
 
 
 def test_job_transaction_retries_closed_ssl_connection(monkeypatch):

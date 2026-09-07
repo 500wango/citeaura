@@ -67,6 +67,8 @@ def retry_project_job(
         _error(status.HTTP_409_CONFLICT, "job_retry_attempt_limit")
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    if source.action in ENTITLEMENT_REQUIRED_ACTIONS:
+        check_product_access(db, tenant)
     if source.action == "sample":
         _require_project_questions(tenant, project)
     request = _request_payload(source.request_json)
@@ -303,6 +305,7 @@ def run_pipeline_action(
         _error(status.HTTP_400_BAD_REQUEST, "unsupported_pipeline_action")
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
+    check_product_access(db, tenant)
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     params = (payload or PipelineActionRequest()).params

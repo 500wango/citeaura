@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from api.adapters import outreach
 from api.adapters.engine import job_log_path, with_tenant_context, with_tenant_read_context
 from api.auth.deps import get_current_user, require_editor, require_owner
+from api.billing.limits import check_product_access
 from api.db import get_db
 from api.models import IntegrationCredential, Job, Project, Tenant, User
 from api.settings.crypto import encrypt_key
@@ -277,6 +278,7 @@ def send_outreach_draft(
 ):
     """人工确认最终快照后投递发送任务。"""
     tenant, project = _tenant_project(db, current_user, project_id)
+    check_product_access(db, tenant)
     if not payload.confirmed:
         _error(status.HTTP_400_BAD_REQUEST, "outreach_confirmation_required")
     if _smtp_row(db, tenant.id) is None:

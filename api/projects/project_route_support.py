@@ -30,7 +30,8 @@ from api.adapters.exceptions import GeoEngineError
 from api.adapters import brand_identity, delivery, delivery_share, export as report_export, framing, global_scope, measurement, preflight, product_insights, report_quality, sampling_control, sampling_modes, ticket_workflow, workspace
 from api.adapters.network import NetworkTargetError, validate_outbound_url
 from api.auth.deps import get_current_user, require_editor, require_owner
-from api.billing.limits import check_project_creation, check_sample_run
+from api.billing.limits import check_product_access, check_project_creation, check_sample_run
+from api.pipeline_catalog import ENTITLEMENT_REQUIRED_ACTIONS
 from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
 from api.db import get_db
 from api import config

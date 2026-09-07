@@ -4,11 +4,15 @@ import json
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
+from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
 from api.adapters import locking, regression_alerts, sampling_control
 from api.adapters.engine import job_log_path, tenant_slug
+from api.billing.access import sync_tenant_plan
+from api.billing.limits import check_product_access
 from api.models import Job, Project, Tenant
+from api.pipeline_catalog import ENTITLEMENT_REQUIRED_ACTIONS
 from api.product_events import record_product_event
 
 
@@ -68,6 +72,19 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
             return False
         project = db.get(Project, job.project_id)
         tenant = db.get(Tenant, project.tenant_id) if project is not None else None
+        if tenant is not None and action in ENTITLEMENT_REQUIRED_ACTIONS:
+            sync_tenant_plan(db, tenant.id)
+            try:
+                check_product_access(db, tenant)
+            except HTTPException as exc:
+                sampling_control.release_reservation(job)
+                job.status = "failed"
+                job.stage = "failed"
+                job.finished_at = datetime.now(timezone.utc)
+                job.error = (exc.detail or {}).get("error", "subscription_required")
+                if project is not None and project.status != "archived":
+                    project.status = "ready"
+                return False
         if tenant is not None:
             log_path = _task_facade().job_log_path(tenant.directory_slug, project.slug, job.id)
             job.log_path = str(log_path)

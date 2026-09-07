@@ -87,11 +87,15 @@ export default {
     const trialEndsLabel = formatTrialEnds(usage.trial_ends_at);
     const onTrial = currentPlan === 'trial';
     const trialExpired = Boolean(usage.trial_expired);
+    const subscriptionExpired = Boolean(usage.subscription_expired);
+    const planLabel = subscriptionExpired
+      ? t('billing.subscription_inactive', {}, 'Subscription inactive')
+      : currentPlan;
     const billingStatus = String(ctx.params?.billing || '').toLowerCase();
     const funnel = usage.activation_funnel || {};
     const funnelSteps = Array.isArray(funnel.steps) ? funnel.steps : [];
-    const projectsRemaining = usage.projects_remaining;
-    const sampleRemaining = usage.sample_runs_remaining;
+    const projectsRemaining = subscriptionExpired ? 0 : usage.projects_remaining;
+    const sampleRemaining = subscriptionExpired ? 0 : usage.sample_runs_remaining;
     const poolCalls = Number(usage.platform_pool_calls || usage.platform_pool?.calls || 0);
     const poolCostFen = Number(usage.platform_pool_cost_cny_fen || usage.platform_pool?.cost_cny_fen || 0);
 
@@ -129,13 +133,13 @@ export default {
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--sp-3);">
             <div style="display:flex;align-items:center;gap:var(--sp-3);">
               <span class="tag tag-accent" style="font-size:var(--fs-3);padding:var(--sp-1) var(--sp-3);text-transform:uppercase;">
-                ${currentPlan}
+                ${planLabel}
               </span>
               <div>
                 <strong>${t('billing.current_plan', {}, 'Active Plan')}</strong>
-                <div style="font-size:var(--fs-2);color:var(--muted);">${t('billing.active_projects', { active: activeProjects, max: maxProjects === null || maxProjects === undefined ? '∞' : maxProjects }, `Active projects: ${activeProjects} / ${maxProjects === null || maxProjects === undefined ? '∞' : maxProjects}`)}</div>
+                <div style="font-size:var(--fs-2);color:var(--muted);">${t('billing.active_projects', { active: activeProjects, max: subscriptionExpired ? t('billing.access_paused', {}, 'Access paused') : (maxProjects === null || maxProjects === undefined ? '∞' : maxProjects) }, `Active projects: ${activeProjects} / ${subscriptionExpired ? t('billing.access_paused', {}, 'Access paused') : (maxProjects === null || maxProjects === undefined ? '∞' : maxProjects)}`)}</div>
                 ${onTrial ? `<div style="font-size:var(--fs-2);color:var(--muted);">${t('billing.trial_samples', { used: usage.sample_runs_lifetime || 0, limit: usage.sample_runs_lifetime_limit || 6, per_project: usage.sample_runs_limit_per_project || 2 }, `Trial samples: ${usage.sample_runs_lifetime || 0} / ${usage.sample_runs_lifetime_limit || 6} lifetime · ${usage.sample_runs_limit_per_project || 2} per project`)}</div>` : ''}
-                ${onTrial ? `
+                ${subscriptionExpired ? `<div style="font-size:var(--fs-2);color:var(--muted);margin-top:2px;">${t('billing.subscription_ended_upgrade', {}, 'Subscription ended. Choose a plan to restore access.')}</div>` : onTrial ? `
                   <div style="font-size:var(--fs-2);color:var(--muted);margin-top:2px;">
                     ${trialExpired
                       ? t('billing.trial_ended_upgrade', {}, 'Trial ended — upgrade now to restore full access.')

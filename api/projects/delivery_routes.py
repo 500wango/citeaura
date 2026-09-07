@@ -8,6 +8,8 @@ router = APIRouter(tags=["projects"])
 def verify_project(project_id: int, current_user: User = Depends(require_editor), db: Session = Depends(get_db)):
     """投递工单自动验收任务。"""
     project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    check_product_access(db, tenant)
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     job = Job(project_id=project.id, action="verify", status="queued", stage="queued", request_json="{}")
@@ -22,7 +24,6 @@ def verify_project(project_id: int, current_user: User = Depends(require_editor)
     project.status = "verifying"
     db.commit()
     db.refresh(job)
-    tenant = _tenant_for_user(db, current_user)
     job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
     try:
@@ -58,6 +59,8 @@ def verify_history(project_id: int, current_user: User = Depends(get_current_use
 def deliver_project(project_id: int, current_user: User = Depends(require_editor), db: Session = Depends(get_db)):
     """投递客户交付包生成任务。"""
     project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    check_product_access(db, tenant)
     if _active_job(db, project.id) is not None:
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
     job = Job(project_id=project.id, action="deliver", status="queued", stage="queued", request_json="{}")
@@ -72,7 +75,6 @@ def deliver_project(project_id: int, current_user: User = Depends(require_editor
     project.status = "delivering"
     db.commit()
     db.refresh(job)
-    tenant = _tenant_for_user(db, current_user)
     job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
     try:

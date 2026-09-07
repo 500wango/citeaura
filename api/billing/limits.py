@@ -8,6 +8,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from api.models import Job, Membership, Project, Tenant, User
+from api.billing.access import EXPIRED_PLAN, effective_tenant_plan
 from api.billing.plans import PLANS, TRIAL_DAYS
 
 
@@ -210,8 +211,15 @@ def _raise_limit(detail: str, error="trial_limit_exceeded"):
     )
 
 
+def check_product_access(db: Session, tenant: Tenant):
+    """阻止订阅结束的工作区继续执行付费产品能力。"""
+    if effective_tenant_plan(db, tenant.id) == EXPIRED_PLAN:
+        _raise_limit("an active subscription is required", error="subscription_required")
+
+
 def check_project_creation(db: Session, tenant: Tenant):
     """按租户套餐检查项目数量。"""
+    check_product_access(db, tenant)
     trial = _trial_active(tenant)
     plan = PLANS.get(tenant.plan)
     project_limit = plan.get("projects") if plan else None
@@ -229,6 +237,7 @@ def check_project_creation(db: Session, tenant: Tenant):
 
 def check_sample_run(db: Session, tenant: Tenant, project: Project):
     """检查单项目和整个试用生命周期的采样次数。"""
+    check_product_access(db, tenant)
     if not _trial_active(tenant):
         return
     count = _count_sampled_jobs(db, project_id=project.id)
@@ -289,6 +298,7 @@ def usage(db: Session, tenant: Tenant) -> dict:
     )
     return {
         "plan": tenant.plan,
+        "subscription_expired": tenant.plan == EXPIRED_PLAN,
         "trial_ends_at": tenant.trial_ends_at,
         "trial_expired": trial_expired,
         # 试用未结束也可随时付费升级；不要求等 7 天。
