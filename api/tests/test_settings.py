@@ -109,6 +109,13 @@ def test_encrypted_keys_are_bound_to_their_tenant_and_engine(monkeypatch):
         decrypt_key(encrypted, key_aad(1, "deepseek"))
 
 
+def test_legacy_unbound_ciphertext_remains_readable_during_migration(monkeypatch):
+    monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"0" * 32).decode())
+    encrypted = encrypt_key("sk-legacy-secret")
+
+    assert decrypt_key(encrypted, key_aad(1, "openai")) == "sk-legacy-secret"
+
+
 def test_keys_are_tenant_isolated(settings_client):
     client = settings_client
     first = _headers(client, "first@example.com")
