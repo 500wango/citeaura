@@ -2,6 +2,7 @@
 
 import calendar
 import hashlib
+import uuid
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -158,6 +159,16 @@ def _subscription_row(db, provider_subscription_id=None, checkout_session_id=Non
     return None
 
 
+def _other_current_subscription(db, tenant_id, row):
+    query = db.query(Subscription).filter(
+        Subscription.tenant_id == tenant_id,
+        Subscription.status.in_(("active", "trialing", "past_due")),
+    )
+    if row.id is not None:
+        query = query.filter(Subscription.id != row.id)
+    return query.with_for_update().first()
+
+
 def _metadata(value):
     return value if isinstance(value, dict) else {}
 
@@ -201,8 +212,30 @@ def _activate_checkout(db, value, event_created=None):
             return False
     started_at = _timestamp(value.get("created"))
     if row is None:
-        row = Subscription(tenant_id=tenant.id)
+        row = Subscription(
+            tenant_id=tenant.id,
+            plan=plan_code,
+            billing_interval=billing_interval,
+            amount_cny_fen=plan["prices"][billing_interval]["cny"] * 100,
+            amount_usd_cents=plan["prices"][billing_interval]["usd"] * 100,
+            status="incomplete",
+        )
         db.add(row)
+    if _other_current_subscription(db, tenant.id, row) is not None:
+        row.plan = plan_code
+        row.billing_interval = billing_interval
+        row.amount_cny_fen = plan["prices"][billing_interval]["cny"] * 100
+        row.amount_usd_cents = plan["prices"][billing_interval]["usd"] * 100
+        row.status = "incomplete"
+        row.provider = "stripe"
+        row.provider_customer_id = _stripe_id(value.get("customer"))
+        row.provider_subscription_id = provider_subscription_id
+        row.provider_checkout_session_id = value.get("id")
+        row.started_at = started_at
+        row.expires_at = _add_billing_period(started_at, billing_interval)
+        if incoming_created is not None:
+            row.provider_event_created_at = incoming_created
+        return False
     row.plan = plan_code
     row.billing_interval = billing_interval
     row.amount_cny_fen = plan["prices"][billing_interval]["cny"] * 100
@@ -255,6 +288,7 @@ def _update_subscription(db, value, deleted=False, event_created=None):
             billing_interval=billing_interval,
             amount_cny_fen=plan["prices"][billing_interval]["cny"] * 100,
             amount_usd_cents=plan["prices"][billing_interval]["usd"] * 100,
+            status="incomplete",
             provider="stripe",
             provider_subscription_id=provider_subscription_id,
             started_at=_timestamp(value.get("start_date")),
@@ -268,6 +302,12 @@ def _update_subscription(db, value, deleted=False, event_created=None):
         status_value = "canceled"
     if status_value not in ("active", "trialing", "past_due", "canceled", "unpaid", "incomplete"):
         raise stripe_adapter.StripeError("stripe_subscription_status_invalid")
+    blocked_by_current_subscription = (
+        status_value in ("active", "trialing", "past_due")
+        and _other_current_subscription(db, row.tenant_id, row) is not None
+    )
+    if blocked_by_current_subscription:
+        status_value = "incomplete"
     row.status = status_value
     if "cancel_at_period_end" in value:
         cancel_flag = value["cancel_at_period_end"]
@@ -290,7 +330,7 @@ def _update_subscription(db, value, deleted=False, event_created=None):
         row.amount_usd_cents = plan["prices"][billing_interval]["usd"] * 100
     db.flush()
     _sync_tenant_plan(db, row.tenant_id)
-    return True
+    return not blocked_by_current_subscription
 
 
 def _update_invoice_status(db, value, paid, event_created=None):
@@ -361,7 +401,14 @@ def _update_invoice_status(db, value, paid, event_created=None):
         return False
     if stale:
         return row
-    row.status = "active" if paid else "past_due"
+    next_status = "active" if paid else "past_due"
+    if _other_current_subscription(db, row.tenant_id, row) is not None:
+        row.status = "incomplete"
+        if incoming_created is not None:
+            row.provider_event_created_at = incoming_created
+        db.flush()
+        return False
+    row.status = next_status
     if incoming_created is not None:
         row.provider_event_created_at = incoming_created
     db.flush()
@@ -632,7 +679,9 @@ def subscribe(
 ):
     """创建 Stripe Checkout；试用中/试用过期均可立即升级，不要求等 trial 结束。"""
     _require_billing_enabled()
-    tenant = db.get(Tenant, current_user.tenant_id)
+    tenant = db.query(Tenant).filter(
+        Tenant.id == current_user.tenant_id,
+    ).with_for_update().first()
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
     _sync_tenant_plan(db, tenant.id)
@@ -645,7 +694,7 @@ def subscribe(
     active = db.query(Subscription).filter(
         Subscription.tenant_id == tenant.id,
         Subscription.status.in_(("active", "trialing", "past_due")),
-    ).first()
+    ).with_for_update().first()
     if active is not None:
         previous_plan = active.plan
         if active.plan == payload.plan and active.billing_interval == payload.billing_interval and not active.cancel_at_period_end:
@@ -698,6 +747,53 @@ def subscribe(
             "proration": "always_invoice",
             "from_plan": previous_plan,
         }
+    pending = db.query(Subscription).filter(
+        Subscription.tenant_id == tenant.id,
+        Subscription.status == "pending",
+    ).with_for_update().first()
+    if pending is not None and (
+        pending.plan != payload.plan or pending.billing_interval != payload.billing_interval
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "checkout_pending"},
+        )
+    if pending is not None and pending.checkout_url and pending.provider_checkout_session_id:
+        return {
+            "plan": pending.plan,
+            "billing_interval": pending.billing_interval,
+            "payment": "stripe_checkout",
+            "checkout_url": pending.checkout_url,
+            "checkout_session_id": pending.provider_checkout_session_id,
+            "from_plan": tenant.plan,
+        }
+    if pending is None:
+        pending = Subscription(
+            tenant_id=tenant.id,
+            plan=payload.plan,
+            billing_interval=payload.billing_interval,
+            amount_cny_fen=plan["prices"][payload.billing_interval]["cny"] * 100,
+            amount_usd_cents=plan["prices"][payload.billing_interval]["usd"] * 100,
+            status="pending",
+            provider="stripe",
+            checkout_idempotency_key=uuid.uuid4().hex,
+        )
+        db.add(pending)
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            pending = db.query(Subscription).filter(
+                Subscription.tenant_id == tenant.id,
+                Subscription.status == "pending",
+            ).first()
+            if pending is None:
+                raise
+            if pending.plan != payload.plan or pending.billing_interval != payload.billing_interval:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={"error": "checkout_pending"},
+                )
     try:
         session = stripe_adapter.create_checkout_session(
             tenant,
@@ -705,12 +801,15 @@ def subscribe(
             plan,
             payload.billing_interval,
             _payment_amount(plan, payload.billing_interval),
+            pending.checkout_idempotency_key,
         )
     except stripe_adapter.StripeError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"error": str(exc)},
         ) from exc
+    pending.provider_checkout_session_id = session["id"]
+    pending.checkout_url = session["url"]
     record_product_event(
         db,
         "checkout_started",

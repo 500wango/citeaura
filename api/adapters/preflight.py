@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 
 import requests
 
-from api.adapters.network import NetworkTargetError, assert_public_host
+from api.adapters.network import NetworkTargetError, validate_outbound_url
 from api.adapters.engine import _PinnedAddressAdapter
 
 
@@ -41,15 +41,6 @@ def normalize_url(value: str) -> str:
     return value.rstrip("/")
 
 
-def _resolve_public(hostname: str, port: int):
-    try:
-        assert_public_host(hostname, port)
-    except NetworkTargetError as exc:
-        message = "private_address_blocked" if str(exc) == "network_private_address_blocked" else "dns_unresolvable"
-        raise PreflightError(message) from exc
-    return True
-
-
 def _check(name, ok, message, action=None, **extra):
     return {"name": name, "ok": bool(ok), "message": message, "action": None if ok else action, **extra}
 
@@ -57,20 +48,22 @@ def _check(name, ok, message, action=None, **extra):
 def run(url: str, timeout: float = 8.0) -> dict:
     """执行不泄露响应内容的站点预检。"""
     normalized = normalize_url(url)
-    parsed = urlparse(normalized)
-    port = parsed.port or (443 if parsed.scheme == "https" else 80)
-    addresses = None
     checks = []
     try:
-        from api.adapters.network import resolve_public_addresses
-        _resolve_public(parsed.hostname, port)
-        addresses = resolve_public_addresses(parsed.hostname, port)
+        normalized, addresses = validate_outbound_url(
+            normalized,
+            require_https=False,
+            return_addresses=True,
+        )
+        parsed = urlparse(normalized)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
         checks.append(_check("dns", True, "DNS Resolvable"))
-    except PreflightError as exc:
+    except NetworkTargetError as exc:
+        message = "private_address_blocked" if str(exc) == "network_private_address_blocked" else "dns_unresolvable"
         action = "Configure public A/AAAA/CNAME records for domain and wait for DNS propagation"
-        if str(exc) == "private_address_blocked":
+        if message == "private_address_blocked":
             action = "Use a publicly accessible domain; internal, loopback, or metadata addresses are prohibited"
-        checks.append(_check("dns", False, str(exc), action=action))
+        checks.append(_check("dns", False, message, action=action))
         checks.extend([
             _check("tls", False, "HTTPS check skipped", action="Re-run preflight once DNS propagation completes"),
             _check("homepage", False, "DNS unavailable", action="Verify homepage returns HTTP 2xx once DNS is resolved"),

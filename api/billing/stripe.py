@@ -23,7 +23,7 @@ def configured():
     return bool(config.billing_enabled() and config.stripe_secret_key() and config.stripe_webhook_secret())
 
 
-def create_checkout_session(tenant, user, plan, billing_interval, amount):
+def create_checkout_session(tenant, user, plan, billing_interval, amount, idempotency_key):
     if not config.billing_enabled():
         raise StripeError("billing_disabled")
     secret = config.stripe_secret_key()
@@ -58,7 +58,7 @@ def create_checkout_session(tenant, user, plan, billing_interval, amount):
             f"{API_BASE}/checkout/sessions",
             data=data,
             auth=(secret, ""),
-            headers={"Idempotency-Key": uuid.uuid4().hex},
+            headers={"Idempotency-Key": idempotency_key},
             timeout=20,
         )
     except requests.RequestException as exc:

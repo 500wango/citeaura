@@ -239,8 +239,10 @@ def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_p
         )
         _task_facade()._sync_custom_provider_scope(project_slug, custom_providers)
         with _task_facade().meter_platform_calls(funding["pool_codes"]) as counts:
+            completed = False
             try:
                 yield funding
+                completed = True
             except BaseException:
                 raise
             finally:
@@ -260,7 +262,7 @@ def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_p
                         if attempt < 2:
                             time.sleep(0.2 * (attempt + 1))
                 if not accounted:
-                    _task_facade().persist_usage_outbox(
+                    persisted = _task_facade().persist_usage_outbox(
                         funding,
                         counts,
                         action,
@@ -271,5 +273,11 @@ def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_p
                         "Platform usage accounting requires reconciliation",
                         extra={"action": action, "job_id": job_id, "calls": dict(counts)},
                     )
+                    billable = any(
+                        int(count) > 0 and code in funding.get("pool_codes", ())
+                        for code, count in counts.items()
+                    )
+                    if completed and billable and not persisted:
+                        raise RuntimeError("platform_usage_accounting_pending")
 
 __all__ = tuple(name for name in globals() if not name.startswith("__"))

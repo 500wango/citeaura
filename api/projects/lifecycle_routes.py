@@ -4,6 +4,18 @@ from api.projects.project_route_support import *  # noqa: F401,F403
 
 router = APIRouter(tags=["projects"])
 
+
+def _fail_initializing_job(db, project, job, error):
+    """关闭未投递的项目任务并释放其预算预留。"""
+    project.status = "failed"
+    job.status = "failed"
+    job.stage = "failed"
+    job.error = str(error)
+    job.finished_at = datetime.now(timezone.utc)
+    sampling_control.release_reservation(job)
+    db.commit()
+
+
 @router.post("/preflight")
 def project_preflight(
     payload: ProjectPreflight,
@@ -123,6 +135,8 @@ def create_project(
         ).first()
         if public_audit is None:
             _error(status.HTTP_400_BAD_REQUEST, "audit_handoff_expired")
+        if preflight.normalize_url(public_audit.url) != preflight.normalize_url(payload.url):
+            _error(status.HTTP_400_BAD_REQUEST, "audit_handoff_url_mismatch")
         try:
             audit_snapshot = json.loads(public_audit.result_json or "{}")
         except (TypeError, ValueError):
@@ -208,20 +222,10 @@ def create_project(
             with _route_facade().with_tenant_context(tenant.directory_slug, slug):
                 geo.cmd_init(args)
         except GeoEngineError as exc:
-            project.status = "failed"
-            job.status = "failed"
-            job.stage = "failed"
-            job.error = str(exc)
-            job.finished_at = datetime.now(timezone.utc)
-            db.commit()
+            _fail_initializing_job(db, project, job, exc)
             _error(status.HTTP_400_BAD_REQUEST, "engine_init_failed")
         except Exception as exc:  # noqa: BLE001
-            project.status = "failed"
-            job.status = "failed"
-            job.stage = "failed"
-            job.error = f"{type(exc).__name__}: {exc}"
-            job.finished_at = datetime.now(timezone.utc)
-            db.commit()
+            _fail_initializing_job(db, project, job, f"{type(exc).__name__}: {exc}")
             _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "project_init_failed")
 
     if audit_snapshot:
@@ -233,7 +237,14 @@ def create_project(
         first_ticket, first_ticket_reused = None, False
 
     if job_action == "autopilot":
-        _reserve_sample_estimate(db, tenant, project, job, SampleRequest())
+        try:
+            _reserve_sample_estimate(db, tenant, project, job, SampleRequest())
+        except HTTPException as exc:
+            _fail_initializing_job(db, project, job, exc.detail)
+            raise
+        except Exception as exc:  # noqa: BLE001
+            _fail_initializing_job(db, project, job, f"{type(exc).__name__}: {exc}")
+            _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "sample_reservation_failed")
 
     project.status = "bootstrapping"
     job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
@@ -250,13 +261,7 @@ def create_project(
         job.celery_task_id = getattr(task_result, "id", None)
         db.commit()
     except Exception as exc:  # noqa: BLE001
-        project.status = "failed"
-        job.status = "failed"
-        job.stage = "failed"
-        job.error = f"{type(exc).__name__}: {exc}"
-        job.finished_at = datetime.now(timezone.utc)
-        sampling_control.release_reservation(job)
-        db.commit()
+        _fail_initializing_job(db, project, job, f"{type(exc).__name__}: {exc}")
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "worker_unavailable")
 
     return {

@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from api.adapters.engine import load_tenant_keys
 from api.db import Base
 from api.models import ApiKey, Project, Tenant
-from api.settings.crypto import encrypt_key
+from api.settings.crypto import encrypt_key, key_aad
 from api.worker import tasks
 
 
@@ -32,7 +32,7 @@ def worker_database(tmp_path, monkeypatch):
         db.add(ApiKey(
             tenant_id=tenant.id,
             engine_code="deepseek",
-            encrypted_value=encrypt_key("worker-only-secret"),
+            encrypted_value=encrypt_key("worker-only-secret", key_aad(tenant.id, "deepseek")),
         ))
         db.commit()
         tenant_id = tenant.id
@@ -62,6 +62,52 @@ def test_worker_funding_reads_byok_by_directory_slug(worker_database, monkeypatc
         assert os.environ["DEEPSEEK_API_KEY"] == "worker-only-secret"
 
     assert "DEEPSEEK_API_KEY" not in os.environ
+
+
+def test_load_tenant_keys_uses_integer_ids_even_when_another_slug_matches(worker_database):
+    factory, tenant_id = worker_database
+    with factory() as db:
+        db.add(Tenant(name="Conflicting Workspace", directory_slug=str(tenant_id), plan="trial"))
+        db.flush()
+        conflicting = db.query(Tenant).filter(Tenant.directory_slug == str(tenant_id)).one()
+        db.add(ApiKey(
+            tenant_id=conflicting.id,
+            engine_code="deepseek",
+            encrypted_value=encrypt_key("conflicting-secret", key_aad(conflicting.id, "deepseek")),
+        ))
+        db.commit()
+
+        assert load_tenant_keys(db, tenant_id) == {"deepseek": "worker-only-secret"}
+
+
+def test_completed_pool_work_fails_when_usage_cannot_be_recorded_or_persisted(monkeypatch):
+    @contextmanager
+    def empty_context(*args, **kwargs):
+        yield
+
+    @contextmanager
+    def pool_calls(codes):
+        yield {"deepseek": 1}
+
+    monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {
+        "tenant_id": 1,
+        "tenant_directory_slug": "tenant-a",
+        "keys": {},
+        "pool_codes": frozenset(("deepseek",)),
+    })
+    monkeypatch.setattr(tasks, "_engine_custom_providers", lambda *args, **kwargs: [])
+    monkeypatch.setattr(tasks, "with_tenant_context", empty_context)
+    monkeypatch.setattr(tasks, "ensure_global_engine_scope", lambda slug: None)
+    monkeypatch.setattr(tasks, "_sync_funded_engine_scope", lambda *args: None)
+    monkeypatch.setattr(tasks, "_sync_custom_provider_scope", lambda *args: None)
+    monkeypatch.setattr(tasks, "meter_platform_calls", pool_calls)
+    monkeypatch.setattr(tasks, "record_usage", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("db down")))
+    monkeypatch.setattr(tasks, "persist_usage_outbox", lambda *args, **kwargs: 0)
+    monkeypatch.setattr(tasks.time, "sleep", lambda *args: None)
+
+    with pytest.raises(RuntimeError, match="platform_usage_accounting_pending"):
+        with tasks._funded_engine_context("tenant-a", "citeaura-com", "sample", job_id=7):
+            pass
 
 
 def test_explicit_sampling_platform_without_worker_funding_is_blocked():

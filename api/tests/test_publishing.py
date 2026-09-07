@@ -8,8 +8,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.adapters import engine as engine_adapter
-from api.adapters import publishing
-from api.adapters.engine import load_tenant_keys
+from api.adapters import github_pr, publishing
+from api.adapters.engine import load_tenant_keys, with_tenant_context
 from api.db import Base, get_db
 from api.main import app
 from api.models import ApiKey, Project
@@ -222,6 +222,59 @@ def test_publish_requires_confirmation_injects_only_tenant_credentials_and_recor
     }
     assert "token must not appear" not in failed.text
     assert "GITHUB_TOKEN" not in os.environ
+
+
+def test_github_pr_creation_persists_state(publishing_client, monkeypatch):
+    client, session_factory, tmp_path = publishing_client
+    tenant_id, _ = _register(client, "owner@example.com", "tenant-a")
+    _, root = _seed_project(session_factory, tmp_path, tenant_id)
+    requests = []
+
+    class Response:
+        status_code = 200
+
+        def __init__(self, payload):
+            self.payload = payload
+
+        def json(self):
+            return self.payload
+
+    class Session:
+        def request(self, method, url, json=None, timeout=None):
+            requests.append({"method": method, "url": url, "json": json, "timeout": timeout})
+            if method == "GET" and url.endswith("/git/ref/heads/main"):
+                return Response({"object": {"sha": "base-sha"}})
+            if method == "POST" and url.endswith("/pulls"):
+                return Response({
+                    "number": 7,
+                    "html_url": "https://github.com/owner/site/pull/7",
+                    "state": "open",
+                    "title": "CiteAura: ticket-1",
+                    "updated_at": "2026-09-07T00:00:00Z",
+                })
+            return Response({})
+
+    monkeypatch.setattr(github_pr, "_session", lambda token: Session())
+    with with_tenant_context("tenant-a", "example-com"):
+        assert github_pr.list_prs("example-com", {"repo": "owner/site"}, "token") == []
+        result = github_pr.create(
+            "example-com",
+            {"repo": "owner/site", "branch": "main", "dir": "docs/geo"},
+            "token",
+            ticket_id="ticket-1",
+            run_id="run-1",
+            paths=["content/q001-final.md"],
+        )
+        assert github_pr.list_prs("example-com", {"repo": "owner/site"}, "token") == [result]
+
+    assert result["number"] == 7
+    assert json.loads((root / ".github-prs.json").read_text("utf-8")) == [result]
+    assert [(item["method"], item["url"].rsplit("/", 1)[-1]) for item in requests] == [
+        ("GET", "main"),
+        ("POST", "refs"),
+        ("PUT", "q001-final.md"),
+        ("POST", "pulls"),
+    ]
 
 
 def test_wordpress_and_wechat_engine_contracts_create_drafts_only(monkeypatch):

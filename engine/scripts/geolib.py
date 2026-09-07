@@ -115,6 +115,10 @@ class _PinnedAddressAdapter(HTTPAdapter):
             )
         return HTTPConnectionPool(self.address, self.port, **options)
 
+    def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
+        """Support Requests 2.32+ without resolving the original hostname again."""
+        return self.get_connection(request.url, proxies=proxies)
+
     def send(self, request, **kwargs):
         host = self.hostname
         if (self.port, request.url.lower().startswith("https://")) not in ((443, True), (80, False)):

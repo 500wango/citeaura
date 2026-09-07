@@ -35,7 +35,6 @@ def growth_client(tmp_path, monkeypatch):
         lambda url, timeout=5, allow_machine_file=False: "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml",
     )
     public._AUDIT_CACHE.clear()
-    public._AUDIT_REQUESTS.clear()
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as client:
         yield client, sessions
@@ -106,6 +105,19 @@ def test_public_audit_rate_limit_is_per_anonymous_source(growth_client):
     blocked = client.post("/api/v1/public/audit", json={"url": "https://example-blocked.com"})
     assert blocked.status_code == 429
     assert blocked.json()["error"] == "public_audit_rate_limited"
+
+
+def test_public_audit_rejects_requests_when_redis_rate_limit_is_unavailable(growth_client, monkeypatch):
+    client, _ = growth_client
+
+    def unavailable(*args, **kwargs):
+        raise public.RateLimitUnavailable("redis unavailable")
+
+    monkeypatch.setattr(public, "check_scope", unavailable)
+    response = client.post("/api/v1/public/audit", json={"url": "https://unavailable.example"})
+
+    assert response.status_code == 503
+    assert response.json()["error"] == "public_audit_rate_limit_unavailable"
 
 
 def test_public_audit_returns_handoff_id_and_persists_result(growth_client):

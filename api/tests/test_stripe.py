@@ -34,11 +34,13 @@ def test_checkout_sends_server_owned_price_and_metadata(monkeypatch):
         {"code": "pro", "name": "Pro"},
         "annual",
         199000,
+        "checkout-key",
     )
 
     assert result == {"id": "cs_test_123", "url": "https://checkout.stripe.test/cs_test_123"}
     assert captured["url"] == "https://api.stripe.com/v1/checkout/sessions"
     assert captured["auth"] == ("sk_test_secret", "")
+    assert captured["headers"]["Idempotency-Key"] == "checkout-key"
     assert captured["timeout"] == 20
     assert captured["data"]["line_items[0][price_data][unit_amount]"] == "199000"
     assert captured["data"]["line_items[0][price_data][recurring][interval]"] == "year"

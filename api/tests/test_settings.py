@@ -98,6 +98,17 @@ def test_corrupted_ciphertext_uses_value_error_contract(monkeypatch):
         decrypt_key(corrupted)
 
 
+def test_encrypted_keys_are_bound_to_their_tenant_and_engine(monkeypatch):
+    monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"0" * 32).decode())
+    encrypted = encrypt_key("sk-test-secret", key_aad(1, "openai"))
+
+    assert decrypt_key(encrypted, key_aad(1, "openai")) == "sk-test-secret"
+    with pytest.raises(ValueError, match="invalid encrypted API key"):
+        decrypt_key(encrypted, key_aad(2, "openai"))
+    with pytest.raises(ValueError, match="invalid encrypted API key"):
+        decrypt_key(encrypted, key_aad(1, "deepseek"))
+
+
 def test_keys_are_tenant_isolated(settings_client):
     client = settings_client
     first = _headers(client, "first@example.com")

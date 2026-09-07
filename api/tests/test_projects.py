@@ -5,19 +5,22 @@ import sys
 import types
 import zipfile
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import CustomProvider, Job, Project, Tenant
+from api.models import CustomProvider, Job, Project, PublicAudit, Tenant
 from api.projects import router as project_router
+from api.projects import lifecycle_routes
 from api.adapters import engine as engine_adapter, sampling_control
 from api.adapters.network import validate_outbound_url as real_validate_outbound_url
-from api.settings.crypto import encrypt_key
+from api.settings.crypto import encrypt_key, key_aad
 
 
 @pytest.fixture()
@@ -457,7 +460,7 @@ def test_custom_llm_alone_unlocks_sampling_and_brand_creation(project_client, mo
             base_url="https://gateway.example.com/v1",
             model_id="vendor/budget-model",
             market="global",
-            encrypted_api_key=encrypt_key("sk-custom"),
+            encrypted_api_key=encrypt_key("sk-custom", key_aad(tenant.id, "custom_budget")),
         ))
         db.commit()
 
@@ -574,6 +577,63 @@ def test_project_isolation_and_duplicate_rejection(project_client, monkeypatch):
     hidden_framing = client.get(f"/api/v1/projects/{created.json()['project_id']}/framing", headers=other_headers)
     assert hidden_framing.status_code == 404
     assert client.get("/api/v1/projects", headers=other_headers).json()["projects"] == []
+
+
+def test_project_rejects_public_audit_for_a_different_url(project_client):
+    client, session_factory = project_client
+    headers = _register(client, "audit-handoff@example.com")
+    with session_factory() as db:
+        db.add(PublicAudit(
+            audit_id="audit-handoff-url-mismatch",
+            url="https://other.example",
+            result_json="{}",
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+        ))
+        db.commit()
+
+    response = client.post(
+        "/api/v1/projects",
+        headers=headers,
+        json={"url": "https://requested.example", "audit_id": "audit-handoff-url-mismatch"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "audit_handoff_url_mismatch"
+
+
+def test_project_marks_job_failed_when_initial_sample_reservation_fails(project_client, monkeypatch):
+    client, session_factory = project_client
+    headers = _register(client, "reservation-failure@example.com")
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_init=lambda args: None))
+    monkeypatch.setattr(lifecycle_routes, "_has_sampling_access", lambda *args: True)
+    monkeypatch.setattr(
+        lifecycle_routes,
+        "_reserve_sample_estimate",
+        lambda *args: (_ for _ in ()).throw(HTTPException(
+            status_code=409,
+            detail={"error": "sample_budget_exceeded"},
+        )),
+    )
+    monkeypatch.setattr(
+        lifecycle_routes.task_bootstrap,
+        "delay",
+        lambda *args, **kwargs: pytest.fail("bootstrap must not be queued"),
+    )
+
+    response = client.post(
+        "/api/v1/projects",
+        headers=headers,
+        json={"url": "https://reservation-failure.example"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"] == "sample_budget_exceeded"
+    with session_factory() as db:
+        project = db.query(Project).one()
+        job = db.query(Job).one()
+        assert project.status == "failed"
+        assert (job.status, job.stage) == ("failed", "failed")
+        assert job.error == "{'error': 'sample_budget_exceeded'}"
 
 
 def test_pipeline_actions_are_whitelisted_and_project_serialized(project_client, monkeypatch):

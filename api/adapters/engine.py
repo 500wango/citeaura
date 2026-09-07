@@ -95,6 +95,10 @@ class _PinnedAddressAdapter(HTTPAdapter):
             retries=self.max_retries,
         )
 
+    def get_connection_with_tls_context(self, request, verify, proxies=None, cert=None):
+        """兼容 Requests 2.32+，继续使用已校验的固定地址。"""
+        return self.get_connection(request.url, proxies=proxies)
+
     def send(self, request, **kwargs):
         host = self.hostname
         if (self.port, request.url.lower().startswith("https://")) not in ((443, True), (80, False)):
@@ -270,11 +274,6 @@ def protect_network_fetches():
             if not same_site(original_url, redirected):
                 response.close()
                 raise GeoEngineError("network_cross_site_redirect")
-            try:
-                validate_outbound_url(redirected, require_https=False)
-            except NetworkTargetError as exc:
-                response.close()
-                raise GeoEngineError(str(exc)) from exc
             if redirect_count >= NETWORK_MAX_REDIRECTS:
                 response.close()
                 raise GeoEngineError("network_redirect_limit")
@@ -297,16 +296,12 @@ def resolve_tenant(db, tenant_id):
 
     from api.models import Tenant
 
-    tenant = db.query(Tenant).filter(or_(
+    if isinstance(tenant_id, int) and not isinstance(tenant_id, bool):
+        return db.get(Tenant, tenant_id)
+    return db.query(Tenant).filter(or_(
         Tenant.directory_slug == str(tenant_id),
         Tenant.name == str(tenant_id),
     )).first()
-    if tenant is None:
-        try:
-            tenant = db.get(Tenant, int(tenant_id))
-        except (TypeError, ValueError):
-            tenant = None
-    return tenant
 
 
 def load_tenant_keys(db, tenant_id):

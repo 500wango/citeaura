@@ -22,7 +22,7 @@ from api.models import (
     Tenant,
     UsageCounter,
 )
-from api.settings.crypto import encrypt_key
+from api.settings.crypto import encrypt_key, key_aad
 
 
 @pytest.fixture()
@@ -262,7 +262,7 @@ def test_pool_meter_records_only_fallback_calls_once_per_job(tmp_path, monkeypat
         db.add(ApiKey(
             tenant_id=tenant.id,
             engine_code="openai",
-            encrypted_value=encrypt_key("tenant-openai"),
+            encrypted_value=encrypt_key("tenant-openai", key_aad(tenant.id, "openai")),
         ))
         db.commit()
         tenant_id, project_id, job_id = tenant.id, project.id, job.id
@@ -433,7 +433,11 @@ def test_platform_pool_hard_limits_include_usage_and_reservations_but_not_byok(t
             sampling_control.ensure_allowed(db, tenant, project, platforms=["openai"])
         assert exc.value.code == "platform_pool_tenant_limit_exceeded"
 
-        byok = ApiKey(tenant_id=tenant.id, engine_code="openai", encrypted_value=encrypt_key("tenant-openai"))
+        byok = ApiKey(
+            tenant_id=tenant.id,
+            engine_code="openai",
+            encrypted_value=encrypt_key("tenant-openai", key_aad(tenant.id, "openai")),
+        )
         db.add(byok)
         db.commit()
         result = sampling_control.ensure_allowed(db, tenant, project, platforms=["openai"])

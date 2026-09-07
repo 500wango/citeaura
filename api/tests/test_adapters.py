@@ -31,6 +31,20 @@ def test_default_sample_platforms_treats_custom_llm_as_a_funded_engine():
     assert "custom_budget" not in sample.PROVIDERS
 
 
+def test_pinned_adapters_keep_the_validated_address_with_new_requests_path():
+    request = requests.Request("GET", "https://public-review.example/path").prepare()
+
+    api_pool = engine_adapter._PinnedAddressAdapter(
+        "public-review.example", "93.184.216.34", 443,
+    ).get_connection_with_tls_context(request, True)
+    engine_pool = geolib._PinnedAddressAdapter(
+        "public-review.example", "93.184.216.34", 443,
+    ).get_connection_with_tls_context(request, True)
+
+    assert api_pool.host == "93.184.216.34"
+    assert engine_pool.host == "93.184.216.34"
+
+
 def test_tenant_context_patches_paths_and_die_then_restores():
     original_root = geolib.ROOT
     original_work = geolib.WORK

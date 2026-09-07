@@ -47,12 +47,7 @@ def decrypt_key(encoded: str, aad: bytes | None = None) -> str:
         if len(payload) <= NONCE_SIZE:
             raise ValueError("ciphertext is too short")
         nonce, ciphertext = payload[:NONCE_SIZE], payload[NONCE_SIZE:]
-        try:
-            plaintext = AESGCM(_master_key()).decrypt(nonce, ciphertext, aad)
-        except InvalidTag:
-            if aad is None:
-                raise
-            plaintext = AESGCM(_master_key()).decrypt(nonce, ciphertext, None)
+        plaintext = AESGCM(_master_key()).decrypt(nonce, ciphertext, aad)
         return plaintext.decode("utf-8")
     except (InvalidTag, ValueError, UnicodeError) as exc:
         raise ValueError("invalid encrypted API key") from exc

@@ -393,17 +393,24 @@ def test_usage_reports_activation_funnel_from_completed_workspace_facts(billing_
 def test_subscribe_creates_checkout_without_opening_limits(billing_client, monkeypatch):
     client, session_factory = billing_client
     headers = _register(client, "owner@example.com")
-    captured = {}
-    monkeypatch.setattr(
-        stripe_adapter,
-        "create_checkout_session",
-        lambda tenant, user, plan, billing_interval, amount: captured.update({
+    captured = {"calls": 0}
+
+    def create_checkout(tenant, user, plan, billing_interval, amount, idempotency_key):
+        captured["calls"] += 1
+        captured.update({
             "tenant_id": tenant.id,
             "email": user.email,
             "plan": plan["code"],
             "billing_interval": billing_interval,
             "amount": amount,
-        }) or {"id": "cs_test_pro", "url": "https://checkout.stripe.test/session"},
+            "idempotency_key": idempotency_key,
+        })
+        return {"id": "cs_test_pro", "url": "https://checkout.stripe.test/session"}
+
+    monkeypatch.setattr(
+        stripe_adapter,
+        "create_checkout_session",
+        create_checkout,
     )
     plans = client.get("/api/v1/billing/plans")
     assert plans.status_code == 200
@@ -418,10 +425,17 @@ def test_subscribe_creates_checkout_without_opening_limits(billing_client, monke
     assert subscribed.json()["payment"] == "stripe_checkout"
     assert subscribed.json()["checkout_url"] == "https://checkout.stripe.test/session"
     assert captured["amount"] == 19900
+    repeated = client.post("/api/v1/billing/subscribe", headers=headers, json={"plan": "pro"})
+    assert repeated.status_code == 200
+    assert repeated.json()["checkout_url"] == "https://checkout.stripe.test/session"
+    assert captured["calls"] == 1
     usage = client.get("/api/v1/billing/usage", headers=headers)
     assert usage.json()["plan"] == "trial"
     with session_factory() as db:
-        assert db.query(Subscription).count() == 0
+        pending = db.query(Subscription).one()
+        assert pending.status == "pending"
+        assert pending.checkout_url == "https://checkout.stripe.test/session"
+        assert pending.checkout_idempotency_key == captured["idempotency_key"]
 
 
 def test_annual_plan_catalog_and_checkout_amount(billing_client, monkeypatch):
@@ -432,7 +446,7 @@ def test_annual_plan_catalog_and_checkout_amount(billing_client, monkeypatch):
     monkeypatch.setattr(
         stripe_adapter,
         "create_checkout_session",
-        lambda tenant, user, plan, billing_interval, amount: captured.update({"amount": amount})
+        lambda tenant, user, plan, billing_interval, amount, idempotency_key: captured.update({"amount": amount})
         or {"id": "cs_test_annual", "url": "https://checkout.stripe.test/annual"},
     )
 
@@ -495,6 +509,63 @@ def test_signed_webhook_activates_subscription_once(billing_client):
     assert usage["plan"] == "pro"
     assert usage["subscription"]["provider"] == "stripe"
     assert usage["subscription"]["status"] == "active"
+
+
+def test_second_paid_checkout_stays_incomplete_and_does_not_change_tenant_plan(billing_client):
+    client, session_factory = billing_client
+    _register(client, "duplicate-checkout@example.com")
+    with session_factory() as db:
+        tenant_id = db.query(Tenant).filter(Tenant.name == "duplicate-checkout").one().id
+
+    first = _stripe_event("evt_checkout_first", "checkout.session.completed", {
+        "id": "cs_first",
+        "created": int(time.time()),
+        "client_reference_id": str(tenant_id),
+        "customer": "cus_first",
+        "subscription": "sub_first",
+        "payment_status": "paid",
+        "currency": "usd",
+        "amount_total": 19900,
+        "metadata": {"tenant_id": str(tenant_id), "plan": "pro", "billing_interval": "monthly"},
+    })
+    second = _stripe_event("evt_checkout_second", "checkout.session.completed", {
+        "id": "cs_second",
+        "created": int(time.time()) + 1,
+        "client_reference_id": str(tenant_id),
+        "customer": "cus_second",
+        "subscription": "sub_second",
+        "payment_status": "paid",
+        "currency": "usd",
+        "amount_total": 49900,
+        "metadata": {"tenant_id": str(tenant_id), "plan": "agency", "billing_interval": "monthly"},
+    })
+
+    assert _post_stripe_event(client, first).json()["processed"] is True
+    assert _post_stripe_event(client, second).json()["processed"] is False
+    updated = _stripe_event("evt_subscription_second", "customer.subscription.updated", {
+        "id": "sub_second",
+        "status": "active",
+        "created": int(time.time()) + 2,
+        "current_period_end": int(time.time()) + 86400,
+        "metadata": {"tenant_id": str(tenant_id), "plan": "agency", "billing_interval": "monthly"},
+    })
+    invoice = _stripe_event("evt_invoice_second", "invoice.paid", {
+        "id": "in_second",
+        "subscription": "sub_second",
+        "currency": "usd",
+        "amount_paid": 49900,
+        "created": int(time.time()) + 3,
+    })
+    assert _post_stripe_event(client, updated).json()["processed"] is False
+    assert _post_stripe_event(client, invoice).json()["processed"] is False
+    with session_factory() as db:
+        tenant = db.get(Tenant, tenant_id)
+        subscriptions = db.query(Subscription).order_by(Subscription.id).all()
+        assert tenant.plan == "pro"
+        assert [(row.provider_subscription_id, row.status) for row in subscriptions] == [
+            ("sub_first", "active"),
+            ("sub_second", "incomplete"),
+        ]
 
 
 def test_checkout_watermark_rejects_stale_subscription_webhook(billing_client):
@@ -990,7 +1061,7 @@ def test_active_and_expired_trial_can_upgrade_to_pro_without_waiting(billing_cli
     monkeypatch.setattr(
         stripe_adapter,
         "create_checkout_session",
-        lambda tenant, user, plan, billing_interval, amount: (
+        lambda tenant, user, plan, billing_interval, amount, idempotency_key: (
             captured.append({"tenant_id": tenant.id, "plan": plan["code"], "amount": amount})
             or {"id": f"cs_{plan['code']}_{len(captured)}", "url": f"https://checkout.stripe.test/{plan['code']}"}
         ),

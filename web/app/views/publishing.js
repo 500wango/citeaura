@@ -19,10 +19,15 @@ export default {
 
     let state = {};
     let prs = [];
+    let prsUnavailable = false;
     try {
-      state = await publishing.get(projectId).catch(() => ({}));
-      prs = (await publishing.listGithubPrs(projectId)).prs || [];
+      state = await publishing.get(projectId);
     } catch (e) {}
+    try {
+      prs = (await publishing.listGithubPrs(projectId)).prs || [];
+    } catch (e) {
+      prsUnavailable = true;
+    }
     publisherState = Array.isArray(state.publishers) ? state.publishers : [];
 
     return `
@@ -68,7 +73,7 @@ export default {
             <div><h2 style="margin:0;font-size:var(--fs-4);">GitHub review queue</h2><p style="margin:var(--sp-1) 0 0;color:var(--muted);">Reviewable PRs never merge or deploy automatically.</p></div>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-github-prs">Refresh status</button>
           </div>
-          ${prs.length ? `<div class="tbl" style="overflow-x:auto;margin-top:var(--sp-3);"><table class="table"><thead><tr><th>Ticket</th><th>Run</th><th>Status</th><th>PR</th></tr></thead><tbody>${prs.map((pr) => `<tr><td>${pr.ticket_id || ''}</td><td>${pr.run_id || ''}</td><td><span class="tag ${pr.status === 'merged' ? 'pill-good' : 'tag-dim'}">${pr.status || 'open'}</span></td><td><a href="${pr.url || '#'}" target="_blank" rel="noopener noreferrer">Open PR</a></td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:var(--sp-3) 0 0;color:var(--muted);">No GitHub PRs yet. Create one from an approved asset and ticket.</p>'}
+          ${prsUnavailable ? '<p style="margin:var(--sp-3) 0 0;color:var(--danger);">GitHub PR status is unavailable. Refresh to retry.</p>' : (prs.length ? `<div class="tbl" style="overflow-x:auto;margin-top:var(--sp-3);"><table class="table"><thead><tr><th>Ticket</th><th>Run</th><th>Status</th><th>PR</th></tr></thead><tbody>${prs.map((pr) => `<tr><td>${pr.ticket_id || ''}</td><td>${pr.run_id || ''}</td><td><span class="tag ${pr.status === 'merged' ? 'pill-good' : 'tag-dim'}">${pr.status || 'open'}</span></td><td><a href="${pr.url || '#'}" target="_blank" rel="noopener noreferrer">Open PR</a></td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:var(--sp-3) 0 0;color:var(--muted);">No GitHub PRs yet. Create one from an approved asset and ticket.</p>')}
         </section>
       </div>
     `;

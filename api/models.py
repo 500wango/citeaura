@@ -286,8 +286,15 @@ class Subscription(Base):
     __table_args__ = (
         CheckConstraint("billing_interval IN ('monthly', 'annual')", name="ck_subscriptions_billing_interval"),
         CheckConstraint(
-            "status IN ('active', 'trialing', 'past_due', 'canceled', 'unpaid', 'incomplete')",
+            "status IN ('pending', 'active', 'trialing', 'past_due', 'canceled', 'unpaid', 'incomplete')",
             name="ck_subscriptions_status",
+        ),
+        Index(
+            "uq_subscriptions_tenant_pending_checkout",
+            "tenant_id",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
+            sqlite_where=text("status = 'pending'"),
         ),
     )
 
@@ -303,6 +310,8 @@ class Subscription(Base):
     provider_customer_id = Column(String(255), nullable=True, index=True)
     provider_subscription_id = Column(String(255), nullable=True, unique=True)
     provider_checkout_session_id = Column(String(255), nullable=True, unique=True)
+    checkout_url = Column(String(2048), nullable=True)
+    checkout_idempotency_key = Column(String(64), nullable=True)
     started_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=True)
     provider_event_created_at = Column(DateTime(timezone=True), nullable=True)

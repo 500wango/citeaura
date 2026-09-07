@@ -62,6 +62,13 @@ class RegisterRequest(BaseModel):
             raise ValueError("invalid email")
         return value
 
+    @field_validator("tenant_name")
+    @classmethod
+    def reject_numeric_tenant_name(cls, value: str | None):
+        if value and tenant_slug(value.strip()).isdigit():
+            raise ValueError("workspace name cannot be numeric")
+        return value
+
 
 class LoginRequest(BaseModel):
     email: str = Field(min_length=3, max_length=320)
@@ -104,6 +111,8 @@ def _error(status_code: int, message: str):
 def _tenant_name(db: Session, requested: str | None, email: str) -> str:
     """生成唯一的默认租户名称，避免文件系统目录冲突。"""
     base = tenant_slug((requested or email.split("@", 1)[0]).strip() or "workspace")
+    if base.isdigit():
+        base = f"workspace-{base}"
     candidate = base
     while db.query(Tenant.id).filter(or_(
         Tenant.name == candidate,

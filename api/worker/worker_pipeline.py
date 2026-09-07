@@ -1,5 +1,6 @@
 """Worker pipeline measurement and action dispatch helpers."""
 
+import json
 from types import SimpleNamespace
 
 from api.adapters import global_scope, measurement, sampling_control

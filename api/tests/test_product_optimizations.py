@@ -434,7 +434,17 @@ def test_single_platform_with_fourteen_samples_is_a_limited_baseline(tmp_path, m
 
 
 def test_preflight_failures_always_include_a_repair_action(monkeypatch):
-    monkeypatch.setattr(preflight, "_resolve_public", lambda hostname, port: ["203.0.113.10"])
+    validations = []
+
+    def validate(value, **kwargs):
+        validations.append((value, kwargs))
+        return "https://example.com", ("203.0.113.10",)
+
+    monkeypatch.setattr(
+        preflight,
+        "validate_outbound_url",
+        validate,
+    )
 
     class Response:
         def __init__(self, status_code):
@@ -458,6 +468,7 @@ def test_preflight_failures_always_include_a_repair_action(monkeypatch):
     assert result["ready"] is False
     assert "homepage" in {item["name"] for item in failures}
     assert all(item["action"] for item in failures)
+    assert len(validations) == 2
 
 
 def test_ticket_workflow_tracks_bulk_changes_notes_and_verification(tmp_path, monkeypatch):

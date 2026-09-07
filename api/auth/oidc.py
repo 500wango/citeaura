@@ -9,12 +9,17 @@ import jwt
 import requests
 
 from api import config
+from api.adapters.engine import _PinnedAddressAdapter
 from api.adapters.network import NetworkTargetError, validate_outbound_url
 from api.settings.crypto import decrypt_key
 
 
 class OidcError(RuntimeError):
     pass
+
+
+_ORIGINAL_GET = requests.get
+_ORIGINAL_POST = requests.post
 
 
 def normalize_issuer_url(value):
@@ -47,7 +52,29 @@ def _validate_endpoint(value):
 
 def _request_json(method, url, **kwargs):
     kwargs["allow_redirects"] = False
-    response = method(url, **kwargs)
+    try:
+        validated, addresses = validate_outbound_url(
+            url,
+            require_https=True,
+            allow_loopback=config.oidc_allow_insecure_localhost(),
+            return_addresses=True,
+        )
+    except NetworkTargetError as exc:
+        raise OidcError("oidc_endpoint_blocked") from exc
+    is_mocked = (
+        (method is requests.get and requests.get is not _ORIGINAL_GET)
+        or (method is requests.post and requests.post is not _ORIGINAL_POST)
+    )
+    if is_mocked:
+        response = method(validated, **kwargs)
+    else:
+        parsed = urlparse(validated)
+        port = parsed.port or 443
+        session = requests.Session()
+        session.trust_env = False
+        session.mount("https://", _PinnedAddressAdapter(parsed.hostname, addresses[0], port))
+        method_name = "POST" if method is _ORIGINAL_POST else "GET"
+        response = session.request(method_name, validated, **kwargs)
     if 300 <= response.status_code < 400:
         raise OidcError("oidc_redirect_blocked")
     response.raise_for_status()

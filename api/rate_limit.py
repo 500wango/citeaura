@@ -158,3 +158,26 @@ def check_account(identifier, now=None):
         remaining=max(0, limit - count),
         reset_at=reset_at,
     )
+
+
+def check_scope(request, scope, limit, window, now=None):
+    """按可信来源 IP 为指定公共入口执行 Redis 固定窗口限流。"""
+    limit = int(limit)
+    window = int(window)
+    if limit < 1 or window < 1:
+        raise ValueError("rate limit scope requires positive limit and window")
+    current_time = time.time() if now is None else float(now)
+    bucket = int(current_time // window)
+    reset_at = (bucket + 1) * window
+    subject_hash = hashlib.sha256(f"ip:{_source_ip(request)}".encode("utf-8")).hexdigest()[:24]
+    key = f"{RATE_LIMIT_PREFIX}:{scope}:{bucket}:{subject_hash}"
+    try:
+        count = int(locking.redis_client().eval(INCREMENT_SCRIPT, 1, key, max(1, reset_at - int(current_time) + 1)))
+    except (RedisError, TypeError, ValueError) as exc:
+        raise RateLimitUnavailable("rate_limit_unavailable") from exc
+    return RateLimitDecision(
+        allowed=count <= limit,
+        limit=limit,
+        remaining=max(0, limit - count),
+        reset_at=reset_at,
+    )

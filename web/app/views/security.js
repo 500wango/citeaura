@@ -44,6 +44,11 @@ export default {
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('security.sso_config', {}, 'OIDC Identity Provider')}</h3>
 
             <div class="field" style="margin:0;">
+              <label>Provider name *</label>
+              <input type="text" id="sso-provider-name" class="input" value="${ssoConfig.provider_name || ''}" placeholder="Example Identity">
+            </div>
+
+            <div class="field" style="margin:0;">
               <label>OIDC Issuer URL *</label>
               <input type="url" id="sso-issuer" class="input" value="${ssoConfig.issuer_url || ''}" placeholder="https://login.microsoftonline.com/tenant-id/v2.0">
             </div>
@@ -57,6 +62,24 @@ export default {
               <label>${t('security.client_secret', {}, 'Client Secret')}</label>
               <input type="password" id="sso-client-secret" class="input" placeholder="••••••••••••••••">
             </div>
+
+            <div class="field" style="margin:0;">
+              <label>Allowed email domains *</label>
+              <textarea id="sso-allowed-domains" class="input" rows="2" placeholder="example.com">${Array.isArray(ssoConfig.allowed_domains) ? ssoConfig.allowed_domains.join(', ') : ''}</textarea>
+            </div>
+
+            <div class="field" style="margin:0;">
+              <label>Default member role</label>
+              <select id="sso-default-role" class="input">
+                <option value="viewer" ${ssoConfig.default_role !== 'editor' ? 'selected' : ''}>Viewer</option>
+                <option value="editor" ${ssoConfig.default_role === 'editor' ? 'selected' : ''}>Editor</option>
+              </select>
+            </div>
+
+            <label style="display:flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-2);">
+              <input type="checkbox" id="sso-enabled" ${ssoConfig.enabled ? 'checked' : ''}>
+              Enable SSO sign-in
+            </label>
 
             <button type="button" id="btn-save-sso" class="btn btn-primary btn-sm" style="align-self:flex-start;">
               ${t('common.save_changes', {}, 'Save SSO Settings')}
@@ -116,9 +139,16 @@ export default {
       const issuer_url = document.getElementById('sso-issuer')?.value.trim();
       const client_id = document.getElementById('sso-client-id')?.value.trim();
       const client_secret = document.getElementById('sso-client-secret')?.value;
+      const provider_name = document.getElementById('sso-provider-name')?.value.trim();
+      const allowed_domains = (document.getElementById('sso-allowed-domains')?.value || '')
+        .split(/[\n,]/)
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const default_role = document.getElementById('sso-default-role')?.value;
+      const enabled = Boolean(document.getElementById('sso-enabled')?.checked);
 
       try {
-        await sso.saveConfig({ issuer_url, client_id, client_secret });
+        await sso.saveConfig({ provider_name, issuer_url, client_id, client_secret, allowed_domains, default_role, enabled });
         toast.success('SSO configuration saved successfully');
       } catch (err) {
         toast.error(tError(err));

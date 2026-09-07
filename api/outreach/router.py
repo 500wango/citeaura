@@ -307,7 +307,9 @@ def send_outreach_draft(
     job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
     db.commit()
     try:
-        task_send_outreach.delay(tenant.directory_slug, project.slug, draft_id, job_id=job.id)
+        task_result = task_send_outreach.delay(tenant.directory_slug, project.slug, draft_id, job_id=job.id)
+        job.celery_task_id = getattr(task_result, "id", None)
+        db.commit()
     except Exception as exc:  # noqa: BLE001
         job.status = "failed"
         job.error = f"{type(exc).__name__}: {exc}"

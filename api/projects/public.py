@@ -22,6 +22,7 @@ from api.db import get_db
 from api.models import Project, PublicAudit, Tenant
 from api.product_events import record_product_event
 from api.projects.router import _delivery_package_kind, _stream_delivery_zip
+from api.rate_limit import RateLimitUnavailable, _source_ip, check_scope
 
 
 router = APIRouter(prefix="/api/v1/public", tags=["public"])
@@ -50,34 +51,25 @@ _AUDIT_CACHE_TTL = 15 * 60
 _AUDIT_CACHE_LIMIT = 256
 _AUDIT_WINDOW = 60 * 60
 _AUDIT_MAX_PER_WINDOW = 3
-_AUDIT_REQUESTS: dict[str, list[float]] = {}
 
 
 def _client_key(request: Request, scope: str = "audit") -> str:
-    # Cloudflare/Caddy terminates the connection, so request.client.host is shared by visitors.
-    value = (
-        request.headers.get("cf-connecting-ip")
-        or request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
-        or (request.client.host if request.client else "unknown")
-    )
-    value = value or "unknown"
-    return hashlib.sha256(f"{scope}:{value}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{scope}:{_source_ip(request)}".encode("utf-8")).hexdigest()
 
 
 def _allow_public_audit(request: Request, scope: str = "audit") -> bool:
-    now = time.time()
-    key = _client_key(request, scope)
-    with _AUDIT_CACHE_LOCK:
-        recent = [value for value in _AUDIT_REQUESTS.get(key, []) if value > now - _AUDIT_WINDOW]
-        if len(recent) >= _AUDIT_MAX_PER_WINDOW:
-            _AUDIT_REQUESTS[key] = recent
-            return False
-        recent.append(now)
-        _AUDIT_REQUESTS[key] = recent
-        if len(_AUDIT_REQUESTS) > 2048:
-            oldest = min(_AUDIT_REQUESTS, key=lambda item: _AUDIT_REQUESTS[item][-1])
-            _AUDIT_REQUESTS.pop(oldest, None)
-    return True
+    try:
+        return check_scope(
+            request,
+            f"public:{scope}",
+            _AUDIT_MAX_PER_WINDOW,
+            _AUDIT_WINDOW,
+        ).allowed
+    except RateLimitUnavailable as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": "public_audit_rate_limit_unavailable"},
+        ) from exc
 
 
 def _cached_audit(url: str):
