@@ -4,7 +4,7 @@
 
 ## 自托管快速开始
 
-本手册适用于在一台 Linux 主机上运行 CiteAura。要求主机已安装 Docker Engine、Docker Compose v2、Git、Python 3.12 和 `curl`；使用默认的一键部署路径时，还需要宿主机安装 Caddy。生产服务由 API、Celery Worker、Celery Beat、Redis 和 PostgreSQL 组成，管线产物写入 Docker volume `citeaura_work`，不要把 `/app/work` 改为临时目录。物理卷名由 `CITEAURA_WORK_VOLUME` 指定，默认是 `citeaura_citeaura_work`；恢复已有卷时必须显式指定真实卷名并将 `CITEAURA_WORK_EXTERNAL=true`。
+本手册适用于在一台 Linux 主机上运行 CiteAura。要求主机已安装 Docker Engine、Docker Compose v2、Git、Python 3.12 和 `curl`；使用默认的一键部署路径时，还需要宿主机安装 Caddy。生产服务由 API、Celery Worker、Celery Beat、Redis 和 PostgreSQL 组成，管线产物写入 Docker volume `citeaura_work`，不要把 `/app/work` 改为临时目录。开发和生产都使用显式物理卷名，名称由 `CITEAURA_WORK_VOLUME` 指定，默认是 `citeaura_citeaura_work`；恢复已有卷时必须显式指定真实卷名并将 `CITEAURA_WORK_EXTERNAL=true`。
 
 ### 1. 获取代码并创建环境文件
 

@@ -77,6 +77,9 @@ services:
       target: api
     command: >-
       uvicorn api.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - .:/app
+      - citeaura_work:/app/work
     ports:
       - "8000:8000"
 
@@ -88,6 +91,9 @@ services:
       target: worker
     command: >-
       celery -A api.worker.celery_app worker --loglevel=INFO --pool=prefork
+    volumes:
+      - .:/app
+      - citeaura_work:/app/work
     healthcheck:
       test: ["CMD-SHELL", "celery -A api.worker.celery_app inspect ping --timeout=5 | grep -q 'pong'"]
       interval: 30s
@@ -103,6 +109,9 @@ services:
     command: >-
       celery -A api.worker.celery_app beat --loglevel=INFO
       --schedule=/app/work/celerybeat-schedule
+    volumes:
+      - .:/app
+      - citeaura_work:/app/work
     healthcheck:
       test: ["CMD", "python", "-c", "import pathlib,sys; sys.exit(0 if b' beat' in pathlib.Path('/proc/1/cmdline').read_bytes() else 1)"]
       interval: 30s
@@ -111,3 +120,6 @@ services:
 
 volumes:
   postgres_data:
+  citeaura_work:
+    name: ${CITEAURA_WORK_VOLUME:-citeaura_citeaura_work}
+    external: ${CITEAURA_WORK_EXTERNAL:-false}
