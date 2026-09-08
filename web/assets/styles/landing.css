@@ -997,6 +997,7 @@
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4);
   padding: var(--sp-5); color: var(--ink); cursor: pointer; list-style: none;
   font-size: var(--fs-5); font-weight: 700;
+}
 .disclosure-card > summary > [role="heading"],
 .disclosure-card > summary > h3 {
   margin: 0; display: block; min-width: 0; font-size: inherit; font-weight: inherit;
@@ -1709,5 +1710,4 @@ h1 { color:#eef4f7; font-size:clamp(2.45rem,4.35vw,4.05rem); line-height:1.02; l
   .bento-card {
     padding: var(--sp-5);
   }
-}
 }
