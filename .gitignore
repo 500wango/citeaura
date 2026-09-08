@@ -14,3 +14,5 @@ reasonix.toml
 higeo-vs-disvorai-comparison.md
 work/
 deploy/certs/
+.claude/worktrees/
+.claude/*.local.*

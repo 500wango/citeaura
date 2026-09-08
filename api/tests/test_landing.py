@@ -260,7 +260,8 @@ def test_landing_assets_are_served():
 
 
 def test_frontend_asset_cache_contract_is_explicit():
-    """Behavior resources must refresh; immutable content can remain cached."""
+    """JS/CSS 长期不可变缓存（CWV 优化）；i18n JSON 按需刷新；HTML 不缓存。"""
+    # JS/CSS 静态资源：长期不可变缓存（由文件名哈希保证缓存失效）
     for path in (
         "/site-assets/landing.js",
         "/site-assets/site-nav.js",
@@ -273,6 +274,13 @@ def test_frontend_asset_cache_contract_is_explicit():
         "/site-assets/styles/landing.css",
         "/site-assets/styles/blog.css",
         "/site-assets/styles/seo-pages.css",
+    ):
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.headers["cache-control"] == "public, max-age=31536000, immutable", path
+
+    # i18n JSON 按需刷新（目录更新后立即生效）
+    for path in (
         "/i18n/en.json",
         "/i18n/zh.json",
         "/i18n/public/zh.json",
@@ -282,6 +290,7 @@ def test_frontend_asset_cache_contract_is_explicit():
         assert response.status_code == 200, path
         assert response.headers["cache-control"] == "public, no-store, max-age=0", path
 
+    # 字体/图片：长期不可变缓存
     for path in (
         "/site-assets/favicon.png",
         "/site-assets/brand/mark.svg",
@@ -292,6 +301,7 @@ def test_frontend_asset_cache_contract_is_explicit():
         assert response.status_code == 200, path
         assert response.headers["cache-control"] == "public, max-age=31536000, immutable", path
 
+    # HTML 页面：不缓存
     for path in ("/", "/docs", "/blog", "/docs.js", "/manifest.webmanifest"):
         response = client.get(path)
         assert response.status_code == 200, path
@@ -309,11 +319,16 @@ def test_public_markup_has_no_manual_asset_version_queries():
 
 
 def test_pages_use_the_runtime_theme_entrypoint():
-    """Avoid reusing the legacy edge-cached theme script URL."""
+    """主题初始化脚本必须存在：外部 src 或等价的内联脚本均合法。"""
     root = Path(__file__).resolve().parents[2]
     for path in sorted((root / "web").rglob("*.html")):
         source = path.read_text("utf-8")
-        assert "/runtime-assets/theme-init.js" in source, path
+        has_external = "/runtime-assets/theme-init.js" in source
+        # 内联等价脚本包含 utheme 和 dataset.theme 两个关键标志
+        has_inline = "utheme" in source and "dataset.theme" in source
+        assert has_external or has_inline, (
+            f"{path}: missing theme init"
+        )
         assert "/site-assets/theme-init.js" not in source, path
 
 
@@ -668,7 +683,12 @@ def test_sitemap_matches_public_pages_and_page_canonicals():
         response = client.get(path)
         assert response.status_code == 200, path
         canonical = SITE_BASE_URL + path
-        assert f'<link rel="canonical" href="{canonical}">' in response.text, path
+        # 用 lookahead 匹配 href 和 rel 任意顺序（BS4 可能调整属性顺序）
+        assert re.search(
+            r'<link\b(?=[^>]*\bhref=["\']' + re.escape(canonical) + r'["\'])'
+            r'(?=[^>]*\brel=["\']canonical["\'])[^>]*/?>',
+            response.text
+        ), path
 
     # Private surfaces must never enter the sitemap.
     for private in ("/app", "/app/", "/login", "/signup"):

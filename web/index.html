@@ -7,10 +7,10 @@
   <meta name="description" content="Measure AI brand visibility, audit your public site, turn evidence into engineering tickets, and verify changes with CiteAura." data-i18n-content="landing.meta_description">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#070b0a" data-theme-color>
-  <script src="/runtime-assets/theme-init.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
+  <script>(function(){var p=new URLSearchParams(location.search).get('theme');var s=null;try{s=localStorage.getItem('utheme')}catch(e){}var c=p||s;var d=c?c==='dark':(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light'})()</script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-500.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
   <link rel="stylesheet" href="/site-assets/styles/components.css">
@@ -24,9 +24,11 @@
   <link rel="canonical" href="https://citeaura.com/">
   <link rel="alternate" hreflang="x-default" href="https://citeaura.com/">
   <link rel="alternate" hreflang="en" href="https://citeaura.com/">
+  <link rel="alternate" hreflang="fr" href="https://citeaura.com/fr">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
   <!-- Open Graph / Social Sharing -->
+  <meta property="og:locale" content="en_US">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/">
@@ -39,6 +41,7 @@
 
   <!-- Twitter / X Cards -->
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@citeaura">
   <meta name="twitter:url" content="https://citeaura.com/">
   <meta name="twitter:title" content="CiteAura: AI Visibility &amp; Generative Engine Optimization">
   <meta name="twitter:description" content="Measure AI brand visibility, audit your public site, turn evidence into engineering tickets, and verify changes.">
@@ -418,14 +421,14 @@
           </article>
         </div>
         <details class="extract-card extract-card-wide disclosure-card">
-          <summary><span role="heading" aria-level="3" data-i18n="public.landing.compare_title">CiteAura versus traditional SEO tools and mention dashboards</span></summary>
+          <summary><h3 data-i18n="public.landing.compare_title">CiteAura versus traditional SEO tools and mention dashboards</h3></summary>
           <div class="disclosure-content">
             <p data-i18n="public.landing.compare_intro">Use this comparison when choosing alternatives. CiteAura does not guarantee mentions, rankings, or citations.</p>
             <p><span data-i18n="public.landing.official_facts_index">Official facts index</span>: <a href="/llms.txt">/llms.txt</a> · <span data-i18n="landing.compare_rarely_published">Rarely published</span></p>
           </div>
         </details>
         <details class="extract-card extract-card-wide disclosure-card">
-          <summary><span role="heading" aria-level="3" data-i18n="landing.howto_title">How to run a CiteAura diagnostic</span></summary>
+          <summary><h3 data-i18n="landing.howto_title">How to run a CiteAura diagnostic</h3></summary>
           <div class="disclosure-content">
             <ol class="extract-steps">
               <li><span data-i18n="landing.howto_1_body">Add the official website URL and create a workspace.</span></li>
@@ -595,7 +598,10 @@
           <figure class="product-shot product-shot-main reveal">
             <div class="shot-frame">
               <div class="shot-dots" aria-hidden="true"><i></i><i></i><i></i></div>
-              <img src="/site-assets/product-overview-real-v2.png" width="3838" height="1664" data-i18n-alt="landing.shot_audit_alt" alt="CiteAura live Brand Overview workspace for Stripe" loading="lazy">
+              <picture>
+                <source srcset="/site-assets/product-audit.webp" type="image/webp">
+                <img src="/site-assets/product-overview-real-v2.png" width="1920" height="832" data-i18n-alt="landing.shot_audit_alt" alt="CiteAura live Brand Overview workspace for Stripe" loading="lazy">
+              </picture>
             </div>
             <figcaption>
               <span class="shot-label" data-i18n="landing.shot_audit">Site-wide GEO audit</span>
@@ -606,7 +612,10 @@
           <figure class="product-shot product-shot-sub reveal">
             <div class="shot-frame">
               <div class="shot-dots" aria-hidden="true"><i></i><i></i><i></i></div>
-              <img src="/site-assets/product-tickets-real-v2.png" width="3836" height="1660" data-i18n-alt="landing.shot_plan_alt" alt="CiteAura live Engineering Action Tickets workspace for Stripe" loading="lazy">
+              <picture>
+                <source srcset="/site-assets/product-plan.webp" type="image/webp">
+                <img src="/site-assets/product-tickets-real-v2.png" width="1920" height="830" data-i18n-alt="landing.shot_plan_alt" alt="CiteAura live Engineering Action Tickets workspace for Stripe" loading="lazy">
+              </picture>
             </div>
             <figcaption>
               <span class="shot-label" data-i18n="landing.shot_plan">Action plan matrix</span>
@@ -617,7 +626,10 @@
           <figure class="product-shot product-shot-sub reveal">
             <div class="shot-frame">
               <div class="shot-dots" aria-hidden="true"><i></i><i></i><i></i></div>
-              <img src="/site-assets/product-delivery-real-v2.png" width="3840" height="1668" data-i18n-alt="landing.shot_report_alt" alt="CiteAura live Client Delivery Packs workspace for Stripe" loading="lazy">
+              <picture>
+                <source srcset="/site-assets/product-report.webp" type="image/webp">
+                <img src="/site-assets/product-delivery-real-v2.png" width="1920" height="834" data-i18n-alt="landing.shot_report_alt" alt="CiteAura live Client Delivery Packs workspace for Stripe" loading="lazy">
+              </picture>
             </div>
             <figcaption>
               <span class="shot-label" data-i18n="landing.shot_report">Ready-to-deploy assets</span>
@@ -713,6 +725,11 @@
           <details class="reveal">
             <summary data-i18n="landing.faq_1_q">Do API samples match what users see in the product UI?</summary>
             <p data-i18n="landing.faq_1_a">Most APIs measure parametric model knowledge, not live product search. CiteAura clearly labels each engine as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface for complete scientific integrity.</p>
+          </details>
+          
+          <details class="reveal">
+            <summary data-i18n="landing.faq_2_q">Must I bring my own model API keys (BYOK)?</summary>
+            <p data-i18n="landing.faq_2_a">BYOK is the most secure and cost-effective method. You only configure the engines you intend to use; others are honestly shown as unmeasured. Model APIs are extremely affordable with zero middleman markup.</p>
           </details>
           
           <details class="reveal">

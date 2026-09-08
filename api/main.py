@@ -137,10 +137,7 @@ async def security_headers(request: Request, call_next):
     ):
         response.headers["Cache-Control"] = "private, no-store, max-age=0"
     elif request.url.path.startswith(("/site-assets/", "/runtime-assets/")):
-        if request.url.path.lower().endswith((".js", ".css")):
-            response.headers["Cache-Control"] = "public, no-store, max-age=0"
-        else:
-            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     elif request.url.path in ("/docs.js", "/manifest.webmanifest") or response.headers.get("content-type", "").lower().startswith(
         "text/html"
     ):
@@ -159,9 +156,12 @@ async def security_headers(request: Request, call_next):
         )
     else:
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         )
+    ua = (request.headers.get("user-agent") or "").lower()
+    if any(bot in ua for bot in ("bot", "gpt", "claude", "perplexity", "spider", "crawl")):
+        response.headers["Link"] = '</llms.txt>; rel="alternate"; type="text/plain"'
     if config.session_cookie_secure():
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response

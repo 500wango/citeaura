@@ -10,6 +10,7 @@ Allow: /terms
 Allow: /site-assets/
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -18,6 +19,7 @@ User-agent: Googlebot
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -25,6 +27,7 @@ User-agent: Bingbot
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -32,6 +35,7 @@ User-agent: Baiduspider
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -39,6 +43,7 @@ User-agent: YandexBot
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -46,6 +51,7 @@ User-agent: DuckDuckBot
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -53,6 +59,7 @@ User-agent: Applebot
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -61,6 +68,7 @@ User-agent: GPTBot
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -68,6 +76,7 @@ User-agent: ChatGPT-User
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -75,6 +84,7 @@ User-agent: ClaudeBot
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -82,6 +92,7 @@ User-agent: Anthropic-AI
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -89,6 +100,7 @@ User-agent: Google-Extended
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -96,6 +108,7 @@ User-agent: Bytespider
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -103,6 +116,7 @@ User-agent: PerplexityBot
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -110,6 +124,7 @@ User-agent: Sogou web spider
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 
@@ -117,6 +132,7 @@ User-agent: 360Spider
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /app
 Disallow: /app/
 Disallow: /files/
 

@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 
 from api.i18n import SUPPORTED_LOCALES, load_all_catalogs, normalize_locale
 from api.i18n.catalog import MESSAGES_DIR
+from api.adapters.ssr import render_landing, LANDING_SSR_LOCALES
 
 router = APIRouter(include_in_schema=False)
 WEB_ROOT = Path(__file__).resolve().parent.parent / "web"
@@ -24,9 +25,16 @@ SITE_BASE_URL = os.getenv("SITE_BASE_URL", "https://citeaura.com").rstrip("/")
 # lastmod 显式维护而非取文件 mtime——git checkout 不保留 mtime，
 # Docker 构建上下文也会改写它，取出来的会是不稳定的假数据。
 PUBLIC_PAGES = (
-    {"path": "/", "lastmod": "2026-08-20", "changefreq": "weekly", "priority": "1.0"},
+    {"path": "/", "lastmod": "2026-09-08", "changefreq": "weekly", "priority": "1.0"},
+    {"path": "/fr", "lastmod": "2026-09-08", "changefreq": "weekly", "priority": "0.9"},
     {"path": "/docs", "lastmod": "2026-08-20", "changefreq": "weekly", "priority": "0.8"},
     {"path": "/ai-visibility-audit", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.9"},
+    {"path": "/ai-seo-tools", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
+    {"path": "/answer-engine-optimization", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
+    {"path": "/google-ai-overviews-optimization", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
+    {"path": "/perplexity-seo", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
+    {"path": "/llm-optimization", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
+    {"path": "/ai-brand-monitoring", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
     {"path": "/for-agencies", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.8"},
     {"path": "/for-brands", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.8"},
     {"path": "/methodology", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.7"},
@@ -37,6 +45,10 @@ PUBLIC_PAGES = (
     {"path": "/schema-tool", "lastmod": "2026-09-06", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/about", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/contact", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/compare/citeaura-vs-profound", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/compare/citeaura-vs-otterly", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/compare/citeaura-vs-higeo", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/compare/citeaura-vs-semrush-ai", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/blog", "lastmod": "2026-08-20", "changefreq": "weekly", "priority": "0.7"},
     {"path": "/blog/best-ai-visibility-tools", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/measure-if-chatgpt-mentions-your-brand", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.6"},
@@ -71,8 +83,20 @@ BLOG_SLUGS = tuple(
 @router.get("/")
 @router.head("/")
 def serve_landing_page():
-    """返回 CiteAura 公开 Landing Page。"""
+    """返回 CiteAura 公开 Landing Page（英文）。"""
     return FileResponse(WEB_ROOT / "index.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/fr")
+@router.head("/fr")
+def serve_landing_fr():
+    """返回服务端渲染的法语落地页（供搜索引擎索引）。"""
+    html = render_landing("fr", site_base=SITE_BASE_URL)
+    return Response(
+        content=html,
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=3600, stale-while-revalidate=86400"},
+    )
 
 
 @router.get("/crawler-check")
@@ -143,6 +167,61 @@ def serve_docs_page():
 def serve_ai_visibility_audit_page():
     """返回面向高意图搜索的 AI visibility audit 支柱页。"""
     return FileResponse(WEB_ROOT / "ai-visibility-audit.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/ai-seo-tools")
+@router.head("/ai-seo-tools")
+def serve_ai_seo_tools_page():
+    """返回面向 AI SEO 关键词的落地页。"""
+    return FileResponse(WEB_ROOT / "ai-seo-tools.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/answer-engine-optimization")
+@router.head("/answer-engine-optimization")
+def serve_aeo_page():
+    """返回面向 AEO 关键词的落地页。"""
+    return FileResponse(WEB_ROOT / "answer-engine-optimization.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/google-ai-overviews-optimization")
+@router.head("/google-ai-overviews-optimization")
+def serve_google_ai_overviews_page():
+    """返回面向 Google AI Overviews 优化的落地页。"""
+    return FileResponse(WEB_ROOT / "google-ai-overviews-optimization.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/perplexity-seo")
+@router.head("/perplexity-seo")
+def serve_perplexity_seo_page():
+    """返回面向 Perplexity SEO 关键词的落地页。"""
+    return FileResponse(WEB_ROOT / "perplexity-seo.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/llm-optimization")
+@router.head("/llm-optimization")
+def serve_llm_optimization_page():
+    """返回面向 LLMO 关键词的落地页。"""
+    return FileResponse(WEB_ROOT / "llm-optimization.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/ai-brand-monitoring")
+@router.head("/ai-brand-monitoring")
+def serve_ai_brand_monitoring_page():
+    """返回面向 AI 品牌监控关键词的落地页。"""
+    return FileResponse(WEB_ROOT / "ai-brand-monitoring.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/compare/{slug}")
+@router.head("/compare/{slug}")
+def serve_comparison_page(slug: str):
+    """返回竞品对比页；未知 slug 返回 404。"""
+    allowed = ("citeaura-vs-profound", "citeaura-vs-otterly", "citeaura-vs-higeo", "citeaura-vs-semrush-ai")
+    if slug not in allowed:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    path = WEB_ROOT / "compare" / f"{slug}.html"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    return FileResponse(path, media_type="text/html; charset=utf-8")
 
 
 @router.get("/for-agencies")
