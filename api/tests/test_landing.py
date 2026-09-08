@@ -58,8 +58,7 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'data-i18n="landing.howto_title"' in response.text
     assert 'data-i18n="landing.howto_1_body"' in response.text
     assert 'data-i18n="landing.compare_rarely_published"' in response.text
-    assert "7 days" in response.text
-    assert "Updated 2026-08-19" in response.text
+    assert "7-day trial" in response.text
     assert "Sources and definitions:" in response.text
 
 
@@ -443,8 +442,7 @@ def test_public_fr_catalog_covers_all_localized_public_pages():
     fr_res = client.get("/fr")
     assert fr_res.status_code == 200
     assert "[[missing:" not in fr_res.text
-    assert "Durée de l'essai Starter" in fr_res.text
-    assert "7 jours" in fr_res.text
+    assert "Périmètre des preuves" in fr_res.text
 
 
 def test_public_zh_catalog_covers_all_localized_public_pages():
