@@ -1090,6 +1090,7 @@
 }
 .product-shot:hover .shot-frame { box-shadow: var(--sh-md); border-color: var(--divider); }
 .shot-dots { display: none; }
+.shot-frame picture { display: block; width: 100%; }
 .shot-frame img { width: 100%; height: auto; display: block; outline: 1px solid rgba(0,0,0,.08); outline-offset: -1px; }
 [data-theme="dark"] .shot-frame img { outline-color: rgba(255,255,255,.08); }
 .product-shot figcaption { padding: var(--sp-3) var(--sp-1) 0; }
