@@ -100,6 +100,11 @@ class JobsTest(unittest.TestCase):
         proc.wait.return_value = 0
         with mock.patch.object(J.subprocess, "Popen", return_value=proc):
             job = J.start("x", "audit")
+        for _ in range(50):
+            j = J.get(job["id"])
+            if j and j.get("status") != "running":
+                break
+            time.sleep(0.005)
         j = J.get(job["id"])
         self.assertEqual(j["pid"], 424242)
 

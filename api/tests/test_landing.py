@@ -239,6 +239,9 @@ def test_landing_assets_are_served():
         ("/site-assets/product-audit.webp", "image/webp"),
         ("/site-assets/product-plan.webp", "image/webp"),
         ("/site-assets/product-report.webp", "image/webp"),
+        ("/site-assets/product-overview-real-v2.webp", "image/webp"),
+        ("/site-assets/product-tickets-real-v2.webp", "image/webp"),
+        ("/site-assets/product-delivery-real-v2.webp", "image/webp"),
         ("/site-assets/product-audit-en.webp", "image/webp"),
         ("/site-assets/product-plan-en.webp", "image/webp"),
         ("/site-assets/product-assets-en.webp", "image/webp"),
@@ -295,6 +298,7 @@ def test_frontend_asset_cache_contract_is_explicit():
         "/site-assets/brand/mark.svg",
         "/site-assets/fonts/space-grotesk-700.woff2",
         "/site-assets/product-audit.webp",
+        "/site-assets/product-overview-real-v2.webp",
     ):
         response = client.get(path)
         assert response.status_code == 200, path
@@ -375,6 +379,12 @@ def test_product_gallery_uses_current_dark_visual_assets():
     assert 'src="/site-assets/product-overview-real-v2.png"' in response.text
     assert 'src="/site-assets/product-tickets-real-v2.png"' in response.text
     assert 'src="/site-assets/product-delivery-real-v2.png"' in response.text
+    assert 'srcset="/site-assets/product-overview-real-v2.webp"' in response.text
+    assert 'srcset="/site-assets/product-tickets-real-v2.webp"' in response.text
+    assert 'srcset="/site-assets/product-delivery-real-v2.webp"' in response.text
+    assert 'srcset="/site-assets/product-audit.webp"' not in response.text
+    assert 'srcset="/site-assets/product-plan.webp"' not in response.text
+    assert 'srcset="/site-assets/product-report.webp"' not in response.text
     assert 'src="/site-assets/product-audit-clay.webp"' not in response.text
     assert 'src="/site-assets/product-plan-clay.webp"' not in response.text
     assert 'src="/site-assets/product-assets-clay.webp"' not in response.text
