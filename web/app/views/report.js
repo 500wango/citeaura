@@ -105,7 +105,9 @@ export default {
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);">
                 <span class="kicker">01 · Audit</span>
-                ${latestReportUrl ? `<a href="${escapeHtml(latestReportUrl)}" target="_blank" rel="noopener noreferrer" class="tag tag-neutral" style="text-decoration:none;font-size:11px;" title="Open HTML report and export to PDF">${t('common.view', {}, 'View')} / PDF ↗</a>` : ''}
+                ${latestReportUrl
+                  ? `<a href="${escapeHtml(latestReportUrl)}" target="_blank" rel="noopener noreferrer" class="tag tag-good" style="text-decoration:none;font-size:11px;font-weight:600;" title="Open HTML report and export to PDF">${t('common.view', {}, 'View')} / PDF ↗</a>`
+                  : `<button type="button" id="btn-quick-generate-pack" class="tag tag-neutral" style="cursor:pointer;font-size:11px;border:none;background:var(--line);color:var(--ink-2);" title="Click to build delivery pack and generate report">${t('report.generate_pack_btn', {}, 'Build Diagnostic Pack')} ↗</button>`}
               </div>
               <strong style="font-size:var(--fs-2);margin-top:2px;">${t('report.deck_title', {}, 'Full GEO Audit Deck')}</strong>
               <span style="font-size:11px;color:var(--muted);margin-top:2px;">${t('report.deck_desc', {}, 'Crawlability & model blockers')}</span>
@@ -222,6 +224,9 @@ export default {
     if (!projectId) return;
 
     const generateBtn = document.getElementById('btn-generate-delivery');
+    document.getElementById('btn-quick-generate-pack')?.addEventListener('click', () => {
+      generateBtn?.click();
+    });
     if (generateBtn) {
       generateBtn.addEventListener('click', async () => {
         generateBtn.disabled = true;
