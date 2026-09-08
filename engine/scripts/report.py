@@ -292,31 +292,190 @@ def market_avg_cards(metrics) -> list[tuple[str, str]]:
 
 
 CSS = """
-:root{--bg:#fdfcfa;--fg:#1f2328;--mut:#6b7280;--line:#e5e1d8;--acc:#1f4e79;--warn:#b4451f;--card:#fff}
-@media(prefers-color-scheme:dark){:root{--bg:#14161a;--fg:#e6e6e6;--mut:#9aa0a6;--line:#2c3037;--acc:#7fb3e0;--warn:#e08b5f;--card:#1b1e23}}
-:root[data-theme=dark]{--bg:#14161a;--fg:#e6e6e6;--mut:#9aa0a6;--line:#2c3037;--acc:#7fb3e0;--warn:#e08b5f;--card:#1b1e23}
-:root[data-theme=light]{--bg:#fdfcfa;--fg:#1f2328;--mut:#6b7280;--line:#e5e1d8;--acc:#1f4e79;--warn:#b4451f;--card:#fff}
+:root {
+  --bg: #f8fafc;
+  --fg: #0f172a;
+  --heading: #020617;
+  --mut: #64748b;
+  --mut-light: #94a3b8;
+  --line: #e2e8f0;
+  --line-subtle: #f1f5f9;
+  --line-strong: #cbd5e1;
+  --card: #ffffff;
+  --card-hover: #f8fafc;
+  --acc: #0f766e;
+  --acc-hover: #0d9488;
+  --acc-bg: rgba(15, 118, 110, 0.07);
+  --acc-border: rgba(15, 118, 110, 0.22);
+  --warn: #b45309;
+  --warn-bg: #fef3c7;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+  --good: #047857;
+  --good-bg: #d1fae5;
+  --info: #0369a1;
+  --info-bg: #e0f2fe;
+  --sh-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --sh-md: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #080d12;
+    --fg: #cbd5e1;
+    --heading: #f8fafc;
+    --mut: #8499a5;
+    --mut-light: #475569;
+    --line: #1e293b;
+    --line-subtle: #141f2c;
+    --line-strong: #334155;
+    --card: #0f1722;
+    --card-hover: #141f2d;
+    --acc: #9df22f;
+    --acc-hover: #b5ff5b;
+    --acc-bg: rgba(157, 242, 47, 0.08);
+    --acc-border: rgba(157, 242, 47, 0.25);
+    --warn: #f59e0b;
+    --warn-bg: rgba(245, 158, 11, 0.14);
+    --danger: #ef4444;
+    --danger-bg: rgba(239, 68, 68, 0.14);
+    --good: #10b981;
+    --good-bg: rgba(16, 185, 129, 0.14);
+    --info: #38bdf8;
+    --info-bg: rgba(56, 189, 248, 0.14);
+    --sh-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+    --sh-md: 0 6px 24px -4px rgba(0, 0, 0, 0.5);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #080d12;
+  --fg: #cbd5e1;
+  --heading: #f8fafc;
+  --mut: #8499a5;
+  --mut-light: #475569;
+  --line: #1e293b;
+  --line-subtle: #141f2c;
+  --line-strong: #334155;
+  --card: #0f1722;
+  --card-hover: #141f2d;
+  --acc: #9df22f;
+  --acc-hover: #b5ff5b;
+  --acc-bg: rgba(157, 242, 47, 0.08);
+  --acc-border: rgba(157, 242, 47, 0.25);
+  --warn: #f59e0b;
+  --warn-bg: rgba(245, 158, 11, 0.14);
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.14);
+  --good: #10b981;
+  --good-bg: rgba(16, 185, 129, 0.14);
+  --info: #38bdf8;
+  --info-bg: rgba(56, 189, 248, 0.14);
+  --sh-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --sh-md: 0 6px 24px -4px rgba(0, 0, 0, 0.5);
+}
+:root[data-theme="light"] {
+  --bg: #f8fafc;
+  --fg: #0f172a;
+  --heading: #020617;
+  --mut: #64748b;
+  --mut-light: #94a3b8;
+  --line: #e2e8f0;
+  --line-subtle: #f1f5f9;
+  --line-strong: #cbd5e1;
+  --card: #ffffff;
+  --card-hover: #f8fafc;
+  --acc: #0f766e;
+  --acc-hover: #0d9488;
+  --acc-bg: rgba(15, 118, 110, 0.07);
+  --acc-border: rgba(15, 118, 110, 0.22);
+  --warn: #b45309;
+  --warn-bg: #fef3c7;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+  --good: #047857;
+  --good-bg: #d1fae5;
+  --info: #0369a1;
+  --info-bg: #e0f2fe;
+  --sh-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --sh-md: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-.wrap{max-width:920px;margin:0 auto;padding:40px 24px 96px}
-h1{font-size:28px;margin:0 0 4px;letter-spacing:0}
-h2{font-size:20px;margin:44px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--line);color:var(--acc)}
-h3{font-size:16px;margin:26px 0 10px}
-.sub{color:var(--mut);font-size:14px;margin-bottom:28px}
-table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}
-th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
-th{background:color-mix(in srgb,var(--acc) 8%,transparent);font-weight:600}
-td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-.scroll{overflow-x:auto}
-code{background:color-mix(in srgb,var(--fg) 8%,transparent);padding:1px 5px;border-radius:4px;font-size:13px}
-a{color:var(--acc)}
-ul{padding-left:22px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:20px 0}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
-.card .k{font-size:12px;color:var(--mut)}
-.card .v{font-size:26px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.3}
-.p0{color:var(--warn);font-weight:700}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.7 var(--font-sans);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.wrap{max-width:960px;margin:0 auto;padding:36px 24px 80px}
+.report-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.report-topbar-brand{display:inline-flex;align-items:center;gap:8px}
+.report-topbar-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;background:var(--acc-bg);border:1px solid var(--acc-border);color:var(--acc);font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.report-topbar-title{font-size:12.5px;font-weight:600;color:var(--mut)}
+.btn-print{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--card);color:var(--fg);border:1px solid var(--line-strong);border-radius:6px;font-family:var(--font-sans);font-size:12.5px;font-weight:600;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease;box-shadow:var(--sh-sm)}
+.btn-print:hover{background:var(--card-hover);border-color:var(--acc);color:var(--acc)}
+.delivery-branding-header ~ .wrap .report-topbar-brand{display:none}
+h1{font-size:27px;font-weight:800;color:var(--heading);letter-spacing:-.025em;line-height:1.25;margin:0 0 10px}
+h2{font-size:18px;font-weight:750;color:var(--heading);letter-spacing:-.015em;margin:44px 0 16px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+h3{font-size:14.5px;font-weight:700;color:var(--heading);letter-spacing:-.01em;margin:26px 0 10px}
+.sub{color:var(--mut);font-size:13.5px;margin-bottom:24px}
+p,li{line-height:1.7}
+a{color:var(--acc);text-decoration:none;font-weight:500}
+a:hover{text-decoration:underline}
+ul{padding-left:20px;margin:12px 0 18px}
+li{margin-bottom:6px}
 hr{border:0;border-top:1px solid var(--line);margin:36px 0}
+code{font-family:var(--font-mono);font-size:12.5px;padding:2px 6px;border-radius:4px;background:var(--line-subtle);border:1px solid var(--line);color:var(--fg)}
+pre{margin:16px 0;padding:14px 16px;border-radius:8px;background:var(--card);border:1px solid var(--line);overflow-x:auto}
+pre code{background:transparent;border:none;padding:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:22px 0 32px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;box-shadow:var(--sh-md);transition:transform .15s ease,border-color .15s ease}
+.card:hover{border-color:var(--line-strong)}
+.card .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin-bottom:6px}
+.card .v{font-size:26px;font-weight:800;font-family:var(--font-mono);font-variant-numeric:tabular-nums;line-height:1.15;color:var(--heading)}
+blockquote{margin:18px 0;padding:12px 18px;background:var(--acc-bg);border-left:3px solid var(--acc);border-radius:0 8px 8px 0;color:var(--fg);font-size:13.5px;line-height:1.6}
+blockquote p{margin:0}
+blockquote + blockquote{margin-top:8px}
+.scroll{overflow-x:auto;margin:18px 0 26px;border:1px solid var(--line);border-radius:8px;background:var(--card);box-shadow:var(--sh-sm)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.5;margin:0}
+th{background:var(--line-subtle);color:var(--mut);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(--line);border-top:0;border-left:0;border-right:0;text-align:left;white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--line-subtle);border-top:0;border-left:0;border-right:0;text-align:left;vertical-align:middle;color:var(--fg)}
+tr:last-child td{border-bottom:0}
+tr:hover td{background:var(--card-hover)}
+td.n,th.n{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.badge{display:inline-flex;align-items:center;justify-content:center;padding:2px 7px;border-radius:4px;font-family:var(--font-mono);font-size:11px;font-weight:700;line-height:1.2}
+.badge.p0{background:var(--danger-bg);color:var(--danger);border:1px solid rgba(239,68,68,.35)}
+.badge.p1{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(245,158,11,.35)}
+.badge.p2{background:var(--info-bg);color:var(--info);border:1px solid rgba(59,130,246,.35)}
+.badge.grade-a{background:var(--good-bg);color:var(--good);border:1px solid rgba(16,185,129,.35)}
+.badge.grade-b{background:var(--info-bg);color:var(--info);border:1px solid rgba(59,130,246,.35)}
+.badge.grade-c{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(245,158,11,.35)}
+.badge.grade-d{background:var(--danger-bg);color:var(--danger);border:1px solid rgba(239,68,68,.35)}
+.status-pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11.5px;font-weight:600}
+.status-pill::before{content:"";width:6px;height:6px;border-radius:99px;background:currentColor}
+.status-pill.done,.status-pill.passed{color:var(--good)}
+.status-pill.doing,.status-pill.warn{color:var(--warn)}
+.status-pill.blocked,.status-pill.unmet{color:var(--danger)}
+.status-pill.todo{color:var(--mut)}
+.p0{color:var(--danger);font-weight:700}
+@media print{
+  @page{size:A4 portrait;margin:16mm 14mm 16mm 14mm}
+  :root{--bg:#fff !important;--fg:#111827 !important;--heading:#030712 !important;--mut:#4b5563 !important;--line:#d1d5db !important;--line-subtle:#e5e7eb !important;--card:#fafafa !important;--card-hover:#fafafa !important;--acc:#0f766e !important;--acc-bg:#f0fdfa !important;--sh-sm:none !important;--sh-md:none !important}
+  body{background:#fff !important;color:#111827 !important;font-size:9.5pt !important;line-height:1.45 !important}
+  .wrap{max-width:100% !important;padding:0 !important;margin:0 !important}
+  .no-print{display:none !important}
+  h1{font-size:18pt !important;margin-bottom:6pt !important;break-after:avoid !important;page-break-after:avoid !important}
+  h2{font-size:13pt !important;margin-top:18pt !important;margin-bottom:8pt !important;border-bottom:1.5pt solid #d1d5db !important;break-after:avoid !important;page-break-after:avoid !important}
+  h3{font-size:11pt !important;margin-top:12pt !important;margin-bottom:6pt !important;break-after:avoid !important;page-break-after:avoid !important}
+  .cards{grid-template-columns:repeat(4,1fr) !important;gap:8px !important;margin:10pt 0 16pt !important;break-inside:avoid !important;page-break-inside:avoid !important}
+  .card{border:1px solid #d1d5db !important;background:#f9fafb !important;box-shadow:none !important;padding:6pt 10pt !important;break-inside:avoid !important;page-break-inside:avoid !important}
+  .card .k{font-size:7.5pt !important;color:#4b5563 !important}
+  .card .v{font-size:15pt !important;color:#030712 !important}
+  .scroll{overflow:visible !important;border:1px solid #d1d5db !important;box-shadow:none !important;margin:8pt 0 14pt !important}
+  table{font-size:8.5pt !important;width:100% !important}
+  thead{display:table-header-group !important}
+  tr{break-inside:avoid !important;page-break-inside:avoid !important}
+  th{background:#f3f4f6 !important;color:#1f2937 !important;border-bottom:1pt solid #9ca3af !important;padding:5pt 7pt !important;font-weight:700 !important}
+  td{border-bottom:0.5pt solid #e5e7eb !important;padding:4.5pt 7pt !important}
+  blockquote{border-left:2.5pt solid #0f766e !important;background:#f0fdfa !important;color:#134e4a !important;padding:6pt 10pt !important;margin:8pt 0 !important;break-inside:avoid !important;page-break-inside:avoid !important}
+  code{background:#f1f5f9 !important;border:0.5pt solid #cbd5e1 !important;color:#0f172a !important;font-size:8pt !important}
+  a{color:#111827 !important;text-decoration:none !important}
+}
 """
 
 
@@ -345,6 +504,22 @@ def md_to_html(md: str) -> str:
             s = s.replace(token, f'<a href="{html.escape(href, quote=True)}">{html.escape(label)}</a>')
         return s
 
+    def style_cell(text, col_idx, head_label):
+        val = text.strip()
+        if val in ("P0", "P1", "P2"):
+            return f'<span class="badge {val.lower()}">{val}</span>'
+        if val in ("A", "B", "C", "D") and head_label.lower() in ("grade", "等级", "评级"):
+            return f'<span class="badge grade-{val.lower()}">{val}</span>'
+        if val in ("Done", "Passed", "完成", "通过"):
+            return f'<span class="status-pill done">{inline(text)}</span>'
+        if val in ("In Progress", "In verification", "进行中", "验证中"):
+            return f'<span class="status-pill doing">{inline(text)}</span>'
+        if val in ("Blocked", "Unmet", "阻塞", "未达标"):
+            return f'<span class="status-pill blocked">{inline(text)}</span>'
+        if val in ("Todo", "待办"):
+            return f'<span class="status-pill todo">{inline(text)}</span>'
+        return inline(text)
+
     out, lines, i = [], md.split("\n"), 0
     while i < len(lines):
         ln = lines[i]
@@ -358,8 +533,24 @@ def md_to_html(md: str) -> str:
                 rows.append([c.strip() for c in lines[i].strip("|").split("|")])
                 i += 1
             th = "".join(f'<th class="{c}">{inline(h)}</th>' for h, c in zip(head, cls))
-            tb = "".join("<tr>" + "".join(f'<td class="{c}">{inline(v)}</td>' for v, c in zip(r, cls)) + "</tr>" for r in rows)
+            tb = "".join("<tr>" + "".join(f'<td class="{c}">{style_cell(v, idx, head[idx] if idx < len(head) else "")}</td>' for idx, (v, c) in enumerate(zip(r, cls))) + "</tr>" for r in rows)
             out.append(f'<div class="scroll"><table><thead><tr>{th}</tr></thead><tbody>{tb}</tbody></table></div>')
+            continue
+        if ln.startswith("```"):
+            code_lines = []
+            i += 1
+            while i < len(lines) and not lines[i].startswith("```"):
+                code_lines.append(html.escape(lines[i]))
+                i += 1
+            out.append(f"<pre><code>{chr(10).join(code_lines)}</code></pre>")
+            i += 1
+            continue
+        if ln.startswith("> "):
+            quotes = []
+            while i < len(lines) and lines[i].startswith("> "):
+                quotes.append(inline(lines[i][2:]))
+                i += 1
+            out.append(f"<blockquote><p>{' '.join(quotes)}</p></blockquote>")
             continue
         if m := re.match(r"^(#{1,4})\s+(.*)", ln):
             lvl = len(m.group(1))
@@ -381,10 +572,25 @@ def md_to_html(md: str) -> str:
 
 def build_html(title: str, md: str, cards: list[tuple[str, str]]) -> str:
     card_html = "".join(f'<div class="card"><div class="k">{html.escape(k)}</div><div class="v">{html.escape(v)}</div></div>' for k, v in cards)
+    topbar_html = (
+        '<div class="report-topbar no-print">'
+        '<div class="report-topbar-brand">'
+        '<span class="report-topbar-badge">CiteAura GEO</span>'
+        '<span class="report-topbar-title">Executive Deliverable</span>'
+        '</div>'
+        '<div class="report-topbar-actions">'
+        '<button type="button" class="btn-print" onclick="window.print()" title="Print or export deliverable to PDF">'
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>'
+        '<span>Print / PDF</span>'
+        '</button>'
+        '</div>'
+        '</div>'
+    )
     return (
         f"<!doctype html><html lang=en><head><meta charset=utf-8>"
         f'<meta name=viewport content="width=device-width,initial-scale=1">'
         f"<title>{html.escape(title)}</title><style>{CSS}</style></head><body><div class=wrap>"
+        f"{topbar_html}"
         f'<div class="cards">{card_html}</div>{md_to_html(md)}</div></body></html>'
     )
 
