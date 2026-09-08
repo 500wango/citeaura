@@ -31,6 +31,10 @@ export default {
     }
 
     const canSendAny = deliveries.some((item) => item && item.can_send);
+    const activeProject = (ctx.projects || []).find((p) => String(p.id) === String(projectId) || p.slug === String(projectId)) || {};
+    const projectSlug = activeProject.slug || projectId;
+    const latestDate = deliveries && deliveries.length ? (typeof deliveries[0] === 'string' ? deliveries[0] : deliveries[0]?.date || deliveries[0]?.name) : null;
+    const latestReportUrl = latestDate ? `/files/${encodeURIComponent(projectSlug)}/delivery/${encodeURIComponent(latestDate)}/01-Audit-Report.html` : null;
     const overallGrade = report && report.grade;
     const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : 'Unmeasured';
     const quality = report && report.report_quality;
@@ -99,7 +103,10 @@ export default {
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:var(--sp-4);">
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
-              <span class="kicker">01 · Audit</span>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);">
+                <span class="kicker">01 · Audit</span>
+                ${latestReportUrl ? `<a href="${escapeHtml(latestReportUrl)}" target="_blank" rel="noopener noreferrer" class="tag tag-neutral" style="text-decoration:none;font-size:11px;" title="Open HTML report and export to PDF">${t('common.view', {}, 'View')} / PDF ↗</a>` : ''}
+              </div>
               <strong style="font-size:var(--fs-2);margin-top:2px;">${t('report.deck_title', {}, 'Full GEO Audit Deck')}</strong>
               <span style="font-size:11px;color:var(--muted);margin-top:2px;">${t('report.deck_desc', {}, 'Crawlability & model blockers')}</span>
             </div>
@@ -172,10 +179,16 @@ export default {
                           </div>
                         </td>
                         <td style="text-align:right;">
-                          <a href="${escapeHtml(dlUrl)}" class="btn btn-secondary btn-sm" download title="${escapeHtml(reviewRequired ? 'Contains assets that require review before publishing.' : implementationReady ? 'Diagnostic documents and publishable assets passed the current checks.' : customerReady ? 'Diagnostic final pack. Implementation outlines stay classified and do not block sending this ZIP.' : 'Readiness could not be confirmed.')}" aria-label="${escapeHtml(downloadLabel)}">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            <span>${t(implementationReady ? 'report.download_implementation_zip' : customerReady ? 'report.download_diagnostic_zip' : 'report.download_review_zip', {}, downloadLabel)}</span>
-                          </a>
+                          <div style="display:inline-flex;align-items:center;gap:var(--sp-2);justify-content:flex-end;">
+                            <a href="/files/${encodeURIComponent(projectSlug)}/delivery/${encodeURIComponent(dateStr)}/01-Audit-Report.html" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" title="${t('common.view', {}, 'View')} report / PDF">
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                              <span>${t('common.view', {}, 'View')} / PDF</span>
+                            </a>
+                            <a href="${escapeHtml(dlUrl)}" class="btn btn-secondary btn-sm" download title="${escapeHtml(reviewRequired ? 'Contains assets that require review before publishing.' : implementationReady ? 'Diagnostic documents and publishable assets passed the current checks.' : customerReady ? 'Diagnostic final pack. Implementation outlines stay classified and do not block sending this ZIP.' : 'Readiness could not be confirmed.')}" aria-label="${escapeHtml(downloadLabel)}">
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                              <span>${t(implementationReady ? 'report.download_implementation_zip' : customerReady ? 'report.download_diagnostic_zip' : 'report.download_review_zip', {}, downloadLabel)}</span>
+                            </a>
+                          </div>
                         </td>
                         ${canSendAny ? `<td style="text-align:right;">
                             ${d.can_send
