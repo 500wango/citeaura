@@ -137,7 +137,11 @@ async def security_headers(request: Request, call_next):
     ):
         response.headers["Cache-Control"] = "private, no-store, max-age=0"
     elif request.url.path.startswith(("/site-assets/", "/runtime-assets/")):
-        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        path_lower = request.url.path.lower()
+        if path_lower.endswith((".css", ".js")):
+            response.headers["Cache-Control"] = "public, no-cache"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     elif request.url.path in ("/docs.js", "/manifest.webmanifest") or response.headers.get("content-type", "").lower().startswith(
         "text/html"
     ):

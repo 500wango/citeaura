@@ -279,7 +279,7 @@ def test_frontend_asset_cache_contract_is_explicit():
     ):
         response = client.get(path)
         assert response.status_code == 200, path
-        assert response.headers["cache-control"] == "public, max-age=31536000, immutable", path
+        assert response.headers["cache-control"] == "public, no-cache", path
 
     # i18n JSON 按需刷新（目录更新后立即生效）
     for path in (
