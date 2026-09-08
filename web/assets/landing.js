@@ -171,16 +171,126 @@ function sanitizeLandingHtml(value) {
 
   function ensureLocalePicker() {
     var actions = $('.nav-actions');
-    if (!actions || $('#site-locale')) return;
-    var wrapper = document.createElement('div');
-    wrapper.className = 'lang-picker-btn';
-    var select = document.createElement('select');
-    select.id = 'site-locale';
-    select.className = 'site-locale-compact';
-    select.setAttribute('aria-label', 'Language');
-    wrapper.appendChild(select);
-    var cta = $('.nav-cta', actions);
-    actions.insertBefore(wrapper, cta || null);
+    if (!actions) return;
+    var dropdown = $('#lang-dropdown');
+    var oldWrapper = $('.lang-picker-btn', actions);
+
+    if (oldWrapper && oldWrapper.tagName === 'DIV' && !dropdown) {
+      dropdown = document.createElement('div');
+      dropdown.className = 'lang-dropdown';
+      dropdown.id = 'lang-dropdown';
+      oldWrapper.parentNode.insertBefore(dropdown, oldWrapper);
+
+      var toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'lang-picker-btn';
+      toggle.id = 'lang-picker-toggle';
+      toggle.setAttribute('aria-haspopup', 'menu');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.title = oldWrapper.title || 'Change Language';
+      var svg = oldWrapper.querySelector('svg');
+      if (svg) toggle.appendChild(svg.cloneNode(true));
+      else toggle.innerHTML = '<svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+      dropdown.appendChild(toggle);
+
+      var menu = document.createElement('div');
+      menu.className = 'lang-menu';
+      menu.id = 'lang-menu';
+      menu.setAttribute('role', 'menu');
+      dropdown.appendChild(menu);
+
+      var oldSelect = oldWrapper.querySelector('select');
+      if (oldSelect) {
+        oldSelect.style.display = 'none';
+        oldSelect.className = 'site-locale-compact';
+        dropdown.appendChild(oldSelect);
+      }
+      oldWrapper.parentNode.removeChild(oldWrapper);
+    } else if (!dropdown && !$('#site-locale')) {
+      dropdown = document.createElement('div');
+      dropdown.className = 'lang-dropdown';
+      dropdown.id = 'lang-dropdown';
+      var newBtn = document.createElement('button');
+      newBtn.type = 'button';
+      newBtn.className = 'lang-picker-btn';
+      newBtn.id = 'lang-picker-toggle';
+      newBtn.setAttribute('aria-haspopup', 'menu');
+      newBtn.setAttribute('aria-expanded', 'false');
+      newBtn.title = 'Change Language';
+      newBtn.innerHTML = '<svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"/></svg><span class="sr-only">Language</span>';
+      dropdown.appendChild(newBtn);
+
+      var newMenu = document.createElement('div');
+      newMenu.className = 'lang-menu';
+      newMenu.id = 'lang-menu';
+      newMenu.setAttribute('role', 'menu');
+      dropdown.appendChild(newMenu);
+
+      var select = document.createElement('select');
+      select.id = 'site-locale';
+      select.className = 'site-locale-compact';
+      select.style.display = 'none';
+      select.setAttribute('aria-label', 'Language');
+      dropdown.appendChild(select);
+
+      var cta = $('.nav-cta', actions);
+      actions.insertBefore(dropdown, cta || null);
+    }
+
+    var currentDropdown = $('#lang-dropdown');
+    if (currentDropdown && !$('#lang-menu', currentDropdown)) {
+      var m = document.createElement('div');
+      m.className = 'lang-menu';
+      m.id = 'lang-menu';
+      m.setAttribute('role', 'menu');
+      currentDropdown.appendChild(m);
+    }
+  }
+
+  function updateLocaleMenuItems() {
+    var menu = $('#lang-menu');
+    if (!menu) return;
+    menu.innerHTML = '';
+    var currentLocale = LOCALES.indexOf(state.locale) >= 0 ? state.locale : 'en';
+    LOCALES.forEach(function (loc) {
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'lang-menu-item' + (loc === currentLocale ? ' is-current' : '');
+      item.setAttribute('data-locale', loc);
+      item.setAttribute('role', 'menuitem');
+      item.innerHTML = '<span>' + (LOCALE_LABELS[loc] || loc) + '</span>' +
+        '<svg class="lang-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+
+      item.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var dropdown = $('#lang-dropdown');
+        if (dropdown) dropdown.classList.remove('is-open');
+        var toggle = $('#lang-picker-toggle') || $('.lang-picker-btn');
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+
+        var next = loc;
+        var selector = $('#site-locale');
+        if (selector) selector.value = next;
+
+        var alt = $('link[rel="alternate"][hreflang="' + next + '"]');
+        if (alt && alt.getAttribute('href')) {
+          try {
+            var targetUrl = new URL(alt.getAttribute('href'), location.origin);
+            if (targetUrl.pathname !== location.pathname) {
+              targetUrl.searchParams.delete('lang');
+              if (next !== 'en') targetUrl.searchParams.set('lang', next);
+              try { localStorage.setItem('ulang', next); } catch (e) {}
+              location.href = targetUrl.pathname + targetUrl.search;
+              return;
+            }
+          } catch (e) {}
+        }
+        setLocale(next);
+      });
+
+      menu.appendChild(item);
+    });
   }
 
   function applyI18n() {
@@ -259,6 +369,7 @@ function sanitizeLandingHtml(value) {
       selector.replaceChildren.apply(selector, LOCALES.map(function (locale) { var option = document.createElement('option'); option.value = locale; option.textContent = LOCALE_LABELS[locale]; return option; }));
       selector.value = state.locale;
     }
+    updateLocaleMenuItems();
     updateLocaleLinks();
     var requestId = ++state.catalogRequest;
       var catalogRequests = [
@@ -408,6 +519,29 @@ function sanitizeLandingHtml(value) {
 
   function initLocale() {
     ensureLocalePicker();
+    var dropdown = $('#lang-dropdown');
+    var toggle = $('#lang-picker-toggle') || (dropdown && dropdown.querySelector('.lang-picker-btn'));
+    if (dropdown && toggle) {
+      toggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var isOpen = dropdown.classList.toggle('is-open');
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+      document.addEventListener('click', function (e) {
+        if (!dropdown.contains(e.target)) {
+          dropdown.classList.remove('is-open');
+          toggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          dropdown.classList.remove('is-open');
+          toggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
     var selector = $('#site-locale');
     if (!selector) return;
     selector.addEventListener('change', function () {

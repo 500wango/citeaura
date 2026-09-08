@@ -1303,15 +1303,9 @@ button.project-opt {
 }
 .lang-picker-btn:hover { color: var(--ink); border-color: var(--accent-line); background: var(--deep); }
 .lang-picker-btn .icon-globe { pointer-events: none; }
-.site-locale-compact {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  opacity: 0; cursor: pointer; appearance: none; -webkit-appearance: none;
-}
-
+.site-locale-compact,
 .lang-picker-btn select {
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  opacity: 0; cursor: pointer; appearance: none; -webkit-appearance: none;
-  border: none; background: transparent; padding: 0; margin: 0; font-size: 14px;
+  display: none !important;
 }
 
 [data-theme="dark"] select option {

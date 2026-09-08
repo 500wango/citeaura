@@ -466,14 +466,24 @@ function renderAppShell() {
           </div>
 
           <div class="header-right">
-            <div class="lang-picker-btn" title="${t('lang.label', {}, 'Language')}">
-              <svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="2" y1="12" x2="22" y2="12"/>
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-              </svg>
-              <label class="sr-only" for="app-locale">${t('lang.label', {}, 'Language')}</label>
-              <select id="app-locale" class="site-locale-compact" aria-label="${t('lang.label', {}, 'Language')}">
+            <div class="lang-dropdown" id="app-lang-dropdown">
+              <button type="button" class="lang-picker-btn" id="app-lang-toggle" aria-haspopup="menu" aria-expanded="false" title="${t('lang.label', {}, 'Language')}">
+                <svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                <span class="sr-only">${t('lang.label', {}, 'Language')}</span>
+              </button>
+              <div class="lang-menu" id="app-lang-menu" role="menu">
+                ${SUPPORTED_LOCALES.map((loc) => `
+                  <button type="button" class="lang-menu-item ${loc === getLocale() ? 'is-current' : ''}" data-locale="${loc}" role="menuitem">
+                    <span>${LOCALE_LABELS[loc]}</span>
+                    <svg class="lang-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                `).join('')}
+              </div>
+              <select id="app-locale" class="site-locale-compact" aria-label="${t('lang.label', {}, 'Language')}" style="display:none;">
                 ${SUPPORTED_LOCALES.map((locale) => `<option value="${locale}" ${locale === getLocale() ? 'selected' : ''}>${LOCALE_LABELS[locale]}</option>`).join('')}
               </select>
             </div>
@@ -594,6 +604,29 @@ function bindAppShellEvents() {
     } catch (e) {}
   });
 
+  const appLangDropdown = document.getElementById('app-lang-dropdown');
+  const appLangToggle = document.getElementById('app-lang-toggle');
+  const appLangMenu = document.getElementById('app-lang-menu');
+  if (appLangDropdown && appLangToggle && appLangMenu) {
+    appLangToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = appLangDropdown.classList.toggle('is-open');
+      appLangToggle.setAttribute('aria-expanded', String(isOpen));
+    });
+    appLangMenu.querySelectorAll('.lang-menu-item').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        appLangDropdown.classList.remove('is-open');
+        appLangToggle.setAttribute('aria-expanded', 'false');
+        const loc = btn.getAttribute('data-locale');
+        if (loc && loc !== getLocale()) {
+          await setLocale(loc);
+          await renderApp();
+        }
+      });
+    });
+  }
+
   document.getElementById('app-locale')?.addEventListener('change', async (event) => {
     const locale = event.target.value;
     await setLocale(locale);
@@ -610,6 +643,19 @@ document.addEventListener('click', () => {
   document.getElementById('project-dropdown-btn')?.setAttribute('aria-expanded', 'false');
   document.getElementById('user-dropdown-menu')?.style.setProperty('display', 'none');
   document.getElementById('user-menu-btn')?.setAttribute('aria-expanded', 'false');
+  document.getElementById('app-lang-dropdown')?.classList.remove('is-open');
+  document.getElementById('app-lang-toggle')?.setAttribute('aria-expanded', 'false');
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.getElementById('project-dropdown-menu')?.style.setProperty('display', 'none');
+    document.getElementById('project-dropdown-btn')?.setAttribute('aria-expanded', 'false');
+    document.getElementById('user-dropdown-menu')?.style.setProperty('display', 'none');
+    document.getElementById('user-menu-btn')?.setAttribute('aria-expanded', 'false');
+    document.getElementById('app-lang-dropdown')?.classList.remove('is-open');
+    document.getElementById('app-lang-toggle')?.setAttribute('aria-expanded', 'false');
+  }
 });
 
 /* ----------  ---------- */
