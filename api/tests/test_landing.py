@@ -418,15 +418,33 @@ def test_public_zh_catalog_covers_docs_and_guides():
     assert client.get("/i18n/public/en.json").status_code == 404
 
 
-def test_public_fr_catalog_covers_sample_report():
+def test_public_fr_catalog_covers_all_localized_public_pages():
     response = client.get("/i18n/public/fr.json")
     assert response.status_code == 200
     catalog = response.json()
-    root = Path(__file__).resolve().parents[2] / "web" / "sample-report.html"
-    keys = set(re.findall(r'data-i18n(?:-[a-z]+)*="([^"]+)"', root.read_text("utf-8")))
-    assert keys <= set(catalog), sorted(keys - set(catalog))
+    root = Path(__file__).resolve().parents[2] / "web"
+    pages = [
+        root / "index.html",
+        root / "about.html",
+        root / "contact.html",
+        root / "privacy.html",
+        root / "terms.html",
+        root / "sample-report.html",
+    ]
+    for page in pages:
+        keys = set(re.findall(r'data-i18n(?:-[a-z]+)*="([^"]+)"', page.read_text("utf-8")))
+        missing = sorted(key for key in keys if key.startswith("public.") and key not in catalog)
+        assert not missing, (page, missing)
+
     assert "D’une réponse IA" in catalog["public.sample.hero"]
     assert "Tickets à fort impact" in catalog["public.sample.summary"]
+
+    # French landing page must never render [[missing: placeholders
+    fr_res = client.get("/fr")
+    assert fr_res.status_code == 200
+    assert "[[missing:" not in fr_res.text
+    assert "Durée de l'essai Starter" in fr_res.text
+    assert "7 jours" in fr_res.text
 
 
 def test_public_zh_catalog_covers_all_localized_public_pages():

@@ -83,7 +83,7 @@ function sanitizeLandingHtml(value) {
   // explicit keys instead of relying on fragile English text reverse lookup.
   function publicValue(key, fallback, params) {
     var localized = catalogValue(key);
-    var text = localized != null ? localized : (state.locale === 'en' ? fallback : '[[missing:' + key + ']]');
+    var text = localized != null ? localized : (state.fallbackCatalog[key] != null ? state.fallbackCatalog[key] : (fallback || ''));
     Object.keys(params || {}).forEach(function (name) {
       text = text.replace(new RegExp('\\{' + name + '\\}', 'g'), function () { return String(params[name]); });
     });
@@ -188,7 +188,7 @@ function sanitizeLandingHtml(value) {
       var key = node.getAttribute('data-i18n');
       var defaultHtml = rememberDefault(node, 'html', node.innerHTML);
       var value = catalogValue(key);
-      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
+      if (value == null) value = state.fallbackCatalog[key];
       if (value != null) {
         if (node.tagName === 'TITLE') { document.title = value; return; }
         if (value.indexOf('<') >= 0 && value.indexOf('>') >= 0) {
@@ -196,51 +196,51 @@ function sanitizeLandingHtml(value) {
         } else {
           node.textContent = value;
         }
-      } else node.innerHTML = state.locale === 'en' ? defaultHtml : '[[missing:' + key + ']]';
+      } else node.innerHTML = defaultHtml;
     });
     $$('[data-i18n-html]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-html');
       var defaultHtml = rememberDefault(node, 'html', node.innerHTML);
       var value = catalogValue(key);
-      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      node.innerHTML = value != null ? sanitizeLandingHtml(value) : (state.locale === 'en' ? defaultHtml : '[[missing:' + key + ']]');
+      if (value == null) value = state.fallbackCatalog[key];
+      node.innerHTML = value != null ? sanitizeLandingHtml(value) : defaultHtml;
     });
-    var title = catalogValue('landing.title');
+    var title = catalogValue('landing.title') || state.fallbackCatalog['landing.title'];
     if (title && !document.querySelector('title[data-i18n]')) document.title = title;
     $$('[data-i18n-content]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-content');
       var defaultValue = rememberDefault(node, 'content', node.getAttribute('content') || '');
       var value = catalogValue(key);
-      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      node.setAttribute('content', value != null ? value : (state.locale === 'en' ? defaultValue : '[[missing:' + key + ']]'));
+      if (value == null) value = state.fallbackCatalog[key];
+      node.setAttribute('content', value != null ? value : defaultValue);
     });
     $$('[data-i18n-aria]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-aria');
       var defaultValue = rememberDefault(node, 'aria', node.getAttribute('aria-label') || '');
       var value = catalogValue(key);
-      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      node.setAttribute('aria-label', value != null ? value : (state.locale === 'en' ? defaultValue : '[[missing:' + key + ']]'));
+      if (value == null) value = state.fallbackCatalog[key];
+      node.setAttribute('aria-label', value != null ? value : defaultValue);
     });
     $$('[data-i18n-alt]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-alt');
       var defaultValue = rememberDefault(node, 'alt', node.getAttribute('alt') || '');
       var value = catalogValue(key);
-      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      node.setAttribute('alt', value != null ? value : (state.locale === 'en' ? defaultValue : '[[missing:' + key + ']]'));
+      if (value == null) value = state.fallbackCatalog[key];
+      node.setAttribute('alt', value != null ? value : defaultValue);
     });
     $$('[data-i18n-placeholder]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-placeholder');
       var defaultValue = rememberDefault(node, 'placeholder', node.getAttribute('placeholder') || '');
       var value = catalogValue(key);
-      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      node.setAttribute('placeholder', value != null ? value : (state.locale === 'en' ? defaultValue : '[[missing:' + key + ']]'));
+      if (value == null) value = state.fallbackCatalog[key];
+      node.setAttribute('placeholder', value != null ? value : defaultValue);
     });
     $$('[data-i18n-title]').forEach(function (node) {
       var key = node.getAttribute('data-i18n-title');
       var defaultValue = rememberDefault(node, 'title', node.getAttribute('title') || '');
       var value = catalogValue(key);
-      if (value == null && state.locale === 'en') value = state.fallbackCatalog[key];
-      node.setAttribute('title', value != null ? value : (state.locale === 'en' ? defaultValue : '[[missing:' + key + ']]'));
+      if (value == null) value = state.fallbackCatalog[key];
+      node.setAttribute('title', value != null ? value : defaultValue);
     });
     applyBilling();
     renderThemeControl();

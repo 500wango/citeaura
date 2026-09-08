@@ -997,8 +997,10 @@
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4);
   padding: var(--sp-5); color: var(--ink); cursor: pointer; list-style: none;
   font-size: var(--fs-5); font-weight: 700;
+.disclosure-card > summary > [role="heading"],
+.disclosure-card > summary > h3 {
+  margin: 0; display: block; min-width: 0; font-size: inherit; font-weight: inherit;
 }
-.disclosure-card > summary > [role="heading"] { display: block; min-width: 0; }
 .disclosure-card > summary::-webkit-details-marker { display: none; }
 .disclosure-card > summary::after {
   content: "+"; flex: none; color: var(--accent); font-family: var(--font-mono); font-size: var(--fs-5); font-weight: 400;
