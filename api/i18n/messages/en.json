@@ -2186,5 +2186,8 @@
   "blog.card_directory_listings_meta": "2 Sep 2026 · Authority outreach",
   "blog.card_schema_title": "JSON-LD Schema for AI Search: How LLMs Extract Brand Entities",
   "blog.card_schema_desc": "Learn how ChatGPT Search and Perplexity parse structured data, why schema-to-DOM divergence causes hallucinations, and how to declare entity anchors.",
-  "blog.card_schema_meta": "10 Sep 2026 · Technical guide"
+  "blog.card_schema_meta": "10 Sep 2026 · Technical guide",
+  "blog.card_fr_schema_title": "JSON-LD Schema for AI Search: Extracting Brand Entities (French Guide)",
+  "blog.card_fr_schema_desc": "Understand how ChatGPT Search and Perplexity parse structured data and eliminate divergences with the DOM.",
+  "blog.card_fr_schema_meta": "10 Sep 2026 · GEO Guide (Français)"
 }

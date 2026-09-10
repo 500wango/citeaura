@@ -2186,5 +2186,8 @@
   "blog.card_directory_listings_meta": "2026年9月2日 · 权威外链拓展",
   "blog.card_schema_title": "面向 AI 搜索的 JSON-LD Schema：LLM 如何提取品牌实体与事实",
   "blog.card_schema_desc": "了解 ChatGPT Search 与 Perplexity 如何解析结构化数据、为何 Schema 与 DOM 冲突会导致幻觉，以及如何声明核心实体锚点。",
-  "blog.card_schema_meta": "2026年9月10日 · 技术指南"
+  "blog.card_schema_meta": "2026年9月10日 · 技术指南",
+  "blog.card_fr_schema_title": "面向 AI 搜索的 JSON-LD Schema：提取品牌实体（法语指南）",
+  "blog.card_fr_schema_desc": "了解 ChatGPT Search 与 Perplexity 如何解析结构化数据并消除与 DOM 的事实冲突。",
+  "blog.card_fr_schema_meta": "2026年9月10日 · GEO 指南 (Français)"
 }

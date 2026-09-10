@@ -2186,5 +2186,8 @@
   "blog.card_directory_listings_meta": "2 sept. 2026 · Développement d'autorité",
   "blog.card_schema_title": "Schéma JSON-LD pour la recherche IA : comment les LLM extraient les entités de marque",
   "blog.card_schema_desc": "Découvrez comment ChatGPT Search et Perplexity analysent les données structurées, pourquoi la divergence avec le DOM crée des hallucinations et comment structurer vos entités.",
-  "blog.card_schema_meta": "10 sept. 2026 · Guide technique"
+  "blog.card_schema_meta": "10 sept. 2026 · Guide technique",
+  "blog.card_fr_schema_title": "Schéma JSON-LD pour la recherche IA : extraction des entités de marque",
+  "blog.card_fr_schema_desc": "Comprendre comment ChatGPT Search et Perplexity analysent les données structurées et éliminer les divergences avec le DOM.",
+  "blog.card_fr_schema_meta": "10 sept. 2026 · Guide GEO (Français)"
 }

@@ -2186,5 +2186,8 @@
   "blog.card_directory_listings_meta": "2. Sept. 2026 · Autoritätsaufbau",
   "blog.card_schema_title": "JSON-LD-Schema für die KI-Suche: Wie LLMs Markenentitäten und Fakten extrahieren",
   "blog.card_schema_desc": "Erfahren Sie, wie ChatGPT Search und Perplexity strukturierte Daten parsen, warum Schema-DOM-Diskrepanzen Halluzinationen auslösen und wie man Entitätsanker setzt.",
-  "blog.card_schema_meta": "10. Sept. 2026 · Technischer Leitfaden"
+  "blog.card_schema_meta": "10. Sept. 2026 · Technischer Leitfaden",
+  "blog.card_fr_schema_title": "JSON-LD-Schema für die KI-Suche: Markenentitäten extrahieren (Französischer Leitfaden)",
+  "blog.card_fr_schema_desc": "Erfahren Sie, wie ChatGPT Search und Perplexity strukturierte Daten parsen und Inkonsistenzen mit dem DOM vermeiden.",
+  "blog.card_fr_schema_meta": "10. Sept. 2026 · GEO-Leitfaden (Français)"
 }

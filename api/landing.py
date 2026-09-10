@@ -72,6 +72,7 @@ PUBLIC_PAGES = (
     {"path": "/blog/sell-geo-retainers-with-delivery-packs", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/ai-search-directory-listings-guide", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/json-ld-schema-for-ai-search", "lastmod": "2026-09-10", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/schema-json-ld-pour-la-recherche-ia", "lastmod": "2026-09-10", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/privacy", "lastmod": "2026-08-19", "changefreq": "monthly", "priority": "0.3"},
     {"path": "/terms", "lastmod": "2026-08-19", "changefreq": "monthly", "priority": "0.3"},
 )

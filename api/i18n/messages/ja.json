@@ -2186,5 +2186,8 @@
   "blog.card_directory_listings_meta": "2026年9月2日 · 権威構築",
   "blog.card_schema_title": "AI 検索向け JSON-LD スキーマ：LLM がブランドエンティティと事実を抽出する仕組み",
   "blog.card_schema_desc": "ChatGPT Search や Perplexity が構造化データを解析する仕組み、スキーマと DOM の乖離がハルシネーションを招く理由、エンティティアンカーの宣言方法を解説します。",
-  "blog.card_schema_meta": "2026年9月10日 · 技術ガイド"
+  "blog.card_schema_meta": "2026年9月10日 · 技術ガイド",
+  "blog.card_fr_schema_title": "AI 検索向け JSON-LD スキーマ：ブランドエンティティの抽出（フランス語版）",
+  "blog.card_fr_schema_desc": "ChatGPT Search や Perplexity が構造化データを解析する仕組みと、DOM との乖離を解消する方法を解説します。",
+  "blog.card_fr_schema_meta": "2026年9月10日 · GEO ガイド (Français)"
 }
