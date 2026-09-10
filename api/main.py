@@ -75,10 +75,15 @@ def _public_canonical_redirect(request: Request):
     path = request.url.path
     if path == "/" or not path.endswith("/") or path.startswith(_NON_PUBLIC_SLASH_PREFIXES):
         return None
-    base = urlsplit(config.public_base_url())
-    if not base.scheme or not base.netloc:
+    proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "https"
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+    if not host:
+        base = urlsplit(config.public_base_url())
+        proto = base.scheme or proto
+        host = base.netloc or host
+    if not host:
         return None
-    target = urlunsplit((base.scheme, base.netloc, path.rstrip("/"), request.url.query, ""))
+    target = urlunsplit((proto, host, path.rstrip("/"), request.url.query, ""))
     return RedirectResponse(url=target, status_code=308)
 
 

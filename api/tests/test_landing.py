@@ -118,6 +118,26 @@ def test_public_verification_pages_support_head_requests():
     assert "all domain names, prompts, rates, and ticket outcomes" in sample.text
 
 
+def test_public_canonical_trailing_slash_preserves_host_and_https_protocol():
+    # Production reverse proxy (Nginx/Cloudflare) passing HTTPS and domain host
+    res = client.get(
+        "/docs/",
+        headers={"x-forwarded-proto": "https", "x-forwarded-host": "citeaura.com"},
+        follow_redirects=False,
+    )
+    assert res.status_code == 308
+    assert res.headers["location"] == "https://citeaura.com/docs"
+
+    # Preserves query parameters across trailing-slash redirect
+    res_query = client.get(
+        "/blog/?source=gsc",
+        headers={"x-forwarded-proto": "https", "x-forwarded-host": "citeaura.com"},
+        follow_redirects=False,
+    )
+    assert res_query.status_code == 308
+    assert res_query.headers["location"] == "https://citeaura.com/blog?source=gsc"
+
+
 def test_public_navigation_does_not_duplicate_hero_audit_cta():
     paths = (
         "/",
