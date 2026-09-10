@@ -794,6 +794,17 @@ def test_public_pages_expose_structured_data():
 
         assert required <= found, f"{path}: missing {required - found}"
 
+    from api.landing import PUBLIC_PAGES
+
+    for page in PUBLIC_PAGES:
+        body = client.get(page["path"]).text
+        blocks = re.findall(
+            r'<script\b[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', body, re.DOTALL
+        )
+        for block in blocks:
+            payload = json.loads(block.strip())
+            assert isinstance(payload, (dict, list)), page["path"]
+
 
 def test_public_solution_pages_have_indexable_content_contract():
     expected = {
