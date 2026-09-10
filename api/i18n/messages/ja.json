@@ -2183,5 +2183,8 @@
   "blog.card_agency_retainers_meta": "2026年9月2日 · 代理店収益化",
   "blog.card_directory_listings_title": "AI 検索ディレクトリ掲載：評価と選定戦略",
   "blog.card_directory_listings_desc": "AI ソフトウェアディレクトリを評価し、DR 30 基準を適用して被引用を獲得します。",
-  "blog.card_directory_listings_meta": "2026年9月2日 · 権威構築"
+  "blog.card_directory_listings_meta": "2026年9月2日 · 権威構築",
+  "blog.card_schema_title": "AI 検索向け JSON-LD スキーマ：LLM がブランドエンティティと事実を抽出する仕組み",
+  "blog.card_schema_desc": "ChatGPT Search や Perplexity が構造化データを解析する仕組み、スキーマと DOM の乖離がハルシネーションを招く理由、エンティティアンカーの宣言方法を解説します。",
+  "blog.card_schema_meta": "2026年9月10日 · 技術ガイド"
 }

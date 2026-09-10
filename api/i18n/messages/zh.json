@@ -2183,5 +2183,8 @@
   "blog.card_agency_retainers_meta": "2026年9月2日 · 机构商业化",
   "blog.card_directory_listings_title": "AI 搜索目录入驻：评估与筛选策略",
   "blog.card_directory_listings_desc": "评估 AI 软件目录，应用 CiteAura DR 30 筛选规则并获取第三方权威引用。",
-  "blog.card_directory_listings_meta": "2026年9月2日 · 权威外链拓展"
+  "blog.card_directory_listings_meta": "2026年9月2日 · 权威外链拓展",
+  "blog.card_schema_title": "面向 AI 搜索的 JSON-LD Schema：LLM 如何提取品牌实体与事实",
+  "blog.card_schema_desc": "了解 ChatGPT Search 与 Perplexity 如何解析结构化数据、为何 Schema 与 DOM 冲突会导致幻觉，以及如何声明核心实体锚点。",
+  "blog.card_schema_meta": "2026年9月10日 · 技术指南"
 }

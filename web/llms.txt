@@ -18,6 +18,7 @@
 - [llms.txt Generator](https://citeaura.com/llms-txt-tool): Generate reviewable, standards-compliant llms.txt drafts from public content.
 - [Brand Schema Checker](https://citeaura.com/schema-tool): Inspect and validate JSON-LD structured data and entity signals.
 - [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
+- [JSON-LD Schema for AI Search: How LLMs Extract Brand Entities](https://citeaura.com/blog/json-ld-schema-for-ai-search)
 - [Best AI Visibility Tools 2026: Tested for Real Mentions](https://citeaura.com/blog/best-ai-visibility-tools)
 - [How to Measure ChatGPT Brand Mentions](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
 - [Identifier la fréquence de mention de marque dans ChatGPT](https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt)

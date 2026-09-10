@@ -2183,5 +2183,8 @@
   "blog.card_agency_retainers_meta": "2 sep 2026 · Monetización para agencias",
   "blog.card_directory_listings_title": "Directorios de búsqueda IA: estrategia de evaluación y selección",
   "blog.card_directory_listings_desc": "Evalúe directorios de software, aplique la heurística DR 30 y asegure citas de terceros.",
-  "blog.card_directory_listings_meta": "2 sep 2026 · Difusión de autoridad"
+  "blog.card_directory_listings_meta": "2 sep 2026 · Difusión de autoridad",
+  "blog.card_schema_title": "Esquema JSON-LD para búsqueda por IA: cómo los LLM extraen entidades de marca",
+  "blog.card_schema_desc": "Aprenda cómo ChatGPT Search y Perplexity analizan datos estructurados, por qué la divergencia con el DOM causa alucinaciones y cómo declarar anclas de entidad.",
+  "blog.card_schema_meta": "10 sep 2026 · Guía técnica"
 }

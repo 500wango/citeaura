@@ -2183,5 +2183,8 @@
   "blog.card_agency_retainers_meta": "2026년 9월 2일 · 에이전시 수익화",
   "blog.card_directory_listings_title": "AI 검색 디렉토리 등록: 평가 및 선별 전략",
   "blog.card_directory_listings_desc": "AI 소프트웨어 디렉토리를 평가하고 DR 30 선별 기준을 적용하여 인용을 확보합니다.",
-  "blog.card_directory_listings_meta": "2026년 9월 2일 · 권위 구축"
+  "blog.card_directory_listings_meta": "2026년 9월 2일 · 권위 구축",
+  "blog.card_schema_title": "AI 검색을 위한 JSON-LD 스키마: LLM이 브랜드 개체 및 사실을 추출하는 방법",
+  "blog.card_schema_desc": "ChatGPT Search 및 Perplexity가 구조화된 데이터를 구문 분석하는 방식, 스키마와 DOM의 불일치가 환각을 유발하는 이유, 핵심 개체 앵커를 선언하는 방법을 알아봅니다.",
+  "blog.card_schema_meta": "2026년 9월 10일 · 기술 가이드"
 }
