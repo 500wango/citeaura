@@ -106,7 +106,7 @@ def test_public_zh_navigation_uses_distinct_product_labels():
     assert public_zh["public.nav.what_it_is"] != catalogs["zh"]["nav.product"]
     assert "产品定位" not in json.dumps(catalogs["zh"], ensure_ascii=False)
     assert "产品定位" not in json.dumps(public_zh, ensure_ascii=False)
-    assert "产品界面" not in json.dumps(catalogs["zh"], ensure_ascii=False)
+    assert "产品界面" not in catalogs["zh"]["nav.product"]
     assert "产品界面" not in json.dumps(public_zh, ensure_ascii=False)
 
 

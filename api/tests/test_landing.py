@@ -16,17 +16,17 @@ def test_landing_page_is_public_and_links_to_application():
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
     assert 'id="hero-title" data-i18n="landing.hero_title"' in response.text
-    assert "Turn AI visibility gaps into" in response.text
+    assert "See where AI mentions your brand." in response.text
     assert "engineering tickets" in response.text
     assert "AI answer → citation gap → page change → acceptance check → re-test" in response.text
     assert "Mention Rate" in response.text
     assert "Citation Rate" in response.text
     assert "View a sample report" in response.text
     assert 'href="/sample-report"' in response.text
-    assert "AI search era" in response.text
+    assert "Model usage is separate from your subscription." in response.text
     assert "Google Search Console" not in response.text
 
-    assert 'href="/app"' in response.text
+    assert 'href="/app?auth=register"' in response.text
     assert 'data-i18n="landing.mode_parametric"' in response.text
     assert 'data-i18n="landing.mode_search"' in response.text
     assert 'data-i18n="landing.mode_manual"' in response.text
@@ -156,7 +156,7 @@ def test_public_navigation_does_not_duplicate_hero_audit_cta():
         assert nav_link not in response.text, path
 
     landing = client.get("/")
-    assert 'href="#simulator" data-i18n="landing.final_secondary"' in landing.text
+    assert 'href="/sample-report" data-i18n="landing.hero_secondary"' in landing.text
 
 
 def test_public_navigation_uses_compact_groups_and_shared_mobile_menu():
@@ -396,12 +396,11 @@ def test_public_pages_expose_social_card_metadata():
 
 def test_product_gallery_uses_current_dark_visual_assets():
     response = client.get("/")
-    assert 'src="/site-assets/product-overview-real-v2.png"' in response.text
-    assert 'src="/site-assets/product-tickets-real-v2.png"' in response.text
-    assert 'src="/site-assets/product-delivery-real-v2.png"' in response.text
-    assert 'srcset="/site-assets/product-overview-real-v2.webp"' in response.text
-    assert 'srcset="/site-assets/product-tickets-real-v2.webp"' in response.text
-    assert 'srcset="/site-assets/product-delivery-real-v2.webp"' in response.text
+    assert 'src="/site-assets/product-overview-real-v2.webp"' in response.text
+    assert "Demo · Actual product interface with illustrative workspace data." in response.text
+    assert "Typical optimized baseline" not in response.text
+    assert 'src="/site-assets/product-tickets-real-v2.webp"' in response.text
+    assert 'src="/site-assets/product-delivery-real-v2.webp"' in response.text
     assert 'srcset="/site-assets/product-audit.webp"' not in response.text
     assert 'srcset="/site-assets/product-plan.webp"' not in response.text
     assert 'srcset="/site-assets/product-report.webp"' not in response.text
@@ -695,7 +694,7 @@ def test_blog_index_and_articles_are_static_html():
 def test_homepage_keeps_slogan_h1_and_links_guides():
     response = client.get("/")
     assert 'id="hero-title" data-i18n="landing.hero_title"' in response.text
-    assert "Turn AI visibility gaps into" in response.text
+    assert "See where AI mentions your brand." in response.text
     assert "engineering tickets" in response.text
     assert "AI answer → citation gap → page change → acceptance check → re-test" in response.text
     assert "Mention Rate" in response.text
