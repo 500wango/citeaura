@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verification Loop: How to Prove a Fix Worked | CiteAura</title>
-  <meta name="description" content="Learn how to close the GEO verification loop. Re-crawl deployed changes, re-sample prompt cohorts under controlled sampling modes, and prove AI citation fixes worked.">
+  <title>GEO Verification: Check Fixes and Measure AI Visibility | CiteAura</title>
+  <meta name="description" content="Verify deployed website fixes, collect comparable AI answers, and interpret mention-rate changes without confusing a passed check with proven growth.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/runtime-assets/theme-init.js"></script>
@@ -18,21 +18,24 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="canonical" href="https://citeaura.com/blog/geo-verification-loop">
+  <link rel="alternate" hreflang="en" href="https://citeaura.com/blog/geo-verification-loop">
+  <link rel="alternate" hreflang="fr" href="https://citeaura.com/blog/verification-geo-mesurer-visibilite-ia">
+  <link rel="alternate" hreflang="x-default" href="https://citeaura.com/blog/geo-verification-loop">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/geo-verification-loop">
-  <meta property="og:title" content="Verification Loop: How to Prove a Fix Worked | CiteAura">
-  <meta property="og:description" content="A complete engineering guide to the closed-loop GEO verification process and ticket state machine.">
+  <meta property="og:title" content="GEO Verification: Check Fixes and Measure AI Visibility | CiteAura">
+  <meta property="og:description" content="Verify deployed website fixes, collect comparable AI answers, and interpret mention-rate changes without confusing a passed check with proven growth.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="GEO verification loop guide.">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Verification Loop: How to Prove a Fix Worked">
-  <meta name="twitter:description" content="How to verify AI visibility fixes with automated re-crawling, prompt sampling cohorts, and regression monitoring.">
+  <meta name="twitter:title" content="GEO Verification: Check Fixes and Measure AI Visibility">
+  <meta name="twitter:description" content="Verify deployed website fixes, collect comparable AI answers, and interpret mention-rate changes without confusing a passed check with proven growth.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
@@ -64,11 +67,11 @@
       },
       {
         "@type": "Article",
-        "headline": "Verification Loop: How to Prove a Fix Worked",
-        "description": "How to establish a closed-loop verification workflow in Generative Engine Optimization, validating code changes, re-sampling prompt cohorts, and monitoring for visibility regressions.",
+        "headline": "GEO Verification: Check Fixes and Measure AI Visibility",
+        "description": "Verify deployed website fixes, collect comparable AI answers, and interpret mention-rate changes without confusing a passed check with proven growth.",
         "url": "https://citeaura.com/blog/geo-verification-loop",
         "datePublished": "2026-09-01",
-        "dateModified": "2026-09-01",
+        "dateModified": "2026-09-12",
         "author": {
           "@type": "Person",
           "name": "David Park"
@@ -79,7 +82,9 @@
           "url": "https://citeaura.com",
           "logo": "https://citeaura.com/site-assets/logo.png"
         },
-        "mainEntityOfPage": "https://citeaura.com/blog/geo-verification-loop"
+        "mainEntityOfPage": "https://citeaura.com/blog/geo-verification-loop",
+        "wordCount": 1523,
+        "timeRequired": "PT7M"
       }
     ]
   }
@@ -129,99 +134,71 @@
 
     <header class="blog-header">
       <span class="blog-kicker">Engineering Workflow</span>
-      <h1>Verification Loop: How to Prove a Fix Worked</h1>
-      <p class="blog-lead">Traditional SEO audits fail because recommendations are delivered as static slide decks with no mechanism to verify deployment or prove business impact. The GEO verification loop connects technical remediation directly to automated re-crawling, multi-engine re-sampling, and regression monitoring.</p>
-      <p class="blog-meta">Updated 1 September 2026 · 10 min read · Engineering Guide</p>
+      <h1>GEO Verification: Check Fixes and Measure AI Visibility</h1>
+      <p class="blog-lead">A GEO verification loop connects a website change to an acceptance check and a separate round of AI measurement. This guide explains what each result can establish, how CiteAura handles verification, and how to report a change without overstating its cause.</p>
+      <p class="blog-meta">Updated 12 September 2026 · About 7 min read · Engineering guide</p>
       <p class="blog-byline">By David Park</p>
+      <p class="blog-meta"><a href="/blog/verification-geo-mesurer-visibilite-ia" hreflang="fr" lang="fr">Lire en français</a></p>
     </header>
 
-    <h2>The Ticket Lifecycle State Machine</h2>
-    <p>CiteAura models every visibility gap as an actionable ticket managed through a formal 4-state lifecycle:</p>
+    <h2 id="two-claims">A deployed fix and a better AI answer are different claims</h2>
+    <p>GEO verification begins with a distinction: proving a website change is live is different from observing a change in AI answers. Both matter, but they require different evidence. A passing website check can establish that the requested condition holds; it cannot establish that another company’s model has read the change or will cite it.</p>
+    <p>Imagine a fictional product whose pricing page omits a feature limit. An engineer adds the approved limit, deploys the page, and checks the public response. That is a completed website correction. A later answer that repeats the old limit is a separate finding. It might refer to an older source, a different page, or no identifiable source. The response alone does not reveal which explanation is correct.</p>
+    <p>The verification loop keeps those observations connected without collapsing them into a single green status. Start from the ticket’s acceptance condition, preserve the deployment evidence, then collect a comparable answer sample. The result may be a verified page correction with unchanged AI visibility. That is still useful information.</p>
 
+    <h2 id="acceptance">Write the acceptance condition before changing the page</h2>
+    <p>An acceptance condition should be narrow enough that another person can check it. “Make the page AI-friendly” is not testable. “The canonical pricing page displays the approved feature limit without requiring a sign-in” is.</p>
+    <p>Record the exact URL, the expected statement or behavior, the source of the approved fact, and the baseline evidence. For a content edit, preserve the relevant paragraph. For a crawl-access issue, record the observed response and applicable rule. A saved screenshot can show appearance, while a response capture or page inspection can establish what was actually delivered.</p>
+    <p>Choose a check that matches the defect. If the issue concerns a missing plan restriction, confirming HTTP 200 is insufficient. If it concerns a blocked page, finding the right words in a local development build does not prove public access. This is why a single “page passed” badge should always have a narrower explanation behind it.</p>
+    <p>For a site you manage, the following is a small manual inspection example. It downloads the final response after redirects so you can examine the deployed page:</p>
+    <pre><code>curl --location --silent --show-error \
+  --dump-header /tmp/pricing-response-headers.txt \
+  --output /tmp/pricing-response.html \
+  --write-out 'HTTP %{http_code}\nFinal URL %{url_effective}\n' \
+  https://example.com/pricing</code></pre>
+    <p>Replace the example URL with your public page and read the downloaded content. This command is not CiteAura’s verification implementation and does not simulate every crawler. It gives you a response from one client. Where a restriction affects a particular search provider, corroborate it using that provider’s documentation and available request logs.</p>
+    <p>A robots check also needs the correct user-agent group and path. Searching the file for the text <code>Disallow: /</code> can be misleading when another group applies to the crawler in question. <a href="https://developers.openai.com/api/docs/bots" rel="noopener noreferrer">OpenAI’s crawler documentation</a>, for example, separates OAI-SearchBot from GPTBot. Search access and potential training use are not interchangeable acceptance conditions.</p>
+
+    <h2 id="product-behavior">What CiteAura verification actually does</h2>
+    <p>Run verification explicitly after deploying the selected changes. In Execution → Closed-Loop Verify, <strong>Run Verification</strong> re-crawls and audits the site, then evaluates ticket checks against the latest audit and existing metric files. Changing a ticket’s status to Done does not by itself start this verification process.</p>
+    <p>Ticket status and check verdict are separate. The workspace offers operational statuses such as To Do, In Progress, Done, Blocked, and Won’t Fix. A verification check produces a pass, fail, or manual-review verdict. The latter describes what the check established, rather than the project manager’s assessment of progress.</p>
     <div style="overflow-x:auto;margin:1.5rem 0;">
-      <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
-        <thead>
-          <tr style="border-bottom:2px solid var(--border-color, var(--divider));background:var(--bg-subtle, var(--deep));">
-            <th style="padding:0.75rem;">State</th>
-            <th style="padding:0.75rem;">Trigger Condition</th>
-            <th style="padding:0.75rem;">Automated Verification Check</th>
-            <th style="padding:0.75rem;">Next Action</th>
-          </tr>
-        </thead>
+      <table style="width:100%;border-collapse:collapse;text-align:left;">
+        <caption>How verification results affect a CiteAura ticket</caption>
+        <thead><tr><th scope="col" style="padding:.75rem;">Verdict</th><th scope="col" style="padding:.75rem;">What it means</th><th scope="col" style="padding:.75rem;">Ticket behavior</th></tr></thead>
         <tbody>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><code>OPEN</code></td>
-            <td style="padding:0.75rem;">Diagnostic audit detects a failing check (e.g., GPTBot blocked).</td>
-            <td style="padding:0.75rem;">None (Backlogged)</td>
-            <td style="padding:0.75rem;">Assign ticket to engineering sprint.</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><code>IN_PROGRESS</code></td>
-            <td style="padding:0.75rem;">Developer creates a branch and implements the fix.</td>
-            <td style="padding:0.75rem;">Pre-deploy local lint &amp; syntax validation</td>
-            <td style="padding:0.75rem;">Deploy branch to production environment.</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><code>VERIFIED</code></td>
-            <td style="padding:0.75rem;">Automated re-crawl confirms acceptance criteria on live domain.</td>
-            <td style="padding:0.75rem;">Live HTTP 200 + DOM assertion</td>
-            <td style="padding:0.75rem;">Schedule post-deployment prompt sampling.</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><code>REGRESSION_REOPEN</code></td>
-            <td style="padding:0.75rem;">Subsequent crawl detects asset removal or visibility collapse.</td>
-            <td style="padding:0.75rem;">Scheduled delta audit fails pass threshold</td>
-            <td style="padding:0.75rem;">Issue high-priority regression alert.</td>
-          </tr>
+          <tr><th scope="row" style="padding:.75rem;">Pass</th><td style="padding:.75rem;">The configured check succeeded with the available evidence.</td><td style="padding:.75rem;">A ticket not already Done is marked Done.</td></tr>
+          <tr><th scope="row" style="padding:.75rem;">Fail</th><td style="padding:.75rem;">The configured check did not meet its condition.</td><td style="padding:.75rem;">A previously Done ticket is reopened as To Do.</td></tr>
+          <tr><th scope="row" style="padding:.75rem;">Manual review</th><td style="padding:.75rem;">The checker cannot reach an automated verdict.</td><td style="padding:.75rem;">The operational status is retained for review.</td></tr>
         </tbody>
       </table>
     </div>
+    <p>Inspect the checker’s note and evidence, especially when a rule depends on metrics. Verification uses the available metric artifacts; it does not silently replace them with answers collected after deployment. A sampling-dependent result should therefore be read with the sample’s collection time and scope.</p>
+    <p>Some tasks need human judgment. A check can establish that a file exists, but that does not establish that every sentence in it is accurate. Similarly, detecting structured data does not establish that its claims match the visible page. <a href="https://developers.google.com/search/docs/appearance/structured-data/sd-policies" rel="noopener noreferrer">Google’s structured-data guidance</a> requires that correspondence. Review content facts as part of acceptance, not as an optional step after the badge turns green.</p>
 
-    <h2>Automated Acceptance Testing in Practice</h2>
-    <p>When an engineer marks a ticket as resolved, CiteAura executes an automated verification runner against your live server:</p>
+    <h2 id="resampling">Collect new answers as a separate measurement</h2>
+    <p>After website verification, run a new AI sample if you want evidence about answer behavior. Use the original questions and comparable provider settings, market, sampling mode, and conversation conditions. Record differences you cannot control, including any visible change to the model version.</p>
+    <p>A switch from an API response without retrieval to a consumer conversation with search enabled creates a different measurement. It may be valuable, but it should not be presented as a clean before-and-after comparison. OpenAI’s <a href="https://developers.openai.com/api/docs/guides/tools-web-search" rel="noopener noreferrer">web-search API documentation</a> describes sourced answers and citation annotations; those records are more informative than assuming that every URL mentioned in ordinary generated text is a retrieved citation.</p>
+    <p>Keep successful answers and failures separate. Check whether the brand is mentioned accurately, which URLs are cited, and whether those sources support the relevant statement. Inspect questions individually before averaging them: a gain on a low-priority discovery question can conceal an incorrect answer about a commercially important limitation.</p>
+    <p>Repeated observations help reveal variability, but they do not remove it. If the model or retrieval sources changed during the same period as your website, the measured difference has multiple plausible causes. Retaining an unchanged comparison page or question group can add context when practical; it does not turn an observational campaign into a randomized experiment.</p>
 
-    <pre><code>def verify_ticket(ticket_id, domain):
-    ticket = get_ticket(ticket_id)
-    if ticket.action == "allow_gptbot":
-        res = fetch_with_ua(domain + "/robots.txt", ua="GPTBot")
-        assert "Disallow: /" not in res.body
-        return TicketStatus.VERIFIED
-    elif ticket.action == "deploy_llms_txt":
-        res = http_get(domain + "/llms.txt")
-        assert res.status_code == 200
-        assert res.headers["content-type"].startswith("text/plain")
-        return TicketStatus.VERIFIED</code></pre>
-
-    <h2>Measuring Before-and-After Citation Deltas</h2>
-    <p>Once deployment verification passes, CiteAura initiates an automated re-sampling run across your defined prompt cohort under <code>API · Web Retrieval</code> mode to record the measurable delta.</p>
-
-    <div style="background:var(--bg-subtle, var(--deep));border:1px solid var(--border-color, var(--divider));border-radius:8px;padding:1.25rem;margin:1.5rem 0;">
-      <strong style="display:block;margin-bottom:0.5rem;">Illustrative Example (Hypothetical Diagnostic Run):</strong>
-      <p style="font-size:0.9rem;line-height:1.6;margin-bottom:0.75rem;">To illustrate how CiteAura calculates citation and mention deltas following a fix (such as unblocking search crawlers and deploying structured HTML tables):</p>
-      <ul style="margin-bottom:0;">
-        <li><strong>Pre-Fix Baseline Cohort:</strong> Mention Rate: 15.0% | Citation Rate: 0.0%</li>
-        <li><strong>Post-Fix Verification Cohort:</strong> Mention Rate: 65.0% | Citation Rate: 45.0%</li>
-        <li><strong>Calculated Illustrative Delta:</strong> +50.0% Mention Rate | +45.0% Citation Rate</li>
-      </ul>
-    </div>
-
-    <h2>Continuous Regression Monitoring</h2>
-    <p>Frontend framework updates frequently cause accidental SEO regressions—such as a component refactor removing JSON-LD schemas or breaking server-side rendering. CiteAura's scheduled monitoring runs periodic health checks to ensure verified fixes remain active in production.</p>
-
-    <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
-
-    <div class="blog-cta">
-      <p>Close the loop on your SEO fixes. Manage and verify AI visibility tickets with CiteAura.</p>
-      <a class="btn btn-primary" href="/app?auth=register">Start free trial</a>
-    </div>
-
-    <h2>Sources</h2>
+    <h2 id="worked-example">Report the delta without claiming more than it shows</h2>
+    <p>Here is a deliberately small hypothetical calculation, not a CiteAura customer result. In each round, the same questions produce 40 successful, eligible answers in one provider and sampling-mode cohort:</p>
     <ul>
-      <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/ETag" rel="noopener noreferrer">MDN: ETag HTTP Headers</a> — Entity validation and cache revalidation standards for automated re-crawlers.</li>
-      <li><a href="https://schema.org/CheckAction" rel="noopener noreferrer">Schema.org CheckAction</a> — Machine-readable action verification and acceptance criteria schemas.</li>
-      <li><a href="https://developers.openai.com/api/docs/guides/evals" rel="noopener noreferrer">OpenAI Evals Framework</a> — Systematic prompt evaluation pipelines and regression detection standards.</li>
-      <li><a href="https://www.w3.org/TR/webdriver/" rel="noopener noreferrer">W3C WebDriver Specification</a> — Automated browser test orchestration and DOM assertion standards.</li>
+      <li>Before the edit: 10 answers mention the brand, giving a mention rate of 25%.</li>
+      <li>After the edit: 14 answers mention the brand, giving a mention rate of 35%.</li>
+      <li>The observed difference is <strong>10 percentage points</strong>. The relative increase is 40%, which expresses a different quantity.</li>
     </ul>
+    <p>Neither calculation proves the page edit caused the change. The sample is limited, answers can vary, and the two rounds may have encountered different source material. A responsible report states the counts and collection conditions, then treats the increase as an observation to assess through further comparable measurements.</p>
+    <p>Do not combine this mention-rate denominator with a source-domain share. CiteAura’s Citation Sources view aggregates distinct captured URLs by domain within a completed web-enabled sample run. Its domain share describes that captured source set, not the fraction of all AI answers on the internet that cite your site. A percentage is only interpretable when its denominator is named.</p>
+    <p>The same discipline applies to a flat result. If the approved limit is now visible on the pricing page but sampled answers have not changed, report both facts. Do not repeatedly rewrite a correct page just because one subsequent answer differs. First inspect which sources the answer cites and whether the question is actually asking for the fact you corrected.</p>
+
+    <h2 id="handoff">Close the work without hiding what remains unknown</h2>
+    <p>The handoff should let someone outside the project reconstruct the decision. Include the ticket, public URL, deployment date or revision, acceptance result, and any new sampling period. Link the raw evidence rather than relying on a chart whose underlying answers cannot be inspected.</p>
+    <p>For the fictional pricing correction, an honest handoff could say: “The approved plan limit is visible on the public page and the website check passed. A later comparable sample still contains two outdated descriptions. We have retained those answers and their citations for source review.” This communicates completed engineering work and unresolved answer quality in the same record.</p>
+    <p>CiteAura can compile the current diagnostic, tickets, evidence, and assets into a delivery pack. Review whether the package is intended for review, diagnosis, or implementation. A generated ZIP can include unfinished work and explicit limitations; producing it does not certify all assets as ready to deploy. See the <a href="/docs#verification-delivery">verification and delivery documentation</a> for the current workflow.</p>
+    <p>Scheduled monitoring can refresh crawls, samples, and reports, while verification remains an explicit step. Revisit affected checks after material site releases and investigate repeated answer changes in comparable cohorts. Google’s <a href="https://developers.google.com/search/docs/appearance/ai-features" rel="noopener noreferrer">AI-feature guidance</a> also makes clear that meeting requirements does not guarantee indexing or serving. There is no general waiting period after which a website pass becomes a guaranteed citation.</p>
+    <p>If the original finding is still vague, return to the <a href="/blog/ai-visibility-diagnosis-for-brands">brand diagnostic workflow</a> before adding more automation. The loop is complete when the record explains what was changed, what was checked, what was observed, and what decision follows.</p>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>

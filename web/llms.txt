@@ -30,6 +30,7 @@
 - [GPTBot Blocked by robots.txt? Find and Fix the Rule](https://citeaura.com/blog/gptbot-blocked-by-robots-txt)
 - [AI Crawler Access Checklist: GPTBot, ClaudeBot, PerplexityBot](https://citeaura.com/blog/ai-crawler-access-checklist)
 - [GEO vs SEO: What Changes and What Stays](https://citeaura.com/blog/geo-vs-seo)
+- [GEO vs SEO : ce qui change et ce qui reste](https://citeaura.com/blog/geo-vs-seo-differences): Guide en français.
 - [Extractability Audit: Can AI Read Your Pages?](https://citeaura.com/blog/extractability-audit)
 - [White-Label GEO Diagnostic Reports for Agencies](https://citeaura.com/blog/white-label-geo-diagnostic-report)
 - [Brand Fact Library: Stop AI Hallucinating Your Brand](https://citeaura.com/blog/brand-fact-library-guide)
@@ -37,8 +38,10 @@
 - [GEO Blueprint: Channel Coverage + Content Plan](https://citeaura.com/blog/geo-blueprint-guide)
 - [Sampling Modes Explained: Model Knowledge vs Web Retrieval vs Manual](https://citeaura.com/blog/sampling-modes-explained)
 - [Citation Readiness Score: 5 Dimensions](https://citeaura.com/blog/citation-readiness-score)
-- [Verification Loop: How to Prove a Fix Worked](https://citeaura.com/blog/geo-verification-loop)
+- [GEO Verification: Check Fixes and Measure AI Visibility](https://citeaura.com/blog/geo-verification-loop)
+- [Vérification GEO : corrections et visibilité IA](https://citeaura.com/blog/verification-geo-mesurer-visibilite-ia): Guide en français.
 - [For Brands: AI Visibility Diagnosis in 5 Steps](https://citeaura.com/blog/ai-visibility-diagnosis-for-brands)
+- [Diagnostic de visibilité IA pour les marques en 5 étapes](https://citeaura.com/blog/diagnostic-visibilite-ia-marques): Guide en français.
 - [For Agencies: Sell GEO Retainers With Delivery Packs](https://citeaura.com/blog/sell-geo-retainers-with-delivery-packs)
 - [AI Search Directory Listings: Are They Worth It? (DR Gate)](https://citeaura.com/blog/ai-search-directory-listings-guide)
 - [Privacy Policy](https://citeaura.com/privacy): Data handling and privacy terms.
