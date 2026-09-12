@@ -64,9 +64,9 @@
 .home-page .lang-picker-btn, .home-page .theme-toggle { width: 40px; height: 40px; }
 .home-page .lang-menu { box-shadow: none; }
 .home-page .lang-menu-item { font-size: 14px; min-height: 44px; }
-.home-page .home-hero { padding-top: 72px; }
-.home-page .home-intro { display: grid; grid-template-columns: 1.25fr 1fr; gap: 64px; align-items: end; margin-bottom: 48px; }
-.home-page .home-intro h1 { font-size: clamp(42px, 4.6vw, 64px); line-height: 1.05; letter-spacing: -.05em; max-width: 17ch; }
+.home-page .home-hero { padding-top: clamp(72px, 7vw, 104px); }
+.home-page .home-intro { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 64px; align-items: center; min-height: clamp(200px, 18vw, 260px); margin-bottom: 64px; }
+.home-page .home-intro h1 { font-size: clamp(42px, 5.3vw, 76px); line-height: 1.05; letter-spacing: -.05em; max-width: 17ch; text-wrap: balance; }
 .home-page .home-intro-action { display: grid; gap: 20px; }
 .home-page .home-intro-action > p:first-child { font-size: 18px; max-width: 40ch; }
 .home-page .home-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 24px; }
@@ -157,6 +157,9 @@
   .home-page .price-card:nth-child(3) { border-left: 0; }
   .home-page .price-card:nth-child(n+3) { border-top: 1px solid var(--line); }
 }
+@media (max-width: 960px) {
+  .home-page .home-intro { grid-template-columns: 1fr; gap: 28px; min-height: 0; }
+}
 @media (max-width: 720px) {
   .home-page .page-shell { padding-inline: 20px; }
   .home-page .section { padding-block: 48px; }
@@ -165,8 +168,8 @@
   .home-page .nav-actions { gap: 6px; }
   .home-page .brand-word { font-size: 17px; }
   .home-page .brand-mark { width: 22px; height: 22px; }
-  .home-page .home-hero { padding-top: 40px; }
-  .home-page .home-intro { grid-template-columns: 1fr; gap: 24px; margin-bottom: 28px; }
+  .home-page .home-hero { padding-top: 48px; }
+  .home-page .home-intro { gap: 24px; margin-bottom: 32px; }
   .home-page .home-intro h1 { font-size: clamp(36px, 9vw, 48px); max-width: 17ch; }
   .home-page .home-intro-action > p:first-child { font-size: 16px; }
   .home-page .home-intro-action { gap: 14px; }

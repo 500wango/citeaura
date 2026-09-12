@@ -15,8 +15,9 @@ def test_landing_page_is_public_and_links_to_application():
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
+    assert '<title data-i18n="landing.title">AI Visibility Tracking &amp; GEO Software | CiteAura</title>' in response.text
     assert 'id="hero-title" data-i18n="landing.hero_title"' in response.text
-    assert "See where AI mentions your brand." in response.text
+    assert "Track your AI visibility.<br>Know what to fix." in response.text
     assert "engineering tickets" in response.text
     assert "AI answer → citation gap → page change → acceptance check → re-test" in response.text
     assert "Mention Rate" in response.text
@@ -694,7 +695,7 @@ def test_blog_index_and_articles_are_static_html():
 def test_homepage_keeps_slogan_h1_and_links_guides():
     response = client.get("/")
     assert 'id="hero-title" data-i18n="landing.hero_title"' in response.text
-    assert "See where AI mentions your brand." in response.text
+    assert "Track your AI visibility.<br>Know what to fix." in response.text
     assert "engineering tickets" in response.text
     assert "AI answer → citation gap → page change → acceptance check → re-test" in response.text
     assert "Mention Rate" in response.text
