@@ -112,13 +112,8 @@ def _render_landing_cached(locale: str, site_base: str) -> str:
             tag.clear()
             tag.append(BeautifulSoup(val, "html.parser"))
         else:
-            # 只替换文本节点，保留子标签（如 <span>）
-            for child in list(tag.children):
-                if isinstance(child, NavigableString):
-                    child.replace_with(val)
-                    break
-            else:
-                tag.string = val
+            tag.clear()
+            tag.append(NavigableString(val))
 
     # ── 5. 强制 innerHTML 替换（data-i18n-html）──────────────────────────
     for tag in soup.find_all(attrs={"data-i18n-html": True}):

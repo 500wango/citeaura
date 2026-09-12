@@ -191,12 +191,21 @@ def create(
         remote_relative = _remote_asset_path(relative)
         destination = "/".join(part for part in (directory, remote_relative.as_posix()) if part)
         contents = base64.b64encode((project_dir / relative).read_bytes()).decode("ascii")
+        payload = {"message": f"CiteAura: {ticket}", "content": contents, "branch": branch}
         _, error = _api(
             session,
             "PUT",
             f"/repos/{repo}/contents/{quote(destination, safe='/')}",
-            payload={"message": f"CiteAura: {ticket}", "content": contents, "branch": branch},
+            payload=payload,
         )
+        if error and "sha" in error.lower():
+            existing, existing_error = _api(
+                session, "GET", f"/repos/{repo}/contents/{quote(destination, safe='/')}?ref={quote(branch, safe='')}"
+            )
+            if existing_error:
+                raise RuntimeError(existing_error)
+            payload["sha"] = existing.get("sha")
+            _, error = _api(session, "PUT", f"/repos/{repo}/contents/{quote(destination, safe='/')}", payload=payload)
         if error:
             raise RuntimeError(error)
     body_parts = []

@@ -82,6 +82,12 @@ def validate_outbound_url(
     if loopback:
         if not allow_loopback:
             raise NetworkTargetError("network_private_address_blocked")
+        if return_addresses:
+            try:
+                address = ipaddress.ip_address(parsed.hostname)
+            except ValueError:
+                address = ipaddress.ip_address("127.0.0.1")
+            return value, [address]
         return value
     if not resolve:
         try:

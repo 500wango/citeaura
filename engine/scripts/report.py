@@ -579,10 +579,10 @@ def build_html(title: str, md: str, cards: list[tuple[str, str]]) -> str:
         '<span class="report-topbar-title">Executive Deliverable</span>'
         '</div>'
         '<div class="report-topbar-actions">'
-        '<button type="button" class="btn-print" onclick="window.print()" title="Print or export deliverable to PDF">'
+        '<span class="btn-print" role="note" title="Use your browser print command to export this deliverable to PDF">'
         '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>'
         '<span>Print / PDF</span>'
-        '</button>'
+        '</span>'
         '</div>'
         '</div>'
     )

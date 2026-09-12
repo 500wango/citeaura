@@ -295,7 +295,11 @@ def _update_subscription(db, value, deleted=False, event_created=None):
         )
         db.add(row)
     incoming_created = _optional_timestamp(event_created, value.get("created"))
-    if _stale_provider_event(row, incoming_created):
+    period_end = _timestamp(value.get("current_period_end"), row.expires_at)
+    previous_expiry = row.expires_at
+    if previous_expiry is not None and previous_expiry.tzinfo is None:
+        previous_expiry = previous_expiry.replace(tzinfo=timezone.utc)
+    if _stale_provider_event(row, incoming_created) and period_end <= (previous_expiry or datetime.min.replace(tzinfo=timezone.utc)):
         return False
     status_value = "canceled" if deleted else str(value.get("status") or "incomplete")
     if status_value == "incomplete_expired":
@@ -316,7 +320,7 @@ def _update_subscription(db, value, deleted=False, event_created=None):
         row.cancel_at_period_end = bool(cancel_flag)
     row.provider = "stripe"
     row.provider_customer_id = _stripe_id(value.get("customer")) or row.provider_customer_id
-    row.expires_at = _timestamp(value.get("current_period_end"), row.expires_at)
+    row.expires_at = period_end
     if incoming_created is not None:
         row.provider_event_created_at = incoming_created
     metadata = _metadata(value.get("metadata"))
@@ -515,6 +519,15 @@ def _process_stripe_event(db, event):
         raise stripe_adapter.StripeError("stripe_payload_invalid")
     if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
         return _activate_checkout(db, value, event_created=event.get("created"))
+    if event_type == "checkout.session.expired":
+        row = _subscription_row(db, checkout_session_id=value.get("id"))
+        if row is None or row.status != "pending":
+            return False
+        row.status = "canceled"
+        row.checkout_url = None
+        row.provider_event_created_at = _optional_timestamp(event.get("created"), value.get("created"))
+        db.flush()
+        return True
     if event_type == "customer.subscription.updated":
         return _update_subscription(db, value, event_created=event.get("created"))
     if event_type == "customer.subscription.deleted":

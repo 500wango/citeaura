@@ -22,7 +22,7 @@ def report_csv(project_slug, report):
             item.get("sampling_mode") or "",
             item.get("sample_count") or 0,
             item.get("mention_rate") if item.get("mention_rate") is not None else "",
-            f"{interval.get('low')}..{interval.get('high')}" if interval else "",
+            f"{interval.get('lower')}..{interval.get('upper')}" if interval else "",
             item.get("median_rank") if item.get("median_rank") is not None else "",
             item.get("citation_share") if item.get("citation_share") is not None else "",
         ])

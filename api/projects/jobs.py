@@ -94,10 +94,10 @@ def safe_request_json(action, params=None):
     params = params or {}
     if action == "sample":
         values = {
-            "limit": params.get("limit"),
-            "platforms": params.get("platforms"),
-            "repeat": params.get("repeat", 1),
-            "question_ids": params.get("question_ids"),
+            "limit": params.get("limit", params.get("--limit")),
+            "platforms": params.get("platforms", params.get("--platforms")),
+            "repeat": params.get("repeat", params.get("--repeat", 1)),
+            "question_ids": params.get("question_ids", params.get("--question-ids")),
         }
     elif action in PIPELINE_ACTIONS:
         allowed = set(PIPELINE_ACTIONS[action].get("args", []))

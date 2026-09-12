@@ -48,7 +48,7 @@ def engine_rows_by_mode(item, platform_rows):
         }]
     rows = []
     for mode, mode_rows in grouped.items():
-        ok_rows = [row for row in mode_rows if row.get("ok")]
+        ok_rows = [row for row in mode_rows if row.get("ok") and not row.get("brand_in_question")]
         mentioned = [row for row in ok_rows if (row.get("analysis") or {}).get("brand_mentioned")]
         ranks = [
             (row.get("analysis") or {}).get("brand_rank")
@@ -69,6 +69,7 @@ def engine_rows_by_mode(item, platform_rows):
             "citation_counts": item.get("cite_counts", [0, 0]) if len(grouped) == 1 else [0, 0],
             "top_sources": item.get("top_sources", []) if len(grouped) == 1 else [],
             "example": item.get("example"),
+            "model_id": next((row.get("raw_model") for row in ok_rows if row.get("raw_model")), item.get("model_id")),
             "negative_sample_count": sum(
                 1 for row in ok_rows if (row.get("analysis") or {}).get("negative_cues")
             ),
@@ -197,9 +198,10 @@ def product_report(project_slug, metrics):
         item["provider_name"] = identity["provider_name"]
         item["model_id"] = identity["model_id"]
     measured_count = sum(item["sample_count"] for item in measured)
+    mode_values = {item.get("sampling_mode") for item in measured}
     mention_rate = (
         sum(item["mention_rate"] * item["sample_count"] for item in measured) / measured_count
-        if measured_count else None
+        if measured_count and len(mode_values) <= 1 else None
     )
     channels = [
         {
@@ -227,12 +229,29 @@ def product_report(project_slug, metrics):
 def project_report_payload(db, tenant, project):
     """读取一个项目的稳定报告契约，供浏览器和只读集成 API 共用。"""
     with with_tenant_read_context(tenant, project.slug):
-        global_scope.normalize_project(project.slug)
+        # 报告读取不执行写入式归一化，避免与 Worker 长任务争抢项目锁。
+        geolib.load_config(project.slug)
         path = latest_file(geolib.project_dir(project.slug) / "metrics", "*.json")
         if path is None:
             error(404, "report_not_found")
         metrics = geolib.read_json(path, None)
         product = product_report(project.slug, metrics)
+        # 将当前样本计算出的平台指标反映到报告顶层，避免沿用过期 metrics 汇总。
+        platform_rows = {}
+        for item in product.get("engines") or []:
+            code = item.get("engine_code")
+            if code and item.get("sampling_mode"):
+                platform_rows.setdefault(code, []).append(item)
+        if platform_rows:
+            product["platforms"] = {
+                code: {
+                    "mention_rate": rows[0].get("mention_rate"),
+                    "sample_count": rows[0].get("sample_count", 0),
+                    "sampling_mode": rows[0].get("sampling_mode"),
+                }
+                for code, rows in platform_rows.items()
+                if len(rows) == 1
+            }
         quality = report_quality.assess(project.slug, has_sampling_access(db, tenant, project))
         tasks_data = geolib.read_json(geolib.project_dir(project.slug) / "tasks.json", {}) or {}
     issues = quality.get("issues") if isinstance(quality.get("issues"), list) else []

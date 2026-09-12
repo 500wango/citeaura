@@ -424,7 +424,7 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                         result = _run_pipeline_action(action, project_slug, params)
             if action in ("bootstrap", "autopilot"):
                 baseline.normalize_bootstrap_metadata(project_slug)
-            if action in ("sample", "autopilot", "serve") and not (params or {}).get("--no-sample", False):
+            if action == "sample" or (action in ("autopilot", "serve") and not (params or {}).get("--no-sample", False)):
                 if _should_require_sampling_result(action, params):
                     _require_sampling_output(
                         result if action == "sample" else _latest_metrics(project_slug),

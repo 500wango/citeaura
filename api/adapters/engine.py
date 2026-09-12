@@ -32,6 +32,9 @@ import geolib  # noqa: E402 - 引擎路径必须先加入 sys.path
 _MISSING = object()
 _CONTEXT_LOCK = threading.RLock()
 _NETWORK_GUARD_ACTIVE = ContextVar("citeaura_network_guard_active", default=False)
+_NETWORK_GUARD_STATE_LOCK = threading.RLock()
+_NETWORK_GUARD_COUNT = 0
+_NETWORK_GUARD_ORIGINAL = None
 ENGINE_KEY_ENV = {
     "glm": "ZHIPUAI_API_KEY",
     "doubao": "ARK_API_KEY",
@@ -198,7 +201,12 @@ def inject_keys(keys: dict | None):
 @contextmanager
 def protect_network_fetches():
     """校验每一跳网络目标，固定已解析地址并安全跟随同站跳转。"""
-    original_request = geolib.requests.sessions.Session.request
+    global _NETWORK_GUARD_COUNT, _NETWORK_GUARD_ORIGINAL
+    with _NETWORK_GUARD_STATE_LOCK:
+        if _NETWORK_GUARD_COUNT == 0:
+            _NETWORK_GUARD_ORIGINAL = geolib.requests.sessions.Session.request
+        _NETWORK_GUARD_COUNT += 1
+        original_request = _NETWORK_GUARD_ORIGINAL
 
     def same_site(source, target):
         source_host = (urlparse(source).hostname or "").lower().removeprefix("www.")
@@ -287,7 +295,12 @@ def protect_network_fetches():
         yield
     finally:
         _NETWORK_GUARD_ACTIVE.reset(token)
-        geolib.requests.sessions.Session.request = original_request
+        with _NETWORK_GUARD_STATE_LOCK:
+            _NETWORK_GUARD_COUNT -= 1
+            if _NETWORK_GUARD_COUNT <= 0:
+                _NETWORK_GUARD_COUNT = 0
+                geolib.requests.sessions.Session.request = _NETWORK_GUARD_ORIGINAL
+                _NETWORK_GUARD_ORIGINAL = None
 
 
 def resolve_tenant(db, tenant_id):

@@ -314,6 +314,8 @@ def run_pipeline_action(
     no_sample = _pipeline_flag(params, "no-sample") or _pipeline_flag(params, "no_sample")
     estimate = None
     sample_payload = None
+    if action == "sample":
+        no_sample = False
     if action in ("sample", "autopilot", "serve") and not no_sample:
         check_sample_run(db, tenant, project)
         sample_payload = _pipeline_sample_payload(params)
@@ -385,7 +387,7 @@ def project_engines(project_id: int, current_user: User = Depends(get_current_us
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     with with_tenant_read_context(tenant, project.slug):
-        global_scope.normalize_project(project.slug)
+        geolib.load_config(project.slug)
         pdir = geolib.project_dir(project.slug)
         metrics_path = _latest_file(pdir / "metrics", "*.json")
         metrics = geolib.read_json(metrics_path, None) if metrics_path else None
