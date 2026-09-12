@@ -65,7 +65,7 @@
 .home-page .lang-menu { box-shadow: none; }
 .home-page .lang-menu-item { font-size: 14px; min-height: 44px; }
 .home-page .home-intro { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 40px; min-height: calc(100svh - 73px); padding-block: clamp(72px, 10svh, 120px); margin-bottom: 64px; }
-.home-page .home-intro h1 { font-size: clamp(60px, 8.2vw, 112px); line-height: 1.02; letter-spacing: -.055em; max-width: 100%; text-wrap: balance; }
+.home-page .home-intro h1 { font-size: clamp(56px, 6.7vw, 96px); line-height: 1.02; letter-spacing: -.055em; max-width: 100%; text-wrap: balance; }
 .home-page .home-intro-action { display: grid; gap: 24px; }
 .home-page .home-intro-action > p:first-child { font-size: 20px; max-width: 64ch; }
 .home-page .home-actions .btn-primary { min-height: 48px; padding-inline: 24px; font-size: 16px; }
