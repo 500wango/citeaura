@@ -185,7 +185,7 @@
   "landing.faq_index": "07 / FAQ",
   "landing.faq_title": "Frequently asked questions",
   "landing.faq_1_q": "Do API samples match what users see in the product UI?",
-  "landing.faq_1_a": "Most APIs measure parametric model knowledge, not live product search. CiteAura clearly labels each engine as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface for complete scientific integrity.",
+  "landing.faq_1_a": "Not necessarily. API samples can differ from product UI answers. CiteAura labels each sample as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface so you can distinguish the evidence.",
   "landing.faq_2_q": "Must I bring my own model API keys (BYOK)?",
   "landing.faq_2_a": "BYOK is the most secure and cost-effective method. You only configure the engines you intend to use; others are honestly shown as unmeasured. Model APIs are extremely affordable (single audits typically cost ~$0.08–$0.15) with zero middleman markup.",
   "landing.faq_3_q": "Can CiteAura guarantee my brand will be ranked or mentioned by AI?",
@@ -2209,5 +2209,11 @@
   "landing.home.final_body": "Start with your website, review the evidence, and give your team a practical plan for AI visibility.",
   "landing.home.methodology": "How we measure, and what the results mean",
   "landing.home.workflow_title": "Measure. Make changes. Check the evidence.",
-  "landing.home.overview_alt": "CiteAura Brand Overview with illustrative visibility metrics and next actions. Demo data."
+  "landing.home.overview_alt": "CiteAura Brand Overview with illustrative visibility metrics and next actions. Demo data.",
+  "landing.home.workflow_answer": "CiteAura tracks brand mentions and citations in AI answers, turns audit findings into prioritized fixes, and verifies changes through checks and repeat sampling.",
+  "landing.home.product_answer": "CiteAura turns audit findings into engineering tickets with page references and acceptance criteria. Delivery packs collect findings, assets, and verification status for handoff.",
+  "landing.home.sources_title": "What search providers document",
+  "landing.home.sources_answer": "Google and OpenAI publish guidance on appearing in their AI search features. These sources explain eligibility and crawler access, not a guarantee of citations.",
+  "landing.home.google_context": "For Google AI Overviews and AI Mode, foundational SEO still applies.",
+  "landing.home.openai_context": "For ChatGPT search, OAI-SearchBot controls search crawling; GPTBot controls potential training use."
 }

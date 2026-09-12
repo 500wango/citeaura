@@ -185,7 +185,7 @@
   "landing.faq_index": "07 / FAQ",
   "landing.faq_title": "Häufig gestellte Fragen",
   "landing.faq_1_q": "Stimmen API-Stichproben mit dem überein, was Nutzer in der Produktoberfläche sehen?",
-  "landing.faq_1_a": "Die meisten APIs messen parametrisches Modellwissen, nicht die Live-Produktsuche. CiteAura kennzeichnet jeden Motor als API · Modellwissen, API · Web-basiertes Abrufen oder Manuell · Produktoberfläche.",
+  "landing.faq_1_a": "Nicht unbedingt. API-Stichproben können von Antworten in der Produktoberfläche abweichen. CiteAura kennzeichnet jede Stichprobe als API · Modellwissen, API · Web-basiertes Abrufen oder Manuell · Produktoberfläche, damit die Belege unterscheidbar bleiben.",
   "landing.faq_2_q": "Muss ich meine eigenen Modell-API-Keys (BYOK) bereitstellen?",
   "landing.faq_2_a": "BYOK ist die sicherste und kostengünstigste Methode. Konfigurieren Sie nur die verwendeten Engines; andere werden ehrlich als nicht gemessen angezeigt.",
   "landing.faq_3_q": "Garantiert CiteAura, dass meine Marke von der KI empfohlen oder erwähnt wird?",
@@ -2209,5 +2209,11 @@
   "landing.home.final_body": "Beginnen Sie mit Ihrer Website, prüfen Sie die Belege und geben Sie Ihrem Team einen konkreten Plan für KI-Sichtbarkeit.",
   "landing.home.methodology": "Unsere Messmethode und die Aussagekraft der Ergebnisse",
   "landing.home.workflow_title": "Messen. Ändern. Belege prüfen.",
-  "landing.home.overview_alt": "CiteAura Markenübersicht mit beispielhaften Sichtbarkeitskennzahlen und nächsten Schritten. Demodaten."
+  "landing.home.overview_alt": "CiteAura Markenübersicht mit beispielhaften Sichtbarkeitskennzahlen und nächsten Schritten. Demodaten.",
+  "landing.home.workflow_answer": "CiteAura erfasst Markenerwähnungen und Quellenverweise in KI-Antworten, leitet aus Audit-Ergebnissen priorisierte Korrekturen ab und überprüft Änderungen durch Kontrollen und erneute Stichproben.",
+  "landing.home.product_answer": "CiteAura wandelt Audit-Ergebnisse in technische Tickets mit Seitenverweisen und Abnahmekriterien um. Übergabepakete bündeln Befunde, Materialien und den Prüfstatus für die Weitergabe.",
+  "landing.home.sources_title": "Was Suchanbieter dokumentieren",
+  "landing.home.sources_answer": "Google und OpenAI veröffentlichen Hinweise zur Aufnahme in ihre KI-Suchfunktionen. Diese Quellen erläutern Voraussetzungen und Crawler-Zugriff, garantieren aber keine Quellenverweise.",
+  "landing.home.google_context": "Für Google AI Overviews und AI Mode gelten weiterhin die SEO-Grundlagen.",
+  "landing.home.openai_context": "Bei der ChatGPT-Suche betrifft OAI-SearchBot das Crawling für die Suche; GPTBot betrifft die mögliche Nutzung von Inhalten für das Training."
 }

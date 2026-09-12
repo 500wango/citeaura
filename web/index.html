@@ -136,7 +136,7 @@
             "name": "Do API samples match what users see in the product UI?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Most APIs measure parametric model knowledge, not live product search. CiteAura clearly labels each engine as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface for complete scientific integrity."
+              "text": "Not necessarily. API samples can differ from product UI answers. CiteAura labels each sample as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface so you can distinguish the evidence."
             }
           },
           {
@@ -314,6 +314,7 @@
     <section class="section home-workflow" id="workflow" aria-labelledby="workflow-title">
       <div class="page-shell">
         <h2 id="workflow-title" data-i18n="landing.home.workflow_title">Measure. Make changes. Check the evidence.</h2>
+        <p class="home-section-lead" data-i18n="landing.home.workflow_answer">CiteAura tracks brand mentions and citations in AI answers, turns audit findings into prioritized fixes, and verifies changes through checks and repeat sampling.</p>
         <ol class="home-steps">
           <li><h3 data-i18n="landing.home.measure">Measure your starting point</h3><p data-i18n="landing.home.measure_body">Review answers to your target questions. See brand mentions and citations, with the model, sampling mode, and source attached.</p></li>
           <li><h3 data-i18n="landing.home.act">Give your team a clear brief</h3><p data-i18n="landing.home.act_body">Turn site findings into prioritized engineering tickets with page references and acceptance criteria. Your team reviews and implements the changes.</p></li>
@@ -326,6 +327,7 @@
     <section class="section home-product" id="product" aria-labelledby="product-title">
       <div class="page-shell">
         <h2 id="product-title" data-i18n="landing.home.product_title">From a finding to work you can hand off.</h2>
+        <p class="home-section-lead" data-i18n="landing.home.product_answer">CiteAura turns audit findings into engineering tickets with page references and acceptance criteria. Delivery packs collect findings, assets, and verification status for handoff.</p>
         <div class="home-product-grid">
           <figure>
             <a href="/site-assets/product-tickets-real-v2.webp" target="_blank" rel="noopener noreferrer"><img src="/site-assets/product-tickets-real-v2.webp" width="3836" height="1660" loading="lazy" data-i18n-alt="landing.home.tickets_caption" alt="CiteAura Action Tickets product interface"></a>
@@ -399,10 +401,23 @@
               <li><span data-i18n="landing.howto_4_body">Sample labeled engines and read the site audit plus tickets.</span></li>
               <li><span data-i18n="landing.howto_5_body">Implement changes, verify, and export the diagnostic pack.</span></li>
             </ol>
-            <p class="extract-note"><span data-i18n="landing.howto_note">Sources and definitions:</span> <a href="/docs#measurement" data-i18n="landing.howto_docs">CiteAura measurement documentation</a>, <a href="https://platform.openai.com/docs/bots" target="_blank" rel="noopener noreferrer">OpenAI GPTBot Documentation</a>, <a href="https://llmstxt.org" target="_blank" rel="noopener noreferrer">llms.txt Standard</a>, and <a href="https://schema.org" target="_blank" rel="noopener noreferrer">W3C Schema.org</a>.</p>
-
           </div>
         </details>
+        <div class="home-sources">
+          <h3 data-i18n="landing.home.sources_title">What search providers document</h3>
+          <p class="home-section-lead" data-i18n="landing.home.sources_answer">Google and OpenAI publish guidance on appearing in their AI search features. These sources explain eligibility and crawler access, not a guarantee of citations.</p>
+          <figure>
+            <p data-i18n="landing.home.google_context">For Google AI Overviews and AI Mode, foundational SEO still applies.</p>
+            <blockquote cite="https://developers.google.com/search/docs/appearance/ai-features" lang="en"><p>“There are no additional requirements to appear in AI Overviews or AI Mode, nor other special optimizations necessary.”</p></blockquote>
+            <figcaption><cite><a href="https://developers.google.com/search/docs/appearance/ai-features" lang="en" target="_blank" rel="noopener noreferrer">Google Search Central · AI features and your website</a></cite></figcaption>
+          </figure>
+          <figure>
+            <p data-i18n="landing.home.openai_context">For ChatGPT search, OAI-SearchBot controls search crawling; GPTBot controls potential training use.</p>
+            <blockquote cite="https://developers.openai.com/api/docs/bots" lang="en"><p>“OAI-SearchBot is used to surface websites in search results in ChatGPT’s search features.”</p></blockquote>
+            <figcaption><cite><a href="https://developers.openai.com/api/docs/bots" lang="en" target="_blank" rel="noopener noreferrer">OpenAI · Overview of OpenAI Crawlers</a></cite></figcaption>
+          </figure>
+          <p class="extract-note"><span data-i18n="landing.howto_note">Sources and definitions:</span> <a href="/docs#measurement" data-i18n="landing.howto_docs">CiteAura measurement documentation</a></p>
+        </div>
       </div>
     </section>
 
@@ -487,7 +502,7 @@
         <div class="faq-list">
           <details>
             <summary data-i18n="landing.faq_1_q">Do API samples match what users see in the product UI?</summary>
-            <p data-i18n="landing.faq_1_a">Most APIs measure parametric model knowledge, not live product search. CiteAura clearly labels each engine as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface for complete scientific integrity.</p>
+            <p data-i18n="landing.faq_1_a">Not necessarily. API samples can differ from product UI answers. CiteAura labels each sample as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface so you can distinguish the evidence.</p>
           </details>
 
           <details>

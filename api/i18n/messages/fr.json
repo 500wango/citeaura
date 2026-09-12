@@ -185,7 +185,7 @@
   "landing.faq_index": "C'est la raison pour laquelle la Commission a décidé de ne pas donner suite à cette demande.",
   "landing.faq_title": "Foire aux questions",
   "landing.faq_1_q": "Les échantillons API correspondent-ils à ce que les utilisateurs voient dans l’interface du produit ?",
-  "landing.faq_1_a": "La plupart des API mesurent les connaissances paramétriques du modèle, pas la recherche en direct du produit. CiteAura étiquette chaque moteur : API · Connaissances du modèle, API · Recherche sur le Web ou Manuel · Surface du produit.",
+  "landing.faq_1_a": "Pas nécessairement. Les réponses obtenues via les API peuvent différer de celles de l’interface du produit. CiteAura distingue chaque échantillon : API · Connaissances du modèle, API · Recherche sur le Web ou Manuel · Surface du produit, pour identifier la nature des preuves.",
   "landing.faq_2_q": "Dois-je fournir mes propres API Key de modèle (BYOK) ?",
   "landing.faq_2_a": "BYOK est la méthode la plus sûre et la plus rentable. Configurez uniquement les moteurs utilisés ; les autres sont signalés honnêtement comme non mesurés.",
   "landing.faq_3_q": "CiteAura peut-elle garantir que ma marque sera recommandée ou mentionnée par l’IA ?",
@@ -2209,5 +2209,11 @@
   "landing.home.final_body": "Partez de votre site, examinez les preuves et donnez à votre équipe un plan concret pour la visibilité IA.",
   "landing.home.methodology": "Notre méthode et la portée des résultats",
   "landing.home.workflow_title": "Mesurez. Modifiez. Vérifiez les preuves.",
-  "landing.home.overview_alt": "Vue d’ensemble de la marque dans CiteAura, avec indicateurs de visibilité et prochaines actions illustratifs. Données de démonstration."
+  "landing.home.overview_alt": "Vue d’ensemble de la marque dans CiteAura, avec indicateurs de visibilité et prochaines actions illustratifs. Données de démonstration.",
+  "landing.home.workflow_answer": "CiteAura suit les mentions de marque et les citations dans les réponses IA, transforme les résultats des audits en corrections prioritaires et vérifie les changements par des contrôles et de nouveaux échantillonnages.",
+  "landing.home.product_answer": "CiteAura transforme les résultats des audits en tickets techniques avec références aux pages et critères de validation. Les packs de livraison regroupent les constats, les livrables et le statut de vérification pour faciliter la transmission.",
+  "landing.home.sources_title": "Ce que documentent les moteurs de recherche",
+  "landing.home.sources_answer": "Google et OpenAI publient des conseils pour apparaître dans leurs fonctionnalités de recherche IA. Ces sources expliquent les conditions d’éligibilité et l’accès des robots, sans garantir de citations.",
+  "landing.home.google_context": "Pour Google AI Overviews et AI Mode, les fondamentaux du SEO restent applicables.",
+  "landing.home.openai_context": "Pour la recherche ChatGPT, OAI-SearchBot concerne l’exploration pour la recherche ; GPTBot concerne l’utilisation éventuelle des contenus pour l’entraînement."
 }

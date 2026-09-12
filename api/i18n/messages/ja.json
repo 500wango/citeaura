@@ -185,7 +185,7 @@
   "landing.faq_index": "07 / よくある質問",
   "landing.faq_title": "よくある質問",
   "landing.faq_1_q": "API サンプルは、ユーザーがプロダクト画面で見る内容と一致しますか？",
-  "landing.faq_1_a": "多くの API はプロダクトのリアルタイム検索ではなく、パラメトリックなモデル知識を測定します。CiteAura は各エンジンを「API · モデル知識」「API · ウェブ検索連携」「手動 · プロダクト画面」と明示します。",
+  "landing.faq_1_a": "必ずしも一致しません。API のサンプルは製品画面の回答と異なる場合があります。CiteAura は各サンプルを API · モデル知識、API · ウェブ検索連携、手動 · プロダクト画面と明示し、証拠を区別できるようにしています。",
   "landing.faq_2_q": "自分のモデル API キー（BYOK）を用意する必要がありますか？",
   "landing.faq_2_a": "BYOK は最も安全で費用対効果の高い方法です。使用するエンジンだけを設定し、その他は未測定として正直に表示します。",
   "landing.faq_3_q": "CiteAura はブランドが AI に推薦・言及されることを保証しますか？",
@@ -2209,5 +2209,11 @@
   "landing.home.final_body": "サイトから始め、証拠を確認し、AI 可視性を改善する具体的な計画をチームに渡しましょう。",
   "landing.home.methodology": "測定方法と結果の意味",
   "landing.home.workflow_title": "測定し、変更し、証拠を確認する。",
-  "landing.home.overview_alt": "CiteAura のブランド概要。可視性指標と次のアクションを示すデモデータ。"
+  "landing.home.overview_alt": "CiteAura のブランド概要。可視性指標と次のアクションを示すデモデータ。",
+  "landing.home.workflow_answer": "CiteAura は AI の回答におけるブランドへの言及と引用を追跡し、監査結果を優先順位付きの修正タスクに変換します。変更後は受入確認と再サンプリングで検証します。",
+  "landing.home.product_answer": "CiteAura は監査結果を、対象ページと受入基準を含む技術チケットに変換します。納品パックには調査結果、成果物、検証状況をまとめ、引き継ぎに役立てます。",
+  "landing.home.sources_title": "検索サービスの公式説明",
+  "landing.home.sources_answer": "Google と OpenAI は、それぞれの AI 検索機能に掲載されるためのガイドを公開しています。これらは掲載条件とクローラーのアクセスを説明するもので、引用を保証するものではありません。",
+  "landing.home.google_context": "Google AI Overviews と AI Mode でも、基本的な SEO 対策は引き続き有効です。",
+  "landing.home.openai_context": "ChatGPT 検索では、OAI-SearchBot は検索用のクロール、GPTBot は学習に使われる可能性のあるコンテンツのクロールに対応します。"
 }

@@ -185,7 +185,7 @@
   "landing.faq_index": "₢ 킹",
   "landing.faq_title": "FAQ",
   "landing.faq_1_q": "API 샘플은 사용자가 제품 화면에서 보는 내용과 일치하나요?",
-  "landing.faq_1_a": "대부분의 API는 실시간 제품 검색이 아니라 파라메트릭 모델 지식을 측정합니다.CiteAura는 각 엔진을 API · 모델 지식, API · 웹 기반 검색, 수동 · 제품 화면으로 명확히 표시합니다.",
+  "landing.faq_1_a": "반드시 일치하지는 않습니다. API 샘플은 제품 화면의 답변과 다를 수 있습니다. CiteAura는 각 샘플을 API · 모델 지식, API · 웹 기반 검색, 수동 · 제품 화면으로 표시하여 근거를 구분할 수 있게 합니다.",
   "landing.faq_2_q": "내 모델 API Key(BYOK)를 직접 제공해야 하나요?",
   "landing.faq_2_a": "BYOK는 가장 안전하고 비용 효율적인 방법입니다. 사용할 엔진만 설정하고 나머지는 측정되지 않음으로 정직하게 표시합니다.",
   "landing.faq_3_q": "CiteAura가 브랜드의 AI 추천이나 언급을 보장하나요?",
@@ -2209,5 +2209,11 @@
   "landing.home.final_body": "웹사이트부터 시작해 증거를 검토하고, 팀에 실행 가능한 AI 가시성 개선 계획을 전달하세요.",
   "landing.home.methodology": "측정 방법과 결과의 의미",
   "landing.home.workflow_title": "측정하고, 수정하고, 증거를 확인하세요.",
-  "landing.home.overview_alt": "예시 가시성 지표와 다음 작업을 보여 주는 CiteAura 브랜드 개요. 데모 데이터."
+  "landing.home.overview_alt": "예시 가시성 지표와 다음 작업을 보여 주는 CiteAura 브랜드 개요. 데모 데이터.",
+  "landing.home.workflow_answer": "CiteAura는 AI 답변의 브랜드 언급과 인용을 추적하고, 감사 결과를 우선순위별 수정 작업으로 전환합니다. 이후 점검과 재샘플링으로 변경 결과를 검증합니다.",
+  "landing.home.product_answer": "CiteAura는 감사 결과를 페이지 참조와 승인 기준이 포함된 기술 티켓으로 전환합니다. 전달 패키지는 발견 사항, 산출물, 검증 상태를 모아 인계를 돕습니다.",
+  "landing.home.sources_title": "검색 제공업체의 공식 설명",
+  "landing.home.sources_answer": "Google과 OpenAI는 자사의 AI 검색 기능에 노출되기 위한 지침을 공개합니다. 이 자료는 노출 자격과 크롤러 접근 조건을 설명하며, 인용을 보장하지 않습니다.",
+  "landing.home.google_context": "Google AI Overviews와 AI Mode에도 기본 SEO 원칙이 적용됩니다.",
+  "landing.home.openai_context": "ChatGPT 검색에서 OAI-SearchBot은 검색용 크롤링에, GPTBot은 학습에 사용될 수 있는 콘텐츠의 크롤링에 해당합니다."
 }

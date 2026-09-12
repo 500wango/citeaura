@@ -185,7 +185,7 @@
   "landing.faq_index": "07 / 常见问题",
   "landing.faq_title": "常见问题解答",
   "landing.faq_1_q": "API 采样结果与用户在产品端（ChatGPT/Claude 网页）看到的内容一致吗？",
-  "landing.faq_1_a": "大多数大模型 API 评测的是模型的参数化知识记忆，而非网页端带搜索的产品交互。CiteAura 严格在评测中清晰标注为「API · 参数化知识」、「API · 联网检索」或「人工 · 产品端实测」，确保评测具备完全的科学严谨性。",
+  "landing.faq_1_a": "不一定。API 样本可能与产品界面中的回答不同。CiteAura 将每个样本标注为 API · 参数化知识、API · 联网检索或人工 · 产品端，便于区分证据。",
   "landing.faq_2_q": "必须提供自己的模型 API 密钥（BYOK）吗？",
   "landing.faq_2_a": "BYOK（自带密钥）通常是最安全、最经济透明的方式。您只需配置计划评测的模型引擎，未配置的引擎会如实标注为未测量。模型原厂 API 计费非常低廉（单次完整审计成本通常在 $0.08–$0.15 之间），CiteAura 不做任何中介加价。",
   "landing.faq_3_q": "CiteAura 能保证我的品牌被 AI 必然提及或排名第一吗？",
@@ -2209,5 +2209,11 @@
   "landing.home.final_body": "从你的网站开始，查看证据，为团队制定切实可行的 AI 可见性改进计划。",
   "landing.home.methodology": "如何测量，以及结果意味着什么",
   "landing.home.workflow_title": "测量、修改、验收，用证据判断进展。",
-  "landing.home.overview_alt": "CiteAura 品牌概览，展示示意可见性指标和后续行动。Demo 数据。"
+  "landing.home.overview_alt": "CiteAura 品牌概览，展示示意可见性指标和后续行动。Demo 数据。",
+  "landing.home.workflow_answer": "CiteAura 追踪 AI 回答中的品牌提及与引用，将审计发现转化为按优先级排列的修复任务，再通过验收检查和重复采样验证修改结果。",
+  "landing.home.product_answer": "CiteAura 将审计发现转化为包含页面引用和验收标准的工程工单。交付包汇总发现、资产与验证状态，方便团队交接。",
+  "landing.home.sources_title": "搜索平台的官方说明",
+  "landing.home.sources_answer": "Google 和 OpenAI 均发布了有关如何出现在其 AI 搜索功能中的指南。这些来源说明收录条件与爬虫访问规则，不承诺获得引用。",
+  "landing.home.google_context": "对于 Google AI Overviews 和 AI Mode，基础 SEO 实践仍然适用。",
+  "landing.home.openai_context": "在 ChatGPT 搜索中，OAI-SearchBot 对应搜索抓取；GPTBot 对应可能用于训练的内容抓取。"
 }

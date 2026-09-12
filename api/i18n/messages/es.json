@@ -185,7 +185,7 @@
   "landing.faq_index": "07 / Preguntas frecuentes",
   "landing.faq_title": "Preguntas frecuentes",
   "landing.faq_1_q": "¿Los muestreos de API coinciden con lo que ven los usuarios en la interfaz del producto?",
-  "landing.faq_1_a": "La mayoría de las API miden el conocimiento paramétrico del modelo, no la búsqueda en vivo del producto. CiteAura etiqueta cada motor como API · Conocimiento modelo, API · Recuperación en Internet o Manual · Superficie del producto.",
+  "landing.faq_1_a": "No necesariamente. Las muestras de API pueden diferir de las respuestas de la interfaz del producto. CiteAura etiqueta cada muestra como API · Conocimiento modelo, API · Recuperación en Internet o Manual · Superficie del producto para distinguir las evidencias.",
   "landing.faq_2_q": "¿Tengo que aportar mis propias API Key de modelo (BYOK)?",
   "landing.faq_2_a": "BYOK es el método más seguro y rentable. Configura solo los motores que vas a utilizar; los demás aparecen honestamente como no medidos.",
   "landing.faq_3_q": "¿Puede CiteAura garantizar que mi marca será recomendada o mencionada por la IA?",
@@ -2209,5 +2209,11 @@
   "landing.home.final_body": "Empieza con tu web, revisa las pruebas y ofrece a tu equipo un plan práctico de visibilidad en IA.",
   "landing.home.methodology": "Cómo medimos y qué significan los resultados",
   "landing.home.workflow_title": "Mide. Haz cambios. Comprueba las pruebas.",
-  "landing.home.overview_alt": "Resumen de marca en CiteAura con métricas de visibilidad y próximas acciones ilustrativas. Datos de demostración."
+  "landing.home.overview_alt": "Resumen de marca en CiteAura con métricas de visibilidad y próximas acciones ilustrativas. Datos de demostración.",
+  "landing.home.workflow_answer": "CiteAura rastrea menciones de marca y citas en respuestas de IA, convierte los hallazgos de auditoría en correcciones priorizadas y verifica los cambios mediante comprobaciones y nuevos muestreos.",
+  "landing.home.product_answer": "CiteAura convierte los hallazgos de auditoría en tickets técnicos con referencias a páginas y criterios de aceptación. Los paquetes de entrega reúnen hallazgos, recursos y estado de verificación para facilitar el traspaso.",
+  "landing.home.sources_title": "Qué documentan los proveedores de búsqueda",
+  "landing.home.sources_answer": "Google y OpenAI publican guías para aparecer en sus funciones de búsqueda con IA. Estas fuentes explican los requisitos de elegibilidad y el acceso de los rastreadores, sin garantizar citas.",
+  "landing.home.google_context": "Los fundamentos del SEO siguen siendo aplicables a Google AI Overviews y AI Mode.",
+  "landing.home.openai_context": "En la búsqueda de ChatGPT, OAI-SearchBot corresponde al rastreo para búsquedas; GPTBot corresponde al posible uso del contenido para entrenamiento."
 }
