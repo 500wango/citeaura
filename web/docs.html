@@ -60,7 +60,7 @@
         "@type": "TechArticle",
         "headline": "CiteAura Documentation: Measure and Improve AI Visibility",
         "description": "Set up CiteAura, measure AI visibility, review labeled evidence, execute action tickets, verify changes, and export delivery packs.",
-        "dateModified": "2026-08-20",
+        "dateModified": "2026-09-12",
         "datePublished": "2026-08-14",
         "url": "https://citeaura.com/docs",
         "author": {
@@ -82,7 +82,7 @@
             "name": "How to start a CiteAura diagnostic?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Create a workspace, add a public website, connect a model endpoint, run labeled sampling, then export the diagnostic pack after verification."
+              "text": "Create a workspace, add a public website, configure sampling access, and inspect labeled results. You can build a diagnostic pack before implementing fixes; run verification after deployment."
             }
           },
           {
@@ -582,10 +582,10 @@
           <span class="docs-badge" data-i18n="docs.badge_quickstart">Getting Started</span>
           <h1 data-i18n="docs.title_quickstart">CiteAura Workspace Guide</h1>
           <p data-i18n="docs.quickstart_p1">CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.</p>
-          <p class="docs-meta" data-i18n="public.docs.meta">Maintained by CiteAura Editorial Team · Updated 2026-08-20</p>
+          <p class="docs-meta" data-i18n="public.docs.meta">Maintained by CiteAura Editorial Team · Updated 2026-09-12</p>
           <p data-i18n="docs.quickstart_p2">This guide shows how to turn a public website into an evidence-based GEO workspace: crawl the site, record labeled AI answers, assign tickets, verify changes, and export a delivery pack.</p>
           <div class="docs-callout tip">
-            <p data-i18n="docs.quickstart_callout"><strong>New projects start automatically.</strong> After you submit a website, the initial pipeline is queued. Keep the project open to follow its stages in the job telemetry panel; you do not need to find a separate start button.</p>
+            <p data-i18n="docs.quickstart_callout">New projects queue an initial diagnostic automatically. AI sampling runs only when sampling access is available and sampling is enabled. Without it, the site diagnostic can run while AI visibility remains unmeasured.</p>
           </div>
 
           <h2 data-i18n="public.docs.key_facts">Key facts</h2>
@@ -599,16 +599,12 @@
               </thead>
               <tbody>
                 <tr>
-                  <td data-i18n="public.docs.starter_trial">Starter trial</td>
+                  <td data-i18n="public.docs.starter_trial">New workspace trial</td>
                   <td data-i18n="public.docs.trial_days">7 days</td>
                 </tr>
                 <tr>
-                  <td data-i18n="literal.b13cced40cc4">Typical API sampling cost versus Starter</td>
-                  <td data-i18n="literal.793afa966036">under 1 percent of one month</td>
-                </tr>
-                <tr>
-                  <td data-i18n="public.docs.priority_ticket_windows">Priority ticket windows</td>
-                  <td data-i18n="public.docs.priority_windows_value">30 days or 60 days</td>
+                  <td data-i18n="docs.sampling_cost_label">Model usage charges</td>
+                  <td data-i18n="docs.sampling_cost_value">Separate from the subscription; depend on provider, model, and call volume.</td>
                 </tr>
               </tbody>
             </table>
@@ -746,8 +742,8 @@
 
           <h3 data-i18n="docs.core_metrics_h3">Core metrics</h3>
           <ul>
-            <li data-i18n="docs.metric_mention_rate"><strong>Mention rate:</strong> the share of successful sampled answers in the current cohort that mention the configured brand identity.</li>
-            <li data-i18n="docs.metric_avg_rank"><strong>Average rank:</strong> the observed recommendation position when a usable rank is present. An absent rank is not converted into a fabricated value.</li>
+            <li data-i18n="docs.metric_mention_rate">Mention rate: the share of successful, eligible answers that mention the configured brand. Questions containing the brand name are excluded from this calculation.</li>
+            <li data-i18n="docs.metric_avg_rank">Reported rank: the matrix uses the median recorded brand position among qualifying mentions, although its column is labeled Avg Rank. Missing ranks remain unmeasured.</li>
             <li data-i18n="docs.metric_sample_count"><strong>Sample count:</strong> the number of observations supporting the displayed metric.</li>
             <li data-i18n="docs.metric_citation_share"><strong>Citation share:</strong> the share of captured source URL mentions attributed to a domain within web-grounded samples.</li>
             <li data-i18n="docs.metric_unmeasured"><strong>Unmeasured:</strong> no qualifying observation is available. It does not mean zero visibility.</li>
@@ -764,7 +760,7 @@
         <!-- BYOK Setup Guide -->
         <section id="byok">
           <h2 data-i18n="docs.byok_h2">Model Keys &amp; Providers</h2>
-          <p data-i18n="docs.byok_lead_p">Bring Your Own Key routes measurement requests through your provider account, so provider usage and charges remain visible there. CiteAura currently exposes six built-in providers and supports custom OpenAI-compatible HTTPS endpoints.</p>
+          <p data-i18n="docs.byok_lead_p">Workspace owners manage model keys. CiteAura supports ten built-in providers: OpenAI, Anthropic, Google, xAI, Perplexity, DeepSeek, Zhipu GLM, Doubao, Kimi, and MiniMax, plus custom OpenAI-compatible HTTPS endpoints. BYOK usage is billed by the provider; sampling availability depends on the project market and configuration.</p>
 
           <h3 id="key-setup-openai">1. OpenAI</h3>
           <ol>
@@ -811,17 +807,17 @@
 
           <h3 data-i18n="docs.byok_custom_h3">Custom OpenAI-compatible providers</h3>
           <ol>
-            <li data-i18n="docs.byok_custom_step1">Click <strong>Add Custom Provider</strong> in Model Keys.</li>
+            <li data-i18n="docs.byok_custom_step1">In Model Keys, choose Add Provider to configure a custom endpoint.</li>
             <li data-i18n="docs.byok_custom_step2">Enter a provider name, the HTTPS API base URL, and the exact model ID. Do not append <code>/chat/completions</code> to the base URL.</li>
             <li data-i18n="docs.byok_custom_step3">Enter the API key and save. CiteAura tests the endpoint before retaining the configuration.</li>
           </ol>
 
           <h3 data-i18n="docs.byok_data_h3">Key and data handling</h3>
           <ul>
-            <li data-i18n="docs.byok_data_li1">Saved API keys are encrypted at rest with AES-256-GCM and injected only while a provider call is running.</li>
+            <li data-i18n="docs.byok_data_li1">Saved API keys are encrypted at rest with AES-256-GCM and made available during authorized engine operations, then removed from that execution context.</li>
             <li data-i18n="docs.byok_data_li2">API responses expose masked key identifiers, not the full secret.</li>
             <li data-i18n="docs.byok_data_li3">CiteAura does not use workspace content to train its own models. Provider processing, retention, and training controls remain subject to the selected provider account and policy.</li>
-            <li data-i18n="docs.byok_data_li4">Delete a key from Model Keys to stop future calls through that credential.</li>
+            <li data-i18n="docs.byok_data_li4">Deleting a saved key prevents later jobs from loading it. It does not cancel running jobs or revoke the key at the provider; revoke it there when access must end immediately.</li>
           </ul>
           <div class="docs-callout">
             <p data-i18n="public.docs.byok_cost_callout"><strong>Cost control:</strong> provider-side quotas, budgets, and rate limits are the final control for BYOK spend. Configure them in each provider account before enabling scheduled monitoring.</p>
@@ -832,7 +828,7 @@
         <section id="monitor">
           <h2 data-i18n="docs.monitor_h2">Monitor Visibility &amp; Citations</h2>
           <h3 data-i18n="docs.monitor_matrix_h3">AI Visibility Matrix</h3>
-          <p data-i18n="docs.monitor_matrix_p1">The matrix groups the latest measured cohort by model provider. Use it to compare mention rate, average observed rank, sample count, sampling mode, and measurement status. Select <strong>Sample Matrix Now</strong> to queue a new cohort.</p>
+          <p data-i18n="docs.monitor_matrix_p1">The matrix separates results by provider and sampling mode. Compare mention rate, reported rank, eligible sample count, and measurement status within comparable cohorts. Use Sample Matrix Now to queue new sampling.</p>
           <p data-i18n="docs.monitor_matrix_p2">Open <strong>Raw AI Sample Answers &amp; Citations</strong> before acting on an aggregate. The replay contains the exact question, answer, provider, mode, detected brand identity, and returned source URLs.</p>
 
           <h3 data-i18n="docs.monitor_citations_h3">Citation Sources</h3>
@@ -882,7 +878,7 @@
           <p data-i18n="docs.exec_assets_p">Generated project files can include machine-readable discovery content, structured data, deployment notes, and editable text assets. Review every claim and destination before saving or deploying an asset.</p>
 
           <h3 data-i18n="docs.exec_outreach_h3">Media Outreach &amp; Publishing Destinations</h3>
-          <p data-i18n="docs.exec_outreach_p">Outreach creates factual pitch drafts for relevant editors or authors. Publishing Destinations stores destination configuration and prepares drafts for editorial review. Neither workflow should be treated as automatic approval or guaranteed publication.</p>
+          <p data-i18n="docs.exec_outreach_p">In Settings → Media Outreach, review pitch drafts and confirm sending through configured SMTP. In Settings → Publishing Destinations, configure channels; for GitHub, select approved assets to create a branch and pull request. CiteAura does not merge that PR or deploy it automatically.</p>
         </section>
 
         <!-- llms.txt -->
@@ -913,7 +909,7 @@
         <section id="verification-delivery">
           <h2 data-i18n="docs.verify_h2">Verification &amp; Delivery</h2>
           <h3 data-i18n="docs.verify_cl_h3">Closed-Loop Verify</h3>
-          <p data-i18n="docs.verify_cl_p">Run verification after public changes have been deployed. Verification re-crawls the site and evaluates ticket acceptance checks against the latest audit and metrics artifacts. It records pass, fail, and reopened states; it does not convert an implementation claim into a pass without supporting evidence.</p>
+          <p data-i18n="docs.verify_cl_p">Run verification after deploying website changes. It re-crawls and audits the site, then checks tickets against the latest audit and existing metrics. Results can be pass, fail, or manual review; failed checks can reopen completed tickets. Verification does not collect fresh AI answers.</p>
           <ol>
             <li data-i18n="docs.verify_step1">Deploy the selected ticket changes to the canonical public site.</li>
             <li data-i18n="docs.verify_step2">Open <strong>Execution → Closed-Loop Verify</strong> and choose <strong>Run Verification</strong>.</li>
@@ -922,8 +918,8 @@
           </ol>
 
           <h3 data-i18n="docs.verify_packs_h3">Client Delivery Packs</h3>
-          <p data-i18n="docs.verify_packs_p1">Open <strong>Delivery → Client Delivery Packs</strong> and choose <strong>Build New Delivery Pack</strong>. The job compiles the current audit, action matrix, ticket log, comparison and verification evidence, and implementation assets into a downloadable ZIP.</p>
-          <p data-i18n="docs.verify_packs_p2">Configure <strong>Delivery → White-Label Branding</strong> before building the pack when it needs an agency name, logo, or confidentiality notice. Rebuild the pack after material workspace changes; an older ZIP is a point-in-time artifact.</p>
+          <p data-i18n="docs.verify_packs_p1">Open Delivery → Client Delivery Packs and choose Build Diagnostic Pack. The downloadable ZIP contains the current diagnostic, tickets, evidence, and assets. Check whether it is a review, diagnostic, or implementation pack; templates and unmeasured results do not become deployment-ready simply by being packaged.</p>
+          <p data-i18n="docs.verify_packs_p2">On Agency or Enterprise, an owner can configure Settings → White-Label Branding before building. Rebuild after material workspace changes. A diagnostic pack can be produced before implementation and verification are complete; its limitations remain disclosed.</p>
         </section>
 
         <!-- Administration -->
@@ -946,7 +942,7 @@
                 </tr>
                 <tr>
                   <td><strong data-i18n="public.docs.admin_schedule">Automated Schedule</strong></td>
-                  <td data-i18n="public.docs.admin_schedule_use">Run monitoring every 7, 14, or 30 days.</td>
+                  <td data-i18n="public.docs.admin_schedule_use">Run monitoring every 1, 7, 14, or 30 days.</td>
                   <td data-i18n="public.docs.admin_schedule_behavior">Scheduled cycles consume plan allowance and provider quota. Verification remains an explicit step.</td>
                 </tr>
                 <tr>
@@ -966,8 +962,8 @@
                 </tr>
                 <tr>
                   <td><strong data-i18n="public.docs.admin_backup">Backup Snapshots</strong></td>
-                  <td data-i18n="public.docs.admin_backup_use">Create and restore point-in-time project workspace snapshots.</td>
-                  <td data-i18n="public.docs.admin_backup_behavior">Restoring a snapshot overwrites current workspace files; create a fresh snapshot first.</td>
+                  <td data-i18n="public.docs.admin_backup_use">Owners can create and restore project-file snapshots when backup storage is configured.</td>
+                  <td data-i18n="public.docs.admin_backup_behavior">Restore merges snapshot files into the project and can overwrite matching paths after confirmation. Files absent from the snapshot are retained; this is not a full rollback.</td>
                 </tr>
               </tbody>
             </table>
@@ -977,7 +973,7 @@
         <section id="faq">
           <h2 data-i18n="public.docs.faq_h2">FAQ</h2>
           <h3 data-i18n="public.docs.faq_start_q">How to start a CiteAura diagnostic?</h3>
-          <p data-i18n="public.docs.faq_start_a">Create a workspace, add a public website, connect a model endpoint, run labeled sampling, then export the diagnostic pack after verification. Step 1 through Step 5 are listed in Quickstart.</p>
+          <p data-i18n="public.docs.faq_start_a">Create a workspace, add a public website, configure sampling access, and inspect labeled results. You can build a diagnostic pack before implementing fixes; run verification after deployment.</p>
           <h3 data-i18n="public.docs.faq_guarantee_q">Does CiteAura guarantee AI mentions?</h3>
           <p data-i18n="public.docs.faq_guarantee_a">No. CiteAura does not guarantee AI mentions, rankings, or citations. It produces diagnosis, tickets, and verification evidence.</p>
         </section>
@@ -1021,11 +1017,11 @@
                 </tr>
                 <tr>
                   <td><strong data-i18n="public.docs.project_command_unavailable">Project command is unavailable</strong></td>
-                  <td data-i18n="public.docs.check_command">Check for an existing queued or running job and wait for it to finish. Only one active job is allowed per project.</td>
+                  <td data-i18n="public.docs.check_command">Check your role, active trial or subscription, usage limits, and any queued or running job. A project allows only one active job at a time.</td>
                 </tr>
                 <tr>
                   <td><strong data-i18n="public.docs.delivery_outdated">Delivery pack looks outdated</strong></td>
-                  <td data-i18n="public.docs.check_delivery">Finish the latest audit, ticket, or verification job, then choose <strong>Build New Delivery Pack</strong>.</td>
+                  <td data-i18n="public.docs.check_delivery">Finish the latest audit, ticket, or verification job, then choose Build Diagnostic Pack.</td>
                 </tr>
               </tbody>
             </table>
