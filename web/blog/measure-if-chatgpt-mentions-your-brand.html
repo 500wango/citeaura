@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>How to Measure ChatGPT Brand Mentions: A Practical Guide | CiteAura</title>
-  <meta name="description" content="Engineering guide to measuring ChatGPT brand mentions: fixed cohort design, three sampling modes, raw answer JSON, regex mention detection, mention_rate formula, binomial variance, and failure modes.">
+  <title>Measure ChatGPT brand mentions: mention_rate, 3 modes | CiteAura</title>
+  <meta name="description" content="Freeze a prompt cohort, label API vs web-grounded vs manual, compute mention_rate with a Wilson interval. No fabricated visibility scores.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <meta name="author" content="Alex Chen">
@@ -27,19 +27,19 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand">
-  <meta property="og:title" content="Measuring ChatGPT Brand Mentions: Cohort Design, Sampling Modes, and Mention Rate | CiteAura">
-  <meta property="og:description" content="How to build a repeatable ChatGPT mention measurement: cohort definition, labeled sampling modes, raw JSON traces, regex matching, and variance analysis.">
+  <meta property="og:title" content="Measure ChatGPT brand mentions: mention_rate, 3 modes | CiteAura">
+  <meta property="og:description" content="Freeze a prompt cohort, label API vs web-grounded vs manual, compute mention_rate with a Wilson interval. No fabricated visibility scores.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="CiteAura guides — field notes on AI visibility.">
   <meta property="article:author" content="Alex Chen">
   <meta property="article:published_time" content="2026-08-17T00:00:00Z">
-  <meta property="article:modified_time" content="2026-08-20T00:00:00Z">
+  <meta property="article:modified_time" content="2026-09-14T00:00:00Z">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Measuring ChatGPT Brand Mentions: Cohort Design &amp; Variance | CiteAura">
-  <meta name="twitter:description" content="Fixed cohorts, raw traces, regex detection, and binomial confidence — a staff engineer's method for ChatGPT brand mentions.">
+  <meta name="twitter:title" content="Measure ChatGPT brand mentions: mention_rate, 3 modes | CiteAura">
+  <meta name="twitter:description" content="Freeze a prompt cohort, label API vs web-grounded vs manual, compute mention_rate with a Wilson interval.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
@@ -64,18 +64,18 @@
           {
             "@type": "ListItem",
             "position": 3,
-            "name": "Measuring ChatGPT Brand Mentions: Cohort Design, Sampling Modes, and Mention Rate",
+            "name": "Measure ChatGPT brand mentions: mention_rate, cohort, 3 sampling modes",
             "item": "https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand"
           }
         ]
       },
       {
         "@type": "Article",
-        "headline": "Measuring ChatGPT Brand Mentions: Cohort Design, Sampling Modes, and Mention Rate",
-        "description": "Engineering guide to measuring ChatGPT brand mentions with fixed cohorts, labeled sampling modes, raw answer JSON, regex mention detection, and binomial variance.",
+        "headline": "Measure ChatGPT brand mentions: mention_rate, cohort, 3 sampling modes",
+        "description": "Freeze a prompt cohort, label API vs web-grounded vs manual, compute mention_rate with a Wilson interval. No fabricated visibility scores.",
         "url": "https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand",
         "datePublished": "2026-08-17",
-        "dateModified": "2026-08-20",
+        "dateModified": "2026-09-14",
         "author": {
           "@type": "Person",
           "name": "Alex Chen"
@@ -199,9 +199,9 @@
 
     <header class="blog-header">
       <span class="blog-kicker">Measurement — Engineering Guide</span>
-      <h1>How to Measure ChatGPT Brand Mentions</h1>
+      <h1>Measure ChatGPT brand mentions: mention_rate, cohort, 3 sampling modes</h1>
       <p class="blog-lead">Querying ChatGPT twice with the same prompt often produces two different brand recommendations. Because generative outputs are stochastic, isolated screenshots provide zero statistical validity. Reliable brand visibility tracking requires a versioned question set, an explicit sampling mode, raw response logs, and a deterministic matching rule to evaluate mentions across repeated runs.</p>
-      <p class="blog-meta">Updated 20 August 2026 · 12 min read · Technical</p>
+      <p class="blog-meta">Updated 14 September 2026 · 12 min read · Technical</p>
       <p class="blog-byline">By Alex Chen</p>
     </header>
 

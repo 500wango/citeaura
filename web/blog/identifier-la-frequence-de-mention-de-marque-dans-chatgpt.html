@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Identifier la fréquence de mention de marque dans ChatGPT | CiteAura</title>
-  <meta name="description" content="Guide d'ingénierie GEO : comment identifier et mesurer la fréquence de mention d'une marque dans ChatGPT, concevoir des cohortes de requêtes et analyser les citations.">
+  <title>Identifier la fréquence de mention de marque ChatGPT | CiteAura</title>
+  <meta name="description" content="Méthode d’ingénierie : cohorte fixe, 3 modes d’échantillonnage, regex de marque, mention_rate et intervalle de Wilson. Pas de ranking promis.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <meta name="author" content="Équipe Recherche CiteAura">
@@ -27,19 +27,19 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt">
-  <meta property="og:title" content="Identifier la fréquence de mention de marque dans ChatGPT | CiteAura">
-  <meta property="og:description" content="Méthode rigoureuse pour mesurer la visibilité d'une marque dans ChatGPT : cohortes de prompts, modes d'échantillonnage et analyse statistique.">
+  <meta property="og:title" content="Identifier la fréquence de mention de marque ChatGPT | CiteAura">
+  <meta property="og:description" content="Méthode d’ingénierie : cohorte fixe, 3 modes d’échantillonnage, regex de marque, mention_rate et intervalle de Wilson. Pas de ranking promis.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Guides CiteAura — optimisation pour moteurs génératifs.">
   <meta property="article:author" content="Équipe Recherche CiteAura">
   <meta property="article:published_time" content="2026-09-07T00:00:00Z">
-  <meta property="article:modified_time" content="2026-09-07T00:00:00Z">
+  <meta property="article:modified_time" content="2026-09-14T00:00:00Z">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Identifier la fréquence de mention de marque dans ChatGPT | CiteAura">
-  <meta name="twitter:description" content="Guide GEO : mesurer la visibilité IA de votre marque de manière reproductible et chiffrée.">
+  <meta name="twitter:title" content="Identifier la fréquence de mention de marque ChatGPT | CiteAura">
+  <meta name="twitter:description" content="Cohorte fixe, 3 modes d’échantillonnage, mention_rate et intervalle de Wilson. Pas de ranking promis.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
@@ -64,18 +64,18 @@
           {
             "@type": "ListItem",
             "position": 3,
-            "name": "Identifier la fréquence de mention de marque dans ChatGPT",
+            "name": "Identifier la fréquence de mention de marque dans ChatGPT (méthode + formule)",
             "item": "https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt"
           }
         ]
       },
       {
         "@type": "Article",
-        "headline": "Comment identifier la fréquence de mention d'une marque dans ChatGPT",
-        "description": "Guide d'ingénierie GEO pour mesurer la visibilité de marque dans ChatGPT avec des cohortes fixes, des modes d'échantillonnage étiquetés et une analyse statistique de variance.",
+        "headline": "Identifier la fréquence de mention de marque dans ChatGPT (méthode + formule)",
+        "description": "Méthode d’ingénierie : cohorte fixe, 3 modes d’échantillonnage, regex de marque, mention_rate et intervalle de Wilson. Pas de ranking promis.",
         "url": "https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt",
         "datePublished": "2026-09-07",
-        "dateModified": "2026-09-07",
+        "dateModified": "2026-09-14",
         "author": {
           "@type": "Person",
           "name": "Alex Chen"
@@ -183,7 +183,7 @@
     <nav class="blog-crumb" aria-label="Fil d'Ariane"><a href="/">Accueil</a><span aria-hidden="true">/</span><a href="/blog">Guides</a><span aria-hidden="true">/</span><span>Mesure GEO</span></nav>
     <header class="blog-header">
       <span class="blog-kicker">Guide GEO</span>
-      <h1>Comment identifier la fréquence de mention d'une marque dans ChatGPT</h1>
+      <h1>Identifier la fréquence de mention de marque dans ChatGPT (méthode + formule)</h1>
       <p class="blog-lead">À l'ère de l'optimisation pour moteurs génératifs (GEO), savoir si ChatGPT recommande votre entreprise nécessite une méthodologie scientifique d'échantillonnage, des cohortes de requêtes fixes et un calcul précis de la variance statistique.</p>
       <p class="blog-meta">Publié le 7 septembre 2026 · 10 min de lecture · Méthodologie d'ingénierie</p>
       <p class="blog-byline">Par l'équipe de recherche CiteAura</p>
