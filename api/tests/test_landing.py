@@ -593,7 +593,8 @@ def test_seo_technical_files_are_served():
     indexnow_res = client.get("/59f477dc828647979b6a25acfbbfca7d.txt")
     assert indexnow_res.status_code == 200
     assert indexnow_res.headers["content-type"].startswith("text/plain")
-    assert "59f477dc828647979b6a25acfbbfca7d" in indexnow_res.text
+    assert indexnow_res.text == "59f477dc828647979b6a25acfbbfca7d"
+    assert len(indexnow_res.content) == 32
     assert client.head("/59f477dc828647979b6a25acfbbfca7d.txt").status_code == 200
 
     sitemap_res = client.get("/sitemap.xml")
