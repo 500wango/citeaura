@@ -646,22 +646,22 @@ def test_blog_index_and_articles_are_static_html():
     articles = (
         (
             "/blog/measure-if-chatgpt-mentions-your-brand",
-            "How to Measure ChatGPT Brand Mentions",
+            "Measure ChatGPT brand mentions: mention_rate, cohort, 3 sampling modes",
             "API · Model knowledge",
         ),
         (
             "/blog/why-chatgpt-does-not-mention-my-brand",
-            "Why ChatGPT Does Not Mention Your Brand",
+            "Why is my brand never mentioned in ChatGPT? 4 checks",
             "API · Web-grounded retrieval",
         ),
         (
             "/blog/gptbot-blocked-by-robots-txt",
-            "GPTBot Blocked by robots.txt? Find and Fix the Rule",
+            "gptbot robots.txt: find the Disallow and allow GPTBot safely",
             "User-agent: GPTBot",
         ),
         (
             "/blog/what-to-put-in-llms-txt",
-            "What to Put in llms.txt for Your Brand",
+            "llms.txt best practices: facts, canonical URLs, what to leave out",
             "text/plain",
         ),
         (

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="public.meta.g3_title">GPTBot Blocked by robots.txt? Find and Fix the Rule | CiteAura</title>
-  <meta name="description" content="Technical fix for GPTBot robots.txt blocks: longest-match rule, User-agent precedence, curl -A verification, Caddy/Cloudflare cache pitfalls, and log analysis to confirm the live file on the canonical host." data-i18n-content="public.meta.g3_description">
+  <title data-i18n="public.meta.g3_title">gptbot robots.txt: find the Disallow, allow GPTBot | CiteAura</title>
+  <meta name="description" content="Longest-match User-agent rules, curl -A GPTBot checks, Cloudflare managed robots prepend, and how to confirm the live file." data-i18n-content="public.meta.g3_description">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/runtime-assets/theme-init.js"></script>
@@ -23,16 +23,16 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/gptbot-blocked-by-robots-txt">
-  <meta property="og:title" content="GPTBot Blocked by robots.txt? Find and Fix the Rule | CiteAura" data-i18n-content="public.meta.g3_title">
-  <meta property="og:description" content="Technical fix for GPTBot robots.txt blocks: longest-match rule, User-agent precedence, curl -A verification, Caddy/Cloudflare cache pitfalls, and log analysis on the canonical host.">
+  <meta property="og:title" content="gptbot robots.txt: find the Disallow, allow GPTBot | CiteAura" data-i18n-content="public.meta.g3_title">
+  <meta property="og:description" content="Longest-match User-agent rules, curl -A GPTBot checks, Cloudflare managed robots prepend, and how to confirm the live file.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="CiteAura guides — field notes on AI visibility.">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="GPTBot Blocked by robots.txt? Find and Fix the Rule" data-i18n-content="public.meta.g3_title">
-  <meta name="twitter:description" content="Technical fix for GPTBot robots.txt blocks: longest-match, User-agent precedence, curl -A verification, cache pitfalls, and log analysis.">
+  <meta name="twitter:title" content="gptbot robots.txt: find the Disallow and allow GPTBot safely" data-i18n-content="public.meta.g3_title">
+  <meta name="twitter:description" content="Longest-match User-agent rules, curl -A GPTBot checks, Cloudflare managed robots prepend, and how to confirm the live file.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
@@ -57,18 +57,18 @@
           {
             "@type": "ListItem",
             "position": 3,
-            "name": "GPTBot Blocked by robots.txt? Find and Fix the Rule",
+            "name": "gptbot robots.txt: find the Disallow and allow GPTBot safely",
             "item": "https://citeaura.com/blog/gptbot-blocked-by-robots-txt"
           }
         ]
       },
       {
         "@type": "Article",
-        "headline": "GPTBot Blocked by robots.txt? Find and Fix the Rule",
-        "description": "Technical fix for GPTBot robots.txt blocks: longest-match rule, User-agent precedence, curl -A verification, Caddy/Cloudflare cache pitfalls, and log analysis to confirm the live file on the canonical host.",
+        "headline": "gptbot robots.txt: find the Disallow and allow GPTBot safely",
+        "description": "Longest-match User-agent rules, curl -A GPTBot checks, Cloudflare managed robots prepend, and how to confirm the live file.",
         "url": "https://citeaura.com/blog/gptbot-blocked-by-robots-txt",
         "datePublished": "2026-08-17",
-        "dateModified": "2026-08-20",
+        "dateModified": "2026-09-14",
         "author": {
           "@type": "Person",
           "name": "David Park"
@@ -184,9 +184,9 @@
 
     <header class="blog-header">
       <span class="blog-kicker" data-i18n="g3.kicker">Crawl access — infrastructure note</span>
-      <h1 data-i18n="g3.h1">GPTBot Blocked by robots.txt? Find and Fix the Rule</h1>
+      <h1 data-i18n="g3.h1">gptbot robots.txt: find the Disallow and allow GPTBot safely</h1>
       <p class="blog-lead" data-i18n="g3.lead">A broad <code>Disallow</code> rule in robots.txt can quietly drop marketing and documentation pages from OpenAI crawlers. Because crawlers parse user-agent blocks independently and resolve path conflicts using longest-match specificity, quick edits often fail to open the routes you intended. This guide walks through robots.txt evaluation under RFC 9309, testing rules directly with <code>curl</code>, avoiding edge-cache traps, and verifying crawl access on your canonical host.</p>
-      <p class="blog-meta">Updated 20 August 2026 · 14 min read · Technical</p>
+      <p class="blog-meta">Updated 14 September 2026 · 14 min read · Technical</p>
       <p class="blog-byline">By David Park</p>
     </header>
 
