@@ -69,7 +69,7 @@ Bingbot 能抓，但 **没有把站点编进网页索引**（除 `what-to-put-in
 最吻合的组合：
 
 1. 新域（注册 2026-08-08）+ Bing 可见反向链接 0 → 抓取预算/信任极低。
-2. IndexNow **本机 API 403**（密钥文件 `content-length: 33` = 32 位 key + `\n`）。Webmaster UI 仍有 Self 提交，但 Bing 官方验钥要求文件 body **等于** key；尾随换行足以让 `api.indexnow.org` / `www.bing.com/indexnow` 拒绝。Yandex 仍 200，不能当 Bing 成功。
+2. IndexNow **本机 API 仍 403**（2026-09-14 部署后密钥已是恰好 32 字节、无尾随 `\n`，`content-length: 32`）。`api.indexnow.org` / `www.bing.com/indexnow` 继续 `UserForbiddedToAccessSite`；Yandex 200。Webmaster UI 仍有 Self 提交。**换行不是 403 的根因。** 403 更像这台出口 IP 验钥失败，或 Bing 对提交方的站点授权失败；不要用它解释 0 展示。
 3. URL 检查/Site Scan 被 CF 当假 Bingbot（层 A）→ 控制台一直红，诱导误判「连不上」，实际 msnbot 已在抓。
 4. 站点管理器空、绝大多数 URL 停在 discovered-not-crawled：Bing 知道 sitemap，但没有把首页/产品页当可索引文档。
 
