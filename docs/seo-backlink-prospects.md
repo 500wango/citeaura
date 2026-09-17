@@ -1,6 +1,6 @@
 # CiteAura Backlink Prospects
 
-更新时间：2026-09-01
+更新时间：2026-09-14
 
 目标站点：`https://citeaura.com/`
 
@@ -10,18 +10,17 @@
 - **DR 门槛：仅保留 Ahrefs DR ≥ 30 的域名，DR < 30 直接移除**（本次已执行清理，见文末已移除清单）。复核方式：Ahrefs Site Explorer，以复核时数值为准。
 - 优先主题相关、可带来真实访问或品牌发现的来源；目录页的链接属性需要逐站复核。
 - 编辑媒体采用原创数据、方法论或真实案例投稿，不采用批量客座文章或付费软文链路。
-- 最终是否收录、链接是否 follow、是否需要付费，由各站点审核和发布规则决定。
+- 用户规则（2026-09-14）：**收费的目录平台放弃**。提交/上架必须付钱的入口一律不走（含 Futurepedia / TAAFT / Toolify / BetaList / Microlaunch）。已有免费 listing 的认领/更正仍可做。付费广告、付费精选、付费加急都不做。
+- 最终是否收录、链接是否 follow，由各站点审核和发布规则决定；发现提交要付钱则停，不结账。
 
 ## 第一优先级：相关产品目录与软件档案
 
 | 优先级 | 来源 | 域名 | 估算 DR | 入口 | 适合方式 | 推荐目标页 |
 |---|---|---|---|---|---|---|
-| A1 | Product Hunt | producthunt.com | ~91 | `https://www.producthunt.com/launch` | 以一次完整产品发布获取产品页、社区访问和后续引用 | `/` |
-| A1 | G2 | g2.com | ~92 | `https://sell.g2.com/` | 建立软件档案，积累真实客户评价后争取分类页曝光 | `/` |
-| A1 | Capterra | capterra.com | ~91 | `https://www.capterra.com/vendors/` | 建立软件供应商档案，选择 SEO/marketing/analytics 相关分类 | `/` |
+| A1 | Product Hunt | producthunt.com | ~91 | `https://www.producthunt.com/products/citeaura` | 已提交；禁止第二份 listing、禁止再走 `/launch` | `/` |
+| A1 | Capterra | capterra.com | ~91 | `https://www.capterra.com/vendors/` | 仅免费供应商档案；不买 PPC/徽章推广 | `/` |
 | A2 | AlternativeTo | alternativeto.net | ~85 | `https://alternativeto.net/add-a-new-app/` | 建立替代品页面，补充与传统 SEO、AI visibility 工具的差异 | `/` |
-| A2 | Futurepedia | futurepedia.io | ~72 | `https://www.futurepedia.io/submit-tool` | 提交 AI 工具；页面同时展示审核与商业推广选项，先评估免费入口 | `/ai-visibility-audit` |
-| A2 | SaaSHub | saashub.com | ~65 | `https://www.saashub.com/submit/list` | 免费提交软件档案和替代品信息 | `/` |
+| A2 | SaaSHub | saashub.com | ~65 | `https://www.saashub.com/citeaura` | 已有未验证页：认领/更正，不新建、不付费 | `/` |
 
 > 注：DR 为公开知识库估算（Ahrefs 0-100），以 Ahrefs Site Explorer 实时查询为准；阈值执行已过滤 DR<30。
 
@@ -52,18 +51,15 @@
 | Crunchbase | crunchbase.com | ~91 | `https://www.crunchbase.com/add-company` |
 | Wellfound | wellfound.com | ~87 | `https://wellfound.com/` |
 | Indie Hackers 产品页 | indiehackers.com | ~82 | `https://www.indiehackers.com/products/new` |
-| BetaList | betalist.com | ~72 | `https://betalist.com/submit` |
-| There's An AI For That | theresanaiforthat.com | ~74 | `https://theresanaiforthat.com/submit/` |
-| Toolify | toolify.ai | ~68 | `https://www.toolify.ai/submit` |
 
 这组来源适合品牌实体、发布记录和推荐流量；AI 工具目录需要先检查分类页是否有真实内容和稳定索引，再决定是否提交。
 
 ## 推荐执行顺序
 
-1. 先完成 SaaSHub、Futurepedia、Crunchbase、Wellfound 的准确档案。
-2. 准备 Product Hunt 发布包：一句话定位、3 张产品图、演示视频、创始人说明和 `/ai-visibility-audit` 链接。
+1. 先完成免费档案：SaaSHub 认领、Crunchbase、Wellfound、AlternativeTo（表单保持免费才提交）。
+2. Product Hunt 已提交（`https://www.producthunt.com/products/citeaura`），不要再走 `/launch`。
 3. 建立一份只使用真实匿名数据的 AI visibility benchmark，再向 Semrush、Zapier、Search Engine Land、CMSWire 等编辑投递。
-4. 用 G2、Capterra 和 AlternativeTo 建立软件实体与评价基础，避免一次性批量提交几十个低相关目录。
+4. Capterra 仅走免费供应商档案；G2 已放弃。不要买目录广告。
 5. 在 Search Console 中按目标页观察非品牌展示、点击、索引状态和 `diagnostic_ready` 转化，不以链接数量作为唯一成功指标。
 
 ## 本次清理：已移除 DR<30 条目
@@ -73,6 +69,11 @@
 | 来源 | 域名 | 估算 DR | 移除原因 | 原入口 | 处理 |
 |---|---|---|---|---|---|
 | The AI Search Directory | theaisearchdirectory.com | ~20-35（新站，估算 <30，待 Ahrefs 实测复核） | 不满足 DR≥30 门槛；且为新利基目录，权重与索引稳定性待验证 | `https://theaisearchdirectory.com/submit` / `https://theaisearchdirectory.com/` | 已从主清单移除，历史提交记录保留于 `docs/seo-backlink-submission-record.md`，不作为外链权重来源；如后续实测 DR≥30 且获稳定索引可申请加回（需复核）|
+| Futurepedia | futurepedia.io | ~72 | 提交页只有付费档：Basic $247（售罄）/ Verified $497；用户规则：收费目录放弃 | `https://www.futurepedia.io/submit-tool` | 已从主清单移除，不提交、不结账 |
+| There's An AI For That | theresanaiforthat.com | ~74 | Launch 页 Basic listing $49 | `https://theresanaiforthat.com/launch/` | 已从主清单移除 |
+| Toolify | toolify.ai | ~68 | 提交页 Pay $99 | `https://www.toolify.ai/submit` | 已从主清单移除 |
+| BetaList | betalist.com | ~72 | 官方 FAQ：现已全部付费提交 | `https://betalist.com/submit` | 已从主清单移除 |
+| G2 | g2.com | ~92 | 用户此前放弃（一次性注册邮件）；本次维持放弃 | `https://sell.g2.com/` | 已从主清单移除 |
 
 - 去重：原表 A1 与 A2 重复出现该目录，已合并至此单一移除记录。
 - 其余 19 个域名估算 DR 均 ≥45，保留。

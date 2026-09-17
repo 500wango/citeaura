@@ -67,13 +67,39 @@ app.include_router(landing_router)
 app.include_router(ui_router)
 
 
-_NON_PUBLIC_SLASH_PREFIXES = ("/api/", "/app/", "/app-assets/", "/admin/", "/files/", "/site-assets/")
+_NON_PUBLIC_PREFIXES = ("/api/", "/app", "/admin", "/files/", "/site-assets/", "/runtime-assets/", "/app-assets/")
 
 
 def _public_canonical_redirect(request: Request):
-    """Build an HTTPS-safe canonical URL for public trailing-slash variants."""
+    """Build an HTTPS-safe canonical URL for public trailing-slash, .html, or query variants."""
     path = request.url.path
-    if path == "/" or not path.endswith("/") or path.startswith(_NON_PUBLIC_SLASH_PREFIXES):
+    if any(path == p or path.startswith(p if p.endswith("/") else p + "/") for p in _NON_PUBLIC_PREFIXES):
+        return None
+
+    needs_redirect = False
+    new_path = path
+
+    # 1. /index.html -> /
+    if path == "/index.html":
+        new_path = "/"
+        needs_redirect = True
+    # 2. /.html suffix on public pages (e.g. /pricing.html -> /pricing)
+    elif path.endswith(".html"):
+        new_path = path[:-5]
+        needs_redirect = True
+    # 3. Trailing slash on non-root public paths (e.g. /pricing/ -> /pricing)
+    elif path != "/" and path.endswith("/"):
+        new_path = path.rstrip("/")
+        needs_redirect = True
+
+    # 4. Strip redundant ?lang= query param from public pages
+    new_query = request.url.query
+    if "lang=" in request.url.query:
+        params = [p for p in request.url.query.split("&") if p and not p.startswith("lang=")]
+        new_query = "&".join(params)
+        needs_redirect = True
+
+    if not needs_redirect:
         return None
 
     configured_base = config.public_base_url()
@@ -92,7 +118,7 @@ def _public_canonical_redirect(request: Request):
             scheme = proto
             netloc = host or base.netloc or "localhost:8000"
 
-    target = urlunsplit((scheme, netloc, path.rstrip("/"), request.url.query, ""))
+    target = urlunsplit((scheme, netloc, new_path, new_query, ""))
     return RedirectResponse(url=target, status_code=308)
 
 

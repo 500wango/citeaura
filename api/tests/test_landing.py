@@ -844,3 +844,40 @@ def test_public_solution_pages_have_indexable_content_contract():
         assert response.text.count("<h1") == 1
         assert title_marker in response.text.split("</title>", 1)[0]
         assert "/site-assets/seo-attribution.js" in response.text
+
+
+def test_seo_canonical_redirects_and_nofollow_contracts():
+    """Verify that search console issues (redirects, 404s, canonicals, nofollow) are properly handled."""
+    # 1. /index.html redirects to /
+    res = client.get("/index.html", follow_redirects=False)
+    assert res.status_code == 308
+    assert res.headers["location"] == "http://testserver/"
+
+    # 2. .html suffix redirects to clean canonical path
+    res = client.get("/pricing.html", follow_redirects=False)
+    assert res.status_code == 308
+    assert res.headers["location"] == "http://testserver/pricing"
+
+    # 3. Redundant ?lang= query param redirects to clean URL
+    for path in ("/docs?lang=fr", "/privacy?lang=fr", "/terms?lang=fr", "/blog/sell-geo-retainers-with-delivery-packs?lang=fr"):
+        res = client.get(path, follow_redirects=False)
+        assert res.status_code == 308
+        clean_target = path.split("?")[0]
+        assert res.headers["location"] == f"http://testserver{clean_target}"
+
+    # 4. Marketing attribution params like ?ref=producthunt are preserved without redirect
+    res = client.get("/?ref=producthunt", follow_redirects=False)
+    assert res.status_code == 200
+
+    # 5. Public pages contain nofollow on private /app links
+    home_html = client.get("/").text
+    assert re.search(r'href="/app\?auth=login"[^>]*rel="nofollow"', home_html)
+    assert re.search(r'href="/app\?auth=register"[^>]*rel="nofollow"', home_html)
+
+    # 6. Shell pages /app and /admin declare canonical
+    app_html = (Path(__file__).resolve().parents[2] / "web" / "app" / "index.html").read_text("utf-8")
+    assert '<link rel="canonical" href="https://citeaura.com/app">' in app_html
+
+    admin_html = (Path(__file__).resolve().parents[2] / "web" / "admin" / "index.html").read_text("utf-8")
+    assert '<link rel="canonical" href="https://citeaura.com/admin">' in admin_html
+

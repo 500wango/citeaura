@@ -88,7 +88,7 @@ Bingbot 能抓，但 **没有把站点编进网页索引**（除 `what-to-put-in
 1. **修 IndexNow 密钥文件**：body 必须是恰好 32 位 hex，无尾随 `\n`。部署后再跑 `scripts/submit_indexnow.py`，目标是 `api.indexnow.org` 与 `www.bing.com/indexnow` 非 403。
 2. **给 URL 检查开绿灯（可选、可逆）**：按 Cloudflare 文档，对触发的「假 Bingbot」托管规则建 **临时 skip exception**，只为跑通 URL 检查 / Site Scan；扫完删掉。不要为这个长期 Skip 全部 Bot 规则。
 3. **对已成功索引的那 1 页不要乱动**。对其余 P0 URL（首页、`/blog`、Google 已有展示的 3–5 篇）等检查器能提取后再点「请求编制索引」。
-4. **外链仍是 Bing 和 Google 的共同瓶颈**。Bing 反向链接空；Google 也没有品牌词查询。PH 已提交，勿重复。下一步仍是 SaaSHub 认领 + Futurepedia/Crunchbase/AlternativeTo + 三封编辑信。
+4. **外链仍是 Bing 和 Google 的共同瓶颈**。Bing 反向链接空；Google 也没有品牌词查询。PH 已提交，勿重复。收费目录已放弃（Futurepedia / TAAFT / Toolify / BetaList / Microlaunch）。下一步：SaaSHub 认领、Crunchbase、AlternativeTo（保持免费）、三封编辑信。
 5. 一周后复核：`site:citeaura.com` 结果数、首页 URL 检查是否仍 FETCH_FAIL、Webmaster 印象是否仍全 0。
 
 ## 验证命令
