@@ -288,10 +288,21 @@ def serve_robots_txt():
     return FileResponse(WEB_ROOT / "robots.txt", media_type="text/plain; charset=utf-8")
 
 
+@router.get("/579821672d5c4676ae291ba42bca44e8.txt")
+@router.head("/579821672d5c4676ae291ba42bca44e8.txt")
+def serve_bing_indexnow_key_file():
+    """返回 Bing Webmaster 官方 IndexNow 验证密钥文件。"""
+    return FileResponse(
+        WEB_ROOT / "579821672d5c4676ae291ba42bca44e8.txt",
+        media_type="text/plain; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
 @router.get("/59f477dc828647979b6a25acfbbfca7d.txt")
 @router.head("/59f477dc828647979b6a25acfbbfca7d.txt")
-def serve_indexnow_key_file():
-    """返回 Bing / IndexNow 验证密钥文件。"""
+def serve_legacy_indexnow_key_file():
+    """返回向后兼容的历史 IndexNow 验证密钥文件。"""
     return FileResponse(
         WEB_ROOT / "59f477dc828647979b6a25acfbbfca7d.txt",
         media_type="text/plain; charset=utf-8",

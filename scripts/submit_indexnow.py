@@ -12,7 +12,7 @@ from pathlib import Path
 import urllib.request
 import urllib.error
 
-INDEXNOW_KEY = os.getenv("INDEXNOW_KEY", "59f477dc828647979b6a25acfbbfca7d")
+INDEXNOW_KEY = os.getenv("INDEXNOW_KEY", "579821672d5c4676ae291ba42bca44e8")
 HOST = "citeaura.com"
 KEY_LOCATION = f"https://{HOST}/{INDEXNOW_KEY}.txt"
 

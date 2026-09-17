@@ -590,6 +590,15 @@ def test_seo_technical_files_are_served():
     assert "User-agent: ClaudeBot" in robots_res.text
     assert "User-agent: Google-Extended" in robots_res.text
 
+    # Official Bing Webmaster IndexNow key
+    bing_res = client.get("/579821672d5c4676ae291ba42bca44e8.txt")
+    assert bing_res.status_code == 200
+    assert bing_res.headers["content-type"].startswith("text/plain")
+    assert bing_res.text == "579821672d5c4676ae291ba42bca44e8"
+    assert len(bing_res.content) == 32
+    assert client.head("/579821672d5c4676ae291ba42bca44e8.txt").status_code == 200
+
+    # Legacy key backwards compatibility
     indexnow_res = client.get("/59f477dc828647979b6a25acfbbfca7d.txt")
     assert indexnow_res.status_code == 200
     assert indexnow_res.headers["content-type"].startswith("text/plain")
