@@ -179,6 +179,47 @@ def test_delivery_evidence_excludes_configured_but_unfunded_providers(tmp_path, 
     assert state["needs_sampling"] is False
 
 
+def test_delivery_evidence_scopes_cohorts_to_question_market(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    with with_tenant_context("tenant", "project"):
+        directory = geolib.project_dir("project")
+        questions = [
+            {"id": "q001", "text": "国内品牌推荐", "market": "cn"},
+            {"id": "q002", "text": "Best global brand", "market": "global"},
+        ]
+        geolib.write_json(directory / "geo.json", {
+            "brand": {"name": "Acme", "site": "https://acme.example"},
+            "market": "both",
+            "questions": questions,
+            "platforms": ["glm", "deepseek"],
+        })
+        rows = []
+        for platform, market in (("glm", "cn"), ("deepseek", "global")):
+            question = next(item for item in questions if item["market"] == market)
+            rows.extend({
+                "platform": platform, "platform_name": platform, "market": market,
+                "question_id": question["id"], "question": question["text"], "ok": True,
+                "search_enabled": False,
+            } for _ in range(measurement.MIN_QUESTION_SAMPLES))
+        geolib.write_jsonl(directory / "samples" / "run.jsonl", rows)
+        state = measurement.delivery_question_evidence(
+            "project",
+            funding={"keys": {"glm": "redacted", "deepseek": "redacted"}, "pool_codes": ()},
+        )
+
+    assert state["ready"] is True
+    assert state["needs_sampling"] is False
+    assert state["evidence"]["gaps"] == []
+    assert [(item["engine_code"], item["market"]) for item in state["active_cohorts"]] == [
+        ("glm", "cn"),
+        ("deepseek", "global"),
+    ]
+    assert [
+        [cell["engine_code"] for cell in item["cohorts"]]
+        for item in state["evidence"]["items"]
+    ] == [["glm"], ["deepseek"]]
+
+
 def test_delivery_evidence_starts_new_cohort_when_provider_is_added(tmp_path, monkeypatch):
     monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
     with with_tenant_context("tenant", "project"):

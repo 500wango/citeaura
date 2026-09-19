@@ -47,6 +47,7 @@ def question_cohort_evidence(rows, config, minimum=MIN_QUESTION_SAMPLES, expecte
     """按问题和 provider+sampling mode 计算可执行的证据缺口。"""
     config = config if isinstance(config, dict) else {}
     minimum = max(1, int(minimum or MIN_QUESTION_SAMPLES))
+    project_market = config.get("market") if config.get("market") in ("cn", "global", "both") else "both"
     questions = [
         item for item in (config.get("questions") or [])
         if isinstance(item, dict) and item.get("id")
@@ -69,6 +70,7 @@ def question_cohort_evidence(rows, config, minimum=MIN_QUESTION_SAMPLES, expecte
             "engine_code": platform,
             "engine_name": row.get("platform_name") or platform,
             "sampling_mode": mode,
+            "market": row.get("market") if row.get("market") in ("cn", "global", "both") else "both",
         })
 
     for expected in expected_cohorts or ():
@@ -85,6 +87,7 @@ def question_cohort_evidence(rows, config, minimum=MIN_QUESTION_SAMPLES, expecte
             "engine_name": expected.get("engine_name") or expected.get("provider_name") or platform,
             "sampling_mode": mode,
             "funding_source": expected.get("funding_source") or expected.get("source"),
+            "market": expected.get("market") if expected.get("market") in ("cn", "global", "both") else "both",
         })
 
     cohort_rows = [cohorts[key] for key in sorted(cohorts)]
@@ -92,9 +95,20 @@ def question_cohort_evidence(rows, config, minimum=MIN_QUESTION_SAMPLES, expecte
     gaps = []
     for question in questions:
         question_id = str(question["id"])
+        question_market = (
+            question.get("market")
+            if question.get("market") in ("cn", "global", "both")
+            else project_market
+        )
+        applicable_cohorts = [
+            cohort for cohort in cohort_rows
+            if question_market == "both"
+            or cohort["market"] == "both"
+            or cohort["market"] == question_market
+        ]
         cells = []
         missing = 0
-        for cohort in cohort_rows:
+        for cohort in applicable_cohorts:
             samples = int(grouped.get((question_id, cohort["key"]), 0))
             gap = max(0, minimum - samples)
             missing += gap
@@ -182,6 +196,7 @@ def delivery_question_evidence(project_slug, funding=None, custom_providers=None
             "engine_name": provider.get("name") or code,
             "model": provider.get("model_id") or provider.get("model"),
             "sampling_mode": _mode(provider),
+            "market": provider.get("market") if provider.get("market") in ("cn", "global", "both") else "both",
             "source": "platform_pool" if code in set(funding.get("pool_codes") or ()) else "byok",
         })
 
