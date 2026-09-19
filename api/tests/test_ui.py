@@ -359,6 +359,8 @@ def test_frontend_contracts_match_backend_request_models():
     assert "project.project?.status || project.status" in overview
     assert "Generating Questions..." in overview
     assert 'id="btn-rerun-autopilot"' in overview
+    assert "projects.triggerSampleGaps(projectId)" in overview
+    assert "projects.triggerSample(projectId)" not in overview
     assert "projects.estimateSample(projectId)" in overview
     assert "projects.triggerAction(projectId, 'autopilot'" in overview
     assert "ctx.openTelemetry(res.job_id, 'autopilot'" in overview

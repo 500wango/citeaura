@@ -165,7 +165,7 @@ export default {
             ${hasQuestions ? `
               <button type="button" id="btn-run-sample" class="btn btn-secondary btn-sm">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                <span>${t('overview.action_sample', {}, 'Run AI Sample')}</span>
+                <span>${t('overview.action_sample', {}, 'Fill Sample Gaps')}</span>
               </button>` : isGeneratingQuestions ? `
               <button type="button" class="btn btn-secondary btn-sm" disabled aria-busy="true">
                 <span class="spin"></span>
@@ -470,8 +470,12 @@ export default {
       sampleBtn.addEventListener('click', async () => {
         sampleBtn.disabled = true;
         try {
-          const res = await projects.triggerSample(projectId);
-          toast.success(t('overview.sample_triggered', {}, 'AI sampling task queued!'));
+          const res = await projects.triggerSampleGaps(projectId);
+          if (res?.status === 'no_gaps') {
+            toast.info(t('overview.sample_no_gaps', {}, 'No sample gaps to fill.'));
+            return;
+          }
+          toast.success(t('overview.sample_triggered', {}, 'Sample gap fill queued!'));
           ctx.pollActiveJobs();
           if (res && res.job_id && typeof ctx.openTelemetry === 'function') {
             ctx.openTelemetry(res.job_id, 'sample');
