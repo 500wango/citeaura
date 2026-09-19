@@ -429,6 +429,55 @@ def test_pipeline_autopilot_uses_resilient_crawl_evidence(monkeypatch):
     ]
 
 
+def test_pipeline_autopilot_prepares_delivery_evidence(monkeypatch):
+    calls = []
+    measurement_scope = {
+        "active_cohorts": [{"engine_code": "openai"}],
+        "ready": True,
+    }
+
+    @contextmanager
+    def fake_context(*args, **kwargs):
+        yield {"keys": {}, "pool_codes": ()}
+
+    @contextmanager
+    def fake_preserve(project_slug):
+        yield
+
+    @contextmanager
+    def fake_crawl_evidence(project_slug):
+        yield
+
+    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
+    monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
+    monkeypatch.setattr(tasks, "resilient_crawl_evidence", fake_crawl_evidence)
+    monkeypatch.setattr(tasks.baseline, "normalize_bootstrap_metadata", lambda slug: None)
+    monkeypatch.setattr(tasks, "_run_pipeline_action", lambda *args: {"status": "done"})
+    monkeypatch.setattr(tasks, "_require_sampling_output", lambda *args, **kwargs: None)
+    monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {"keys": {}, "pool_codes": ()})
+    monkeypatch.setattr(tasks.measurement, "record_sampling", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        tasks,
+        "_prepare_delivery_measurement",
+        lambda tenant_id, slug, job_id=None: calls.append(("prepare", tenant_id, slug, job_id)) or measurement_scope,
+    )
+    monkeypatch.setattr(
+        tasks,
+        "ensure_delivery_contract",
+        lambda slug, **kwargs: calls.append(("delivery", slug, kwargs)) or "/formal/path",
+    )
+    monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: None)
+
+    tasks.task_pipeline.run("tenant-a", "example", "autopilot", params={}, job_id=42)
+
+    assert ("prepare", "tenant-a", "example", 42) in calls
+    assert ("delivery", "example", {
+        "measurement_scope": measurement_scope,
+        "require_question_evidence": True,
+    }) in calls
+
+
 def test_funded_context_unifies_historical_project_scope(monkeypatch):
     calls = []
     funding = {

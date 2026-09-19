@@ -91,10 +91,29 @@ def _sync_claim_verification(project_slug):
         return None
 
 
-def _safe_delivery_contract(project_slug):
+def _ensure_delivery_with_measurement(tenant_id, project_slug, job_id=None):
+    """按统一的问题证据门槛生成正式交付包。"""
+    measurement_scope = _prepare_delivery_measurement(
+        tenant_id,
+        project_slug,
+        job_id=job_id,
+    )
+    if measurement_scope is None:
+        return ensure_delivery_contract(project_slug)
+    return ensure_delivery_contract(
+        project_slug,
+        measurement_scope=measurement_scope,
+        require_question_evidence=bool(measurement_scope.get("active_cohorts")),
+    )
+
+
+def _safe_delivery_contract(tenant_id, project_slug, job_id=None, prepare_measurement=True):
     """客户包门禁失败不推翻已完成的审计/工单基线。"""
     try:
-        ensure_delivery_contract(project_slug)
+        if prepare_measurement:
+            _ensure_delivery_with_measurement(tenant_id, project_slug, job_id=job_id)
+        else:
+            ensure_delivery_contract(project_slug)
         ensure_legacy_deliverables_contract(project_slug)
         return None
     except Exception as exc:  # noqa: BLE001
@@ -229,7 +248,12 @@ def task_bootstrap(
                     funding=worker_funding,
                 )
             _sync_claim_verification(project_slug)
-            delivery_error = _safe_delivery_contract(project_slug)
+            delivery_error = _safe_delivery_contract(
+                tenant_id,
+                project_slug,
+                job_id=job_id,
+                prepare_measurement=not no_sample,
+            )
             return {
                 "status": "done",
                 "action": job_action,
@@ -358,19 +382,12 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             global_scope.normalize_project(project_slug)
             site_signals.validate_project_signals(project_slug)
-            measurement_scope = _prepare_delivery_measurement(
+            # The SaaS adapter is the sole owner of the formal delivery path.
+            # Keep the engine CLI renderer independent for standalone users.
+            return str(_ensure_delivery_with_measurement(
                 tenant_id,
                 project_slug,
                 job_id=job_id,
-            )
-            # The SaaS adapter is the sole owner of the formal delivery path.
-            # Keep the engine CLI renderer independent for standalone users.
-            if measurement_scope is None:
-                return str(ensure_delivery_contract(project_slug))
-            return str(ensure_delivery_contract(
-                project_slug,
-                measurement_scope=measurement_scope,
-                require_question_evidence=bool(measurement_scope.get("active_cohorts")),
             ))
 
 
@@ -456,9 +473,22 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                 _sync_claim_verification(project_slug)
             delivery_error = None
             if action in ("deliver",):
-                ensure_delivery_contract(project_slug)
+                _ensure_delivery_with_measurement(
+                    tenant_id,
+                    project_slug,
+                    job_id=job_id,
+                )
             elif action in ("autopilot", "serve"):
-                delivery_error = _safe_delivery_contract(project_slug)
+                no_sample = (
+                    (params or {}).get("--no-sample")
+                    or (params or {}).get("no_sample")
+                )
+                delivery_error = _safe_delivery_contract(
+                    tenant_id,
+                    project_slug,
+                    job_id=job_id,
+                    prepare_measurement=not bool(no_sample),
+                )
             if action in ("deliverables",) and delivery_error is None:
                 try:
                     ensure_legacy_deliverables_contract(project_slug)
