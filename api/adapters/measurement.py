@@ -52,14 +52,18 @@ def question_cohort_evidence(rows, config, minimum=MIN_QUESTION_SAMPLES, expecte
         item for item in (config.get("questions") or [])
         if isinstance(item, dict) and item.get("id")
     ]
+    questions_by_id = {str(item["id"]): item for item in questions}
     grouped = {}
     cohorts = {}
     for row in rows or ():
-        if not isinstance(row, dict) or not row.get("ok") or row.get("brand_in_question"):
+        if not isinstance(row, dict) or not row.get("ok"):
             continue
         question_id = str(row.get("question_id") or "").strip()
         platform = str(row.get("platform") or "").strip()
         if not question_id or not platform:
+            continue
+        question_group = str((questions_by_id.get(question_id) or {}).get("group") or "").strip().lower()
+        if row.get("brand_in_question") and question_group not in ("brand_verification", "品牌验证"):
             continue
         mode = for_row(row)
         key = f"{mode}|{platform}"

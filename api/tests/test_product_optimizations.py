@@ -152,6 +152,33 @@ def test_question_cohort_evidence_requires_each_provider_mode_cohort():
     assert {cell["engine_code"] for cell in result["items"][0]["cohorts"]} == {"openai", "deepseek"}
 
 
+def test_question_cohort_evidence_counts_brand_verification_probes():
+    config = {
+        "questions": [{
+            "id": "q001",
+            "text": "What is Acme?",
+            "market": "global",
+            "group": "brand_verification",
+        }],
+    }
+    rows = [{
+        "ok": True,
+        "platform": "openai",
+        "platform_name": "OpenAI",
+        "search_enabled": False,
+        "question_id": "q001",
+        "question": "What is Acme?",
+        "brand_in_question": True,
+        "analysis": {"brand_mentioned": True},
+    } for _ in range(measurement.MIN_QUESTION_SAMPLES)]
+
+    result = measurement.question_cohort_evidence(rows, config)
+
+    assert result["sufficient"] == 1
+    assert result["gaps"] == []
+    assert result["items"][0]["samples"] == 3
+
+
 def test_delivery_evidence_excludes_configured_but_unfunded_providers(tmp_path, monkeypatch):
     monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
     with with_tenant_context("tenant", "project"):
