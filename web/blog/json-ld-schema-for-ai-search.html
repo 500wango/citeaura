@@ -73,8 +73,9 @@
         "datePublished": "2026-09-10",
         "dateModified": "2026-09-10",
         "author": {
-          "@type": "Person",
-          "name": "Marcus Chen"
+          "@type": "Organization",
+          "name": "CiteAura Research Team",
+          "url": "https://citeaura.com/authors"
         },
         "publisher": {
           "@type": "Organization",
@@ -172,8 +173,19 @@
       <h1>JSON-LD Schema for AI Search: How LLMs Extract Brand Entities</h1>
       <p class="blog-lead">In traditional search engine optimization, Schema.org markup existed primarily to earn star ratings and review badges on Google's results pages. In generative AI search, the retrieval mechanism operates under entirely different constraints. Headless RAG pipelines in ChatGPT Search, Perplexity, and Claude use structured JSON-LD as high-density semantic anchors to disambiguate brand entities and ground facts. When your schema is clean, models cite your official pricing and core features with high confidence. When your schema is missing or diverges from your visible DOM, models either hallucinate or omit your domain entirely.</p>
       <p class="blog-meta">Updated 10 September 2026 · 9 min read · Technical Guide</p>
-      <p class="blog-byline">By Marcus Chen</p>
+      <p class="blog-byline">By CiteAura Research Team</p>
     </header>
+
+    <div class="editorial-notice-box">
+      <span><strong>Editorial Transparency:</strong> Fact-checked against Schema.org specifications and headless JSON-LD extraction tests across OpenAI and Perplexity RAG engines.</span>
+      <a href="/editorial-policy">Our Editorial Standards &rarr;</a>
+    </div>
+
+    <div class="blog-callout" style="background:var(--surface-2);border-left:4px solid var(--accent);margin:1.5rem 0;padding:1.25rem;">
+      <p style="margin:0 0 0.5rem;font-weight:600;color:var(--ink);">Validate your live Schema.org JSON-LD graph free</p>
+      <p style="margin:0 0 0.75rem;font-size:0.92rem;color:var(--muted);">Check whether your brand entities, Organization schema, and Product markup are valid and extractable by AI crawlers:</p>
+      <a class="btn btn-primary btn-sm" href="/schema-tool">Test your JSON-LD with Brand Schema Checker</a>
+    </div>
 
     <h2>The Architectural Shift: From Rich Snippets to RAG Disambiguation</h2>
     <p>Traditional search engines evaluate structured data through a specialized validation pipeline. A bot crawls your page, extracts microdata or JSON-LD, validates syntax against Google Search Central guidelines, and decorates your search result with an accordion FAQ or star rating. Even if your JSON-LD includes stale properties, traditional search algorithms still index the body copy and calculate PageRank separately.</p>
@@ -369,6 +381,19 @@
         <li><a href="/blog/what-to-put-in-llms-txt">What to Put in llms.txt for Your Brand</a></li>
       </ul>
     </aside>
+
+    <div class="author-bio-card">
+      <div class="author-bio-avatar" aria-hidden="true" style="background:var(--accent);color:#fff;">CR</div>
+      <div class="author-bio-content">
+        <h3>About the Author: CiteAura Research Team</h3>
+        <span class="author-bio-role">Search Systems Engineers &amp; Evaluation Analysts</span>
+        <p>The CiteAura Research Team is the engineering working group behind the open-source CiteAura GEO engine, empirical crawler audits, and verifiable citation benchmarks across generative AI search systems.</p>
+        <div style="display:flex;gap:12px;margin-top:8px;">
+          <a class="author-bio-link" href="/authors">Explore Team &amp; Research &rarr;</a>
+          <a class="author-bio-link" href="/editorial-policy">Editorial Standards &rarr;</a>
+        </div>
+      </div>
+    </div>
   </article>
 
   <footer class="site-footer">

@@ -70,8 +70,9 @@
         "datePublished": "2026-08-17",
         "dateModified": "2026-09-14",
         "author": {
-          "@type": "Person",
-          "name": "David Park"
+          "@type": "Organization",
+          "name": "CiteAura Research Team",
+          "url": "https://citeaura.com/authors"
         },
         "publisher": {
           "@type": "Organization",
@@ -187,8 +188,13 @@
       <h1 data-i18n="g3.h1">gptbot robots.txt: find the Disallow and allow GPTBot safely</h1>
       <p class="blog-lead" data-i18n="g3.lead">A broad <code>Disallow</code> rule in robots.txt can quietly drop marketing and documentation pages from OpenAI crawlers. Because crawlers parse user-agent blocks independently and resolve path conflicts using longest-match specificity, quick edits often fail to open the routes you intended. This guide walks through robots.txt evaluation under RFC 9309, testing rules directly with <code>curl</code>, avoiding edge-cache traps, and verifying crawl access on your canonical host.</p>
       <p class="blog-meta">Updated 14 September 2026 · 14 min read · Technical</p>
-      <p class="blog-byline">By David Park</p>
+      <p class="blog-byline">By CiteAura Research Team</p>
     </header>
+
+    <div class="editorial-notice-box">
+      <span><strong>Editorial Transparency:</strong> Evaluated against RFC 9309 standards, OpenAI crawler documentation, and reproducible server responses.</span>
+      <a href="/editorial-policy">Our Editorial Standards &rarr;</a>
+    </div>
 
     <nav aria-label="Table of contents" style="background:var(--surface);border:1px solid var(--divider);border-radius:var(--r-md);padding:1.25rem 1.5rem;margin:0 0 2rem;">
       <p style="margin:0 0 0.5rem;font-weight:600;color:var(--ink);font-size:0.95rem;">On this page</p>
@@ -396,6 +402,19 @@ Disallow: /</code></pre>
         <li><a href="/ai-visibility-audit">AI visibility audit workflow</a></li>
       </ul>
     </aside>
+
+    <div class="author-bio-card">
+      <div class="author-bio-avatar" aria-hidden="true" style="background:var(--accent);color:#fff;">CR</div>
+      <div class="author-bio-content">
+        <h3>About the Author: CiteAura Research Team</h3>
+        <span class="author-bio-role">Search Systems Engineers &amp; Evaluation Analysts</span>
+        <p>The CiteAura Research Team is the engineering working group behind the open-source CiteAura GEO engine, empirical crawler audits, and verifiable citation benchmarks across generative AI search systems.</p>
+        <div style="display:flex;gap:12px;margin-top:8px;">
+          <a class="author-bio-link" href="/authors">Explore Team &amp; Research &rarr;</a>
+          <a class="author-bio-link" href="/editorial-policy">Editorial Standards &rarr;</a>
+        </div>
+      </div>
+    </div>
   </article>
 
   <footer class="site-footer">

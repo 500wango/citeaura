@@ -291,3 +291,111 @@
   color: var(--ink);
 }
 
+/* Author Bio Card (E-E-A-T) */
+.author-bio-card {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: flex-start;
+  padding: var(--sp-5);
+  background: var(--surface);
+  border: 1px solid var(--divider);
+  border-radius: var(--r-md);
+  margin: var(--sp-8) 0;
+}
+
+.author-bio-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--deep);
+  border: 2px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--fs-4);
+  flex-shrink: 0;
+}
+
+.author-bio-content h3 {
+  margin: 0 0 2px;
+  font-size: var(--fs-4);
+}
+
+.author-bio-role {
+  color: var(--accent);
+  font-size: var(--fs-2);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  display: block;
+  margin-bottom: var(--sp-2);
+}
+
+.author-bio-content p {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-2);
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.author-bio-link {
+  font-size: var(--fs-2);
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+.author-bio-link:hover {
+  text-decoration: underline;
+}
+
+/* Editorial Transparency Notice */
+.editorial-notice-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--deep);
+  border: 1px solid var(--divider);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-2);
+  color: var(--ink-2);
+  margin-bottom: var(--sp-6);
+  flex-wrap: wrap;
+}
+
+.editorial-notice-box a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Multilingual Blog Filter Tabs */
+.blog-filter-bar {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-6);
+  flex-wrap: wrap;
+}
+
+.blog-filter-btn {
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-full);
+  border: 1px solid var(--divider);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--fs-2);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+
+.blog-filter-btn:hover, .blog-filter-btn.active {
+  background: var(--accent);
+  color: var(--accent-contrast, #ffffff);
+  border-color: var(--accent);
+}
+
+

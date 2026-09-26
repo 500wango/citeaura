@@ -14,6 +14,9 @@
 - [Methodology](https://citeaura.com/methodology): Evidence model, sampling modes, cohorts, and verification boundaries.
 - [Pricing](https://citeaura.com/pricing): Starter, Pro, Agency, and Enterprise plan capacity and trial terms.
 - [Sample GEO Diagnostic Report](https://citeaura.com/sample-report): Example diagnostic with evidence, action tickets, and verification gates.
+- [Compare GEO Platforms](https://citeaura.com/compare): Empirical evaluation methodology and head-to-head comparisons with alternative AI visibility platforms.
+- [Editorial Policy & AI Transparency](https://citeaura.com/editorial-policy): Standards on human authorship, AI assistance disclosure, testing reproducibility, and fact-checking.
+- [CiteAura Research & Engineering Group](https://citeaura.com/authors): Multidisciplinary research working group behind the open-source GEO engine and evaluation standards.
 - [AI Crawler Checker](https://citeaura.com/crawler-check): Test robots.txt rules against GPTBot, ClaudeBot, and other AI crawlers.
 - [llms.txt Generator](https://citeaura.com/llms-txt-tool): Generate reviewable, standards-compliant llms.txt drafts from public content.
 - [Brand Schema Checker](https://citeaura.com/schema-tool): Inspect and validate JSON-LD structured data and entity signals.

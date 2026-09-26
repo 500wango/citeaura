@@ -45,10 +45,13 @@ PUBLIC_PAGES = (
     {"path": "/schema-tool", "lastmod": "2026-09-06", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/about", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/contact", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/compare", "lastmod": "2026-09-15", "changefreq": "weekly", "priority": "0.8"},
     {"path": "/compare/citeaura-vs-profound", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/compare/citeaura-vs-otterly", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/compare/citeaura-vs-higeo", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/compare/citeaura-vs-semrush-ai", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/editorial-policy", "lastmod": "2026-09-15", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/authors", "lastmod": "2026-09-15", "changefreq": "weekly", "priority": "0.7"},
     {"path": "/blog", "lastmod": "2026-09-14", "changefreq": "weekly", "priority": "0.7"},
     {"path": "/blog/best-ai-visibility-tools", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/measure-if-chatgpt-mentions-your-brand", "lastmod": "2026-09-14", "changefreq": "monthly", "priority": "0.6"},
@@ -216,6 +219,13 @@ def serve_ai_brand_monitoring_page():
     return FileResponse(WEB_ROOT / "ai-brand-monitoring.html", media_type="text/html; charset=utf-8")
 
 
+@router.get("/compare")
+@router.head("/compare")
+def serve_comparison_index():
+    """返回竞品对比聚合与评测方法论页面。"""
+    return FileResponse(WEB_ROOT / "compare" / "index.html", media_type="text/html; charset=utf-8")
+
+
 @router.get("/compare/{slug}")
 @router.head("/compare/{slug}")
 def serve_comparison_page(slug: str):
@@ -255,6 +265,27 @@ def serve_methodology_page():
 def serve_pricing_page():
     """返回公开套餐与试用说明页面。"""
     return FileResponse(WEB_ROOT / "pricing.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/editorial-policy")
+@router.head("/editorial-policy")
+def serve_editorial_policy():
+    """返回 CiteAura 编辑准则与 AI 透明度政策页面。"""
+    return FileResponse(WEB_ROOT / "editorial-policy.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/authors")
+@router.head("/authors")
+def serve_authors_index():
+    """返回 CiteAura 研发与工程团队官方主页。"""
+    return FileResponse(WEB_ROOT / "authors" / "index.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/authors/{slug}")
+@router.head("/authors/{slug}")
+def serve_author_redirect(slug: str):
+    """历史或外部个人作者链接统一 308 规范重定向至 CiteAura 研发团队中心。"""
+    return RedirectResponse(url="/authors", status_code=308)
 
 
 @router.get("/blog")
