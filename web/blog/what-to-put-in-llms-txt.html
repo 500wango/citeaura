@@ -70,8 +70,9 @@
         "datePublished": "2026-08-17",
         "dateModified": "2026-09-14",
         "author": {
-          "@type": "Person",
-          "name": "Elena Torres"
+          "@type": "Organization",
+          "name": "CiteAura Research Team",
+          "url": "https://citeaura.com/authors"
         },
         "publisher": {
           "@type": "Organization",
@@ -164,7 +165,7 @@
     </div>
   </header>
 
-  <article class="blog-shell blog-article">
+<article class="blog-shell blog-article">
     <nav class="blog-crumb" aria-label="Breadcrumb" data-i18n-aria="public.guide.breadcrumb_aria">
       <a href="/" data-i18n="guide.breadcrumb_home">Home</a>
       <span aria-hidden="true">/</span>
@@ -180,6 +181,10 @@
       <p class="blog-meta">Updated 14 September 2026 · 9 min read · Technical</p>
       <p class="blog-byline">By CiteAura Research Team</p>
     </header>
+    <div class="editorial-notice-box">
+      <span><strong>Editorial Transparency:</strong> Fact-checked against search engine specifications and empirical crawling tests.</span>
+      <a href="/editorial-policy">Our Editorial Standards &rarr;</a>
+    </div>
 
     <!-- TOC -->
     <nav class="blog-toc" aria-labelledby="toc-heading">
@@ -367,6 +372,18 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
         <li><a href="/ai-visibility-audit">AI visibility audit workflow</a></li>
       </ul>
     </aside>
+      <div class="author-bio-card">
+      <div class="author-bio-avatar" aria-hidden="true" style="background:var(--accent);color:#fff;">CR</div>
+      <div class="author-bio-content">
+        <h3>About the Author: CiteAura Research Team</h3>
+        <span class="author-bio-role">Search Systems Engineers &amp; Evaluation Analysts</span>
+        <p>The CiteAura Research Team is the engineering working group behind the open-source CiteAura GEO engine, empirical crawler audits, and verifiable citation benchmarks across generative AI search systems.</p>
+        <div style="display:flex;gap:12px;margin-top:8px;">
+          <a class="author-bio-link" href="/authors">Explore Team &amp; Research &rarr;</a>
+          <a class="author-bio-link" href="/editorial-policy">Editorial Standards &rarr;</a>
+        </div>
+      </div>
+    </div>
   </article>
 
   <footer class="site-footer">
