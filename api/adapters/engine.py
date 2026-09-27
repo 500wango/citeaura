@@ -180,15 +180,19 @@ def _environment_name(name: str) -> str:
 def inject_keys(keys: dict | None):
     """临时注入 API Key 环境变量，并准确恢复原值。"""
     updates = {_environment_name(name): value for name, value in (keys or {}).items()}
-    previous = {}
-    for env_name in set(ENGINE_KEY_ENV.values()) | set(updates):
-        previous[env_name] = os.environ.get(env_name, _MISSING)
-        value = updates.get(env_name, _MISSING)
-        if value is _MISSING or value is None:
-            os.environ.pop(env_name, None)
-        else:
-            os.environ[env_name] = str(value)
+    # Reject NUL bytes before touching the process environment
+    for env_name, value in updates.items():
+        if value is not None and "\x00" in str(value):
+            raise ValueError(f"API key for {env_name} contains NUL byte")
+    all_names = set(ENGINE_KEY_ENV.values()) | set(updates)
+    previous = {env_name: os.environ.get(env_name, _MISSING) for env_name in all_names}
     try:
+        for env_name in all_names:
+            value = updates.get(env_name, _MISSING)
+            if value is _MISSING or value is None:
+                os.environ.pop(env_name, None)
+            else:
+                os.environ[env_name] = str(value)
         yield
     finally:
         for env_name, old_value in previous.items():

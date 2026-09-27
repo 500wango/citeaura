@@ -167,8 +167,8 @@ def _limit_state(usage, reservations, added_calls, added_cost, call_limit, cost_
         "reserved_cost_cny_fen": reservations["cost_cny_fen"],
         "projected_calls": projected_calls,
         "projected_cost_cny_fen": projected_cost,
-        "calls_exceeded": bool(added_calls and projected_calls > call_limit),
-        "cost_exceeded": bool(added_cost and projected_cost > cost_limit),
+        "calls_exceeded": bool(projected_calls > call_limit),
+        "cost_exceeded": bool(projected_cost > cost_limit),
     }
 
 

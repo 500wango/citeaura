@@ -443,3 +443,16 @@ def test_platform_pool_hard_limits_include_usage_and_reservations_but_not_byok(t
         result = sampling_control.ensure_allowed(db, tenant, project, platforms=["openai"])
         assert result["estimate"]["platform_pool_calls"] == 0
         assert result["budget"]["tenant_platform_pool_limit_exceeded"] is False
+
+def test_platform_pool_blocks_when_projected_exceeds_limit_with_zero_added_calls():
+    # We can test `sampling_control._limit_state` directly or just add a test.
+    # The fix in sampling_control.py line 170 removes `added_calls and ...`
+    limit = 1000
+    usage = {"calls": 1100, "cost_cny_fen": 11000}
+    reservations = {"calls": 0, "cost_cny_fen": 0}
+    added_calls = 0
+    added_cost = 0
+    
+    limits = sampling_control._limit_state(usage, reservations, added_calls, added_cost, limit, limit * 10)
+    assert limits["calls_exceeded"] is True
+    assert limits["cost_exceeded"] is True

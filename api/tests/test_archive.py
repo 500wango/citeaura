@@ -307,3 +307,31 @@ def test_archive_retention_expires_old_objects(archive_client, monkeypatch):
     assert by_id[second["id"]]["status"] == "available"
     assert ("archive-bucket", first["object_key"]) in fake.deleted
     assert ("archive-bucket", second["object_key"]) in fake.objects
+
+def test_archived_project_blocks_workspace_publishing_outreach_and_ui(archive_client, monkeypatch):
+    client, session_factory, tmp_path = archive_client
+    registered, headers = _register(client)
+    project_id, root = _seed_project(session_factory, tmp_path, registered["tenant"]["id"])
+
+    with session_factory() as db:
+        from api.models import Project
+        from datetime import datetime, timezone
+        project = db.get(Project, project_id)
+        project.archived_at = datetime.now(timezone.utc)
+        db.commit()
+
+    # workspace
+    workspace = client.get(f"/api/v1/workspace/projects/{project_id}", headers=headers)
+    assert workspace.status_code == 404
+
+    # publishing
+    publishing = client.get(f"/api/v1/publishing/projects/{project_id}/status", headers=headers)
+    assert publishing.status_code == 404
+
+    # outreach
+    outreach = client.get(f"/api/v1/outreach/projects/{project_id}/emails", headers=headers)
+    assert outreach.status_code == 404
+
+    # ui (file download)
+    ui_resp = client.get("/example-com/index.html", headers=headers)
+    assert ui_resp.status_code == 404

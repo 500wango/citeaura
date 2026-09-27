@@ -40,6 +40,8 @@ class KeyPayload(BaseModel):
         value = value.strip()
         if not value or "\n" in value or "\r" in value:
             raise ValueError("key_value must be a non-empty single line")
+        if "\x00" in value:
+            raise ValueError("key_value must not contain NUL byte")
         return value
 
 
@@ -56,6 +58,8 @@ class CustomProviderPayload(BaseModel):
         value = value.strip()
         if not value or "\n" in value or "\r" in value:
             raise ValueError("value must be a non-empty single line")
+        if "\x00" in value:
+            raise ValueError("value must not contain NUL byte")
         return value
 
     @field_validator("base_url")

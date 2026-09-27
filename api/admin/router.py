@@ -261,7 +261,13 @@ def admin_login(request: Request, payload: AdminLogin, response: Response, db: S
 
 
 @router.post("/auth/logout")
-def admin_logout(response: Response, admin: PlatformAdmin = Depends(require_admin_read)):
+def admin_logout(
+    response: Response,
+    admin: PlatformAdmin = Depends(require_admin_read),
+    db: Session = Depends(get_db),
+):
+    admin.session_version += 1
+    db.commit()
     response.delete_cookie(ADMIN_COOKIE, httponly=True, secure=config.session_cookie_secure(), samesite="strict")
     response.headers["Cache-Control"] = "no-store"
     return {"ok": True}

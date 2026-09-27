@@ -442,7 +442,7 @@ def _audit_markdown(project_slug, project_directory, name, site, audit, metrics,
             label = display_names.get(code) or _platform_display_name(code, item, provider_config)
             lines.append(
                 f"| {_markdown_cell(label)} | Global "
-                f"| {_markdown_cell(_safe_display(modes.get(code), 'API - Parametric knowledge'))} | {_safe_count(item.get('samples', 0), '0')} "
+                f"| {_markdown_cell(_safe_display(modes.get(code), 'Not recorded'))} | {_safe_count(item.get('samples', 0), '0')} "
                 f"| {_format_rate(item.get('mention_rate'))} | {_format_rate(item.get('top3_rate'))} "
                 f"| {_format_rate(item.get('own_domain_cite_rate'))} |"
             )

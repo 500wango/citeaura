@@ -1106,3 +1106,28 @@ def test_schedule_dispatcher_honors_project_sampling_budget(tmp_path, monkeypatc
 @contextmanager
 def _empty_context():
     yield
+
+def test_worker_tenant_record_resolves_numeric_slug_by_slug_first(tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from api.db import Base
+    from api.models import Tenant
+    from api.worker import tasks
+    
+    engine = create_engine(f"sqlite:///{tmp_path}/test.db")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    db = Session()
+    try:
+        t1 = Tenant(name="t1", directory_slug="tenant1")
+        t2 = Tenant(name="t2", directory_slug="1")
+        db.add(t1)
+        db.add(t2)
+        db.commit()
+        
+        result = tasks._tenant_record(db, "1")
+        assert result is not None
+        assert result.directory_slug == "1"
+        assert result.id == t2.id
+    finally:
+        db.close()

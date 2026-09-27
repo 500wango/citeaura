@@ -385,24 +385,12 @@ def refresh(
     if stored.revoked_at is not None:
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
     if stored.used_at is not None:
-        used_at = stored.used_at
-        if used_at.tzinfo is None:
-            used_at = used_at.replace(tzinfo=timezone.utc)
-        if now - used_at > timedelta(seconds=8):
-            db.query(RefreshToken).filter(
-                RefreshToken.family_id == stored.family_id,
-            ).update({RefreshToken.revoked_at: now}, synchronize_session=False)
-            user.session_version += 1
-            db.commit()
-            _error(status.HTTP_401_UNAUTHORIZED, "refresh_token_reused")
-        return token_response(
-            response,
-            user_id,
-            tenant_id,
-            db,
-            expose_tokens=request.headers.get("X-CiteAura-Session") != "cookie",
-            refresh_family_id=stored.family_id,
-        )
+        db.query(RefreshToken).filter(
+            RefreshToken.family_id == stored.family_id,
+        ).update({RefreshToken.revoked_at: now}, synchronize_session=False)
+        user.session_version += 1
+        db.commit()
+        _error(status.HTTP_401_UNAUTHORIZED, "refresh_token_reused")
     if expires_at <= now:
         stored.revoked_at = now
         db.commit()

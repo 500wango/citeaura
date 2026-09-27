@@ -8,6 +8,25 @@ from urllib.parse import urlparse
 class NetworkTargetError(ValueError):
     """目标地址不是可访问的公网地址。"""
 
+_CGNAT = ipaddress.ip_network("100.64.0.0/10")
+_NAT64_PREFIX = ipaddress.ip_network("64:ff9b::/96")
+
+def _is_safe_global(address):
+    """检查地址是否真正可达公网，拦截 IPv4-mapped 和 NAT64 伪装。"""
+    if not isinstance(address, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
+        address = ipaddress.ip_address(address)
+    # Extract embedded IPv4 from IPv4-mapped IPv6 (::ffff:x.x.x.x)
+    mapped = getattr(address, 'ipv4_mapped', None)
+    if mapped is not None:
+        return mapped.is_global and not mapped.is_multicast and mapped not in _CGNAT
+    # Extract embedded IPv4 from NAT64 (64:ff9b::x.x.x.x)
+    if isinstance(address, ipaddress.IPv6Address) and address in _NAT64_PREFIX:
+        packed = address.packed[12:16]
+        embedded = ipaddress.IPv4Address(packed)
+        return embedded.is_global and not embedded.is_multicast and embedded not in _CGNAT
+    return address.is_global and not address.is_multicast
+
+
 
 def resolve_public_addresses(host, port):
     """解析主机并返回稳定排序的地址集合。"""
@@ -50,9 +69,9 @@ def assert_public_host(host, port):
     """拒绝私网、回环、链路本地、保留和云元数据地址。"""
     addresses = resolve_public_addresses(host, port)
     for address in addresses:
-        if not address.is_global or address.is_multicast:
+        if not _is_safe_global(address):
             raise NetworkTargetError("network_private_address_blocked")
-    return str(host).strip()
+    return str(addresses[0])
 
 
 def validate_outbound_url(
@@ -94,14 +113,14 @@ def validate_outbound_url(
             literal = ipaddress.ip_address(parsed.hostname.split("%", 1)[0])
         except ValueError:
             literal = None
-        if literal is not None and not literal.is_global:
+        if literal is not None and not _is_safe_global(literal):
             raise NetworkTargetError("network_private_address_blocked")
         if parsed.hostname.lower() in {"localhost", "localhost.localdomain"}:
             raise NetworkTargetError("network_private_address_blocked")
         return value
     addresses = resolve_public_addresses(parsed.hostname, port)
     for address in addresses:
-        if not address.is_global or address.is_multicast:
+        if not _is_safe_global(address):
             raise NetworkTargetError("network_private_address_blocked")
     return (value, addresses) if return_addresses else value
 

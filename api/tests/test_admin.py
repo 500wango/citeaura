@@ -157,7 +157,9 @@ def test_plan_can_be_granted_to_owned_workspace_from_cli(admin_client, monkeypat
         tenant = db.get(Tenant, result["tenant_id"])
         assert tenant.plan == "pro"
         assert tenant.trial_ends_at is None
-        assert db.query(Subscription).filter(Subscription.tenant_id == tenant.id).count() == 0
+        sub = db.query(Subscription).filter(Subscription.tenant_id == tenant.id).one()
+        assert sub.status == "active"
+        assert sub.plan == "pro"
 
 
 def test_admin_can_change_password_and_existing_session_is_revoked(admin_client):
@@ -274,3 +276,18 @@ def test_ops_status_change_revokes_user_session_and_is_audited(admin_client):
     assert client.get("/api/v1/me").status_code == 401
     with client.session_factory() as db:
         assert db.get(Tenant, tenant_id).status == "active"
+
+def test_admin_logout_revokes_session(admin_client):
+    client = admin_client
+    assert _login_admin(client).status_code == 200
+    current_cookie = client.cookies.get("citeaura_admin_session")
+
+    logged_out = client.post(
+        "/api/v1/admin/auth/logout",
+        headers={"X-CiteAura-Admin": "console"},
+    )
+    assert logged_out.status_code == 200
+    assert "citeaura_admin_session=\"\"" in logged_out.headers["set-cookie"]
+
+    client.cookies.set("citeaura_admin_session", current_cookie)
+    assert client.get("/api/v1/admin/me").status_code == 401

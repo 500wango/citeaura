@@ -386,7 +386,7 @@ def test_usage_reports_activation_funnel_from_completed_workspace_facts(billing_
     }
     assert funnel["progress_percent"] == 100.0
     assert usage["projects_remaining"] == 2
-    assert usage["sample_runs_remaining"] == 4
+    assert usage["sample_runs_remaining"] == 3
     assert usage["platform_pool_calls"] == 0
 
 
@@ -1131,3 +1131,83 @@ def test_active_and_expired_trial_can_upgrade_to_pro_without_waiting(billing_cli
     assert after["can_change_plan"] is True
     assert after["projects_limit"] == 30
     assert [item["plan"] for item in captured] == ["pro", "agency"]
+
+def test_downgrade_enforces_project_limits_for_sampling(billing_client):
+    client, session_factory = billing_client
+    headers = _register(client, "downgrade@example.com")
+    
+    with session_factory() as db:
+        from api.models import Project, Tenant
+        from api.billing.limits import check_sample_run
+        
+        tenant = db.query(Tenant).filter(Tenant.name == "downgrade").one()
+        tenant.plan = "starter" # Starter limit is 3 projects
+        db.commit()
+        
+        # Create 4 projects with staggered created_at so ordering is deterministic.
+        # p0 is the oldest and should be excluded from the top-3.
+        now = datetime.now(timezone.utc)
+        projects = []
+        for i in range(4):
+            project = Project(
+                tenant_id=tenant.id,
+                slug=f"p{i}",
+                url=f"https://p{i}.example.com",
+                status="ready",
+                created_at=now - timedelta(minutes=40 - i * 10),
+            )
+            db.add(project)
+            db.commit()
+            db.refresh(project)
+            projects.append(project)
+            
+        from fastapi import HTTPException
+        import pytest
+        # The oldest project (p0) should be blocked from sampling
+        with pytest.raises(HTTPException) as exc:
+            check_sample_run(db, tenant, projects[0])
+        assert exc.value.status_code == 403
+        assert "exceeds starter plan limit" in exc.value.detail["detail"]
+        
+        # The 3 newest projects should pass without exception
+        for p in projects[1:]:
+            check_sample_run(db, tenant, p)
+
+def test_deliver_job_counts_toward_trial_limit(billing_client):
+    client, session_factory = billing_client
+    headers = _register(client, "deliver-trial@example.com")
+    
+    with session_factory() as db:
+        from api.models import Project, Tenant, Job
+        from api.billing.limits import check_sample_run
+        
+        tenant = db.query(Tenant).filter(Tenant.name == "deliver-trial").one()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="deliver-p",
+            url="https://deliver-p.example.com",
+            status="ready",
+        )
+        db.add(project)
+        db.commit()
+        db.refresh(project)
+        
+        # Add 2 deliver jobs
+        for _ in range(2):
+            job = Job(
+                project_id=project.id,
+                action="deliver",
+                status="done",
+                request_json="{}"
+            )
+            db.add(job)
+        db.commit()
+        
+        from fastapi import HTTPException
+        import pytest
+        # The third sample run (or any sample run) should be blocked because 2 deliver jobs already used the limit
+        with pytest.raises(HTTPException) as exc:
+            check_sample_run(db, tenant, project)
+        assert exc.value.status_code == 403
+        assert "trial sample limit is" in exc.value.detail["detail"]
+

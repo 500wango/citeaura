@@ -35,7 +35,7 @@ def serve_project_file(path: str, current_user: User = Depends(get_current_user)
     tenant = db.get(Tenant, current_user.tenant_id)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
-    project = db.query(Project).filter(Project.tenant_id == tenant.id, Project.slug == parts[0]).first()
+    project = db.query(Project).filter(Project.tenant_id == tenant.id, Project.slug == parts[0], Project.archived_at.is_(None)).first()
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error": "file_not_found"})
     tenant_directory = engine_adapter.tenant_slug(tenant)

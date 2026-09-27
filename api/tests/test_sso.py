@@ -21,6 +21,7 @@ def sso_client(tmp_path, monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "test-secret-that-is-long-enough-32")
     monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"s" * 32).decode())
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://app.example.test")
+    monkeypatch.setenv("SSO_REQUIRE_DOMAIN_VERIFICATION", "false")
     monkeypatch.delenv("SESSION_COOKIE_SECURE", raising=False)
     engine = create_engine(f"sqlite:///{tmp_path / 'sso.sqlite'}")
     Base.metadata.create_all(engine)
@@ -126,6 +127,7 @@ def test_sso_callback_provisions_member_and_rejects_unapproved_domain(sso_client
             client_id="citeaura-client",
             encrypted_client_secret=encrypt_key("secret"),
             allowed_domains='["example.com"]',
+            verified_domains='["example.com"]',
             default_role="viewer",
             enabled=True,
         ))
@@ -238,3 +240,41 @@ def test_oidc_discovery_blocks_private_endpoints_and_redirects(monkeypatch):
     monkeypatch.setattr(oidc.requests, "get", lambda *args, **kwargs: _OidcResponse({}, 302))
     with pytest.raises(oidc.OidcError, match="oidc_redirect_blocked"):
         oidc.discover(issuer)
+
+def test_sso_callback_blocks_user_provisioning_if_domain_unverified(sso_client, monkeypatch):
+    client, session_factory = sso_client
+    registered, owner_headers = _register_login(client)
+    tenant_id = registered["tenant"]["id"]
+    with session_factory() as db:
+        tenant = db.get(Tenant, tenant_id)
+        tenant.plan = "enterprise"
+        db.add(SsoConfiguration(
+            tenant_id=tenant_id,
+            provider_name="Example Identity",
+            issuer_url="https://identity.example.test",
+            client_id="citeaura-client",
+            encrypted_client_secret=encrypt_key("secret"),
+            allowed_domains='["example.com"]',
+            verified_domains='[]',
+            default_role="viewer",
+            enabled=True,
+        ))
+        db.commit()
+
+    state = create_sso_state(tenant_id)
+    context = {"state": state, "verifier": "verifier", "nonce": "nonce"}
+    client.cookies.set(SSO_CONTEXT_COOKIE, encrypt_key(json.dumps(context)))
+    monkeypatch.setattr(
+        oidc,
+        "complete_login",
+        lambda configuration, redirect_uri, code, current: {
+            "email": "new.member@example.com", "subject": "idp-subject-1", "claims": {},
+        },
+    )
+    completed = client.get(
+        "/api/v1/sso/callback",
+        params={"code": "authorization-code", "state": state},
+        follow_redirects=False,
+    )
+    assert completed.status_code == 403
+    assert completed.json() == {"error": "sso_domain_verification_required_for_provisioning"}

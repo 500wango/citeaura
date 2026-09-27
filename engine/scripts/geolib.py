@@ -331,6 +331,20 @@ def is_fetchable(url: str, allow_machine_file: bool = False) -> bool:
     return True
 
 
+def _is_safe_global_address(address):
+    """检查地址是否真正可达公网，拦截 IPv4-mapped 和 NAT64 伪装。"""
+    _cgnat = ipaddress.ip_network("100.64.0.0/10")
+    _nat64 = ipaddress.ip_network("64:ff9b::/96")
+    addr = ipaddress.ip_address(address) if not isinstance(address, (ipaddress.IPv4Address, ipaddress.IPv6Address)) else address
+    mapped = getattr(addr, 'ipv4_mapped', None)
+    if mapped is not None:
+        return mapped.is_global and not mapped.is_multicast and mapped not in _cgnat
+    if isinstance(addr, ipaddress.IPv6Address) and addr in _nat64:
+        embedded = ipaddress.IPv4Address(addr.packed[12:16])
+        return embedded.is_global and not embedded.is_multicast and embedded not in _cgnat
+    return addr.is_global and not addr.is_multicast
+
+
 def _validate_fetch_target(url: str):
     """Reject credentials, non-HTTP schemes, and non-public resolved addresses."""
     parsed = urlparse(url)
@@ -343,7 +357,7 @@ def _validate_fetch_target(url: str):
         }
     except (OSError, UnicodeError) as exc:
         raise ValueError("fetch target could not be resolved") from exc
-    if not addresses or any(not ipaddress.ip_address(address).is_global for address in addresses):
+    if not addresses or any(not _is_safe_global_address(address) for address in addresses):
         raise ValueError("fetch target resolves to a non-public address")
     return parsed, tuple(sorted(addresses, key=lambda address: (ipaddress.ip_address(address).version, address)))
 

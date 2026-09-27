@@ -7,7 +7,8 @@ import re
 from api.auth.security import hash_password
 from api.billing.plans import SUBSCRIBABLE_PLANS
 from api.db import SessionLocal
-from api.models import Membership, PlatformAdmin, Tenant, User
+from api.models import Membership, PlatformAdmin, Tenant, User, Subscription
+from datetime import datetime, timezone, timedelta
 
 
 ROLES = ("support", "ops", "finance", "superadmin")
@@ -94,6 +95,17 @@ def grant_plan(email, plan, tenant_id=None):
         previous = tenant.plan
         tenant.plan = plan
         tenant.trial_ends_at = None
+        
+        granted_sub = Subscription(
+            tenant_id=tenant.id,
+            plan=plan,
+            status="active",
+            billing_interval="monthly",
+            started_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=3650),
+        )
+        db.add(granted_sub)
+        
         db.commit()
         return {"tenant_id": tenant.id, "tenant_name": tenant.name, "previous": previous, "plan": plan}
 

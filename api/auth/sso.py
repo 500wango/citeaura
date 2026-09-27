@@ -250,6 +250,8 @@ def sso_callback(
     configuration = db.get(SsoConfiguration, tenant.id)
     if tenant.plan != "enterprise" or configuration is None or not configuration.enabled:
         _error(status.HTTP_404_NOT_FOUND, "sso_not_configured")
+    if config.sso_require_domain_verification() and set(_domains(configuration)) - set(_verified_domains(configuration)):
+        _error(status.HTTP_409_CONFLICT, "sso_domains_unverified")
     redirect_uri = f"{config.public_base_url()}/api/v1/sso/callback"
     try:
         identity = oidc.complete_login(configuration, redirect_uri, code, context)
@@ -272,6 +274,8 @@ def sso_callback(
         _error(status.HTTP_403_FORBIDDEN, "sso_domain_not_allowed")
     user = db.query(User).filter(User.email == email).first()
     if user is None:
+        if set(_domains(configuration)) - set(_verified_domains(configuration)):
+            _error(status.HTTP_403_FORBIDDEN, "sso_domain_verification_required_for_provisioning")
         country_code = request_country_code(request)
         user = User(
             email=email,

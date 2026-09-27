@@ -250,7 +250,7 @@ def send_smtp(draft, settings, credentials):
     if not host or port not in (25, 465, 587, 2525) or security_mode not in ("starttls", "ssl"):
         raise OutreachError("outreach_smtp_config_invalid")
     try:
-        assert_public_host(host, port)
+        pinned_host = assert_public_host(host, port)
     except NetworkTargetError as exc:
         raise OutreachError("outreach_smtp_host_blocked") from exc
     message = EmailMessage()
@@ -263,9 +263,9 @@ def send_smtp(draft, settings, credentials):
     smtp_class = smtplib.SMTP_SSL if security_mode == "ssl" else smtplib.SMTP
     try:
         client_connection = (
-            smtp_class(host, port, timeout=20, context=context)
+            smtp_class(pinned_host, port, timeout=20, context=context)
             if security_mode == "ssl"
-            else smtp_class(host, port, timeout=20)
+            else smtp_class(pinned_host, port, timeout=20)
         )
         with client_connection as client:
             client.ehlo()

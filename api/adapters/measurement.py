@@ -558,6 +558,7 @@ def sampling_quality(project_slug):
     if not metrics:
         return {
             "available": False,
+            "sampling_mode": None,
             "current": {
                 "total": 0, "successful": 0, "failed": 0, "failure_rate": None,
                 "effective_visibility_samples": 0, "platform_count": 0,
@@ -593,9 +594,28 @@ def sampling_quality(project_slug):
     confidence = _confidence(current, current_n)
     current_summary["platform_count"] = confidence["platform_count"]
 
+    run_id = current.get("run_id")
+    rows = _run_rows(project_slug, run_id)
+    modes = set()
+    for r in rows:
+        if r.get("ok"):
+            if r.get("sample_mode") == "manual" or r.get("terminal") in ("web", "manual"):
+                modes.add("Manual · Product interface")
+            elif r.get("search_enabled"):
+                modes.add("API · Search grounded")
+            else:
+                modes.add("API · Parametric knowledge")
+    if not modes:
+        overall_mode = None
+    elif len(modes) == 1:
+        overall_mode = list(modes)[0]
+    else:
+        overall_mode = "mixed"
+
     if len(metrics) < 2:
         return {
             "available": True,
+            "sampling_mode": overall_mode,
             "current": current_summary,
             "confidence": confidence,
             "comparable": False,
@@ -679,6 +699,7 @@ def sampling_quality(project_slug):
     }
     return {
         "available": True,
+        "sampling_mode": overall_mode,
         "current": current_summary,
         "confidence": confidence,
         "previous": {

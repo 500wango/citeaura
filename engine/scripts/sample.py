@@ -386,7 +386,7 @@ def _ask_responses(p: dict, key: str, question: str, timeout: int) -> dict | Non
             answer, refs, _hit = _parse_responses_payload(data)
             if answer.strip():
                 return {"ok": True, "answer": answer, "citations": refs,
-                        "searched": True, **_call_meta(r, data, _p_model(p), 0)}
+                        "searched": _hit, **_call_meta(r, data, _p_model(p), 0)}
             return _empty_fail("Provider returned an empty answer")
         text = r.text or ""
         if r.status_code in (400, 404, 405, 422) or "ToolNotOpen" in text:
@@ -459,7 +459,7 @@ def ask_anthropic(p: dict, key: str, question: str, timeout: int, want_search: b
                     last_error = _empty_fail("Provider returned an empty answer", attempt)
                     break
                 return {"ok": True, "answer": answer, "citations": refs,
-                        "searched": bool(tool_type) or used,
+                        "searched": used,
                         **_call_meta(r, data, _p_model(p), attempt)}
             except requests.exceptions.Timeout as e:
                 last_error = _empty_fail(f"{type(e).__name__}: {e}", attempt)
@@ -531,8 +531,10 @@ def ask_grok(p: dict, key: str, question: str, timeout: int, want_search: bool) 
         if hit is not None:
             return hit
         extra = {"search_parameters": {"mode": "on", "return_citations": True}}
-        fallback = _ask_chat_completions(p, key, question, timeout, searched=True, extra=extra)
+        fallback = _ask_chat_completions(p, key, question, timeout, searched=False, extra=extra)
         if fallback.get("ok"):
+            if fallback.get("citations"):
+                fallback["searched"] = True
             return fallback
     return _ask_chat_completions(p, key, question, timeout, searched=False)
 

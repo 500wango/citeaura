@@ -34,8 +34,8 @@ def engine_rows_by_mode(item, platform_rows):
         return [{
             "engine_code": item.get("platform"),
             "engine_name": item.get("label") or item.get("platform"),
-            "sampling_mode": sampling_modes.MODE_API,
-            "sampling_mode_code": sampling_modes.CODE_PARAMETRIC,
+            "sampling_mode": None,
+            "sampling_mode_code": None,
             "mention_rate": item.get("mention"),
             "mention_interval": None,
             "median_rank": item.get("pos_median"),
@@ -216,7 +216,8 @@ def product_report(project_slug, metrics):
     return {
         **(metrics or {}),
         "mention_rate": round(mention_rate, 4) if mention_rate is not None else None,
-        "grade": audit.get("applicable_grade") or grade_for_score(audit.get("avg_score")),
+        "sample_count": measured_count,
+        "grade": audit.get("applicable_grade"),
         "engines": engines,
         "channels": channels,
         "audit": audit,

@@ -271,7 +271,7 @@ class TestAskRetry(unittest.TestCase):
         self.assertEqual(post.call_count, 1)
 
     def test_anthropic_success_declares_search_mode_when_tool_is_on(self):
-        payload = {"model": "claude-test", "content": [{"type": "text", "text": "OK"}]}
+        payload = {"model": "claude-test", "content": [{"type": "server_tool_use"}, {"type": "text", "text": "OK"}]}
         with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}), \
              mock.patch.object(S.requests, "post", return_value=_Resp(200, payload)) as post:
             result = S.ask("claude", "Question?")

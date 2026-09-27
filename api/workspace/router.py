@@ -112,7 +112,7 @@ def _tenant_project(db: Session, user: User, project_id: int):
     tenant = db.get(Tenant, user.tenant_id)
     if tenant is None:
         _error(status.HTTP_403_FORBIDDEN, "no_tenant_membership")
-    project = db.query(Project).filter(Project.id == project_id, Project.tenant_id == tenant.id).first()
+    project = db.query(Project).filter(Project.id == project_id, Project.tenant_id == tenant.id, Project.archived_at.is_(None)).first()
     if project is None:
         _error(status.HTTP_404_NOT_FOUND, "project_not_found")
     return tenant, project

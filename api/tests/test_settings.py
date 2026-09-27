@@ -261,3 +261,26 @@ def test_custom_provider_must_connect_before_save(settings_client, monkeypatch):
     assert response.json()["detail"] == "provider_http_401"
     with client.session_factory() as db:
         assert db.query(CustomProvider).count() == 0
+
+def test_keys_reject_nul_byte(settings_client):
+    headers = _headers(settings_client, "nultest@example.com")
+    response = settings_client.put(
+        "/api/v1/settings/keys",
+        json={"engine_code": "openai", "key_value": "test\x00key"},
+        headers=headers,
+    )
+    assert response.status_code == 422
+
+    response = settings_client.post(
+        "/api/v1/settings/keys/custom/test",
+        json={
+            "name": "Test\x00",
+            "base_url": "https://example.com",
+            "api_key": "test_key",
+            "model_id": "test_model",
+            "market": "both",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 422
+

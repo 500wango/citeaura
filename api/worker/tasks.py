@@ -125,14 +125,13 @@ from api.worker.worker_pipeline import *  # noqa: F401,F403
 from api.worker.worker_job_lifecycle import _job_status
 
 def _tenant_record(db, tenant_id):
-    """按数据库 id 或租户名称查找租户。"""
-    try:
-        return db.get(Tenant, int(tenant_id))
-    except (TypeError, ValueError):
-        return db.query(Tenant).filter(or_(
-            Tenant.name == str(tenant_id),
-            Tenant.directory_slug == str(tenant_id),
-        )).first()
+    """按目录名或租户名称查找租户，不按主键猜测。"""
+    tenant_id_str = str(tenant_id)
+    result = db.query(Tenant).filter(or_(
+        Tenant.directory_slug == tenant_id_str,
+        Tenant.name == tenant_id_str,
+    )).first()
+    return result
 
 
 def _find_job(db, tenant_id, project_slug, action, job_id):

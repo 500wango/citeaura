@@ -102,3 +102,7 @@ def test_object_storage_config_is_runtime_and_bounds_retention(monkeypatch):
     assert value["endpoint_url"] == "https://objects.example.test"
     assert value["force_path_style"] is True
     assert value["retention_count"] == 12
+
+def test_sso_require_domain_verification_defaults_to_true(monkeypatch):
+    monkeypatch.delenv("SSO_REQUIRE_DOMAIN_VERIFICATION", raising=False)
+    assert config.sso_require_domain_verification() is True

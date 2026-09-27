@@ -430,3 +430,25 @@ def test_tenant_context_blocks_private_and_mixed_dns_results(monkeypatch):
     with with_tenant_context("tenant", "project", keys={}):
         with pytest.raises(GeoEngineError, match="network_private_address_blocked"):
             requests.get("https://example.com/resource")
+
+def test_network_guard_rejects_ipv4_mapped_and_nat64():
+    from api.adapters.network import _is_safe_global
+    assert not _is_safe_global("::ffff:100.100.100.200")
+    assert not _is_safe_global("64:ff9b::a9fe:a9fe")
+    assert not _is_safe_global("64:ff9b::7f00:1")
+    assert not _is_safe_global("64:ff9b::a00:1")
+    assert _is_safe_global("8.8.8.8")
+    assert _is_safe_global("2001:4860:4860::8888")
+
+def test_inject_keys_rejects_nul_byte_and_restores_on_failure(monkeypatch):
+    import os
+    import pytest
+    from api.adapters.engine import inject_keys
+
+    monkeypatch.setenv("OPENAI_API_KEY", "original_key")
+    
+    with pytest.raises(ValueError, match="contains NUL byte"):
+        with inject_keys({"openai": "test\x00key"}):
+            pass
+
+    assert os.environ.get("OPENAI_API_KEY") == "original_key"

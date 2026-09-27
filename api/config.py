@@ -153,7 +153,7 @@ def allowed_hosts():
 
 def sso_require_domain_verification():
     """生产环境要求 SSO 域名完成 DNS TXT 验证。"""
-    return _enabled("SSO_REQUIRE_DOMAIN_VERIFICATION", "false")
+    return _enabled("SSO_REQUIRE_DOMAIN_VERIFICATION", "true")
 
 
 def source_revision():

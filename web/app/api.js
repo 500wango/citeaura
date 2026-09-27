@@ -192,7 +192,7 @@ export const projects = {
 
   getReport: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/report`).then((data) => (
     data && data.report ? { ...data.report, report_quality: data.report_quality, date: data.date,
-      sample_artifact: data.sample_artifact } : null
+      sample_artifact: data.sample_artifact, user_summary: data.user_summary } : null
   )),
   getVisibilityPlan: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/visibility-plan`),
   updateVisibilityPlan: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/visibility-plan`, { method: 'PUT', body }),

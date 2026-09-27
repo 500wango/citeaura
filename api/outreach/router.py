@@ -111,6 +111,7 @@ def _tenant_project(db, user, project_id):
     project = db.query(Project).filter(
         Project.id == project_id,
         Project.tenant_id == tenant.id,
+        Project.archived_at.is_(None),
     ).first()
     if project is None:
         _error(status.HTTP_404_NOT_FOUND, "project_not_found")

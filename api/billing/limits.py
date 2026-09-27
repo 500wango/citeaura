@@ -14,7 +14,7 @@ from api.billing.plans import PLANS, TRIAL_DAYS
 
 TRIAL_PROJECT_LIMIT = 3
 TRIAL_SAMPLE_LIMIT_PER_PROJECT = 2
-SAMPLE_JOB_ACTIONS = ("sample", "sample-import", "cycle", "autopilot", "serve")
+SAMPLE_JOB_ACTIONS = ("sample", "sample-import", "cycle", "autopilot", "serve", "deliver")
 ACTIVATION_STEPS = (
     ("registration", "Registration"),
     ("project_creation", "First project"),
@@ -45,7 +45,7 @@ def _row_sampled(action, request_json):
             return int(value or 0) > 0
         except (TypeError, ValueError):
             return True
-    if action not in ("cycle", "autopilot", "serve", "bootstrap"):
+    if action not in ("cycle", "autopilot", "serve", "bootstrap", "deliver"):
         return False
     try:
         payload = json.loads(request_json or "{}")
@@ -238,15 +238,36 @@ def check_project_creation(db: Session, tenant: Tenant):
 def check_sample_run(db: Session, tenant: Tenant, project: Project):
     """检查单项目和整个试用生命周期的采样次数。"""
     check_product_access(db, tenant)
-    if not _trial_active(tenant):
-        return
-    count = _count_sampled_jobs(db, project_id=project.id)
-    if count >= TRIAL_SAMPLE_LIMIT_PER_PROJECT:
-        _raise_limit(f"trial sample limit is {TRIAL_SAMPLE_LIMIT_PER_PROJECT} per project")
-    tenant_count = _count_sampled_jobs(db, tenant_id=tenant.id)
-    lifetime_limit = TRIAL_PROJECT_LIMIT * TRIAL_SAMPLE_LIMIT_PER_PROJECT
-    if tenant_count >= lifetime_limit:
-        _raise_limit(f"trial sample lifetime limit is {lifetime_limit} per workspace")
+    if _trial_active(tenant):
+        count = _count_sampled_jobs(db, project_id=project.id)
+        if count >= TRIAL_SAMPLE_LIMIT_PER_PROJECT:
+            _raise_limit(f"trial sample limit is {TRIAL_SAMPLE_LIMIT_PER_PROJECT} per project")
+        tenant_count = _count_sampled_jobs(db, tenant_id=tenant.id)
+        lifetime_limit = TRIAL_PROJECT_LIMIT * TRIAL_SAMPLE_LIMIT_PER_PROJECT
+        if tenant_count >= lifetime_limit:
+            _raise_limit(f"trial sample lifetime limit is {lifetime_limit} per workspace")
+    else:
+        plan_config = PLANS.get(tenant.plan)
+        plan_project_limit = plan_config.get("projects") if plan_config else None
+        if plan_project_limit is not None:
+            active_count = db.query(func.count(Project.id)).filter(
+                Project.tenant_id == tenant.id,
+                Project.archived_at.is_(None),
+                Project.status != "archived",
+            ).scalar() or 0
+            if active_count > plan_project_limit:
+                allowed_ids = [
+                    row[0] for row in db.query(Project.id).filter(
+                        Project.tenant_id == tenant.id,
+                        Project.archived_at.is_(None),
+                        Project.status != "archived",
+                    ).order_by(Project.created_at.desc()).limit(plan_project_limit).all()
+                ]
+                if project.id not in allowed_ids:
+                    _raise_limit(
+                        f"project exceeds {tenant.plan} plan limit of {plan_project_limit} active projects",
+                        error="plan_limit_exceeded",
+                    )
 
 
 def usage(db: Session, tenant: Tenant) -> dict:
