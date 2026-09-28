@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Measure ChatGPT brand mentions: mention_rate, 3 modes | CiteAura</title>
+  <title>How to Measure ChatGPT Brand Mentions: 3 Modes | CiteAura</title>
   <meta name="description" content="Freeze a prompt cohort, label API vs web-grounded vs manual, compute mention_rate with a Wilson interval. No fabricated visibility scores.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
@@ -27,7 +27,7 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand">
-  <meta property="og:title" content="Measure ChatGPT brand mentions: mention_rate, 3 modes | CiteAura">
+  <meta property="og:title" content="How to Measure ChatGPT Brand Mentions: 3 Modes | CiteAura">
   <meta property="og:description" content="Freeze a prompt cohort, label API vs web-grounded vs manual, compute mention_rate with a Wilson interval. No fabricated visibility scores.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
@@ -38,7 +38,7 @@
   <meta property="article:modified_time" content="2026-09-14T00:00:00Z">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Measure ChatGPT brand mentions: mention_rate, 3 modes | CiteAura">
+  <meta name="twitter:title" content="How to Measure ChatGPT Brand Mentions: 3 Modes | CiteAura">
   <meta name="twitter:description" content="Freeze a prompt cohort, label API vs web-grounded vs manual, compute mention_rate with a Wilson interval.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
@@ -208,6 +208,14 @@
     <div class="editorial-notice-box">
       <span><strong>Editorial Transparency:</strong> Fact-checked against search engine specifications and empirical crawling tests.</span>
       <a href="/editorial-policy">Our Editorial Standards &rarr;</a>
+    </div>
+
+    <div class="blog-callout" style="border-left: 4px solid var(--accent); background: var(--surface-1); padding: 18px 20px; border-radius: 8px; margin: 24px 0;">
+      <p style="margin: 0 0 6px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); font-weight: 700;">Direct Answer &amp; Measurement Formula</p>
+      <p style="margin: 0 0 10px 0; font-size: 15px; line-height: 1.6;"><strong>How do you measure if ChatGPT mentions your brand?</strong></p>
+      <p style="margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">To measure brand visibility objectively, sample an immutable prompt cohort of 15 to 30 buyer queries across repeated passes (e.g. 15 questions &times; 3 rounds = 45 draws) and compute the empirical Mention Rate:</p>
+      <p style="margin: 0 0 10px 0; font-family: monospace; background: var(--surface-2); padding: 10px 14px; border-radius: 6px; font-size: 13px; border: 1px solid var(--border);">Mention Rate (%) = (Successful draws citing brand &divide; Total valid draws) &times; 100</p>
+      <p style="margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5;">Never merge API model knowledge with consumer web UI answers into the same cohort, and always calculate a 95% Wilson binomial confidence interval to separate actual visibility changes from stochastic noise.</p>
     </div>
 
     <h2>Why a single answer is not a measurement</h2>

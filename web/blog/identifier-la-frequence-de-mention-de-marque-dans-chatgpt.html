@@ -194,6 +194,14 @@
       <a href="/editorial-policy">Nos standards éditoriaux &rarr;</a>
     </div>
 
+    <div class="blog-callout" style="border-left: 4px solid var(--accent); background: var(--surface-1); padding: 18px 20px; border-radius: 8px; margin: 24px 0;">
+      <p style="margin: 0 0 6px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); font-weight: 700;">Réponse directe &amp; Définition normalisée</p>
+      <p style="margin: 0 0 10px 0; font-size: 15px; line-height: 1.6;"><strong>Comment calculer et identifier la fréquence de mention d'une marque dans ChatGPT ?</strong></p>
+      <p style="margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">La fréquence de mention s'évalue en exécutant une cohorte fermée de requêtes d'acheteurs (ex. 15 questions posées sur 3 passes distinctes, soit 45 tirages) et en appliquant la formule d'ingénierie :</p>
+      <p style="margin: 0 0 10px 0; font-family: monospace; background: var(--surface-2); padding: 10px 14px; border-radius: 6px; font-size: 13px; border: 1px solid var(--border);">Taux de Mention (%) = (Nombre de tirages mentionnant la marque ÷ Nombre total de tirages réussis) × 100</p>
+      <p style="margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5;">Pour être statistiquement robuste, la mesure doit distinguer les <em>connaissances paramétriques</em> de la <em>recherche web connectée</em> et calculer un intervalle de confiance binomial de Wilson à 95 % afin d'éliminer le bruit stochastique.</p>
+    </div>
+
     <nav class="toc" aria-label="Sommaire">
       <strong>Sommaire</strong>
       <ol>
@@ -242,6 +250,17 @@ is_mentioned = bool(pattern.search(raw_answer_text))</code></pre>
     <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code>Taux de Mention (%) = (Nombre de tirages avec mention positive / Nombre total de tirages réussis) × 100</code></pre>
 
     <p>Pour un échantillon binomial de taille <code>n</code> avec une probabilité observée <code>p</code>, la variance est <code>p(1 - p) / n</code>. Avec <code>n = 45</code> et un taux observé de 30 %, l'intervalle de confiance à 95 % (méthode de Wilson) est d'environ 18 % à 45 %. Une variation de 25 % à 35 % entre deux semaines n'est donc souvent que du bruit statistique ; une vraie amélioration nécessite d'élargir la cohorte ou de constater une rupture de tendance sur plusieurs cycles consécutifs.</p>
+
+    <div class="blog-callout" style="background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:16px;margin:16px 0;">
+      <p style="margin:0 0 8px 0;font-weight:700;">Exemple concret d'audit empirique :</p>
+      <ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.7;">
+        <li><strong>Cohorte :</strong> 15 requêtes d'acheteurs SOC 2 &times; 3 passes = 45 tirages indépendants</li>
+        <li><strong>Résultats observés :</strong> 14 tirages mentionnent positivement la marque</li>
+        <li><strong>Taux de Mention mesuré :</strong> (14 / 45) &times; 100 = <strong>31,1 %</strong></li>
+        <li><strong>Intervalle de confiance Wilson à 95 % :</strong> [19,5 % &ndash; 45,6 %]</li>
+        <li><strong>Interprétation :</strong> Si un audit ultérieur donne 35 %, la hausse n'est pas encore statistiquement significative sans répétition sur les cycles suivants.</li>
+      </ul>
+    </div>
 
     <h2 id="comprendre-mention">Comprendre comment la marque est mentionnée</h2>
     <p>Identifier la fréquence brute ne suffit pas. Une analyse GEO complète examine la qualité de l'apparition :</p>
@@ -300,10 +319,10 @@ is_mentioned = bool(pattern.search(raw_answer_text))</code></pre>
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Guides connexes</h2>
       <ul>
-        <li><a href="/blog/measure-if-chatgpt-mentions-your-brand">Comment mesurer les mentions de marque dans ChatGPT (version anglaise)</a></li>
-        <li><a href="/blog/why-chatgpt-does-not-mention-my-brand">Pourquoi ChatGPT ne mentionne pas votre marque : 4 axes de diagnostic (version anglaise)</a></li>
-        <li><a href="/blog/gptbot-blocked-by-robots-txt">GPTBot bloqué par robots.txt ? Trouver et corriger la règle (version anglaise)</a></li>
-        <li><a href="/crawler-check">Testeur gratuit de robots.txt pour robots IA</a></li>
+        <li><a href="/blog/diagnostic-visibilite-ia-marques">Diagnostic de visibilité IA pour les marques : 4 axes d'audit</a></li>
+        <li><a href="/blog/verification-geo-mesurer-visibilite-ia">Vérification GEO : mesurer et prouver la visibilité IA</a></li>
+        <li><a href="/blog/schema-json-ld-pour-la-recherche-ia">Schema JSON-LD pour la recherche IA : structurer ses entités</a></li>
+        <li><a href="/crawler-check">Testeur gratuit de robots.txt pour robots IA (GPTBot)</a></li>
       </ul>
     </aside>
       <div class="author-bio-card">
