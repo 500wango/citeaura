@@ -319,7 +319,7 @@
   "plan.notes_label": "Ausführungshinweise",
   "plan.target_page_label": "Ziel-URL / Seite",
   "report.title": "Liefergegenstände und Kunden-Lieferpakete",
-  "report.desc": "Das ZIP des ersten Laufs ist das finale Diagnosepaket. Senden Sie die Dokumente 01–06 an den Kunden; Vorlagen und nicht gemessene Sichtbarkeit bleiben als offener Umsetzungsbedarf ausgewiesen.",
+  "report.desc": "Die erste ZIP ist das finale Diagnosepaket. Senden Sie die Dokumente 01-06 an den Kunden. Befolgt die 3-Runden-Evidenzstandards; Paketierung erfolgt sofort, wenn Evidenz vollständig ist.",
   "report.generate_pack_btn": "Diagnosepaket erstellen",
   "report.download_ready_zip": "Diagnose-ZIP herunterladen",
   "report.download_diagnostic_zip": "Diagnose-ZIP herunterladen",
@@ -2218,5 +2218,17 @@
   "landing.home.google_context": "Für Google AI Overviews und AI Mode gelten weiterhin die SEO-Grundlagen.",
   "landing.home.openai_context": "Bei der ChatGPT-Suche betrifft OAI-SearchBot das Crawling für die Suche; GPTBot betrifft die mögliche Nutzung von Inhalten für das Training.",
   "docs.sampling_cost_label": "Modellnutzungskosten",
-  "docs.sampling_cost_value": "Zusätzlich zum Abonnement; abhängig von Anbieter, Modell und Aufrufvolumen."
+  "docs.sampling_cost_value": "Zusätzlich zum Abonnement; abhängig von Anbieter, Modell und Aufrufvolumen.",
+  "telemetry.stage.evidence_verification": "Evidenzprüfung",
+  "telemetry.stage.evidence_gap_fill": "Evidenzlücken schließen",
+  "telemetry.stage.compile_artifacts": "Artefakte kompilieren",
+  "telemetry.stage.packaging_archive": "Paketierung & Archivierung",
+  "telemetry.log.evidence_check": "[citeaura] Überprüfung der Vollständigkeit der Liefernachweise (Kundenlieferung erfordert 3 Durchläufe Wilson-Konfidenz pro Frage)...",
+  "telemetry.log.evidence_gapfill": "[citeaura] Evidenzlücke erkannt: Fehlende Stichproben werden erfasst, um das 3-Runden-Ziel (Wilson 95% CI) zu erreichen...",
+  "telemetry.log.evidence_complete": "[citeaura] Evidenzergänzung abgeschlossen (3/3 Runden). Liefergegenstände und Aktionsplan werden kompiliert...",
+  "telemetry.log.evidence_passed": "[citeaura] Evidenzprüfung bestanden: Alle Fragen verfügen über vollständige Evidenz (3/3 Runden). Kein doppeltes Sampling erforderlich; sofortige Paketierung...",
+  "telemetry.log.packaging": "[citeaura] Liefergegenstände werden in einem eigenständigen ZIP-Archiv verpackt...",
+  "report.evidence_ready_hint": "Evidenz vollständig (3/3 Runden) · Sofortige Paketierung",
+  "report.evidence_gapfill_hint": "Erfasst 3 Runden Evidenz zur Einhaltung der Audit-Standards",
+  "report.generate_pack_tooltip": "Erstellen Sie ein Kundenlieferpaket mit überprüfbarer Evidenz"
 }

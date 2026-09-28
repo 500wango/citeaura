@@ -16,7 +16,7 @@ def test_product_report_includes_sample_count_and_grade(monkeypatch):
             return [{"platform": "openai", "mention": 0.5, "samples": 100}]
             
     import sys
-    sys.modules["analytics"] = DummyAnalytics()
+    monkeypatch.setitem(sys.modules, "analytics", DummyAnalytics())
     
     from api.adapters import audit_presentation
     monkeypatch.setattr(audit_presentation, "present_audit", lambda slug: {

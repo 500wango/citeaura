@@ -63,11 +63,17 @@ export default {
               ${t('report.desc', {}, 'The first-run ZIP is the diagnostic final pack. Send documents 01–06 to the client. Templates and unmeasured visibility stay disclosed as implementation backlog — they do not block this pack.')}
             </p>
           </div>
-          <div class="view-actions">
-            <button type="button" id="btn-generate-delivery" class="btn btn-primary btn-sm">
+          <div class="view-actions" style="display:flex;flex-direction:column;align-items:flex-end;gap:var(--sp-1);">
+            <button type="button" id="btn-generate-delivery" class="btn btn-primary btn-sm" title="${t('report.generate_pack_tooltip', {}, 'Build client delivery package with verifiable evidence')}">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span>${t('report.generate_pack_btn', {}, 'Build New Delivery Pack')}</span>
             </button>
+            <div style="font-size:11px;color:${confidence && confidence.sufficient ? 'var(--good)' : 'var(--muted)'};display:flex;align-items:center;gap:4px;">
+              ${confidence && confidence.sufficient
+                ? `<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg> <span>${t('report.evidence_ready_hint', {}, 'Evidence complete (3/3 rounds) · Instant packaging')}</span>`
+                : `<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm6.5-.25A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25A.75.75 0 0 1 6.5 7.75ZM8 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg> <span>${t('report.evidence_gapfill_hint', {}, 'Will collect 3 rounds of evidence to meet audit compliance')}</span>`
+              }
+            </div>
           </div>
         </div>
 
@@ -107,7 +113,7 @@ export default {
                 <span class="kicker">01 · Audit</span>
                 ${latestReportUrl
                   ? `<a href="${escapeHtml(latestReportUrl)}" target="_blank" rel="noopener noreferrer" class="tag tag-good" style="text-decoration:none;font-size:11px;font-weight:600;" title="Open HTML report and export to PDF">${t('common.view', {}, 'View')} / PDF ↗</a>`
-                  : `<button type="button" id="btn-quick-generate-pack" class="tag tag-neutral" style="cursor:pointer;font-size:11px;border:none;background:var(--line);color:var(--ink-2);" title="Click to build delivery pack and generate report">${t('report.generate_pack_btn', {}, 'Build Diagnostic Pack')} ↗</button>`}
+                  : `<button type="button" id="btn-quick-generate-pack" class="tag tag-neutral" style="cursor:pointer;font-size:11px;border:none;background:var(--line);color:var(--ink-2);" title="${t('report.generate_pack_tooltip', {}, 'Build client delivery package with verifiable evidence')}">${t('report.generate_pack_btn', {}, 'Build Diagnostic Pack')} ↗</button>`}
               </div>
               <strong style="font-size:var(--fs-2);margin-top:2px;">${t('report.deck_title', {}, 'Full GEO Audit Deck')}</strong>
               <span style="font-size:11px;color:var(--muted);margin-top:2px;">${t('report.deck_desc', {}, 'Crawlability & model blockers')}</span>

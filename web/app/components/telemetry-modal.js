@@ -51,6 +51,12 @@ const STAGE_MAP = {
     { key: 'audit', labelKey: 'telemetry.stage.acceptance_check', label: 'Acceptance Check' },
     { key: 'finalizing', labelKey: 'telemetry.stage.report_generation', label: 'Report Generation' },
   ],
+  deliver: [
+    { key: 'evidence', labelKey: 'telemetry.stage.evidence_verification', label: 'Evidence Verification' },
+    { key: 'gapfill', labelKey: 'telemetry.stage.evidence_gap_fill', label: 'Evidence Gap-Fill' },
+    { key: 'compile', labelKey: 'telemetry.stage.compile_artifacts', label: 'Compile Deliverables' },
+    { key: 'package', labelKey: 'telemetry.stage.packaging_archive', label: 'Packaging & Archive' },
+  ],
   default: [
     { key: 'init', labelKey: 'telemetry.stage.initialization', label: 'Initialization' },
     { key: 'crawl', labelKey: 'telemetry.stage.data_collection', label: 'Data Collection' },
@@ -119,6 +125,18 @@ function stageIndexFromState(stage, progress) {
   if (normalized === 'autopilot' || normalized === 'bootstrap' || normalized === 'preparing') return 0;
   const matchedIndex = currentStages.findIndex((item) => normalized.includes(item.key));
   if (matchedIndex >= 0) return matchedIndex;
+  if (normalized.includes('sampling') || normalized.includes('sample')) {
+    const gapIdx = currentStages.findIndex((item) => item.key === 'gapfill' || item.key === 'sampling');
+    if (gapIdx >= 0) return gapIdx;
+  }
+  if (normalized.includes('finalizing') || normalized.includes('package') || normalized.includes('archive')) {
+    const pkgIdx = currentStages.findIndex((item) => item.key === 'package' || item.key === 'finalizing');
+    if (pkgIdx >= 0) return pkgIdx;
+  }
+  if (normalized.includes('processing') || normalized.includes('compile') || normalized.includes('artifact')) {
+    const compIdx = currentStages.findIndex((item) => item.key === 'compile' || item.key === 'processing');
+    if (compIdx >= 0) return compIdx;
+  }
   const boundedProgress = Math.max(0, Math.min(99, Number(progress) || 0));
   return Math.min(currentStages.length - 1, Math.floor((boundedProgress / 100) * currentStages.length));
 }

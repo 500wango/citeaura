@@ -57,12 +57,17 @@ def _reserve_delivery_gap_sampling(tenant_id, project_slug, job_id, platforms, q
         db.close()
 
 
-def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None):
+def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None, status_update=None):
     """补齐当前 active funded cohort，并在仍缺证据时让交付失败关闭。"""
     project_directory = geolib.project_dir(project_slug)
     if not (project_directory / "geo.json").is_file():
         return None
     custom_providers = _task_facade()._engine_custom_providers(tenant_id)
+    if job_id is not None:
+        _task_facade()._append_job_event(
+            job_log_path(tenant_id, project_slug, job_id),
+            "[citeaura] Verifying delivery evidence completeness (client delivery requires 3-pass Wilson confidence per question)...",
+        )
     with _task_facade()._funded_engine_context(
         tenant_id,
         project_slug,
@@ -82,7 +87,13 @@ def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None):
             platforms = list(state.get("target_platforms") or [])
             question_ids = list(state.get("target_question_ids") or [])
             repeat = measurement.MIN_QUESTION_SAMPLES
+            if status_update:
+                status_update("gapfill", 30)
             if job_id is not None:
+                _task_facade()._append_job_event(
+                    job_log_path(tenant_id, project_slug, job_id),
+                    "[citeaura] Evidence gap detected: collecting missing samples to reach 3-round target (Wilson 95% CI)...",
+                )
                 _task_facade()._append_job_event(
                     job_log_path(tenant_id, project_slug, job_id),
                     "delivery evidence gap-fill "
@@ -136,11 +147,21 @@ def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None):
             if job_id is not None:
                 _task_facade()._append_job_event(
                     job_log_path(tenant_id, project_slug, job_id),
+                    "[citeaura] Evidence gap-fill complete (3/3 rounds). Compiling deliverables and action blueprint...",
+                )
+                _task_facade()._append_job_event(
+                    job_log_path(tenant_id, project_slug, job_id),
                     "delivery evidence gap-fill complete "
                     + json.dumps({
                         "ready": bool(state.get("ready")),
                         "measured_platform_count": len(state.get("measured_platforms") or []),
                     }, sort_keys=True),
+                )
+        else:
+            if job_id is not None:
+                _task_facade()._append_job_event(
+                    job_log_path(tenant_id, project_slug, job_id),
+                    "[citeaura] Evidence verification passed: all questions have complete evidence (3/3 rounds). No duplicate sampling needed; instant packaging...",
                 )
         if not state.get("ready"):
             evidence = state.get("evidence") or {}

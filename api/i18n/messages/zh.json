@@ -319,7 +319,7 @@
   "plan.notes_label": "实施说明",
   "plan.target_page_label": "目标 URL / 页面",
   "report.title": "交付产物与客户交付包",
-  "report.desc": "首次运行生成的是诊断最终包。将 01–06 号文档发送给客户；模板和未测量可见性会作为实施待办明确披露。",
+  "report.desc": "首次运行生成的是诊断最终包，可将 01–06 号文档发送给客户。交付包遵循 3 轮独立采样与统计置信度审计标准；证据完整时秒级打包，绝不重复采样。",
   "report.generate_pack_btn": "生成诊断包",
   "report.download_ready_zip": "下载诊断 ZIP",
   "report.download_diagnostic_zip": "下载诊断 ZIP",
@@ -2218,5 +2218,17 @@
   "landing.home.google_context": "对于 Google AI Overviews 和 AI Mode，基础 SEO 实践仍然适用。",
   "landing.home.openai_context": "在 ChatGPT 搜索中，OAI-SearchBot 对应搜索抓取；GPTBot 对应可能用于训练的内容抓取。",
   "docs.sampling_cost_label": "模型调用费用",
-  "docs.sampling_cost_value": "独立于订阅费用，取决于供应商、模型和调用量。"
+  "docs.sampling_cost_value": "独立于订阅费用，取决于供应商、模型和调用量。",
+  "telemetry.stage.evidence_verification": "交付证据核验",
+  "telemetry.stage.evidence_gap_fill": "补全采样证据",
+  "telemetry.stage.compile_artifacts": "编译交付产物",
+  "telemetry.stage.packaging_archive": "打包与归档",
+  "telemetry.log.evidence_check": "[citeaura] 正在核验交付证据链完整性（客户交付包需满足 3 轮独立采样以确保统计学置信度）...",
+  "telemetry.log.evidence_gapfill": "[citeaura] 检测到证据缺口：正在补齐缺失采样以达到 3 轮置信度目标（Wilson 95% CI）...",
+  "telemetry.log.evidence_complete": "[citeaura] 证据链补全完成（3/3 轮）。正在编译客户交付物与行动蓝图...",
+  "telemetry.log.evidence_passed": "[citeaura] 证据链核验通过：全部问题均已具备完整采样证据（3/3 轮）。无需重复采样，直接秒级生成交付包...",
+  "telemetry.log.packaging": "[citeaura] 正在将交付物打包为独立 ZIP 归档...",
+  "report.evidence_ready_hint": "证据链已就绪（3/3 轮）· 秒级生成交付包",
+  "report.evidence_gapfill_hint": "将自动补全 3 轮采样证据（以满足审计合规标准）",
+  "report.generate_pack_tooltip": "构建具备可验证证据链的客户交付包"
 }

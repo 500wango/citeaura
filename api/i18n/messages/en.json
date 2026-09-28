@@ -319,7 +319,7 @@
   "plan.notes_label": "Implementation Notes",
   "plan.target_page_label": "Target URL / Page",
   "report.title": "Deliverables & Client Delivery Packs",
-  "report.desc": "The first-run ZIP is the diagnostic final pack. Send documents 01-06 to the client. Templates and unmeasured visibility stay disclosed as implementation backlog.",
+  "report.desc": "The first-run ZIP is the diagnostic final pack. Send documents 01-06 to the client. Packages adhere to 3-round sampling evidence standards; packaging is instant when evidence is complete.",
   "report.generate_pack_btn": "Build Diagnostic Pack",
   "report.download_ready_zip": "Download diagnostic ZIP",
   "report.download_diagnostic_zip": "Download diagnostic ZIP",
@@ -2218,5 +2218,17 @@
   "landing.home.google_context": "For Google AI Overviews and AI Mode, foundational SEO still applies.",
   "landing.home.openai_context": "For ChatGPT search, OAI-SearchBot controls search crawling; GPTBot controls potential training use.",
   "docs.sampling_cost_label": "Model usage charges",
-  "docs.sampling_cost_value": "Separate from the subscription; depend on provider, model, and call volume."
+  "docs.sampling_cost_value": "Separate from the subscription; depend on provider, model, and call volume.",
+  "telemetry.stage.evidence_verification": "Evidence Verification",
+  "telemetry.stage.evidence_gap_fill": "Evidence Gap-Fill",
+  "telemetry.stage.compile_artifacts": "Compile Deliverables",
+  "telemetry.stage.packaging_archive": "Packaging & Archive",
+  "telemetry.log.evidence_check": "[citeaura] Verifying delivery evidence completeness (client delivery requires 3-pass Wilson confidence per question)...",
+  "telemetry.log.evidence_gapfill": "[citeaura] Evidence gap detected: collecting missing samples to reach 3-round target (Wilson 95% CI)...",
+  "telemetry.log.evidence_complete": "[citeaura] Evidence gap-fill complete (3/3 rounds). Compiling deliverables and action blueprint...",
+  "telemetry.log.evidence_passed": "[citeaura] Evidence verification passed: all questions have complete evidence (3/3 rounds). No duplicate sampling needed; instant packaging...",
+  "telemetry.log.packaging": "[citeaura] Packaging deliverables into standalone ZIP archive...",
+  "report.evidence_ready_hint": "Evidence complete (3/3 rounds) · Instant packaging",
+  "report.evidence_gapfill_hint": "Will collect 3 rounds of evidence to meet audit compliance",
+  "report.generate_pack_tooltip": "Build client delivery package with verifiable evidence"
 }

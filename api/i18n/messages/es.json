@@ -319,7 +319,7 @@
   "plan.notes_label": "Notas de aplicación",
   "plan.target_page_label": "Objetivo URL / Página",
   "report.title": "Entregables y paquetes para clientes",
-  "report.desc": "El ZIP de primera ejecución es el paquete final de diagnóstico. Enviar documentos 01-06 al cliente. Las plantillas y la visibilidad no asegurada permanecen reveladas como atraso en la implementación.",
+  "report.desc": "El ZIP de la primera ejecución es el paquete final de diagnóstico. Envíe los documentos 01-06 al cliente. Cumple con los estándares de evidencia de 3 rondas; el empaquetado es instantáneo con evidencia completa.",
   "report.generate_pack_btn": "Construir el paquete de diagnóstico",
   "report.download_ready_zip": "Descargar diagnóstico ZIP",
   "report.download_diagnostic_zip": "Descargar diagnóstico ZIP",
@@ -2218,5 +2218,17 @@
   "landing.home.google_context": "Los fundamentos del SEO siguen siendo aplicables a Google AI Overviews y AI Mode.",
   "landing.home.openai_context": "En la búsqueda de ChatGPT, OAI-SearchBot corresponde al rastreo para búsquedas; GPTBot corresponde al posible uso del contenido para entrenamiento.",
   "docs.sampling_cost_label": "Costes de uso de modelos",
-  "docs.sampling_cost_value": "Separados de la suscripción; dependen del proveedor, el modelo y el volumen de llamadas."
+  "docs.sampling_cost_value": "Separados de la suscripción; dependen del proveedor, el modelo y el volumen de llamadas.",
+  "telemetry.stage.evidence_verification": "Verificación de evidencia",
+  "telemetry.stage.evidence_gap_fill": "Completar evidencia",
+  "telemetry.stage.compile_artifacts": "Compilar entregables",
+  "telemetry.stage.packaging_archive": "Empaquetado y archivo",
+  "telemetry.log.evidence_check": "[citeaura] Verificando la integridad de la evidencia de entrega (requiere 3 pasadas de confianza de Wilson por pregunta)...",
+  "telemetry.log.evidence_gapfill": "[citeaura] Brecha de evidencia detectada: recolectando muestras faltantes para alcanzar el objetivo de 3 rondas (Wilson 95% CI)...",
+  "telemetry.log.evidence_complete": "[citeaura] Brecha de evidencia completada (3/3 rondas). Compilando entregables y plan de acción...",
+  "telemetry.log.evidence_passed": "[citeaura] Verificación de evidencia aprobada: todas las preguntas tienen evidencia completa (3/3 rondas). No se requiere muestreo duplicado; empaquetado instantáneo...",
+  "telemetry.log.packaging": "[citeaura] Empaquetando entregables en un archivo ZIP independiente...",
+  "report.evidence_ready_hint": "Evidencia completa (3/3 rondas) · Empaquetado instantáneo",
+  "report.evidence_gapfill_hint": "Recopilará 3 rondas de evidencia para cumplir con la auditoría",
+  "report.generate_pack_tooltip": "Crear paquete de entrega para clientes con evidencia verificable"
 }

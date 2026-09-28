@@ -91,27 +91,48 @@ def _sync_claim_verification(project_slug):
         return None
 
 
-def _ensure_delivery_with_measurement(tenant_id, project_slug, job_id=None):
+def _ensure_delivery_with_measurement(tenant_id, project_slug, job_id=None, status_update=None):
     """按统一的问题证据门槛生成正式交付包。"""
-    measurement_scope = _prepare_delivery_measurement(
-        tenant_id,
-        project_slug,
-        job_id=job_id,
-    )
+    if status_update:
+        status_update("evidence", 15)
+    try:
+        measurement_scope = _prepare_delivery_measurement(
+            tenant_id,
+            project_slug,
+            job_id=job_id,
+            status_update=status_update,
+        )
+    except TypeError:
+        measurement_scope = _prepare_delivery_measurement(
+            tenant_id,
+            project_slug,
+            job_id=job_id,
+        )
+    if status_update:
+        status_update("compile", 70)
     if measurement_scope is None:
-        return ensure_delivery_contract(project_slug)
-    return ensure_delivery_contract(
-        project_slug,
-        measurement_scope=measurement_scope,
-        require_question_evidence=bool(measurement_scope.get("active_cohorts")),
-    )
+        target = ensure_delivery_contract(project_slug)
+    else:
+        target = ensure_delivery_contract(
+            project_slug,
+            measurement_scope=measurement_scope,
+            require_question_evidence=bool(measurement_scope.get("active_cohorts")),
+        )
+    if status_update:
+        status_update("package", 90)
+    if job_id is not None:
+        _append_job_event(
+            job_log_path(tenant_id, project_slug, job_id),
+            "[citeaura] Packaging deliverables into standalone ZIP archive...",
+        )
+    return target
 
 
-def _safe_delivery_contract(tenant_id, project_slug, job_id=None, prepare_measurement=True):
+def _safe_delivery_contract(tenant_id, project_slug, job_id=None, prepare_measurement=True, status_update=None):
     """客户包门禁失败不推翻已完成的审计/工单基线。"""
     try:
         if prepare_measurement:
-            _ensure_delivery_with_measurement(tenant_id, project_slug, job_id=job_id)
+            _ensure_delivery_with_measurement(tenant_id, project_slug, job_id=job_id, status_update=status_update)
         else:
             ensure_delivery_contract(project_slug)
         ensure_legacy_deliverables_contract(project_slug)
@@ -252,6 +273,7 @@ def task_bootstrap(
                 project_slug,
                 job_id=job_id,
                 prepare_measurement=not no_sample,
+                status_update=update,
             )
             return {
                 "status": "done",
@@ -378,6 +400,7 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
     with _job_status(tenant_id, project_slug, "deliver", job_id) as claim:
         if claim is _JOB_NOT_CLAIMED:
             return {"status": "ignored", "reason": "job_not_queued"}
+        update = claim or (lambda *args: None)
         with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
             global_scope.normalize_project(project_slug)
             site_signals.validate_project_signals(project_slug)
@@ -387,6 +410,7 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
                 tenant_id,
                 project_slug,
                 job_id=job_id,
+                status_update=update,
             ))
 
 
@@ -476,6 +500,7 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                     tenant_id,
                     project_slug,
                     job_id=job_id,
+                    status_update=update,
                 )
             elif action in ("autopilot", "serve"):
                 no_sample = (
@@ -487,6 +512,7 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                     project_slug,
                     job_id=job_id,
                     prepare_measurement=not bool(no_sample),
+                    status_update=update,
                 )
             if action in ("deliverables",) and delivery_error is None:
                 try:

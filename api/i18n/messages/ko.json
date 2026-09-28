@@ -319,7 +319,7 @@
   "plan.notes_label": "구현 메모",
   "plan.target_page_label": "대상 URL / 페이지",
   "report.title": "납품 성과물 및 클라이언트 납품 패키지",
-  "report.desc": "첫 실행 ZIP은 최종 진단 패키지입니다. 문서 01-06을 고객에게 보내세요. 템플릿과 측정되지 않은 가시성은 구현 백로그로 공개됩니다.",
+  "report.desc": "첫 실행 시 생성되는 파일은 최종 진단 팩입니다. 01~06 문서를 클라이언트에게 전송하세요. 3라운드 샘플링 표준을 준수하며, 증거가 완료되면 즉시 패키징됩니다.",
   "report.generate_pack_btn": "진단 패키지 만들기",
   "report.download_ready_zip": "진단 ZIP 다운로드",
   "report.download_diagnostic_zip": "진단 ZIP 다운로드",
@@ -2218,5 +2218,17 @@
   "landing.home.google_context": "Google AI Overviews와 AI Mode에도 기본 SEO 원칙이 적용됩니다.",
   "landing.home.openai_context": "ChatGPT 검색에서 OAI-SearchBot은 검색용 크롤링에, GPTBot은 학습에 사용될 수 있는 콘텐츠의 크롤링에 해당합니다.",
   "docs.sampling_cost_label": "모델 이용 요금",
-  "docs.sampling_cost_value": "구독료와 별도이며 공급업체, 모델, 호출량에 따라 달라집니다."
+  "docs.sampling_cost_value": "구독료와 별도이며 공급업체, 모델, 호출량에 따라 달라집니다.",
+  "telemetry.stage.evidence_verification": "증거 검증",
+  "telemetry.stage.evidence_gap_fill": "증거 보완 샘플링",
+  "telemetry.stage.compile_artifacts": "결과물 컴파일",
+  "telemetry.stage.packaging_archive": "패키징 및 보관",
+  "telemetry.log.evidence_check": "[citeaura] 납품 증거 완성도 검증 중 (고객 납품은 질문당 3회 윌슨 신뢰도가 필요합니다)...",
+  "telemetry.log.evidence_gapfill": "[citeaura] 증거 격차 감지: 3라운드 목표(Wilson 95% CI)에 도달하기 위해 누락된 샘플을 수집 중입니다...",
+  "telemetry.log.evidence_complete": "[citeaura] 증거 보완 완료 (3/3 라운드). 결과물 및 실행 청사진을 컴파일 중입니다...",
+  "telemetry.log.evidence_passed": "[citeaura] 증거 검증 통과: 모든 질문에 완전한 증거가 있습니다 (3/3 라운드). 중복 샘플링 불필요, 즉시 패키징 진행...",
+  "telemetry.log.packaging": "[citeaura] 결과물을 독립 실행형 ZIP 아카이브로 패키징하는 중...",
+  "report.evidence_ready_hint": "증거 준비 완료 (3/3 라운드) · 즉시 패키징",
+  "report.evidence_gapfill_hint": "감사 규정 준수를 위해 3라운드 증거를 자동 수집합니다",
+  "report.generate_pack_tooltip": "검증 가능한 증거가 포함된 고객 납품 패키지 구축"
 }

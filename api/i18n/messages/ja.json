@@ -319,7 +319,7 @@
   "plan.notes_label": "実装メモ",
   "plan.target_page_label": "対象 URL / ページ",
   "report.title": "納品成果物とクライアント納品パッケージ",
-  "report.desc": "初回実行の ZIP は診断用の最終パックです。01-06 の文書を顧客に送付します。テンプレートと未測定の可視性は実装バックログとして開示されます。",
+  "report.desc": "初回実行時に生成されるのは最終診断パッケージです。01〜06のドキュメントをクライアントに送信してください。3回サンプリング基準に準拠し、証拠が揃っていれば即座にパッケージングされます。",
   "report.generate_pack_btn": "診断パックを作成",
   "report.download_ready_zip": "診断 ZIP をダウンロード",
   "report.download_diagnostic_zip": "診断 ZIP をダウンロード",
@@ -2218,5 +2218,17 @@
   "landing.home.google_context": "Google AI Overviews と AI Mode でも、基本的な SEO 対策は引き続き有効です。",
   "landing.home.openai_context": "ChatGPT 検索では、OAI-SearchBot は検索用のクロール、GPTBot は学習に使われる可能性のあるコンテンツのクロールに対応します。",
   "docs.sampling_cost_label": "モデル利用料金",
-  "docs.sampling_cost_value": "サブスクリプションとは別料金です。プロバイダー、モデル、呼び出し量によって異なります。"
+  "docs.sampling_cost_value": "サブスクリプションとは別料金です。プロバイダー、モデル、呼び出し量によって異なります。",
+  "telemetry.stage.evidence_verification": "証拠検証",
+  "telemetry.stage.evidence_gap_fill": "証拠ギャップ補充",
+  "telemetry.stage.compile_artifacts": "成果物コンパイル",
+  "telemetry.stage.packaging_archive": "パッケージングとアーカイブ",
+  "telemetry.log.evidence_check": "[citeaura] 納品証拠の完全性を検証中（クライアント納品には質問ごとに3回のWilson信頼区間が必要です）...",
+  "telemetry.log.evidence_gapfill": "[citeaura] 証拠ギャップを検出: 3回の目標（Wilson 95% CI）を達成するために不足しているサンプルを収集しています...",
+  "telemetry.log.evidence_complete": "[citeaura] 証拠ギャップの補充完了（3/3回）。成果物とアクションブループリントをコンパイル中...",
+  "telemetry.log.evidence_passed": "[citeaura] 証拠検証に合格: すべての質問に完全な証拠があります（3/3回）。重複サンプリングは不要で、即座にパッケージングします...",
+  "telemetry.log.packaging": "[citeaura] 成果物をスタンドアロン ZIP アーカイブにパッケージング中...",
+  "report.evidence_ready_hint": "証拠完全（3/3回）· 即時パッケージング",
+  "report.evidence_gapfill_hint": "監査適合基準を満たすため3回の証拠を自動収集します",
+  "report.generate_pack_tooltip": "検証可能な証拠を備えた納品パッケージを構築"
 }

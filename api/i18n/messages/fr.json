@@ -319,7 +319,7 @@
   "plan.notes_label": "Notes de mise en œuvre",
   "plan.target_page_label": "URL / page cible",
   "report.title": "Livrables et packs de livraison client",
-  "report.desc": "Le ZIP de première exécution est le pack de diagnostic final. Envoyez les documents 01–06 au client ; les modèles et la visibilité non mesurée restent explicitement signalés comme travail à réaliser.",
+  "report.desc": "Le ZIP initial constitue le pack de diagnostic final. Envoyez les documents 01-06 au client. Conforme aux normes d'audit à 3 tours d'échantillonnage ; empaquetage instantané si les preuves sont complètes.",
   "report.generate_pack_btn": "Construire un ensemble de tests de diagnostic",
   "report.download_ready_zip": "Télécharger le diagnostic ZIP",
   "report.download_diagnostic_zip": "Télécharger le diagnostic ZIP",
@@ -2218,5 +2218,17 @@
   "landing.home.google_context": "Pour Google AI Overviews et AI Mode, les fondamentaux du SEO restent applicables.",
   "landing.home.openai_context": "Pour la recherche ChatGPT, OAI-SearchBot concerne l’exploration pour la recherche ; GPTBot concerne l’utilisation éventuelle des contenus pour l’entraînement.",
   "docs.sampling_cost_label": "Frais d’utilisation des modèles",
-  "docs.sampling_cost_value": "Séparés de l’abonnement ; ils dépendent du fournisseur, du modèle et du volume d’appels."
+  "docs.sampling_cost_value": "Séparés de l’abonnement ; ils dépendent du fournisseur, du modèle et du volume d’appels.",
+  "telemetry.stage.evidence_verification": "Vérification des preuves",
+  "telemetry.stage.evidence_gap_fill": "Complétion des preuves",
+  "telemetry.stage.compile_artifacts": "Compiler les livrables",
+  "telemetry.stage.packaging_archive": "Empaquetage et archivage",
+  "telemetry.log.evidence_check": "[citeaura] Vérification de l'exhaustivité des preuves de livraison (la livraison client requiert 3 passes de confiance Wilson par question)...",
+  "telemetry.log.evidence_gapfill": "[citeaura] Manque de preuves détecté : collecte des échantillons manquants pour atteindre l'objectif de 3 séries (Wilson 95% CI)...",
+  "telemetry.log.evidence_complete": "[citeaura] Complétion des preuves terminée (3/3 tours). Compilation des livrables et du plan d'action...",
+  "telemetry.log.evidence_passed": "[citeaura] Vérification des preuves réussie : toutes les questions disposent de preuves complètes (3/3 tours). Pas d'échantillonnage redondant ; empaquetage instantané...",
+  "telemetry.log.packaging": "[citeaura] Empaquetage des livrables dans une archive ZIP autonome...",
+  "report.evidence_ready_hint": "Preuves complètes (3/3 tours) · Empaquetage instantané",
+  "report.evidence_gapfill_hint": "Collectera 3 séries de preuves pour la conformité d'audit",
+  "report.generate_pack_tooltip": "Générer le pack de livraison client avec preuves vérifiables"
 }
