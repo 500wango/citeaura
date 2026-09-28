@@ -1033,7 +1033,7 @@ def run(
                     fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
                     fh.flush()
                     flag = "✓" if rec["analysis"]["brand_mentioned"] else ("✗" if not rec["ok"] else "·")
-                    print(f"[geo] {done:3d}/{total} {flag} [{rec['platform']}] {rec['question'][:32]}",
+                    print(f"[geo] {done:3d}/{total} {flag} [{rec['platform']}] [Round {rec['round']}/{repeat}] {rec['question'][:32]}",
                           file=sys.stderr, flush=True)
                 out.append(rec)
                 if index + 1 < len(plat_jobs):
