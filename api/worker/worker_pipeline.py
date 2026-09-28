@@ -86,6 +86,8 @@ def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None, status_u
         if state.get("needs_sampling"):
             platforms = list(state.get("target_platforms") or [])
             question_ids = list(state.get("target_question_ids") or [])
+            if not platforms or not question_ids:
+                return state
             repeat = measurement.MIN_QUESTION_SAMPLES
             if status_update:
                 status_update("gapfill", 30)

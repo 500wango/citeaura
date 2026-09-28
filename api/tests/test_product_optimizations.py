@@ -247,6 +247,43 @@ def test_delivery_evidence_scopes_cohorts_to_question_market(tmp_path, monkeypat
     ] == [["glm"], ["deepseek"]]
 
 
+def test_delivery_evidence_with_mixed_market_questions_and_single_market_provider(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
+    with with_tenant_context("tenant", "project"):
+        directory = geolib.project_dir("project")
+        # 15 CN questions and 15 Global questions (like market=both bootstrap)
+        cn_questions = [{"id": f"q{i:03d}", "text": f"中文问题{i}", "market": "cn"} for i in range(1, 16)]
+        global_questions = [{"id": f"q{i:03d}", "text": f"Global question {i}", "market": "global"} for i in range(101, 116)]
+        geolib.write_json(directory / "geo.json", {
+            "brand": {"name": "Acme", "site": "https://acme.example"},
+            "market": "both",
+            "questions": cn_questions + global_questions,
+            "platforms": ["deepseek"],
+        })
+        # Only deepseek (global) is sampled for the 15 global questions (45 samples)
+        rows = []
+        for q in global_questions:
+            rows.extend({
+                "platform": "deepseek", "platform_name": "DeepSeek", "market": "global",
+                "question_id": q["id"], "question": q["text"], "ok": True,
+                "search_enabled": False,
+            } for _ in range(measurement.MIN_QUESTION_SAMPLES))
+        geolib.write_jsonl(directory / "samples" / "run.jsonl", rows)
+        state = measurement.delivery_question_evidence(
+            "project",
+            funding={"keys": {"deepseek": "redacted"}, "pool_codes": ()},
+        )
+
+    assert state["ready"] is True
+    assert state["needs_sampling"] is False
+    assert state["evidence"]["gaps"] == []
+    missing_samples = sum(int(item.get("missing_samples") or 0) for item in state["evidence"]["gaps"])
+    assert missing_samples == 0
+    assert [(item["engine_code"], item["market"]) for item in state["active_cohorts"]] == [
+        ("deepseek", "global"),
+    ]
+
+
 def test_delivery_evidence_starts_new_cohort_when_provider_is_added(tmp_path, monkeypatch):
     monkeypatch.setattr(engine_adapter, "WORK_ROOT", tmp_path / "work")
     with with_tenant_context("tenant", "project"):

@@ -63,19 +63,22 @@ def question_cohort_evidence(rows, config, minimum=MIN_QUESTION_SAMPLES, expecte
         if not question_id or not platform:
             continue
         question_group = str((questions_by_id.get(question_id) or {}).get("group") or "").strip().lower()
-        if row.get("brand_in_question") and question_group not in ("brand_verification", "品牌验证"):
+        if row.get("brand_in_question") and question_group not in ("brand_verification", "品牌验证") and expected_cohorts is None:
             continue
         mode = for_row(row)
         key = f"{mode}|{platform}"
         grouped.setdefault((question_id, key), 0)
         grouped[(question_id, key)] += 1
-        cohorts.setdefault(key, {
-            "key": key,
-            "engine_code": platform,
-            "engine_name": row.get("platform_name") or platform,
-            "sampling_mode": mode,
-            "market": row.get("market") if row.get("market") in ("cn", "global", "both") else "both",
-        })
+        grouped.setdefault((question_id, platform), 0)
+        grouped[(question_id, platform)] += 1
+        if expected_cohorts is None:
+            cohorts.setdefault(key, {
+                "key": key,
+                "engine_code": platform,
+                "engine_name": row.get("platform_name") or platform,
+                "sampling_mode": mode,
+                "market": row.get("market") if row.get("market") in ("cn", "global", "both") else "both",
+            })
 
     for expected in expected_cohorts or ():
         if not isinstance(expected, dict):
@@ -113,7 +116,7 @@ def question_cohort_evidence(rows, config, minimum=MIN_QUESTION_SAMPLES, expecte
         cells = []
         missing = 0
         for cohort in applicable_cohorts:
-            samples = int(grouped.get((question_id, cohort["key"]), 0))
+            samples = int(grouped.get((question_id, cohort["key"])) or grouped.get((question_id, cohort["engine_code"]), 0))
             gap = max(0, minimum - samples)
             missing += gap
             cells.append({
@@ -124,13 +127,13 @@ def question_cohort_evidence(rows, config, minimum=MIN_QUESTION_SAMPLES, expecte
                 "sufficient": samples >= minimum,
             })
         total_samples = sum(cell["samples"] for cell in cells)
-        sufficient = bool(cells) and all(cell["sufficient"] for cell in cells)
+        sufficient = bool(cells) and all(cell["sufficient"] for cell in cells) if applicable_cohorts else True
         item = {
             "id": question_id,
             "text": question.get("text") or "",
             "samples": total_samples,
-            "required": minimum * len(cells) if cells else minimum,
-            "missing_samples": missing if cells else minimum,
+            "required": minimum * len(cells),
+            "missing_samples": missing,
             "sufficient": sufficient,
             "cohorts": cells,
         }
@@ -182,6 +185,21 @@ def delivery_question_evidence(project_slug, funding=None, custom_providers=None
         for code in (config.get("platforms") or [])
         if str(code).strip()
     ))
+    config_questions = {
+        str(item.get("id")): item for item in (config.get("questions") or [])
+        if isinstance(item, dict) and item.get("id")
+    }
+
+    def provider_can_sample_questions(provider_market):
+        provider_market = provider_market or "both"
+        if not config_questions:
+            return True
+        return any(
+            (q.get("market") if q.get("market") in ("cn", "global", "both") else project_market) in ("both", provider_market)
+            or provider_market == "both"
+            for q in config_questions.values()
+        )
+
     # The worker synchronizes newly funded providers into geo.json before this
     # helper runs. Do not infer activity from every tenant key: an unused key
     # must not silently become a cohort outside the project's market.
@@ -195,6 +213,8 @@ def delivery_question_evidence(project_slug, funding=None, custom_providers=None
             continue
         if not market_matches(provider.get("market")):
             continue
+        if not provider_can_sample_questions(provider.get("market")):
+            continue
         expected.append({
             "engine_code": code,
             "engine_name": provider.get("name") or code,
@@ -204,10 +224,6 @@ def delivery_question_evidence(project_slug, funding=None, custom_providers=None
             "source": "platform_pool" if code in set(funding.get("pool_codes") or ()) else "byok",
         })
 
-    config_questions = {
-        str(item.get("id")): item for item in (config.get("questions") or [])
-        if isinstance(item, dict) and item.get("id")
-    }
     sample_files = sorted((directory / "samples").glob("*.jsonl")) if (directory / "samples").exists() else []
     rows = []
     if sample_files:
@@ -256,6 +272,14 @@ def delivery_question_evidence(project_slug, funding=None, custom_providers=None
     target_question_ids = list(config_questions)
     if not cohort_changed:
         target_question_ids = [str(item.get("id")) for item in gaps if item.get("id")]
+    if expected:
+        expected_markets = {item.get("market") for item in expected}
+        if "both" not in expected_markets:
+            target_question_ids = [
+                qid for qid in target_question_ids
+                if (config_questions.get(qid, {}).get("market") or project_market) in expected_markets
+                or (config_questions.get(qid, {}).get("market") or project_market) == "both"
+            ]
     measured_platforms = sorted({
         str(cell.get("engine_code"))
         for item in evidence.get("items") or []
