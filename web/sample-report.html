@@ -224,22 +224,22 @@
   <main class="sample-shell">
     <section class="sample-hero" data-i18n-html="public.sample.hero">
       <div class="sample-kicker">Example diagnostic pack · Fictional workspace · [DEMO · SYNTHETIC BASELINE]</div>
-      <h1>From an AI answer to an evidence-backed action plan.</h1>
+      <h1>What is a GEO diagnostic report? Evidence-backed action plan</h1>
       <p><strong>A GEO diagnostic report is an evidence-backed audit that analyzes AI engine citations, identifies crawl and content gaps, and delivers prioritized engineering tickets.</strong> This sample demonstrates how CiteAura turns a public-site crawl and a labeled AI baseline into actionable fixes, acceptance checks, and a client-ready delivery pack.</p>
       <div class="sample-disclosure"><strong>Example only:</strong> all domain names, prompts, rates, and ticket outcomes on this page are illustrative. A real workspace reports the sampled engines, sampling mode, raw answer replay, and evidence coverage that were actually measured.</div>
     </section>
 
-    <section aria-label="Example summary" data-i18n-aria="public.sample.summary_aria">
+    <div class="sample-summary-band" aria-label="Example summary" data-i18n-aria="public.sample.summary_aria">
       <div class="sample-grid" data-i18n-html="public.sample.summary">
         <div class="sample-kpi"><strong>76</strong><span>Technical audit score · example</span></div>
         <div class="sample-kpi"><strong>18%</strong><span>AI mention rate · 24 labeled answers</span></div>
         <div class="sample-kpi"><strong>4</strong><span>High-impact tickets created</span></div>
         <div class="sample-kpi"><strong>3/4</strong><span>Acceptance checks passed</span></div>
       </div>
-    </section>
+    </div>
 
     <section class="sample-section" data-i18n-html="public.sample.sec1">
-      <h2>1. What evidence is included in a GEO diagnostic scope?</h2>
+      <h2>What evidence is included in a GEO diagnostic scope?</h2>
       <p><strong>A GEO diagnostic scope is the structured boundary separating technical crawlability from generative answer sampling.</strong> The report keeps technical diagnosis separate from visibility measurement, so a customer can verify what was checked and what remains unmeasured across public pages, AI answers, machine discovery files, and competitor prompts.</p>
       <table class="sample-table">
         <thead><tr><th>Evidence</th><th>Result</th><th>Sampling / source label</th><th>Recommended next step</th></tr></thead>
@@ -254,7 +254,7 @@
 
     <!-- Dovetail Research Insight Section -->
     <section class="sample-section">
-      <h2>2. Why are competitors cited while brand domains are omitted?</h2>
+      <h2>Why are competitors cited while brand domains are omitted?</h2>
       <p><strong>Generative engines omit brand domains when pricing, technical specs, or FAQs are unextractable from the DOM or blocked by robots.txt.</strong> Verbatim ground-truth traces from AI engine responses show exactly why competitors are cited while brand pages are omitted.</p>
       
       <div class="dovetail-card">
@@ -296,7 +296,7 @@
 
     <!-- Attio-Style High-Density Engineering Tickets -->
     <section class="sample-section" data-i18n-html="public.sample.sec2">
-      <h2>3. What specific engineering tickets close verified citation gaps?</h2>
+      <h2>What engineering tickets close verified citation gaps?</h2>
       <p><strong>A GEO action ticket is an engineering task containing concrete acceptance criteria and automated regression checkers.</strong> Every recommendation has an owner, an evidence link, and a checker that can reopen the ticket after a regression.</p>
       
       <table class="sample-table" style="margin-bottom: 20px;">
@@ -347,15 +347,15 @@
       </table>
 
       <div class="ticket-list">
-        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-014 · P0</span><span>Checker · robots</span></div><h3>Allow answer-engine crawlers on public docs</h3><p><strong>Ticket GEO-014 unblocks AI search crawlers by removing root Disallow directives in robots.txt.</strong> Verification confirms GPTBot and OAI-SearchBot return HTTP 200 without blocking rules.</p></article>
-        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-021 · P1</span><span>Checker · JSON-LD</span></div><h3>Expose canonical product facts in schema</h3><p><strong>Ticket GEO-021 declares canonical product specifications via Schema.org JSON-LD.</strong> Verification confirms the entity graph parses cleanly and matches approved brand facts.</p></article>
-        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-025 · P1</span><span>Checker · llms.txt</span></div><h3>Publish a reviewed machine-ingestion file</h3><p><strong>Ticket GEO-025 deploys a reviewed machine-ingestion file at /llms.txt.</strong> Verification confirms the file is reachable at root and linked in the delivery manifest.</p></article>
-        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-031 · P2</span><span>Checker · citation</span></div><h3>Close the highest-value citation gap</h3><p><strong>Ticket GEO-031 closes priority citation gaps where models cite third-party directories.</strong> Verification confirms comparable re-sampling records a measurable citation link gain.</p></article>
+        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-014 · P0</span><span>Checker · robots</span></div><h3>Why should answer-engine crawlers be allowed on public docs?</h3><p><strong>Ticket GEO-014 unblocks AI search crawlers by removing root Disallow directives in robots.txt.</strong> Verification confirms GPTBot and OAI-SearchBot return HTTP 200 without blocking rules.</p></article>
+        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-021 · P1</span><span>Checker · JSON-LD</span></div><h3>How do canonical product facts in schema prevent AI hallucinations?</h3><p><strong>Ticket GEO-021 declares canonical product specifications via Schema.org JSON-LD.</strong> Verification confirms the entity graph parses cleanly and matches approved brand facts.</p></article>
+        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-025 · P1</span><span>Checker · llms.txt</span></div><h3>Why publish a machine-ingestion file at llms.txt?</h3><p><strong>Ticket GEO-025 deploys a reviewed machine-ingestion file at /llms.txt.</strong> Verification confirms the file is reachable at root and linked in the delivery manifest.</p></article>
+        <article class="sample-ticket"><div class="sample-ticket-head"><span>GEO-031 · P2</span><span>Checker · citation</span></div><h3>How do you close high-priority AI citation gaps?</h3><p><strong>Ticket GEO-031 closes priority citation gaps where models cite third-party directories.</strong> Verification confirms comparable re-sampling records a measurable citation link gain.</p></article>
       </div>
     </section>
 
     <section class="sample-section" data-i18n-html="public.sample.sec3">
-      <h2>4. How are client deliverables and verification gates validated?</h2>
+      <h2>How are client deliverables and verification gates validated?</h2>
       <p><strong>Delivery and verification is the formal validation process confirming that recommended site fixes were deployed and re-sampled before client handoff.</strong> The final pack contains an audit report, execution plan, ticket log, acceptance checklist, draft risks, and build map. The pack is marked diagnostic-ready until implementation evidence is complete.</p>
       <table class="sample-table">
         <thead><tr><th>Milestone</th><th>Status</th><th>What the customer receives</th></tr></thead>
