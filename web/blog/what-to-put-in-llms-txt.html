@@ -257,6 +257,14 @@
     </ul>
     <p>Omit visual tables, code blocks, images, or interactive scripts. The file should remain cleanly readable when converted to plain unformatted text.</p>
 
+    <div class="blog-callout" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--sp-3);background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.04));border-left:4px solid var(--accent);padding:var(--sp-4) var(--sp-5);">
+      <div>
+        <strong style="color:var(--ink);display:block;margin-bottom:var(--sp-1);">Interactive Generator &amp; Syntax Checker</strong>
+        <p style="margin:0;font-size:var(--fs-2);color:var(--ink-2);">Generate a compliant <code>llms.txt</code> file from your homepage metadata or test your existing draft against official specifications.</p>
+      </div>
+      <a class="btn btn-primary btn-sm" href="/llms-txt-tool" style="white-space:nowrap;">Open llms.txt Tool &rarr;</a>
+    </div>
+
     <h2 id="canonical">3. Hosting and HTTP headers</h2>
     <p>Host the file exclusively on your primary canonical domain. If <code>https://example.com</code> is your canonical URL, configure <code>https://www.example.com/llms.txt</code> to issue an HTTP 301 redirect to the apex host.</p>
     <ul>
@@ -342,9 +350,15 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
     <h2 id="citeaura">7. How CiteAura manages llms.txt</h2>
     <p>CiteAura workspace projects generate reviewed <code>llms.txt</code> assets directly from your verified brand entity registry. In <strong>Execution → Assets</strong>, teams can select approved resource links, verify supporting citations, and export production-ready Markdown files for deployment. CiteAura provides the validated artifact for your engineering team to publish to your hosting infrastructure.</p>
 
-    <div class="blog-cta">
-      <p>Generate valid, pre-verified llms.txt markdown assets from your brand entity library in CiteAura.</p>
-      <a class="btn btn-primary" href="/app?auth=register" rel="nofollow">Start free trial</a>
+    <div class="blog-cta" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--sp-4);">
+      <div style="flex:1 1 280px;">
+        <strong style="color:var(--ink);display:block;font-size:var(--fs-3);margin-bottom:var(--sp-1);">Ready to inspect or publish your llms.txt?</strong>
+        <p style="margin:0;font-size:var(--fs-2);color:var(--ink-2);">Use our free web tool to generate and validate compliant drafts in seconds, or launch a CiteAura workspace to audit your brand's AI search visibility across Perplexity, ChatGPT, and Bing.</p>
+      </div>
+      <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;">
+        <a class="btn btn-secondary btn-sm" href="/llms-txt-tool">Free Generator &amp; Validator</a>
+        <a class="btn btn-primary btn-sm" href="/app?auth=register" rel="nofollow">Start Free Trial</a>
+      </div>
     </div>
 
     <h2 id="limits">Scope and realistic expectations</h2>
@@ -365,8 +379,10 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
     </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">
-      <h2 id="related-guides">Related guides</h2>
+      <h2 id="related-guides">Related tools &amp; guides</h2>
       <ul>
+        <li><a href="/llms-txt-tool"><strong>Free tool:</strong> llms.txt Generator &amp; Validator</a></li>
+        <li><a href="/crawler-check"><strong>Free tool:</strong> AI Crawler &amp; GPTBot Access Check</a></li>
         <li><a href="/blog/gptbot-blocked-by-robots-txt">How to fix a GPTBot robots.txt block</a></li>
         <li><a href="/blog/why-chatgpt-does-not-mention-my-brand">Why ChatGPT does not mention a brand</a></li>
         <li><a href="/ai-visibility-audit">AI visibility audit workflow</a></li>
