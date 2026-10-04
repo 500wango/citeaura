@@ -16,3 +16,4 @@ work/
 deploy/certs/
 .claude/worktrees/
 .claude/*.local.*
+promo-video/
