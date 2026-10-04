@@ -133,6 +133,22 @@
               "@type": "Answer",
               "text": "Les concurrents sont cités en priorité lorsque leurs sites web offrent des réponses factuelles directes en HTML sémantique rendu côté serveur, des robots.txt autorisant GPTBot, des données structurées Schema.org complètes et une présence vérifiée dans des répertoires tiers de confiance."
             }
+          },
+          {
+            "@type": "Question",
+            "name": "Comment suivre les mentions de marque sans outil d'analyse fourni par OpenAI ?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Puisqu'OpenAI et Perplexity n'offrent aucune console de recherche, le suivi repose sur l'échantillonnage multi-passes sur cohorte fixe de prompts acheteurs. Cette approche statistique permet d'estimer un taux de mention réel et d'éliminer le biais d'un test manuel isolé."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Pourquoi ChatGPT cite-t-il l'URL de mon site tout en omettant le nom de ma marque ?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Cette rupture d'attribution survient lorsque le moteur RAG récupère l'URL pour étayer un fait, mais que le modèle résume l'idée sans extraire l'entité commerciale. L'alignement rigoureux des données structurées Schema.org avec les affirmations du texte permet d'associer directement le nom de la marque au lien source."
+            }
           }
         ]
       }
@@ -218,6 +234,7 @@
         <li><a href="#constitution-cohorte">Constitution d'une cohorte de requêtes d'acheteurs</a></li>
         <li><a href="#calcul-taux-mention">Formule du taux de mention et variance statistique</a></li>
         <li><a href="#comprendre-mention">Comprendre comment la marque est mentionnée</a></li>
+        <li><a href="#angle-mort-analytique">Zone d'ombre OpenAI et rupture d'attribution</a></li>
         <li><a href="#faq">Questions fréquentes (FAQ)</a></li>
       </ol>
     </nav>
@@ -299,6 +316,16 @@ is_mentioned = bool(pattern.search(raw_answer_text))</code></pre>
       </tbody>
     </table>
 
+    <h2 id="angle-mort-analytique">La zone d'ombre analytique d'OpenAI et la « rupture d'attribution » (Attribution Gap)</h2>
+    <p>Contrairement au SEO conventionnel où Google Search Console offre un suivi exact des impressions et des positions, OpenAI et Perplexity ne fournissent <strong>aucun tableau de bord de statistiques ni API d'audience</strong> pour les marques. Les équipes marketing et techniques avancent donc à l'aveugle.</p>
+    <p>À cette absence de console s'ajoute un phénomène technique majeur : la <strong>rupture d'attribution (Attribution Gap)</strong>. Dans de nombreux cas concrets, ChatGPT explore votre site et inclut l'URL de votre article dans ses sources de recherche, mais <em>omet totalement de nommer votre marque</em> dans le texte rédigé pour l'utilisateur. Trois causes structurelles expliquent cet écart :</p>
+    <ul>
+      <li><strong>Extraction factuelle vs Reconnaissance d'entité :</strong> Le moteur RAG extrait l'information factuelle pour formuler sa réponse, mais le prompt système résume le concept sans reproduire les jetons de marque non indispensables à la phrase.</li>
+      <li><strong>Biais paramétrique en faveur des leaders historiques :</strong> Lors de questions catégorielles (« Quels sont les meilleurs outils... »), le modèle privilégie les marques omniprésentes dans ses poids d'entraînement initiaux plutôt que les entités nouvellement explorées en direct.</li>
+      <li><strong>Fluctuation stochastique :</strong> Un test manuel unique dans un navigateur isole une réponse ponctuelle et masque la fréquence d'apparition réelle auprès de l'audience globale.</li>
+    </ul>
+    <p><strong>La solution opérationnelle :</strong> Remplacer les tests manuels par un protocole d'échantillonnage automatisé sur cohorte fixe, calculer un taux de mention empirique avec intervalle de confiance binomial de Wilson, et coupler étroitement votre balisage Schema.org (<code>Organization</code> et <code>Brand</code>) à chaque affirmation clé de votre site.</p>
+
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">Questions fréquentes (FAQ)</h2>
       <h3>Comment identifier la fréquence de mention d'une marque dans ChatGPT ?</h3>
@@ -311,6 +338,10 @@ is_mentioned = bool(pattern.search(raw_answer_text))</code></pre>
       <p>Non. Les modèles de langage sont stochastiques (non déterministes). Une unique question testée une fois ne constitue pas une métrique fiable. Il faut établir une référence stable avec un échantillon représentatif (n &ge; 45) au sein d'une cohorte fixe.</p>
       <h3>Pourquoi ChatGPT mentionne-t-il mon concurrent et pas ma marque ?</h3>
       <p>Les concurrents sont cités en priorité lorsque leurs sites web offrent des réponses factuelles directes en HTML sémantique rendu côté serveur, des robots.txt autorisant GPTBot, des données structurées Schema.org complètes et une présence vérifiée dans des répertoires tiers de confiance.</p>
+      <h3>Comment suivre les mentions de marque sans outil d'analyse fourni par OpenAI ?</h3>
+      <p>Puisqu'OpenAI et Perplexity n'offrent aucune console de recherche, le suivi repose sur l'échantillonnage multi-passes sur cohorte fixe de prompts acheteurs. Cette approche statistique permet d'estimer un taux de mention réel et d'éliminer le biais d'un test manuel isolé.</p>
+      <h3>Pourquoi ChatGPT cite-t-il l'URL de mon site tout en omettant le nom de ma marque ?</h3>
+      <p>Cette rupture d'attribution survient lorsque le moteur RAG récupère l'URL pour étayer un fait, mais que le modèle résume l'idée sans extraire l'entité commerciale. L'alignement rigoureux des données structurées Schema.org avec les affirmations du texte permet d'associer directement le nom de la marque au lien source.</p>
     </section>
 
     <h2>Sources</h2>
@@ -321,18 +352,25 @@ is_mentioned = bool(pattern.search(raw_answer_text))</code></pre>
       <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — Spécification ouverte des fichiers de contexte markdown pour LLM.</li>
     </ul>
 
-    <div class="blog-cta">
-      <p>Démarrez votre premier audit de visibilité IA et mesurez la fréquence de mention de votre marque sur 6 moteurs majeurs.</p>
-      <a class="btn btn-primary" href="/app?auth=register" rel="nofollow">Démarrer l'essai gratuit</a>
+    <div class="blog-cta" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--sp-4);">
+      <div style="flex:1 1 280px;">
+        <strong style="color:var(--ink);display:block;font-size:var(--fs-3);margin-bottom:var(--sp-1);">Prêt à auditer la visibilité IA de votre marque ?</strong>
+        <p style="margin:0;font-size:var(--fs-2);color:var(--ink-2);">Testez l'accessibilité de vos crawlers ou lancez un projet CiteAura pour mesurer vos mentions sur ChatGPT, Perplexity et Bing avec preuves d'audit.</p>
+      </div>
+      <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;">
+        <a class="btn btn-secondary btn-sm" href="/crawler-check">Testeur GPTBot gratuit</a>
+        <a class="btn btn-primary btn-sm" href="/app?auth=register" rel="nofollow">Démarrer l'essai gratuit</a>
+      </div>
     </div>
 
     <aside class="blog-related" aria-labelledby="related-guides">
-      <h2 id="related-guides">Guides connexes</h2>
+      <h2 id="related-guides">Outils &amp; guides connexes</h2>
       <ul>
+        <li><a href="/crawler-check"><strong>Outil gratuit :</strong> Testeur d'accès crawlers IA (GPTBot)</a></li>
+        <li><a href="/llms-txt-tool"><strong>Outil gratuit :</strong> Générateur &amp; validateur llms.txt</a></li>
         <li><a href="/blog/diagnostic-visibilite-ia-marques">Diagnostic de visibilité IA pour les marques : 4 axes d'audit</a></li>
         <li><a href="/blog/verification-geo-mesurer-visibilite-ia">Vérification GEO : mesurer et prouver la visibilité IA</a></li>
         <li><a href="/blog/schema-json-ld-pour-la-recherche-ia">Schema JSON-LD pour la recherche IA : structurer ses entités</a></li>
-        <li><a href="/crawler-check">Testeur gratuit de robots.txt pour robots IA (GPTBot)</a></li>
       </ul>
     </aside>
       <div class="author-bio-card">
