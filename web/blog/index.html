@@ -18,6 +18,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="canonical" href="https://citeaura.com/blog">
+  <link rel="alternate" hreflang="x-default" href="https://citeaura.com/blog">
+  <link rel="alternate" hreflang="en" href="https://citeaura.com/blog">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
   <meta property="og:type" content="website">
@@ -40,7 +42,32 @@
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "Organization",
+        "@id": "https://citeaura.com/#organization",
+        "name": "CiteAura",
+        "url": "https://citeaura.com",
+        "logo": "https://citeaura.com/site-assets/logo.png",
+        "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.",
+        "sameAs": [
+          "https://github.com/500wango/citeaura",
+          "https://x.com/citeaura",
+          "https://www.linkedin.com/company/citeaura"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://citeaura.com/#website",
+        "url": "https://citeaura.com",
+        "name": "CiteAura",
+        "publisher": { "@id": "https://citeaura.com/#organization" },
+        "author": { "@id": "https://citeaura.com/#organization" },
+        "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.",
+        "datePublished": "2026-08-01",
+        "dateModified": "2026-09-14"
+      },
+      {
         "@type": "BreadcrumbList",
+        "@id": "https://citeaura.com/blog#breadcrumb",
         "itemListElement": [
           {
             "@type": "ListItem",
@@ -58,15 +85,22 @@
       },
       {
         "@type": "CollectionPage",
-        "name": "CiteAura Guides",
+        "@id": "https://citeaura.com/blog#webpage",
+        "name": "AI Visibility & GEO Guides for Brands and Agencies | CiteAura",
         "url": "https://citeaura.com/blog",
-        "dateModified": "2026-08-20",
-        "description": "Long-form guides on measuring AI brand mentions, crawl access, llms.txt, and agency diagnostic reports.",
-        "isPartOf": {
-          "@type": "WebSite",
-          "name": "CiteAura",
-          "url": "https://citeaura.com"
-        }
+        "description": "Practical guides for measuring ChatGPT brand mentions, fixing GPTBot crawl blocks, writing llms.txt, and delivering white-label GEO reports.",
+        "inLanguage": "en",
+        "isPartOf": { "@id": "https://citeaura.com/#website" },
+        "breadcrumb": { "@id": "https://citeaura.com/blog#breadcrumb" },
+        "author": {
+          "@type": "Organization",
+          "@id": "https://citeaura.com/#organization",
+          "name": "CiteAura Research Team",
+          "url": "https://citeaura.com/authors"
+        },
+        "publisher": { "@id": "https://citeaura.com/#organization" },
+        "datePublished": "2026-08-01",
+        "dateModified": "2026-09-14"
       }
     ]
   }
@@ -134,10 +168,83 @@
       <h1 data-i18n="blog.index_title">Measure and diagnose AI brand visibility</h1>
       <p class="blog-lead" data-i18n="blog.index_lead">These articles answer specific questions about ChatGPT mentions, crawler blocks, llms.txt, and client diagnostic packs. Product setup lives in <a href="/docs">Docs</a>. CiteAura is the workspace that records the evidence.</p>
       <p class="blog-lead" data-i18n="blog.workflow_lead">For the full workflow, read the <a href="/ai-visibility-audit">AI visibility audit overview</a>.</p>
+      <div class="blog-byline-bar" style="display:flex;align-items:center;flex-wrap:wrap;gap:var(--sp-3);margin-top:var(--sp-3);font-size:var(--fs-2);color:var(--ink-2);font-family:var(--font-mono);">
+        <span class="blog-byline" itemprop="author">By <a href="/authors" rel="author" style="color:var(--accent);font-weight:600;text-decoration:none;">CiteAura Research Team</a></span>
+        <span aria-hidden="true">·</span>
+        <time datetime="2026-09-14" itemprop="dateModified">Updated 14 Sep 2026</time>
+        <span aria-hidden="true">·</span>
+        <span>Peer-reviewed GEO Field Notes</span>
+      </div>
     </header>
 
     <div class="editorial-notice-box">
-      <span><strong>Research &amp; Editorial Standards:</strong> All guides are authored and reviewed by the <a href="/authors">CiteAura Research Team</a> in adherence to our <a href="/editorial-policy">Editorial Policy</a>.</span>
+      <span><strong>Research &amp; Editorial Standards:</strong> All guides are authored and reviewed by the <a href="/authors" rel="author">CiteAura Research Team</a> in adherence to our <a href="/editorial-policy">Editorial Policy</a>.</span>
+    </div>
+
+    <div class="blog-quote-wrapper" style="margin:var(--sp-6) 0;">
+      <blockquote class="blog-callout" cite="https://arxiv.org/abs/2311.09735" style="margin:0;border-left:3px solid var(--accent);background:var(--surface);padding:var(--sp-4) var(--sp-5);border-radius:var(--r-md);box-shadow:var(--sh-xs);">
+        <p style="margin:0 0 var(--sp-2);color:var(--ink);font-style:italic;line-height:1.6;">
+          “Citing authoritative sources and adding quotations is the single most impactful Generative Engine Optimization strategy, demonstrating up to +115% higher visibility in generative engine responses compared to baseline content.”
+        </p>
+        <footer style="font-size:var(--fs-2);color:var(--ink-2);font-family:var(--font-mono);">
+          — <cite>Aggarwal et al. (2023), <a href="https://arxiv.org/abs/2311.09735" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-weight:600;">GEO: Generative Engine Optimization (arXiv:2311.09735)</a></cite>
+        </footer>
+      </blockquote>
+    </div>
+
+    <div class="guide-tracks" style="margin:var(--sp-6) 0;">
+      <h2 style="font-size:var(--fs-5);color:var(--ink);margin:0 0 var(--sp-3);">Core AI Visibility Tracks</h2>
+      <p style="color:var(--ink-2);font-size:var(--fs-3);line-height:1.6;margin:0 0 var(--sp-3);">
+        To maximize citation readiness across ChatGPT Search, Perplexity, Claude, and Google AI Overviews, our research team organizes audit workflows into four systematic phases:
+      </p>
+      <ol style="margin:0 0 var(--sp-4) var(--sp-5);color:var(--ink-2);font-size:var(--fs-3);line-height:1.7;">
+        <li><strong>AI Crawler Access:</strong> Verify robots.txt and WAF rules to ensure fetchers like GPTBot, Claude-SearchBot, and PerplexityBot are unblocked.</li>
+        <li><strong>Content Answerability &amp; Extractability:</strong> Structure key brand facts into semantic tables, modular lists, and answer-first paragraphs.</li>
+        <li><strong>Structured Entity Markup:</strong> Deploy Schema.org JSON-LD with valid <code>sameAs</code> links to anchor brand identity in knowledge graphs.</li>
+        <li><strong>Empirical Sampling &amp; Verification:</strong> Sample fixed prompt cohorts across parameterized and web-grounded modes to track real mention rates.</li>
+      </ol>
+    </div>
+
+    <div class="guide-matrix-wrapper" style="overflow-x:auto;margin:var(--sp-6) 0 var(--sp-8);">
+      <table class="guide-matrix-table" style="width:100%;border-collapse:collapse;text-align:left;font-size:var(--fs-3);background:var(--surface);border:1px solid var(--divider);border-radius:var(--r-md);overflow:hidden;">
+        <caption style="text-align:left;font-weight:600;color:var(--ink);padding:var(--sp-3) var(--sp-4);background:var(--deep);border-bottom:1px solid var(--divider);font-size:var(--fs-3);">
+          AI Search Optimization Framework: Verification &amp; Measurement Matrix
+        </caption>
+        <thead>
+          <tr style="background:var(--surface-2, var(--deep));border-bottom:2px solid var(--divider);">
+            <th scope="col" style="padding:var(--sp-3) var(--sp-4);color:var(--ink);font-weight:600;">Dimension</th>
+            <th scope="col" style="padding:var(--sp-3) var(--sp-4);color:var(--ink);font-weight:600;">Core Signal</th>
+            <th scope="col" style="padding:var(--sp-3) var(--sp-4);color:var(--ink);font-weight:600;">Target Systems</th>
+            <th scope="col" style="padding:var(--sp-3) var(--sp-4);color:var(--ink);font-weight:600;">Expected Impact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row" style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink);font-weight:600;">Crawler Access</th>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">HTTP 200 on GPTBot &amp; PerplexityBot</td>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">OpenAI, Anthropic, Perplexity</td>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">Eliminates 0% mention crawl lockouts</td>
+          </tr>
+          <tr>
+            <th scope="row" style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink);font-weight:600;">Answerability</th>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">Direct answer headers, tables &amp; source citations</td>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">ChatGPT Search, Google AI Overviews</td>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">Up to +115% higher citation probability</td>
+          </tr>
+          <tr>
+            <th scope="row" style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink);font-weight:600;">Entity Schema</th>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">JSON-LD Organization, sameAs, author provenance</td>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">Knowledge Graph, RAG query expanders</td>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">Prevents brand hallucination &amp; entity drift</td>
+          </tr>
+          <tr>
+            <th scope="row" style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink);font-weight:600;">Verified Evidence</th>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">Fixed cohort prompts &amp; labeled sampling modes</td>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">Empirical reporting &amp; agency tickets</td>
+            <td style="padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--divider);color:var(--ink-2);">Verifiable client ROI without false guarantees</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <div class="blog-filter-bar" role="tablist" aria-label="Filter guides by language">
@@ -262,6 +369,30 @@
         <p data-i18n="blog.card_directory_listings_desc">Evaluate AI software directories, apply CiteAura's DR 30 screening heuristic, and capture third-party citations.</p>
         <span class="blog-card-meta" data-i18n="blog.card_directory_listings_meta">2 Sep 2026 · Authority outreach</span>
       </a>
+    </div>
+
+    <section class="blog-citations" id="citations" style="margin-top:var(--sp-10);padding-top:var(--sp-6);border-top:1px solid var(--divider);">
+      <h2 style="font-size:var(--fs-5);color:var(--ink);margin:0 0 var(--sp-3);">Primary Sources and Research Citations</h2>
+      <ol style="margin:0 0 var(--sp-6) var(--sp-5);color:var(--ink-2);font-size:var(--fs-3);line-height:1.7;">
+        <li><cite><a href="https://arxiv.org/abs/2311.09735" target="_blank" rel="noopener noreferrer">GEO: Generative Engine Optimization</a></cite> — Pranjal Aggarwal, Vishvak Murahari, Tanmay Rajpurohit, Ashwin Kalyan, Karthik Narasimhan, Anurag Kumar (Princeton University, Georgia Tech, Allen Institute for AI, 2023).</li>
+        <li><cite><a href="https://platform.openai.com/docs/bots" target="_blank" rel="noopener noreferrer">OpenAI Crawlers &amp; GPTBot Documentation</a></cite> — OpenAI Platform Technical Specifications (2024–2026).</li>
+        <li><cite><a href="https://developers.google.com/search/docs/fundamentals/creating-helpful-content" target="_blank" rel="noopener noreferrer">Google Search Central: Creating Helpful, Reliable, People-First Content</a></cite> — Google Search Central (2024–2026).</li>
+        <li><cite><a href="https://www.rfc-editor.org/rfc/rfc9309.html" target="_blank" rel="noopener noreferrer">RFC 9309: Robots Exclusion Protocol</a></cite> — M. Koster, G. Illyes, H. Zeller, Internet Engineering Task Force (IETF, 2022).</li>
+        <li><cite><a href="https://schema.org/docs/documents.html" target="_blank" rel="noopener noreferrer">Schema.org Technical Specifications</a></cite> — W3C Schema.org Community Group.</li>
+      </ol>
+    </section>
+
+    <div class="author-bio-card">
+      <div class="author-bio-avatar" aria-hidden="true" style="background:var(--accent);color:#fff;">CR</div>
+      <div class="author-bio-content">
+        <h3>About the Authors: CiteAura Research Team</h3>
+        <span class="author-bio-role">Search Systems Engineers &amp; Generative Engine Analysts</span>
+        <p>The CiteAura Research Team produces empirical benchmarks, crawl telemetry audits, and verifiable citation methodology for brands and agencies navigating AI search engines.</p>
+        <div style="display:flex;gap:12px;margin-top:8px;">
+          <a class="author-bio-link" href="/authors">Explore Team &amp; Research &rarr;</a>
+          <a class="author-bio-link" href="/editorial-policy">Editorial Standards &rarr;</a>
+        </div>
+      </div>
     </div>
   </main>
 
