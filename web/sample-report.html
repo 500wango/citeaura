@@ -8,6 +8,8 @@
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#f7f9fa">
   <link rel="canonical" href="https://citeaura.com/sample-report">
+  <link rel="alternate" hreflang="x-default" href="https://citeaura.com/sample-report">
+  <link rel="alternate" hreflang="en" href="https://citeaura.com/sample-report">
 
   <!-- Open Graph / Social Sharing -->
   <meta property="og:type" content="article">
@@ -36,11 +38,26 @@
     "url": "https://citeaura.com/sample-report",
     "name": "Sample GEO Diagnostic Report | CiteAura",
     "description": "An example CiteAura diagnostic: evidence, action tickets, and verification gates.",
+    "datePublished": "2026-08-01",
     "dateModified": "2026-08-23",
     "inLanguage": "en",
+    "author": {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura Research Team",
+      "url": "https://citeaura.com/authors"
+    },
     "publisher": {
       "@type": "Organization",
-      "@id": "https://citeaura.com/#organization"
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png",
+      "sameAs": [
+        "https://github.com/500wango/citeaura",
+        "https://x.com/citeaura",
+        "https://www.linkedin.com/company/citeaura"
+      ]
     },
     "isPartOf": {
       "@type": "WebSite",
@@ -196,6 +213,8 @@
     <div class="sample-shell sample-nav">
       <a class="sample-brand" href="/">CiteAura</a>
       <div class="sample-nav-actions">
+        <a class="btn btn-secondary btn-sm" href="/about">About</a>
+        <a class="btn btn-secondary btn-sm" href="/contact">Contact</a>
         <button type="button" class="btn btn-secondary btn-sm" id="btn-print-pack" title="Print or save as PDF client delivery pack">Print / Export PDF</button>
         <a class="btn btn-secondary btn-sm" href="/" data-i18n="public.sample.back">Back to site</a>
         <a class="btn btn-primary btn-sm" href="/app?auth=register" data-i18n="public.sample.run_audit" rel="nofollow">Run your audit</a>
@@ -220,8 +239,8 @@
     </section>
 
     <section class="sample-section" data-i18n-html="public.sample.sec1">
-      <h2>1. Evidence scope</h2>
-      <p>The report keeps technical diagnosis separate from visibility measurement, so a customer can see what was checked and what remains unmeasured.</p>
+      <h2>1. What evidence is included in a GEO diagnostic scope?</h2>
+      <p><strong>A GEO diagnostic scope is the structured boundary separating technical crawlability from generative answer sampling.</strong> The report keeps technical diagnosis separate from visibility measurement, so a customer can verify what was checked and what remains unmeasured across public pages, AI answers, machine discovery files, and competitor prompts.</p>
       <table class="sample-table">
         <thead><tr><th>Evidence</th><th>Result</th><th>Sampling / source label</th><th>Recommended next step</th></tr></thead>
         <tbody>
@@ -235,8 +254,8 @@
 
     <!-- Dovetail Research Insight Section -->
     <section class="sample-section">
-      <h2>2. Dovetail Research Insight: AI Answer Citation Evidence</h2>
-      <p>Verbatim ground-truth traces from AI engine responses, showing exactly why competitors are cited while brand pages are omitted.</p>
+      <h2>2. Why are competitors cited while brand domains are omitted?</h2>
+      <p><strong>Generative engines omit brand domains when pricing, technical specs, or FAQs are unextractable from the DOM or blocked by robots.txt.</strong> Verbatim ground-truth traces from AI engine responses show exactly why competitors are cited while brand pages are omitted.</p>
       
       <div class="dovetail-card">
         <div class="dovetail-card-head">
@@ -277,8 +296,8 @@
 
     <!-- Attio-Style High-Density Engineering Tickets -->
     <section class="sample-section" data-i18n-html="public.sample.sec2">
-      <h2>3. Action tickets with acceptance gates (Attio Table Layout)</h2>
-      <p>Every recommendation has an owner, an evidence link, and a checker that can reopen the ticket after a regression.</p>
+      <h2>3. What specific engineering tickets close verified citation gaps?</h2>
+      <p><strong>A GEO action ticket is an engineering task containing concrete acceptance criteria and automated regression checkers.</strong> Every recommendation has an owner, an evidence link, and a checker that can reopen the ticket after a regression.</p>
       
       <table class="sample-table" style="margin-bottom: 20px;">
         <thead>
@@ -336,8 +355,8 @@
     </section>
 
     <section class="sample-section" data-i18n-html="public.sample.sec3">
-      <h2>4. Delivery and verification</h2>
-      <p>The final pack contains an audit report, execution plan, ticket log, acceptance checklist, draft risks, and build map. The pack is marked diagnostic-ready until implementation evidence is complete.</p>
+      <h2>4. How are client deliverables and verification gates validated?</h2>
+      <p><strong>Delivery and verification is the formal validation process confirming that recommended site fixes were deployed and re-sampled before client handoff.</strong> The final pack contains an audit report, execution plan, ticket log, acceptance checklist, draft risks, and build map. The pack is marked diagnostic-ready until implementation evidence is complete.</p>
       <table class="sample-table">
         <thead><tr><th>Milestone</th><th>Status</th><th>What the customer receives</th></tr></thead>
         <tbody>
@@ -353,6 +372,26 @@
       <a class="btn btn-primary" href="/app?auth=register" rel="nofollow">Create free workspace <span aria-hidden="true">→</span></a>
     </section>
   </main>
+
+  <footer class="site-footer">
+    <div class="page-shell footer-layout" style="max-width:1120px;margin:0 auto;padding:40px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;border-top:1px solid var(--line);">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="CiteAura Home" style="font-weight:800;color:var(--ink);text-decoration:none;">CiteAura</a>
+        <p style="margin:4px 0 0;font-size:13px;color:var(--muted);">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
+        <span style="font-size:12px;color:var(--muted);">© 2026 CiteAura</span>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer Navigation" style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;">
+        <a href="/docs" style="color:var(--muted);text-decoration:none;">Docs</a>
+        <a href="/blog" style="color:var(--muted);text-decoration:none;">Guides</a>
+        <a href="/authors" style="color:var(--muted);text-decoration:none;">Authors</a>
+        <a href="/about" style="color:var(--muted);text-decoration:none;">About</a>
+        <a href="/contact" style="color:var(--muted);text-decoration:none;">Contact</a>
+        <a href="/privacy" style="color:var(--muted);text-decoration:none;">Privacy Policy</a>
+        <a href="/terms" style="color:var(--muted);text-decoration:none;">Terms of Service</a>
+      </nav>
+    </div>
+  </footer>
   <script>
     var printBtn = document.getElementById('btn-print-pack');
     if (printBtn) {
