@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Identifier la fréquence de mention de marque ChatGPT | CiteAura</title>
-  <meta name="description" content="Méthode d’ingénierie : cohorte fixe, 3 modes d’échantillonnage, regex de marque, mention_rate et intervalle de Wilson. Pas de ranking promis.">
+  <title>Identifier la fréquence de mention de marque dans ChatGPT &amp; l'IA | CiteAura</title>
+  <meta name="description" content="Comment identifier et mesurer la fréquence de mention de votre marque dans ChatGPT et l'IA ? Méthode d'ingénierie par cohorte, formule de calcul et test direct.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <meta name="author" content="Équipe Recherche CiteAura">
@@ -27,8 +27,8 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt">
-  <meta property="og:title" content="Identifier la fréquence de mention de marque ChatGPT | CiteAura">
-  <meta property="og:description" content="Méthode d’ingénierie : cohorte fixe, 3 modes d’échantillonnage, regex de marque, mention_rate et intervalle de Wilson. Pas de ranking promis.">
+  <meta property="og:title" content="Identifier la fréquence de mention de marque dans ChatGPT &amp; l'IA | CiteAura">
+  <meta property="og:description" content="Comment identifier et mesurer la fréquence de mention de votre marque dans ChatGPT et l'IA ? Méthode d'ingénierie par cohorte, formule de calcul et test direct.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -38,8 +38,8 @@
   <meta property="article:modified_time" content="2026-09-14T00:00:00Z">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Identifier la fréquence de mention de marque ChatGPT | CiteAura">
-  <meta name="twitter:description" content="Cohorte fixe, 3 modes d’échantillonnage, mention_rate et intervalle de Wilson. Pas de ranking promis.">
+  <meta name="twitter:title" content="Identifier la fréquence de mention de marque dans ChatGPT &amp; l'IA | CiteAura">
+  <meta name="twitter:description" content="Comment identifier et mesurer la fréquence de mention de votre marque dans ChatGPT et l'IA ? Méthode par cohorte et formule exacte.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
@@ -71,7 +71,7 @@
       },
       {
         "@type": "Article",
-        "headline": "Identifier la fréquence de mention de marque dans ChatGPT (méthode + formule)",
+        "headline": "Identifier la fréquence de mention de marque dans ChatGPT & l'IA (méthode + formule)",
         "description": "Méthode d’ingénierie : cohorte fixe, 3 modes d’échantillonnage, regex de marque, mention_rate et intervalle de Wilson. Pas de ranking promis.",
         "url": "https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt",
         "datePublished": "2026-09-07",
@@ -88,7 +88,7 @@
           "logo": "https://citeaura.com/site-assets/logo.png"
         },
         "mainEntityOfPage": "https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt",
-        "wordCount": 2400
+        "wordCount": 2500
       },
       {
         "@type": "FAQPage",
@@ -108,6 +108,14 @@
             "acceptedAnswer": {
               "@type": "Answer",
               "text": "Comprendre la mention implique de distinguer les connaissances paramétriques (mémoire du modèle sans navigation web) de la recherche connectée (web-grounded retrieval), et de vérifier si la marque fait l'objet d'une simple citation textuelle ou d'un lien source direct cliquable vers son domaine."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Comment mesurer l'exposition d'une marque dans les résultats de ChatGPT et de l'IA ?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "L'exposition d'une marque s'évalue en combinant le Taux de Mention (fréquence d'apparition du nom), le Taux de Citation (présence d'un lien hypertexte vers votre domaine) et l'analyse qualitative du positionnement face aux concurrents sur une cohorte fixe de requêtes."
             }
           },
           {
@@ -262,7 +270,7 @@ is_mentioned = bool(pattern.search(raw_answer_text))</code></pre>
       </ul>
     </div>
 
-    <h2 id="comprendre-mention">Comprendre comment la marque est mentionnée</h2>
+    <h2 id="comprendre-mention">Comprendre comment votre marque est mentionnée par ChatGPT et l'IA</h2>
     <p>Identifier la fréquence brute ne suffit pas. Une analyse GEO complète examine la qualité de l'apparition :</p>
     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
       <thead>
@@ -297,6 +305,8 @@ is_mentioned = bool(pattern.search(raw_answer_text))</code></pre>
       <p>Pour identifier la fréquence de mention, exécutez une cohorte standardisée de 15 à 30 requêtes acheteurs réparties sur plusieurs passes indépendantes (ex. 45 tirages au total), analysez les réponses brutes JSON avec une expression régulière délimitée (\bMarque\b) et calculez le Taux de Mention : (mentions positives / total des tirages valides) × 100%.</p>
       <h3>Comment comprendre la manière dont une marque est mentionnée par ChatGPT ?</h3>
       <p>Comprendre la mention implique de distinguer les connaissances paramétriques (mémoire du modèle sans navigation web) de la recherche connectée (web-grounded retrieval), et de vérifier si la marque fait l'objet d'une simple citation textuelle ou d'un lien source direct cliquable vers son domaine.</p>
+      <h3>Comment mesurer l'exposition d'une marque dans les résultats de ChatGPT et de l'IA ?</h3>
+      <p>L'exposition d'une marque s'évalue en combinant le Taux de Mention (fréquence d'apparition du nom), le Taux de Citation (présence d'un lien hypertexte vers votre domaine) et l'analyse qualitative du positionnement face aux concurrents sur une cohorte fixe de requêtes.</p>
       <h3>Une seule réponse ChatGPT suffit-elle pour évaluer la visibilité d'une marque ?</h3>
       <p>Non. Les modèles de langage sont stochastiques (non déterministes). Une unique question testée une fois ne constitue pas une métrique fiable. Il faut établir une référence stable avec un échantillon représentatif (n &ge; 45) au sein d'une cohorte fixe.</p>
       <h3>Pourquoi ChatGPT mentionne-t-il mon concurrent et pas ma marque ?</h3>

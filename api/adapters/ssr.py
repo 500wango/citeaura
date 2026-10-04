@@ -198,4 +198,15 @@ def _render_landing_cached(locale: str, site_base: str) -> str:
         for tag in soup.find_all("meta", attrs={"name": "twitter:description"}):
             tag["content"] = og_desc_val
 
+    # ── 13. 本地化内链映射（当 locale 为 fr 时，将博客卡片定向至已有的法语本地化资产）
+    if locale == "fr":
+        _fr_href_map = {
+            "/blog/measure-if-chatgpt-mentions-your-brand": "/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt",
+            "/blog/why-chatgpt-does-not-mention-my-brand": "/blog/diagnostic-visibilite-ia-marques",
+            "/blog/white-label-geo-diagnostic-report": "/blog/verification-geo-mesurer-visibilite-ia",
+        }
+        for a_tag in soup.find_all("a", href=True):
+            if a_tag["href"] in _fr_href_map:
+                a_tag["href"] = _fr_href_map[a_tag["href"]]
+
     return str(soup)
