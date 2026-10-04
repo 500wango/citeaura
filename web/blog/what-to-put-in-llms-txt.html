@@ -125,6 +125,14 @@
               "@type": "Answer",
               "text": "Parse the Markdown, enforce heading order (single H1, then H2 sections), check every URL is absolute https on your canonical host or allow-listed, and assert each fact line has a source URL you control. Schema-style checks catch stale pricing, relative links, and forbidden sections before deploy."
             }
+          },
+          {
+            "@type": "Question",
+            "name": "What is the recommended size limit for llms.txt vs llms-full.txt?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Keep your root /llms.txt under 5 KB (approx. 1,000 to 1,500 tokens). Overly large files risk overflowing LLM context window limits during retrieval. Use /llms.txt as a clean index map and reserve /llms-full.txt for modular expanded documentation."
+            }
           }
         ]
       }
@@ -289,7 +297,16 @@ X-Content-Type-Options: nosniff
       <li><strong>Core navigation links (4–8 URLs):</strong> Product overviews, documentation, pricing tables, contact points, and system status pages.</li>
       <li><strong>Key factual assertions (3–6 bullet points):</strong> Regional availability, compliance certifications, primary platform integrations, or architecture properties, each linked to a supporting page.</li>
     </ul>
-    <p>Keep the complete file under 5 KB. A concise, link-dense document is easier for crawlers to fetch, cache, and process than an exhaustive promotional page.</p>
+    <p>Keep the root file under 5 KB (roughly 1,000 to 1,500 tokens). A concise, link-dense document is easier for crawlers to fetch, cache, and process than an exhaustive promotional page.</p>
+
+    <h3 id="token-budget">Token Budget: Avoiding the llms-full.txt Context Overflow</h3>
+    <p>A frequent implementation failure (tracked in <a href="https://github.com/AnswerDotAI/llms-txt/issues/55" rel="noopener noreferrer">AnswerDotAI/llms-txt Issue #55</a>) is concatenating hundreds of documentation pages into an oversized <code>/llms-full.txt</code>. When retrieval agents ingest multi-megabyte files, they risk overflowing model context window limits or getting truncated before reading core definitions.</p>
+    <p>To keep your discovery architecture lightweight and compliant:</p>
+    <ul>
+      <li>Use <code>/llms.txt</code> exclusively as an index map under 5 KB that links directly to canonical HTML or markdown docs.</li>
+      <li>If deploying an optional <code>/llms-full.txt</code>, break extensive reference material into modular chapters with anchor links.</li>
+      <li>Audit your token budget before deployment using <a href="/llms-txt-tool">CiteAura's free llms.txt generator and context validator</a>.</li>
+    </ul>
 
     <h2 id="anti-patterns">5. Maintenance anti-patterns</h2>
     <p>Common mistakes that degrade the accuracy and usefulness of an <code>llms.txt</code> index:</p>
@@ -376,6 +393,8 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
       <p>Serve the file at <code>https://example.com/llms.txt</code> as <code>text/plain; charset=utf-8</code> directly from your canonical root domain.</p>
       <h3>How do I validate llms.txt before deploy?</h3>
       <p>Check that the file contains clean Markdown headings, absolute HTTPS links, reachable source URLs for all factual claims, and valid UTF-8 encoding.</p>
+      <h3>What is the recommended size limit for llms.txt vs llms-full.txt?</h3>
+      <p>Keep your root <code>/llms.txt</code> under 5 KB (approx. 1,000 to 1,500 tokens). Overly large files risk overflowing LLM context window limits during retrieval. Use <code>/llms.txt</code> as a clean index map and reserve <code>/llms-full.txt</code> for modular expanded documentation.</p>
     </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">

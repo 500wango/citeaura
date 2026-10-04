@@ -201,6 +201,11 @@
           <h3>Limitations &amp; Evidence Grades</h3>
           <p>Explicit statements of what your product does not do, avoiding AI hallucination and incorrect feature attribution in customer answers.</p>
         </article>
+        <article class="seo-panel">
+          <span class="seo-label">Token Budget</span>
+          <h3>Context Window Safety</h3>
+          <p>Keep your root file below 5 KB (~1,500 tokens). Massive documentation dumps should go into an optional <code>/llms-full.txt</code> to avoid exceeding agent context limits.</p>
+        </article>
       </div>
     </section>
 
@@ -240,6 +245,10 @@
         <details>
           <summary>Where should the llms.txt file be hosted?</summary>
           <p>Host it at https://yourdomain.com/llms.txt or https://yourdomain.com/.well-known/llms.txt with content-type text/plain; charset=utf-8, and reference it in your robots.txt or HTML link headers.</p>
+        </details>
+        <details>
+          <summary>What is the recommended size limit for llms.txt vs llms-full.txt?</summary>
+          <p>Keep your root <code>/llms.txt</code> under 5 KB (roughly 1,000–1,500 tokens). Automated retrieval agents use this file as a concise index to discover relevant canonical paths. If you have extensive documentation, publish an optional <code>/llms-full.txt</code>, but ensure individual sections do not overflow the typical retrieval chunk window (typically 2,000–4,000 tokens).</p>
         </details>
       </div>
     </section>

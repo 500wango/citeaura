@@ -133,6 +133,14 @@
               "@type": "Answer",
               "text": "robots.txt is often cached at the edge or by Caddy's file handler. Purge the Cloudflare cache for /robots.txt, verify Caddy serves the file from the canonical host root, and re-fetch with curl -H 'Cache-Control: no-cache'."
             }
+          },
+          {
+            "@type": "Question",
+            "name": "Why does Cloudflare block GPTBot with 403 even after enabling AI Crawl Control?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Cloudflare's Bot Fight Mode (BFM) and Browser Integrity Check (BIC) execute at the edge before robots.txt is parsed. BFM challenges automated clients and drops connections with invisible 403 errors that are omitted from Security Events logs. Create a Custom WAF Skip Rule for verified bot traffic or test access using CiteAura's free crawler access checker."
+            }
           }
         ]
       }
@@ -365,6 +373,18 @@ Disallow: /</code></pre>
     <h3 id="cache-pitfalls">Edge caching and log verification</h3>
     <p>When robots.txt changes fail to take effect live, stale edge cache layers (Cloudflare) or reverse proxy handler precedence (Caddy) are common causes. For complete Caddyfile server configuration blocks and journalctl log queries, refer to <a href="/docs#troubleshooting">Jobs &amp; Troubleshooting in Documentation</a>.</p>
 
+    <h3 id="cloudflare-invisible-403">The Cloudflare "Invisible 403": Bot Fight Mode &amp; Pages Pitfalls</h3>
+    <p>A frequent support failure occurs when teams explicitly configure <code>Allow: /</code> for GPTBot and enable Cloudflare's "AI Crawl Control", yet OpenAI crawlers still receive <strong>HTTP 403 Forbidden</strong> responses.</p>
+    <p>This happens because Cloudflare edge security layers evaluate incoming requests <em>before</em> your web server or <code>robots.txt</code> file is ever consulted:</p>
+    <ul>
+      <li><strong>Bot Fight Mode (BFM):</strong> Free-tier "Bot Fight Mode" issues automated JavaScript challenges or drops connections for non-browser user-agents. It does not whitelist AI crawlers automatically, and these blocks <em>do not appear in Cloudflare Security Events logs</em>.</li>
+      <li><strong>Browser Integrity Check (BIC):</strong> BIC evaluates HTTP headers commonly sent by HTTP libraries, returning 403 when header fingerprints mismatch standard desktop browsers.</li>
+      <li><strong>Cloudflare Pages custom domains:</strong> Several zone configurations apply default managed challenge rules to custom apex domains while leaving <code>.pages.dev</code> open.</li>
+    </ul>
+    <p><strong>The Fix:</strong> In your Cloudflare dashboard, navigate to <strong>Security &rarr; WAF &rarr; Custom Rules</strong> and create a priority bypass rule: set the expression to <code>(cf.client.bot and http.user_agent contains "GPTBot")</code> and select the action <strong>Skip &rarr; All remaining security features</strong>. Then run an immediate verification using <a href="/crawler-check">CiteAura's free crawler access checker</a>:</p>
+    <pre><code># Test if Cloudflare edge drops or challenges GPTBot requests
+curl -I -A "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.0; +https://openai.com/gptbot)" https://citeaura.com/robots.txt</code></pre>
+
     <h2 id="verification">Verification and model expectations</h2>
     <p>CiteAura audits fetch the live robots.txt from your canonical domain, resolve redirect chains, and evaluate RFC 9309 precedence rules. If a public marketing route is blocked, the audit generates an actionable engineering ticket with reproducible test commands.</p>
     <p>Permitting crawler access in robots.txt allows compliant bots to retrieve your pages. It does not guarantee that a model will index the content, retrieve it during prompt evaluation, cite your domain, or rank your brand favorably in answers. Retrieval depends on index recency, prompt relevance, and runtime search intent.</p>
@@ -391,6 +411,8 @@ Disallow: /</code></pre>
       <p>No. An allow rule enables crawler retrieval; it does not guarantee prompt inclusion, citation generation, or answer ranking.</p>
       <h3>Why does my fix not appear even after deploy?</h3>
       <p>This is usually caused by CDN edge caching or proxy routing precedence. Purge the cache for <code>/robots.txt</code> and ensure static file handling takes precedence over reverse proxies.</p>
+      <h3>Why does Cloudflare block GPTBot with 403 even after enabling AI Crawl Control?</h3>
+      <p>Cloudflare's Bot Fight Mode (BFM) and Browser Integrity Check (BIC) execute at the edge before robots.txt is parsed. BFM challenges automated clients and drops connections with invisible 403 errors that are omitted from Security Events logs. Create a Custom WAF Skip Rule for verified bot traffic or test access using CiteAura's free crawler access checker.</p>
     </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">
