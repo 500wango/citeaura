@@ -51,6 +51,9 @@
 - [Pourquoi ChatGPT cite votre concurrent mais pas votre marque : 7 causes](https://citeaura.com/blog/pourquoi-chatgpt-cite-concurrent-pas-marque): Guide en français.
 - [Why Does ChatGPT Cite My Competitor? The Off-Site Reasons](https://citeaura.com/blog/why-chatgpt-cites-competitor-offsite-factors)
 - [Pourquoi ChatGPT cite votre concurrent : les raisons hors-site](https://citeaura.com/blog/pourquoi-chatgpt-concurrent-raisons-hors-site): Guide en français.
+- [Mesurer l'exposition de marque dans les résultats ChatGPT : guide complet](https://citeaura.com/blog/mesurer-exposition-marque-resultats-chatgpt): Guide en français.
+- [Comprendre comment ChatGPT mentionne votre marque](https://citeaura.com/blog/comprendre-comment-chatgpt-mentionne-marque): Guide en français.
+- [Identifier la fréquence de mention de marque dans AI Mode](https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode): Guide en français.
 - [Privacy Policy](https://citeaura.com/privacy): Data handling and privacy terms.
 - [Terms of Service](https://citeaura.com/terms): Service terms and acceptable use.
 

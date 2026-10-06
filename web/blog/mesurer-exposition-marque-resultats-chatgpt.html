@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mesurer l'exposition de marque dans les résultats ChatGPT : guide complet | CiteAura</title>
+  <meta name="description" content="Taux de mention, taux de citation, sentiment : le protocole complet pour mesurer l'exposition de votre marque dans les résultats ChatGPT, avec cohorte de requêtes et suivi dans le temps.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <meta name="author" content="Équipe Recherche CiteAura">
+  <script src="/runtime-assets/theme-init.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/blog.css">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="canonical" href="https://citeaura.com/blog/mesurer-exposition-marque-resultats-chatgpt">
+  <link rel="alternate" hreflang="fr" href="https://citeaura.com/blog/mesurer-exposition-marque-resultats-chatgpt">
+  <link rel="alternate" hreflang="en" href="https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand">
+  <link rel="alternate" hreflang="x-default" href="https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/blog/mesurer-exposition-marque-resultats-chatgpt">
+  <meta property="og:title" content="Mesurer l'exposition de marque dans les résultats ChatGPT : guide complet | CiteAura">
+  <meta property="og:description" content="Taux de mention, taux de citation, sentiment : le protocole complet pour mesurer l'exposition de votre marque dans les résultats ChatGPT, avec cohorte de requêtes et suivi dans le temps.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Guides CiteAura — optimisation pour moteurs génératifs.">
+  <meta property="article:author" content="Équipe Recherche CiteAura">
+  <meta property="article:published_time" content="2026-09-07T00:00:00Z">
+  <meta property="article:modified_time" content="2026-09-14T00:00:00Z">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Mesurer l'exposition de marque dans les résultats ChatGPT : guide complet | CiteAura">
+  <meta name="twitter:description" content="Taux de mention, taux de citation, sentiment : le protocole complet pour mesurer l'exposition de votre marque dans les résultats ChatGPT, avec cohorte de requêtes et suivi dans le temps.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Accueil",
+            "item": "https://citeaura.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Guides",
+            "item": "https://citeaura.com/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Mesurer l'exposition de marque dans les résultats ChatGPT : guide complet",
+            "item": "https://citeaura.com/blog/mesurer-exposition-marque-resultats-chatgpt"
+          }
+        ]
+      },
+      {
+        "@type": "Article",
+        "headline": "Mesurer l'exposition de marque dans les résultats ChatGPT : guide complet",
+        "description": "Taux de mention, taux de citation, sentiment : le protocole complet pour mesurer l'exposition de votre marque dans les résultats ChatGPT, avec cohorte de requêtes et suivi dans le temps.",
+        "url": "https://citeaura.com/blog/mesurer-exposition-marque-resultats-chatgpt",
+        "datePublished": "2026-10-06",
+        "dateModified": "2026-10-06",
+        "author": {
+          "@type": "Organization",
+          "name": "CiteAura Research Team",
+          "url": "https://citeaura.com/authors"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CiteAura",
+          "url": "https://citeaura.com",
+          "logo": "https://citeaura.com/site-assets/logo.png"
+        },
+        "mainEntityOfPage": "https://citeaura.com/blog/mesurer-exposition-marque-resultats-chatgpt",
+        "wordCount": 928
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://citeaura.com/blog/mesurer-exposition-marque-resultats-chatgpt#faq",
+        "mainEntity": [
+          {"@type": "Question","name": "Quelle est la différence entre taux de mention et taux de citation ?","acceptedAnswer": {"@type": "Answer","text": "Le taux de mention compte les apparitions du nom de marque dans le texte des réponses. Le taux de citation compte les réponses contenant un lien hypertexte vers votre domaine. Une marque peut être mentionnée sans être citée — c'est le cas typique de la « rupture d'attribution », où le moteur utilise vos informations sans nommer votre marque ni lier votre site."}},
+          {"@type": "Question","name": "À quelle fréquence faut-il mesurer l'exposition ?","acceptedAnswer": {"@type": "Answer","text": "Un cycle mensuel suffit pour la plupart des marques, hebdomadaire si vous menez des actions correctives actives (publication de pages comparatives, campagnes RP). L'essentiel est la régularité du protocole : mêmes questions, mêmes modèles, mêmes modes."}},
+          {"@type": "Question","name": "Un seul test manuel suffit-il pour évaluer mon exposition ?","acceptedAnswer": {"@type": "Answer","text": "Non. Les modèles sont stochastiques : la même question produit des réponses différentes à chaque tirage. Un test isolé ne mesure rien de fiable. Il faut au minimum 45 tirages (15 questions × 3 passes) pour obtenir une estimation statistiquement interprétable."}},
+          {"@type": "Question","name": "Comment savoir si mon exposition s'améliore vraiment ?","acceptedAnswer": {"@type": "Answer","text": "Comparez les taux de mention et de citation sur au moins 3 cycles consécutifs avec une cohorte inchangée, et vérifiez que l'écart dépasse l'intervalle de confiance. Une hausse de 25 % à 35 % entre deux cycles isolés n'est généralement que du bruit."}}
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+<header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/" aria-label="Accueil CiteAura">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Ouvrir la navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+
+      <nav id="primary-nav" class="nav-links" aria-label="Navigation principale">
+        <details class="nav-group"><summary>Produit <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/#about">Présentation</a><a href="/#workflow">Fonctionnement</a><a href="/#product">Fonctionnalités</a><a href="/ai-visibility-audit">Audit visibilité IA</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">Pour les marques</a><a href="/for-agencies">Pour les agences</a></div></details>
+        <details class="nav-group"><summary>Ressources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Documentation</a><a href="/blog" class="is-current" aria-current="page">Guides</a><a href="/methodology">Méthodologie</a><a href="/sample-report">Exemple de rapport</a></div></details>
+        <a href="/pricing">Tarifs</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Basculer vers le thème sombre" title="Changer de thème">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <div class="lang-dropdown" id="lang-dropdown">
+          <button type="button" class="lang-picker-btn" id="lang-picker-toggle" aria-haspopup="menu" aria-expanded="false" title="Changer de langue">
+            <svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <span class="sr-only">Langue</span>
+          </button>
+          <div class="lang-menu" id="lang-menu" role="menu"></div>
+          <label class="sr-only" for="site-locale">Langue</label>
+          <select id="site-locale" class="site-locale-compact" aria-label="Langue" style="display: none;">
+            <option value="en">English (EN)</option>
+            <option value="fr" selected>Français (FR)</option>
+          </select>
+        </div>
+        <a class="nav-sign-in" href="/app?auth=login" rel="nofollow">Connexion</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register" rel="nofollow">Démarrer l'essai gratuit</a>
+      </div>
+    </div>
+  </header>
+
+<article class="blog-shell blog-article">
+    <nav class="blog-crumb" aria-label="Fil d’Ariane"><a href="/">Accueil</a><span aria-hidden="true">/</span><a href="/blog">Guides</a><span aria-hidden="true">/</span><span>Mesure GEO</span></nav>
+    <header class="blog-header">
+      <span class="blog-kicker">Guide GEO</span>
+      <h1>Mesurer l'exposition de marque dans les résultats ChatGPT : guide complet</h1>
+      <p class="blog-lead">Le nom de votre marque apparaît-il dans ChatGPT ? Y a-t-il un lien vers votre site ? Est-elle recommandée ou simplement listée ? Voici le protocole complet pour mesurer ces trois dimensions avec une méthode reproductible.</p>
+      <p class="blog-meta">Publié le 6 octobre 2026 · 8 min de lecture · Guide GEO</p>
+      <p class="blog-byline">Par l’équipe de recherche CiteAura</p>
+    </header>
+<div class="editorial-notice-box">
+      <span><strong>Transparence éditoriale :</strong> Vérifié empiriquement selon les spécifications techniques et les directives de moteurs de recherche IA.</span>
+      <a href="/editorial-policy">Nos standards éditoriaux &rarr;</a>
+    </div>
+
+    <nav class="toc" aria-label="Sommaire">
+      <strong>Sommaire</strong>
+      <ol>
+        <li><a href="#les-3-dimensions-de-lexposition">Les 3 dimensions de l'exposition</a></li>
+        <li><a href="#construire-une-cohorte-de-requêtes-représentative">Construire une cohorte de requêtes représentative</a></li>
+        <li><a href="#les-3-modes-déchantillonnage-à-distinguer">Les 3 modes d'échantillonnage à distinguer</a></li>
+        <li><a href="#calculer-et-suivre-le-taux-dexposition">Calculer et suivre le taux d'exposition</a></li>
+        <li><a href="#ce-que-les-concurrents-mesurent-et-vous-pas-encore">Ce que les concurrents mesurent (et vous pas encore)</a></li>
+        <li><a href="#questions-fréquentes">Questions fréquentes</a></li>
+      </ol>
+    </nav>
+
+    <p><strong>Réponse directe :</strong> Mesurer l&#x27;exposition d&#x27;une marque dans ChatGPT exige de combiner trois dimensions : le <strong>taux de mention</strong> (le nom apparaît-il ?), le <strong>taux de citation</strong> (un lien vers votre domaine accompagne-t-il la réponse ?) et le <strong>sentiment</strong> (la marque est-elle recommandée ou simplement listée ?). La méthode fiable consiste à exécuter une cohorte fixe de 15 à 30 requêtes d&#x27;acheteurs sur 3 passes indépendantes (45 tirages minimum), puis à suivre ces trois métriques dans le temps avec un protocole identique.</p>
+    <h2 id="les-3-dimensions-de-lexposition">Les 3 dimensions de l'exposition</h2>
+    <p>La plupart des marques ne mesurent que la première — et passent à côté de l&#x27;essentiel :</p>
+    <ul>
+      <li><strong>Taux de mention :</strong> dans combien de réponses le nom de la marque apparaît-il ? C&#x27;est la métrique de visibilité brute. Formule : (tirages avec mention ÷ tirages valides) × 100.</li>
+      <li><strong>Taux de citation :</strong> dans combien de réponses un lien hypertexte pointe-t-il vers votre domaine ? Une marque mentionnée sans lien ne reçoit aucun trafic — c&#x27;est la différence entre notoriété et acquisition.</li>
+      <li><strong>Sentiment et positionnement :</strong> la marque est-elle recommandée en premier, citée comme alternative, ou mentionnée en passant dans une liste de dix ? Une mention passive dans une longue liste vaut dix fois moins qu&#x27;une recommandation argumentée.</li>
+    </ul>
+    <p><strong>Règle d&#x27;or :</strong> ne comparez jamais deux mesures obtenues avec des requêtes, des modèles ou des modes d&#x27;échantillonnage différents. Sans cohorte fixe, vous mesurez du bruit.</p>
+    <h2 id="construire-une-cohorte-de-requêtes-représentative">Construire une cohorte de requêtes représentative</h2>
+    <p>Une cohorte est un ensemble figé de questions que vous répétez à l&#x27;identique à chaque cycle de mesure :</p>
+    <ul>
+      <li><strong>Requêtes catégorielles (5–10) :</strong> *« Quels sont les meilleurs outils de facturation pour freelances ? »* — teste si l&#x27;IA pense à vous spontanément.</li>
+      <li><strong>Requêtes comparatives (5–10) :</strong> *« Quelles alternatives à [leader du marché] ? »* — teste votre présence face aux concurrents.</li>
+      <li><strong>Requêtes par cas d&#x27;usage (5–10) :</strong> *« Comment automatiser l&#x27;envoi de devis ? »* — teste si vos fonctionnalités sont associées à des problèmes concrets.</li>
+    </ul>
+    <p>N&#x27;incluez jamais le nom de votre marque dans les questions : vous mesurez la découverte spontanée, pas la simple reconnaissance.</p>
+    <h2 id="les-3-modes-déchantillonnage-à-distinguer">Les 3 modes d'échantillonnage à distinguer</h2>
+    <p>ChatGPT ne se comporte pas de la même façon selon le mode d&#x27;interrogation — mélanger les modes fausse toute comparaison :</p>
+    <ul>
+      <li><strong>API · Connaissances paramétriques :</strong> le modèle répond sans recherche web, sur sa mémoire d&#x27;entraînement. Si vous y êtes cité, votre autorité historique est forte.</li>
+      <li><strong>API · Recherche web connectée :</strong> le modèle cherche en direct avant de répondre. Ce mode dépend de l&#x27;accessibilité de votre site (robots.txt, HTML serveur).</li>
+      <li><strong>Interface produit (chatgpt.com) :</strong> le comportement grand public, avec mémoire utilisateur et reranking propriétaire.</li>
+    </ul>
+    <p>Notre guide <a href="/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt">Identifier la fréquence de mention de marque dans ChatGPT</a> détaille le protocole statistique complet, intervalles de confiance de Wilson inclus.</p>
+    <h2 id="calculer-et-suivre-le-taux-dexposition">Calculer et suivre le taux d'exposition</h2>
+    <p>Pour chaque cycle, calculez les trois métriques sur la même cohorte :</p>
+    <pre style="background:var(--surface-2);padding:12px;overflow:auto;border-radius:8px;"><code>Taux de mention (%) = (tirages mentionnant la marque ÷ tirages valides) × 100
+Taux de citation (%) = (tirages avec lien vers votre domaine ÷ tirages valides) × 100</code></pre>
+    <p>Répétez le cycle chaque semaine ou chaque mois <strong>sans modifier la cohorte</strong>. Une variation de quelques points entre deux cycles est souvent du bruit statistique — avec n=45 et un taux observé de 30 %, l&#x27;intervalle de confiance à 95 % s&#x27;étend d&#x27;environ 19 % à 45 %. Seule une tendance sur plusieurs cycles consécutifs signale un vrai changement.</p>
+    <h2 id="ce-que-les-concurrents-mesurent-et-vous-pas-encore">Ce que les concurrents mesurent (et vous pas encore)</h2>
+    <p>Les marques citées en priorité dans ChatGPT ne se contentent pas de mesurer : elles agissent sur les trois leviers qui alimentent l&#x27;exposition — accessibilité crawler (<a href="/crawler-check">vérifiez la vôtre</a>), pages répondant directement aux questions d&#x27;achat, et présence sur les sources tierces que les moteurs consultent (Reddit, comparatifs, annuaires). Pour comprendre l&#x27;écart avec un concurrent cité, lisez <a href="/blog/pourquoi-chatgpt-cite-concurrent-pas-marque">Pourquoi ChatGPT cite votre concurrent mais pas votre marque</a>.</p>
+    <h2 id="questions-fréquentes">Questions fréquentes</h2>
+    <h3>Quelle est la différence entre taux de mention et taux de citation ?</h3>
+    <p>Le taux de mention compte les apparitions du nom de marque dans le texte des réponses. Le taux de citation compte les réponses contenant un lien hypertexte vers votre domaine. Une marque peut être mentionnée sans être citée — c&#x27;est le cas typique de la « rupture d&#x27;attribution », où le moteur utilise vos informations sans nommer votre marque ni lier votre site.</p>
+    <h3>À quelle fréquence faut-il mesurer l'exposition ?</h3>
+    <p>Un cycle mensuel suffit pour la plupart des marques, hebdomadaire si vous menez des actions correctives actives (publication de pages comparatives, campagnes RP). L&#x27;essentiel est la régularité du protocole : mêmes questions, mêmes modèles, mêmes modes.</p>
+    <h3>Un seul test manuel suffit-il pour évaluer mon exposition ?</h3>
+    <p>Non. Les modèles sont stochastiques : la même question produit des réponses différentes à chaque tirage. Un test isolé ne mesure rien de fiable. Il faut au minimum 45 tirages (15 questions × 3 passes) pour obtenir une estimation statistiquement interprétable.</p>
+    <h3>Comment savoir si mon exposition s'améliore vraiment ?</h3>
+    <p>Comparez les taux de mention et de citation sur au moins 3 cycles consécutifs avec une cohorte inchangée, et vérifiez que l&#x27;écart dépasse l&#x27;intervalle de confiance. Une hausse de 25 % à 35 % entre deux cycles isolés n&#x27;est généralement que du bruit.</p>
+    <h2 id="sources">Sources</h2>
+    <ul>
+      <li><a href="https://developers.openai.com/api/docs/bots">OpenAI Bot Documentation</a> — Directives d&#x27;exploration pour GPTBot et OAI-SearchBot.</li>
+      <li><a href="https://llmstxt.org/">llmstxt.org</a> — Spécification ouverte des fichiers de contexte markdown pour LLM.</li>
+      <li><a href="https://schema.org/Organization">Schema.org Organization</a> — Standardisation des entités pour l&#x27;indexation sémantique.</li>
+    </ul>
+    <p><strong>Prêt à mesurer votre exposition réelle ?</strong> <a href="/ai-visibility-audit">Lancez un audit CiteAura</a> pour suivre vos taux de mention, de citation et de sentiment sur ChatGPT, Perplexity et Gemini — avec preuves reproductibles.</p>
+
+<div class="blog-cta" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--sp-4);">
+      <div style="flex:1 1 280px;">
+        <strong style="color:var(--ink);display:block;font-size:var(--fs-3);margin-bottom:var(--sp-1);">Prêt à auditer la visibilité IA de votre marque ?</strong>
+        <p style="margin:0;font-size:var(--fs-2);color:var(--ink-2);">Testez l'accessibilité de vos crawlers ou lancez un projet CiteAura pour mesurer vos mentions sur ChatGPT, Perplexity et Bing avec preuves d'audit.</p>
+      </div>
+      <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;">
+        <a class="btn btn-secondary btn-sm" href="/crawler-check">Testeur GPTBot gratuit</a>
+        <a class="btn btn-primary btn-sm" href="/app?auth=register" rel="nofollow">Démarrer l'essai gratuit</a>
+      </div>
+    </div>
+
+    <aside class="blog-related" aria-labelledby="related-guides">
+      <h2 id="related-guides">Outils &amp; guides connexes</h2>
+      <ul>
+        <li><a href="/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt">Identifier la fréquence de mention de marque dans ChatGPT</a></li>
+        <li><a href="/blog/comprendre-comment-chatgpt-mentionne-marque">Comprendre comment ChatGPT mentionne votre marque</a></li>
+        <li><a href="/blog/identifier-frequence-mention-marque-ai-mode">Identifier la fréquence de mention dans AI Mode</a></li>
+        <li><a href="/blog/diagnostic-visibilite-ia-marques">Diagnostic de visibilité IA pour les marques</a></li>
+      </ul>
+    </aside>
+<div class="author-bio-card">
+      <div class="author-bio-avatar" aria-hidden="true" style="background:var(--accent);color:#fff;">CR</div>
+      <div class="author-bio-content">
+        <h3>À propos de l'auteur : Équipe de recherche CiteAura</h3>
+        <span class="author-bio-role">Ingénieurs systèmes de recherche &amp; analystes d'évaluation</span>
+        <p>L'équipe de recherche CiteAura est le groupe d'ingénierie à l'origine du moteur open source CiteAura GEO, des audits empiriques de robots d'indexation et des repères de citation vérifiables sur les systèmes de recherche générative.</p>
+        <div style="display:flex;gap:12px;margin-top:8px;">
+          <a class="author-bio-link" href="/authors">Découvrir l'équipe et la recherche &rarr;</a>
+          <a class="author-bio-link" href="/editorial-policy">Standards éditoriaux &rarr;</a>
+        </div>
+      </div>
+  </article>
+<footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="Accueil CiteAura"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
+        <p class="footer-tagline">Plateforme de diagnostic, exécution et vérification GEO (Generative Engine Optimization).</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+      <nav class="footer-links" aria-label="Liens de bas de page">
+        <a href="/docs">Documentation</a>
+        <a href="/blog">Guides</a>
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/app?auth=login" rel="nofollow">Connexion</a>
+        <a href="/privacy">Politique de confidentialité</a>
+        <a href="/terms">Conditions d'utilisation</a>
+      </nav>
+    </div>
+  </footer>
+  <script defer src="/site-assets/landing.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
+</body>
+</html>

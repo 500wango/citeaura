@@ -83,6 +83,9 @@ PUBLIC_PAGES = (
     {"path": "/blog/pourquoi-chatgpt-cite-concurrent-pas-marque", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/why-chatgpt-cites-competitor-offsite-factors", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/pourquoi-chatgpt-concurrent-raisons-hors-site", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/mesurer-exposition-marque-resultats-chatgpt", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/comprendre-comment-chatgpt-mentionne-marque", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/identifier-frequence-mention-marque-ai-mode", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/privacy", "lastmod": "2026-08-19", "changefreq": "monthly", "priority": "0.3"},
     {"path": "/terms", "lastmod": "2026-08-19", "changefreq": "monthly", "priority": "0.3"},
 )
