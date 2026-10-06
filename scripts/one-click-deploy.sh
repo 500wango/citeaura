@@ -177,12 +177,20 @@ if "${SUDO[@]}" test -f "$SITE_FILE"; then
     "${SUDO[@]}" cp -- "$SITE_FILE" "$SITE_BACKUP"
 fi
 
+CADDY_TLS_DIRECTIVE="${CADDY_TLS_DIRECTIVE:-tls internal}"
+
 {
     printf '%s {\n' "$DOMAIN"
+    if [[ -n "$CADDY_TLS_DIRECTIVE" && "$CADDY_TLS_DIRECTIVE" != "none" ]]; then
+        printf '    %s\n' "$CADDY_TLS_DIRECTIVE"
+    fi
     printf '    encode zstd gzip\n'
     printf '    reverse_proxy 127.0.0.1:%s\n' "$APP_PORT"
     printf '}\n\n'
     printf 'www.%s {\n' "$DOMAIN"
+    if [[ -n "$CADDY_TLS_DIRECTIVE" && "$CADDY_TLS_DIRECTIVE" != "none" ]]; then
+        printf '    %s\n' "$CADDY_TLS_DIRECTIVE"
+    fi
     printf '    redir https://%s{uri} permanent\n' "$DOMAIN"
     printf '}\n'
 } >"$SITE_CANDIDATE"
@@ -204,10 +212,10 @@ if [[ "$SKIP_PUBLIC_CHECK" == false ]]; then
     PUBLIC_READY=false
     for _attempt in $(seq 1 18); do
         WWW_REDIRECT_TARGET="$(
-            curl --silent --show-error --head --output /dev/null --write-out '%{redirect_url}' \
+            curl -k --silent --show-error --head --output /dev/null --write-out '%{redirect_url}' \
                 "https://www.${DOMAIN}/sitemap.xml" 2>/dev/null || true
         )"
-        if curl --fail --silent --show-error "https://${DOMAIN}/api/v1/health/ready" >/dev/null 2>&1 \
+        if curl -k --fail --silent --show-error "https://${DOMAIN}/api/v1/health/ready" >/dev/null 2>&1 \
             && [[ "$WWW_REDIRECT_TARGET" == "https://${DOMAIN}/sitemap.xml" ]]; then
             PUBLIC_READY=true
             break
