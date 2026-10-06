@@ -86,6 +86,8 @@ PUBLIC_PAGES = (
     {"path": "/blog/mesurer-exposition-marque-resultats-chatgpt", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/comprendre-comment-chatgpt-mentionne-marque", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/identifier-frequence-mention-marque-ai-mode", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/top-domains-cited-by-llms", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/principaux-domaines-cites-par-les-llm", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/privacy", "lastmod": "2026-08-19", "changefreq": "monthly", "priority": "0.3"},
     {"path": "/terms", "lastmod": "2026-08-19", "changefreq": "monthly", "priority": "0.3"},
 )
