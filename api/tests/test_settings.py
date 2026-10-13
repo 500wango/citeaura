@@ -191,10 +191,14 @@ def test_custom_provider_lifecycle_is_encrypted_and_tenant_isolated(settings_cli
 
 
 def test_custom_provider_connection_uses_single_exact_request(monkeypatch):
+    """连接测试必须复用采样引擎，发出的请求与真实采样逐字节一致。"""
+    import sample
+
     calls = []
 
     class Response:
         status_code = 200
+        text = ""
 
         @staticmethod
         def json():
@@ -207,7 +211,7 @@ def test_custom_provider_connection_uses_single_exact_request(monkeypatch):
         calls.append((url, kwargs))
         return Response()
 
-    monkeypatch.setattr(settings_router.requests, "post", fake_post)
+    monkeypatch.setattr(sample.requests, "post", fake_post)
     result = settings_router._test_custom_provider({
         "code": "custom_abc123",
         "name": "Gateway",
@@ -215,23 +219,178 @@ def test_custom_provider_connection_uses_single_exact_request(monkeypatch):
         "api_key": "sk-test",
         "model_id": "vendor/model:exact",
         "market": "global",
+        "protocol": "",
+        "search": False,
+        "extra_headers": None,
     })
 
-    assert result == {"ok": True, "answer": "OK", "raw_model": "vendor/model:exact"}
+    assert result["ok"] is True
+    assert result["answer"] == "OK"
     assert calls == [
         (
             "https://gateway.example.com/v1/chat/completions",
             {
-                "headers": {"Authorization": "Bearer sk-test", "Content-Type": "application/json"},
+                "headers": {
+                    "Authorization": "Bearer sk-test",
+                    "Content-Type": "application/json",
+                    "User-Agent": "CiteAura/1.0",
+                },
                 "json": {
                     "model": "vendor/model:exact",
                     "messages": [{"role": "user", "content": "Reply with exactly OK."}],
                     "temperature": 0.7,
                 },
-                "timeout": 15,
+                "timeout": 20,
             },
         ),
     ]
+
+
+def test_custom_provider_connection_surfaces_provider_http_code():
+    """引擎返回的 HTTP 诊断码必须能被压缩成稳定的前端错误码。"""
+    assert settings_router._safe_provider_error("HTTP 402: body") == "provider_http_402"
+    assert settings_router._safe_provider_error("HTTP 503: body") == "provider_http_503"
+    assert settings_router._safe_provider_error("ReadTimeout: x") == "provider_timeout"
+    assert settings_router._safe_provider_error("boom") == "provider_request_failed"
+
+
+def test_custom_provider_transport_round_trips_to_the_api(settings_client, monkeypatch):
+    client = settings_client
+    headers = _headers(client, "custom-transport@example.com")
+    monkeypatch.setattr(settings_router, "validate_outbound_url", lambda value, **kwargs: value)
+    monkeypatch.setattr(
+        settings_router,
+        "_test_custom_provider",
+        lambda provider: {"ok": True, "answer": "OK"},
+    )
+
+    saved = client.put(
+        "/api/v1/settings/keys/custom",
+        headers=headers,
+        json={
+            "name": "OpenCode Go",
+            "base_url": "https://opencode.ai/inference/go/v1/messages",
+            "api_key": "sk-custom-secret",
+            "model_id": "claude-haiku-5-5",
+            "market": "global",
+            "protocol": "anthropic",
+            "search": True,
+            "extra_headers": {"X-Opencode-Session": " citeaura "},
+        },
+    )
+
+    assert saved.status_code == 200
+    provider = saved.json()["provider"]
+    assert provider["base_url"] == "https://opencode.ai/inference/go/v1"
+    assert provider["protocol"] == "anthropic"
+    assert provider["search"] is True
+    assert provider["extra_headers"] == {"X-Opencode-Session": "citeaura"}
+    assert provider["sampling_mode_code"] == "search"
+    assert "sk-custom-secret" not in saved.text
+    assert client.get("/api/v1/settings/keys/custom", headers=headers).json() == {"providers": [provider]}
+
+    with client.session_factory() as db:
+        row = db.query(CustomProvider).one()
+        assert row.protocol == "anthropic"
+        assert row.search is True
+        assert row.extra_headers is not None
+
+
+def test_custom_provider_transport_defaults_stay_empty(settings_client, monkeypatch):
+    client = settings_client
+    headers = _headers(client, "custom-defaults@example.com")
+    monkeypatch.setattr(settings_router, "validate_outbound_url", lambda value, **kwargs: value)
+    monkeypatch.setattr(
+        settings_router,
+        "_test_custom_provider",
+        lambda provider: {"ok": True, "answer": "OK"},
+    )
+
+    saved = client.put(
+        "/api/v1/settings/keys/custom",
+        headers=headers,
+        json={
+            "name": "Plain Gateway",
+            "base_url": "https://gateway.example.com/v1",
+            "api_key": "sk-plain",
+            "model_id": "vendor/model",
+            "market": "global",
+        },
+    )
+
+    assert saved.status_code == 200
+    provider = saved.json()["provider"]
+    assert provider["protocol"] == ""
+    assert provider["search"] is False
+    assert provider["extra_headers"] == {}
+    assert provider["sampling_mode_code"] == "parametric"
+    with client.session_factory() as db:
+        row = db.query(CustomProvider).one()
+        assert row.protocol is None
+        assert row.extra_headers is None
+
+
+def test_custom_provider_headers_reject_credentials_and_bad_shapes(settings_client, monkeypatch):
+    client = settings_client
+    headers = _headers(client, "custom-headers@example.com")
+    monkeypatch.setattr(settings_router, "validate_outbound_url", lambda value, **kwargs: value)
+    monkeypatch.setattr(
+        settings_router,
+        "_test_custom_provider",
+        lambda provider: {"ok": True, "answer": "OK"},
+    )
+    base = {
+        "name": "Header Gateway",
+        "base_url": "https://gateway.example.com/v1",
+        "api_key": "sk-header",
+        "model_id": "vendor/model",
+        "market": "global",
+    }
+
+    for name in ("Authorization", "authorization", "X-Api-Key"):
+        response = client.put(
+            "/api/v1/settings/keys/custom",
+            headers=headers,
+            json={**base, "extra_headers": {name: "Bearer sneaky"}},
+        )
+        assert response.status_code == 422, name
+
+    for extra_headers in (
+        {"Bad Header": "value"},
+        {"X-Ok": "line1\nline2"},
+        {"X-Ok": "nul\x00byte"},
+        {f"X-Header-{index}": "v" for index in range(17)},
+        {"X-Ok": "v" * 4200},
+    ):
+        response = client.put(
+            "/api/v1/settings/keys/custom",
+            headers=headers,
+            json={**base, "extra_headers": extra_headers},
+        )
+        assert response.status_code == 422, extra_headers
+
+    assert client.get("/api/v1/settings/keys/custom", headers=headers).json() == {"providers": []}
+
+
+def test_custom_provider_rejects_unknown_protocol(settings_client, monkeypatch):
+    client = settings_client
+    headers = _headers(client, "custom-protocol@example.com")
+    monkeypatch.setattr(settings_router, "validate_outbound_url", lambda value, **kwargs: value)
+
+    response = client.put(
+        "/api/v1/settings/keys/custom",
+        headers=headers,
+        json={
+            "name": "Bad Protocol",
+            "base_url": "https://gateway.example.com/v1",
+            "api_key": "sk-bad",
+            "model_id": "vendor/model",
+            "market": "global",
+            "protocol": "ark",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_custom_provider_must_connect_before_save(settings_client, monkeypatch):

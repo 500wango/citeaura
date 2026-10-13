@@ -290,6 +290,104 @@ class TestAskRetry(unittest.TestCase):
         self.assertNotIn("tools", post.call_args.kwargs["json"])
 
 
+class TestProviderHeaders(unittest.TestCase):
+    """供应商级请求头按协议注入，未配置的 provider 逐字节不变。"""
+
+    def setUp(self):
+        self._env = mock.patch.dict(os.environ, {"CITEAURA_CUSTOM_TEST_API_KEY": "custom-key"})
+        self._env.start()
+        self._sleep = mock.patch.object(S.time, "sleep")
+        self._sleep.start()
+        self.provider = {
+            "name": "Custom Gateway",
+            "market": "both",
+            "base": "https://gateway.example.com/v1",
+            "model": "vendor/model",
+            "model_env": None,
+            "key_env": "CITEAURA_CUSTOM_TEST_API_KEY",
+            "note": "Custom provider",
+            "headers": {"User-Agent": "CiteAura/1.0", "x-opencode-session": "citeaura"},
+        }
+        self._registry = mock.patch.dict(S.PROVIDERS, {"custom_test": self.provider})
+        self._registry.start()
+
+    def tearDown(self):
+        self._registry.stop()
+        self._env.stop()
+        self._sleep.stop()
+
+    def test_chat_headers_are_merged_without_dropping_auth(self):
+        with mock.patch.object(S.requests, "post", return_value=_Resp(200, OK_PAYLOAD)) as post:
+            result = S.ask("custom_test", "Question?")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(post.call_args.kwargs["headers"], {
+            "Authorization": "Bearer custom-key",
+            "Content-Type": "application/json",
+            "User-Agent": "CiteAura/1.0",
+            "x-opencode-session": "citeaura",
+        })
+
+    def test_headers_are_stable_across_retries(self):
+        with mock.patch.object(S.requests, "post", side_effect=[
+            _Resp(429, text="rate limited"),
+            _Resp(200, OK_PAYLOAD),
+        ]) as post:
+            result = S.ask("custom_test", "Question?")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(post.call_count, 2)
+        first, second = (call.kwargs["headers"] for call in post.call_args_list)
+        self.assertEqual(first, second)
+
+    def test_anthropic_protocol_keeps_x_api_key_and_adds_provider_headers(self):
+        payload = {"model": "vendor/model", "content": [{"type": "text", "text": "OK"}]}
+        self.provider["protocol"] = "anthropic"
+        with mock.patch.object(S.requests, "post", return_value=_Resp(200, payload)) as post:
+            result = S.ask("custom_test", "Question?")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(post.call_args.args[0], "https://gateway.example.com/v1/messages")
+        self.assertEqual(post.call_args.kwargs["headers"], {
+            "x-api-key": "custom-key",
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+            "User-Agent": "CiteAura/1.0",
+            "x-opencode-session": "citeaura",
+        })
+
+    def test_registry_switch_flag_routes_search_to_responses_with_headers(self):
+        payload = {"output": [{"type": "message",
+                               "content": [{"type": "output_text", "text": "OK"}]}]}
+        self.provider["protocol"] = "openai"
+        self.provider["search"] = True
+        with mock.patch.object(S.requests, "post", return_value=_Resp(200, payload)) as post:
+            result = S.ask("custom_test", "Question?")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(post.call_args.args[0], "https://gateway.example.com/v1/responses")
+        self.assertEqual(post.call_args.kwargs["headers"]["x-opencode-session"], "citeaura")
+        self.assertEqual(post.call_args.kwargs["headers"]["Authorization"], "Bearer custom-key")
+
+    def test_search_flag_is_off_by_default_and_skips_the_responses_path(self):
+        with mock.patch.object(S.requests, "post", return_value=_Resp(200, OK_PAYLOAD)) as post:
+            result = S.ask("custom_test", "Question?")
+
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["searched"])
+        self.assertEqual(post.call_args.args[0], "https://gateway.example.com/v1/chat/completions")
+
+    def test_official_providers_without_headers_key_are_unchanged(self):
+        with mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key"}), \
+             mock.patch.object(S.requests, "post", return_value=_Resp(200, OK_PAYLOAD)) as post:
+            S.ask("deepseek", "Question?")
+
+        self.assertEqual(post.call_args.kwargs["headers"], {
+            "Authorization": "Bearer test-key",
+            "Content-Type": "application/json",
+        })
+
+
 class TestAskWebSearch(unittest.TestCase):
     def test_openai_uses_responses_web_search(self):
         payload = {

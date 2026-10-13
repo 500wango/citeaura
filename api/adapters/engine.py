@@ -1,5 +1,6 @@
 """CiteAura 与开源 GEO 引擎之间的运行时适配。"""
 
+import json
 import os
 import re
 import sys
@@ -58,6 +59,7 @@ NETWORK_MAX_ATTEMPTS = 2
 ENGINE_MAX_REPEAT = geolib.MAX_SAMPLE_REPEAT
 
 CUSTOM_PROVIDER_CODE = re.compile(r"^custom_[a-z0-9][a-z0-9_-]{2,55}$")
+DEFAULT_USER_AGENT = "CiteAura/1.0"
 
 
 @contextmanager
@@ -116,6 +118,31 @@ def custom_provider_env(code: str) -> str:
     if not CUSTOM_PROVIDER_CODE.fullmatch(code):
         raise ValueError("invalid custom provider code")
     return f"CITEAURA_{code.upper()}_API_KEY"
+
+
+def decode_extra_headers(raw):
+    """把存储的自定义请求头读成映射，损坏或空值一律按空配置处理。"""
+    if not raw:
+        return {}
+    if isinstance(raw, dict):
+        return dict(raw)
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def encode_extra_headers(headers):
+    """序列化自定义请求头，空配置存 NULL。"""
+    return json.dumps(headers, ensure_ascii=False, sort_keys=True) if headers else None
+
+
+def _transport_headers(provider):
+    """合并供应商自定义请求头与 CiteAura 标识，供引擎按协议发送。"""
+    headers = {"User-Agent": DEFAULT_USER_AGENT}
+    headers.update(decode_extra_headers(provider.get("extra_headers")))
+    return headers
 
 
 def _valid_slug(value: str, label: str) -> str:
@@ -359,6 +386,9 @@ def load_custom_providers(db, tenant_id):
             "base_url": row.base_url,
             "model_id": row.model_id,
             "market": row.market or "both",
+            "protocol": row.protocol or "",
+            "search": bool(row.search),
+            "extra_headers": row.extra_headers,
             "api_key": decrypt_key(row.encrypted_api_key, key_aad(row.tenant_id, row.code)),
         }
         for row in rows
@@ -417,8 +447,10 @@ def _custom_provider_context(providers):
             "model": provider["model_id"],
             "model_env": None,
             "key_env": custom_provider_env(code),
-            "search": False,
-            "note": "Custom OpenAI-compatible provider",
+            "protocol": provider.get("protocol") or None,
+            "search": bool(provider.get("search")),
+            "headers": _transport_headers(provider),
+            "note": "Custom provider",
         }
     sample.LLM_PREFS = GLOBAL_LLM_PREFS + tuple(provider["code"] for provider in providers)
     try:

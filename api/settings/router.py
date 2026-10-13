@@ -4,12 +4,17 @@ import re
 import time
 from urllib.parse import urlparse
 
-import requests
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from api.adapters.engine import CUSTOM_PROVIDER_CODE, ENGINE_KEY_ENV, with_tenant_context
+from api.adapters.engine import (
+    CUSTOM_PROVIDER_CODE,
+    ENGINE_KEY_ENV,
+    decode_extra_headers,
+    encode_extra_headers,
+    with_tenant_context,
+)
 from api.adapters.network import NetworkTargetError, validate_outbound_url
 from api.adapters import sampling_modes
 from api.auth.deps import get_current_user, require_owner
@@ -20,6 +25,10 @@ from api.settings.crypto import decrypt_key, encrypt_key, key_aad, mask_key
 
 router = APIRouter(prefix="/api/v1/settings/keys", tags=["settings"])
 SUPPORTED_ENGINE_CODES = frozenset(ENGINE_KEY_ENV)
+HEADER_NAME_PATTERN = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
+RESERVED_HEADER_NAMES = frozenset(("authorization", "x-api-key"))
+MAX_EXTRA_HEADERS = 16
+MAX_EXTRA_HEADERS_LENGTH = 4096
 
 
 class KeyPayload(BaseModel):
@@ -51,6 +60,9 @@ class CustomProviderPayload(BaseModel):
     api_key: str = Field(min_length=1, max_length=4096)
     model_id: str = Field(min_length=1, max_length=255)
     market: str = Field(default="both", pattern="^(cn|global|both)$")
+    protocol: str = Field(default="", pattern="^(anthropic|openai|gemini)?$")
+    search: bool = False
+    extra_headers: dict = Field(default_factory=dict)
 
     @field_validator("name", "model_id", "api_key")
     @classmethod
@@ -73,9 +85,36 @@ class CustomProviderPayload(BaseModel):
         parsed = urlparse(value)
         if parsed.query or parsed.fragment:
             raise ValueError("base_url must not contain query or fragment")
-        if parsed.path.endswith("/chat/completions"):
-            value = value[: -len("/chat/completions")].rstrip("/")
+        for suffix in ("/chat/completions", "/messages", "/responses"):
+            if parsed.path.endswith(suffix):
+                value = value[: -len(suffix)].rstrip("/")
+                break
         return value
+
+    @field_validator("extra_headers")
+    @classmethod
+    def validate_extra_headers(cls, value: dict):
+        """只接受单行、非鉴权的请求头，鉴权必须走 api_key 字段。"""
+        if not isinstance(value, dict):
+            raise ValueError("extra_headers must be an object")
+        if len(value) > MAX_EXTRA_HEADERS:
+            raise ValueError(f"extra_headers must not exceed {MAX_EXTRA_HEADERS} entries")
+        cleaned = {}
+        total = 0
+        for raw_name, raw_value in value.items():
+            name = str(raw_name).strip()
+            header_value = str(raw_value).strip()
+            if not HEADER_NAME_PATTERN.fullmatch(name):
+                raise ValueError(f"invalid header name: {name!r}")
+            if name.lower() in RESERVED_HEADER_NAMES:
+                raise ValueError(f"{name} must be supplied through the API Key field")
+            if any(char in header_value for char in ("\r", "\n", "\x00")):
+                raise ValueError(f"header {name} must be a single line without NUL bytes")
+            total += len(name) + len(header_value)
+            cleaned[name] = header_value
+        if total > MAX_EXTRA_HEADERS_LENGTH:
+            raise ValueError(f"extra_headers must not exceed {MAX_EXTRA_HEADERS_LENGTH} characters")
+        return cleaned
 
 def _error(status_code: int, message: str):
     raise HTTPException(status_code=status_code, detail={"error": message})
@@ -103,47 +142,30 @@ def _provider_response(row: CustomProvider):
         "base_url": row.base_url,
         "model_id": row.model_id,
         "market": row.market or "both",
+        "protocol": row.protocol or "",
+        "search": bool(row.search),
+        "extra_headers": decode_extra_headers(row.extra_headers),
         "masked": mask_key(decrypt_key(row.encrypted_api_key, key_aad(row.tenant_id, row.code))),
-        "sampling_mode": sampling_modes.MODE_API,
-        "sampling_mode_code": sampling_modes.CODE_PARAMETRIC,
+        **sampling_modes.fields(provider={"search": bool(row.search)}),
     }
     return result
 
 
 def _test_custom_provider(provider: dict):
-    """对 OpenAI-compatible chat/completions 发一条最小连接请求。"""
+    """复用采样引擎发一条最小请求，保证验证的就是采样真正走的路径。"""
+    import sample
+
     code = provider["code"]
-    with with_tenant_context("provider-test", "custom-provider-test", keys={code: provider["api_key"]}):
-        try:
-            response = requests.post(
-                f"{provider['base_url']}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {provider['api_key']}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": provider["model_id"],
-                    "messages": [{"role": "user", "content": "Reply with exactly OK."}],
-                    "temperature": 0.7,
-                },
-                timeout=15,
-            )
-        except requests.exceptions.Timeout as exc:
-            return {"ok": False, "error": f"Timeout: {exc}"}
-        except requests.exceptions.RequestException as exc:
-            return {"ok": False, "error": f"RequestException: {exc}"}
-    if response.status_code != 200:
-        return {"ok": False, "error": f"HTTP {response.status_code}"}
     try:
-        data = response.json()
-        answer = data["choices"][0]["message"].get("content") or ""
-    except (AttributeError, IndexError, KeyError, TypeError, ValueError):
-        return {"ok": False, "error": "provider_invalid_response"}
-    return {
-        "ok": True,
-        "answer": answer,
-        "raw_model": data.get("model", provider["model_id"]),
-    }
+        with with_tenant_context(
+            "provider-test",
+            "custom-provider-test",
+            keys={code: provider["api_key"]},
+            custom_providers=[provider],
+        ):
+            return sample.ask(code, "Reply with exactly OK.", timeout=20)
+    except Exception as exc:  # noqa: BLE001 - provider failures are sanitized by the caller
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
 def _custom_provider_connection_error(error):
@@ -172,14 +194,14 @@ def test_custom_provider(payload: CustomProviderPayload, current_user: User = De
     provider = payload.model_dump()
     provider["code"] = _provider_code(tenant.id, payload.name)
     started = time.monotonic()
+    mode = sampling_modes.fields(provider={"search": bool(payload.search)})
     try:
         result = _test_custom_provider(provider)
         return {
             "ok": bool(result.get("ok")),
             "code": provider["code"],
             "model": provider["model_id"],
-            "sampling_mode": sampling_modes.MODE_API,
-            "sampling_mode_code": sampling_modes.CODE_PARAMETRIC,
+            **mode,
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": None if result.get("ok") else _safe_provider_error(result.get("error")),
         }
@@ -188,8 +210,7 @@ def test_custom_provider(payload: CustomProviderPayload, current_user: User = De
             "ok": False,
             "code": provider["code"],
             "model": provider["model_id"],
-            "sampling_mode": sampling_modes.MODE_API,
-            "sampling_mode_code": sampling_modes.CODE_PARAMETRIC,
+            **mode,
             "latency_ms": int((time.monotonic() - started) * 1000),
             "error": _safe_provider_error(exc),
         }
@@ -215,6 +236,9 @@ def put_custom_provider(payload: CustomProviderPayload, current_user: User = Dep
     row.base_url = provider["base_url"]
     row.model_id = provider["model_id"]
     row.market = provider["market"]
+    row.protocol = provider["protocol"] or None
+    row.search = bool(provider["search"])
+    row.extra_headers = encode_extra_headers(provider["extra_headers"])
     row.encrypted_api_key = encrypt_key(provider["api_key"], key_aad(tenant.id, provider["code"]))
     db.commit()
     return {"provider": _provider_response(row)}

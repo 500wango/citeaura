@@ -229,6 +229,10 @@ class CustomProvider(Base):
     __table_args__ = (
         UniqueConstraint("tenant_id", "code", name="uq_custom_providers_tenant_code"),
         CheckConstraint("market IN ('cn', 'global', 'both')", name="ck_custom_providers_market"),
+        CheckConstraint(
+            "protocol IS NULL OR protocol IN ('anthropic', 'openai', 'gemini')",
+            name="ck_custom_providers_protocol",
+        ),
     )
 
     id = Column(Integer, primary_key=True)
@@ -238,6 +242,9 @@ class CustomProvider(Base):
     base_url = Column(String(2048), nullable=False)
     model_id = Column(String(255), nullable=False)
     market = Column(String(16), nullable=False, default="both", server_default="both")
+    protocol = Column(String(32), nullable=True)
+    extra_headers = Column(Text, nullable=True)
+    search = Column(Boolean, nullable=False, default=False, server_default="false")
     encrypted_api_key = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 

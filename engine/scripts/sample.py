@@ -344,6 +344,7 @@ def _ask_chat_completions(p: dict, key: str, question: str, timeout: int, search
     body.update(extra or {})
     delays = RETRY_DELAYS
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    headers.update(p.get("headers") or {})
     for attempt in range(len(delays) + 1):
         try:
             r = requests.post(f"{p['base']}/chat/completions", headers=headers,
@@ -374,6 +375,7 @@ def _ask_chat_completions(p: dict, key: str, question: str, timeout: int, search
 def _ask_responses(p: dict, key: str, question: str, timeout: int) -> dict | None:
     """Try Responses + web_search. Return None to fall back to chat."""
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    headers.update(p.get("headers") or {})
     try:
         r = requests.post(
             f"{p['base']}/responses",
@@ -428,6 +430,7 @@ def ask_anthropic(p: dict, key: str, question: str, timeout: int, want_search: b
     """Call Anthropic Messages, preferring the server-side web_search tool."""
     headers = {"x-api-key": key, "anthropic-version": "2023-06-01",
                "content-type": "application/json"}
+    headers.update(p.get("headers") or {})
     body = {"model": _p_model(p), "max_tokens": 4096,
             "messages": [{"role": "user", "content": question}]}
     tool_types = ("web_search_20260209", "web_search_20250305") if want_search else ()
@@ -485,6 +488,7 @@ def ask_gemini(p: dict, key: str, question: str, timeout: int, want_search: bool
         model = _p_model(p)
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         headers = {"Content-Type": "application/json", "x-goog-api-key": key}
+        headers.update(p.get("headers") or {})
         for tool in ({"google_search": {}}, {"googleSearch": {}}):
             try:
                 session = requests.Session()

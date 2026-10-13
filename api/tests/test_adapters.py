@@ -159,6 +159,7 @@ def test_custom_provider_uses_exact_endpoint_key_and_model(monkeypatch):
                 "headers": {
                     "Authorization": "Bearer sk-custom",
                     "Content-Type": "application/json",
+                    "User-Agent": engine_adapter.DEFAULT_USER_AGENT,
                 },
                 "json": {
                     "model": "vendor/budget-model:exact",
@@ -169,6 +170,110 @@ def test_custom_provider_uses_exact_endpoint_key_and_model(monkeypatch):
             },
         ),
     ]
+
+
+def _wire_custom_provider(monkeypatch, provider):
+    """注册一个自定义供应商并记录它实际发出的请求。"""
+    import sample
+
+    calls = []
+
+    class Response:
+        status_code = 200
+        text = ""
+
+        @staticmethod
+        def json():
+            return {
+                "model": provider["model_id"],
+                "choices": [{"message": {"content": "OK"}}],
+                "content": [{"type": "text", "text": "OK"}],
+                "stop_reason": "end_turn",
+                "output": [{"type": "message", "content": [{"type": "output_text", "text": "OK"}]}],
+            }
+
+    def fake_post(url, **kwargs):
+        calls.append((url, kwargs))
+        return Response()
+
+    monkeypatch.setattr(sample.requests, "post", fake_post)
+    with with_tenant_context(
+        "tenant", "project", {provider["code"]: provider["api_key"]}, custom_providers=[provider],
+    ):
+        result = sample.ask(provider["code"], "connection check", timeout=20)
+    return result, calls
+
+
+def test_custom_provider_extra_headers_and_anthropic_protocol_reach_the_wire(monkeypatch):
+    provider = {
+        "code": "custom_anthropic",
+        "name": "Budget Gateway",
+        "base_url": "https://gateway.example.com/v1",
+        "model_id": "vendor/budget-model:exact",
+        "market": "global",
+        "protocol": "anthropic",
+        "search": True,
+        "extra_headers": '{"x-opencode-session": "citeaura"}',
+        "api_key": "sk-custom",
+    }
+
+    result, calls = _wire_custom_provider(monkeypatch, provider)
+
+    assert result["ok"] is True
+    assert len(calls) == 1
+    url, kwargs = calls[0]
+    assert url == "https://gateway.example.com/v1/messages"
+    assert kwargs["headers"] == {
+        "x-api-key": "sk-custom",
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+        "User-Agent": engine_adapter.DEFAULT_USER_AGENT,
+        "x-opencode-session": "citeaura",
+    }
+    assert kwargs["json"]["tools"] == [
+        {"type": "web_search_20260209", "name": "web_search", "max_uses": 3}
+    ]
+
+
+def test_custom_provider_extra_headers_reach_the_responses_path(monkeypatch):
+    provider = {
+        "code": "custom_responses",
+        "name": "Budget Gateway",
+        "base_url": "https://gateway.example.com/v1",
+        "model_id": "vendor/budget-model:exact",
+        "market": "global",
+        "protocol": "openai",
+        "search": True,
+        "extra_headers": '{"x-opencode-session": "citeaura"}',
+        "api_key": "sk-custom",
+    }
+
+    result, calls = _wire_custom_provider(monkeypatch, provider)
+
+    assert result["ok"] is True
+    url, kwargs = calls[0]
+    assert url == "https://gateway.example.com/v1/responses"
+    assert kwargs["headers"] == {
+        "Authorization": "Bearer sk-custom",
+        "Content-Type": "application/json",
+        "User-Agent": engine_adapter.DEFAULT_USER_AGENT,
+        "x-opencode-session": "citeaura",
+    }
+
+
+def test_custom_provider_without_extra_configuration_sends_no_extra_headers(monkeypatch):
+    """官方 provider 与未配置的自定义 provider 的请求头必须保持逐字节不变。"""
+    import sample
+
+    headers = engine_adapter._transport_headers({"name": "Plain", "extra_headers": None})
+    assert headers == {"User-Agent": engine_adapter.DEFAULT_USER_AGENT}
+    assert "headers" not in sample.PROVIDERS["deepseek"]
+    assert "protocol" not in sample.PROVIDERS["deepseek"]
+    assert engine_adapter.decode_extra_headers("not-json") == {}
+    assert engine_adapter.decode_extra_headers(None) == {}
+    assert engine_adapter.decode_extra_headers({"A": "1"}) == {"A": "1"}
+    assert engine_adapter.encode_extra_headers({}) is None
+    assert engine_adapter.encode_extra_headers({"B": "2", "A": "1"}) == '{"A": "1", "B": "2"}'
 
 
 def test_context_rejects_path_traversal():

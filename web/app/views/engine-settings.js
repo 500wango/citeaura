@@ -5,6 +5,7 @@
 import { settings } from '../api.js';
 import { t, tError, hasCatalogKey } from '../i18n.js';
 import { toast } from '../components/toast.js';
+import { samplingModeBadge } from '../components/badge.js';
 import { openModal } from '../components/modal.js';
 
 const AVAILABLE_ENGINES = [
@@ -26,11 +27,57 @@ function escapeHtml(value) {
   })[char]);
 }
 
+function extraHeadersToText(headers) {
+  if (!headers || typeof headers !== 'object') return '';
+  return Object.entries(headers).map(([name, value]) => `${name}: ${value}`).join('\n');
+}
+
+function splitHeaderLines(text) {
+  return String(text || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'));
+}
+
+function extraHeadersInvalid(text) {
+  return splitHeaderLines(text).some((line) => line.indexOf(':') < 1);
+}
+
+function parseExtraHeaders(text) {
+  const result = {};
+  splitHeaderLines(text).forEach((line) => {
+    const separator = line.indexOf(':');
+    const name = line.slice(0, separator).trim();
+    const value = line.slice(separator + 1).trim();
+    if (name && value) result[name] = value;
+  });
+  return result;
+}
+
+const PROTOCOL_OPTIONS = [
+  { value: '', labelKey: 'engine_settings.protocol_chat', label: 'OpenAI Chat Completions (/chat/completions)' },
+  { value: 'openai', labelKey: 'engine_settings.protocol_openai', label: 'OpenAI Responses (/responses)' },
+  { value: 'anthropic', labelKey: 'engine_settings.protocol_anthropic', label: 'Anthropic Messages (/messages)' },
+  { value: 'gemini', labelKey: 'engine_settings.protocol_gemini', label: 'Google generateContent' },
+];
+
+function protocolLabel(value) {
+  const option = PROTOCOL_OPTIONS.find((item) => item.value === (value || ''));
+  return option ? t(option.labelKey, {}, option.label) : String(value || '');
+}
+
 function customProviderForm(provider = null) {
   const editing = Boolean(provider);
   const name = escapeHtml(provider?.name || '');
   const baseUrl = escapeHtml(provider?.base_url || '');
   const modelId = escapeHtml(provider?.model_id || '');
+  const protocol = provider?.protocol || '';
+  const extraHeaders = escapeHtml(extraHeadersToText(provider?.extra_headers));
+  const checked = provider?.search ? 'checked' : '';
+  const options = PROTOCOL_OPTIONS.map((option) => {
+    const selected = option.value === protocol ? ' selected' : '';
+    return `<option value="${option.value}"${selected}>${t(option.labelKey, {}, option.label)}</option>`;
+  }).join('');
   return `
     <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
       <div class="field" style="margin:0;">
@@ -45,6 +92,20 @@ function customProviderForm(provider = null) {
       <div class="field" style="margin:0;">
         <label for="custom-provider-model">${t('engine_settings.model_id_label', {}, 'Model ID')} *</label>
         <input type="text" id="custom-provider-model" class="input" placeholder="provider/model-name" maxlength="255" value="${modelId}" required>
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="custom-provider-protocol">${t('engine_settings.protocol_label', {}, 'Protocol')}</label>
+        <select id="custom-provider-protocol" class="input">${options}</select>
+        <div class="field-hint">${t('engine_settings.protocol_hint', {}, 'Leave on Chat Completions unless the gateway exposes native protocol endpoints for the model you picked.')}</div>
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="custom-provider-headers">${t('engine_settings.extra_headers_label', {}, 'Extra Request Headers')}</label>
+        <textarea id="custom-provider-headers" class="input" rows="3" placeholder="x-opencode-session: citeaura">${extraHeaders}</textarea>
+        <div class="field-hint">${t('engine_settings.extra_headers_hint', {}, 'One Header: Value per line. Authorization and x-api-key are supplied through the API Key field.')}</div>
+      </div>
+      <div class="field" style="margin:0;display:flex;align-items:center;gap:var(--sp-2);">
+        <input type="checkbox" id="custom-provider-search" ${checked}>
+        <label for="custom-provider-search">${t('engine_settings.web_search_label', {}, 'Enable web search')}</label>
       </div>
       <div class="field" style="margin:0;">
         <label for="custom-provider-key">${t('engine_settings.api_key_label', {}, 'API Key')} *</label>
@@ -62,6 +123,9 @@ function customProviderPayload() {
     base_url: document.getElementById('custom-provider-url')?.value.trim() || '',
     model_id: document.getElementById('custom-provider-model')?.value.trim() || '',
     market: 'both',
+    protocol: document.getElementById('custom-provider-protocol')?.value || '',
+    extra_headers: parseExtraHeaders(document.getElementById('custom-provider-headers')?.value),
+    search: Boolean(document.getElementById('custom-provider-search')?.checked),
     api_key: document.getElementById('custom-provider-key')?.value.trim() || '',
   };
 }
@@ -69,6 +133,8 @@ function customProviderPayload() {
 function customProviderErrorMessage(err) {
   const diagnostic = err?.detail || err?.data?.detail || err?.error;
   if (typeof diagnostic === 'string' && hasCatalogKey(diagnostic)) return t(diagnostic);
+  // 目录之外的诊断码直接透出，避免被外层通用文案覆盖掉真实原因。
+  if (typeof diagnostic === 'string' && diagnostic.startsWith('provider_')) return diagnostic;
   return tError(err, 'custom_provider_connection_failed');
 }
 
@@ -77,6 +143,9 @@ async function saveCustomProvider(ctx, successMessage) {
     document.getElementById('custom-provider-name'),
     document.getElementById('custom-provider-url'),
     document.getElementById('custom-provider-model'),
+    document.getElementById('custom-provider-protocol'),
+    document.getElementById('custom-provider-headers'),
+    document.getElementById('custom-provider-search'),
     document.getElementById('custom-provider-key'),
   ];
   const invalid = inputs.find((input) => input && !input.checkValidity());
@@ -85,10 +154,18 @@ async function saveCustomProvider(ctx, successMessage) {
     return false;
   }
 
+  const status = document.getElementById('custom-provider-status');
+  if (extraHeadersInvalid(document.getElementById('custom-provider-headers')?.value)) {
+    if (status) {
+      status.style.color = 'var(--bad)';
+      status.textContent = t('engine_settings.extra_headers_invalid', {}, 'Each header line must look like "Header-Name: value".');
+    }
+    return false;
+  }
+
   const payload = customProviderPayload();
   const modal = document.getElementById('modal-root');
   const confirmButton = modal?.querySelector('.btn-confirm');
-  const status = document.getElementById('custom-provider-status');
   const originalButton = confirmButton?.innerHTML || 'Test & Save';
   inputs.forEach((input) => { if (input) input.disabled = true; });
   if (confirmButton) {
@@ -217,14 +294,21 @@ export default {
                       <span class="num">${escapeHtml(provider.code)}</span>
                       <div class="num" style="font-size:11px;color:var(--muted);margin-top:var(--sp-1);word-break:break-all;">Base URL: ${escapeHtml(provider.base_url)}</div>
                       <div class="num" style="font-size:11px;color:var(--muted);word-break:break-all;">Model ID: ${escapeHtml(provider.model_id)}</div>
+                      <div style="font-size:11px;color:var(--muted);">${t('engine_settings.protocol_label', {}, 'Protocol')}: ${escapeHtml(protocolLabel(provider.protocol))}</div>
                     </td>
-                    <td><span class="tag pill-good">${t('engine_settings.encrypted_active', {}, 'Encrypted & Active')}</span></td>
+                    <td>
+                      <span class="tag pill-good">${t('engine_settings.encrypted_active', {}, 'Encrypted & Active')}</span>
+                      <div style="margin-top:var(--sp-1);">${samplingModeBadge(provider.sampling_mode_code || provider.sampling_mode)}</div>
+                    </td>
                     <td style="text-align:right;">
                       <div style="display:inline-flex;gap:var(--sp-2);">
                         <button type="button" class="btn btn-secondary btn-sm btn-edit-custom"
                           data-name="${escapeHtml(provider.name)}"
                           data-base-url="${escapeHtml(provider.base_url)}"
-                          data-model-id="${escapeHtml(provider.model_id)}">Edit</button>
+                          data-model-id="${escapeHtml(provider.model_id)}"
+                          data-protocol="${escapeHtml(provider.protocol || '')}"
+                          data-search="${provider.search ? '1' : '0'}"
+                          data-extra-headers="${escapeHtml(extraHeadersToText(provider.extra_headers))}">Edit</button>
                         <button type="button" class="btn btn-ghost btn-sm btn-del-custom" data-code="${escapeHtml(provider.code)}" style="color:var(--bad);">✕</button>
                       </div>
                     </td>
@@ -312,6 +396,9 @@ export default {
           name: btn.getAttribute('data-name'),
           base_url: btn.getAttribute('data-base-url'),
           model_id: btn.getAttribute('data-model-id'),
+          protocol: btn.getAttribute('data-protocol') || '',
+          search: btn.getAttribute('data-search') === '1',
+          extra_headers: parseExtraHeaders(btn.getAttribute('data-extra-headers')),
         };
         openModal({
           title: t('engine_settings.edit_custom_provider_title', {}, 'Edit Custom Provider'),
