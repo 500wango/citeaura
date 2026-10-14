@@ -4,6 +4,8 @@ import shlex
 import subprocess
 from pathlib import Path
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -64,6 +66,38 @@ def test_deploy_script_leaves_tls_to_host_caddy():
     assert 'database_host' in deploy
     assert 'compose up -d --wait postgres' in deploy
     assert '--profile local-postgres' in deploy
+
+
+def test_beat_healthcheck_accepts_nul_separated_argv():
+    """Docker 的 CMD 形式是 exec，/proc/1/cmdline 用 NUL 分隔 argv——找 ` beat`（空格 + beat）永远不成立，
+    于是健康检查恒定失败，状态永远是 unhealthy，等于一个不发信号的死信号。"""
+    compose = yaml.safe_load((ROOT / "docker-compose.prod.yml").read_text("utf-8"))
+    command = compose["services"]["beat"]["healthcheck"]["test"][-1]
+
+    # YAML 双引号标量会把 \0 解析成真正的 NUL 字节，反而弄坏 python 源码
+    assert "\\" not in command
+    assert "\x00" not in command
+    assert "split(bytes([0]))" in command
+
+    # 把 /proc/1/cmdline 换成合成文件，真的把这段代码跑起来
+    prelude = (
+        "import pathlib, os, tempfile\n"
+        "_p = os.path.join(tempfile.mkdtemp(), 'cmdline')\n"
+        "open(_p, 'wb').write(%r)\n"
+        "_orig = pathlib.Path\n"
+        "pathlib.Path = lambda *a, **k: _orig(_p) if a and a[0] == '/proc/1/cmdline' else _orig(*a, **k)\n"
+    )
+
+    def exit_code(argv):
+        return subprocess.run(
+            ["python3", "-c", prelude % argv + command], capture_output=True
+        ).returncode
+
+    assert exit_code(b"/usr/local/bin/python3.12\x00/usr/local/bin/celery\x00-A\x00"
+                     b"api.worker.celery_app\x00beat\x00--loglevel=INFO\x00") == 0
+    # 成员判断是整段 argv 精确比对，worker 的 cmdline 里不含独立的 beat
+    assert exit_code(b"/usr/local/bin/python3.12\x00/usr/local/bin/celery\x00-A\x00"
+                     b"api.worker.celery_app\x00worker\x00") == 1
 
 
 def test_readiness_failure_collects_redacted_api_diagnostics():

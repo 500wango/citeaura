@@ -99,7 +99,9 @@ services:
     volumes:
       - citeaura_work:/app/work
     healthcheck:
-      test: ["CMD", "python", "-c", "import pathlib,sys; sys.exit(0 if b' beat' in pathlib.Path('/proc/1/cmdline').read_bytes() else 1)"]
+      # /proc/1/cmdline 用 NUL 分隔 argv，参数之间没有空格，所以必须按 NUL 切分后再判断成员。
+      # 这里刻意不写反斜杠转义：YAML 双引号标量会把 \0 解析成真正的 NUL 字节，反而弄坏源码。
+      test: ["CMD", "python", "-c", "import pathlib,sys; sys.exit(0 if b'beat' in pathlib.Path('/proc/1/cmdline').read_bytes().split(bytes([0])) else 1)"]
       interval: 30s
       timeout: 10s
       retries: 3

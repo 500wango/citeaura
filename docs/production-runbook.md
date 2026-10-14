@@ -279,6 +279,18 @@ cat ~/.ssh/citeaura_ed25519.pub                    # 整行粘进 install_ssh_pu
 
 建议给 `production` environment 配置 required reviewers：dispatch 输入可以写入 root 的 `authorized_keys`，等于生产主机的 SSH 授权入口。
 
+### 5. 让守护进程重启不再中断服务（live-restore）
+
+```json
+{ "live-restore": true }
+```
+
+写入 `/etc/docker/daemon.json`，先 `dockerd --validate --config-file=/etc/docker/daemon.json` 校验（配置写错会让 dockerd 起不来，必须在重启之前发现），再 `systemctl restart docker` 生效。生效后 `docker info` 应显示 `Live Restore Enabled: true`。
+
+**启用它的那一次重启仍然会中断服务**：live-restore 的语义由「正在运行的守护进程在关闭时」决定，而它当时读到的还是 `false`。此后守护进程的重启与升级才不再弹容器。
+
+注意 Docker 主机通常是共享的——同一台机器上的所有容器（本文档的场景里还有其它项目的服务）都会受这次重启影响，启用前确认可接受一次全量重启。启用后第 4 节的 `repair_docker_networking` 依然能重建 iptables 链，但不会再连带重启容器。
+
 ## 完整业务闭环验收
 
 为专用验收租户配置至少一个引擎 Key，然后运行真实建项、采样、验收和交付流程。密码和 Token 不通过命令行参数传递，也不会出现在结果中。
