@@ -613,6 +613,16 @@ def validate_question(item, *, require_id=True, default_group="recommendation"):
     }
 
 
+def _generated_question(item, *, strict):
+    """非严格路径把含汉字的 global 题改到 cn。用户显式提交仍由 validate_question 拒绝。"""
+    if strict or not isinstance(item, dict):
+        return item
+    market = str(item.get("market") or "").strip().lower()
+    if market == "global" and contains_han(item.get("text")):
+        return {**item, "market": "cn"}
+    return item
+
+
 def normalize_questions(questions, *, strict=False):
     """保留中文、全球和双市场问题，确保每条问题都有合法市场。"""
     if not isinstance(questions, list):
@@ -626,6 +636,7 @@ def normalize_questions(questions, *, strict=False):
             if strict:
                 raise ValueError("each question must be an object")
             continue
+        item = _generated_question(item, strict=strict)
         try:
             normalized_item = validate_question(item, require_id=strict)
         except ValueError:

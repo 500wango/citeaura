@@ -262,6 +262,67 @@ def test_sampling_failure_names_funded_platform_question_gap(tmp_path, monkeypat
     assert "runtime-only" not in message
 
 
+def test_wiped_chinese_bank_is_the_empty_global_question_gap(tmp_path, monkeypatch):
+    """A both-market bank of Chinese questions tagged global must stay sampleable.
+
+    The production failure was requests=0 and
+    next=deepseek, custom_2cbbade680b8, custom_e8b54c581f38 need global/both questions, then retry
+    because non-strict normalize deleted every question before sampling ran.
+    """
+    import sample
+
+    from api.adapters import global_scope
+    from api.adapters.engine import _custom_provider_context
+
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    config = {
+        "market": "both",
+        "platforms": [
+            "glm", "doubao", "deepseek", "kimi", "minimax", "nano_ai", "baidu",
+            "gemini", "openai", "claude", "grok", "perplexity", "chatgpt",
+            "custom_2cbbade680b8", "custom_e8b54c581f38",
+        ],
+        "questions": [
+            {"id": "q001", "market": "global", "group": "recommendation", "text": "有什么好用的跨境收款工具？"},
+            {"id": "q002", "market": "global", "group": "comparison", "text": "哪家支付工具费率更低？"},
+        ],
+    }
+    normalized = global_scope.normalize_config_data(config)
+    (project_dir / "geo.json").write_text(json.dumps(normalized, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: project_dir)
+    providers = [
+        {
+            "code": "custom_2cbbade680b8", "name": "Proxy A", "market": "both",
+            "base_url": "https://example.invalid/v1", "model_id": "demo",
+        },
+        {
+            "code": "custom_e8b54c581f38", "name": "Proxy B", "market": "both",
+            "base_url": "https://example.invalid/v1", "model_id": "demo",
+        },
+    ]
+    funding = {
+        "keys": {
+            "deepseek": "runtime-only",
+            "custom_2cbbade680b8": "runtime-only",
+            "custom_e8b54c581f38": "runtime-only",
+        },
+        "pool_codes": (),
+    }
+
+    with _custom_provider_context(providers):
+        assert sample.questions_for(normalized, "deepseek")
+        with pytest.raises(tasks.SamplingOutputError) as exc_info:
+            tasks._require_sampling_output({}, "example", funding=funding)
+
+    message = str(exc_info.value)
+    assert "deepseek, custom_2cbbade680b8, custom_e8b54c581f38 need global/both questions, then retry" not in message
+    assert [item["market"] for item in normalized["questions"]] == ["cn", "cn"]
+    assert "deepseek:no_matching_questions" not in message
+    assert "deepseek:no_successful_samples" in message
+    assert "runtime-only" not in message
+
+
 def test_deepseek_with_only_china_questions_is_not_a_question_gap(tmp_path, monkeypatch):
     project_dir = tmp_path / "project"
     project_dir.mkdir()

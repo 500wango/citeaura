@@ -175,6 +175,34 @@ class TestDraftPromptCompetitors(WorkDirCase):
         self.assertIn("老牌竞品", prompt, "无 confirmed 字段的旧数据视为已确认")
 
 
+class TestQuestionBankMarkets(unittest.TestCase):
+    def test_chinese_questions_tagged_global_are_stored_as_cn(self):
+        payload = {"questions": [
+            {"id": "q101", "group": "recommendation", "market": "global", "text": "有什么好用的跨境收款工具？"},
+            {"id": "q102", "group": "comparison", "market": "global", "text": "Which payout tool is reliable?"},
+            {"id": "q901", "group": "brand_verification", "market": "both", "text": "CiteAura 是什么？"},
+        ]}
+        with mock.patch.object(B, "_ask_json", return_value=payload):
+            questions = B.question_bank({"name": "CiteAura"}, "both")
+        self.assertEqual(
+            [(item["id"], item["market"], item["text"]) for item in questions],
+            [
+                ("q101", "cn", "有什么好用的跨境收款工具？"),
+                ("q102", "global", "Which payout tool is reliable?"),
+                ("q901", "both", "CiteAura 是什么？"),
+            ],
+        )
+
+    def test_global_project_drops_chinese_questions_after_retag(self):
+        payload = {"questions": [
+            {"id": "q101", "group": "recommendation", "market": "global", "text": "有什么好用的工具？"},
+            {"id": "q102", "group": "recommendation", "market": "global", "text": "Which tool is best?"},
+        ]}
+        with mock.patch.object(B, "_ask_json", return_value=payload):
+            questions = B.question_bank({"name": "CiteAura"}, "global")
+        self.assertEqual([item["text"] for item in questions], ["Which tool is best?"])
+
+
 class TestGeneratedAssetSafety(WorkDirCase):
     def test_untrusted_question_id_cannot_escape_asset_directory(self):
         cfg = json.loads(json.dumps(BASE_CFG, ensure_ascii=False))

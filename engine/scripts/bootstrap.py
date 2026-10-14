@@ -16,6 +16,7 @@ import geolib as G
 
 GROUPS = ["recommendation", "comparison", "alternative", "pricing", "risk", "brand_verification", "scenario"]
 PENDING = "pending_confirmation"
+HAN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 
 
 def _site_digest(slug: str, limit: int = 14000) -> str:
@@ -182,6 +183,9 @@ def question_bank(brand: dict, market: str) -> list[dict]:
     for q in qs:
         t = (q.get("text") or "").strip()
         mk = q.get("market") if q.get("market") in ("cn", "global", "both") else market
+        # 含汉字的题不属于 global，留在 global 会被下游整条丢掉。
+        if mk == "global" and HAN.search(t):
+            mk = "cn"
         if not t or t in seen or (market != "both" and mk not in (market, "both")):
             continue
         seen.add(t)

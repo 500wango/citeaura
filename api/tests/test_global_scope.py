@@ -25,6 +25,29 @@ def _engine_global_blueprint():
     }
 
 
+def test_generated_chinese_questions_tagged_global_stay_in_the_bank():
+    """Bootstrap may tag Chinese questions global. Non-strict normalize keeps them as cn."""
+    questions = [
+        {"id": "q001", "market": "global", "group": "recommendation", "text": "有什么好用的跨境收款工具？"},
+        {"id": "q101", "market": "global", "group": "recommendation", "text": "Which payout tool is reliable?"},
+        {"id": "q901", "market": "both", "group": "品牌验证", "text": "CiteAura 是什么？"},
+    ]
+
+    normalized = global_scope.normalize_questions(questions)
+
+    assert [(item["id"], item["market"]) for item in normalized] == [
+        ("q001", "cn"),
+        ("q101", "global"),
+        ("q901", "both"),
+    ]
+    try:
+        global_scope.validate_question(questions[0], require_id=True)
+    except ValueError as exc:
+        assert "must not contain Chinese characters" in str(exc)
+    else:
+        raise AssertionError("explicit global questions with Chinese text must still be rejected")
+
+
 def test_mixed_historical_config_preserves_market_scope():
     config = {
         "market": "both",
