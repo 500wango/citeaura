@@ -126,3 +126,35 @@ def test_github_main_push_deploys_with_strict_ssh_host_verification():
     assert "DATABASE_URL" not in workflow
     assert "JWT_SECRET" not in workflow
     assert "scp " not in workflow
+
+
+def test_recovery_dispatch_inputs_default_to_inert():
+    """恢复输入只在手动 dispatch 时生效，push 触发永远不重启 Docker。"""
+    workflow = (ROOT / ".github/workflows/deploy-production.yml").read_text("utf-8")
+
+    assert "repair_docker_networking:" in workflow
+    assert "install_ssh_public_key:" in workflow
+    # 两个输入都必须默认关闭/为空，否则 push 自动部署也会重启生产主机
+    assert workflow.count("        default: false") == 1
+    assert workflow.count('        default: ""') == 1
+    assert "${{ inputs.repair_docker_networking || 'false' }}" in workflow
+    assert "${{ inputs.install_ssh_public_key || '' }}" in workflow
+    # 只有勾选后才会真的重启，且以 iptables 探针为准而非无条件重启
+    assert "systemctl restart docker" in workflow
+    assert '== *"No chain/target/match"*' in workflow
+    assert "Docker iptables DOCKER chain is present; no restart needed." in workflow
+    # 公钥经 base64 传递，避免远端 shell 重新分词
+    assert "base64 -w0" in workflow
+    assert "base64 -d" in workflow
+    # 重启发生在动容器之前，否则修好也来不及
+    assert workflow.index("systemctl restart docker") < workflow.index(
+        "scripts/one-click-deploy.sh"
+    )
+
+
+def test_recovery_inputs_reject_unrecognised_public_keys():
+    workflow = (ROOT / ".github/workflows/deploy-production.yml").read_text("utf-8")
+
+    assert "ssh-ed25519\\ *|ssh-rsa\\ *|ecdsa-sha2-nistp256\\ *" in workflow
+    assert "is not a recognised OpenSSH public key line" in workflow
+    assert 'grep -qxF -- "$PUBLIC_KEY" "$AUTHORIZED_KEYS"' in workflow

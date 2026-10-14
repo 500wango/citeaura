@@ -251,6 +251,28 @@ ssh-keygen -lf ./citeaura_known_hosts
 
 确认 VPS 的 `/opt/citeaura` 已克隆本仓库、`main` 跟踪 `origin/main`，并保留可用的 `.env.production`。首次配置完成后，可在 Actions 页面手动运行一次 `Deploy production`，验证成功后再依赖 `main` push 自动发布。
 
+### 4. 主机故障恢复（手动 dispatch）
+
+`Deploy production` 在 `workflow_dispatch` 下有两个恢复输入，默认均不生效，只在手动触发时按需勾选。它们用于「已无法直接 SSH 进 VPS」的场景——此时 GitHub Actions 的部署密钥通常是唯一还能用的凭据。
+
+| 输入 | 作用 |
+| --- | --- |
+| `repair_docker_networking` | 部署前探测 `filter` 表的 `DOCKER` 链；缺失时重启 Docker 守护进程重建，链正常则不重启 |
+| `install_ssh_public_key` | 把一行 OpenSSH 公钥追加到部署用户的 `authorized_keys`，用于找回 SSH 访问；重复执行不会重复写入 |
+
+典型用法是把两个一起填：先恢复自己的登录手段，再修主机网络，最后自动跑正常部署。
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/citeaura_ed25519   # 本地生成，不要覆盖已有密钥
+cat ~/.ssh/citeaura_ed25519.pub                    # 整行粘进 install_ssh_public_key
+```
+
+**为什么需要 `repair_docker_networking`**：`DOCKER` 链由 dockerd 在启动时创建。若之后有别的程序刷新了 iptables（firewalld 或 ufw reload、iptables 包升级、`netfilter-persistent` 恢复），链会消失且 Docker 不会在创建容器时重建它。此时 `docker compose up -d` 会以 `Unable to enable OPEN PORT rule: iptables: No chain/target/match by that name.` 失败，而失败发生在容器重建的「建新」阶段——旧容器已被删除，站点会中断。
+
+恢复入口只在手动 dispatch 时生效，`main` 分支的 push 永远不会触发重启。若怀疑 `firewalld` 是元凶，可先 `systemctl is-active firewalld` 确认；它每次 reload 都会清掉 Docker 的链，稳定的做法是不要在 Docker 主机上再叠一层 firewalld，或在 firewalld reload 后补一次 Docker 重启。
+
+建议给 `production` environment 配置 required reviewers：dispatch 输入可以写入 root 的 `authorized_keys`，等于生产主机的 SSH 授权入口。
+
 ## 完整业务闭环验收
 
 为专用验收租户配置至少一个引擎 Key，然后运行真实建项、采样、验收和交付流程。密码和 Token 不通过命令行参数传递，也不会出现在结果中。

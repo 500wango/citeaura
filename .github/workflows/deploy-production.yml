@@ -5,6 +5,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      repair_docker_networking:
+        description: "Restart the Docker daemon before deploying (use when the iptables DOCKER chain is missing)"
+        type: boolean
+        default: false
+      install_ssh_public_key:
+        description: "OpenSSH public key line to authorise for the deploy user (lockout recovery)"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -47,6 +56,8 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          REPAIR_DOCKER_NETWORKING: ${{ inputs.repair_docker_networking || 'false' }}
+          INSTALL_SSH_PUBLIC_KEY: ${{ inputs.install_ssh_public_key || '' }}
         run: |
           set -Eeuo pipefail
 
@@ -66,6 +77,23 @@ jobs:
           printf '%s\n' "$VPS_KNOWN_HOSTS" >"$KNOWN_HOSTS_FILE"
           chmod 600 "$SSH_KEY_FILE" "$KNOWN_HOSTS_FILE"
 
+          REPAIR_FLAG=false
+          if [[ "${REPAIR_DOCKER_NETWORKING:-false}" == "true" ]]; then
+            REPAIR_FLAG=true
+          fi
+
+          # 公钥含空格，base64 后作为单个位置参数传递，避免被远端 shell 重新分词。
+          SSH_KEY_PAYLOAD=""
+          if [[ -n "${INSTALL_SSH_PUBLIC_KEY:-}" ]]; then
+            SSH_KEY_PAYLOAD="$(
+              printf '%s\n' "$INSTALL_SSH_PUBLIC_KEY" \
+                | head -n 1 \
+                | tr -d '\r' \
+                | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+                | base64 -w0
+            )"
+          fi
+
           ssh \
             -p "$VPS_PORT" \
             -i "$SSH_KEY_FILE" \
@@ -77,16 +105,69 @@ jobs:
             -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 \
             -- "$VPS_USER@$VPS_HOST" \
-            bash -s -- "$GITHUB_SHA" <<'REMOTE_SCRIPT'
+            bash -s -- "$GITHUB_SHA" "$REPAIR_FLAG" "$SSH_KEY_PAYLOAD" <<'REMOTE_SCRIPT'
           set -Eeuo pipefail
 
           EXPECTED_SHA="$1"
+          REPAIR_DOCKER_NETWORKING="${2:-false}"
+          SSH_KEY_PAYLOAD="${3:-}"
           PROJECT_DIR=/opt/citeaura
           cd "$PROJECT_DIR"
 
           if [[ ! -f .env.production ]]; then
             printf 'Missing %s/.env.production\n' "$PROJECT_DIR" >&2
             exit 1
+          fi
+
+          if ((EUID == 0)); then
+            SUDO=()
+          else
+            SUDO=(sudo -n)
+          fi
+
+          # 先恢复 SSH 访问：即使后续步骤失败，运维者也还能登录进来。
+          if [[ -n "$SSH_KEY_PAYLOAD" ]]; then
+            PUBLIC_KEY="$(printf '%s' "$SSH_KEY_PAYLOAD" | base64 -d)"
+            case "$PUBLIC_KEY" in
+              ssh-ed25519\ *|ssh-rsa\ *|ecdsa-sha2-nistp256\ *|ecdsa-sha2-nistp384\ *|ecdsa-sha2-nistp521\ *) ;;
+              *)
+                printf 'install_ssh_public_key is not a recognised OpenSSH public key line.\n' >&2
+                exit 1
+                ;;
+            esac
+            AUTHORIZED_KEYS="$HOME/.ssh/authorized_keys"
+            install -d -m 0700 "$HOME/.ssh"
+            touch "$AUTHORIZED_KEYS"
+            chmod 600 "$AUTHORIZED_KEYS"
+            if grep -qxF -- "$PUBLIC_KEY" "$AUTHORIZED_KEYS"; then
+              printf 'Provided public key is already authorised for %s.\n' "$(id -un)"
+            else
+              printf '%s\n' "$PUBLIC_KEY" >>"$AUTHORIZED_KEYS"
+              printf 'Authorised the provided public key for %s.\n' "$(id -un)"
+            fi
+          fi
+
+          # Docker 的 iptables 链被外部刷新后没有重建，创建容器会直接失败；先探测再决定是否重启。
+          if [[ "$REPAIR_DOCKER_NETWORKING" == "true" ]]; then
+            docker_chain_state() {
+              "${SUDO[@]}" iptables -t filter -S DOCKER 2>&1 || true
+            }
+
+            if [[ "$(docker_chain_state)" == *"No chain/target/match"* ]]; then
+              printf 'Docker iptables DOCKER chain is missing; restarting the Docker daemon.\n'
+              "${SUDO[@]}" systemctl restart docker
+              for _ in $(seq 1 45); do
+                "${SUDO[@]}" docker info >/dev/null 2>&1 && break
+                sleep 2
+              done
+              if [[ "$(docker_chain_state)" == *"No chain/target/match"* ]]; then
+                printf 'Docker still has no DOCKER chain after a daemon restart.\n' >&2
+                exit 1
+              fi
+              printf 'Docker iptables chains rebuilt.\n'
+            else
+              printf 'Docker iptables DOCKER chain is present; no restart needed.\n'
+            fi
           fi
 
           git checkout main
