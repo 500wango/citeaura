@@ -1,5 +1,6 @@
 import os
 import re
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -53,7 +54,8 @@ def test_deploy_script_leaves_tls_to_host_caddy():
     build = deploy.index("build api worker beat")
     repair_permissions = deploy.index("chown -R citeaura:citeaura /app/work")
     migrate = deploy.index("run --rm api alembic upgrade head")
-    start = deploy.index("up -d api worker beat")
+    # 必须 force-recreate：否则「已是期望状态」的坏容器（端口未绑定）会跨部署存活，永远修不好
+    start = deploy.index("up -d --force-recreate api worker beat")
     assert build < repair_permissions < migrate < start
     assert "run --rm --user root api" in deploy
     assert "up -d --build api worker beat nginx" not in deploy
@@ -62,6 +64,62 @@ def test_deploy_script_leaves_tls_to_host_caddy():
     assert 'database_host' in deploy
     assert 'compose up -d --wait postgres' in deploy
     assert '--profile local-postgres' in deploy
+
+
+def test_readiness_failure_collects_redacted_api_diagnostics():
+    """宿主 SSH 常常不可达，就绪失败必须自己在 CI 日志里取证——否则只能靠猜。"""
+    deploy = (ROOT / "scripts/deploy.sh").read_text("utf-8")
+
+    assert "report_api_container" in deploy
+    # 端口是否真的绑上，只有 inspect 说得清；ps 的 PORTS 为空就是同一个信号
+    assert ".NetworkSettings.Ports" in deploy
+    assert ".HostConfig.PortBindings" in deploy
+    assert ".Config.ExposedPorts" in deploy
+    assert ".NetworkSettings.Networks" in deploy
+    assert ".State.Health" in deploy
+    assert "ss -ltnp" in deploy
+    assert "compose logs --tail=80 --no-color api" in deploy
+    # 诊断必须在 exit 1 之前跑，否则永远看不到输出
+    failure = deploy.split("Deployment failed readiness check.", 1)[1]
+    assert failure.index("report_api_container") < failure.index("exit 1")
+
+    # 只能输出脱敏后的内容：整份 compose config 会把 DATABASE_URL / JWT_SECRET 打进长期可读的日志
+    assert "compose config >&2" not in deploy
+    assert "compose config\n" not in deploy
+    assert "redact_secrets" in deploy
+    assert "://***:***@" in deploy
+    assert "| redact_secrets >&2" in deploy
+
+
+def test_deploy_diagnostics_redaction_scrubs_connection_strings_and_secret_assignments():
+    """redact_secrets 是唯一挡住密钥进 CI 日志的地方，单独验证它的行为。"""
+    deploy = (ROOT / "scripts/deploy.sh").read_text("utf-8")
+
+    body = deploy.split("redact_secrets() {", 1)[1].split("\n}\n", 1)[0]
+    expressions = re.findall(r"-e '([^']*)'", body)
+    assert len(expressions) == 2, body
+
+    samples = {
+        "database_url": (
+            "postgresql+psycopg://citeaura:s3cr3t@postgres:5432/citeaura",
+            "postgresql+psycopg://***:***@postgres:5432/citeaura",
+        ),
+        "jwt": ("JWT_SECRET=abc123", "JWT_SECRET=***"),
+        "aes": ("AES_KEY=deadbeef", "AES_KEY=***"),
+        "provider": ("OPENCODE_API_KEY=oc_sk_live", "OPENCODE_API_KEY=***"),
+        "postgres_password": ("POSTGRES_PASSWORD=hunter2", "POSTGRES_PASSWORD=***"),
+    }
+    # shlex.quote 而非 repr：repr 会把 sed 的 `\1` 反斜杠转义成 `\\1`，测试就不再验证真实脚本
+    script = "\n".join(
+        f"printf '%s\\n' {shlex.quote(value)} | sed -E "
+        + " ".join(f"-e {shlex.quote(e)}" for e in expressions)
+        for value, _ in samples.values()
+    )
+    result = subprocess.run(["bash", "-c", script], check=True, capture_output=True, text=True)
+    scrubbed = result.stdout.splitlines()
+    for (value, expected), line in zip(samples.values(), scrubbed):
+        assert line == expected, f"{value!r} -> {line!r}"
+        assert "s3cr3t" not in line and "hunter2" not in line and "abc123" not in line
 
 
 def test_backup_verification_script_checks_freshness_permissions_and_restore_readability():
@@ -141,8 +199,11 @@ def test_recovery_dispatch_inputs_default_to_inert():
     assert "${{ inputs.install_ssh_public_key || '' }}" in workflow
     # 只有勾选后才会真的重启，且以 iptables 探针为准而非无条件重启
     assert "systemctl restart docker" in workflow
-    assert '== *"No chain/target/match"*' in workflow
-    assert "Docker iptables DOCKER chain is present; no restart needed." in workflow
+    assert '*"No chain/target/match"*)' in workflow
+    assert "Docker iptables DOCKER chains are present; no restart needed." in workflow
+    # filter 表只承载放行规则；发布端口的 DNAT 在 nat 表。只查 filter 会把 nat 缺失判成正常。
+    assert "for table in filter nat; do" in workflow
+    assert "iptables -t \"$table\" -S DOCKER" in workflow
     # 公钥经 base64 传递，避免远端 shell 重新分词
     assert "base64 -w0" in workflow
     assert "base64 -d" in workflow

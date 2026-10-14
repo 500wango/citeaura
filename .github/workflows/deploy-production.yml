@@ -148,25 +148,35 @@ jobs:
           fi
 
           # Docker 的 iptables 链被外部刷新后没有重建，创建容器会直接失败；先探测再决定是否重启。
+          # filter 表的 DOCKER 链承载放行规则，nat 表的 DOCKER 链承载发布端口的 DNAT——
+          # 只查 filter 会漏判：nat 缺失时端口静默绑不上，容器却在跑。
           if [[ "$REPAIR_DOCKER_NETWORKING" == "true" ]]; then
-            docker_chain_state() {
-              "${SUDO[@]}" iptables -t filter -S DOCKER 2>&1 || true
+            missing_chain_table() {
+              local table
+              for table in filter nat; do
+                case "$("${SUDO[@]}" iptables -t "$table" -S DOCKER 2>&1 || true)" in
+                  *"No chain/target/match"*) printf '%s' "$table"; return 0 ;;
+                esac
+              done
+              return 0
             }
 
-            if [[ "$(docker_chain_state)" == *"No chain/target/match"* ]]; then
-              printf 'Docker iptables DOCKER chain is missing; restarting the Docker daemon.\n'
+            missing_table="$(missing_chain_table)"
+            if [[ -n "$missing_table" ]]; then
+              printf 'Docker iptables DOCKER chain is missing from the %s table; restarting the Docker daemon.\n' "$missing_table"
               "${SUDO[@]}" systemctl restart docker
               for _ in $(seq 1 45); do
                 "${SUDO[@]}" docker info >/dev/null 2>&1 && break
                 sleep 2
               done
-              if [[ "$(docker_chain_state)" == *"No chain/target/match"* ]]; then
-                printf 'Docker still has no DOCKER chain after a daemon restart.\n' >&2
+              missing_table="$(missing_chain_table)"
+              if [[ -n "$missing_table" ]]; then
+                printf 'Docker still has no DOCKER chain in the %s table after a daemon restart.\n' "$missing_table" >&2
                 exit 1
               fi
-              printf 'Docker iptables chains rebuilt.\n'
+              printf 'Docker iptables chains rebuilt in both the filter and nat tables.\n'
             else
-              printf 'Docker iptables DOCKER chain is present; no restart needed.\n'
+              printf 'Docker iptables DOCKER chains are present; no restart needed.\n'
             fi
           fi
 

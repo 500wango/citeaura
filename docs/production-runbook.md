@@ -257,7 +257,7 @@ ssh-keygen -lf ./citeaura_known_hosts
 
 | 输入 | 作用 |
 | --- | --- |
-| `repair_docker_networking` | 部署前探测 `filter` 表的 `DOCKER` 链；缺失时重启 Docker 守护进程重建，链正常则不重启 |
+| `repair_docker_networking` | 部署前探测 `filter` 与 `nat` 两张表的 `DOCKER` 链；任一缺失时重启 Docker 守护进程重建，两张都正常则不重启 |
 | `install_ssh_public_key` | 把一行 OpenSSH 公钥追加到部署用户的 `authorized_keys`，用于找回 SSH 访问；重复执行不会重复写入 |
 
 典型用法是把两个一起填：先恢复自己的登录手段，再修主机网络，最后自动跑正常部署。
@@ -268,6 +268,12 @@ cat ~/.ssh/citeaura_ed25519.pub                    # 整行粘进 install_ssh_pu
 ```
 
 **为什么需要 `repair_docker_networking`**：`DOCKER` 链由 dockerd 在启动时创建。若之后有别的程序刷新了 iptables（firewalld 或 ufw reload、iptables 包升级、`netfilter-persistent` 恢复），链会消失且 Docker 不会在创建容器时重建它。此时 `docker compose up -d` 会以 `Unable to enable OPEN PORT rule: iptables: No chain/target/match by that name.` 失败，而失败发生在容器重建的「建新」阶段——旧容器已被删除，站点会中断。
+
+探针必须同时看 `filter` 和 `nat` 两张表：`filter` 的链承载放行规则（缺失时创建容器直接报错，症状明显），`nat` 的链承载发布端口的 DNAT 规则（缺失时**不报错**，容器照常启动，但宿主端口静默没有监听者，表现为 `curl: (7) Failed to connect to 127.0.0.1 port <APP_PORT>`，同时 `docker compose ps` 的 PORTS 列为空）。只查 `filter` 会把后者判成正常并跳过重启。
+
+**为什么部署必须 `--force-recreate`**：compose 只在容器「不是期望状态」时才重建。一个因为上面那种故障而端口未绑定的容器，配置与期望状态完全一致，于是 `up -d` 只 start 不重建——重新部署**同样的代码**（build 命中缓存、镜像 ID 不变）会永远复现同一个故障。`deploy.sh` 因此对 `api worker beat` 一律 `--force-recreate`，保证每次部署都收敛到声明状态。
+
+**就绪失败时的自证**：`deploy.sh` 在 readiness 循环耗尽后会打印脱敏后的现场证据（api 容器的 `State`/`Health`/`NetworkSettings.Ports`/`HostConfig.PortBindings`/`Config.ExposedPorts`/`Networks`、宿主 `ss -ltnp` 上 `APP_PORT` 的监听者、api 容器日志尾部 80 行）。宿主 SSH 不可达时这是唯一的诊断通道，所以不要把它改成 dump 整份 `compose config`——那会把 `DATABASE_URL`/`JWT_SECRET` 打进长期可读的 CI 日志。
 
 恢复入口只在手动 dispatch 时生效，`main` 分支的 push 永远不会触发重启。若怀疑 `firewalld` 是元凶，可先 `systemctl is-active firewalld` 确认；它每次 reload 都会清掉 Docker 的链，稳定的做法是不要在 Docker 主机上再叠一层 firewalld，或在 firewalld reload 后补一次 Docker 重启。
 
