@@ -180,16 +180,34 @@ def label_of(platform: str) -> str:
     return platform
 
 
+# Engines that appear on both China and global rosters. They keep the
+# platform cohort when it has questions, and fall back to the project's
+# existing questions instead of producing an empty run.
+DUAL_MARKET_PROVIDERS = frozenset(("deepseek",))
+
+
 def questions_for(cfg: dict, platform: str, question_ids: list[str] | None = None) -> list[dict]:
     """Route questions by market without mixing regional cohorts."""
     m = market_of(platform)
     selected = {str(value).strip() for value in (question_ids or []) if str(value).strip()}
-    out = []
-    for q in G.normalize_question_ids(cfg.get("questions", [])):
-        qm = q.get("market") or cfg.get("market", "cn")
-        if qm in ("both", m) and (not selected or str(q.get("id")) in selected):
-            out.append(q)
-    return out
+    questions = G.normalize_question_ids(cfg.get("questions", []))
+
+    def question_market(question):
+        return question.get("market") or cfg.get("market", "cn")
+
+    def selected_ok(question):
+        return not selected or str(question.get("id")) in selected
+
+    matched = [
+        question for question in questions
+        if selected_ok(question) and question_market(question) in ("both", m)
+    ]
+    if matched or platform not in DUAL_MARKET_PROVIDERS:
+        return matched
+    return [
+        question for question in questions
+        if selected_ok(question) and question_market(question) in ("cn", "global", "both")
+    ]
 
 
 def _p_model(p: dict) -> str:
@@ -943,7 +961,9 @@ def run(
         if not questions:
             G.info(f"Skipped {plat}: No questions matching {market_of(plat)} market")
             continue
-        G.info(f"[{plat}] {market_of(plat)} market · {len(questions)} questions × {repeat} round(s)")
+        question_markets = list(dict.fromkeys(q.get("market") or market_of(plat) for q in questions))
+        logged_market = question_markets[0] if len(question_markets) == 1 else market_of(plat)
+        G.info(f"[{plat}] {logged_market} market · {len(questions)} questions × {repeat} round(s)")
         for q in questions:
             for k in range(repeat):
                 jobs.append((plat, q, k + 1))
@@ -993,7 +1013,7 @@ def run(
             "date": G.today(), "ts": G.now_iso(),
             **identity,
             "platform": plat, "platform_name": PROVIDERS[plat]["name"],
-            "market": market_of(plat), "terminal": "api", "sample_mode": "api",
+            "market": q.get("market") or market_of(plat), "terminal": "api", "sample_mode": "api",
             "evidence_level": "B_reproducible_api",
             "search_enabled": searched, "search_evidence": search_evidence,
             "question_id": q.get("id"), "question": q["text"], "round": rnd,
@@ -1088,7 +1108,9 @@ def sheet(slug: str) -> Path:
         qs = questions_for(cfg, plat)
         if not qs:
             continue
-        mk = "China" if market_of(plat) == "cn" else "Global"
+        labels = {"cn": "China", "global": "Global", "both": "Universal"}
+        markets = list(dict.fromkeys(q.get("market") or market_of(plat) for q in qs))
+        mk = " / ".join(labels.get(item, item) for item in markets)
         lines += [f"## platform: {plat}", f"> {label_of(plat)} ({mk} market - {len(qs)} questions)", ""]
         for q in qs:
             lines += [f"### {q.get('id')} · {q['text']}", "", "```answer", "", "```", ""]

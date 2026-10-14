@@ -116,6 +116,61 @@ def _redact_sampling_error(value):
     return text[:160]
 
 
+def _question_markets(project_config):
+    """统计题库市场，空 market 跟随项目市场。"""
+    counts = Counter()
+    project_market = str((project_config or {}).get("market") or "cn").strip().lower()
+    for question in (project_config or {}).get("questions") or []:
+        if not isinstance(question, dict):
+            continue
+        market = str(question.get("market") or project_market).strip().lower() or project_market
+        counts[market] += 1
+    return counts
+
+
+def _platforms_with_questions(project_config, platform_items, sample, status):
+    """找出指定状态下、题库能匹配到的平台。"""
+    if sample is None:
+        return []
+    matched = []
+    for item in platform_items:
+        if item.get("status") != status:
+            continue
+        code = item.get("code")
+        try:
+            questions = sample.questions_for(project_config, code)
+        except Exception:  # noqa: BLE001 - 诊断不能因单个平台的题库异常中断
+            questions = []
+        if questions:
+            matched.append(code)
+    return matched
+
+
+def _question_gap_next_step(project_config, platform_items, sample):
+    """有资金的平台对不上题时，写明缺哪个市场、现有题在哪个市场。"""
+    blocked = [item.get("code") for item in platform_items if item.get("status") == "no_matching_questions" and item.get("code")]
+    if not blocked:
+        return "add questions for the configured market, then retry"
+    needed = []
+    if sample is not None:
+        for code in blocked:
+            try:
+                needed.append(sample.market_of(code))
+            except Exception:  # noqa: BLE001
+                continue
+    needed_text = "/".join(dict.fromkeys(needed)) or "matching"
+    counts = _question_markets(project_config)
+    subject = ", ".join(blocked)
+    verb = "needs" if len(blocked) == 1 else "need"
+    if not counts:
+        return f"{subject} {verb} {needed_text} questions, then retry"
+    present = ", ".join(f"{market}={count}" for market, count in sorted(counts.items()))
+    fundable = _platforms_with_questions(project_config, platform_items, sample, "missing_worker_funding")
+    fundable += _platforms_with_questions(project_config, platform_items, sample, "missing_api_key")
+    fund = f"; or fund {', '.join(fundable[:4])}" if fundable else ""
+    return f"{subject} {verb} {needed_text} questions (current: {present}){fund}, then retry"
+
+
 def _sampling_diagnostic(result, project_slug, started_at=None, funding=None):
     """生成不含密钥的采样失败摘要，供日志、Job 和 UI 直接展示。"""
     metrics = result if isinstance(result, dict) else _latest_metrics(project_slug)
@@ -210,7 +265,8 @@ def _sampling_diagnostic(result, project_slug, started_at=None, funding=None):
     elif requested and not rows and ((has_funding_snapshot and not (funded_codes & set(requested))) or (not has_funding_snapshot and missing_keys == len(requested))):
         reason, next_step = "no_worker_funding", "configure a model key or eligible platform pool, then retry"
     elif no_questions and not rows:
-        reason, next_step = "no_matching_questions", "add questions for the configured market, then retry"
+        reason = "no_matching_questions"
+        next_step = _question_gap_next_step(project_config, platform_items, sample)
     elif total and not successful:
         reason, next_step = "all_requests_failed", "check provider credentials, endpoint, model, and network, then retry"
     else:

@@ -486,6 +486,36 @@ class TestRunValidation(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Unknown API platform"):
                 S.run("demo", platforms=["typo"])
 
+    def test_deepseek_uses_existing_questions_when_its_cohort_is_empty(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(G, "WORK", Path(tmp)):
+            pdir = G.project_dir("demo")
+            pdir.mkdir()
+            (pdir / "geo.json").write_text(json.dumps({
+                "brand": {"name": "Acme", "site": "https://acme.example", "aliases": []},
+                "market": "both", "platforms": ["deepseek", "glm"],
+                "questions": [{"id": "q001", "market": "cn", "text": "有什么好用的工具？"}],
+            }), "utf-8")
+            response = {"ok": True, "answer": "可以看看 Acme。", "citations": [], "searched": False}
+            with mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test"}), \
+                 mock.patch.object(S, "ask", return_value=response) as ask:
+                metrics = S.run("demo", platforms=["deepseek"])
+            row = G.read_jsonl(next((pdir / "samples").glob("*.jsonl")))[0]
+        ask.assert_called_once_with("deepseek", "有什么好用的工具？")
+        self.assertEqual(row["market"], "cn")
+        self.assertEqual(row["question_id"], "q001")
+        self.assertEqual(metrics["successful_sample_count"], 1)
+
+    def test_deepseek_keeps_global_cohort_when_those_questions_exist(self):
+        cfg = {
+            "market": "both",
+            "questions": [
+                {"id": "q001", "market": "cn", "text": "国内怎么选？"},
+                {"id": "q101", "market": "global", "text": "Which tool is best?"},
+            ],
+        }
+        self.assertEqual([q["id"] for q in S.questions_for(cfg, "deepseek")], ["q101"])
+        self.assertEqual([q["id"] for q in S.questions_for(cfg, "glm")], ["q001"])
+
     def test_no_market_matching_questions_does_not_create_empty_run(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(G, "WORK", Path(tmp)):
             pdir = G.project_dir("demo")

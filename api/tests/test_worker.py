@@ -234,6 +234,57 @@ def test_sampling_diagnostic_uses_worker_funding_snapshot(tmp_path, monkeypatch)
     assert "reason=no_successful_samples" in message
 
 
+def test_sampling_failure_names_funded_platform_question_gap(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / "geo.json").write_text(json.dumps({
+        "market": "both",
+        "platforms": ["glm", "openai"],
+        "questions": [{"id": "q001", "market": "cn", "text": "有什么好用的工具？"}],
+    }), encoding="utf-8")
+    monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: project_dir)
+
+    with pytest.raises(tasks.SamplingOutputError) as exc_info:
+        tasks._require_sampling_output(
+            {},
+            "example",
+            funding={"keys": {"openai": "runtime-only"}, "pool_codes": ()},
+        )
+
+    message = str(exc_info.value)
+    assert "requests=0" in message
+    assert "glm:missing_worker_funding" in message
+    assert "openai:no_matching_questions" in message
+    assert "reason=no_matching_questions" in message
+    assert "openai needs global questions" in message
+    assert "cn=1" in message
+    assert "fund glm" in message
+    assert "runtime-only" not in message
+
+
+def test_deepseek_with_only_china_questions_is_not_a_question_gap(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / "geo.json").write_text(json.dumps({
+        "market": "both",
+        "platforms": ["glm", "deepseek", "openai"],
+        "questions": [{"id": "q001", "market": "cn", "text": "有什么好用的工具？"}],
+    }), encoding="utf-8")
+    monkeypatch.setattr(tasks.geolib, "project_dir", lambda slug: project_dir)
+
+    with pytest.raises(tasks.SamplingOutputError) as exc_info:
+        tasks._require_sampling_output(
+            {},
+            "example",
+            funding={"keys": {"deepseek": "runtime-only"}, "pool_codes": ()},
+        )
+
+    message = str(exc_info.value)
+    assert "deepseek:no_matching_questions" not in message
+    assert "deepseek:no_successful_samples" in message
+    assert "reason=no_successful_samples" in message
+
+
 def test_sampling_diagnostic_reports_missing_worker_funding_with_snapshot(tmp_path, monkeypatch):
     project_dir = tmp_path / "project"
     project_dir.mkdir()
