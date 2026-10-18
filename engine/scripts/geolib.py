@@ -10,6 +10,7 @@ import hashlib
 import ipaddress
 import json
 import os
+import random
 import re
 import socket
 import sys
@@ -18,6 +19,7 @@ import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
@@ -249,14 +251,35 @@ def save_config(slug: str, cfg: dict):
     write_json(p, cfg)
 
 
-def write_json(path: Path, data):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+def write_text_atomic(path, text: str):
+    """原子写入文本：临时文件落盘并 fsync 后替换，崩溃不会留下半个文件。"""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(f"{target.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
     try:
-        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
-        os.replace(tmp, path)
+        with tmp.open("w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, target)
+        # 目录项本身也要落盘，否则掉电后新名字可能丢失（目标文件不会半截）。
+        try:
+            dir_fd = os.open(str(target.parent), os.O_RDONLY)
+        except OSError:
+            dir_fd = None
+        if dir_fd is not None:
+            try:
+                os.fsync(dir_fd)
+            except OSError:
+                pass
+            finally:
+                os.close(dir_fd)
     finally:
         tmp.unlink(missing_ok=True)
+
+
+def write_json(path: Path, data):
+    write_text_atomic(path, json.dumps(data, ensure_ascii=False, indent=2))
 
 
 def read_json(path: Path, default=None):
@@ -266,7 +289,13 @@ def read_json(path: Path, default=None):
     try:
         return json.loads(p.read_text("utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
-        info(f"Warning: {p} is corrupt; using the default value")
+        # 损坏的文件改名留存，避免被后续写入静默覆盖或误报为缺失。
+        quarantine = p.with_name(f"{p.name}.corrupt-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}")
+        try:
+            os.replace(p, quarantine)
+        except OSError:
+            quarantine = None
+        info(f"Warning: {p} is corrupt; quarantined as {quarantine and quarantine.name}; using the default value")
         return default
 
 
@@ -373,6 +402,30 @@ def _request_pinned(session, url, parsed, addresses, **kwargs):
 
 
 
+MAX_RETRY_AFTER = 60.0  # 服务端要求的长等待会让整条抓取链失控，这里封顶。
+
+
+def _retry_after_delay(response, fallback: float = 1.5) -> float:
+    """按 Retry-After（秒数或 HTTP 日期）计算等待，未知时回落固定值并加小幅抖动。"""
+    headers = getattr(response, "headers", None)
+    raw = headers.get("Retry-After") if hasattr(headers, "get") else None
+    delay = None
+    if isinstance(raw, str) and raw.strip():
+        try:
+            delay = float(raw.strip())
+        except ValueError:
+            try:
+                retry_at = parsedate_to_datetime(raw)
+                if retry_at.tzinfo is None:
+                    retry_at = retry_at.replace(tzinfo=timezone.utc)
+                delay = (retry_at - datetime.now(timezone.utc)).total_seconds()
+            except (TypeError, ValueError, OverflowError):
+                delay = None
+    if delay is None:
+        delay = fallback
+    return min(MAX_RETRY_AFTER, max(0.0, delay)) + random.uniform(0.0, 0.25)
+
+
 def fetch(url: str, timeout: int = 12, retries: int = 1, allow_machine_file: bool = False) -> dict:
     """Fetch a bounded web document and return normalized response metadata."""
     if not is_fetchable(url, allow_machine_file=allow_machine_file):
@@ -415,9 +468,10 @@ def fetch(url: str, timeout: int = 12, retries: int = 1, allow_machine_file: boo
                 current_url = redirected
             # Server errors and rate limits are usually transient and follow the retry policy.
             if (r.status_code >= 500 or r.status_code == 429) and attempt < retries:
+                delay = _retry_after_delay(r)
                 r.close()
                 r = None
-                time.sleep(1.5)
+                time.sleep(delay)
                 continue
             ctype = r.headers.get("Content-Type", "")
             if ctype and not any(k in ctype.lower() for k in ("html", "text/plain", "xml")):

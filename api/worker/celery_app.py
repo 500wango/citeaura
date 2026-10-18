@@ -20,6 +20,16 @@ celery_app.conf.update(
     task_time_limit=3600,
     task_soft_time_limit=3540,
     worker_pool="prefork",
+    # 长任务必须一个 worker 只预取一个：默认的 4 会让 4 个租户的项目互相排队。
+    worker_prefetch_multiplier=1,
+    # Redis broker 的默认可见性超时也是 3600s，与硬超时相等；任务被硬杀后会被
+    # 重投并在原执行仍在跑的情况下重复执行（重复采样=重复付费）。留一倍余量。
+    broker_transport_options={
+        "visibility_timeout": 7200,
+        "socket_connect_timeout": 5,
+        "socket_timeout": 30,
+    },
+    result_expires=3600,
     task_serializer="json",
     result_serializer="json",
     accept_content=["json"],

@@ -82,6 +82,27 @@ def test_every_frontend_t_key_is_registered():
     assert keys <= set(load_all_catalogs()["en"]), sorted(keys - set(load_all_catalogs()["en"]))
 
 
+def _js_function_body(source, header):
+    start = source.index(header)
+    end = source.find("\nexport ", start + len(header))
+    return source[start: end if end != -1 else len(source)]
+
+
+def test_frontend_t_falls_back_to_the_english_catalog_instead_of_missing_markers():
+    """t() 的兜底链：当前语言 → 英文目录 → 调用方默认值 → key 本身。
+
+    缺失的键以前会以 `[[missing:key]]` 渲染给终端用户，现在必须降级为英文
+    文案（开发环境只在控制台警告一次）。
+    """
+    source = (Path(__file__).resolve().parents[2] / "web" / "app" / "i18n.js").read_text("utf-8")
+    body = _js_function_body(source, "export function t(")
+
+    assert "fallbackCatalog" in body
+    assert body.index("currentCatalog") < body.index("fallbackCatalog")
+    assert "[[missing:" not in body
+    assert "val = key" in body
+
+
 def test_workspace_navigation_keys_cover_all_track_items():
     app_js = (Path(__file__).resolve().parents[2] / "web" / "app" / "app.js").read_text("utf-8")
     track_block = re.search(r"export const TRACKS = \[.*?\n\];", app_js, re.S)

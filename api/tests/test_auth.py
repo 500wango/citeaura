@@ -39,10 +39,11 @@ def test_register_login_and_me(client):
         "/api/v1/auth/register",
         json={"email": "owner@example.com", "password": "correct-horse-battery"},
     )
-    assert registered.status_code == 201
+    assert registered.status_code == 202
     body = registered.json()
-    assert body["user"]["email"] == "owner@example.com"
-    assert body["tenant"]["plan"] == "trial"
+    # 注册响应故意只返回 accepted：状态码/响应体都不能泄露邮箱是否已注册。
+    assert body == {"accepted": True, "audit": None}
+    assert "user" not in body and "tenant" not in body and "role" not in body
 
     logged_in = client.post(
         "/api/v1/auth/login",
@@ -61,15 +62,23 @@ def test_register_login_and_me(client):
     assert "SameSite=strict" in cookie
     assert logged_in.headers["cache-control"] == "no-store"
 
-    client.cookies.delete("citeaura_access_token")
-    cookie_refreshed = client.post("/api/v1/auth/refresh")
-    assert cookie_refreshed.status_code == 200
-    assert cookie_refreshed.json()["access_token"]
-
-    refreshed_tokens = cookie_refreshed.json()
+    # 响应体里的 refresh token 走 JSON 轮换路径，只有非 Cookie 客户端才会拿到新的 token 对。
+    rotated = client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
+    assert rotated.status_code == 200
+    refreshed_tokens = rotated.json()
     assert refreshed_tokens["access_token"]
     assert refreshed_tokens["refresh_token"]
-    assert cookie_refreshed.headers["cache-control"] == "no-store"
+    assert rotated.headers["cache-control"] == "no-store"
+
+    client.cookies.delete("citeaura_access_token")
+    # Cookie 承载的刷新必须带自定义头，否则视为 CSRF。
+    blocked_refresh = client.post("/api/v1/auth/refresh")
+    assert blocked_refresh.status_code == 403
+    assert blocked_refresh.json() == {"error": "csrf_validation_failed"}
+    cookie_refreshed = client.post("/api/v1/auth/refresh", headers={"X-CiteAura-Session": "cookie"})
+    assert cookie_refreshed.status_code == 200
+    assert cookie_refreshed.json()["authenticated"] is True
+    assert "access_token" not in cookie_refreshed.json()
 
     current = client.get(
         "/api/v1/me",
@@ -87,9 +96,11 @@ def test_register_login_and_me(client):
 def test_auth_reads_effective_subscription_plan_without_persisting_sync(client):
     payload = {"email": "effective-plan@example.com", "password": "correct-horse-battery"}
     registered = client.post("/api/v1/auth/register", json=payload)
-    assert registered.status_code == 201
-    tenant_id = registered.json()["tenant"]["id"]
+    assert registered.status_code == 202
     tokens = client.post("/api/v1/auth/login", json=payload).json()
+    tenant_id = client.get(
+        "/api/v1/me", headers={"Authorization": f"Bearer {tokens['access_token']}"}
+    ).json()["tenant"]["id"]
 
     with client.session_factory() as db:
         tenant = db.get(Tenant, tenant_id)
@@ -128,13 +139,13 @@ def test_registration_schedules_welcome_email(client, monkeypatch):
         json={"email": "welcome@example.com", "password": "correct-horse-battery"},
     )
 
-    assert registered.status_code == 201
+    assert registered.status_code == 202
     assert sent == [("welcome@example.com", "welcome", 1)]
 
 
 def test_refresh_token_rotation_detects_reuse(client):
     payload = {"email": "rotation@example.com", "password": "correct-horse-battery"}
-    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 202
     login = client.post("/api/v1/auth/login", json=payload)
     first = login.json()["refresh_token"]
 
@@ -150,11 +161,11 @@ def test_refresh_token_rotation_detects_reuse(client):
 
 def test_auth_rejects_duplicate_and_invalid_credentials(client):
     payload = {"email": "owner@example.com", "password": "correct-horse-battery"}
-    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 202
 
     duplicate = client.post("/api/v1/auth/register", json=payload)
     assert duplicate.status_code == 202
-    assert duplicate.json() == {"accepted": True}
+    assert duplicate.json() == {"accepted": True, "audit": None}
 
     invalid = client.post(
         "/api/v1/auth/login",
@@ -166,7 +177,7 @@ def test_auth_rejects_duplicate_and_invalid_credentials(client):
 
 def test_disabled_user_cannot_start_a_new_session(client):
     payload = {"email": "disabled@example.com", "password": "correct-horse-battery"}
-    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 202
     with client.session_factory() as db:
         from api.models import User
 
@@ -189,11 +200,15 @@ def test_me_requires_valid_access_token(client):
 
 def test_refresh_rejects_missing_invalid_and_access_tokens(client):
     payload = {"email": "owner@example.com", "password": "correct-horse-battery"}
-    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 202
     tokens = client.post("/api/v1/auth/login", json=payload).json()
 
     client.cookies.clear()
-    missing = client.post("/api/v1/auth/refresh")
+    # 没有 Json body 也没有会话头：Cookie 刷新路径直接按 CSRF 拒绝。
+    blocked = client.post("/api/v1/auth/refresh")
+    assert blocked.status_code == 403
+    assert blocked.json() == {"error": "csrf_validation_failed"}
+    missing = client.post("/api/v1/auth/refresh", headers={"X-CiteAura-Session": "cookie"})
     assert missing.status_code == 401
     assert missing.json() == {"error": "invalid_refresh_token"}
     invalid = client.post("/api/v1/auth/refresh", json={"refresh_token": "invalid"})
@@ -211,7 +226,8 @@ def test_browser_session_responses_do_not_expose_jwt_tokens(client):
         "/api/v1/auth/register",
         json={"email": "browser@example.com", "password": "correct-horse-battery", "tenant_name": "browser"},
     )
-    assert registered.status_code == 201
+    assert registered.status_code == 202
+    assert registered.json() == {"accepted": True, "audit": None}
     login = client.post(
         "/api/v1/auth/login",
         headers={"X-CiteAura-Session": "cookie"},
@@ -225,7 +241,10 @@ def test_browser_session_responses_do_not_expose_jwt_tokens(client):
     assert refreshed.json()["authenticated"] is True
     assert "refresh_token" not in refreshed.json()
 
-    tenant_id = registered.json()["tenant"]["id"]
+    # 注册响应不再返回 tenant，改从 /me 读取当前 Cookie 会话的租户。
+    current = client.get("/api/v1/me")
+    assert current.status_code == 200
+    tenant_id = current.json()["tenant"]["id"]
     blocked = client.post("/api/v1/auth/switch-tenant", json={"tenant_id": tenant_id})
     assert blocked.status_code == 403
     assert blocked.json() == {"error": "csrf_validation_failed"}
@@ -240,12 +259,15 @@ def test_browser_session_responses_do_not_expose_jwt_tokens(client):
 
 def test_logout_clears_both_session_cookies(client):
     payload = {"email": "logout@example.com", "password": "correct-horse-battery"}
-    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 202
     login = client.post("/api/v1/auth/login", json=payload)
     assert login.status_code == 200
     stolen_refresh_token = login.json()["refresh_token"]
 
-    logged_out = client.post("/api/v1/auth/logout")
+    blocked = client.post("/api/v1/auth/logout")
+    assert blocked.status_code == 403
+    assert blocked.json() == {"error": "csrf_validation_failed"}
+    logged_out = client.post("/api/v1/auth/logout", headers={"X-CiteAura-Session": "cookie"})
 
     assert logged_out.status_code == 200
     assert logged_out.json() == {"ok": True}
@@ -253,7 +275,7 @@ def test_logout_clears_both_session_cookies(client):
     assert any("citeaura_access_token=" in item and "Max-Age=0" in item for item in cookies)
     assert any("citeaura_refresh_token=" in item and "Max-Age=0" in item for item in cookies)
     assert all("Path=/" in item for item in cookies)
-    assert client.post("/api/v1/auth/refresh").status_code == 401
+    assert client.post("/api/v1/auth/refresh", headers={"X-CiteAura-Session": "cookie"}).status_code == 401
     rejected = client.post("/api/v1/auth/refresh", json={"refresh_token": stolen_refresh_token})
     assert rejected.status_code == 401
     with client.session_factory() as db:
@@ -262,7 +284,7 @@ def test_logout_clears_both_session_cookies(client):
 
 def test_logout_ignores_stale_bearer_and_revokes_current_cookie_session(client):
     payload = {"email": "logout-stale@example.com", "password": "correct-horse-battery"}
-    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 202
     first = client.post("/api/v1/auth/login", json=payload).json()
     client.cookies.delete("citeaura_access_token")
     current = client.post("/api/v1/auth/login", json=payload).json()
@@ -276,7 +298,7 @@ def test_logout_ignores_stale_bearer_and_revokes_current_cookie_session(client):
 
 def test_password_reset_is_non_enumerating_single_use_and_hashed(client, monkeypatch):
     payload = {"email": "reset@example.com", "password": "old-password-123"}
-    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 202
     sent = []
     monkeypatch.setattr(
         password_reset,
@@ -348,7 +370,7 @@ def test_password_reset_email_uses_spa_hash_route(monkeypatch):
 
 def test_disabled_password_reset_email_does_not_create_token(client, monkeypatch):
     payload = {"email": "disabled-reset@example.com", "password": "old-password-123"}
-    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 202
     monkeypatch.setenv("PASSWORD_RESET_EMAIL_ENABLED", "false")
 
     response = client.post("/api/v1/auth/password/forgot", json={"email": payload["email"]})
@@ -361,7 +383,7 @@ def test_disabled_password_reset_email_does_not_create_token(client, monkeypatch
 
 def test_expired_password_reset_token_is_rejected(client, monkeypatch):
     payload = {"email": "expired-reset@example.com", "password": "old-password-123"}
-    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 202
     sent = []
     monkeypatch.setattr(
         password_reset,
@@ -401,10 +423,25 @@ def test_long_tenant_names_get_distinct_directory_slugs(client):
         },
     )
 
-    assert first.status_code == 201
-    assert second.status_code == 201
-    first_name = first.json()["tenant"]["name"]
-    second_name = second.json()["tenant"]["name"]
+    assert first.status_code == 202
+    assert second.status_code == 202
+
+    def _tenant_name_for(email):
+        # 注册响应不再返回 tenant，改从 /me 读取当前租户。
+        login = client.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": "correct-horse-battery"},
+        )
+        assert login.status_code == 200
+        current = client.get(
+            "/api/v1/me",
+            headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+        )
+        assert current.status_code == 200
+        return current.json()["tenant"]["name"]
+
+    first_name = _tenant_name_for("first-long@example.com")
+    second_name = _tenant_name_for("second-long@example.com")
     assert first_name != second_name
     assert tenant_slug(first_name) == first_name
     assert tenant_slug(second_name) == second_name

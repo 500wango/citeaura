@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -31,16 +32,22 @@ def _client(tmp_path, monkeypatch):
 
 
 def _register(client, email, tenant_name):
+    """注册后从 /me 取租户信息：注册响应只返回 accepted（固定 202，防止邮箱枚举）。"""
     registered = client.post(
         "/api/v1/auth/register",
         json={"email": email, "password": "correct-horse-battery", "tenant_name": tenant_name},
     )
-    assert registered.status_code == 201
+    assert registered.status_code == 202
+    assert registered.json()["accepted"] is True
+    assert "tenant" not in registered.json()
     login = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "correct-horse-battery"},
     )
-    return registered.json(), {"Authorization": f"Bearer {login.json()['access_token']}"}
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    profile = client.get("/api/v1/me", headers=headers)
+    assert profile.status_code == 200
+    return profile.json(), headers
 
 
 def _seed_pack(tmp_path, tenant_slug, project_slug, date="2026-08-01"):
@@ -59,9 +66,58 @@ def _seed_pack(tmp_path, tenant_slug, project_slug, date="2026-08-01"):
     return date
 
 
+def _write_delivery_contract(directory):
+    """Test double for delivery.ensure_delivery_contract: fill the real contract.
+
+    The fixture starts from an incomplete draft, so the authenticated send path
+    rebuilds it. The rebuild here writes the same artifacts the production
+    builder writes, which lets the anonymous download exercise the *real*
+    validate_existing_delivery_contract instead of a stub.
+    """
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    for number, name in project_router.delivery.REQUIRED_DOCUMENTS.items():
+        (directory / f"{number}-{name}.md").write_text(
+            f"# {name}\n\nEnglish-only fixture copy.\n", "utf-8",
+        )
+        (directory / f"{number}-{name}.html").write_text(
+            f"<h1>{name}</h1>\n<p>English-only fixture copy.</p>\n", "utf-8",
+        )
+    (directory / "03-Ticket-Log.csv").write_text(
+        "id,title,status\nT-1,Sample ticket,done\n", "utf-8",
+    )
+    assets = directory / "assets"
+    assets.mkdir(exist_ok=True)
+    index_path = assets / "index.json"
+    index = json.loads(index_path.read_text("utf-8")) if index_path.is_file() else {}
+    index.update({
+        "readiness": "customer_ready",
+        "diagnostic_ready": True,
+        "implementation_ready": False,
+        "source_revision": "test",
+        "summary": {"ready": 1, "needs_review": 0, "template": 0},
+        "quality_gate": {"status": "passed"},
+    })
+    index_path.write_text(json.dumps(index), "utf-8")
+    return directory
+
+
+def _tree(directory):
+    """Snapshot every file so a test can prove a GET wrote nothing to disk."""
+    return {
+        path.relative_to(directory).as_posix(): path.read_bytes()
+        for path in sorted(Path(directory).rglob("*"))
+        if path.is_file()
+    }
+
+
 def test_agency_can_create_and_download_sendable_pack(tmp_path, monkeypatch):
     client, session_factory = _client(tmp_path, monkeypatch)
-    monkeypatch.setattr(project_router.delivery, "ensure_delivery_contract", lambda slug, directory: directory)
+    monkeypatch.setattr(
+        project_router.delivery,
+        "ensure_delivery_contract",
+        lambda slug, directory: _write_delivery_contract(directory),
+    )
     registered, headers = _register(client, "agency@example.com", "northstar")
     other, other_headers = _register(client, "other@example.com", "other")
     with session_factory() as db:
@@ -141,3 +197,49 @@ def test_non_agency_cannot_send_pack(tmp_path, monkeypatch):
     )
     assert response.status_code == 403
     assert response.json()["error"] == "white_label_plan_required"
+
+
+def test_public_download_rejects_broken_pack_without_writing(tmp_path, monkeypatch):
+    """匿名下载只做只读校验：契约不合法时必须 409，且不能重建工作区文件。"""
+    client, session_factory = _client(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        project_router.delivery,
+        "ensure_delivery_contract",
+        lambda slug, directory: _write_delivery_contract(directory),
+    )
+    registered, headers = _register(client, "broken-pack@example.com", "northstar")
+    with session_factory() as db:
+        tenant = db.get(Tenant, registered["tenant"]["id"])
+        tenant.plan = "agency"
+        tenant.directory_slug = "northstar"
+        project = Project(
+            tenant_id=tenant.id,
+            slug="acme",
+            url="https://acme.example",
+            market="global",
+            status="ready",
+        )
+        db.add(project)
+        db.commit()
+        project_id = project.id
+    date = _seed_pack(tmp_path, "northstar", "acme")
+
+    created = client.post(
+        f"/api/v1/projects/{project_id}/deliveries/{date}/send",
+        headers=headers,
+        json={},
+    )
+    assert created.status_code == 200
+    token = created.json()["url"].rsplit("/", 1)[-1]
+
+    # 发布后的快照被破坏：缺少必需文档，真实契约校验会失败。
+    directory = tmp_path / "work" / "northstar" / "acme" / "delivery" / date
+    (directory / "02-Execution-Plan.html").unlink()
+    before = _tree(directory)
+
+    rejected = client.get(f"/api/v1/public/delivery-packs/{token}")
+
+    assert rejected.status_code == 409
+    assert rejected.json()["error"] == "delivery_contract_invalid"
+    # 未认证 GET 绝不能触发 ensure_delivery_contract 重建（那会写回缺失文件）。
+    assert _tree(directory) == before

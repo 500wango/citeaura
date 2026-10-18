@@ -18,7 +18,10 @@ import sample as S
 
 ALL_KEY_ENVS = [p["key_env"] for p in S.PROVIDERS.values()]
 ALL_MODEL_ENVS = [p["model_env"] for p in S.PROVIDERS.values() if p.get("model_env")]
-_CLEAR = {k: "" for k in ALL_KEY_ENVS + ALL_MODEL_ENVS}
+# 供应商 base URL 覆盖（如 OPENAI_BASE_URL）也在调用时解析，测试夹具里一并清空，
+# 保证断言落到注册表里的静态默认值。
+ALL_BASE_ENVS = [p["base_env"] for p in S.PROVIDERS.values() if p.get("base_env")]
+_CLEAR = {k: "" for k in ALL_KEY_ENVS + ALL_MODEL_ENVS + ALL_BASE_ENVS}
 
 
 def no_llm_env():

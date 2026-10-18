@@ -19,7 +19,7 @@ def assess(project_slug, has_sampling_access=False):
     directory = geolib.project_dir(project_slug)
     audit = geolib.read_json(directory / "audit.json", {}) or {}
     metrics_path = _latest(directory / "metrics")
-    metrics = geolib.read_json(metrics_path, {}) if metrics_path else {}
+    metrics = (geolib.read_json(metrics_path, {}) or {}) if metrics_path else {}
     tasks = geolib.read_json(directory / "tasks.json", {}) or {}
     measurement_quality = sampling_quality(project_slug)
     issues = []
@@ -65,7 +65,8 @@ def assess(project_slug, has_sampling_access=False):
     pages_crawled = int(site.get("pages_crawled") or page_count or 0)
     pages_ok = int(site.get("pages_ok") or page_count or 0)
     crawl_ratio = pages_ok / pages_crawled if pages_crawled else 0
-    audit_ratio = 0 if not page_count else max(0.2, min(1.0, crawl_ratio or 1.0))
+    # 不能用 `crawl_ratio or 1.0`：全站不可访问（ratio=0）时会被当成满分 35 分。
+    audit_ratio = 0 if not page_count else max(0.2, min(1.0, crawl_ratio))
     audit_score = round(35 * audit_ratio)
     if not page_count:
         issues.append(_issue("audit_missing", "critical", "Site-wide GEO audit pending", "Re-run site crawl and page audit", "siteaudit"))

@@ -39,14 +39,17 @@ def _register(client, email, tenant_name=None, invitation_token=None):
     payload = {"email": email, "password": "correct-horse-battery", "tenant_name": tenant_name}
     if invitation_token:
         payload["invitation_token"] = invitation_token
-    response = client.post("/api/v1/auth/register", json=payload)
-    assert response.status_code == 201
+    registered = client.post("/api/v1/auth/register", json=payload)
+    assert registered.status_code == 202
+    assert registered.json()["accepted"] is True
     login = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "correct-horse-battery"},
     )
     assert login.status_code == 200
-    return response.json(), {"Authorization": f"Bearer {login.json()['access_token']}"}
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    # /me 里已经有 user / tenant / role / workspaces，调用方的 registered["tenant"]["id"] 仍然可用。
+    return client.get("/api/v1/me", headers=headers).json(), headers
 
 
 def _logo():

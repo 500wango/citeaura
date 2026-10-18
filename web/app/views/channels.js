@@ -8,17 +8,9 @@ import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
 import { openModal } from '../components/modal.js';
+import { escapeHtml } from '../safe-html.js';
 
 let citationDomainState = new Map();
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
 
 function suggestedAsset(type) {
   return ({ community: t('channels.asset_community', {}, 'FAQ / fact block'), editorial: t('channels.asset_editorial', {}, 'Comparison matrix / llms.txt'), knowledge: t('channels.asset_knowledge', {}, 'Schema / entity definition'), review: t('channels.asset_review', {}, 'Review schema / testimonial block') })[type] || t('channels.asset_default', {}, 'Evidence-backed answer page');
@@ -77,7 +69,7 @@ export default {
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
               <span>${t('channels.review_samples', {}, 'Review Raw Citations')}</span>
             </a>
-            <a href="${projects.exportCsv(projectId)}" class="btn btn-secondary btn-sm" download>
+            <a href="${escapeHtml(projects.exportCsv(projectId))}" class="btn btn-secondary btn-sm" download>
               <span aria-hidden="true">↓</span><span>Download CSV</span>
             </a>
             <button type="button" class="btn btn-primary btn-sm btn-run-citation-sample">

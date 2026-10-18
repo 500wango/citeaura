@@ -95,10 +95,10 @@ def retry_project_job(
         "sample": "sampling", "verify": "verifying", "deliver": "delivering", "bootstrap": "bootstrapping",
         "autopilot": "bootstrapping", "cycle": "processing",
     }.get(source.action, "processing")
-    db.commit()
+    commit_new_job(db, project)
     db.refresh(job)
     job.log_path = str(job_log_path(tenant.directory_slug, project.slug, job.id))
-    db.commit()
+    commit_new_job(db, project)
     try:
         result = _dispatch_retry("retry", tenant.directory_slug, project.slug, request, job.id, source.action)
         job.celery_task_id = getattr(result, "id", None)

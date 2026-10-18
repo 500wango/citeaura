@@ -54,12 +54,14 @@ def _register(client, email, tenant_name):
         "/api/v1/auth/register",
         json={"email": email, "password": "correct-horse-battery", "tenant_name": tenant_name},
     )
-    assert registered.status_code == 201
+    assert registered.status_code == 202
+    assert registered.json()["accepted"] is True
     login = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "correct-horse-battery"},
     )
-    return registered.json(), {"Authorization": f"Bearer {login.json()['access_token']}"}
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    return client.get("/api/v1/me", headers=headers).json(), headers
 
 
 def test_platform_pool_api_is_explicit_byok_first_and_tenant_isolated(pool_client, monkeypatch):
@@ -387,6 +389,38 @@ def test_usage_outbox_replays_failed_accounting_once(tmp_path, monkeypatch):
         assert usage.calls == 3
         assert db.get(Job, job_id).budget_reservation_status == "settled"
         assert db.query(UsageCounter).one().platform_cost_cny_fen == 15
+
+
+def test_usage_outbox_without_job_updates_one_row_per_action(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'outbox-direct.sqlite'}")
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    Base.metadata.create_all(engine)
+    with session_factory() as db:
+        tenant = Tenant(name="outbox-direct", plan="pro")
+        db.add(tenant)
+        db.flush()
+        project = Project(tenant_id=tenant.id, slug="outbox-direct", url="https://outbox-direct.example")
+        db.add(project)
+        db.commit()
+        tenant_id, project_id = tenant.id, project.id
+
+    monkeypatch.setattr(platform_pool, "SessionLocal", session_factory)
+    funding = {
+        "tenant_id": tenant_id,
+        "project_id": project_id,
+        "pool_codes": frozenset(("openai",)),
+        "rates": {"openai": 5},
+    }
+    assert platform_pool.persist_usage_outbox(funding, {"openai": 2}, "sample") == 1
+    # 无 job 的幂等键不再带时间戳：重试更新同一行，而不是每次新增补偿事件。
+    assert platform_pool.persist_usage_outbox(funding, {"openai": 3}, "sample") == 0
+    with session_factory() as db:
+        events = db.query(PlatformUsageOutbox).all()
+        assert len(events) == 1
+        assert events[0].event_key == f"direct:{tenant_id}:{project_id}:sample:openai"
+        assert events[0].calls == 3
+        assert events[0].amount_cny_fen == 15
+        assert events[0].status == "pending"
 
 
 def test_platform_pool_hard_limits_include_usage_and_reservations_but_not_byok(tmp_path, monkeypatch):

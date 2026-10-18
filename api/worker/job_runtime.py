@@ -3,6 +3,7 @@
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import func
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 
 from api.db import SessionLocal
@@ -26,28 +27,47 @@ def next_scheduled_run(scheduled_for, interval_days, now):
 
 
 def reclaim_stale_jobs(db, now):
-    """回收超过 Celery 最大执行窗口仍活跃的任务，避免项目永久占用。"""
+    """回收超过最大执行窗口仍活跃的任务，避免项目永久占用。
+
+    queued 也必须回收：broker 丢消息时 Job 会带着 celery_task_id 永久停在
+    queued（派发后立刻回写 task id），而 uq_jobs_project_active 会让该项目之后
+    任何新任务都插入失败，retry 又要求 status="failed"，用户侧无法自救。
+    """
     cutoff = now - timedelta(seconds=config.stale_running_job_timeout_seconds())
-    stale_running = db.query(Job).filter(
-        Job.status == "running",
-        Job.started_at.isnot(None),
-        Job.started_at < cutoff,
-    ).all()
-    stale_queued = db.query(Job).filter(
-        Job.status == "queued",
-        Job.created_at < cutoff,
-        Job.celery_task_id.is_(None),
+    last_seen = func.coalesce(Job.heartbeat_at, Job.started_at, Job.created_at)
+    stale = db.query(Job).filter(
+        Job.status.in_(("queued", "running")),
+        last_seen < cutoff,
     ).all()
     reclaimed = 0
-    for job in stale_running + stale_queued:
-        project = db.get(Project, job.project_id)
-        job.status = "failed"
-        job.stage = "failed"
-        job.finished_at = now
-        job.error = "worker_lost_or_timeout"
+    for job in stale:
+        # 条件更新：SELECT 与 COMMIT 之间已完成的 Job 不能被覆写成 failed。
+        claimed = db.query(Job).filter(
+            Job.id == job.id,
+            Job.status == job.status,
+            func.coalesce(Job.heartbeat_at, Job.started_at, Job.created_at) < cutoff,
+        ).update(
+            {
+                Job.status: "failed",
+                Job.stage: "failed",
+                Job.finished_at: now,
+                Job.error: "worker_lost_or_timeout",
+            },
+            synchronize_session=False,
+        )
+        db.expire(job)
+        if claimed != 1:
+            continue
         release_reservation(job)
-        if project is not None and project.status not in ("archived",):
-            project.status = "failed"
+        if job.project_id is not None:
+            newer_active = db.query(Job.id).filter(
+                Job.id != job.id,
+                Job.project_id == job.project_id,
+                Job.status.in_(("queued", "running")),
+            ).first()
+            project = db.get(Project, job.project_id)
+            if newer_active is None and project is not None and project.status not in ("archived",):
+                project.status = "failed"
         reclaimed += 1
     if reclaimed:
         db.commit()

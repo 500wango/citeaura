@@ -1,4 +1,5 @@
 import base64
+import logging
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,9 +8,9 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import CustomProvider
+from api.models import ApiKey, CustomProvider
 from api.settings import router as settings_router
-from api.settings.crypto import decrypt_key, encrypt_key, key_aad
+from api.settings.crypto import SSO_STATE_AAD, decrypt_key, encrypt_key, key_aad
 
 
 @pytest.fixture()
@@ -35,10 +36,13 @@ def settings_client(tmp_path, monkeypatch):
 
 
 def _headers(client, email):
-    assert client.post(
+    # 注册接口固定返回 202 + accepted（不再泄露邮箱是否已存在，也不返回 user/tenant）。
+    registered = client.post(
         "/api/v1/auth/register",
         json={"email": email, "password": "correct-horse-battery"},
-    ).status_code == 201
+    )
+    assert registered.status_code == 202
+    assert registered.json()["accepted"] is True
     login = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "correct-horse-battery"},
@@ -60,6 +64,10 @@ def test_crypto_round_trip_and_api_key_lifecycle(settings_client):
     )
     assert saved.status_code == 200
     assert saved.json() == {"engine_code": "openai", "masked": "****cret"}
+
+    # 末位掩码随写入落库，列表接口不再为打码而解密。
+    with client.session_factory() as db:
+        assert db.query(ApiKey).one().key_suffix == "cret"
 
     listed = client.get("/api/v1/settings/keys", headers=headers)
     assert listed.status_code == 200
@@ -109,11 +117,64 @@ def test_encrypted_keys_are_bound_to_their_tenant_and_engine(monkeypatch):
         decrypt_key(encrypted, key_aad(1, "deepseek"))
 
 
-def test_legacy_unbound_ciphertext_remains_readable_during_migration(monkeypatch):
+def test_legacy_unbound_ciphertext_remains_readable_during_migration(monkeypatch, caplog):
     monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"0" * 32).decode())
     encrypted = encrypt_key("sk-legacy-secret")
 
-    assert decrypt_key(encrypted, key_aad(1, "openai")) == "sk-legacy-secret"
+    with caplog.at_level(logging.WARNING, logger="api.settings.crypto"):
+        assert decrypt_key(encrypted, key_aad(1, "openai")) == "sk-legacy-secret"
+
+    # AAD 回退是一条需要被看见的退路：必须留下警告，方便运维安排重加密。
+    assert "legacy ciphertext" in caplog.text
+
+
+def test_sso_state_ciphertext_is_bound_to_its_own_aad(monkeypatch):
+    monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"0" * 32).decode())
+    assert SSO_STATE_AAD == b"sso-state"
+    encrypted = encrypt_key("sso-state-payload", SSO_STATE_AAD)
+
+    assert decrypt_key(encrypted, SSO_STATE_AAD) == "sso-state-payload"
+    with pytest.raises(ValueError, match="invalid encrypted API key"):
+        decrypt_key(encrypted, key_aad(1, "openai"))
+
+
+def test_key_list_uses_persisted_suffix_and_backfills_legacy_rows(settings_client):
+    client = settings_client
+    headers = _headers(client, "suffix@example.com")
+    for engine, key in (("openai", "sk-openai-store-1234"), ("deepseek", "sk-legacy-row-9876")):
+        assert client.put(
+            "/api/v1/settings/keys",
+            headers=headers,
+            json={"engine_code": engine, "key_value": key},
+        ).status_code == 200
+
+    with client.session_factory() as db:
+        rows = {row.engine_code: row for row in db.query(ApiKey).all()}
+        assert rows["openai"].key_suffix == "1234"
+        # 模拟历史行：列没有值时列表接口回退解密一次并回填。
+        rows["deepseek"].key_suffix = None
+        db.commit()
+
+    listed = client.get("/api/v1/settings/keys", headers=headers)
+    assert listed.status_code == 200
+    assert {item["engine_code"]: item["masked"] for item in listed.json()["keys"]} == {
+        "openai": "****1234",
+        "deepseek": "****9876",
+    }
+
+    with client.session_factory() as db:
+        legacy = db.query(ApiKey).filter(ApiKey.engine_code == "deepseek").one()
+        assert legacy.key_suffix == "9876"
+        # 回填之后列表不再有解密面：密文不可解也不影响打码结果。
+        legacy.encrypted_value = "not-a-ciphertext"
+        db.commit()
+
+    relisted = client.get("/api/v1/settings/keys", headers=headers)
+    assert relisted.status_code == 200
+    assert {item["engine_code"]: item["masked"] for item in relisted.json()["keys"]} == {
+        "openai": "****1234",
+        "deepseek": "****9876",
+    }
 
 
 def test_keys_are_tenant_isolated(settings_client):
@@ -347,7 +408,11 @@ def test_custom_provider_headers_reject_credentials_and_bad_shapes(settings_clie
         "market": "global",
     }
 
-    for name in ("Authorization", "authorization", "X-Api-Key"):
+    for name in (
+        "Authorization", "authorization", "X-Api-Key",
+        "Proxy-Authorization", "api-key", "apikey", "Cookie",
+        "X-Auth-Token", "X-Goog-Api-Key", "X-Amz-Security-Token",
+    ):
         response = client.put(
             "/api/v1/settings/keys/custom",
             headers=headers,

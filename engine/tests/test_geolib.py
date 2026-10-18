@@ -23,6 +23,11 @@ class TestJsonIO(unittest.TestCase):
             p = Path(d) / "x.json"
             p.write_text("{broken", "utf-8")
             self.assertEqual(G.read_json(p, default={}), {})
+            # 生产实现会把损坏文件改名隔离，避免被后续写入静默覆盖。
+            self.assertFalse(p.exists())
+            quarantined = list(Path(d).glob("x.json.corrupt-*"))
+            self.assertEqual(len(quarantined), 1)
+            self.assertEqual(quarantined[0].read_text("utf-8"), "{broken")
 
     def test_concurrent_json_writes_use_distinct_atomic_temp_files(self):
         with tempfile.TemporaryDirectory() as d:

@@ -40,12 +40,15 @@ def _register(client, email="owner@example.com", tenant_name="tenant-a"):
     registered = client.post(
         "/api/v1/auth/register",
         json={"email": email, "password": "correct-horse-battery", "tenant_name": tenant_name},
-    ).json()
+    )
+    assert registered.status_code == 202
+    assert registered.json()["accepted"] is True
     login = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "correct-horse-battery"},
     ).json()
-    return registered, {"Authorization": f"Bearer {login['access_token']}"}
+    headers = {"Authorization": f"Bearer {login['access_token']}"}
+    return client.get("/api/v1/me", headers=headers).json(), headers
 
 
 def _seed_project(session_factory, tmp_path, tenant_id, tenant_name="tenant-a"):

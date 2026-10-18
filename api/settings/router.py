@@ -26,7 +26,10 @@ from api.settings.crypto import decrypt_key, encrypt_key, key_aad, mask_key
 router = APIRouter(prefix="/api/v1/settings/keys", tags=["settings"])
 SUPPORTED_ENGINE_CODES = frozenset(ENGINE_KEY_ENV)
 HEADER_NAME_PATTERN = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
-RESERVED_HEADER_NAMES = frozenset(("authorization", "x-api-key"))
+RESERVED_HEADER_NAMES = frozenset((
+    "authorization", "proxy-authorization", "x-api-key", "api-key", "apikey",
+    "cookie", "x-auth-token", "x-goog-api-key", "x-amz-security-token",
+))
 MAX_EXTRA_HEADERS = 16
 MAX_EXTRA_HEADERS_LENGTH = 4096
 
@@ -159,7 +162,9 @@ def _test_custom_provider(provider: dict):
     try:
         with with_tenant_context(
             "provider-test",
-            "custom-provider-test",
+            # 伪项目 slug 必须满足 geolib.SLUG_OK（不允许下划线），否则
+            # with_tenant_context 会在发请求之前就抛 invalid project slug。
+            f"custom-provider-test-{str(provider['code']).replace('_', '-')}",
             keys={code: provider["api_key"]},
             custom_providers=[provider],
         ):
@@ -278,6 +283,7 @@ def put_key(payload: KeyPayload, current_user: User = Depends(require_owner), db
         db.add(row)
     else:
         row.encrypted_value = encrypted_value
+    row.key_suffix = payload.key_value[-4:] if len(payload.key_value) > 4 else ""
     db.commit()
     return {"engine_code": payload.engine_code, "masked": mask_key(payload.key_value)}
 
@@ -294,8 +300,14 @@ def list_keys(current_user: User = Depends(get_current_user), db: Session = Depe
     )
     items = []
     for row in rows:
-        # 只在请求内解密用于掩码，响应和日志都不携带明文。
-        items.append({"engine_code": row.engine_code, "masked": mask_key(decrypt_key(row.encrypted_value, key_aad(row.tenant_id, row.engine_code)))})
+        # 列表接口不再为打码而解密：viewer 也能调用，不应该存在解密面。
+        suffix = row.key_suffix
+        if suffix is None:
+            # 历史行未保存掩码：回填一次，之后不再解密。
+            suffix = decrypt_key(row.encrypted_value, key_aad(row.tenant_id, row.engine_code))[-4:]
+            row.key_suffix = suffix
+            db.commit()
+        items.append({"engine_code": row.engine_code, "masked": "****" if not suffix else "****" + suffix})
     return {"keys": items}
 
 

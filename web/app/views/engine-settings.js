@@ -6,6 +6,7 @@ import { settings } from '../api.js';
 import { t, tError, hasCatalogKey } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { samplingModeBadge } from '../components/badge.js';
+import { escapeHtml } from '../safe-html.js';
 import { openModal } from '../components/modal.js';
 
 const AVAILABLE_ENGINES = [
@@ -20,12 +21,6 @@ const AVAILABLE_ENGINES = [
   { code: 'perplexity', name: 'Perplexity', provider: 'Perplexity API' },
   { code: 'deepseek', name: 'DeepSeek', provider: 'DeepSeek Platform' },
 ];
-
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>'"]/g, (char) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
-  })[char]);
-}
 
 function extraHeadersToText(headers) {
   if (!headers || typeof headers !== 'object') return '';
@@ -327,7 +322,7 @@ export default {
             </div>
             <button type="button" id="btn-create-api-token" class="btn btn-secondary btn-sm">${t('engine_settings.create_token_btn', {}, 'Create read-only token')}</button>
           </div>
-          ${apiTokens.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('common.name', {}, 'Name')}</th><th>${t('engine_settings.col_prefix', {}, 'Prefix')}</th><th>${t('common.status', {}, 'Status')}</th><th>${t('engine_settings.col_last_used', {}, 'Last used')}</th><th style="text-align:right;">${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${apiTokens.map((token) => `<tr><td>${escapeHtml(token.name)}</td><td class="num">${escapeHtml(token.prefix)}…</td><td><span class="tag ${token.revoked_at ? 'tag-dim' : 'pill-good'}">${token.revoked_at ? 'Revoked' : 'Active · read only'}</span></td><td class="num">${escapeHtml(token.last_used_at || 'Not used')}</td><td style="text-align:right;">${token.revoked_at ? '' : `<button type="button" class="btn btn-ghost btn-sm btn-revoke-api-token" data-id="${token.id}" style="color:var(--bad);">Revoke</button>`}</td></tr>`).join('')}</tbody></table></div>` : `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('engine_settings.no_tokens', {}, 'No integration tokens created.')}</p>`}
+          ${apiTokens.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('common.name', {}, 'Name')}</th><th>${t('engine_settings.col_prefix', {}, 'Prefix')}</th><th>${t('common.status', {}, 'Status')}</th><th>${t('engine_settings.col_last_used', {}, 'Last used')}</th><th style="text-align:right;">${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${apiTokens.map((token) => `<tr><td>${escapeHtml(token.name)}</td><td class="num">${escapeHtml(token.prefix)}…</td><td><span class="tag ${token.revoked_at ? 'tag-dim' : 'pill-good'}">${token.revoked_at ? 'Revoked' : 'Active · read only'}</span></td><td class="num">${escapeHtml(token.last_used_at || 'Not used')}</td><td style="text-align:right;">${token.revoked_at ? '' : `<button type="button" class="btn btn-ghost btn-sm btn-revoke-api-token" data-id="${escapeHtml(token.id)}" style="color:var(--bad);">Revoke</button>`}</td></tr>`).join('')}</tbody></table></div>` : `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('engine_settings.no_tokens', {}, 'No integration tokens created.')}</p>`}
         </section>
       </div>
     `;

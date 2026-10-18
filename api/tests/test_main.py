@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
 
 from api.main import app
 from api import config, main
@@ -60,6 +61,28 @@ def test_sensitive_session_endpoints_use_auth_rate_limit():
         "/api/v1/team/invitations/accept",
         "/api/v1/sso/callback",
     } <= AUTH_PATHS
+
+
+def test_integrity_errors_map_to_stable_conflicts():
+    """并发建 Job / 建项目撞唯一索引必须稳定返回 409，其它完整性错误仍是 500。"""
+    import asyncio
+    import json
+
+    def response_for(detail):
+        exc = IntegrityError("INSERT INTO jobs ...", {}, Exception(detail))
+        response = asyncio.run(main.integrity_error_handler(None, exc))
+        return response.status_code, json.loads(response.body)
+
+    assert response_for("uq_jobs_project_active") == (
+        409, {"error": "project_job_already_running"},
+    )
+    assert response_for("uq_projects_tenant_slug") == (
+        409, {"error": "project_already_exists"},
+    )
+    # 其他唯一约束不是用户可见的冲突，不能被伪装成 409。
+    assert response_for("uq_api_keys_tenant_engine") == (
+        500, {"error": "database_integrity_error"},
+    )
 
 
 def test_health_is_exempt_and_redis_failure_only_closes_auth_endpoints(monkeypatch):

@@ -4,6 +4,7 @@ import argparse
 import getpass
 import re
 
+from api.admin.audit import record_admin_event
 from api.auth.security import hash_password
 from api.billing.plans import SUBSCRIBABLE_PLANS
 from api.db import SessionLocal
@@ -12,6 +13,8 @@ from datetime import datetime, timezone, timedelta
 
 
 ROLES = ("support", "ops", "finance", "superadmin")
+CURRENT_SUBSCRIPTION_STATUSES = ("active", "trialing", "past_due")
+GRANT_DAYS = 3650
 
 
 def _normalized_email(email):
@@ -37,6 +40,8 @@ def _new_password():
 
 def create_admin(email, role, password=None):
     email = _normalized_email(email)
+    if role not in ROLES:
+        raise ValueError("unsupported admin role")
     password = getpass.getpass("Admin password: ") if password is None else password
     _validated_password(password)
     if password and password == email:
@@ -66,6 +71,10 @@ def reset_admin_password(email, password=None):
             raise ValueError("admin does not exist")
         admin.password_hash = hash_password(password)
         admin.session_version += 1
+        record_admin_event(
+            db, None, "admin.password_reset", f"admin:{admin.id}",
+            details={"email": email, "source": "cli"},
+        )
         db.commit()
 
 
@@ -93,19 +102,34 @@ def grant_plan(email, plan, tenant_id=None):
             raise ValueError(f"multiple owned workspaces; pass --tenant-id ({choices})")
         tenant = tenants[0]
         previous = tenant.plan
+        now = datetime.now(timezone.utc)
+        # uq_subscriptions_tenant_current 只允许一条当前订阅：重复授权（或已付费工作区）
+        # 必须复用该行，否则第二次 grant-plan 会直接撞唯一索引报 IntegrityError。
+        current = db.query(Subscription).filter(
+            Subscription.tenant_id == tenant.id,
+            Subscription.status.in_(CURRENT_SUBSCRIPTION_STATUSES),
+        ).order_by(Subscription.started_at.desc(), Subscription.id.desc()).first()
+        if current is None:
+            db.add(Subscription(
+                tenant_id=tenant.id,
+                plan=plan,
+                status="active",
+                billing_interval="monthly",
+                started_at=now,
+                expires_at=now + timedelta(days=GRANT_DAYS),
+            ))
+        else:
+            current.plan = plan
+            current.status = "active"
+            current.cancel_at_period_end = False
+            current.started_at = now
+            current.expires_at = now + timedelta(days=GRANT_DAYS)
         tenant.plan = plan
         tenant.trial_ends_at = None
-        
-        granted_sub = Subscription(
-            tenant_id=tenant.id,
-            plan=plan,
-            status="active",
-            billing_interval="monthly",
-            started_at=datetime.now(timezone.utc),
-            expires_at=datetime.now(timezone.utc) + timedelta(days=3650),
+        record_admin_event(
+            db, None, "admin.plan_granted", f"tenant:{tenant.id}",
+            details={"from": previous, "to": plan, "email": email, "source": "cli"},
         )
-        db.add(granted_sub)
-        
         db.commit()
         return {"tenant_id": tenant.id, "tenant_name": tenant.name, "previous": previous, "plan": plan}
 

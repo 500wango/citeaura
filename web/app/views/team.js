@@ -69,7 +69,7 @@ export default {
                     <td style="text-align:right;">
                       ${
                         m.role !== 'owner'
-                          ? `<button type="button" class="btn btn-ghost btn-sm btn-remove-member" data-id="${m.user_id || m.id}" style="color:var(--bad);">
+                          ? `<button type="button" class="btn btn-ghost btn-sm btn-remove-member" data-id="${escapeHtml(m.user_id || m.id)}" style="color:var(--bad);">
                               ${t('common.remove', {}, 'Remove')}
                             </button>`
                           : `<span style="font-size:11px;color:var(--muted);">${t('team.workspace_owner', {}, 'Workspace Owner')}</span>`
@@ -111,7 +111,7 @@ export default {
                     <td><span class="tag tag-dim">${escapeHtml(inv.role)}</span></td>
                     <td><span class="tag ${inv.status === 'pending' ? 'tag-accent' : 'tag-dim'}">${escapeHtml(inv.status)}</span></td>
                       <td style="text-align:right;">
-                        <button type="button" class="btn btn-ghost btn-sm btn-revoke-inv" data-id="${inv.id}" style="color:var(--bad);" ${inv.status === 'pending' ? '' : 'disabled'}>
+                        <button type="button" class="btn btn-ghost btn-sm btn-revoke-inv" data-id="${escapeHtml(inv.id)}" style="color:var(--bad);" ${inv.status === 'pending' ? '' : 'disabled'}>
                           ${t('team.revoke', {}, 'Revoke')}
                         </button>
                       </td>

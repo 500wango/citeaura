@@ -673,7 +673,8 @@ def _receipt_platform_label(code, display_names, platforms, config):
 def _sample_modes(project_directory, metrics):
     date = str((metrics or {}).get("run_id") or (metrics or {}).get("date") or "")
     config = geolib.read_json(project_directory / "geo.json", {}) or {}
-    rows = geolib.read_jsonl(project_directory / "samples" / f"{date}.jsonl") if date else []
+    sample_path = global_scope.sample_artifact_path(project_directory / "samples", date) if date else None
+    rows = geolib.read_jsonl(sample_path) if sample_path is not None else []
     by_platform = {}
     for row in rows:
         if not global_scope.is_global_sample(row, config) or not brand_identity.is_current_sample(row, config):

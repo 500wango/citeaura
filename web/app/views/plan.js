@@ -94,7 +94,7 @@ export default {
 
         ${timeline.length ? `<div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Operating timeline</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Advance phases after reviewing evidence and completing the linked work.</p></div><span class="tag tag-dim">${timeline.filter((item) => item.status === 'complete').length}/${timeline.length} complete</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--sp-2);">${timeline.map((item) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(item.label)}</span><strong class="${item.status === 'complete' ? 'pill-good' : item.status === 'active' ? 'pill-warn' : ''}">${escapeHtml(item.status)}</strong></div>`).join('')}</div></div>` : ''}
 
-        <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Plan controls</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Explicitly record the current phase and completed implementation stages.</p></div><button type="button" id="btn-save-visibility-plan" class="btn btn-secondary btn-sm">Save plan</button></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--sp-3);"><label class="field" style="margin:0;"><span>Current phase</span><select id="visibility-phase" class="input">${timeline.map((item) => `<option value="${item.key}" ${visibilityPlan?.plan?.current_phase === item.key ? 'selected' : ''}>${item.label}</option>`).join('')}</select></label><label class="field" style="margin:0;"><span>Next review</span><input id="visibility-review" class="input" type="date" value="${visibilityPlan?.plan?.next_review_at ? String(visibilityPlan.plan.next_review_at).slice(0,10) : ''}"></label></div></div>
+        <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Plan controls</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Explicitly record the current phase and completed implementation stages.</p></div><button type="button" id="btn-save-visibility-plan" class="btn btn-secondary btn-sm">Save plan</button></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--sp-3);"><label class="field" style="margin:0;"><span>Current phase</span><select id="visibility-phase" class="input">${timeline.map((item) => `<option value="${escapeHtml(item.key)}" ${visibilityPlan?.plan?.current_phase === item.key ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select></label><label class="field" style="margin:0;"><span>Next review</span><input id="visibility-review" class="input" type="date" value="${escapeHtml(visibilityPlan?.plan?.next_review_at ? String(visibilityPlan.plan.next_review_at).slice(0,10) : '')}"></label></div></div>
 
         ${currentMode === 'opportunities' ? `<div class="card" style="padding:0;overflow:auto;"><table class="table"><caption class="sr-only">${t('plan.content_opportunities', {}, 'Content opportunities')}</caption><thead><tr><th>${t('questions.col_prompt', {}, 'Question')}</th><th>${t('plan.gap', {}, 'Gap')}</th><th>${t('plan.page_type', {}, 'Page type')}</th><th>${t('plan.evidence', {}, 'Evidence')}</th><th>${t('common.status', {}, 'Status')}</th><th>${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${opportunities.map((item) => `<tr><td>${escapeHtml(item.question)}</td><td>${escapeHtml(item.gap_type || '')}</td><td>${escapeHtml(item.suggested_page_type || '')}</td><td>${Number(item.evidence_count || (item.evidence || []).length)}</td><td>${escapeHtml(item.status || 'unmeasured')}</td><td><button type="button" class="btn btn-secondary btn-sm btn-opportunity-ticket" data-opportunity-id="${escapeHtml(item.id)}">${t('plan.create_ticket_btn', {}, 'Create ticket')}</button></td></tr>`).join('') || `<tr><td colspan="6">${t('channels.unmeasured_run_sample', {}, 'Unmeasured · Run a sample')}</td></tr>`}</tbody></table></div>` : ''}
         ${
@@ -199,7 +199,7 @@ export default {
                           <td><span class="tag ${ticketEffortBand(ticket) === 'low' ? 'pill-good' : 'tag-dim'}">${escapeHtml(ticket.effort || 'M')}</span></td>
                           <td>${statusPill(ticket.status)}</td>
                           <td style="text-align:right;">
-                            <button type="button" class="btn btn-secondary btn-sm btn-edit-ticket" data-tid="${ticket.id}">
+                            <button type="button" class="btn btn-secondary btn-sm btn-edit-ticket" data-tid="${escapeHtml(ticket.id)}">
                               ${t('common.edit', {}, 'Edit')}
                             </button>
                           </td>
@@ -273,7 +273,7 @@ function renderTicketCard(ticket) {
       </div>
       <div class="ticket-item-meta">
         <span class="tag tag-dim" style="font-size:10px;">${escapeHtml(role)}</span>
-        ${ticket.target_page ? `<span class="num" style="max-width:18ch;overflow:hidden;text-overflow:ellipsis;">${ticket.target_page}</span>` : ''}
+        ${ticket.target_page ? `<span class="num" style="max-width:18ch;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(ticket.target_page)}</span>` : ''}
       </div>
       ${action ? `<p style="margin:var(--sp-2) 0 0;color:var(--ink-2);font-size:var(--fs-2);line-height:1.4;"><strong>${t('plan.action_label', {}, 'Action:')}</strong> ${escapeHtml(action)}</p>` : ''}
       ${acceptance ? `<p style="margin:var(--sp-1) 0 0;color:var(--muted);font-size:var(--fs-1);line-height:1.4;"><strong>${t('plan.acceptance_label', {}, 'Acceptance:')}</strong> ${escapeHtml(acceptance)}</p>` : ''}
@@ -340,7 +340,7 @@ async function showTicketDetailModal(projectId, tid, ctx) {
         </div>
         <div class="field" style="margin:0;">
           <label>${t('plan.col_role', {}, 'Role')}</label>
-          <input type="text" class="input" value="${role}" disabled>
+          <input type="text" class="input" value="${escapeHtml(role)}" disabled>
         </div>
       </div>
 

@@ -7,7 +7,7 @@ import re
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from api.adapters.log_translator import translate_engine_log
+from api.adapters.log_translator import redact_secrets, translate_engine_log
 from api.models import Job
 from api.pipeline_catalog import PIPELINE_ACTIONS, RETRYABLE_ACTIONS
 from api.worker.tasks import (
@@ -56,8 +56,8 @@ def job_payload(job: Job, include_log: bool = True, log_offset: int | None = Non
         "can_retry": job.status == "failed" and job.action in RETRYABLE_ACTIONS,
         "started_at": job.started_at,
         "finished_at": job.finished_at,
-        "error": translate_engine_log(job.error) if job.error else None,
-        "log": translate_engine_log(log),
+        "error": redact_secrets(translate_engine_log(job.error)) if job.error else None,
+        "log": redact_secrets(translate_engine_log(log)),
         "log_offset": next_offset,
     }
 
@@ -109,7 +109,8 @@ def safe_request_json(action, params=None):
             if flag in allowed:
                 values[flag] = value
     else:
-        values = params
+        # 未知动作没有参数白名单：宁可不记，也不把用户误传的密钥写进数据库。
+        values = {}
     return json.dumps(values, ensure_ascii=False, default=str)[:10000]
 
 

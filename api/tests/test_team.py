@@ -48,6 +48,13 @@ def _login(client, email, tenant_id=None):
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
+def _me(client, headers):
+    """注册响应不再返回 tenant/user，工作区信息统一从 /me 读取。"""
+    response = client.get("/api/v1/me", headers=headers)
+    assert response.status_code == 200
+    return response.json()
+
+
 def _invite(client, headers, email, role):
     response = client.post(
         "/api/v1/team/invitations",
@@ -61,9 +68,10 @@ def _invite(client, headers, email, role):
 def test_new_user_invitation_registers_directly_into_team_and_never_stores_plain_token(team_client):
     client, session_factory = team_client
     owner = _register(client, "owner@example.com", "tenant-a")
-    assert owner.status_code == 201
-    tenant_id = owner.json()["tenant"]["id"]
+    assert owner.status_code == 202
+    assert owner.json() == {"accepted": True, "audit": None}
     owner_headers = _login(client, "owner@example.com")
+    tenant_id = _me(client, owner_headers)["tenant"]["id"]
 
     created = _invite(client, owner_headers, "editor@example.com", "editor")
     token = created["token"]
@@ -81,9 +89,8 @@ def test_new_user_invitation_registers_directly_into_team_and_never_stores_plain
     assert preview.json()["email"] == "editor@example.com"
 
     registered = _register(client, "editor@example.com", invitation_token=token)
-    assert registered.status_code == 201
-    assert registered.json()["tenant"]["id"] == tenant_id
-    assert registered.json()["role"] == "editor"
+    assert registered.status_code == 202
+    assert registered.json() == {"accepted": True, "audit": None}
     with session_factory() as db:
         assert db.query(Tenant).count() == 1
         editor = db.query(User).filter(User.email == "editor@example.com").one()
@@ -92,6 +99,9 @@ def test_new_user_invitation_registers_directly_into_team_and_never_stores_plain
         assert db.query(TeamInvitation).one().accepted_at is not None
 
     editor_headers = _login(client, "editor@example.com", tenant_id)
+    editor_me = _me(client, editor_headers)
+    assert editor_me["tenant"]["id"] == tenant_id
+    assert editor_me["role"] == "editor"
     assert client.get("/api/v1/team/members", headers=editor_headers).json()["current_role"] == "editor"
     assert client.post(
         "/api/v1/team/invitations",
@@ -107,14 +117,15 @@ def test_new_user_invitation_registers_directly_into_team_and_never_stores_plain
 
 def test_existing_user_accepts_invitation_switches_tenants_and_role_changes_apply_immediately(team_client):
     client, session_factory = team_client
-    owner = _register(client, "owner@example.com", "tenant-a").json()
-    tenant_id = owner["tenant"]["id"]
-    owner_id = owner["user"]["id"]
+    assert _register(client, "owner@example.com", "tenant-a").status_code == 202
     owner_headers = _login(client, "owner@example.com")
+    owner_me = _me(client, owner_headers)
+    tenant_id = owner_me["tenant"]["id"]
+    owner_id = owner_me["user"]["id"]
 
-    existing = _register(client, "member@example.com", "personal").json()
-    personal_tenant_id = existing["tenant"]["id"]
+    assert _register(client, "member@example.com", "personal").status_code == 202
     personal_headers = _login(client, "member@example.com")
+    personal_tenant_id = _me(client, personal_headers)["tenant"]["id"]
     invitation = _invite(client, owner_headers, "member@example.com", "viewer")
 
     accepted = client.post(

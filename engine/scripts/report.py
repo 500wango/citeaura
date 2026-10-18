@@ -621,9 +621,10 @@ def run(slug: str) -> Path:
 
     outdir = pdir / "reports" / G.today()
     outdir.mkdir(parents=True, exist_ok=True)
-    (outdir / "report.md").write_text(md, "utf-8")
-    (outdir / "report.html").write_text(build_html(f"{cfg['brand']['name']} GEO Report {G.today()}", md, cards), "utf-8")
-    (pdir / "reports" / "latest.md").write_text(md, "utf-8")
+    G.write_text_atomic(outdir / "report.md", md)
+    G.write_text_atomic(outdir / "report.html",
+                        build_html(f"{cfg['brand']['name']} GEO Report {G.today()}", md, cards))
+    G.write_text_atomic(pdir / "reports" / "latest.md", md)
     G.write_json(pdir / "todos.json", todos)
 
     # Archive current audit for delta calculation in next run

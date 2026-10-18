@@ -228,9 +228,10 @@ def _funded_engine_context(tenant_id, project_slug, action, job_id=None, allow_p
             diagnostic["runtime_env_present"],
         )
         if job_id is not None:
+            # 租户可见的 job 日志只留结论，诊断细节（DB 指纹/租户 id/环境变量名）只进 logger。
             _task_facade()._append_job_event(
                 _task_facade().job_log_path(tenant_id, project_slug, job_id),
-                "funding resolved " + json.dumps(diagnostic, sort_keys=True, ensure_ascii=True),
+                "funding resolved engines=%s" % ",".join(diagnostic.get("funded_engine_codes") or []),
             )
         _task_facade().ensure_global_engine_scope(project_slug)
         _task_facade()._sync_funded_engine_scope(

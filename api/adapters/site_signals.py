@@ -242,7 +242,7 @@ def validate_project_signals(project_slug):
         return site
     llms = _fetch_result(urljoin(root + "/", "llms.txt"), root, validate_llms_response)
     sitemap = _fetch_result(urljoin(root + "/", "sitemap.xml"), root, validate_sitemap_response)
-    site.update({
+    updates = {
         "has_llms_txt": llms["valid"],
         "has_sitemap": sitemap["valid"],
         "sitemap_url_count": sitemap.get("url_count", 0),
@@ -251,8 +251,13 @@ def validate_project_signals(project_slug):
             "llms_txt": llms,
             "sitemap": sitemap,
         },
-    })
-    geolib.write_json(site_path, site)
+    }
+    # site.json 同时由 crawl/audit 写入，读-改-写必须持项目锁并重新读取磁盘现值。
+    with geolib.project_lock(project_slug):
+        stored = geolib.read_json(site_path, {}) or {}
+        stored.update(updates)
+        geolib.write_json(site_path, stored)
+    site.update(updates)
     return site
 
 

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from celery import current_task
+from redis.exceptions import RedisError
 from sqlalchemy import or_
 
 from api import config
@@ -184,20 +185,37 @@ def _find_job(db, tenant_id, project_slug, action, job_id):
     )
 
 
+TASK_DELIVERY_KEY_PREFIX = "citeaura:task-delivery"
+TASK_DELIVERY_TTL_SECONDS = 7200
+
+
 def _redelivered_task_id():
-    """返回 Celery broker 重投任务的 ID；普通调用返回空值。"""
+    """返回 Celery broker 重投任务的 ID；普通首次投递返回空值。
+
+    Redis broker 不填 request.redelivered / delivery_info["redelivered"]，只用这两个
+    标志会让重投恢复与 MAX_JOB_ATTEMPTS 完全不生效。这里额外用 SETNX 记录首次
+    投递：同一个 task id 第二次进入即视为重投。
+    """
     request = getattr(current_task, "request", None)
     if request is None:
         return None
-    delivery_info = getattr(request, "delivery_info", None) or {}
-    redelivered = bool(
-        getattr(request, "redelivered", False)
-        or delivery_info.get("redelivered", False)
-    )
-    if not redelivered:
-        return None
     value = getattr(request, "id", None)
-    return str(value) if value else None
+    if not value:
+        return None
+    delivery_info = getattr(request, "delivery_info", None) or {}
+    if getattr(request, "redelivered", False) or delivery_info.get("redelivered", False):
+        return str(value)
+    try:
+        first_delivery = locking.redis_client().set(
+            f"{TASK_DELIVERY_KEY_PREFIX}:{value}",
+            1,
+            nx=True,
+            ex=TASK_DELIVERY_TTL_SECONDS,
+        )
+    except (RedisError, AttributeError):
+        # Redis 不可用（或测试替身不提供 SET）时退回 broker 标志语义，避免误判重投。
+        return None
+    return None if first_delivery else str(value)
 
 def _reclaim_stale_jobs(db, now):
     return _job_runtime.reclaim_stale_jobs(db, now)
@@ -520,6 +538,14 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                 except Exception as exc:  # noqa: BLE001
                     delivery_error = f"{type(exc).__name__}: {exc}"
             if delivery_error:
+                if action in ("deliver", "deliverables"):
+                    # 返回值和 task_ignore_result=True 一起会把这个错误丢掉，
+                    # 客户端会看到"成功"但交付包不存在。
+                    raise RuntimeError(f"delivery_contract_failed: {delivery_error}")
+                _append_job_event(
+                    job_log_path(tenant_id, project_slug, job_id) if job_id is not None else None,
+                    f"[citeaura] Delivery contract deferred: {delivery_error}",
+                )
                 if isinstance(result, dict):
                     result = {**result, "delivery_error": delivery_error}
                 else:

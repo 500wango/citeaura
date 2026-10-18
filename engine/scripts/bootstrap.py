@@ -353,10 +353,10 @@ def run(slug: str, skip_llm: bool = False) -> dict:
     fp = G.project_dir(slug) / "content" / "facts.md"
     fp.parent.mkdir(parents=True, exist_ok=True)
     if fp.exists():
-        (fp.parent / f"facts.bootstrap-{G.today()}.md").write_text(render_facts(slug, brand), "utf-8")
+        G.write_text_atomic(fp.parent / f"facts.bootstrap-{G.today()}.md", render_facts(slug, brand))
         G.info("  Existing facts.md found; auto version saved to facts.bootstrap-<date>.md")
     else:
-        fp.write_text(render_facts(slug, brand), "utf-8")
+        G.write_text_atomic(fp, render_facts(slug, brand))
 
     qs = cfg["questions"]
     G.info(f"Complete: Competitors {len(cfg['competitors'])}, Questions {len(qs)} "

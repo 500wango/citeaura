@@ -33,7 +33,8 @@ def test_api_token_is_one_time_and_mcp_is_read_only(tmp_path, monkeypatch):
             "email": "integrations@example.com",
             "password": "correct-horse-battery",
         })
-        assert registered.status_code == 201
+        assert registered.status_code == 202
+        assert registered.json()["accepted"] is True
         jwt_token = client.post("/api/v1/auth/login", json={
             "email": "integrations@example.com",
             "password": "correct-horse-battery",
@@ -72,13 +73,16 @@ def test_public_api_report_and_csv_are_tenant_scoped(tmp_path, monkeypatch):
             "email": "report-api@example.com",
             "password": "correct-horse-battery",
         })
+        assert registered.status_code == 202
+        assert registered.json()["accepted"] is True
         jwt_token = client.post("/api/v1/auth/login", json={
             "email": "report-api@example.com",
             "password": "correct-horse-battery",
         }).json()["access_token"]
         jwt_headers = {"Authorization": f"Bearer {jwt_token}"}
+        me = client.get("/api/v1/me", headers=jwt_headers).json()
         with sessions() as db:
-            tenant = db.query(Tenant).filter(Tenant.id == registered.json()["tenant"]["id"]).one()
+            tenant = db.query(Tenant).filter(Tenant.id == me["tenant"]["id"]).one()
             project = Project(tenant_id=tenant.id, slug="report-example", url="https://report.example", status="ready")
             db.add(project)
             db.flush()

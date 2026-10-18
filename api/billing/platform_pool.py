@@ -279,7 +279,10 @@ def persist_usage_outbox(funding, counts, action, job_id=None, error=None):
             if job_id is not None:
                 event_key = f"job:{int(job_id)}:{code}"
             else:
-                event_key = f"direct:{funding['tenant_id']}:{funding['project_id']}:{action}:{code}:{datetime.now(timezone.utc).timestamp()}"
+                # 幂等键里不能带时间戳：每次重试都会新增一行，重放时重复计费。
+                event_key = (
+                    f"direct:{funding['tenant_id']}:{funding['project_id']}:{action}:{code}"
+                )
             existing = db.query(PlatformUsageOutbox).filter(
                 PlatformUsageOutbox.event_key == event_key,
             ).first()

@@ -54,7 +54,7 @@ def test_country_attribution_requires_trusted_cloudflare_proxy(admin_client, mon
     client = admin_client
     payload = {"email": "first@example.com", "password": "correct-horse-battery", "tenant_name": "first"}
     untrusted = client.post("/api/v1/auth/register", headers={"CF-IPCountry": "US"}, json=payload)
-    assert untrusted.status_code == 201
+    assert untrusted.status_code == 202
     with client.session_factory() as db:
         first = db.query(User).filter(User.email == payload["email"]).one()
         first_tenant = db.query(Tenant).filter(Tenant.name == "first").one()
@@ -67,7 +67,7 @@ def test_country_attribution_requires_trusted_cloudflare_proxy(admin_client, mon
         headers={"CF-IPCountry": "de"},
         json={"email": "second@example.com", "password": "correct-horse-battery", "tenant_name": "second"},
     )
-    assert trusted.status_code == 201
+    assert trusted.status_code == 202
     with client.session_factory() as db:
         second = db.query(User).filter(User.email == "second@example.com").one()
         tenant = db.query(Tenant).filter(Tenant.name == "second").one()
@@ -97,7 +97,7 @@ def test_admin_password_session_is_separate_from_tenant_session(admin_client):
         "/api/v1/auth/register",
         json={"email": "owner@example.com", "password": "correct-horse-battery"},
     )
-    assert registered.status_code == 201
+    assert registered.status_code == 202
     login = client.post(
         "/api/v1/auth/login",
         json={"email": "owner@example.com", "password": "correct-horse-battery"},
@@ -147,7 +147,7 @@ def test_plan_can_be_granted_to_owned_workspace_from_cli(admin_client, monkeypat
         "/api/v1/auth/register",
         json={"email": "test-plan@example.com", "password": "correct-horse-battery"},
     )
-    assert registered.status_code == 201
+    assert registered.status_code == 202
 
     result = admin_cli.grant_plan(" TEST-PLAN@EXAMPLE.COM ", "PRO")
 
@@ -247,12 +247,15 @@ def test_overview_country_funnel_and_usd_mrr(admin_client):
 
 def test_ops_status_change_revokes_user_session_and_is_audited(admin_client):
     client = admin_client
-    registered = client.post(
+    assert client.post(
         "/api/v1/auth/register",
         json={"email": "disable@example.com", "password": "correct-horse-battery"},
-    ).json()
-    user_id = registered["user"]["id"]
-    tenant_id = registered["tenant"]["id"]
+    ).status_code == 202
+    # 注册响应不再返回 user/tenant，直接从数据库读取。
+    with client.session_factory() as db:
+        registered_user = db.query(User).filter(User.email == "disable@example.com").one()
+        user_id = registered_user.id
+        tenant_id = db.query(Membership).filter(Membership.user_id == user_id).one().tenant_id
     login = client.post(
         "/api/v1/auth/login",
         json={"email": "disable@example.com", "password": "correct-horse-battery"},

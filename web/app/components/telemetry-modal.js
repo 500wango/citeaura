@@ -3,7 +3,7 @@
  */
 
 import { projects } from '../api.js';
-import { setSafeHtml } from '../safe-html.js';
+import { setSafeHtml, escapeHtml } from '../safe-html.js';
 import { t, translateText } from '../i18n.js';
 import { toast } from './toast.js';
 
@@ -73,10 +73,6 @@ function formatElapsed(seconds) {
 
 function translateLogLine(text) {
   return translateText(String(text || ''));
-}
-
-function escapeHtml(value) {
-  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function parseLogLine(raw) {

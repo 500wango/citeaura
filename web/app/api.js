@@ -10,6 +10,7 @@ export function onAuthFailure(callback) {
 }
 
 let refreshPromise = null;
+const DEFAULT_TIMEOUT_MS = 30000;
 
 async function refreshSession() {
   if (!refreshPromise) {
@@ -50,6 +51,9 @@ async function request(endpoint, options = {}) {
   const authRetried = options._authRetried === true;
   const requestOptions = { ...options };
   delete requestOptions._authRetried;
+  const requestedTimeout = Number(requestOptions.timeoutMs);
+  const timeoutMs = Number.isFinite(requestedTimeout) && requestedTimeout > 0 ? requestedTimeout : DEFAULT_TIMEOUT_MS;
+  delete requestOptions.timeoutMs;
   const headers = {
     Accept: 'application/json',
     'X-CiteAura-Session': 'cookie',
@@ -61,18 +65,25 @@ async function request(endpoint, options = {}) {
     requestOptions.body = JSON.stringify(requestOptions.body);
   }
 
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
   const fetchOptions = {
     credentials: 'include',
     ...requestOptions,
     headers,
   };
+  if (controller) fetchOptions.signal = controller.signal;
+  const timeoutTimer = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
 
   let res;
   try {
     res = await fetch(url, fetchOptions);
   } catch (netErr) {
-    const errorObj = { error: 'network_error', detail: netErr.message, status: 0 };
-    throw errorObj;
+    if (controller && controller.signal.aborted) {
+      throw { error: 'network_timeout', detail: `Request timed out after ${timeoutMs}ms`, status: 0 };
+    }
+    throw { error: 'network_error', detail: netErr && netErr.message, status: 0 };
+  } finally {
+    if (timeoutTimer !== null) window.clearTimeout(timeoutTimer);
   }
 
   //  401 
@@ -97,12 +108,31 @@ async function request(endpoint, options = {}) {
   }
 
   if (!res.ok) {
-    const errorKey = (data && data.error) || (data && data.detail) || 'request_failed';
-    const detail = (data && data.detail) || (typeof data === 'string' ? data : '');
+    const errorObj = data && typeof data === 'object' ? data : {};
+    const rawDetail = errorObj.detail;
+    let detail = '';
+    if (Array.isArray(rawDetail)) {
+      // FastAPI validation errors: [{ loc: [...], msg: '...' }, ...]
+      detail = rawDetail
+        .map((item) => (item && typeof item === 'object'
+          ? (typeof item.msg === 'string' ? item.msg : '')
+          : String(item ?? '')))
+        .filter(Boolean)
+        .join('; ');
+      if (!detail) detail = 'Validation failed';
+    } else if (typeof rawDetail === 'string') {
+      detail = rawDetail;
+    } else if (rawDetail !== undefined && rawDetail !== null) {
+      detail = JSON.stringify(rawDetail);
+    } else if (typeof data === 'string') {
+      detail = data;
+    }
+    const explicitError = typeof errorObj.error === 'string' && errorObj.error ? errorObj.error : '';
+    const stringDetailError = typeof rawDetail === 'string' && rawDetail ? rawDetail : '';
     throw {
       status: res.status,
-      error: typeof errorKey === 'string' ? errorKey : 'request_failed',
-      detail: typeof detail === 'string' ? detail : JSON.stringify(detail),
+      error: explicitError || stringDetailError || 'request_failed',
+      detail,
       data,
     };
   }

@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import tempfile
+import uuid
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
@@ -223,7 +224,8 @@ def _safe_target(base: Path, relative: str, suffixes=None) -> Path:
 
 def _write_text(path: Path, text: str):
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
+    # 临时文件名必须包含 uuid：只用 pid 时，同一进程内的两个写者会互踩同一临时文件。
+    temporary = path.with_suffix(path.suffix + f".{os.getpid()}.{uuid.uuid4().hex}.tmp")
     temporary.write_text(text, "utf-8")
     os.replace(temporary, path)
 

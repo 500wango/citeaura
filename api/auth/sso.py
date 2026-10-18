@@ -20,9 +20,9 @@ from api.auth.router import token_response
 from api.auth.security import create_sso_state, decode_token, hash_password
 from api.country import request_country_code
 from api.db import get_db
-from api.models import AuditEvent, Membership, SsoConfiguration, Tenant, User
+from api.models import AuditEvent, Membership, SsoConfiguration, SsoIdentity, Tenant, User
 from api.product_events import record_product_event
-from api.settings.crypto import decrypt_key, encrypt_key
+from api.settings.crypto import SSO_STATE_AAD, decrypt_key, encrypt_key
 
 
 router = APIRouter(prefix="/api/v1/sso", tags=["sso"])
@@ -154,10 +154,12 @@ def save_sso_config(
         configuration = SsoConfiguration(tenant_id=tenant.id)
         db.add(configuration)
     configuration.provider_name = payload.provider_name
+    issuer_changed = configuration.issuer_url != payload.issuer_url or configuration.client_id != payload.client_id
     configuration.issuer_url = payload.issuer_url
     configuration.client_id = payload.client_id
     configuration.allowed_domains = json.dumps(payload.allowed_domains, ensure_ascii=True)
-    existing_verified = set(_verified_domains(configuration))
+    # 换 IdP 必须重新做 DNS 验证：否则一个已证明过的域名可以被指向任意旁路 IdP。
+    existing_verified = set() if issuer_changed else set(_verified_domains(configuration))
     configuration.verified_domains = json.dumps(sorted(existing_verified.intersection(payload.allowed_domains)), ensure_ascii=True)
     configuration.default_role = payload.default_role
     configuration.enabled = payload.enabled
@@ -199,6 +201,20 @@ def delete_sso_config(current_user: User = Depends(require_owner), db: Session =
     return {"deleted": True}
 
 
+def _email_domain(email):
+    return str(email or "").rsplit("@", 1)[-1].strip().lower()
+
+
+def _domain_is_verified(configuration, email):
+    """只判断**本次登录邮箱所属的域**是否已验证。
+
+    以前用集合差（allowed - verified），只要配置里多一个尚未验证的域，所有
+    已有域的登录都会被 409 挡住。
+    """
+    domain = _email_domain(email)
+    return bool(domain) and domain in set(_verified_domains(configuration))
+
+
 @router.get("/login/{tenant_id}")
 def start_sso_login(tenant_id: int, response: Response, db: Session = Depends(get_db)):
     tenant = _tenant(db, tenant_id)
@@ -207,13 +223,16 @@ def start_sso_login(tenant_id: int, response: Response, db: Session = Depends(ge
     configuration = db.get(SsoConfiguration, tenant.id)
     if tenant.plan != "enterprise" or configuration is None or not configuration.enabled:
         _error(status.HTTP_404_NOT_FOUND, "sso_not_configured")
-    if config.sso_require_domain_verification() and set(_domains(configuration)) - set(_verified_domains(configuration)):
+    if config.sso_require_domain_verification() and not (
+        set(_domains(configuration)) & set(_verified_domains(configuration))
+    ):
+        # 发起登录时还不知道邮箱：只要至少有一个已通过的域就允许进入 IdP。
         _error(status.HTTP_409_CONFLICT, "sso_domains_unverified")
     state = create_sso_state(tenant.id)
     redirect_uri = f"{config.public_base_url()}/api/v1/sso/callback"
     try:
         authorization_url, context = oidc.authorization_request(configuration, redirect_uri, state)
-        encrypted_context = encrypt_key(json.dumps(context, separators=(",", ":")))
+        encrypted_context = encrypt_key(json.dumps(context, separators=(",", ":")), SSO_STATE_AAD)
     except (oidc.OidcError, RuntimeError, ValueError) as exc:
         _error(status.HTTP_502_BAD_GATEWAY, str(exc))
     redirect = RedirectResponse(authorization_url, status_code=status.HTTP_303_SEE_OTHER)
@@ -239,7 +258,7 @@ def sso_callback(
     if not encrypted_context:
         _error(status.HTTP_400_BAD_REQUEST, "sso_context_invalid")
     try:
-        context = json.loads(decrypt_key(encrypted_context))
+        context = json.loads(decrypt_key(encrypted_context, SSO_STATE_AAD))
         if not hmac.compare_digest(str(context.get("state") or ""), state):
             raise ValueError("state mismatch")
         claims = decode_token(state, expected_type="sso_state")
@@ -250,8 +269,6 @@ def sso_callback(
     configuration = db.get(SsoConfiguration, tenant.id)
     if tenant.plan != "enterprise" or configuration is None or not configuration.enabled:
         _error(status.HTTP_404_NOT_FOUND, "sso_not_configured")
-    if config.sso_require_domain_verification() and set(_domains(configuration)) - set(_verified_domains(configuration)):
-        _error(status.HTTP_409_CONFLICT, "sso_domains_unverified")
     redirect_uri = f"{config.public_base_url()}/api/v1/sso/callback"
     try:
         identity = oidc.complete_login(configuration, redirect_uri, code, context)
@@ -272,32 +289,62 @@ def sso_callback(
         )
         db.commit()
         _error(status.HTTP_403_FORBIDDEN, "sso_domain_not_allowed")
-    user = db.query(User).filter(User.email == email).first()
-    if user is None:
-        if set(_domains(configuration)) - set(_verified_domains(configuration)):
-            _error(status.HTTP_403_FORBIDDEN, "sso_domain_verification_required_for_provisioning")
-        country_code = request_country_code(request)
-        user = User(
-            email=email,
-            password_hash=hash_password(secrets.token_urlsafe(48)),
-            registration_kind="sso",
-            signup_country_code=country_code,
-        )
-        db.add(user)
-        db.flush()
-        record_product_event(
-            db,
-            "signup_completed",
+    if config.sso_require_domain_verification() and not _domain_is_verified(configuration, email):
+        _error(status.HTTP_409_CONFLICT, "sso_domains_unverified")
+    issuer = str(configuration.issuer_url or "").strip()
+    subject = str(identity["subject"])
+    binding = db.query(SsoIdentity).filter(
+        SsoIdentity.tenant_id == tenant.id,
+        SsoIdentity.issuer == issuer,
+        SsoIdentity.subject == subject,
+    ).first()
+    if binding is not None:
+        user = db.get(User, binding.user_id)
+        if user is None or user.status != "active":
+            _error(status.HTTP_403_FORBIDDEN, "sso_identity_not_bound")
+        if db.get(Membership, {"tenant_id": tenant.id, "user_id": user.id}) is None:
+            _error(status.HTTP_403_FORBIDDEN, "sso_identity_not_bound")
+        binding.last_login_at = datetime.now(timezone.utc)
+    else:
+        user = db.query(User).filter(User.email == email).first()
+        if user is None:
+            if not _domain_is_verified(configuration, email):
+                _error(status.HTTP_403_FORBIDDEN, "sso_domain_verification_required_for_provisioning")
+            country_code = request_country_code(request)
+            user = User(
+                email=email,
+                password_hash=hash_password(secrets.token_urlsafe(48)),
+                registration_kind="sso",
+                signup_country_code=country_code,
+            )
+            db.add(user)
+            db.flush()
+            record_product_event(
+                db,
+                "signup_completed",
+                tenant_id=tenant.id,
+                user_id=user.id,
+                country_code=country_code,
+                properties={"registration_kind": "sso"},
+            )
+        elif user.status != "active":
+            _error(status.HTTP_403_FORBIDDEN, "account_disabled")
+        else:
+            # 已有全局身份：只有该用户在这个租户下还没被任何 IdP 绑定时才允许首次绑定。
+            # 之后一律以 (issuer, subject) 为准，不再用 email 断言身份。
+            conflicting = db.query(SsoIdentity.id).filter(
+                SsoIdentity.user_id == user.id,
+                SsoIdentity.tenant_id == tenant.id,
+            ).first()
+            if conflicting is not None or db.get(Membership, {"tenant_id": tenant.id, "user_id": user.id}) is None:
+                _error(status.HTTP_403_FORBIDDEN, "sso_identity_not_bound")
+        db.add(SsoIdentity(
             tenant_id=tenant.id,
+            issuer=issuer,
+            subject=subject,
             user_id=user.id,
-            country_code=country_code,
-            properties={"registration_kind": "sso"},
-        )
-    elif user.status != "active":
-        _error(status.HTTP_403_FORBIDDEN, "account_disabled")
-    elif db.get(Membership, {"tenant_id": tenant.id, "user_id": user.id}) is None:
-        # Never silently attach an existing global identity to a new tenant.
-        _error(status.HTTP_403_FORBIDDEN, "sso_identity_not_bound")
+            last_login_at=datetime.now(timezone.utc),
+        ))
     membership = db.get(Membership, {"tenant_id": tenant.id, "user_id": user.id})
     if membership is None:
         membership = Membership(tenant_id=tenant.id, user_id=user.id, role=configuration.default_role)
@@ -306,11 +353,11 @@ def sso_callback(
     record_event(
         db, tenant.id, "sso.login", f"sso:{configuration.provider_name}",
         user_id=user.id, ip_address=request.client.host if request.client else None,
-        details={"subject": identity["subject"]},
+        details={"subject": subject, "issuer": issuer},
     )
     db.commit()
     redirect = RedirectResponse(url="/app#overview", status_code=status.HTTP_303_SEE_OTHER)
-    token_response(redirect, user.id, tenant.id, db, expose_tokens=False)
+    token_response(redirect, user.id, tenant.id, db, expose_tokens=False, sso_tenant_id=tenant.id)
     redirect.delete_cookie(SSO_CONTEXT_COOKIE)
     return redirect
 

@@ -45,13 +45,19 @@ def _register_login(client, email="owner@example.com", tenant_name="enterprise-t
         "/api/v1/auth/register",
         json={"email": email, "password": "correct-horse-battery", "tenant_name": tenant_name},
     )
-    assert registered.status_code == 201
+    # 注册响应故意只返回 accepted：状态码/响应体都不能泄露邮箱是否已注册。
+    assert registered.status_code == 202
+    assert registered.json() == {"accepted": True, "audit": None}
     logged_in = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "correct-horse-battery"},
     )
     assert logged_in.status_code == 200
-    return registered.json(), {"Authorization": f"Bearer {logged_in.json()['access_token']}"}
+    headers = {"Authorization": f"Bearer {logged_in.json()['access_token']}"}
+    # 注册响应不再返回 tenant，工作区信息统一从 /me 读取。
+    current = client.get("/api/v1/me", headers=headers)
+    assert current.status_code == 200
+    return current.json(), headers
 
 
 def _config_payload(**updates):

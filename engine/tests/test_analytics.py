@@ -93,6 +93,29 @@ class TestHealthCite(Base):
         self.assertEqual(rows[0]["platform"], "unknown")
 
 
+class TestHealthCohort(Base):
+    """health() 现在带上样本群信息，避免脱离样本量的过度解读。"""
+
+    def test_health_reports_sample_size_platforms_and_modes(self):
+        self.make_project()
+        rows = [row(platform="p1", mentioned=True), row(platform="p2")]
+        for item in rows:
+            item["sample_mode"] = "api"
+        h = A.health("demo", None, [], rows)
+        self.assertEqual(h["n"], 2)
+        self.assertEqual(h["platforms"], ["p1", "p2"])
+        self.assertEqual(h["sample_modes"], ["api"])
+        self.assertTrue(h["insufficient"])
+        self.assertEqual(h["score"], 50.0)
+
+    def test_health_is_not_insufficient_at_the_sample_threshold(self):
+        self.make_project()
+        rows = [row(platform="p1") for _ in range(A.MIN_HEALTH_SAMPLES)]
+        h = A.health("demo", None, [], rows)
+        self.assertEqual(h["n"], A.MIN_HEALTH_SAMPLES)
+        self.assertFalse(h["insufficient"])
+
+
 class TestVerdict(Base):
     def test_single_platform_no_best_claim(self):
         self.make_project()

@@ -5,6 +5,7 @@
 import { auth } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -30,7 +31,7 @@ export default {
                 <span class="brand-word" style="font-size:var(--fs-6);">CiteAura</span>
               </a>
               <h1 class="auth-title" style="color:var(--bad);">${t('auth.invalid_invite_title', {}, 'Invalid Invitation')}</h1>
-              <p class="auth-subtitle">${loadError || t('auth.invalid_invite_desc', {}, 'This invitation link is missing or no longer valid.')}</p>
+              <p class="auth-subtitle">${escapeHtml(loadError || t('auth.invalid_invite_desc', {}, 'This invitation link is missing or no longer valid.'))}</p>
             </div>
             <div class="auth-footer">
               <a href="#/login" class="btn btn-secondary btn-block">${t('auth.back_to_login', {}, 'Back to Sign In')}</a>
@@ -50,16 +51,16 @@ export default {
             </a>
             <h1 class="auth-title">${t('auth.join_team_title', {}, 'Join Team Workspace')}</h1>
             <p class="auth-subtitle">
-              ${t('auth.invited_to_join', { tenant: preview.tenant?.name || 'Organization', role: preview.role || 'Member' }, `You have been invited to join ${preview.tenant?.name || 'Organization'} as ${preview.role || 'Member'}.`)}
+              ${t('auth.invited_to_join', { tenant: escapeHtml(preview.tenant?.name || 'Organization'), role: escapeHtml(preview.role || 'Member') }, `You have been invited to join ${escapeHtml(preview.tenant?.name || 'Organization')} as ${escapeHtml(preview.role || 'Member')}.`)}
             </p>
           </div>
 
           <form id="invite-form" style="display:flex;flex-direction:column;gap:var(--sp-4);">
-            <input type="hidden" id="invite-token" value="${token}">
+            <input type="hidden" id="invite-token" value="${escapeHtml(token)}">
 
             <div class="field" style="margin:0;">
               <label>${t('auth.email', {}, 'Email')}</label>
-              <input type="email" id="invite-email" class="input" value="${preview.email || ''}" disabled>
+              <input type="email" id="invite-email" class="input" value="${escapeHtml(preview.email || '')}" disabled>
             </div>
 
             <div class="field" style="margin:0;">

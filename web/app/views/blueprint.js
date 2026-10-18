@@ -38,7 +38,7 @@ export default {
                   <tr>
                     <td>${escapeHtml(channel.priority || '')}</td>
                     <td><strong>${escapeHtml(channel.name || channel.id)}</strong></td>
-                    <td>${channel.covered ? t('blueprint.status_covered', {}, 'Covered') : (channel.coverage_status || t('blueprint.status_gap', {}, 'Gap'))}</td>
+                    <td>${escapeHtml(channel.covered ? t('blueprint.status_covered', {}, 'Covered') : (channel.coverage_status || t('blueprint.status_gap', {}, 'Gap')))}</td>
                     <td>${escapeHtml(channel.why || '')}</td>
                   </tr>
                 `).join('')}

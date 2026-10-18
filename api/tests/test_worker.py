@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
+from api.adapters import locking
 from api.db import Base
 from api.models import Job, Project, Subscription, Tenant
 from api.worker import tasks
@@ -895,6 +896,8 @@ def test_job_status_uses_short_database_sessions(tmp_path, monkeypatch):
         assert job.status == "done"
         assert job.stage == "complete"
         assert job.progress == 100
+        # 认领时必须写入心跳，否则回收器无法区分“慢但活着”与“worker 已死”。
+        assert job.heartbeat_at is not None
 
 
 def test_job_status_reclaims_matching_broker_redelivery(tmp_path, monkeypatch):
@@ -950,6 +953,68 @@ def test_redelivered_task_id_reads_celery_delivery_info(monkeypatch):
     monkeypatch.setattr(tasks, "current_task", types.SimpleNamespace(request=request))
 
     assert tasks._redelivered_task_id() == "broker-task-id"
+
+
+def test_redelivered_task_id_detects_repeat_delivery_through_redis_setnx(project_lock_redis, monkeypatch):
+    """Redis broker 不填 redelivered 标志，只能靠 SETNX 判定重投。"""
+    request = types.SimpleNamespace(id="repeat-task-id", delivery_info={})
+    monkeypatch.setattr(tasks, "current_task", types.SimpleNamespace(request=request))
+
+    assert tasks._redelivered_task_id() is None
+    assert tasks._redelivered_task_id() == "repeat-task-id"
+    # TTL 必须存在，否则首次投递记录永不过期，长跑的 task id 复用会被误判。
+    assert "citeaura:task-delivery:repeat-task-id" in project_lock_redis.delivery
+
+
+def test_redelivered_task_id_falls_back_to_broker_flags_without_redis_set(monkeypatch):
+    """Redis 替身（或旧客户端）没有 SET 时不能误判为重投。"""
+
+    class NoSetRedis:
+        pass
+
+    monkeypatch.setattr(locking, "redis_client", lambda: NoSetRedis())
+    request = types.SimpleNamespace(id="plain-task-id", delivery_info={})
+    monkeypatch.setattr(tasks, "current_task", types.SimpleNamespace(request=request))
+
+    assert tasks._redelivered_task_id() is None
+
+
+def test_job_status_progress_updates_heartbeat(tmp_path, monkeypatch):
+    """进度回调必须推进 heartbeat_at，否则长任务的 Job 会被回收器误杀。"""
+    engine = create_engine(f"sqlite:///{tmp_path / 'heartbeat.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with session_factory() as db:
+        tenant = Tenant(name="tenant-a", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="example",
+            url="https://example.com",
+            market="both",
+            status="sampling",
+        )
+        db.add(project)
+        db.flush()
+        job = Job(project_id=project.id, action="sample", status="queued")
+        db.add(job)
+        db.commit()
+        job_id = job.id
+
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(tasks, "job_log_path", lambda *args: tmp_path / "logs" / "heartbeat.log")
+
+    with tasks._job_status("tenant-a", "example", "sample", job_id) as update:
+        # 认领已经写过心跳；这里把它压回旧值，验证进度回调会重新推进。
+        with session_factory() as db:
+            db.get(Job, job_id).heartbeat_at = datetime(2021, 1, 1)
+            db.commit()
+        update("sampling", 40)
+        with session_factory() as db:
+            job = db.get(Job, job_id)
+            assert job.stage == "sampling"
+            assert job.heartbeat_at > datetime(2021, 1, 1)
 
 
 def test_job_status_marks_failure_when_log_directory_is_not_writable(tmp_path, monkeypatch):
@@ -1058,7 +1123,13 @@ def test_reclaim_stale_jobs_releases_queued_job_lost_by_broker(tmp_path):
         assert db.get(Project, project_id).status == "failed"
 
 
-def test_reclaim_stale_jobs_keeps_queued_job_with_celery_delivery_id(tmp_path):
+def test_reclaim_stale_jobs_reclaims_queued_job_even_with_celery_delivery_id(tmp_path):
+    """派发后已回写 celery_task_id 的 queued Job 也必须回收。
+
+    broker 丢消息时 Job 会带着 celery_task_id 永远停在 queued，而
+    uq_jobs_project_active 会让该项目之后任何新任务插入失败，retry 又要求
+    status="failed"，用户侧无法自救；因此 queued 不再因为回了 task id 就被跳过。
+    """
     engine = create_engine(f"sqlite:///{tmp_path / 'reclaim-inflight.sqlite'}")
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -1085,10 +1156,53 @@ def test_reclaim_stale_jobs_keeps_queued_job_with_celery_delivery_id(tmp_path):
         )
         db.add(job)
         db.commit()
+        job_id, project_id = job.id, project.id
+
+        assert tasks._reclaim_stale_jobs(db, now) == 1
+
+    with session_factory() as db:
+        assert db.get(Job, job_id).status == "failed"
+        assert db.get(Job, job_id).stage == "failed"
+        assert db.get(Job, job_id).error == "worker_lost_or_timeout"
+        assert db.get(Project, project_id).status == "failed"
+
+
+def test_reclaim_stale_jobs_keeps_job_with_fresh_heartbeat(tmp_path):
+    """心跳新鲜说明 worker 还活着：started_at 再旧也不能回收。"""
+    engine = create_engine(f"sqlite:///{tmp_path / 'reclaim-heartbeat.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    now = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    with session_factory() as db:
+        tenant = Tenant(name="reclaim-heartbeat-tenant", plan="pro")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="reclaim-heartbeat",
+            url="https://reclaim-heartbeat.example",
+            status="processing",
+        )
+        db.add(project)
+        db.flush()
+        job = Job(
+            project_id=project.id,
+            action="sample",
+            status="running",
+            stage="sampling",
+            created_at=now - timedelta(hours=4),
+            started_at=now - timedelta(hours=3),
+            heartbeat_at=now - timedelta(seconds=60),
+        )
+        db.add(job)
+        db.commit()
+        job_id, project_id = job.id, project.id
 
         assert tasks._reclaim_stale_jobs(db, now) == 0
-        assert db.get(Job, job.id).status == "queued"
-        assert db.get(Project, project.id).status == "processing"
+
+    with session_factory() as db:
+        assert db.get(Job, job_id).status == "running"
+        assert db.get(Project, project_id).status == "processing"
 
 
 def test_schedule_dispatcher_enqueues_due_projects_and_respects_guards(tmp_path, monkeypatch):

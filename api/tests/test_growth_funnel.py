@@ -145,7 +145,8 @@ def test_public_audit_handoff_is_accepted_during_registration(growth_client):
             "acquisition_campaign": "seo-guide",
         },
     )
-    assert response.status_code == 201
+    assert response.status_code == 202
+    assert response.json()["accepted"] is True
     assert response.json()["audit"]["audit_id"] == audit["audit_id"]
     with sessions() as db:
         event = db.query(ProductEvent).filter(ProductEvent.name == "signup_attribution").one()

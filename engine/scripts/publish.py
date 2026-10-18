@@ -172,21 +172,31 @@ def _pub_wechat(cfg, text, title, fname):
     thumb = cfg.get("thumb_media_id", "")
     if not thumb:
         return {"ok": False, "error": "Configure a permanent cover thumb_media_id first"}
-    tr = requests.get("https://api.weixin.qq.com/cgi-bin/token",
-                      params={"grant_type": "client_credential",
-                              "appid": os.environ["WECHAT_APPID"],
-                              "secret": os.environ["WECHAT_APPSECRET"]}, timeout=30).json()
-    tok = tr.get("access_token")
+    # 协议不变（secret/token 仍走查询串），但异常信息可能带整条 URL，
+    # 这里只回稳定错误码，绝不把 URL 或密钥写进返回值。
+    try:
+        tr = requests.get("https://api.weixin.qq.com/cgi-bin/token",
+                          params={"grant_type": "client_credential",
+                                  "appid": os.environ["WECHAT_APPID"],
+                                  "secret": os.environ["WECHAT_APPSECRET"]}, timeout=30).json()
+    except (requests.RequestException, ValueError, KeyError):
+        return {"ok": False, "error": "wechat_token_request_failed"}
+    tok = tr.get("access_token") if isinstance(tr, dict) else None
     if not tok:
-        return {"ok": False, "error": f"Token request failed: {tr.get('errmsg', tr)}"}
+        code = tr.get("errcode") if isinstance(tr, dict) else None
+        return {"ok": False, "error": f"wechat_token_unavailable:errcode={code}"}
     art = {"title": title[:60], "content": md2html(text), "thumb_media_id": thumb,
            "digest": re.sub(r"\s+", " ", text)[:100]}
-    r = requests.post(f"https://api.weixin.qq.com/cgi-bin/draft/add?access_token={tok}",
-                      data=json.dumps({"articles": [art]}, ensure_ascii=False).encode(),
-                      timeout=30).json()
-    if r.get("media_id"):
+    try:
+        r = requests.post(f"https://api.weixin.qq.com/cgi-bin/draft/add?access_token={tok}",
+                          data=json.dumps({"articles": [art]}, ensure_ascii=False).encode(),
+                          timeout=30).json()
+    except (requests.RequestException, ValueError):
+        return {"ok": False, "error": "wechat_draft_request_failed"}
+    if isinstance(r, dict) and r.get("media_id"):
         return {"ok": True, "url": "", "note": "Draft created; preview and distribute it in WeChat"}
-    return {"ok": False, "error": f"draft/add failed: {r.get('errmsg', r)}"}
+    code = r.get("errcode") if isinstance(r, dict) else None
+    return {"ok": False, "error": f"wechat_draft_unavailable:errcode={code}"}
 
 
 def _pub_webhook(cfg, text, title, fname):

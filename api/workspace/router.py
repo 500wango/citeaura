@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from api.adapters.engine import with_tenant_read_context
+from api.adapters.engine import with_tenant_context, with_tenant_read_context
 from api.adapters.exceptions import GeoEngineError
 from api.adapters import prompt_research, sampling_modes, workspace
 from api.adapters.preflight import PreflightError, normalize_url
@@ -112,7 +112,12 @@ def _tenant_project(db: Session, user: User, project_id: int):
     tenant = db.get(Tenant, user.tenant_id)
     if tenant is None:
         _error(status.HTTP_403_FORBIDDEN, "no_tenant_membership")
-    project = db.query(Project).filter(Project.id == project_id, Project.tenant_id == tenant.id, Project.archived_at.is_(None)).first()
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.tenant_id == tenant.id,
+        Project.archived_at.is_(None),
+        Project.status != "archived",
+    ).first()
     if project is None:
         _error(status.HTTP_404_NOT_FOUND, "project_not_found")
     return tenant, project
@@ -129,7 +134,13 @@ def _ensure_idle(db: Session, project: Project):
 
 def _call(db, user, project_id, function, *args, write=False):
     tenant, project = _tenant_project(db, user, project_id)
-    context = with_tenant_read_context(tenant, project.slug)
+    # write=True 必须走 with_tenant_context：它才会开 protect_network_fetches()
+    # 和 process_state_lock；用读上下文跑写操作等于绕过出站 URL 守卫。
+    context = (
+        with_tenant_context(tenant.directory_slug, project.slug)
+        if write
+        else with_tenant_read_context(tenant, project.slug)
+    )
     try:
         with context:
             return function(project.slug, *args)

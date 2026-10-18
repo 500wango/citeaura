@@ -34,6 +34,7 @@ class MemoryRedis:
         self.guards = {}
         self.created = []
         self.values = {}
+        self.delivery = {}
         self.values_lock = threading.Lock()
 
     def lock(self, name, **options):
@@ -46,6 +47,14 @@ class MemoryRedis:
         with self.values_lock:
             self.values[key] = self.values.get(key, 0) + 1
             return self.values[key]
+
+    def set(self, name, value, nx=False, ex=None):
+        """模拟 SET NX：首次投递返回 True，重复投递返回 None。"""
+        with self.values_lock:
+            if nx and name in self.delivery:
+                return None
+            self.delivery[name] = value
+            return True
 
 
 @pytest.fixture(autouse=True)

@@ -9,7 +9,7 @@ export function renderTable({ columns = [], data = [], emptyText = 'No items fou
   if (!data || !data.length) {
     return `
       <div class="card" style="padding:var(--sp-8);text-align:center;color:var(--muted);font-size:var(--fs-2);">
-        ${emptyText}
+        ${escapeHtml(emptyText)}
       </div>
     `;
   }

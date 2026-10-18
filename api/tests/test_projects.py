@@ -17,7 +17,7 @@ from api.db import Base, get_db
 from api.main import app
 from api.models import CustomProvider, Job, Project, PublicAudit, Tenant
 from api.projects import router as project_router
-from api.projects import lifecycle_routes
+from api.projects import lifecycle_routes, sampling_routes
 from api.adapters import engine as engine_adapter, sampling_control
 from api.adapters.network import validate_outbound_url as real_validate_outbound_url
 from api.settings.crypto import encrypt_key, key_aad
@@ -50,7 +50,9 @@ def _register(client, email):
         "/api/v1/auth/register",
         json={"email": email, "password": "correct-horse-battery"},
     )
-    assert registered.status_code == 201
+    # 注册接口故意只回 accepted（防止邮箱枚举），状态码统一 202 且不再回传 user/tenant。
+    assert registered.status_code == 202
+    assert registered.json()["accepted"] is True
     login = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "correct-horse-battery"},
@@ -666,6 +668,9 @@ def test_pipeline_actions_are_whitelisted_and_project_serialized(project_client,
     assert started.json()["action"] == "audit"
     assert queued[0][0][:3] == ("owner", "example-com", "audit")
     assert queued[0][1]["params"] == {"ignored": "value"}
+    with session_factory() as db:
+        # request_json 只保存动作白名单内的参数：audit 不接受任何参数。
+        assert db.get(Job, started.json()["job_id"]).request_json == "{}"
 
     actions = client.get("/api/v1/projects/actions", headers=headers)
     assert actions.status_code == 200

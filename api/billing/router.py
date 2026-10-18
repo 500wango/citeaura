@@ -2,6 +2,7 @@
 
 import calendar
 import hashlib
+import logging
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
@@ -27,6 +28,7 @@ from api.product_events import record_product_event
 
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
+logger = logging.getLogger(__name__)
 
 
 def _require_billing_enabled():
@@ -113,6 +115,27 @@ def _payment_amount(plan, billing_interval):
     return price["cny"] * 100
 
 
+def _invoice_period_end(value, current=None):
+    """返回发票覆盖周期的结束时间；只允许单调前进，绝不倒退。"""
+    candidates = [value.get("period_end")]
+    lines = value.get("lines") if isinstance(value.get("lines"), dict) else {}
+    for line in lines.get("data") or []:
+        period = line.get("period") if isinstance(line, dict) else None
+        if isinstance(period, dict):
+            candidates.append(period.get("end"))
+    period_end = None
+    for candidate in candidates:
+        parsed = _optional_timestamp(None, candidate)
+        if parsed is not None and (period_end is None or parsed > period_end):
+            period_end = parsed
+    if period_end is None:
+        return current
+    if current is None:
+        return period_end
+    current_utc = current if current.tzinfo else current.replace(tzinfo=timezone.utc)
+    return period_end if period_end > current_utc else current_utc
+
+
 def _stripe_id(value):
     if isinstance(value, dict):
         return value.get("id")
@@ -148,8 +171,11 @@ def _stale_provider_event(row, incoming_created):
     return incoming_created <= stored_created
 
 
-def _subscription_row(db, provider_subscription_id=None, checkout_session_id=None):
+def _subscription_row(db, provider_subscription_id=None, checkout_session_id=None, lock=False):
     query = db.query(Subscription)
+    if lock:
+        # 并发 webhook 必须串行读取同一订阅，否则两条事件会互相覆写状态。
+        query = query.with_for_update()
     if provider_subscription_id:
         row = query.filter(Subscription.provider_subscription_id == provider_subscription_id).first()
         if row is not None:
@@ -196,6 +222,10 @@ def _activate_checkout(db, value, event_created=None):
     except (TypeError, ValueError):
         amount_total = -1
     if value.get("currency") != config.stripe_currency() or amount_total != expected_amount:
+        logger.error(
+            "stripe checkout amount rejected session=%s currency=%s amount_total=%s expected=%s",
+            value.get("id"), value.get("currency"), amount_total, expected_amount,
+        )
         raise stripe_adapter.StripeError("stripe_amount_mismatch")
     tenant = db.get(Tenant, tenant_id)
     if tenant is None or str(value.get("client_reference_id")) != str(tenant_id):
@@ -203,7 +233,7 @@ def _activate_checkout(db, value, event_created=None):
     provider_subscription_id = _stripe_id(value.get("subscription"))
     if not provider_subscription_id:
         raise stripe_adapter.StripeError("stripe_subscription_missing")
-    row = _subscription_row(db, provider_subscription_id, value.get("id"))
+    row = _subscription_row(db, provider_subscription_id, value.get("id"), lock=True)
     incoming_created = _optional_timestamp(event_created, value.get("created"))
     if row is not None:
         if row.tenant_id != tenant.id:
@@ -274,7 +304,7 @@ def _sync_tenant_plan(db, tenant_id):
 
 def _update_subscription(db, value, deleted=False, event_created=None):
     provider_subscription_id = value.get("id")
-    row = _subscription_row(db, provider_subscription_id)
+    row = _subscription_row(db, provider_subscription_id, lock=True)
     if row is None:
         try:
             tenant_id, plan_code, billing_interval, plan = _validated_selection(value)
@@ -343,7 +373,7 @@ def _update_invoice_status(db, value, paid, event_created=None):
     details = parent.get("subscription_details") if isinstance(parent.get("subscription_details"), dict) else {}
     if not provider_subscription_id:
         provider_subscription_id = _stripe_id(details.get("subscription"))
-    row = _subscription_row(db, provider_subscription_id)
+    row = _subscription_row(db, provider_subscription_id, lock=True)
     if row is None:
         metadata = details.get("metadata") if isinstance(details.get("metadata"), dict) else value.get("metadata")
         try:
@@ -358,10 +388,18 @@ def _update_invoice_status(db, value, paid, event_created=None):
         try:
             plan = _plan(plan_code)
         except (StopIteration, KeyError):
+            logger.error(
+                "stripe invoice for unknown plan=%s subscription=%s",
+                plan_code, provider_subscription_id,
+            )
             return False
     incoming_created = _optional_timestamp(event_created, value.get("created"))
     stale = row is not None and _stale_provider_event(row, incoming_created)
     if stale and paid and row.status in ("canceled", "unpaid"):
+        logger.warning(
+            "stripe stale invoice.paid ignored subscription=%s status=%s",
+            provider_subscription_id, row.status,
+        )
         return False
     if paid:
         try:
@@ -370,29 +408,46 @@ def _update_invoice_status(db, value, paid, event_created=None):
             amount_paid = -1
         expected_amount = _payment_amount(plan, billing_interval)
         if row is not None:
-            expected_amount = (
+            stored_amount = (
                 row.amount_usd_cents
                 if config.stripe_currency() == "usd"
                 else row.amount_cny_fen
             )
-        is_proration = str(value.get("billing_reason") or "").lower() in (
-            "subscription_update", "subscription_create",
-        ) and value.get("amount_paid") is not None
+            # 历史行的金额列可能为 NULL（只经过 customer.subscription.updated 的行）：
+            # 这时必须回退到目录价，否则这张订阅的每一张发票都会被永久拒绝。
+            if stored_amount is not None:
+                expected_amount = stored_amount
+        # 只有升降级的按比例账单才允许金额与目录价不一致；首期账单必须严格对平。
+        is_proration = (
+            str(value.get("billing_reason") or "").lower() == "subscription_update"
+            and value.get("amount_paid") is not None
+        )
         if (
             str(value.get("currency") or "").lower() != config.stripe_currency()
             or expected_amount is None
             or amount_paid <= 0
             or (not is_proration and amount_paid != expected_amount)
         ):
-            return False
+            # 以前这里静默 return False：事件被登记为已处理、Stripe 不再重试、
+            # 也没有任何日志 —— 付了钱的租户就这样丢掉了权限。
+            logger.error(
+                "stripe invoice amount rejected subscription=%s currency=%s amount_paid=%s "
+                "expected=%s proration=%s",
+                provider_subscription_id, value.get("currency"), amount_paid,
+                expected_amount, is_proration,
+            )
+            raise stripe_adapter.StripeError("stripe_invoice_amount_mismatch")
     if row is None:
+        # 先以 incomplete 落库：active/trialing/past_due 受
+        # uq_subscriptions_tenant_current 约束，先写 active 会在“同期已有订阅”时
+        # 直接撞唯一索引（500），而那条保护分支永远走不到。
         row = Subscription(
             tenant_id=tenant_id,
             plan=plan_code,
             billing_interval=billing_interval,
             amount_cny_fen=plan["prices"][billing_interval]["cny"] * 100,
             amount_usd_cents=plan["prices"][billing_interval]["usd"] * 100,
-            status="active" if paid else "past_due",
+            status="incomplete",
             provider="stripe",
             provider_customer_id=_stripe_id(value.get("customer")),
             provider_subscription_id=provider_subscription_id,
@@ -402,17 +457,44 @@ def _update_invoice_status(db, value, paid, event_created=None):
         db.add(row)
         db.flush()
     if paid and row.status in ("canceled", "unpaid"):
-        return False
+        # 钱已经收到：必须记账，并按本期是否覆盖恢复权限，而不是把事件丢掉。
+        logger.warning(
+            "stripe invoice.paid for %s subscription %s; restoring access",
+            row.status, provider_subscription_id,
+        )
+        if not stale:
+            if _other_current_subscription(db, row.tenant_id, row) is not None:
+                # 同期已有当前订阅：恢复就会撞 uq_subscriptions_tenant_current。
+                # 款项仍交给调用方记账，权限保持不变。
+                logger.error(
+                    "stripe invoice.paid for %s subscription %s但同期已有当前订阅；仅记账不恢复权限",
+                    row.status, provider_subscription_id,
+                )
+                return row
+            row.status = "active"
+            if incoming_created is not None:
+                row.provider_event_created_at = incoming_created
+            row.expires_at = _invoice_period_end(value, row.expires_at)
+            db.flush()
+            _sync_tenant_plan(db, row.tenant_id)
+        return row
     if stale:
         return row
     next_status = "active" if paid else "past_due"
     if _other_current_subscription(db, row.tenant_id, row) is not None:
+        logger.error(
+            "stripe duplicate current subscription tenant=%s subscription=%s; payment recorded only",
+            row.tenant_id, provider_subscription_id,
+        )
         row.status = "incomplete"
         if incoming_created is not None:
             row.provider_event_created_at = incoming_created
         db.flush()
-        return False
+        return row
     row.status = next_status
+    if paid:
+        # 续费发票必须把本地到期时间往前推，否则续费成功的租户会在周期末被判过期。
+        row.expires_at = _invoice_period_end(value, row.expires_at)
     if incoming_created is not None:
         row.provider_event_created_at = incoming_created
     db.flush()
@@ -470,6 +552,7 @@ def _record_refund_transaction(db, event, value):
         PaymentTransaction.status == "succeeded",
     ).order_by(PaymentTransaction.id.desc()).first()
     if source is None:
+        logger.error("stripe refund without matching payment invoice=%s event=%s", invoice_id, event.get("id"))
         return False
     currency = str(value.get("currency") or source.currency or "").strip().lower()
     try:
@@ -544,6 +627,7 @@ def _process_stripe_event(db, event):
         return bool(row)
     if event_type == "charge.refunded":
         return _record_refund_transaction(db, event, value)
+    logger.info("stripe event ignored type=%s id=%s", event_type, event.get("id"))
     return False
 
 
@@ -889,6 +973,10 @@ async def stripe_webhook(
         processed = _process_stripe_event(db, event)
     except stripe_adapter.StripeError as exc:
         db.rollback()
+        logger.warning(
+            "stripe event rejected type=%s id=%s reason=%s",
+            event["type"], event["id"], exc,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": str(exc)},
@@ -916,12 +1004,28 @@ async def stripe_webhook(
             BillingEvent.provider == "stripe",
             BillingEvent.event_id == event["id"],
         ).first()
-        if duplicate is None:
-            raise
-        return {"received": True, "duplicate": True, "processed": False}
+        if duplicate is not None:
+            return {"received": True, "duplicate": True, "processed": False}
+        # 也可能是并发事件撞上了 notification_key 唯一索引（同一张发票的
+        # checkout.session.completed 与 invoice.paid）：这同样属于"已处理过"，
+        # 不能抛 500 把事件丢掉。
+        if notification_key and db.query(BillingEvent.id).filter(
+            BillingEvent.provider == "stripe",
+            BillingEvent.notification_key == notification_key,
+        ).first() is not None:
+            logger.info(
+                "stripe event %s deduplicated by notification key %s",
+                event["id"], notification_key,
+            )
+            return {"received": True, "duplicate": True, "processed": False}
+        raise
     if payment_email is not None:
         background_tasks.add_task(
             transactional_email.send_payment_success_email_safe,
             **payment_email,
         )
+    logger.info(
+        "stripe event handled type=%s id=%s processed=%s",
+        event["type"], event["id"], processed,
+    )
     return {"received": True, "duplicate": False, "processed": processed}

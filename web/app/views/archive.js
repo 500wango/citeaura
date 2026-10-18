@@ -62,12 +62,12 @@ export default {
                     .map(
                       (a) => `
                     <tr>
-                      <td><span class="num" style="font-weight:700;">${a.id}</span></td>
-                      <td>${a.note || 'Manual snapshot'}</td>
+                      <td><span class="num" style="font-weight:700;">${escapeHtml(a.id)}</span></td>
+                      <td>${escapeHtml(a.note || 'Manual snapshot')}</td>
                       <td class="num">${a.file_count || '—'}</td>
                       <td class="num">${new Date(a.created_at).toLocaleString()}</td>
                       <td style="text-align:right;">
-                        <button type="button" class="btn btn-secondary btn-sm btn-restore-snap" data-id="${a.id}">
+                        <button type="button" class="btn btn-secondary btn-sm btn-restore-snap" data-id="${escapeHtml(a.id)}">
                           ${t('archive.restore_btn', {}, 'Restore')}
                         </button>
                       </td>
@@ -137,7 +137,7 @@ export default {
                 ${escapeHtml(t('archive.restore_warning', { id: snapId }, `Warning: Restoring this snapshot will overwrite current project workspace files with data from ${snapId}.`))}
               </div>
               <div class="field" style="margin-top:var(--sp-2);">
-                <label>${t('archive.restore_type_label', { phrase: `RESTORE ${snapId}` }, `Type RESTORE ${snapId} to confirm:`)}</label>
+                <label>${escapeHtml(t('archive.restore_type_label', { phrase: `RESTORE ${snapId}` }, `Type RESTORE ${snapId} to confirm:`))}</label>
                 <input type="text" id="confirm-restore-text" class="input" placeholder="RESTORE ${escapeHtml(snapId)}">
               </div>
             </div>

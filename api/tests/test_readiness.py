@@ -50,7 +50,10 @@ def test_readiness_requires_all_production_dependencies(monkeypatch):
 
 def test_readiness_requires_latest_migration():
     migrations = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
-    assert readiness.EXPECTED_DB_REVISION == migrations.get_current_head()
+    assert readiness.EXPECTED_DB_REVISION == migrations.get_current_head(), (
+        "readiness.EXPECTED_DB_REVISION 必须随每个新迁移一起升级；"
+        "否则按 FIXES.md 第 0 步迁移到 head 之后，/api/v1/health/ready 会一直返回 503"
+    )
 
 
 def test_readiness_reports_failed_dependency_without_secret_details(monkeypatch):

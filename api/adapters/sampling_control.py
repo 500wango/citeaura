@@ -174,8 +174,13 @@ def _limit_state(usage, reservations, added_calls, added_cost, call_limit, cost_
 
 def _lock_platform_pool_budget(db):
     """用事务级全局锁串行化 PostgreSQL 的平台池额度预留。"""
-    if db.get_bind().dialect.name == "postgresql":
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
         db.execute(text("SELECT pg_advisory_xact_lock(274911)"))
+    elif dialect != "sqlite" and app_config.production_proxy_mode():
+        # 未知方言下无法保证跨项目的全局额度串行，生产环境必须失败关闭，
+        # 否则全局上限会在并发预留时被突破。
+        raise SamplingBudgetExceeded("platform_pool_budget_lock_unavailable", {"reason": dialect})
 
 
 def release_reservation(job):

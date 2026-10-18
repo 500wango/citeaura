@@ -22,8 +22,26 @@ class OutreachError(RuntimeError):
     pass
 
 
+SENDING_LEASE_SECONDS = 900
+
+
 def _now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _sending_lease_active(draft, now=None):
+    """sending 状态是否仍在租约内；worker 崩溃后超租约即可重试。"""
+    stamp = draft.get("sending_at")
+    if not stamp:
+        return False
+    try:
+        claimed_at = datetime.fromisoformat(str(stamp))
+    except (TypeError, ValueError):
+        return False
+    if claimed_at.tzinfo is None:
+        claimed_at = claimed_at.replace(tzinfo=timezone.utc)
+    current = now or datetime.now(timezone.utc)
+    return (current - claimed_at).total_seconds() < SENDING_LEASE_SECONDS
 
 
 def _state_path(project_slug):
@@ -208,14 +226,25 @@ def claim_for_sending(project_slug, draft_id):
         draft = _draft(state, draft_id)
         if draft is None:
             raise OutreachError("outreach_draft_not_found")
-        if draft.get("status") != "queued":
+        status = draft.get("status")
+        if status == "sending":
+            # worker 在 claim 之后崩溃时草稿会永久停在 sending，永远不再被发送。
+            if _sending_lease_active(draft):
+                raise OutreachError("outreach_draft_already_sending")
+            draft["error"] = "send_unknown_after_lease"
+        elif status != "queued":
             raise OutreachError("outreach_draft_not_queued")
         if (
             draft.get("confirmed_revision") != draft.get("revision")
             or draft.get("confirmed_content_hash") != _content_hash(draft)
         ):
             raise OutreachError("outreach_confirmation_stale")
-        draft.update({"status": "sending", "updated_at": _now()})
+        draft.update({
+            "status": "sending",
+            "sending_at": _now(),
+            "send_attempts": int(draft.get("send_attempts") or 0) + 1,
+            "updated_at": _now(),
+        })
         _write(project_slug, state)
         return dict(draft)
 

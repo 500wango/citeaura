@@ -7,6 +7,7 @@ import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
+import { escapeHtml } from '../safe-html.js';
 
 let draftState = [];
 
@@ -50,7 +51,7 @@ export default {
           </div>
         </div>
 
-        <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Off-site entity & attribution</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${attribution.attribution?.caveat || 'External source data is not configured.'}</p></div><span class="tag tag-dim">${attribution.status || 'not_configured'}</span></div><div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(attribution.next_steps || []).map((step) => `<span class="tag tag-neutral">${step}</span>`).join('')}</div></div>
+        <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Off-site entity & attribution</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${escapeHtml(attribution.attribution?.caveat || 'External source data is not configured.')}</p></div><span class="tag tag-dim">${escapeHtml(attribution.status || 'not_configured')}</span></div><div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(attribution.next_steps || []).map((step) => `<span class="tag tag-neutral">${escapeHtml(step)}</span>`).join('')}</div></div>
 
         <!-- Outreach Drafts List -->
         <div class="card" style="padding:0;overflow:hidden;">
@@ -77,11 +78,11 @@ export default {
                     .map(
                       (d) => `
                     <tr>
-                      <td><strong class="num">${d.recipient_email}</strong></td>
-                      <td>${d.subject}</td>
-                      <td><span class="tag ${d.status === 'sent' ? 'pill-good' : 'tag-dim'}">${d.status || 'draft'}</span></td>
+                      <td><strong class="num">${escapeHtml(d.recipient_email)}</strong></td>
+                      <td>${escapeHtml(d.subject)}</td>
+                      <td><span class="tag ${d.status === 'sent' ? 'pill-good' : 'tag-dim'}">${escapeHtml(d.status || 'draft')}</span></td>
                       <td style="text-align:right;">
-                        <button type="button" class="btn btn-primary btn-sm btn-send-draft" data-id="${d.id}" ${['draft', 'failed'].includes(d.status) ? '' : 'disabled'}>
+                        <button type="button" class="btn btn-primary btn-sm btn-send-draft" data-id="${escapeHtml(d.id)}" ${['draft', 'failed'].includes(d.status) ? '' : 'disabled'}>
                           ${t('outreach.review_send', {}, 'Review & Send')}
                         </button>
                       </td>
@@ -125,7 +126,7 @@ export default {
             <div class="field" style="margin:0;">
               <label>${t('outreach.offsite_ticket_label', {}, 'Offsite Ticket')}</label>
               <select id="outreach-ticket" class="input">
-                ${offsiteTickets.map((ticket) => `<option value="${ticket.id}">${ticket.ask_text || ticket.title || ticket.id}</option>`).join('')}
+                ${offsiteTickets.map((ticket) => `<option value="${escapeHtml(ticket.id)}">${escapeHtml(ticket.ask_text || ticket.title || ticket.id)}</option>`).join('')}
               </select>
             </div>
             <div class="field" style="margin:0;">
@@ -223,15 +224,15 @@ export default {
             </div>
             <div>
               <span style="font-size:12px;color:var(--muted);">${t('outreach.recipient_label', {}, 'Recipient')}:</span>
-              <strong style="display:block;font-size:var(--fs-3);">${rec}</strong>
+              <strong style="display:block;font-size:var(--fs-3);">${escapeHtml(rec)}</strong>
             </div>
             <div>
               <span style="font-size:12px;color:var(--muted);">${t('outreach.subject_label', {}, 'Subject')}:</span>
-              <div style="font-size:var(--fs-2);font-weight:600;">${sub}</div>
+              <div style="font-size:var(--fs-2);font-weight:600;">${escapeHtml(sub)}</div>
             </div>
             <div class="field" style="margin-top:var(--sp-2);">
-              <label>${t('archive.restore_type_label', { phrase: `SEND ${draftId}` }, `Type SEND ${draftId} to confirm dispatch:`)}</label>
-              <input type="text" id="confirm-send-text" class="input" placeholder="SEND ${draftId}">
+              <label>${escapeHtml(t('archive.restore_type_label', { phrase: `SEND ${draftId}` }, `Type SEND ${draftId} to confirm dispatch:`))}</label>
+              <input type="text" id="confirm-send-text" class="input" placeholder="SEND ${escapeHtml(draftId)}">
             </div>
           </div>
         `;

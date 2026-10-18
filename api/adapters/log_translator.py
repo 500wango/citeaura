@@ -46,6 +46,33 @@ def _translate_manual_input(match):
     return "Needs manual input: " + "; ".join(normalized)
 
 
+SECRET_PATTERNS = (
+    re.compile(r"(?i)(authorization\s*[:=]\s*)(?:bearer\s+)?[A-Za-z0-9._\-]{8,}"),
+    re.compile(r"\b(?:sk|rk|pk)-[A-Za-z0-9_\-]{8,}"),
+    re.compile(r"\bAIza[0-9A-Za-z_\-]{20,}"),
+    re.compile(r"\bca_[A-Za-z0-9_\-]{20,}"),
+    re.compile(
+        r"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password"
+        r"|client[_-]?secret|x-api-key|appsecret|aes_key|jwt_secret)"
+        r"(\s*[:=]\s*)[\"']?[^\s&\"',;]{4,}"
+    ),
+    re.compile(r"(?i)([?&](?:key|api_key|access_token|secret|token|appsecret)=)[^\s&\"']{4,}"),
+)
+
+
+def redact_secrets(log_text) -> str:
+    """抹掉日志/错误文本里的凭据，供租户可见的 job 载荷使用。"""
+    if not log_text:
+        return ""
+    result = str(log_text)
+    for pattern in SECRET_PATTERNS:
+        if pattern.groups >= 2:
+            result = pattern.sub(lambda m: f"{m.group(1)}{m.group(2)}***", result)
+        else:
+            result = pattern.sub("***", result)
+    return result
+
+
 def translate_engine_log(log_text: str) -> str:
     """Translate Chinese engine log output into English."""
     if not log_text:

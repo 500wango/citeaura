@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from api import config
 from api.adapters import brand_identity
 from api.adapters.engine import geolib
-from api.adapters.global_scope import is_global_sample
+from api.adapters.global_scope import is_global_sample, sample_artifact_path
 from api.adapters.sampling_modes import MODE_API, MODE_MANUAL, MODE_SEARCH, for_provider, for_row
 
 
@@ -356,7 +356,7 @@ def _run_rows(project_slug, run_id=None):
     directory = geolib.project_dir(project_slug)
     sample_directory = directory / "samples"
     if run_id:
-        path = sample_directory / f"{run_id}.jsonl"
+        path = sample_artifact_path(sample_directory, run_id)
     else:
         files = sorted(sample_directory.glob("*.jsonl")) if sample_directory.exists() else []
         path = files[-1] if files else None
@@ -890,14 +890,16 @@ def record_sampling(
 
     metrics_files = sorted((geolib.project_dir(project_slug) / "metrics").glob("*.json"))
     if metrics_files:
-        metrics = geolib.read_json(metrics_files[-1], {}) or {}
-        manifest["run_id"] = metrics.get("run_id")
-        manifest["cohort_id"] = metrics.get("cohort_id")
-        manifest["engine_question_set_id"] = metrics.get("question_set_id")
-        geolib.write_json(manifest_path, manifest)
-        metrics["provenance"] = manifest
-        metrics["question_set_version"] = qset["version"]
-        metrics["sample_summary"] = _sample_summary(project_slug)
-        metrics["sampling_receipt"] = receipt
-        geolib.write_json(metrics_files[-1], metrics)
+        # 最新 metrics 是读-改-写产物，必须与 Worker/归一化共用同一把项目锁。
+        with geolib.project_lock(project_slug):
+            metrics = geolib.read_json(metrics_files[-1], {}) or {}
+            manifest["run_id"] = metrics.get("run_id")
+            manifest["cohort_id"] = metrics.get("cohort_id")
+            manifest["engine_question_set_id"] = metrics.get("question_set_id")
+            geolib.write_json(manifest_path, manifest)
+            metrics["provenance"] = manifest
+            metrics["question_set_version"] = qset["version"]
+            metrics["sample_summary"] = _sample_summary(project_slug)
+            metrics["sampling_receipt"] = receipt
+            geolib.write_json(metrics_files[-1], metrics)
     return manifest

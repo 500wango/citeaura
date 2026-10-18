@@ -58,6 +58,26 @@ def _measurement_sufficient(metrics: dict) -> bool:
     return sum(int(item.get("samples") or 0) for item in rows) >= 20 and len(rows) >= 2
 
 
+# metrics 文件能用来对账的审计/运行标识（历史版本命名不同，逐个比对）。
+COHORT_ID_FIELDS = ("audit_run_id", "audit_id", "slug")
+
+
+def _metrics_cohort(metrics: dict, audit: dict) -> str:
+    """判断选中的 metrics 是否属于当前审计：verified / mismatched / unverified。"""
+    metrics = metrics or {}
+    audit = audit or {}
+    shared = False
+    for key in COHORT_ID_FIELDS:
+        want = str(audit.get(key) or "").strip()
+        have = str(metrics.get(key) or "").strip()
+        if not want or not have:
+            continue
+        shared = True
+        if want != have:
+            return "mismatched"
+    return "verified" if shared else "unverified"
+
+
 def _evidence_history(task: dict) -> list:
     """Normalize legacy verification evidence before appending a new entry."""
     value = task.get("evidence")
@@ -250,6 +270,12 @@ def run(slug: str, recrawl: bool = True) -> dict:
     audit = G.read_json(pdir / "audit.json", {})
     files = sorted((pdir / "metrics").glob("*.json")) if (pdir / "metrics").exists() else []
     metrics = G.read_json(files[-1], None) if files else None
+    # 只使用属于本次审计的指标；对不上就按未测处理，不静默复用旧文件。
+    metrics_cohort = _metrics_cohort(metrics, audit)
+    if metrics_cohort == "mismatched":
+        G.info(f"Warning: metrics file {files[-1].name} does not belong to the current audit; "
+               "the measurement is indeterminate")
+        metrics = None
 
     results, changed = [], 0
     with G.project_lock(slug):
@@ -288,6 +314,7 @@ def run(slug: str, recrawl: bool = True) -> dict:
         "slug": slug, "verified_at": G.now_iso(),
         "audit_avg_score": audit.get("avg_score"),
         "metrics_date": metrics.get("date") if metrics else None,
+        "metrics_cohort": metrics_cohort,
         "changed": changed,
         "summary": data["summary"],
         "results": results,

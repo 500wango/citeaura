@@ -138,6 +138,7 @@ def filter_tickets(tickets, *, status=None, owner=None, priority=None, query=Non
 def record_verification(project_slug, report):
     """把验收结果写入工单时间线，并为未达标项补可执行下一步。"""
     import tasks as engine_tasks
+    import verify as engine_verify
 
     with geolib.project_lock(project_slug):
         data = engine_tasks.load(project_slug)
@@ -150,7 +151,18 @@ def record_verification(project_slug, report):
             result["failure_evidence"] = result.get("note") if failed else None
             result["next_action"] = ticket.get("action") if failed else None
             result["acceptance"] = ticket.get("acceptance")
-            ticket.setdefault("activity", []).append({
+            history = ticket.setdefault("activity", [])
+            # 同一个 report 被重放（重试/重投）时不能重复写入时间线。
+            replayed = any(
+                isinstance(entry, dict)
+                and entry.get("type") == "verification"
+                and entry.get("at") == now
+                and entry.get("verdict") == result.get("verdict")
+                for entry in history
+            )
+            if replayed:
+                continue
+            history.append({
                 "at": now,
                 "actor": "system",
                 "type": "verification",
@@ -160,10 +172,13 @@ def record_verification(project_slug, report):
                 "status_to": result.get("now"),
                 "next_action": result.get("next_action"),
             })
-            ticket["activity"] = ticket["activity"][-100:]
+            ticket["activity"] = history[-100:]
         engine_tasks.save(project_slug, data)
         verify_directory = geolib.project_dir(project_slug) / "verify"
-        files = sorted(verify_directory.glob("*.json")) if verify_directory.exists() else []
+        files = (
+            sorted(verify_directory.glob("*.json"), key=engine_verify.report_key)
+            if verify_directory.exists() else []
+        )
         if files:
             geolib.write_json(files[-1], report)
     return report

@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from api.adapters import locking, regression_alerts, sampling_control
 from api.adapters.engine import job_log_path, tenant_slug
+from api.adapters.log_translator import redact_secrets
 from api.billing.access import sync_tenant_plan
 from api.billing.limits import check_product_access
 from api.models import Job, Project, Tenant
@@ -96,6 +97,7 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
             Job.stage: "preparing",
             Job.progress: max(int(job.progress or 0), 5),
             Job.started_at: datetime.now(timezone.utc),
+            Job.heartbeat_at: datetime.now(timezone.utc),
             Job.error: None,
         }, synchronize_session=False)
         if claimed != 1:
@@ -122,6 +124,8 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                     return None
                 job.stage = str(stage)[:64]
                 job.progress = max(int(job.progress or 0), max(0, min(99, int(progress))))
+                # 心跳：回收器据此区分"慢但活着"与"worker 已死"。
+                job.heartbeat_at = datetime.now(timezone.utc)
                 return job.stage, job.progress
 
             try:
@@ -140,7 +144,7 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
             with _task_facade()._capture_task_output(log_path):
                 yield update
     except BaseException as exc:
-        error_message = f"{type(exc).__name__}: {exc}"
+        error_message = redact_secrets(f"{type(exc).__name__}: {exc}")
         _task_facade()._append_job_event(log_path, f"{action} failed: {error_message}")
         if tracked_job_id is not None:
             def mark_failed(db):

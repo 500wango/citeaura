@@ -45,12 +45,14 @@ def _register(client, email, tenant_name):
         "/api/v1/auth/register",
         json={"email": email, "password": "correct-horse-battery", "tenant_name": tenant_name},
     )
-    assert registered.status_code == 201
+    assert registered.status_code == 202
+    assert registered.json()["accepted"] is True
     login = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "correct-horse-battery"},
     )
-    return registered.json()["tenant"]["id"], {"Authorization": f"Bearer {login.json()['access_token']}"}
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    return client.get("/api/v1/me", headers=headers).json()["tenant"]["id"], headers
 
 
 def _project(session_factory, tenant_id):

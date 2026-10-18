@@ -133,7 +133,7 @@ export default {
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--sp-3);">
             <div style="display:flex;align-items:center;gap:var(--sp-3);">
               <span class="tag tag-accent" style="font-size:var(--fs-3);padding:var(--sp-1) var(--sp-3);text-transform:uppercase;">
-                ${planLabel}
+                ${escapeHtml(planLabel)}
               </span>
               <div>
                 <strong>${t('billing.current_plan', {}, 'Active Plan')}</strong>
@@ -199,7 +199,7 @@ export default {
           <article class="price-card ${intentPlan === 'starter' ? 'is-intent' : ''}">
             <p class="plan-name">Starter</p>
             <p class="price">
-              <strong class="price-val" data-m="${formatUsd(starter?.prices?.monthly?.usd)}" data-a="${formatUsd(starter?.prices?.annual?.usd)}">${formatUsd(starter?.prices?.monthly?.usd || 79)}</strong>
+              <strong class="price-val" data-m="${escapeHtml(formatUsd(starter?.prices?.monthly?.usd))}" data-a="${escapeHtml(formatUsd(starter?.prices?.annual?.usd))}">${escapeHtml(formatUsd(starter?.prices?.monthly?.usd || 79))}</strong>
               <span class="price-period" data-m="${t('billing.per_month', {}, '/ month')}" data-a="${t('billing.per_year', {}, '/ year')}">${t('billing.per_month', {}, '/ month')}</span>
             </p>
             <p class="plan-summary" data-m="${t('landing.plan_starter_summary', {}, 'Ideal for indie makers & single brands')}" data-a="${t('landing.plan_starter_summary_annual', {}, 'About $63 / month billed annually')}">${t('landing.plan_starter_summary', {}, 'Ideal for indie makers & single brands')}</p>
@@ -218,7 +218,7 @@ export default {
             <p class="plan-badge">${t('landing.plan_pro_badge', {}, 'Most popular')}</p>
             <p class="plan-name">Pro</p>
             <p class="price">
-              <strong class="price-val" data-m="${formatUsd(pro?.prices?.monthly?.usd)}" data-a="${formatUsd(pro?.prices?.annual?.usd)}">${formatUsd(pro?.prices?.monthly?.usd || 199)}</strong>
+              <strong class="price-val" data-m="${escapeHtml(formatUsd(pro?.prices?.monthly?.usd))}" data-a="${escapeHtml(formatUsd(pro?.prices?.annual?.usd))}">${escapeHtml(formatUsd(pro?.prices?.monthly?.usd || 199))}</strong>
               <span class="price-period" data-m="${t('billing.per_month', {}, '/ month')}" data-a="${t('billing.per_year', {}, '/ year')}">${t('billing.per_month', {}, '/ month')}</span>
             </p>
             <p class="plan-summary" data-m="${t('landing.plan_pro_summary', {}, 'Continuous multi-model tracking for growth brands')}" data-a="${t('landing.plan_pro_summary_annual', {}, 'About $159 / month billed annually')}">${t('landing.plan_pro_summary', {}, 'Continuous multi-model tracking for growth brands')}</p>
@@ -236,7 +236,7 @@ export default {
           <article class="price-card ${intentPlan === 'agency' ? 'is-intent' : ''}">
             <p class="plan-name">Agency</p>
             <p class="price">
-              <strong class="price-val" data-m="${formatUsd(agency?.prices?.monthly?.usd)}" data-a="${formatUsd(agency?.prices?.annual?.usd)}">${formatUsd(agency?.prices?.monthly?.usd || 499)}</strong>
+              <strong class="price-val" data-m="${escapeHtml(formatUsd(agency?.prices?.monthly?.usd))}" data-a="${escapeHtml(formatUsd(agency?.prices?.annual?.usd))}">${escapeHtml(formatUsd(agency?.prices?.monthly?.usd || 499))}</strong>
               <span class="price-period" data-m="${t('billing.per_month', {}, '/ month')}" data-a="${t('billing.per_year', {}, '/ year')}">${t('billing.per_month', {}, '/ month')}</span>
             </p>
             <p class="plan-summary" data-m="${t('landing.plan_agency_summary', {}, 'Parallel client delivery for digital agencies')}" data-a="${t('landing.plan_agency_summary_annual', {}, 'About $416 / month billed annually')}">${t('landing.plan_agency_summary', {}, 'Parallel client delivery for digital agencies')}</p>
@@ -272,7 +272,6 @@ export default {
   mounted: (ctx) => {
     let currentInterval = 'monthly';
     const intentPlan = readIntentPlan(ctx.params);
-    let autoCheckoutStarted = false;
 
     const startCheckout = async (plan, button) => {
       if (plan === 'enterprise') {
@@ -343,11 +342,22 @@ export default {
       });
     });
 
-    if (intentPlan && SUBSCRIBABLE.has(intentPlan) && !autoCheckoutStarted) {
-      autoCheckoutStarted = true;
+    // An intent plan from a shared deep link only highlights the matching card;
+    // checkout always requires an explicit click on the subscribe button so a
+    // link drop can never open a live Stripe subscription on its own.
+    if (intentPlan && SUBSCRIBABLE.has(intentPlan)) {
       const targetBtn = document.querySelector(`.btn-subscribe[data-plan="${intentPlan}"]`);
-      if (targetBtn && !targetBtn.disabled) {
-        startCheckout(intentPlan, targetBtn);
+      const targetCard = targetBtn ? targetBtn.closest('.price-card') : null;
+      if (targetCard) {
+        targetCard.classList.add('is-intent');
+        targetCard.style.outline = '2px solid var(--accent)';
+        targetCard.style.outlineOffset = '2px';
+        try {
+          targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (e) {
+          targetCard.scrollIntoView();
+        }
+        targetBtn.focus({ preventScroll: true });
       }
     }
   },

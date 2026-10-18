@@ -6,7 +6,8 @@ import { auth, projects, onAuthFailure } from './api.js';
 import { t, tError, loadCatalogs, getLocale, setLocale, detectLocale, localizeRenderedText, SUPPORTED_LOCALES, LOCALE_LABELS } from './i18n.js';
 import { toast } from './components/toast.js';
 import { escapeHtml, setSafeHtml } from './safe-html.js';
-import { openTelemetryModal } from './components/telemetry-modal.js';
+import { openTelemetryModal, closeTelemetryModal } from './components/telemetry-modal.js';
+import { closeModal } from './components/modal.js';
 import { createJobMonitor } from './components/job-monitor.js';
 // Job monitor cleanup retains the timer contract: window.clearInterval(jobPollingTimer).
 
@@ -136,6 +137,15 @@ function cleanupCurrentView() {
   currentView = null;
 }
 
+// Leave no protected surface behind on sign-out / auth failure: the modal, the
+// telemetry overlay (which polls the job endpoint every ~1.2s) and job polling
+// must all stop, otherwise the login screen keeps hitting protected endpoints.
+function teardownProtectedUi() {
+  try { closeModal(); } catch (e) {}
+  try { closeTelemetryModal(); } catch (e) {}
+  try { stopJobPolling(); } catch (e) {}
+}
+
 function projectKey(project) {
   if (!project) return '';
   return String(project.id ?? project.slug ?? '');
@@ -159,6 +169,8 @@ class AppState {
     this.currentTrack = 'overview';
     this.isJobPolling = false;
     this.sessionChecked = false;
+    this.sessionError = null;
+    this.projectsError = null;
   }
 
   clearSession() {
@@ -167,6 +179,8 @@ class AppState {
     this.projectsList = [];
     this.activeProjectId = null;
     this.activeJob = null;
+    this.sessionError = null;
+    this.projectsError = null;
     this.sessionChecked = true;
   }
 
@@ -175,13 +189,33 @@ class AppState {
       const me = await auth.getMe();
       this.user = me.user;
       this.tenant = me.tenant;
-      await this.loadProjects();
-      this.sessionChecked = true;
-      return true;
     } catch (e) {
-      this.clearSession();
+      if (e && e.status === 401) {
+        this.clearSession();
+        return false;
+      }
+      // Offline / 5xx: never treat a transport failure as a logout. Keep the
+      // session, record the error and leave sessionChecked false so the next
+      // navigation retries instead of silently ending the session.
+      this.sessionError = e || { error: 'session_check_failed' };
+      this.sessionChecked = false;
       return false;
     }
+
+    const loaded = await this.loadProjects();
+    if (!loaded) {
+      if (this.projectsError && this.projectsError.status === 401) {
+        this.clearSession();
+        return false;
+      }
+      this.sessionError = this.projectsError || { error: 'projects_unavailable' };
+      this.sessionChecked = false;
+      return false;
+    }
+
+    this.sessionError = null;
+    this.sessionChecked = true;
+    return true;
   }
 
   async loadProjects() {
@@ -195,8 +229,12 @@ class AppState {
       } else if (this.activeProjectId && !findProject(this.projectsList, this.activeProjectId)) {
         this.activeProjectId = this.projectsList.length ? projectKey(this.projectsList[0]) : null;
       }
+      this.projectsError = null;
+      return true;
     } catch (e) {
-      this.projectsList = [];
+      // Keep the previously loaded project list on transient failures.
+      this.projectsError = e || { error: 'projects_unavailable' };
+      return false;
     }
   }
 
@@ -271,6 +309,17 @@ async function renderApp() {
     return;
   }
 
+  // Signed in, but the session check failed for a non-auth reason (offline/5xx).
+  // sessionChecked stays false so the next navigation retries.
+  if (!isPublic && state.user && !state.sessionChecked) {
+    const sessionErrorRoot = document.getElementById('app');
+    if (!sessionErrorRoot) return;
+    setSafeHtml(sessionErrorRoot, renderSessionErrorView());
+    localizeRenderedText(sessionErrorRoot);
+    bindSessionErrorViewEvents();
+    return;
+  }
+
   const appRoot = document.getElementById('app');
   if (!appRoot) return;
 
@@ -300,10 +349,21 @@ async function renderApp() {
   setSafeHtml(appRoot, renderAppShell());
   bindAppShellEvents();
 
+  // Unknown hashes keep the bogus route in the URL and render an explicit
+  // not-found state instead of silently falling back to the overview view.
+  if (!Object.prototype.hasOwnProperty.call(VIEW_LOADERS, route)) {
+    const notFoundContainer = document.getElementById('view-mount');
+    if (notFoundContainer) {
+      setSafeHtml(notFoundContainer, renderNotFoundView());
+      localizeRenderedText(notFoundContainer);
+    }
+    return;
+  }
+
   // 
   const viewContainer = document.getElementById('view-mount');
   if (viewContainer) {
-    const loader = VIEW_LOADERS[route] || VIEW_LOADERS.overview;
+    const loader = VIEW_LOADERS[route];
     try {
       const module = await loader();
       if (renderId !== renderSequence) return;
@@ -324,6 +384,50 @@ async function renderApp() {
   }
 
   startJobPolling();
+}
+
+function renderNotFoundView() {
+  return `
+    <div class="app-view-container">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-3);min-height:52vh;text-align:center;">
+        <span class="tag tag-dim" style="font-family:var(--font-mono);">404</span>
+        <h1 class="view-title" style="margin:0;">${t('common.not_found_title', {}, 'Page not found')}</h1>
+        <p style="margin:0;color:var(--muted);font-size:var(--fs-2);max-width:46ch;">${t('common.not_found_desc', {}, 'This route does not exist. It may have been renamed or removed.')}</p>
+        <a href="#/overview" class="btn btn-primary btn-sm">${t('common.back_to_overview', {}, 'Back to overview')}</a>
+      </div>
+    </div>
+  `;
+}
+
+function renderSessionErrorView() {
+  const detail = state.sessionError ? tError(state.sessionError) : t('session.check_failed', {}, 'We could not verify your session.');
+  return `
+    <div class="app-view-container">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-3);min-height:52vh;text-align:center;">
+        <h1 class="view-title" style="margin:0;">${t('session.check_failed_title', {}, 'Connection problem')}</h1>
+        <p style="margin:0;color:var(--muted);font-size:var(--fs-2);max-width:52ch;">${t('session.check_failed', {}, 'We could not verify your session. Your sign-in is still active — retry in a moment.')}</p>
+        <p style="margin:0;color:var(--faint);font-size:var(--fs-1);">${escapeHtml(detail)}</p>
+        <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;justify-content:center;">
+          <button type="button" id="btn-session-retry" class="btn btn-primary btn-sm">${t('common.retry', {}, 'Retry')}</button>
+          <button type="button" id="btn-session-logout" class="btn btn-secondary btn-sm">${t('auth.logout', {}, 'Sign Out')}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function bindSessionErrorViewEvents() {
+  document.getElementById('btn-session-retry')?.addEventListener('click', () => {
+    renderApp();
+  });
+  document.getElementById('btn-session-logout')?.addEventListener('click', async () => {
+    try {
+      await auth.logout();
+    } catch (e) {}
+    teardownProtectedUi();
+    state.clearSession();
+    location.hash = '#/login';
+  });
 }
 
 function createContext() {
@@ -582,8 +686,8 @@ function bindAppShellEvents() {
     try {
       await auth.logout();
     } catch (e) {}
+    teardownProtectedUi();
     state.clearSession();
-    stopJobPolling();
     toast.success(t('auth.signed_out', {}, 'Signed out'));
     location.hash = '#/login';
   });
@@ -664,8 +768,8 @@ async function init() {
   await loadCatalogs(detectLocale());
 
   onAuthFailure(() => {
+    teardownProtectedUi();
     state.clearSession();
-    stopJobPolling();
     if (!PUBLIC_ROUTES.includes(parseHash().route)) location.hash = '#/login';
   });
 

@@ -8,7 +8,7 @@ import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { samplingModeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
-import { escapeHtml } from '../safe-html.js';
+import { escapeHtml, safeHttpUrl } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -132,7 +132,7 @@ export default {
             <h1 class="view-title">${t('engines.title', {}, 'AI Engine Visibility Matrix')}</h1>
             <p class="view-desc">
               ${t('engines.desc', {}, 'Unified visibility measurement across parametric knowledge, search-grounded models, and manual interface sampling.')}
-              <span style="display:block;margin-top:4px;">${trendNote}</span>
+              <span style="display:block;margin-top:4px;">${escapeHtml(trendNote)}</span>
             </p>
           </div>
           <div class="view-actions">
@@ -232,7 +232,7 @@ export default {
               </p>
             </div>
             <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">
-              ${enginesData?.question_set_version ? `<span class="tag tag-neutral">Question set ${enginesData.question_set_version}</span>` : ''}
+              ${enginesData?.question_set_version ? `<span class="tag tag-neutral">Question set ${escapeHtml(enginesData.question_set_version)}</span>` : ''}
               ${sampleCohort?.excluded_sample_count ? `<span class="tag tag-dim">${sampleCohort.excluded_sample_count} historical sample${sampleCohort.excluded_sample_count === 1 ? '' : 's'} excluded</span>` : ''}
             </div>
           </div>
@@ -272,7 +272,7 @@ export default {
                           (c) => {
                             const url = String(typeof c === 'string' ? c : c.url || '');
                             return `
-                        <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="tag tag-neutral num" style="text-decoration:none;">
+                        <a href="${escapeHtml(safeHttpUrl(url) || '#')}" target="_blank" rel="noopener noreferrer" class="tag tag-neutral num" style="text-decoration:none;">
                           ${escapeHtml(url.replace(/^https?:\/\//, '').slice(0, 32))}...
                         </a>
                       `; }

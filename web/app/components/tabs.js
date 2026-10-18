@@ -2,15 +2,17 @@
  * 
  */
 
+import { escapeHtml } from '../safe-html.js';
+
 export function renderTabs({ tabs = [], activeId = '', containerClass = '' } = {}) {
   return `
     <div class="tabs ${containerClass}">
       ${tabs
         .map(
           (tab) => `
-        <button type="button" class="tab ${tab.id === activeId ? 'on' : ''}" data-tab-id="${tab.id}">
-          <span>${tab.label}</span>
-          ${tab.count !== undefined ? `<span class="cnt">${tab.count}</span>` : ''}
+        <button type="button" class="tab ${tab.id === activeId ? 'on' : ''}" data-tab-id="${escapeHtml(tab.id)}">
+          <span>${escapeHtml(tab.label)}</span>
+          ${tab.count !== undefined ? `<span class="cnt">${escapeHtml(tab.count)}</span>` : ''}
         </button>
       `
         )

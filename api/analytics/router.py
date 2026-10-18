@@ -14,7 +14,7 @@ from api import config
 from api.auth.security import ACCESS_TOKEN_COOKIE, decode_token
 from api.country import request_country_code
 from api.db import get_db
-from api.models import ProductEvent
+from api.models import Membership, ProductEvent, Tenant, User
 from api.product_events import record_product_event
 
 
@@ -163,8 +163,23 @@ def product_event(payload: ProductEventRequest, request: Request, db: Session = 
     if token:
         try:
             claims = decode_token(token, expected_type="access")
-            tenant_id = int(claims["tenant_id"])
-            user_id = int(claims["sub"])
+            candidate_tenant = int(claims["tenant_id"])
+            candidate_user = int(claims["sub"])
+            user = db.get(User, candidate_user)
+            tenant = db.get(Tenant, candidate_tenant)
+            # 已注销/已改密码（sv 不匹配）/已停用的会话不得把事件记到该账户上。
+            if (
+                user is not None
+                and user.status == "active"
+                and tenant is not None
+                and tenant.status == "active"
+                and int(claims.get("sv", -1)) == int(user.session_version)
+                and db.get(Membership, {
+                    "tenant_id": candidate_tenant, "user_id": candidate_user,
+                }) is not None
+            ):
+                tenant_id = candidate_tenant
+                user_id = candidate_user
         except (KeyError, TypeError, ValueError, RuntimeError, jwt.PyJWTError):
             tenant_id = None
             user_id = None

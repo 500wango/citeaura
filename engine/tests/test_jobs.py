@@ -217,6 +217,24 @@ class JobsTest(unittest.TestCase):
         (J.JOBS_DIR / "badjob123456.json").write_text("{not json", "utf-8")
         self.assertIsNone(J.get("badjob123456"))
 
+    def test_start_restricts_child_environment(self):
+        proc = mock.Mock()
+        proc.pid = 424245
+        proc.wait.return_value = 0
+        with mock.patch.object(J.subprocess, "Popen", return_value=proc) as popen:
+            J.start("x", "audit")
+        child_env = popen.call_args.kwargs["env"]
+        self.assertEqual(child_env["PYTHONUNBUFFERED"], "1")
+        # 未列入白名单的调参/代理/证书变量不得泄漏给子进程
+        self.assertNotIn("GEO_JOB_RETENTION_DAYS", child_env)
+        self.assertNotIn("HTTP_PROXY", child_env)
+        for key in child_env:
+            self.assertTrue(
+                key in J.SAFE_ENV_KEYS or key in J.PROVIDER_KEY_ENVS
+                or (key.startswith(J.CUSTOM_KEY_PREFIX) and key.endswith(J.CUSTOM_KEY_SUFFIX)),
+                key,
+            )
+
     def test_job_ids_and_log_offsets_are_confined(self):
         self.assertIsNone(J.get("../../outside"))
         with self.assertRaises(ValueError):
@@ -280,6 +298,41 @@ class JobsTest(unittest.TestCase):
             J.prune_history(retention_days=0, keep=1)
         with self.assertRaisesRegex(ValueError, "positive integers"):
             J.prune_history(retention_days=1, keep=0)
+
+
+class SubprocessEnvTest(unittest.TestCase):
+    """子进程只继承白名单变量，避免其他租户的密钥出现在 /proc/<pid>/environ。"""
+
+    def test_only_allowlisted_names_are_forwarded(self):
+        fake_env = {
+            "PATH": "/usr/bin", "HOME": "/root", "LANG": "en_US.UTF-8",
+            "DEEPSEEK_API_KEY": "provider-key",
+            "CITEAURA_ACME_API_KEY": "custom-key",
+            "GEO_JOB_RETENTION_DAYS": "7",
+            "HTTP_PROXY": "http://proxy.example:3128",
+            "SSL_CERT_FILE": "/etc/ca.pem",
+            "OTHER_SECRET": "leak",
+        }
+        with mock.patch.dict(os.environ, fake_env, clear=True):
+            env = J.subprocess_env()
+        self.assertEqual(env["PATH"], "/usr/bin")
+        self.assertEqual(env["HOME"], "/root")
+        self.assertEqual(env["DEEPSEEK_API_KEY"], "provider-key")
+        self.assertEqual(env["CITEAURA_ACME_API_KEY"], "custom-key")
+        self.assertEqual(env["PYTHONUNBUFFERED"], "1")
+        # GEO_* 调参与代理/CA 变量是部署级、与租户无关，必须转发，
+        # 否则从 UI 启动的任务会与 CLI 行为不一致（限速/语言/保留策略/代理）。
+        for forwarded in ("GEO_JOB_RETENTION_DAYS", "HTTP_PROXY", "SSL_CERT_FILE"):
+            self.assertIn(forwarded, env)
+        # 未知变量才是租户密钥泄漏面，必须挡掉。
+        self.assertNotIn("OTHER_SECRET", env)
+
+    def test_custom_key_names_must_use_the_reserved_shape(self):
+        with mock.patch.dict(os.environ, {"CITEAURA_NOT_A_KEY": "x",
+                                         "CITEAURA_ACME_API_KEY": "y"}, clear=True):
+            env = J.subprocess_env()
+        self.assertNotIn("CITEAURA_NOT_A_KEY", env)
+        self.assertEqual(env["CITEAURA_ACME_API_KEY"], "y")
 
 
 if __name__ == "__main__":

@@ -127,9 +127,29 @@ export function hasCatalogKey(key) {
   return currentLocale === DEFAULT_LOCALE && Object.prototype.hasOwnProperty.call(fallbackCatalog, key);
 }
 
+const warnedMissingKeys = new Set();
+
+/** Development is detected without a build step: local dev servers only. */
+function isDevelopment() {
+  try {
+    const host = String(window.location.hostname || '').toLowerCase();
+    const protocol = String(window.location.protocol || '').toLowerCase();
+    return protocol === 'file:'
+      || host === 'localhost'
+      || host === '127.0.0.1'
+      || host === '0.0.0.0'
+      || host === '[::1]'
+      || host.endsWith('.localhost');
+  } catch (e) {
+    return false;
+  }
+}
+
 /**
- * Translate key with interpolation. English fallback is intentionally disabled
- * for non-English locales so missing copy is visible in development and CI.
+ * Translate key with interpolation. Fallback chain: current locale catalog →
+ * English catalog → `fallback` argument → the key itself. A literal
+ * `[[missing:key]]` marker used to reach end users, so missing copy now
+ * degrades to readable text and only warns in development (once per key).
  * @param {string} key - Dot-delimited key (e.g. 'nav.overview')
  * @param {object} params - Interpolation parameters { count: 5 }
  * @param {string} fallback - Default English fallback text
@@ -137,14 +157,19 @@ export function hasCatalogKey(key) {
 export function t(key, params = {}, fallback = '') {
   if (!key) return fallback || '';
 
-  let val = currentCatalog[key];
-  if ((val === undefined || val === null) && currentLocale === DEFAULT_LOCALE) {
-    val = fallbackCatalog[key];
+  let val = Object.prototype.hasOwnProperty.call(currentCatalog, key) ? currentCatalog[key] : undefined;
+  if (val === undefined || val === null) {
+    val = Object.prototype.hasOwnProperty.call(fallbackCatalog, key) ? fallbackCatalog[key] : undefined;
   }
   if (val === undefined || val === null) {
-    val = currentLocale === DEFAULT_LOCALE && fallback !== undefined && fallback !== ''
-      ? fallback
-      : `[[missing:${key}]]`;
+    val = typeof fallback === 'string' && fallback !== '' ? fallback : undefined;
+  }
+  if (val === undefined || val === null) {
+    if (isDevelopment() && !warnedMissingKeys.has(key)) {
+      warnedMissingKeys.add(key);
+      console.warn(`[i18n] missing key "${key}" for locale "${currentLocale}"`);
+    }
+    val = key;
   }
 
   let text = String(val);
@@ -170,7 +195,8 @@ export function translateText(value) {
   if (typeof value !== 'string' || currentLocale === DEFAULT_LOCALE) return value;
   const key = reverseFallbackCatalog[value];
   if (!key) return value;
-  return currentCatalog[key] || `[[missing:${key}]]`;
+  // 兜底顺序与 t() 保持一致：当前语言 → 英文目录 → 原字面量。
+  return currentCatalog[key] || fallbackCatalog[key] || value;
 }
 
 /** Localize exact legacy literals left in older view templates. */

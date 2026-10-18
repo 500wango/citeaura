@@ -4,6 +4,7 @@
 
 import { branding } from '../api.js';
 import { t, tError } from '../i18n.js';
+import { escapeHtml } from '../safe-html.js';
 import { toast } from '../components/toast.js';
 
 export default {
@@ -32,7 +33,7 @@ export default {
         <div class="card" style="max-width:680px;gap:var(--sp-4);">
           <div class="field" style="margin:0;">
             <label for="brand-company-name">${t('branding.agency_name_label', {}, 'Agency / Consultant Organization Name')}</label>
-            <input type="text" id="brand-company-name" class="input" value="${brandConfig.company_name || ''}" placeholder="Apex Growth Digital" ${brandConfig.can_edit ? '' : 'disabled'}>
+            <input type="text" id="brand-company-name" class="input" value="${escapeHtml(brandConfig.company_name || '')}" placeholder="Apex Growth Digital" ${brandConfig.can_edit ? '' : 'disabled'}>
           </div>
 
           <div class="field" style="margin:0;">
@@ -49,12 +50,12 @@ export default {
 
           <div class="field" style="margin:0;">
             <label for="brand-accent-color">${t('branding.accent_color_label', {}, 'Accent Color')}</label>
-            <input type="color" id="brand-accent-color" class="input" value="${brandConfig.accent_color || '#1F4E79'}" ${brandConfig.can_edit ? '' : 'disabled'}>
+            <input type="color" id="brand-accent-color" class="input" value="${escapeHtml(brandConfig.accent_color || '#1F4E79')}" ${brandConfig.can_edit ? '' : 'disabled'}>
           </div>
 
           <div class="field" style="margin:0;">
             <label for="brand-footer-text">${t('branding.footer_label', {}, 'Report Footer & Copyright Notice')}</label>
-            <input type="text" id="brand-footer-text" class="input" value="${brandConfig.footer_text || ''}" placeholder="Prepared exclusively for client. Confidential." ${brandConfig.can_edit ? '' : 'disabled'}>
+            <input type="text" id="brand-footer-text" class="input" value="${escapeHtml(brandConfig.footer_text || '')}" placeholder="Prepared exclusively for client. Confidential." ${brandConfig.can_edit ? '' : 'disabled'}>
           </div>
 
           <div style="background:var(--page);padding:var(--sp-4);border:1px solid var(--line);border-radius:var(--r-md);">

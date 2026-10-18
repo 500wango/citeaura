@@ -13,6 +13,8 @@ from urllib.parse import urlparse
 import geolib as G
 
 WEIGHTS = {"mention": 30, "cite": 25, "channel": 20, "content": 15, "fact": 10}
+# 样本量低于此值时，健康分只能当作观察值，不能当作结论。
+MIN_HEALTH_SAMPLES = 10
 
 _ANALYSIS_DEFAULTS = {
     "brand_mentioned": False,
@@ -149,10 +151,17 @@ def health(slug: str, bp: dict | None, factcheck: list, rows_latest) -> dict:
 
     wsum = sum(WEIGHTS[k] for k, v in subs.items() if v is not None)
     score = (sum(WEIGHTS[k] * v for k, v in subs.items() if v is not None) / wsum * 100) if wsum else None
+    # 同时记录分数所属的样本群，避免脱离样本量的过度解读。
+    platforms = sorted({str(r.get("platform") or "unknown") for r in rows_latest})
+    sample_modes = sorted({str(r.get("sample_mode") or "unknown") for r in rows_latest})
     return {"score": round(score, 1) if score is not None else None,
             "subs": {k: (round(v, 3) if v is not None else None) for k, v in subs.items()},
             "weights": WEIGHTS,
-            "measured": [k for k, v in subs.items() if v is not None]}
+            "measured": [k for k, v in subs.items() if v is not None],
+            "n": len(rows_latest),
+            "platforms": platforms,
+            "sample_modes": sample_modes,
+            "insufficient": len(rows_latest) < MIN_HEALTH_SAMPLES}
 
 
 # ---------------------------------------------------------------- Engines

@@ -76,6 +76,38 @@ STALE_TEMP_SECONDS = 24 * 60 * 60
 JOB_ID_OK = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 TERMINAL_STATUSES = {"done", "failed", "stopped", "interrupted"}
 
+# 子进程只继承下列白名单变量，避免其他租户的密钥出现在 /proc/<pid>/environ。
+# 注意：GEO_* 调参与代理/CA 变量是部署级、与租户无关的，必须保留，否则从 UI 启动的
+# 任务会与 CLI 行为不一致（限速、语言头、保留策略、代理都会静默失效）。
+SAFE_ENV_KEYS = frozenset({
+    "PATH", "HOME", "LANG", "LC_ALL", "TZ", "PYTHONUNBUFFERED", "PYTHONPATH",
+    "VIRTUAL_ENV", "TEMP", "TMPDIR",
+    "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
+})
+SAFE_ENV_PREFIXES = ("GEO_",)
+# 供应商 Key 变量名，与 sample.PROVIDERS 的 key_env 保持一致。
+PROVIDER_KEY_ENVS = frozenset({
+    "ZHIPUAI_API_KEY", "ARK_API_KEY", "DEEPSEEK_API_KEY", "MOONSHOT_API_KEY",
+    "MINIMAX_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
+    "XAI_API_KEY", "PERPLEXITY_API_KEY", "OPENAI_BASE_URL",
+})
+# 自定义供应商 Key 形如 CITEAURA_<CODE>_API_KEY。
+CUSTOM_KEY_PREFIX = "CITEAURA_"
+CUSTOM_KEY_SUFFIX = "_API_KEY"
+
+
+def subprocess_env() -> dict:
+    """按白名单构造子进程环境，不把整个 worker 环境交给子进程。"""
+    env = {
+        key: value for key, value in os.environ.items()
+        if key in SAFE_ENV_KEYS or key in PROVIDER_KEY_ENVS
+        or key.startswith(SAFE_ENV_PREFIXES)
+        or (key.startswith(CUSTOM_KEY_PREFIX) and key.endswith(CUSTOM_KEY_SUFFIX))
+    }
+    env["PYTHONUNBUFFERED"] = "1"
+    return env
+
 
 def _job_path(job_id: str) -> Path:
     if not JOB_ID_OK.fullmatch(str(job_id or "")):
@@ -333,8 +365,7 @@ def start(slug: str, action: str, params: dict | None = None) -> dict:
         logf = _log_path(job["id"]).open("wb")
         logf.write(f"$ geo {' '.join(cmd[3:])}\n".encode())
         logf.flush()
-        env = dict(os.environ)
-        env["PYTHONUNBUFFERED"] = "1"
+        env = subprocess_env()
         proc = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT,
                                 cwd=str(G.ROOT), env=env, start_new_session=True)
         job["pid"] = proc.pid

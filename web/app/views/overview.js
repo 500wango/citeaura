@@ -9,7 +9,7 @@ import { toast } from '../components/toast.js';
 import { renderKpis } from '../components/kpi.js';
 import { gradeBadge, samplingModeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
-import { escapeHtml } from '../safe-html.js';
+import { escapeHtml, safeHttpUrl } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -75,9 +75,10 @@ export default {
     const sentiment = project.insights?.sentiment || {};
     const sentimentBands = Array.isArray(sentiment.bands) ? sentiment.bands : [];
     const trend = (quality.measurement_quality && quality.measurement_quality.trend) || {};
+    const trendLabel = trend.label ? escapeHtml(trend.label) : '';
     const trendNote = trend.status === 'noteworthy'
-      ? `${trend.label || 'Trend'} ${trend.direction || ''} ${trend.delta_pp != null ? `${trend.delta_pp} pp` : ''}`.trim()
-      : (trend.label || t('overview.trend_single', {}, 'Single-round observation; two comparable periods are required before calling a trend'));
+      ? `${trendLabel || 'Trend'} ${escapeHtml(trend.direction || '')} ${trend.delta_pp != null ? `${escapeHtml(trend.delta_pp)} pp` : ''}`.trim()
+      : (trendLabel || t('overview.trend_single', {}, 'Single-round observation; two comparable periods are required before calling a trend'));
     const measuredEngines = engines.filter((item) => item.sample_count);
     const plan = visibilityPlan?.plan || {};
     const baseline = visibilityPlan?.baseline;
@@ -90,6 +91,10 @@ export default {
       .slice(0, 5);
     const hasQuestions = Array.isArray(project.questions) && project.questions.length > 0;
     const projectStatus = project.project?.status || project.status;
+    // Only http(s) URLs may reach href; a bare domain still gets a usable link.
+    const rawProjectUrl = String(project.url || '');
+    const projectUrl = safeHttpUrl(rawProjectUrl)
+      || (/^[\w.-]+\.[a-z]{2,}(?:[/?#].*)?$/i.test(rawProjectUrl) ? safeHttpUrl(`https://${rawProjectUrl}`) : '');
     const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
     const isGeneratingQuestions = !hasQuestions && (
       ['initializing', 'bootstrapping'].includes(projectStatus)
@@ -143,16 +148,16 @@ export default {
         <div class="view-header">
           <div class="view-title-group">
             <div style="display:flex;align-items:center;gap:var(--sp-2);">
-              <h1 class="view-title">${project.name || project.slug}</h1>
+              <h1 class="view-title">${escapeHtml(project.name || project.slug || '')}</h1>
               ${overallGrade ? gradeBadge(overallGrade) : `<span class="tag tag-dim">${unmeasured}</span>`}
             </div>
             <div class="view-desc">
-              <a href="${project.url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:4px;color:var(--muted);text-decoration:none;">
-                <span class="num">${project.url}</span>
+              ${projectUrl ? `<a href="${escapeHtml(projectUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:4px;color:var(--muted);text-decoration:none;">
+                <span class="num">${escapeHtml(project.url)}</span>
                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              </a>
+              </a>` : `<span class="num">${escapeHtml(project.url || '')}</span>`}
               <span style="color:var(--faint);margin:0 var(--sp-2);">·</span>
-              <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${t('common.market', {}, 'Market')}: ${project.market || 'Universal'}</span>
+              <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${t('common.market', {}, 'Market')}: ${escapeHtml(project.market || 'Universal')}</span>
             </div>
           </div>
           <div class="view-actions">
@@ -183,7 +188,7 @@ export default {
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span>${t('nav.report', {}, 'Client Delivery Packs')}</span>
             </a>
-            <a href="#/${quality.effective_report ? 'report' : (qualityIssues[0]?.route || 'engines')}" class="btn btn-primary btn-sm">
+            <a href="#/${escapeHtml(quality.effective_report ? 'report' : (qualityIssues[0]?.route || 'engines'))}" class="btn btn-primary btn-sm">
               <span>${quality.effective_report
                 ? t('overview.action_deliver', {}, 'View Delivery Pack')
                 : t('overview.action_next', {}, qualityIssues[0]?.action || 'Continue setup')}</span>
@@ -230,7 +235,7 @@ export default {
         ${citationFeatures?.overview ? `<div class="card" style="gap:var(--sp-3);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Citation Source Intelligence</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Latest web-enabled evidence, traceable to a sampling run.</p></div><a href="#/channels" class="btn btn-secondary btn-sm">View Channels</a></div>${citationSources?.status === 'measured' ? `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(citationSources.domains || []).slice(0,5).map((item) => `<span class="tag tag-neutral">${escapeHtml(item.domain)} · ${(item.share * 100).toFixed(1)}%</span>`).join('')}</div><span style="color:var(--muted);font-size:var(--fs-1);">${citationSources.total_citations} citations · ${escapeHtml(citationSources.run_id || '')}</span>` : `<span style="color:var(--muted);">Unmeasured · Run a sample</span>`}</div>` : ''}
         <div class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
-            <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">AI Visibility Operating Plan</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${phaseLabels[plan.current_phase] || 'Baseline'} · ${plan.status || 'active'}</p></div>
+            <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">AI Visibility Operating Plan</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${phaseLabels[plan.current_phase] || 'Baseline'} · ${escapeHtml(plan.status || 'active')}</p></div>
             <button type="button" id="btn-capture-visibility-baseline" class="btn btn-secondary btn-sm">${baseline ? 'Refresh baseline' : 'Capture baseline'}</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-2);">
@@ -238,7 +243,7 @@ export default {
             <div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Baseline</span><strong>${baseline ? new Date(baseline.captured_at).toLocaleDateString() : unmeasured}</strong></div>
             <div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Goals</span><strong>${goals.length || '—'}</strong></div>
           </div>
-          ${goals.length ? `<div style="display:flex;flex-wrap:wrap;gap:var(--sp-2);">${goals.map((goal) => `<span class="tag tag-dim">${escapeHtml(goal.label || goal.type)} · ${goal.target}</span>`).join('')}</div>` : '<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Set measurable goals to track progress across sampling cycles.</p>'}
+          ${goals.length ? `<div style="display:flex;flex-wrap:wrap;gap:var(--sp-2);">${goals.map((goal) => `<span class="tag tag-dim">${escapeHtml(goal.label || goal.type)} · ${escapeHtml(goal.target)}</span>`).join('')}</div>` : '<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Set measurable goals to track progress across sampling cycles.</p>'}
         </div>
         <div class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
@@ -252,7 +257,7 @@ export default {
             <strong style="font-size:var(--fs-3);">${escapeHtml(firstValue.label)}</strong>
             <span style="color:var(--muted);font-size:var(--fs-2);line-height:1.5;">${escapeHtml(firstValue.detail)}</span>
           </div>
-          <a href="#/${firstValue.route}" class="btn btn-primary btn-sm">${escapeHtml(firstValue.action)} <span aria-hidden="true">→</span></a>
+          <a href="#/${escapeHtml(firstValue.route)}" class="btn btn-primary btn-sm">${escapeHtml(firstValue.action)} <span aria-hidden="true">→</span></a>
         </div>
         ${qualityIssues.length ? `
           <div class="card" style="gap:var(--sp-3);">
@@ -260,7 +265,7 @@ export default {
               ? t('overview.optional_upgrades', {}, 'Optional upgrades')
               : t('overview.next_steps', {}, 'Setup checklist')}</h3>
             ${qualityIssues.map((issue) => `
-              <a href="#/${issue.route || 'overview'}" style="display:flex;justify-content:space-between;gap:var(--sp-3);text-decoration:none;">
+              <a href="#/${escapeHtml(issue.route || 'overview')}" style="display:flex;justify-content:space-between;gap:var(--sp-3);text-decoration:none;">
                 <span>${escapeHtml(issue.message)}</span>
                 <span style="font-size:var(--fs-2);">${escapeHtml(issue.action || t('common.open', {}, 'Open'))} →</span>
               </a>
@@ -347,7 +352,7 @@ export default {
                   <a class="ticket-item" href="#/plan" style="text-decoration:none;">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
                       <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-                        <span class="linear-priority ${(ticket.priority || 'P1').toLowerCase()}">${escapeHtml(ticket.priority || 'P1')}</span>
+                        <span class="linear-priority ${escapeHtml(String(ticket.priority || 'P1').toLowerCase())}">${escapeHtml(ticket.priority || 'P1')}</span>
                         <span class="ticket-item-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(title)}</span>
                       </div>
                       ${statusPill(ticket.status)}
@@ -390,7 +395,7 @@ export default {
                     .map(
                       (j) => `
                     <tr>
-                      <td><span style="font-family:var(--font-mono);font-weight:600;">${j.action}</span></td>
+                      <td><span style="font-family:var(--font-mono);font-weight:600;">${escapeHtml(j.action)}</span></td>
                       <td>${statusPill(j.status)}</td>
                       <td class="num">${j.started_at ? new Date(j.started_at).toLocaleString() : '—'}</td>
                       <td class="num">${j.finished_at ? new Date(j.finished_at).toLocaleTimeString() : j.status === 'running' ? '<span class="spin"></span>' : '—'}</td>

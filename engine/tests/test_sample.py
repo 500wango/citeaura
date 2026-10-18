@@ -468,6 +468,44 @@ class TestAskWebSearch(unittest.TestCase):
         self.assertFalse(S.PROVIDERS["deepseek"]["search"])
 
 
+class TestProviderBaseResolution(unittest.TestCase):
+    """base URL 在调用时解析：注册表留静态默认值，覆盖走 base_env。"""
+
+    def test_openai_registry_keeps_static_default_and_env_hook(self):
+        provider = S.PROVIDERS["openai"]
+        self.assertEqual(provider["base"], "https://api.openai.com/v1")
+        self.assertEqual(provider["base_env"], "OPENAI_BASE_URL")
+
+    def test_base_env_override_resolves_at_call_time(self):
+        provider = S.PROVIDERS["openai"]
+        with mock.patch.dict(os.environ, {"OPENAI_BASE_URL": "https://gateway.example/v1"}):
+            self.assertEqual(S._p_base(provider), "https://gateway.example/v1")
+        # 清掉覆盖后回落到注册表里的静态默认值
+        with mock.patch.dict(os.environ, {"OPENAI_BASE_URL": ""}):
+            self.assertEqual(S._p_base(provider), "https://api.openai.com/v1")
+
+
+class TestResponsesRetry(unittest.TestCase):
+    def test_responses_path_retries_rate_limits_before_falling_back(self):
+        chat = {"choices": [{"message": {"content": "Memory only."}}]}
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "test-key",
+                                          "OPENAI_BASE_URL": ""}), \
+             mock.patch.object(S.time, "sleep") as sleep, \
+             mock.patch.object(S.requests, "post", side_effect=[
+                 _Resp(503, text="busy"),
+                 _Resp(429, text="slow down"),
+                 _Resp(404, text="no responses"),
+                 _Resp(200, chat),
+             ]) as post:
+            result = S.ask("openai", "Best tool?")
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["searched"])
+        self.assertEqual(result["answer"], "Memory only.")
+        self.assertEqual(post.call_count, 4)
+        self.assertEqual(sleep.call_count, 2)  # 503 与 429 各退避一次，404 直接回退 chat
+        self.assertEqual(post.call_args.args[0], "https://api.openai.com/v1/chat/completions")
+
+
 class TestRunValidation(unittest.TestCase):
     def test_invalid_limits_fail_before_loading_project(self):
         with self.assertRaisesRegex(ValueError, "repeat"):

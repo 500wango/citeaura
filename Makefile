@@ -1,4 +1,4 @@
-.PHONY: dev test migrate worker beat preflight check-work-root create-admin reset-admin-password reset-admin-password-prod grant-plan-prod
+.PHONY: dev test migrate migrate-safe migrate-check worker beat preflight check-work-root create-admin reset-admin-password reset-admin-password-prod grant-plan-prod
 
 dev:
 	uvicorn api.main:app --reload
@@ -9,6 +9,12 @@ test:
 
 migrate:
 	alembic upgrade head
+
+migrate-safe:
+	python3 scripts/migrate_db.py
+
+migrate-check:
+	python3 scripts/migrate_db.py --dry-run
 
 worker:
 	celery -A api.worker.celery_app worker --loglevel=INFO --pool=prefork

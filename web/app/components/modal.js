@@ -4,6 +4,7 @@
 
 import { escapeHtml, setSafeHtml } from '../safe-html.js';
 import { t } from '../i18n.js';
+import { toast } from './toast.js';
 
 let modalRoot = null;
 let activeCleanup = null;
@@ -95,12 +96,28 @@ export function openModal({
       cleanup();
     });
 
-    box.querySelector('.btn-confirm').addEventListener('click', async () => {
-      if (onConfirm) {
-        const result = await onConfirm();
-        if (result === false) return; // 
+    const confirmBtn = box.querySelector('.btn-confirm');
+    confirmBtn.addEventListener('click', async () => {
+      const previousLabel = confirmBtn.textContent;
+      confirmBtn.disabled = true;
+      try {
+        if (onConfirm) {
+          const result = await onConfirm();
+          if (result === false) return; // 
+        }
+        cleanup();
+      } catch (error) {
+        // A rejecting handler must not leave the dialog with a dead button or
+        // surface as an unhandled rejection.
+        console.error('Modal confirm handler failed:', error);
+        const message = (error && (error.detail || error.message)) || t('common.action_failed', {}, 'That action could not be completed.');
+        try {
+          toast.error(String(message));
+        } catch (toastError) {}
+      } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = previousLabel;
       }
-      cleanup();
     });
   }
 

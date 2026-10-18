@@ -456,18 +456,35 @@ def test_admin_navigation_icons_are_served_locally(name):
 
 def test_project_files_use_cookie_auth_and_remain_tenant_isolated(ui_client):
     client, session_factory, tmp_path = ui_client
-    first = client.post(
+    assert client.post(
         "/api/v1/auth/register",
         json={"email": "first@example.com", "password": "correct-horse-battery", "tenant_name": "tenant-a"},
-    ).json()
-    second = client.post(
+    ).status_code == 202
+    assert client.post(
         "/api/v1/auth/register",
         json={"email": "second@example.com", "password": "correct-horse-battery", "tenant_name": "tenant-b"},
-    ).json()
+    ).status_code == 202
+
+    def _tenant_id(email):
+        # 注册响应不再返回 tenant，工作区信息统一从 /me 读取。
+        login = client.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": "correct-horse-battery"},
+        )
+        assert login.status_code == 200
+        current = client.get(
+            "/api/v1/me",
+            headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+        )
+        assert current.status_code == 200
+        return current.json()["tenant"]["id"]
+
+    first_tenant_id = _tenant_id("first@example.com")
+    second_tenant_id = _tenant_id("second@example.com")
     with session_factory() as db:
         db.add_all([
-            Project(tenant_id=first["tenant"]["id"], slug="first-project", url="https://first.example", market="both"),
-            Project(tenant_id=second["tenant"]["id"], slug="second-project", url="https://second.example", market="both"),
+            Project(tenant_id=first_tenant_id, slug="first-project", url="https://first.example", market="both"),
+            Project(tenant_id=second_tenant_id, slug="second-project", url="https://second.example", market="both"),
         ])
         db.commit()
 

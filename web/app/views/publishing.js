@@ -7,18 +7,10 @@ import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
+import { escapeHtml, safeHttpUrl } from '../safe-html.js';
 
 let publisherState = [];
 let projectState = null;
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
 
 function selectedPaths() {
   return [...document.querySelectorAll('[data-github-asset]:checked')]
@@ -75,15 +67,15 @@ export default {
             return `
             <div class="card" style="gap:var(--sp-4);">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);">
-                <strong style="font-size:var(--fs-4);">${name}</strong>
+                <strong style="font-size:var(--fs-4);">${escapeHtml(name)}</strong>
                 <span class="tag ${publisher.ready ? 'pill-good' : 'tag-dim'}">
                   ${publisher.ready ? t('common.ready', {}, 'Ready') : t('publishing.setup_required', {}, 'Setup required')}
                 </span>
               </div>
-              <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${note}</p>
-              ${publisher.missing?.length ? `<div class="field-hint">Missing: ${publisher.missing.join(', ')}</div>` : ''}
+              <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${escapeHtml(note)}</p>
+              ${publisher.missing?.length ? `<div class="field-hint">Missing: ${escapeHtml(publisher.missing.join(', '))}</div>` : ''}
               <div style="display:flex;align-items:center;gap:var(--sp-2);">
-                <button type="button" class="btn btn-secondary btn-sm btn-config-publisher" data-code="${publisher.code}">
+                <button type="button" class="btn btn-secondary btn-sm btn-config-publisher" data-code="${escapeHtml(publisher.code)}">
                   ${t('publishing.config_btn', {}, 'Configure Destination')}
                 </button>
                 <span title="${t('publishing.tip_body', {}, 'Keep credentials in the encrypted settings fields. Never append secrets to a URL query string.')}" style="cursor:help;color:var(--muted);display:inline-flex;align-items:center;">
@@ -114,7 +106,7 @@ export default {
             <div><h2 style="margin:0;font-size:var(--fs-4);">GitHub review queue</h2><p style="margin:var(--sp-1) 0 0;color:var(--muted);">Reviewable PRs never merge or deploy automatically.</p></div>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-github-prs">Refresh status</button>
           </div>
-          ${prsUnavailable ? '<p style="margin:var(--sp-3) 0 0;color:var(--danger);">GitHub PR status is unavailable. Refresh to retry.</p>' : (prs.length ? `<div class="tbl" style="overflow-x:auto;margin-top:var(--sp-3);"><table class="table"><thead><tr><th>Ticket</th><th>Run</th><th>Status</th><th>PR</th></tr></thead><tbody>${prs.map((pr) => `<tr><td>${pr.ticket_id || ''}</td><td>${pr.run_id || ''}</td><td><span class="tag ${pr.status === 'merged' ? 'pill-good' : 'tag-dim'}">${pr.status || 'open'}</span></td><td><a href="${pr.url || '#'}" target="_blank" rel="noopener noreferrer">Open PR</a></td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:var(--sp-3) 0 0;color:var(--muted);">No GitHub PRs yet. Create one from an approved asset and ticket.</p>')}
+          ${prsUnavailable ? '<p style="margin:var(--sp-3) 0 0;color:var(--danger);">GitHub PR status is unavailable. Refresh to retry.</p>' : (prs.length ? `<div class="tbl" style="overflow-x:auto;margin-top:var(--sp-3);"><table class="table"><thead><tr><th>Ticket</th><th>Run</th><th>Status</th><th>PR</th></tr></thead><tbody>${prs.map((pr) => `<tr><td>${escapeHtml(pr.ticket_id || '')}</td><td>${escapeHtml(pr.run_id || '')}</td><td><span class="tag ${pr.status === 'merged' ? 'pill-good' : 'tag-dim'}">${escapeHtml(pr.status || 'open')}</span></td><td><a href="${escapeHtml(safeHttpUrl(pr.url) || '#')}" target="_blank" rel="noopener noreferrer">Open PR</a></td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:var(--sp-3) 0 0;color:var(--muted);">No GitHub PRs yet. Create one from an approved asset and ticket.</p>')}
         </section>
       </div>
     `;

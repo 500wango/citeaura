@@ -3,6 +3,7 @@
 import re
 from contextlib import contextmanager
 from copy import deepcopy
+from pathlib import Path
 from urllib.parse import urlparse
 
 from api.adapters import action_scope, brand_facts, brand_identity, competitor_scope
@@ -901,6 +902,20 @@ def normalize_audit(project_slug):
         return current
 
 
+def sample_artifact_path(sample_directory, artifact):
+    """把产物字段（run_id/date）拼成 samples/<name>.jsonl，越出样本目录时返回 None。"""
+    name = str(artifact or "")
+    if not name or "/" in name or "\\" in name or name in (".", ".."):
+        return None
+    directory = Path(sample_directory)
+    try:
+        path = (directory / f"{name}.jsonl").resolve()
+        path.relative_to(directory.resolve())
+    except (OSError, ValueError):
+        return None
+    return path
+
+
 def _sample_summary(rows):
     per_platform = {}
     successful = 0
@@ -940,9 +955,11 @@ def normalize_metrics(project_slug, question_count=None, config=None):
                 and item.get("market") in ("cn", "global", "both", None)
             }
             normalized = {**current, "platforms": platforms}
-            artifact = str(current.get("run_id") or current.get("date") or "")
-            sample_path = geolib.project_dir(project_slug) / "samples" / f"{artifact}.jsonl"
-            if sample_path.is_file():
+            artifact = current.get("run_id") or current.get("date") or ""
+            sample_path = sample_artifact_path(
+                geolib.project_dir(project_slug) / "samples", artifact,
+            )
+            if sample_path is not None and sample_path.is_file():
                 import sample as engine_sample
 
                 rows = [

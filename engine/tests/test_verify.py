@@ -98,6 +98,50 @@ class VerifyTest(unittest.TestCase):
         self.assertEqual(len(evidence), 1)
         self.assertEqual(evidence[0]["result"], "manual")
 
+    def test_metrics_from_another_cohort_make_the_run_indeterminate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory)
+            project = work / "demo"
+            project.mkdir()
+            G.write_json(project / "audit.json",
+                         {"slug": "demo", "site": {}, "pages": [], "avg_score": 0})
+            G.write_json(project / "tasks.json", {
+                "tasks": [{
+                    "id": "T-001", "title": "Legacy task", "priority": "P1",
+                    "market": "both", "package": "Knowledge base", "status": "todo",
+                    "acceptance": {"type": "manual"},
+                }],
+                "summary": {},
+            })
+            G.write_json(project / "metrics" / "sample-1.json",
+                         {"slug": "other", "date": "2026-01-01"})
+            with mock.patch.object(G, "WORK", work):
+                report = V.run("demo", recrawl=False)
+
+            self.assertEqual(report["metrics_cohort"], "mismatched")
+            # 对不上的 metrics 不得静默复用：报告按未测处理
+            self.assertIsNone(report["metrics_date"])
+            self.assertEqual(G.read_json(project / "metrics" / "sample-1.json")["slug"], "other")
+
+    def test_report_marks_metrics_cohort_when_no_metrics_exist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory)
+            project = work / "demo"
+            project.mkdir()
+            G.write_json(project / "audit.json",
+                         {"slug": "demo", "site": {}, "pages": [], "avg_score": 0})
+            G.write_json(project / "tasks.json", {
+                "tasks": [{
+                    "id": "T-001", "title": "Legacy task", "priority": "P1",
+                    "market": "both", "package": "Knowledge base", "status": "todo",
+                    "acceptance": {"type": "manual"},
+                }],
+                "summary": {},
+            })
+            with mock.patch.object(G, "WORK", work):
+                report = V.run("demo", recrawl=False)
+        self.assertEqual(report["metrics_cohort"], "unverified")
+
 
 if __name__ == "__main__":
     unittest.main()

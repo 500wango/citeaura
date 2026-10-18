@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from starlette.background import BackgroundTask
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from api.adapters import engine as engine_adapter
@@ -94,6 +95,22 @@ def _route_facade():
     from api.projects import router as project_router
 
     return project_router
+
+
+def commit_new_job(db, project_unused=None):
+    """提交新建的 Job；并发撞上 uq_jobs_project_active 时返回 409 而不是 500。
+
+    _active_job 的检查是 TOCTOU：两个并发请求都能通过检查，第二个 commit 会
+    撞偏唯一索引。这里把它翻译成用户可理解的冲突响应。
+    """
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "project_job_already_running"},
+        ) from exc
 
 
 def _latest_file(directory: Path, pattern: str):

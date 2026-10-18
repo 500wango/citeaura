@@ -17,3 +17,5 @@ deploy/certs/
 .claude/worktrees/
 .claude/*.local.*
 promo-video/
+test-report-*.txt
+backups/

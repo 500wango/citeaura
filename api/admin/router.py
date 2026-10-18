@@ -66,6 +66,15 @@ class StatusChange(BaseModel):
             raise ValueError("status must be active or disabled")
         return value
 
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, value):
+        # 审计里的处置理由不能只是空白字符，否则禁用/恢复在审计上无法追溯。
+        value = value.strip()
+        if len(value) < 3:
+            raise ValueError("reason must explain the status change")
+        return value
+
 
 def _error(status_code, error):
     raise HTTPException(status_code=status_code, detail={"error": error})
@@ -185,7 +194,7 @@ def _tenant_payload_batch(db, tenants):
         owners.setdefault(tenant_id, owner)
     latest_job_ids = db.query(func.max(Job.id)).join(Project, Project.id == Job.project_id).filter(
         Project.tenant_id.in_(tenant_ids),
-    ).group_by(Project.tenant_id).subquery()
+    ).group_by(Project.tenant_id).scalar_subquery()
     latest_jobs = db.query(Job, Project.tenant_id).join(Project, Project.id == Job.project_id).filter(
         Job.id.in_(latest_job_ids),
     ).all()
@@ -224,8 +233,14 @@ def _tenant_payload(db, tenant):
 
 @router.post("/auth/login")
 def admin_login(request: Request, payload: AdminLogin, response: Response, db: Session = Depends(get_db)):
+    # 登录是没有 Cookie 的匿名写动作，走不到 get_current_admin 的自定义头校验：
+    # 缺来源校验时，任意站点都能把受害者的浏览器登进攻击者的管理员会话。
+    from api.auth.router import _reject_cross_site
+
+    _reject_cross_site(request)
     try:
-        decision = check_account(payload.email)
+        # 与租户登录分桶：共用 "login" 桶时，匿名刷租户登录就能把管理员锁在门外。
+        decision = check_account(payload.email, scope="admin_login")
     except RateLimitUnavailable:
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "rate_limit_unavailable")
     if not decision.allowed:

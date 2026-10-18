@@ -100,7 +100,8 @@ PROVIDERS = {
     "openai": {
         "name": "OpenAI(ChatGPT)", "market": "global",
         "protocol": "openai",
-        "base": os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+        "base": "https://api.openai.com/v1",
+        "base_env": "OPENAI_BASE_URL",
         "model": "gpt-4o-mini",
         "model_env": "OPENAI_MODEL",
         "key_env": "OPENAI_API_KEY",
@@ -214,6 +215,12 @@ def _p_model(p: dict) -> str:
     """Resolve model overrides at call time so configuration changes apply immediately."""
     menv = p.get("model_env")
     return (os.environ.get(menv) if menv else None) or p["model"]
+
+
+def _p_base(p: dict) -> str:
+    """Resolve the provider base URL at call time so per-tenant overrides apply."""
+    benv = p.get("base_env")
+    return (os.environ.get(benv) if benv else None) or p["base"]
 
 
 def model_for(platform: str) -> str:
@@ -365,7 +372,7 @@ def _ask_chat_completions(p: dict, key: str, question: str, timeout: int, search
     headers.update(p.get("headers") or {})
     for attempt in range(len(delays) + 1):
         try:
-            r = requests.post(f"{p['base']}/chat/completions", headers=headers,
+            r = requests.post(f"{_p_base(p)}/chat/completions", headers=headers,
                               json=body, timeout=timeout)
             if r.status_code != 200:
                 err = _empty_fail(f"HTTP {r.status_code}: {r.text[:300]}", attempt)
@@ -394,27 +401,34 @@ def _ask_responses(p: dict, key: str, question: str, timeout: int) -> dict | Non
     """Try Responses + web_search. Return None to fall back to chat."""
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     headers.update(p.get("headers") or {})
-    try:
-        r = requests.post(
-            f"{p['base']}/responses",
-            headers=headers,
-            json={"model": _p_model(p), "input": question, "tools": [{"type": "web_search"}]},
-            timeout=timeout,
-        )
-        if r.status_code == 200:
-            data = r.json()
-            answer, refs, _hit = _parse_responses_payload(data)
-            if answer.strip():
-                return {"ok": True, "answer": answer, "citations": refs,
-                        "searched": _hit, **_call_meta(r, data, _p_model(p), 0)}
-            return _empty_fail("Provider returned an empty answer")
-        text = r.text or ""
-        if r.status_code in (400, 404, 405, 422) or "ToolNotOpen" in text:
+    delays = RETRY_DELAYS
+    for attempt in range(len(delays) + 1):
+        try:
+            r = requests.post(
+                f"{_p_base(p)}/responses",
+                headers=headers,
+                json={"model": _p_model(p), "input": question, "tools": [{"type": "web_search"}]},
+                timeout=timeout,
+            )
+            # 限流/服务端错误重试，避免搜索采样静默降级成无搜索的 chat 采样。
+            if (r.status_code == 429 or r.status_code >= 500) and attempt < len(delays):
+                time.sleep(_retry_delay(r, attempt, delays))
+                continue
+            if r.status_code == 200:
+                data = r.json()
+                answer, refs, _hit = _parse_responses_payload(data)
+                if answer.strip():
+                    return {"ok": True, "answer": answer, "citations": refs,
+                            "searched": _hit, **_call_meta(r, data, _p_model(p), attempt)}
+                return _empty_fail("Provider returned an empty answer", attempt)
+            text = r.text or ""
+            if r.status_code in (400, 404, 405, 422) or "ToolNotOpen" in text:
+                return None
+            if r.status_code >= 400:
+                return _empty_fail(f"HTTP {r.status_code}: {text[:300]}", attempt)
             return None
-        if r.status_code >= 400:
-            return _empty_fail(f"HTTP {r.status_code}: {text[:300]}")
-    except Exception:  # noqa: BLE001
-        return None
+        except Exception:  # noqa: BLE001 - 仍回退到 chat，保持原有降级契约
+            return None
     return None
 
 
@@ -460,7 +474,7 @@ def ask_anthropic(p: dict, key: str, question: str, timeout: int, want_search: b
         delays = RETRY_DELAYS
         for attempt in range(len(delays) + 1):
             try:
-                r = requests.post(f"{p['base']}/messages", headers=headers,
+                r = requests.post(f"{_p_base(p)}/messages", headers=headers,
                                   json=payload, timeout=timeout)
                 if r.status_code != 200:
                     last_error = _empty_fail(f"HTTP {r.status_code}: {r.text[:300]}", attempt)
@@ -1115,8 +1129,7 @@ def sheet(slug: str) -> Path:
         for q in qs:
             lines += [f"### {q.get('id')} · {q['text']}", "", "```answer", "", "```", ""]
     path = G.project_dir(slug) / "samples" / f"{G.today()}-manual.md"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines), "utf-8")
+    G.write_text_atomic(path, "\n".join(lines))
     G.info(f"Sampling sheet exported: {path}")
     return path
 
@@ -1124,7 +1137,11 @@ def sheet(slug: str) -> Path:
 def sample_import(slug: str, file: str) -> dict:
     cfg = G.load_config(slug)
     cfg = {**cfg, "questions": G.normalize_question_ids(cfg.get("questions", []))}
-    source = Path(file)
+    # 导入文件必须落在该项目目录内，避免调用方读到任意路径。
+    pdir = G.project_dir(slug).resolve()
+    source = Path(file).resolve()
+    if not source.is_relative_to(pdir):
+        G.die("Sample import file must be inside the project directory")
     try:
         size = source.stat().st_size
     except OSError as exc:
@@ -1178,7 +1195,6 @@ def sample_import(slug: str, file: str) -> dict:
 
     if not rows:
         G.die("No answers parsed, please check if ```answer blocks are filled")
-    pdir = G.project_dir(slug)
     path = pdir / "samples" / f"{identity['run_id']}.jsonl"
     G.write_jsonl(path, rows)
     all_rows = [r for r in dedup_rows(rows) if r.get("ok")]

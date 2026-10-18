@@ -1,5 +1,6 @@
 import { projects, workspace } from '../api.js';
 import { t, tError } from '../i18n.js';
+import { escapeHtml, safeHttpUrl } from '../safe-html.js';
 import { toast } from '../components/toast.js';
 import { confirmModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
@@ -21,7 +22,7 @@ export default {
         </div>
         <div style="display:flex;flex-direction:column;gap:var(--sp-6);max-width:680px;">
           <div class="card" style="gap:var(--sp-4);">
-            <div class="field" style="margin:0;"><label>${t('project_settings.url_label', {}, 'Canonical website URL')}</label><input type="url" id="proj-url-input" class="input" value="${project.url || ''}"></div>
+            <div class="field" style="margin:0;"><label>${t('project_settings.url_label', {}, 'Canonical website URL')}</label><input type="url" id="proj-url-input" class="input" value="${escapeHtml(safeHttpUrl(project.url) || project.url || '')}"></div>
           </div>
           <div class="card" style="border-color:var(--bad);gap:var(--sp-3);">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;color:var(--bad);">${t('project_settings.archive_title', {}, 'Archive project')}</h3>

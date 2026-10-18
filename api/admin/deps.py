@@ -36,10 +36,12 @@ def get_current_admin(request: Request, db: Session = Depends(get_db)):
     try:
         claims = decode_token(token, expected_type="admin_access")
         admin_id = int(claims["sub"])
+        # sv 必须在受保护的解析块里转换，否则非整数声明会变成 500 而不是 401。
+        session_version = int(claims.get("sv", -1))
     except (KeyError, TypeError, ValueError, RuntimeError, jwt.PyJWTError):
         _unauthorized()
     admin = db.get(PlatformAdmin, admin_id)
-    if admin is None or admin.status != "active" or int(claims.get("sv", -1)) != int(admin.session_version):
+    if admin is None or admin.status != "active" or session_version != int(admin.session_version):
         _unauthorized()
     outcome = "succeeded"
     try:

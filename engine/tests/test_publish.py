@@ -81,5 +81,57 @@ class PublishTest(unittest.TestCase):
         self.assertEqual(len(P.records("demo")), 1)
 
 
+class WechatErrorTest(unittest.TestCase):
+    """微信通道的异常文本可能带整条 URL/密钥，返回值只能是稳定错误码。"""
+
+    ENV = {"WECHAT_APPID": "wx-app", "WECHAT_APPSECRET": "TOP-SECRET"}
+    SECRET_MARKERS = ("TOP-SECRET", "api.weixin.qq.com", "access_token")
+
+    def _assert_sanitized(self, result):
+        payload = json.dumps(result)
+        for marker in self.SECRET_MARKERS:
+            self.assertNotIn(marker, payload)
+
+    def test_token_request_failure_returns_stable_error_code(self):
+        with mock.patch.dict(os.environ, self.ENV), \
+             mock.patch.object(P.requests, "get", side_effect=requests.ConnectionError(
+                 "TOP-SECRET at https://api.weixin.qq.com/cgi-bin/token?secret=TOP-SECRET")):
+            result = P._pub_wechat({"thumb_media_id": "m"}, "# T\n\nBody", "T", "a.md")
+        self.assertEqual(result, {"ok": False, "error": "wechat_token_request_failed"})
+        self._assert_sanitized(result)
+
+    def test_token_api_error_returns_errcode_only(self):
+        token = mock.Mock()
+        token.json.return_value = {"errcode": 40001,
+                                   "errmsg": "invalid credential TOP-SECRET"}
+        with mock.patch.dict(os.environ, self.ENV), \
+             mock.patch.object(P.requests, "get", return_value=token):
+            result = P._pub_wechat({"thumb_media_id": "m"}, "# T\n\nBody", "T", "a.md")
+        self.assertEqual(result, {"ok": False, "error": "wechat_token_unavailable:errcode=40001"})
+        self._assert_sanitized(result)
+
+    def test_draft_request_failure_returns_stable_error_code(self):
+        token = mock.Mock()
+        token.json.return_value = {"access_token": "tok-123"}
+        with mock.patch.dict(os.environ, self.ENV), \
+             mock.patch.object(P.requests, "get", return_value=token), \
+             mock.patch.object(P.requests, "post", side_effect=requests.Timeout("tok-123")):
+            result = P._pub_wechat({"thumb_media_id": "m"}, "# T\n\nBody", "T", "a.md")
+        self.assertEqual(result, {"ok": False, "error": "wechat_draft_request_failed"})
+        self._assert_sanitized(result)
+
+    def test_draft_api_error_returns_errcode_only(self):
+        token = mock.Mock()
+        token.json.return_value = {"access_token": "tok-123"}
+        draft = mock.Mock()
+        draft.json.return_value = {"errcode": 45009, "errmsg": "api freq out of limit"}
+        with mock.patch.dict(os.environ, self.ENV), \
+             mock.patch.object(P.requests, "get", return_value=token), \
+             mock.patch.object(P.requests, "post", return_value=draft):
+            result = P._pub_wechat({"thumb_media_id": "m"}, "# T\n\nBody", "T", "a.md")
+        self.assertEqual(result, {"ok": False, "error": "wechat_draft_unavailable:errcode=45009"})
+        self._assert_sanitized(result)
+
+
 if __name__ == "__main__":
     unittest.main()

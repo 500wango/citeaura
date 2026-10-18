@@ -81,7 +81,8 @@ class TestHomepageFirst(WorkDirCase):
 
 class TestCompetitorConfirmation(WorkDirCase):
     def _manual_file(self, answer):
-        f = Path(self._tmp.name) / "manual.md"
+        # sample_import 现在要求导入文件位于 project_dir 内，测试表也跟着放进项目目录。
+        f = self.pdir / "manual.md"
         f.write_text(
             "# 采样表\n\n## platform: deepseek\n> 国内\n\n"
             f"### q001 · 有什么好用的工具？\n\n```answer\n{answer}\n```\n",
@@ -103,7 +104,7 @@ class TestCompetitorConfirmation(WorkDirCase):
 
     def test_sample_import_rejects_oversized_file(self):
         self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))
-        path = Path(self._tmp.name) / "oversized.md"
+        path = self.pdir / "oversized.md"
         path.write_text("x" * 32, "utf-8")
         with mock.patch.object(S, "MAX_IMPORT_BYTES", 16):
             with self.assertRaises(SystemExit):
@@ -111,13 +112,24 @@ class TestCompetitorConfirmation(WorkDirCase):
 
     def test_sample_import_rejects_duplicate_platform_sections(self):
         self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))
-        path = Path(self._tmp.name) / "duplicate.md"
+        path = self.pdir / "duplicate.md"
         path.write_text(
             "## platform: deepseek\n\n### q001 · 有什么好用的工具？\n\n```answer\n答案\n```\n"
             "## platform: deepseek\n\n### q001 · 有什么好用的工具？\n\n```answer\n答案\n```\n",
             "utf-8")
         with self.assertRaises(SystemExit):
             S.sample_import(self.slug, str(path))
+
+    def test_sample_import_rejects_files_outside_the_project_directory(self):
+        self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))
+        outside = Path(self._tmp.name) / "outside.md"
+        outside.write_text(
+            "## platform: deepseek\n\n### q001 · 有什么好用的工具？\n\n```answer\n答案\n```\n",
+            "utf-8")
+        with self.assertRaises(SystemExit):
+            S.sample_import(self.slug, str(outside))
+        # 拒绝发生在写入之前：项目里不应留下任何采样产物
+        self.assertFalse((self.pdir / "samples").exists())
 
     def test_single_mentions_do_not_rewrite_config(self):
         self.write_config(json.loads(json.dumps(BASE_CFG, ensure_ascii=False)))

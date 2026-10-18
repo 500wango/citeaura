@@ -182,7 +182,11 @@ def with_tenant_read_context(tenant_id: str, project_slug: str):
         raise GeoEngineError(message)
 
     def distributed_lock(slug):
-        return locking.project_lock(tenant_directory, _valid_slug(slug, "project"))
+        # 同一租户/项目在同一调用上下文里会嵌套取锁（pipeline 内部再取），
+        # key 本身按租户+项目隔离，重入是安全的；否则嵌套调用会阻塞后失败。
+        return locking.project_lock(
+            tenant_directory, _valid_slug(slug, "project"), allow_reentrant=True,
+        )
 
     with geolib.scoped_paths(PROJECT_ROOT, WORK_ROOT / tenant_directory), geolib.scoped_runtime(
         die_handler=raise_error,
@@ -413,7 +417,11 @@ def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = N
         raise GeoEngineError(message)
 
     def distributed_lock(slug):
-        return locking.project_lock(tenant_directory, _valid_slug(slug, "project"))
+        # 同一租户/项目在同一调用上下文里会嵌套取锁（pipeline 内部再取），
+        # key 本身按租户+项目隔离，重入是安全的；否则嵌套调用会阻塞后失败。
+        return locking.project_lock(
+            tenant_directory, _valid_slug(slug, "project"), allow_reentrant=True,
+        )
 
     needs_process_state = keys is not None or custom_providers is not None
     with geolib.scoped_paths(PROJECT_ROOT, WORK_ROOT / tenant_directory), geolib.scoped_runtime(

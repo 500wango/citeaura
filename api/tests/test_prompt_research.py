@@ -45,7 +45,8 @@ def test_prompt_research_generates_fanout_and_persists_file(tmp_path, monkeypatc
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as client:
         registered = client.post("/api/v1/auth/register", json={"email": "research@example.com", "password": "correct-horse-battery"})
-        assert registered.status_code == 201
+        assert registered.status_code == 202
+        assert registered.json()["accepted"] is True
         token = client.post("/api/v1/auth/login", json={"email": "research@example.com", "password": "correct-horse-battery"}).json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         created = client.post("/api/v1/projects", headers=headers, json={"url": "https://research.example"})

@@ -126,24 +126,60 @@ def _token_hash(token):
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def _access_claims(request):
+    """返回当前请求 access token 的 claims（Cookie 或 Bearer），失败返回 None。"""
+    authorization = request.headers.get("authorization", "")
+    scheme, separator, value = authorization.partition(" ")
+    token = value.strip() if separator and scheme.lower() == "bearer" else None
+    token = token or request.cookies.get(ACCESS_TOKEN_COOKIE)
+    if not token:
+        return None
+    try:
+        return decode_token(token, expected_type="access")
+    except (KeyError, TypeError, ValueError, jwt.PyJWTError, RuntimeError):
+        return None
+
+
+def _reject_cross_site(request):
+    """阻止跨站发起的敏感匿名动作（login CSRF）。
+
+    仅当浏览器主动声明了来源时才能判断；没有 Origin/Sec-Fetch-Site 的
+    非浏览器客户端（CLI/SDK）不受影响。
+    """
+    fetch_site = (request.headers.get("sec-fetch-site") or "").strip().lower()
+    if fetch_site and fetch_site not in ("same-origin", "none"):
+        _error(status.HTTP_403_FORBIDDEN, "csrf_validation_failed")
+    origin = (request.headers.get("origin") or "").strip().rstrip("/")
+    if origin:
+        allowed = {config.public_base_url().rstrip("/"), str(request.base_url).rstrip("/")}
+        if origin not in allowed:
+            _error(status.HTTP_403_FORBIDDEN, "csrf_validation_failed")
+
+
 def token_response(
     response: Response,
     user_id: int,
     tenant_id: int,
     db: Session,
-    expose_tokens=True,
+    expose_tokens=False,
     refresh_family_id=None,
+    sso_tenant_id=None,
 ):
-    """签发令牌并设置同站 HttpOnly 会话 Cookie。"""
+    """签发令牌并设置同站 HttpOnly 会话 Cookie。
+
+    默认不在响应体里返回 token：浏览器会话走 HttpOnly Cookie，把 30 天有效的
+    refresh token 交给 JS 读取会把一次 XSS 放大成长达一个月的凭证泄露。
+    """
     # 令牌绑定到当前会话版本，密码重置后旧令牌立即失效。
     user = db.get(User, user_id)
     session_version = user.session_version if user is not None else 0
-    access_token = create_access_token(user_id, tenant_id, session_version)
+    access_token = create_access_token(user_id, tenant_id, session_version, sso_tenant_id=sso_tenant_id)
     family_id = refresh_family_id or str(uuid.uuid4())
     token_id = str(uuid.uuid4())
     refresh_token = create_refresh_token(
         user_id, tenant_id, session_version,
         family_id=family_id, token_id=token_id,
+        sso_tenant_id=sso_tenant_id,
     )
     db.add(RefreshToken(
         family_id=family_id,
@@ -183,7 +219,7 @@ def token_response(
     }
 
 
-@router.post("/auth/register", status_code=status.HTTP_201_CREATED)
+@router.post("/auth/register", status_code=status.HTTP_202_ACCEPTED)
 def register(
     request: Request,
     payload: RegisterRequest,
@@ -193,18 +229,13 @@ def register(
 ):
     """创建用户、默认租户和 owner membership。"""
     try:
-        decision = check_account(payload.email)
+        decision = check_account(payload.email, scope="register")
     except RateLimitUnavailable:
         _error(status.HTTP_503_SERVICE_UNAVAILABLE, "rate_limit_unavailable")
     if not decision.allowed:
         _error(status.HTTP_429_TOO_MANY_REQUESTS, "rate_limit_exceeded")
-    if db.query(User.id).filter(User.email == payload.email).first() is not None:
-        verify_password(payload.password, DUMMY_PASSWORD_HASH)
-        response.status_code = status.HTTP_202_ACCEPTED
-        return {"accepted": True}
-
-    invitation = invitation_for_token(db, payload.invitation_token, for_update=True) if payload.invitation_token else None
-    country_code = request_country_code(request)
+    # 先把 audit 解析完再判断邮箱是否存在：两个路径的响应必须完全一致，
+    # 否则状态码/响应体会变成“该邮箱是否已注册”的预言机。
     public_audit = None
     if payload.audit_id:
         public_audit = db.query(PublicAudit).filter(
@@ -213,6 +244,14 @@ def register(
         ).first()
         if public_audit is None:
             _error(status.HTTP_400_BAD_REQUEST, "audit_handoff_expired")
+    audit_handoff = json.loads(public_audit.result_json) if public_audit is not None else None
+    if db.query(User.id).filter(User.email == payload.email).first() is not None:
+        verify_password(payload.password, DUMMY_PASSWORD_HASH)
+        response.status_code = status.HTTP_202_ACCEPTED
+        return {"accepted": True, "audit": audit_handoff}
+
+    invitation = invitation_for_token(db, payload.invitation_token, for_update=True) if payload.invitation_token else None
+    country_code = request_country_code(request)
     if payload.invitation_token:
         if invitation is None:
             _error(status.HTTP_400_BAD_REQUEST, "invitation_invalid")
@@ -280,7 +319,9 @@ def register(
         db.refresh(tenant)
     except IntegrityError:
         db.rollback()
-        _error(status.HTTP_409_CONFLICT, "email_already_registered")
+        # 并发注册同样不能泄露邮箱是否已存在。
+        response.status_code = status.HTTP_202_ACCEPTED
+        return {"accepted": True, "audit": audit_handoff}
 
     background_tasks.add_task(
         transactional_email.send_welcome_email_safe,
@@ -288,22 +329,14 @@ def register(
         tenant.name,
         user.id,
     )
-    return {
-        "user": {"id": user.id, "email": user.email},
-        "tenant": {
-            "id": tenant.id,
-            "name": tenant.name,
-            "plan": tenant.plan,
-            "trial_ends_at": tenant.trial_ends_at,
-        },
-        "role": role,
-        "audit": json.loads(public_audit.result_json) if public_audit is not None else None,
-    }
+    response.status_code = status.HTTP_202_ACCEPTED
+    return {"accepted": True, "audit": audit_handoff}
 
 
 @router.post("/auth/login")
 def login(request: Request, payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
     """验证密码并返回 access/refresh JWT。"""
+    _reject_cross_site(request)
     try:
         decision = check_account(payload.email)
     except RateLimitUnavailable:
@@ -348,6 +381,10 @@ def refresh(
 ):
     """使用 refresh token 轮换 access 和 refresh token。"""
     token = payload.refresh_token if payload else request.cookies.get(REFRESH_TOKEN_COOKIE)
+    if not payload or not payload.refresh_token:
+        # Cookie 承载的刷新必须带自定义头：否则任意跨站表单都能触发轮换。
+        if request.headers.get("X-CiteAura-Session") != "cookie":
+            _error(status.HTTP_403_FORBIDDEN, "csrf_validation_failed")
     if not token:
         _error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
     try:
@@ -403,6 +440,7 @@ def refresh(
         db,
         expose_tokens=request.headers.get("X-CiteAura-Session") != "cookie",
         refresh_family_id=stored.family_id,
+        sso_tenant_id=int(claims["sso_tid"]) if claims.get("sso_tid") else None,
     )
 
 
@@ -412,8 +450,12 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
     authorization = request.headers.get("authorization", "")
     scheme, separator, bearer_token = authorization.partition(" ")
     candidates = []
-    if separator and scheme.lower() == "bearer":
+    bearer_authenticated = bool(separator and scheme.lower() == "bearer")
+    if bearer_authenticated:
         candidates.append((bearer_token.strip(), "access"))
+    elif request.headers.get("X-CiteAura-Session") != "cookie":
+        # logout 会自增 session_version 踢掉所有设备：不能让跨站请求触发。
+        _error(status.HTTP_403_FORBIDDEN, "csrf_validation_failed")
     candidates.extend((
         (request.cookies.get(ACCESS_TOKEN_COOKIE), "access"),
         (request.cookies.get(REFRESH_TOKEN_COOKIE), "refresh"),
@@ -517,12 +559,20 @@ def switch_tenant(
         _error(status.HTTP_404_NOT_FOUND, "tenant_membership_not_found")
     if target_tenant.status != "active":
         _error(status.HTTP_403_FORBIDDEN, "account_disabled")
+    claims = _access_claims(request) or {}
+    sso_tenant = str(claims.get("sso_tid") or "")
+    if sso_tenant and sso_tenant != str(payload.tenant_id):
+        # IdP 断言出来的会话只属于那个租户，不能拿它切换进用户的其他工作区。
+        _error(status.HTTP_403_FORBIDDEN, "sso_session_tenant_restricted")
     return token_response(
         response,
         current_user.id,
         payload.tenant_id,
         db,
         expose_tokens=request.headers.get("X-CiteAura-Session") != "cookie",
+        # 必须把 sso_tid 带进新签发的令牌：否则先切到本租户就能洗掉该声明，
+        # 之后一次 switch-tenant 就能进入用户的其它工作区。
+        sso_tenant_id=int(sso_tenant) if sso_tenant else None,
     )
 
 

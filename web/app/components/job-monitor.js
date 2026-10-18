@@ -52,6 +52,7 @@ export function createJobMonitor({ state, projects, toast, t, openTelemetryModal
       const indicator = document.getElementById('active-job-indicator');
       if (active) {
         state.activeJob = active;
+        ensurePolling();
         if (indicator) {
           indicator.style.display = 'inline-flex';
           const actionLabel = jobActionLabel(active.action);
@@ -96,10 +97,29 @@ export function createJobMonitor({ state, projects, toast, t, openTelemetryModal
     }
   }
 
-  function startJobPolling() {
+  function pollTick() {
+    // Never hammer protected endpoints from a hidden tab.
+    if (document.hidden) return;
+    if (!state.activeJob) {
+      stopJobPolling();
+      return;
+    }
+    checkJobs();
+  }
+
+  function ensurePolling() {
     if (pollingTimer !== null) return;
     state.isJobPolling = true;
-    pollingTimer = window.setInterval(checkJobs, 2500);
+    pollingTimer = window.setInterval(pollTick, 2500);
+  }
+
+  function startJobPolling() {
+    if (pollingTimer !== null) return;
+    // Arm the interval first, then take one immediate probe so a job started
+    // elsewhere still shows up. The interval stops itself on the first tick
+    // when there is no active job, and re-arms when one is discovered.
+    ensurePolling();
+    checkJobs();
   }
 
   function stopJobPolling() {

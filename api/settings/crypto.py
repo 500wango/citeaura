@@ -1,6 +1,7 @@
 """API Key 的 AES-256-GCM 加密。"""
 
 import base64
+import logging
 import os
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -10,6 +11,8 @@ from api import config
 
 
 NONCE_SIZE = 12
+SSO_STATE_AAD = b"sso-state"
+logger = logging.getLogger(__name__)
 
 
 def key_aad(tenant_id, engine_code) -> bytes:
@@ -52,8 +55,10 @@ def decrypt_key(encoded: str, aad: bytes | None = None) -> str:
         except InvalidTag:
             if aad is None:
                 raise
-            # API keys created before tenant-bound AAD was introduced remain
-            # readable so tenants can replace them through the settings API.
+            # 历史密文没有绑定 AAD：仍可读，否则租户会直接丢掉既有密钥。
+            # 注意这意味着“靠 AAD 阻止密文在租户之间被搬运”对旧行不成立，
+            # 需要时用脚本重加密一次即可彻底关闭这条退路。
+            logger.warning("decrypting legacy ciphertext without tenant AAD; re-encrypt to enforce binding")
             plaintext = AESGCM(_master_key()).decrypt(nonce, ciphertext, None)
         return plaintext.decode("utf-8")
     except (InvalidTag, ValueError, UnicodeError) as exc:

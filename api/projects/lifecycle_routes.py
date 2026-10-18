@@ -291,8 +291,8 @@ def list_projects(current_user: User = Depends(get_current_user), db: Session = 
             with with_tenant_read_context(tenant, projects[0].slug):
                 import dashboard
 
-                for project in projects:
-                    workspace.ensure_global_engine_scope(project.slug)
+                # 读路径不重写项目产物：归一化只在写入侧（worker / 配置更新）发生，
+                # 否则一次 GET /projects 就会无锁重写每个项目的 geo.json/tasks/metrics。
                 summaries = {item["slug"]: item for item in dashboard.list_projects()}
         except Exception:  # noqa: BLE001 - 损坏的管线摘要不能阻断 DB 项目列表
             summaries = {}

@@ -21,7 +21,8 @@ router = APIRouter(prefix="/api/v1/projects", tags=["archives"])
 class RestorePayload(BaseModel):
     overwrite: bool = False
     confirmed: bool = False
-    confirmation_text: str = ""
+    # 只用于比对 "RESTORE <archive_id>"，无需接受任意长度的自由文本。
+    confirmation_text: str = Field(default="", max_length=128)
 
 
 class CreatePayload(BaseModel):
@@ -39,6 +40,8 @@ def _records(db, user, project_id):
     project = db.query(Project).filter(
         Project.id == project_id,
         Project.tenant_id == tenant.id,
+        Project.archived_at.is_(None),
+        Project.status != "archived",
     ).first()
     if project is None:
         _error(status.HTTP_404_NOT_FOUND, "project_not_found")

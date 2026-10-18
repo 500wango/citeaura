@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from api.adapters import export as report_export, prompt_research
-from api.auth.api_tokens import issue, require
+from api.auth.api_tokens import issue, require, require_scopes
 from api.auth.deps import require_owner
 from api.db import get_db
 from api.models import ApiAccessToken, Project, Tenant, User
@@ -85,6 +85,8 @@ def revoke_api_token(token_id: int, current_user: User = Depends(require_owner),
 
 def _integration_context(request: Request, db: Session):
     row = require(request, db)
+    # 令牌的 scopes 以前只是写进库里、从未校验；这里把只读约束落到实处。
+    require_scopes(row, "read")
     tenant = db.get(Tenant, row.tenant_id)
     if tenant is None or tenant.status != "active":
         _error(status.HTTP_401_UNAUTHORIZED, "api_token_invalid")
@@ -150,6 +152,8 @@ def _mcp_error(request_id, code, message):
 def mcp(request: Request, payload: dict, db: Session = Depends(get_db)):
     """提供 MCP initialize/tools/list/tools/call 的只读子集。"""
     _integration_context(request, db)
+    if not isinstance(payload, dict):
+        return _mcp_error(None, -32600, "invalid_request")
     request_id = payload.get("id")
     method = payload.get("method")
     if method == "initialize":
@@ -168,9 +172,13 @@ def mcp(request: Request, payload: dict, db: Session = Depends(get_db)):
         ]}}
     if method != "tools/call":
         return _mcp_error(request_id, -32601, "method_not_found")
-    params = payload.get("params") or {}
+    params = payload.get("params")
+    if not isinstance(params, dict):
+        params = {}
     name = params.get("name")
-    arguments = params.get("arguments") or {}
+    arguments = params.get("arguments")
+    if not isinstance(arguments, dict):
+        arguments = {}
     try:
         if name == "list_projects":
             result = public_api_projects(request, db)

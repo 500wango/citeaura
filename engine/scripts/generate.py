@@ -574,7 +574,7 @@ def run(slug: str, which: list[str] | None = None, with_draft: bool = False,
                             "issues": found or ["missing_verified_content"]})
             return
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, "utf-8")
+        G.write_text_atomic(path, text)
         resolved_status = "review_required" if found and status == "deployable" else status
         item = {"path": f"assets/{relative}", "status": resolved_status,
                 "issues": sorted(set(found))}
@@ -635,7 +635,7 @@ def run(slug: str, which: list[str] | None = None, with_draft: bool = False,
             if o["facts_to_use"]:
                 body += [f"## {strings['facts']}", ""] + [f"- {x}" for x in o["facts_to_use"]] + [""]
             path = G.safe_child(d, o["question_id"], ".md")
-            path.write_text("\n".join(body), "utf-8")
+            G.write_text_atomic(path, "\n".join(body))
             item = {"path": f"assets/outlines/{path.name}", "status": "draft", "issues": []}
             records.append(item)
             made.append(item["path"])
@@ -651,7 +651,7 @@ def run(slug: str, which: list[str] | None = None, with_draft: bool = False,
                 path = G.safe_child(d, o["question_id"], ".md")
                 lang = "zh" if o["market"] == "cn" else "en"
                 note = _locale(lang)["draft_review_comment"]
-                path.write_text(f"<!-- {note} - {G.today()} -->\n\n" + text, "utf-8")
+                G.write_text_atomic(path, f"<!-- {note} - {G.today()} -->\n\n" + text)
                 item = {"path": f"assets/drafts/{path.name}", "status": "draft",
                         "issues": ["requires_factual_review"]}
                 records.append(item)

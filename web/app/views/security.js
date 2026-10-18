@@ -5,6 +5,7 @@
 import { sso } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -45,17 +46,17 @@ export default {
 
             <div class="field" style="margin:0;">
               <label>Provider name *</label>
-              <input type="text" id="sso-provider-name" class="input" value="${ssoConfig.provider_name || ''}" placeholder="Example Identity">
+              <input type="text" id="sso-provider-name" class="input" value="${escapeHtml(ssoConfig.provider_name || '')}" placeholder="Example Identity">
             </div>
 
             <div class="field" style="margin:0;">
               <label>OIDC Issuer URL *</label>
-              <input type="url" id="sso-issuer" class="input" value="${ssoConfig.issuer_url || ''}" placeholder="https://login.microsoftonline.com/tenant-id/v2.0">
+              <input type="url" id="sso-issuer" class="input" value="${escapeHtml(ssoConfig.issuer_url || '')}" placeholder="https://login.microsoftonline.com/tenant-id/v2.0">
             </div>
 
             <div class="field" style="margin:0;">
               <label>Client ID *</label>
-              <input type="text" id="sso-client-id" class="input" value="${ssoConfig.client_id || ''}" placeholder="00000000-0000-0000-0000-000000000000">
+              <input type="text" id="sso-client-id" class="input" value="${escapeHtml(ssoConfig.client_id || '')}" placeholder="00000000-0000-0000-0000-000000000000">
             </div>
 
             <div class="field" style="margin:0;">
@@ -65,7 +66,7 @@ export default {
 
             <div class="field" style="margin:0;">
               <label>Allowed email domains *</label>
-              <textarea id="sso-allowed-domains" class="input" rows="2" placeholder="example.com">${Array.isArray(ssoConfig.allowed_domains) ? ssoConfig.allowed_domains.join(', ') : ''}</textarea>
+              <textarea id="sso-allowed-domains" class="input" rows="2" placeholder="example.com">${escapeHtml(Array.isArray(ssoConfig.allowed_domains) ? ssoConfig.allowed_domains.join(', ') : (ssoConfig.allowed_domains || ''))}</textarea>
             </div>
 
             <div class="field" style="margin:0;">
@@ -110,10 +111,10 @@ export default {
                       .map(
                         (ev) => `
                       <tr>
-                        <td><strong>${ev.event_type}</strong></td>
-                        <td>${ev.actor_email || 'System'}</td>
-                        <td class="num">${ev.ip_address || '—'}</td>
-                        <td class="num">${new Date(ev.created_at).toLocaleTimeString()}</td>
+                        <td><strong>${escapeHtml(ev.event_type)}</strong></td>
+                        <td>${escapeHtml(ev.actor_email || 'System')}</td>
+                        <td class="num">${escapeHtml(ev.ip_address || '—')}</td>
+                        <td class="num">${ev.created_at ? escapeHtml(new Date(ev.created_at).toLocaleTimeString()) : '—'}</td>
                       </tr>
                     `
                       )

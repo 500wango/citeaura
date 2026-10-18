@@ -45,14 +45,17 @@ def billing_client(tmp_path, monkeypatch):
 
 
 def _register(client, email):
-    assert client.post(
+    registered = client.post(
         "/api/v1/auth/register",
         json={"email": email, "password": "correct-horse-battery"},
-    ).status_code == 201
+    )
+    assert registered.status_code == 202
+    assert registered.json()["accepted"] is True
     login = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "correct-horse-battery"},
     )
+    # 调用方只用 headers，租户/用户信息在需要时从 DB（session_factory）取。
     return {"Authorization": f"Bearer {login.json()['access_token']}"}
 
 
@@ -557,7 +560,11 @@ def test_second_paid_checkout_stays_incomplete_and_does_not_change_tenant_plan(b
         "created": int(time.time()) + 3,
     })
     assert _post_stripe_event(client, updated).json()["processed"] is False
-    assert _post_stripe_event(client, invoice).json()["processed"] is False
+    # 金额对平的 invoice.paid 不再被丢弃：付款会被记账，第二条订阅仍是 incomplete，
+    # 租户套餐继续由已经生效的 sub_first 决定。
+    paid_invoice = _post_stripe_event(client, invoice)
+    assert paid_invoice.status_code == 200
+    assert paid_invoice.json()["processed"] is True
     with session_factory() as db:
         tenant = db.get(Tenant, tenant_id)
         subscriptions = db.query(Subscription).order_by(Subscription.id).all()
@@ -566,6 +573,11 @@ def test_second_paid_checkout_stays_incomplete_and_does_not_change_tenant_plan(b
             ("sub_first", "active"),
             ("sub_second", "incomplete"),
         ]
+        # 钱已经收到，必须留下支付流水，即使订阅仍是 incomplete。
+        assert [
+            (item.status, item.amount_usd_cents)
+            for item in db.query(PaymentTransaction).order_by(PaymentTransaction.id).all()
+        ] == [("succeeded", 49900)]
 
 
 def test_checkout_watermark_rejects_stale_subscription_webhook(billing_client):
@@ -792,10 +804,14 @@ def test_underpaid_first_invoice_does_not_activate_subscription(billing_client):
         }}},
     }))
 
-    assert invoice.status_code == 200
-    assert invoice.json()["processed"] is False
+    # 金额校验失败现在抛 StripeError → webhook 返回 400，事件不会被登记为已处理，
+    # Stripe 会重投；以前是 200 + processed=false 的静默丢弃。
+    assert invoice.status_code == 400
+    assert invoice.json() == {"error": "stripe_invoice_amount_mismatch"}
     with session_factory() as db:
+        assert db.query(BillingEvent).count() == 0
         assert db.query(Subscription).count() == 0
+        assert db.query(PaymentTransaction).count() == 0
         assert db.get(Tenant, tenant_id).plan == "trial"
 
 
@@ -824,11 +840,111 @@ def test_underpaid_invoice_does_not_reactivate_existing_subscription(billing_cli
         "created": int(time.time()),
     }))
 
-    assert invoice.status_code == 200
-    assert invoice.json()["processed"] is False
+    assert invoice.status_code == 400
+    assert invoice.json() == {"error": "stripe_invoice_amount_mismatch"}
     with session_factory() as db:
         subscription = db.query(Subscription).one()
         assert subscription.status == "past_due"
+        # 金额不符时连 PaymentTransaction 都不会写入，等 Stripe 重投。
+        assert db.query(PaymentTransaction).count() == 0
+
+
+def test_paid_invoice_restores_canceled_subscription_and_records_payment(billing_client):
+    client, session_factory = billing_client
+    _register(client, "restore-canceled@example.com")
+    period_end = int(time.time()) + 30 * 86400
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "restore-canceled").one()
+        tenant.plan = "expired"
+        db.add(Subscription(
+            tenant_id=tenant.id,
+            plan="pro",
+            billing_interval="monthly",
+            amount_usd_cents=19900,
+            status="unpaid",
+            provider="stripe",
+            provider_subscription_id="sub_restore",
+            expires_at=datetime.now(timezone.utc) - timedelta(days=3),
+        ))
+        db.commit()
+        tenant_id = tenant.id
+
+    paid = _post_stripe_event(client, _stripe_event("evt_restore_paid", "invoice.paid", {
+        "id": "in_restore",
+        "subscription": "sub_restore",
+        "currency": "usd",
+        "amount_paid": 19900,
+        "created": int(time.time()),
+        "period_end": period_end,
+    }))
+
+    assert paid.status_code == 200
+    assert paid.json()["processed"] is True
+    with session_factory() as db:
+        tenant = db.get(Tenant, tenant_id)
+        subscription = db.query(Subscription).one()
+        assert subscription.status == "active"
+        assert tenant.plan == "pro"
+        stored_expiry = subscription.expires_at
+        if stored_expiry.tzinfo is None:
+            stored_expiry = stored_expiry.replace(tzinfo=timezone.utc)
+        assert stored_expiry.timestamp() == period_end
+        payment = db.query(PaymentTransaction).one()
+        assert (payment.status, payment.amount_usd_cents) == ("succeeded", 19900)
+
+
+def test_renewal_invoice_advances_expiry_and_never_moves_it_backwards(billing_client):
+    client, session_factory = billing_client
+    _register(client, "renewal@example.com")
+    started = datetime.now(timezone.utc)
+    renewed_until = int((started + timedelta(days=30)).timestamp())
+    with session_factory() as db:
+        tenant = db.query(Tenant).filter(Tenant.name == "renewal").one()
+        tenant.plan = "pro"
+        db.add(Subscription(
+            tenant_id=tenant.id,
+            plan="pro",
+            billing_interval="monthly",
+            amount_usd_cents=19900,
+            status="active",
+            provider="stripe",
+            provider_subscription_id="sub_renewal",
+            expires_at=started,
+        ))
+        db.commit()
+        subscription_id = db.query(Subscription.id).one()[0]
+
+    renewal = _post_stripe_event(client, _stripe_event("evt_renewal", "invoice.paid", {
+        "id": "in_renewal",
+        "subscription": "sub_renewal",
+        "currency": "usd",
+        "amount_paid": 19900,
+        "billing_reason": "subscription_cycle",
+        "created": int(started.timestamp()) + 1,
+        "lines": {"data": [{"period": {"end": renewed_until}}]},
+    }))
+    assert renewal.status_code == 200
+    assert renewal.json()["processed"] is True
+
+    # 迟到但更新的事件带来更早的周期结束时间：本地到期时间只能前进，不能倒退。
+    out_of_order = _post_stripe_event(client, _stripe_event("evt_renewal_out_of_order", "invoice.paid", {
+        "id": "in_renewal_replay",
+        "subscription": "sub_renewal",
+        "currency": "usd",
+        "amount_paid": 19900,
+        "created": int(started.timestamp()) + 2,
+        "period_end": renewed_until - 86400,
+    }))
+    assert out_of_order.status_code == 200
+    assert out_of_order.json()["processed"] is True
+
+    with session_factory() as db:
+        subscription = db.get(Subscription, subscription_id)
+        assert subscription.status == "active"
+        stored_expiry = subscription.expires_at
+        if stored_expiry.tzinfo is None:
+            stored_expiry = stored_expiry.replace(tzinfo=timezone.utc)
+        assert stored_expiry.timestamp() == renewed_until
 
 
 def test_subscription_deleted_webhook_revokes_paid_plan(billing_client):
@@ -858,8 +974,10 @@ def test_subscription_deleted_webhook_revokes_paid_plan(billing_client):
         "invoice.paid",
         {"id": "in_stale", "subscription": "sub_cancel"},
     ))
-    assert stale_invoice.status_code == 200
-    assert stale_invoice.json()["processed"] is False
+    # 取消后到达的 invoice.paid 缺少币种/金额，无法与本地 $199 对平 → 现在直接 400，
+    # 而不是 200 静默丢弃；两种情况下都不会恢复权限。
+    assert stale_invoice.status_code == 400
+    assert stale_invoice.json() == {"error": "stripe_invoice_amount_mismatch"}
     with session_factory() as db:
         tenant = db.get(Tenant, tenant_id)
         assert tenant.plan == "expired"
