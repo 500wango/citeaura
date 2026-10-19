@@ -251,9 +251,13 @@ def read_config(project_slug: str) -> dict:
     return global_scope.normalize_config_data(geolib.load_config(project_slug))
 
 
-def ensure_global_engine_scope(project_slug: str) -> dict:
-    """兼容旧调用点，归一化多市场项目及已有产物。"""
-    return global_scope.normalize_project(project_slug)
+def ensure_global_engine_scope(project_slug: str, *, persist: bool = True) -> dict:
+    """兼容旧调用点，归一化多市场项目及已有产物。
+
+    persist=False 供只读 GET 使用：只计算内存归一化结果，不写 geo/tasks/metrics/blueprint，
+    避免读请求与 Worker 抢项目锁并改写产物。写入侧（建项目、配置更新、采样、交付、恢复）保持默认 True。
+    """
+    return global_scope.normalize_project(project_slug, persist=persist)
 
 
 def update_config(project_slug: str, updates: dict) -> dict:

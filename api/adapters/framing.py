@@ -105,9 +105,12 @@ def _latest_samples(project_slug, config):
     ]
 
 
-def build(project_slug):
-    """返回最新一期 framing 短语及其原文证据。"""
-    cfg = geolib.load_config(project_slug)
+def build(project_slug, config=None):
+    """返回最新一期 framing 短语及其原文证据。
+
+    config 允许调用方传入内存归一化后的配置，只读 GET 因此无需改写 geo.json。
+    """
+    cfg = config if isinstance(config, dict) and config else geolib.load_config(project_slug)
     brand = cfg.get("brand", {})
     aliases = [brand.get("name", "")] + list(brand.get("aliases", []) or [])
     aliases = sorted({item.strip() for item in aliases if item and item.strip()}, key=len, reverse=True)

@@ -241,6 +241,8 @@ def register(
         public_audit = db.query(PublicAudit).filter(
             PublicAudit.audit_id == payload.audit_id,
             PublicAudit.expires_at > datetime.now(timezone.utc),
+            # 一次性：用过就作废，否则同一个 audit_id 可以反复挂到新账号上。
+            PublicAudit.consumed_at.is_(None),
         ).first()
         if public_audit is None:
             _error(status.HTTP_400_BAD_REQUEST, "audit_handoff_expired")
@@ -314,6 +316,9 @@ def register(
             )
         if invitation:
             invitation.accepted_at = datetime.now(timezone.utc)
+        if public_audit is not None:
+            public_audit.consumed_at = datetime.now(timezone.utc)
+            public_audit.tenant_id = tenant.id
         db.commit()
         db.refresh(user)
         db.refresh(tenant)

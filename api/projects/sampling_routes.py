@@ -448,8 +448,9 @@ def project_framing(project_id: int, current_user: User = Depends(get_current_us
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     with with_tenant_read_context(tenant, project.slug):
-        global_scope.normalize_project(project.slug)
-        result = framing.build(project.slug)
+        # 只读归一化：framing 直接用内存配置，不再改写 geo/tasks/metrics。
+        config = global_scope.normalize_project(project.slug, persist=False)
+        result = framing.build(project.slug, config=config)
     return {"framing": result}
 
 
@@ -466,7 +467,7 @@ def project_samples(
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     with with_tenant_read_context(tenant, project.slug):
-        config = global_scope.normalize_project(project.slug)
+        config = global_scope.normalize_project(project.slug, persist=False)
         sample_dir = geolib.project_dir(project.slug) / "samples"
         path = sample_dir / f"{sample_date}.jsonl"
         if not path.is_file() and re.fullmatch(r"\d{4}-\d{2}-\d{2}", sample_date):

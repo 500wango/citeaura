@@ -689,11 +689,12 @@ def normalize_config_data(config):
     return brand_identity.normalize_config_identity(current)
 
 
-def normalize_config(project_slug):
+def normalize_config(project_slug, *, persist=True):
+    """归一化项目配置；persist=False 时只返回内存结果，不落盘（只读 GET 用）。"""
     with geolib.project_lock(project_slug):
         current = geolib.load_config(project_slug)
         normalized = normalize_config_data(current)
-        if normalized != current:
+        if persist and normalized != current:
             geolib.save_config(project_slug, normalized)
         return normalized
 
@@ -773,7 +774,7 @@ def normalize_blueprint_data(blueprint, *, profile=None, cited_domains=None, obs
     }
 
 
-def normalize_blueprint(project_slug):
+def normalize_blueprint(project_slug, *, persist=True):
     path = geolib.project_dir(project_slug) / "blueprint.json"
     if not path.is_file():
         return None
@@ -790,7 +791,7 @@ def normalize_blueprint(project_slug):
             observed_domains=(channel_evidence or {}).get("observed") if channel_evidence is not None else None,
             own_domain=_domain_host((config.get("brand") or {}).get("site")),
         )
-        if normalized != current:
+        if persist and normalized != current:
             geolib.write_json(path, normalized)
         return normalized
 
@@ -847,7 +848,8 @@ def normalize_tasks_data(data):
     }
 
 
-def normalize_tasks(project_slug):
+def normalize_tasks(project_slug, *, persist=True):
+    """归一化工单；persist=False 时只返回内存结果，不重写 tasks.json。"""
     path = geolib.project_dir(project_slug) / "tasks.json"
     if not path.is_file():
         return None
@@ -867,15 +869,24 @@ def normalize_tasks(project_slug):
             audit,
             measurement.sampling_quality(project_slug),
         )
-        if normalized != current:
+        if persist and normalized != current:
             geolib.write_json(path, normalized)
         return normalized
 
 
-def normalize_audit(project_slug):
+def normalize_audit(project_slug, *, persist=True):
+    """归一化审计；persist=False 时只补内存 market，不重跑去重和引擎审计。"""
     path = geolib.project_dir(project_slug) / "audit.json"
     if not path.is_file():
         return None
+    if not persist:
+        # 只读路径不触发证据去重写入，也不重跑 audit.run；直接返回磁盘审计的内存归一化副本。
+        current = geolib.read_json(path, {}) or {}
+        config = geolib.load_config(project_slug)
+        market = config.get("market") if config.get("market") in ("cn", "global", "both") else "both"
+        if current.get("market") != market:
+            current = {**current, "market": market}
+        return current
     with geolib.project_lock(project_slug):
         deduplication = deduplicate_crawl_evidence(project_slug)
         current = geolib.read_json(path, {}) or {}
@@ -936,7 +947,7 @@ def _sample_summary(rows):
     }
 
 
-def normalize_metrics(project_slug, question_count=None, config=None):
+def normalize_metrics(project_slug, question_count=None, config=None, *, persist=True):
     directory = geolib.project_dir(project_slug) / "metrics"
     if not directory.is_dir():
         return []
@@ -975,23 +986,13 @@ def normalize_metrics(project_slug, question_count=None, config=None):
                     normalized["question_set_version"] = current_question_version
                     normalized["cohort_status"] = "current" if rows else "no_current_samples"
             elif isinstance(current.get("sample_summary"), dict):
-                successful = sum(int(item.get("samples") or 0) for item in platforms.values())
-                normalized["sample_count"] = successful
-                normalized["sample_summary"] = {
-                    "total": successful,
-                    "successful": successful,
-                    "failed": 0,
-                    "per_platform": {
-                        code: {
-                            "total": int(item.get("samples") or 0),
-                            "successful": int(item.get("samples") or 0),
-                            "failed": 0,
-                        }
-                        for code, item in platforms.items()
-                    },
-                }
+                # 有 sample_summary 但没有对应采样文件时，绝不能再“补”数值：
+                # 以前这里会把 failed 写成 0、把 samples 当成 successful，
+                # 等于给已发布的快照伪造一个 0% 失败率。（AGENTS.md #8）
+                pass
             if question_count is not None:
-                normalized["question_count"] = question_count
+                # 只补缺失，不覆写历史 run 自己的题量。
+                normalized.setdefault("question_count", question_count)
             provenance = normalized.get("provenance")
             if isinstance(provenance, dict):
                 provenance = deepcopy(provenance)
@@ -1000,26 +1001,39 @@ def normalize_metrics(project_slug, question_count=None, config=None):
                 if isinstance(provenance.get("question_set"), dict) and question_count is not None:
                     provenance["question_set"] = {
                         **provenance["question_set"],
-                        "version": normalized.get("question_set_version", provenance["question_set"].get("version")),
-                        "count": question_count,
+                        # 只补缺失值：历史 run 记录的题集版本/题量不能被今天的值覆盖。
+                        "version": (
+                            provenance["question_set"].get("version")
+                            or normalized.get("question_set_version")
+                        ),
+                        "count": provenance["question_set"].get("count") or question_count,
                     }
                 normalized["provenance"] = provenance
-            if normalized != current:
+            if persist and normalized != current:
                 geolib.write_json(path, normalized)
             normalized_files.append(normalized)
     return normalized_files
 
 
-def normalize_project(project_slug):
+def normalize_project(project_slug, *, persist=True):
+    """归一整条管线产物；persist=False 只计算内存结果，供只读 GET 使用（不写任何产物）。"""
     if not (geolib.project_dir(project_slug) / "geo.json").is_file():
         return {}
-    config = normalize_config(project_slug)
-    brand_identity.reanalyze_samples(project_slug, config)
-    normalize_audit(project_slug)
-    normalize_metrics(project_slug, question_count=len(config.get("questions") or []), config=config)
-    normalize_tasks(project_slug)
-    normalize_blueprint(project_slug)
-    brand_facts.ensure_english_facts(project_slug, config=config)
+    config = normalize_config(project_slug, persist=persist)
+    if persist:
+        # 样本重算与英文事实迁移都会改写 samples/content 文件，只在写入侧执行。
+        brand_identity.reanalyze_samples(project_slug, config)
+    normalize_audit(project_slug, persist=persist)
+    normalize_metrics(
+        project_slug,
+        question_count=len(config.get("questions") or []),
+        config=config,
+        persist=persist,
+    )
+    normalize_tasks(project_slug, persist=persist)
+    normalize_blueprint(project_slug, persist=persist)
+    if persist:
+        brand_facts.ensure_english_facts(project_slug, config=config)
     return config
 
 

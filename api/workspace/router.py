@@ -1,10 +1,11 @@
 """问题库、资产、事实库和内容工作台 API。"""
 
 import json
+import time
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,7 @@ from api.billing.limits import check_sample_run
 from api.db import get_db
 from api.models import Job, Project, Tenant, User
 from api.product_events import record_product_event
+from api.rate_limit import RateLimitUnavailable, check_scope
 
 
 router = APIRouter(tags=["workspace"])
@@ -275,7 +277,26 @@ def project_workbench(
 
 
 @router.post("/api/v1/workspace/precheck")
-def content_precheck(payload: TextRequest, current_user: User = Depends(get_current_user)):
+def content_precheck(
+    request: Request,
+    payload: TextRequest,
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        decision = check_scope(request, "workspace-precheck", 10, 60)
+    except RateLimitUnavailable:
+        decision = None  # Redis 故障时放行：precheck 不是认证入口
+    if decision is not None and not decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limit_exceeded", "detail": "request limit exceeded"},
+            headers={
+                "Retry-After": str(max(1, decision.reset_at - int(time.time()))),
+                "X-RateLimit-Limit": str(decision.limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(decision.reset_at),
+            },
+        )
     return workspace.precheck(payload.text)
 
 

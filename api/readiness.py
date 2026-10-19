@@ -9,7 +9,7 @@ from api.settings.crypto import _master_key
 from api.worker.celery_app import celery_app
 
 
-EXPECTED_DB_REVISION = "0038_security_reliability"
+EXPECTED_DB_REVISION = "0039_public_audit_consumed"
 
 
 def _worker_available():

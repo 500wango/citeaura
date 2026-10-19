@@ -17,6 +17,10 @@ from api.pipeline_catalog import ENTITLEMENT_REQUIRED_ACTIONS
 from api.product_events import record_product_event
 
 
+# 稳定失败原因：工作区被平台禁用后，队列里的任务在认领阶段就被拒绝。
+TENANT_DISABLED_REASON = "tenant_disabled"
+
+
 def _task_facade():
     from api.worker import tasks as task_module
 
@@ -73,6 +77,20 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
             return False
         project = db.get(Project, job.project_id)
         tenant = db.get(Tenant, project.tenant_id) if project is not None else None
+        if tenant is not None and tenant.status != "active":
+            # 已禁用工作区不再认领任何新工作：in-flight 任务无法可靠中止，
+            # 但认领入口拦截后队列里的任务不会真正开跑。
+            sampling_control.release_reservation(job)
+            job.status = "failed"
+            job.stage = "failed"
+            job.finished_at = datetime.now(timezone.utc)
+            job.error = TENANT_DISABLED_REASON
+            if project is not None and project.status != "archived":
+                project.status = "ready"
+            _task_facade().logger.info(
+                "Refusing job %s: tenant %s is %s", job.id, tenant.id, tenant.status,
+            )
+            return False
         if tenant is not None and action in ENTITLEMENT_REQUIRED_ACTIONS:
             sync_tenant_plan(db, tenant.id)
             try:

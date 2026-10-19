@@ -333,8 +333,10 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
         with with_tenant_read_context(tenant, project.slug):
             import dashboard
 
-            cfg = workspace.ensure_global_engine_scope(project.slug)
+            # 只读归一化：GET 不得改写 geo.json/tasks/metrics/blueprint，否则与 Worker 竞态。
+            cfg = workspace.ensure_global_engine_scope(project.slug, persist=False)
             detail = dashboard.project(project.slug)
+            _apply_read_only_snapshot(detail, cfg, project.slug)
             detail["public_audit"] = geolib.read_json(geolib.project_dir(project.slug) / "public_audit.json", None)
             detail["questions"] = cfg.get("questions", [])
             detail["competitor_discovery"] = _competitor_discovery_payload(cfg)
@@ -401,7 +403,7 @@ def project_status(project_id: int, current_user: User = Depends(get_current_use
     with with_tenant_read_context(tenant, project.slug):
         import dashboard
 
-        workspace.ensure_global_engine_scope(project.slug)
+        workspace.ensure_global_engine_scope(project.slug, persist=False)
         summary = next(
             (item for item in dashboard.list_projects() if item.get("slug") == project.slug),
             {
@@ -416,6 +418,8 @@ def project_status(project_id: int, current_user: User = Depends(get_current_use
                 "p0_open": 0,
             },
         )
+        # 工单汇总来自磁盘 tasks.json；用内存归一化结果补齐，保持只读路径与写入式归一化一致。
+        summary = _read_only_task_summary(project.slug, summary)
         quality = report_quality.assess(project.slug, _has_sampling_access(db, tenant, project))
         outputs = _available_outputs(project.slug)
     latest_job = db.query(Job).filter(Job.project_id == project.id).order_by(Job.id.desc()).first()

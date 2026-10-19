@@ -461,12 +461,13 @@ def test_project_normalization_updates_files(tmp_path, monkeypatch):
     assert config["questions"][0]["market"] == "cn"
     assert config["platforms"] == ["deepseek", "openai"]
     assert list(metrics["platforms"]) == ["deepseek", "openai"]
-    assert metrics["question_count"] == 1
+    # 历史 run 自己的题量/题集不能被今天配置里的值覆盖（AGENTS.md #8：不伪造数据）。
+    assert metrics["question_count"] == 2
     assert metrics["sample_count"] == 3
     assert metrics["sample_summary"]["successful"] == 3
     assert metrics["provenance"]["requested_platforms"] == ["deepseek", "openai"]
     assert metrics["provenance"]["platforms"] == [{"engine_code": "deepseek"}, {"engine_code": "openai"}]
-    assert metrics["provenance"]["question_set"]["count"] == 1
+    assert metrics["provenance"]["question_set"]["count"] == 2
     channels = {channel["id"]: channel for channel in blueprint["channels"]}
     assert channels["official_en"]["coverage_status"] == "brand_cited"
     assert channels["review"]["coverage_status"] == "brand_cited"

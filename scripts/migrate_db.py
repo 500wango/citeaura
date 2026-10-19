@@ -24,7 +24,7 @@ from sqlalchemy import create_engine, inspect, text  # noqa: E402
 
 from api import config  # noqa: E402
 
-TARGET_REVISION = "0038_security_reliability"
+TARGET_REVISION = "0039_public_audit_consumed"
 CURRENT_STATUSES = ("active", "trialing", "past_due")
 
 
@@ -130,6 +130,7 @@ def verify(engine):
         "jobs": {"heartbeat_at"},
         "api_keys": {"key_suffix"},
         "api_access_tokens": {"expires_at"},
+        "public_audits": {"consumed_at", "tenant_id"},
     }
     for table, expected in columns.items():
         present = {item["name"] for item in inspector.get_columns(table)}

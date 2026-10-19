@@ -1,9 +1,10 @@
 """项目对象存储归档和恢复 API。"""
 
 import json
+import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -12,6 +13,7 @@ from api.adapters.engine import job_log_path
 from api.auth.deps import get_current_user, require_owner
 from api.db import get_db
 from api.models import Job, Project, Tenant, User
+from api.rate_limit import RateLimitUnavailable, check_scope
 from api.worker.tasks import task_archive_project, task_restore_project
 
 
@@ -123,11 +125,27 @@ def archives(
 @router.post("/{project_id}/archives", status_code=status.HTTP_202_ACCEPTED)
 def create_project_archive(
     project_id: int,
+    request: Request,
     payload: CreatePayload = CreatePayload(),
     current_user: User = Depends(require_owner),
     db: Session = Depends(get_db),
 ):
     """投递项目快照归档任务。"""
+    try:
+        decision = check_scope(request, "archive-create", 5, 60)
+    except RateLimitUnavailable:
+        decision = None  # Redis 故障时放行（fail open）
+    if decision is not None and not decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limit_exceeded", "detail": "request limit exceeded"},
+            headers={
+                "Retry-After": str(max(1, decision.reset_at - int(time.time()))),
+                "X-RateLimit-Limit": str(decision.limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(decision.reset_at),
+            },
+        )
     tenant, project = _records(db, current_user, project_id)
     try:
         archive.storage_status()

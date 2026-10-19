@@ -1,6 +1,7 @@
 """只读 Public API、API Token 管理和最小 MCP 工具协议。"""
 
 import json
+import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -13,6 +14,7 @@ from api.auth.deps import require_owner
 from api.db import get_db
 from api.models import ApiAccessToken, Project, Tenant, User
 from api.projects import router as project_router
+from api.rate_limit import RateLimitUnavailable, check_scope
 
 
 router = APIRouter(tags=["integrations"])
@@ -151,6 +153,22 @@ def _mcp_error(request_id, code, message):
 @router.post("/api/v1/mcp")
 def mcp(request: Request, payload: dict, db: Session = Depends(get_db)):
     """提供 MCP initialize/tools/list/tools/call 的只读子集。"""
+    # 只在 MCP 入口计数：内部直接调用 public-api handler 时不会重复扣配额。
+    try:
+        decision = check_scope(request, "mcp", 10, 60)
+    except RateLimitUnavailable:
+        decision = None  # Redis 故障时放行（fail open）
+    if decision is not None and not decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limit_exceeded", "detail": "request limit exceeded"},
+            headers={
+                "Retry-After": str(max(1, decision.reset_at - int(time.time()))),
+                "X-RateLimit-Limit": str(decision.limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(decision.reset_at),
+            },
+        )
     _integration_context(request, db)
     if not isinstance(payload, dict):
         return _mcp_error(None, -32600, "invalid_request")

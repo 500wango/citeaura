@@ -128,6 +128,49 @@ def _available_outputs(project_slug):
     }
 
 
+def _apply_read_only_snapshot(detail, cfg, project_slug):
+    """用内存归一化结果覆盖 dashboard 的磁盘读数。
+
+    GET 不再写盘，因此 dashboard 读到的是磁盘现状；这里把同一套内存归一化结果
+    （配置、工单、蓝图）覆盖回去，保证只读响应与写入式归一化后的内容一致。
+    """
+    if not isinstance(detail, dict):
+        return detail
+    cfg = cfg if isinstance(cfg, dict) else {}
+    if isinstance(cfg.get("brand"), dict):
+        detail["brand"] = cfg["brand"]
+    if cfg.get("market") in ("cn", "global", "both"):
+        detail["market"] = cfg["market"]
+    if isinstance(cfg.get("questions"), list):
+        detail["question_count"] = len(cfg["questions"])
+    tasks = global_scope.normalize_tasks(project_slug, persist=False)
+    if isinstance(tasks, dict):
+        detail["tasks"] = tasks.get("tasks", [])
+    blueprint = global_scope.normalize_blueprint(project_slug, persist=False)
+    if isinstance(blueprint, dict):
+        detail["blueprint"] = blueprint
+    return detail
+
+
+def _read_only_task_summary(project_slug, fallback):
+    """用内存归一化后的工单统计覆盖磁盘汇总，不写 tasks.json。"""
+    snapshot = global_scope.normalize_tasks(project_slug, persist=False)
+    if not isinstance(snapshot, dict):
+        return fallback
+    summary = snapshot.get("summary") if isinstance(snapshot.get("summary"), dict) else {}
+    tasks = snapshot.get("tasks") if isinstance(snapshot.get("tasks"), list) else []
+    return {
+        **(fallback or {}),
+        "tasks_total": summary.get("total", (fallback or {}).get("tasks_total", 0)),
+        "tasks_done": (summary.get("by_status") or {}).get("done", (fallback or {}).get("tasks_done", 0)),
+        "p0_open": sum(
+            1 for task in tasks
+            if isinstance(task, dict) and task.get("priority") == "P0" and task.get("status") != "done"
+        ),
+    }
+
+
+
 def _project_directory_exists(tenant_name: str, project_slug: str) -> bool:
     return (engine_adapter.WORK_ROOT / engine_adapter.tenant_slug(tenant_name) / project_slug).is_dir()
 

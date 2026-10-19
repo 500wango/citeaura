@@ -2,11 +2,12 @@
 
 import hashlib
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 import jwt
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,7 @@ from api.country import request_country_code
 from api.db import get_db
 from api.models import Membership, ProductEvent, Tenant, User
 from api.product_events import record_product_event
+from api.rate_limit import RateLimitUnavailable, check_scope
 
 
 router = APIRouter(prefix="/api/v1/events", tags=["analytics"])
@@ -125,6 +127,21 @@ def request_visitor(request):
 @router.post("/landing")
 def landing_view(request: Request, response: Response, db: Session = Depends(get_db)):
     """按第一方匿名访客每日记录一次落地页访问。"""
+    try:
+        decision = check_scope(request, "events-landing", 30, 60)
+    except RateLimitUnavailable:
+        decision = None  # Redis 故障时不阻断匿名采集（fail open）
+    if decision is not None and not decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limit_exceeded", "detail": "request limit exceeded"},
+            headers={
+                "Retry-After": str(max(1, decision.reset_at - int(time.time()))),
+                "X-RateLimit-Limit": str(decision.limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(decision.reset_at),
+            },
+        )
     raw_visitor = request.cookies.get(VISITOR_COOKIE)
     if not raw_visitor or len(raw_visitor) < 20 or len(raw_visitor) > 128:
         raw_visitor = secrets.token_urlsafe(24)
@@ -157,6 +174,21 @@ def landing_view(request: Request, response: Response, db: Session = Depends(get
 @router.post("/product", status_code=status.HTTP_202_ACCEPTED)
 def product_event(payload: ProductEventRequest, request: Request, db: Session = Depends(get_db)):
     """接收匿名增长事件；只允许公开事件白名单，避免把按钮日志变成任意写入。"""
+    try:
+        decision = check_scope(request, "events-product", 30, 60)
+    except RateLimitUnavailable:
+        decision = None  # Redis 故障时不阻断匿名采集（fail open）
+    if decision is not None and not decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limit_exceeded", "detail": "request limit exceeded"},
+            headers={
+                "Retry-After": str(max(1, decision.reset_at - int(time.time()))),
+                "X-RateLimit-Limit": str(decision.limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(decision.reset_at),
+            },
+        )
     tenant_id = None
     user_id = None
     token = request.cookies.get(ACCESS_TOKEN_COOKIE)

@@ -402,7 +402,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     delivered = client.post(f"/api/v1/projects/{body['project_id']}/deliver", headers=headers)
     assert delivered.status_code == 202
     assert delivered.json()["job_id"] == 4
-    monkeypatch.setattr(project_router.delivery, "ensure_delivery_contract", lambda slug, directory: directory)
+    monkeypatch.setattr(project_router.delivery, "ensure_delivery_contract", lambda slug, directory, **kwargs: directory)
     archive = client.get(f"/api/v1/projects/{body['project_id']}/deliveries/2026-07-31", headers=headers)
     assert archive.status_code == 200
     assert archive.headers["content-type"] == "application/zip"
@@ -509,7 +509,7 @@ def test_delivery_download_rejects_noncompliant_legacy_package(project_client, m
     output.mkdir(parents=True)
     (output / "01-诊断报告.md").write_text("# 中文报告\n", "utf-8")
 
-    def reject_delivery(slug, directory):
+    def reject_delivery(slug, directory, **kwargs):
         raise project_router.GeoEngineError("delivery contains non-English content: 01-诊断报告.md")
 
     monkeypatch.setattr(project_router.delivery, "ensure_delivery_contract", reject_delivery)
@@ -538,7 +538,7 @@ def test_delivery_download_rebuilds_even_when_legacy_quality_gate_passed(project
     )
     calls = []
 
-    def rebuild(slug, directory):
+    def rebuild(slug, directory, **kwargs):
         calls.append((slug, directory))
         (directory / "01-Audit-Report.html").write_text("formal", "utf-8")
         (directory / "assets" / "index.json").write_text(

@@ -658,9 +658,13 @@ def ensure_delivery_contract(
     *,
     measurement_scope=None,
     require_question_evidence=False,
+    persist=True,
 ):
-    """Rebuild a delivery package and fail closed unless every artifact is English-only."""
-    config = global_scope.normalize_project(project_slug)
+    """Rebuild a delivery package and fail closed unless every artifact is English-only.
+
+    ``persist=False`` 供只读下载使用：管线产物只在内存归一化，不改写 geo/tasks/metrics/blueprint。
+    """
+    config = global_scope.normalize_project(project_slug, persist=persist)
     from api.adapters import generated_assets
 
     generated_assets.normalize_project_assets(project_slug, config=config)

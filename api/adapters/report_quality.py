@@ -83,9 +83,14 @@ def assess(project_slug, has_sampling_access=False):
 
     current = measurement_quality.get("current") or {}
     confidence = measurement_quality.get("confidence") or {}
-    successful = int(current.get("successful") or 0)
+    # successful 为 None 表示“未记录”，不能当成 0 个样本（也不能当成全都成功）。
+    successful_value = current.get("successful")
+    successful = int(successful_value) if successful_value is not None else None
     platform_count = int(confidence.get("platform_count") or 0)
-    sample_coverage = min(1.0, successful / MIN_COMPARABLE_SAMPLES) if metrics else 0
+    sample_coverage = (
+        min(1.0, successful / MIN_COMPARABLE_SAMPLES)
+        if metrics and successful is not None else 0
+    )
     platform_coverage = min(1.0, platform_count / MIN_REPRESENTATIVE_PLATFORMS) if metrics else 0
     sampling_ratio = sample_coverage * platform_coverage
     sampling_score = round(35 * sampling_ratio)
@@ -100,6 +105,12 @@ def assess(project_slug, has_sampling_access=False):
             "sampling_missing", "info",
             "AI visibility is not measured yet. That does not block the diagnostic pack",
             "Run sampling only if you want measured mention rates in the next cycle", "engines",
+        ))
+    elif successful is None:
+        issues.append(_issue(
+            "sampling_insufficient", "info",
+            "This run does not record how many samples succeeded",
+            "Re-run sampling so the diagnostic pack can report a measurable success rate", "engines",
         ))
     elif successful < MIN_COMPARABLE_SAMPLES:
         issues.append(_issue(

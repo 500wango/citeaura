@@ -20,7 +20,8 @@ def project_tickets(
     with with_tenant_read_context(tenant, project.slug):
         import tasks as engine_tasks
 
-        data = global_scope.normalize_tasks(project.slug) or engine_tasks.load(project.slug)
+        # 只读归一化：不重写 tasks.json，避免与 Worker 竞态。
+        data = global_scope.normalize_tasks(project.slug, persist=False) or engine_tasks.load(project.slug)
     tickets = ticket_workflow.filter_tickets(
         data.get("tasks", []), status=ticket_status, owner=owner, priority=priority, query=q,
     )
@@ -43,7 +44,7 @@ def project_playbook(
     with with_tenant_read_context(tenant, project.slug):
         import tasks as engine_tasks
 
-        data = global_scope.normalize_tasks(project.slug) or engine_tasks.load(project.slug)
+        data = global_scope.normalize_tasks(project.slug, persist=False) or engine_tasks.load(project.slug)
     filtered = ticket_workflow.filter_tickets(
         data.get("tasks", []), status=ticket_status, owner=owner, priority=priority, query=q,
     )
@@ -136,7 +137,7 @@ def ticket_timeline(
     with with_tenant_read_context(tenant, project.slug):
         import tasks as engine_tasks
 
-        data = global_scope.normalize_tasks(project.slug) or engine_tasks.load(project.slug)
+        data = global_scope.normalize_tasks(project.slug, persist=False) or engine_tasks.load(project.slug)
         ticket = next((item for item in data.get("tasks", []) if item.get("id") == ticket_id), None)
     if ticket is None:
         _error(status.HTTP_404_NOT_FOUND, "ticket_not_found")

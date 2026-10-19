@@ -316,6 +316,48 @@ pg_restore -c -d <db> backups/pre-migrate-<ts>.dump   # 连数据一起回
 
 ---
 
+## 9. 第四轮：按「该动/不该动」的判定收敛
+
+### 动了（5 条必须 + 1 条加固）
+
+1. **只读 GET 不再重写项目产物**（`global_scope`/`workspace`/`delivery_package`/`framing`
+   增加 `persist` 开关，GET 一律 `persist=False`）：
+   - `GET /projects/{id}`、`/status`、`/tickets`、`/playbook`、`/tickets/{tid}/timeline`、
+     `/samples/{date}`、`/framing` 现在**完全不写盘**，响应体形状不变（旧项目由内存快照补齐）。
+   - `GET /deliveries/{date}` 对**已发布**交付包是纯读；对历史/不完整交付包仍会重建该目录
+     （那就是被下载的产物本身，做成 409 会改变契约），但重建在 `project_lock` + staging +
+     原子交换内完成，且不再顺带重写 `geo.json`/`audit.json`/`tasks.json`/`metrics/`。
+2. **`normalize_metrics` 不再伪造历史数据**（AGENTS.md #8）：删掉"没有采样文件时补
+   `failed: 0` / 把 samples 当 successful"的分支；`question_count` 与
+   `provenance.question_set` 改为**只补缺失、绝不覆盖**。
+3. **`measurement._metrics_summary`** 缺 `sample_summary` 时返回 `successful: None,
+   failed: None`，`failure_rate` 随之为 `None`（未测量 ≠ 0%）；`report_quality.assess`
+   相应区分"未知"与"0 个样本"，不再把未知当 0 计分。
+4. **管理员停用工作区现在真的停**（`api/admin/router.py::change_tenant_status`）：
+   取消/标记 Stripe 订阅 `cancel_at_period_end`、撤销该租户全部 API token、清空
+   `schedule_interval_days`/`schedule_next_run_at`；并把"跑不了的任务"落在 claim 阶段 ——
+   `worker_job_lifecycle` 对非 active 租户直接以 `tenant_disabled` 失败。重新启用**不自动恢复**
+   订阅/排程/token，只在审计里标 `requires_reconfiguration`。每个副作用独立 try/except，
+   结果写进同一条审计的 `details.side_effects`，Stripe 故障不会卡住管理员操作。
+5. **匿名/昂贵端点加限流**（复用 `rate_limit.check_scope`，fail-open + 429 与中间件同形）：
+   `POST /events/product`、`/events/landing`（30/min）、`/workspace/precheck`、
+   `POST /mcp`（10/min）、`POST .../publishing/github/pr`、`POST .../archives`（5/min）。
+6. **公开审计交接改为一次性**：`public_audits.consumed_at` + `tenant_id`（迁移 `0039`），
+   注册成功后置位，同一个 `audit_id` 不能再挂到多个账号。
+
+### 没动（判定为"改了就是错的"）
+
+- **转化率口径 / trial 窗口 14 天 vs `TRIAL_DAYS=7`**：报表定义，改会让所有历史数字跳变。
+- **`_rate()` 空队列返回 0**：会让蓝图与交付文档里的覆盖度从 "0%" 变 "—"，属口径变更。
+- **`require_editor` → `require_owner` 发邮件**：角色语义变更，会让现有成员突然没权限。
+- **邀请链接 + 已存在账号走 `register`**：补上等于"拿到邀请 token 就能往别人账号塞工作区"。
+- **失败登录写审计**：等于给匿名请求开一个放大写库的口子。
+- **admin 分页 `page` 无上限 / 过滤参数是自由字符串**：前者需逐处改 5 个分页点、仅管理员
+  可触发，收益低于风险；后者"忽略未知过滤值"会让错误参数静默返回**未过滤的全量数据**，
+  比现在返回空列表更危险，明确不改。
+
+---
+
 ## 6. 明确没做 / 需要你决策
 
 1. **迁移不可逆项**：`0010/0016/0021` 的 `downgrade(): pass` 保留（数据删除类迁移本来就不该

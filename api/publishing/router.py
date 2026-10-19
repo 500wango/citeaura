@@ -1,6 +1,8 @@
 """租户隔离的内容发布 API。"""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import time
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 
@@ -11,6 +13,7 @@ from api.adapters.exceptions import GeoEngineError
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.db import get_db
 from api.models import ApiKey, Project, Tenant, User
+from api.rate_limit import RateLimitUnavailable, check_scope
 from api.settings.crypto import decrypt_key, encrypt_key, key_aad
 
 
@@ -196,11 +199,27 @@ def list_github_prs(
 @router.post("/github/pr")
 def create_github_pr(
     project_id: int,
+    request: Request,
     payload: GitHubPRRequest,
     current_user: User = Depends(require_editor),
     db: Session = Depends(get_db),
 ):
     """把已确认资产提交为待人工审核的 GitHub PR。"""
+    try:
+        decision = check_scope(request, "publishing-github-pr", 5, 60)
+    except RateLimitUnavailable:
+        decision = None  # Redis 故障时放行（fail open）
+    if decision is not None and not decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limit_exceeded", "detail": "request limit exceeded"},
+            headers={
+                "Retry-After": str(max(1, decision.reset_at - int(time.time()))),
+                "X-RateLimit-Limit": str(decision.limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(decision.reset_at),
+            },
+        )
     tenant, project = _tenant_project(db, current_user, project_id)
     if not payload.confirmed:
         _error(status.HTTP_400_BAD_REQUEST, "publish_confirmation_required")

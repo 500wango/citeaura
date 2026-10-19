@@ -346,10 +346,18 @@ def _metrics_summary(metrics):
     if isinstance(summary, dict):
         total = int(summary.get("total") or 0)
         successful = int(summary.get("successful") or 0)
-        failed = int(summary.get("failed") or max(0, total - successful))
+        failed = summary.get("failed")
+        failed = int(failed) if failed is not None else max(0, total - successful)
         return {"total": total, "successful": successful, "failed": failed}
+    # 没有 sample_summary 时不能把 sample_count 当成"全部成功"：那会把
+    # "未记录失败数"报成 0% 失败率（AGENTS.md #8 数据真实）。
     total = int((metrics or {}).get("sample_count") or 0)
-    return {"total": total, "successful": total, "failed": 0}
+    successful = (metrics or {}).get("successful_sample_count")
+    return {
+        "total": total,
+        "successful": int(successful) if successful is not None else None,
+        "failed": None,
+    }
 
 
 def _run_rows(project_slug, run_id=None):
@@ -609,7 +617,12 @@ def sampling_quality(project_slug):
     current = metrics[-1]
     current_summary = _metrics_summary(current)
     current_total = current_summary["total"]
-    current_summary["failure_rate"] = round(current_summary["failed"] / current_total, 4) if current_total else None
+    # failed 为 None 表示"未记录"，不能算成 0% 失败率。
+    current_summary["failure_rate"] = (
+        round(current_summary["failed"] / current_total, 4)
+        if current_total and current_summary["failed"] is not None
+        else None
+    )
     current_summary["question_set_version"] = _question_version(current)
     current_summary["date"] = current.get("date")
     current_rate, current_n = _weighted_mention(current)

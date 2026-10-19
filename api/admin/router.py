@@ -14,11 +14,13 @@ from api.admin.audit import record_admin_event
 from api.admin.deps import require_admin_operate, require_admin_read
 from api.admin.security import ADMIN_COOKIE, ADMIN_SESSION_MINUTES, create_admin_token
 from api.auth.security import DUMMY_PASSWORD_HASH, hash_password, verify_password
+from api.billing import stripe as stripe_billing
 from api.billing.access import subscription_is_current
 from api.rate_limit import RateLimitUnavailable, check_account
 from api.db import get_db
 from api.models import (
     AdminAuditEvent,
+    ApiAccessToken,
     Job,
     Membership,
     PaymentTransaction,
@@ -616,6 +618,78 @@ def tenants(
     return {"items": _tenant_payload_batch(db, rows), "pagination": {"page": page, "per_page": per_page, "total": total}}
 
 
+def _run_side_effect(db: Session, results, name, runner):
+    """执行单个禁用副作用。失败只记录结果、不回滚禁用本身。"""
+    try:
+        results[name] = runner()
+    except Exception as exc:  # noqa: BLE001 - 副作用失败必须留痕而不是让禁用停在半途
+        db.rollback()
+        results[name] = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _cancel_tenant_billing(db: Session, tenant: Tenant, now):
+    """停掉供应商续费，并把本地订阅标记为期末取消。"""
+    rows = db.query(Subscription).filter(
+        Subscription.tenant_id == tenant.id,
+        Subscription.status.in_(ACTIVE_SUBSCRIPTION_STATUSES),
+    ).all()
+    if not rows:
+        return {"status": "skipped", "reason": "no_billable_subscription"}
+    billing_ready = bool(config.billing_enabled() and config.stripe_secret_key())
+    items = []
+    for subscription in rows:
+        if not subscription.provider_subscription_id:
+            provider_outcome = "no_provider_subscription"
+        elif not billing_ready:
+            provider_outcome = "billing_not_configured"
+        else:
+            try:
+                stripe_billing.cancel_subscription(subscription.provider_subscription_id)
+                provider_outcome = "cancel_at_period_end"
+            except Exception as exc:  # noqa: BLE001 - Stripe 故障不能阻断管理员禁用
+                provider_outcome = f"failed:{type(exc).__name__}: {exc}"
+        # 本地标记始终落库：供应商侧失败已记进审计，便于事后补齐取消。
+        subscription.cancel_at_period_end = True
+        items.append({
+            "subscription_id": subscription.id,
+            "status": subscription.status,
+            "provider": provider_outcome,
+        })
+    db.commit()
+    return {"status": "applied", "subscriptions": items}
+
+
+def _revoke_tenant_api_tokens(db: Session, tenant: Tenant, now):
+    """吊销该租户全部公共 API 令牌；重新启用不会自动恢复。"""
+    revoked = db.query(ApiAccessToken).filter(
+        ApiAccessToken.tenant_id == tenant.id,
+        ApiAccessToken.revoked_at.is_(None),
+    ).update({ApiAccessToken.revoked_at: now}, synchronize_session=False)
+    db.commit()
+    return {"status": "applied", "revoked": int(revoked or 0)}
+
+
+def _stop_tenant_schedules(db: Session, tenant: Tenant):
+    """停掉周期复跑。
+
+    调度器只投递 schedule_interval_days IN (1, 7, 14, 30) 且 schedule_next_run_at
+    已到期的项目（见 api/worker/worker_maintenance.py），且数据库约束
+    ck_projects_schedule_interval_days 不允许 0，因此两列一起清空才既合规又停调度。
+    """
+    stopped = db.query(Project).filter(
+        Project.tenant_id == tenant.id,
+        or_(
+            Project.schedule_interval_days.isnot(None),
+            Project.schedule_next_run_at.isnot(None),
+        ),
+    ).update(
+        {Project.schedule_interval_days: None, Project.schedule_next_run_at: None},
+        synchronize_session=False,
+    )
+    db.commit()
+    return {"status": "applied", "projects_stopped": int(stopped or 0)}
+
+
 @router.patch("/tenants/{tenant_id}/status")
 def change_tenant_status(
     tenant_id: int,
@@ -628,14 +702,28 @@ def change_tenant_status(
     if tenant is None:
         _error(status.HTTP_404_NOT_FOUND, "tenant_not_found")
     previous = tenant.status
+    now = datetime.now(timezone.utc)
     tenant.status = payload.status
+    # 先落库禁用状态：后续任一副作用失败都不会让工作区停在半开半关的中间态。
+    db.commit()
+    side_effects = {}
+    if payload.status == "disabled":
+        _run_side_effect(db, side_effects, "billing", lambda: _cancel_tenant_billing(db, tenant, now))
+        _run_side_effect(db, side_effects, "api_access_tokens", lambda: _revoke_tenant_api_tokens(db, tenant, now))
+        _run_side_effect(db, side_effects, "schedules", lambda: _stop_tenant_schedules(db, tenant))
+    details = {"from": previous, "to": payload.status, "reason": payload.reason}
+    if side_effects:
+        details["side_effects"] = side_effects
+    if payload.status == "active" and previous == "disabled":
+        # 重新启用是纯状态动作：续费、周期复跑、令牌都必须由管理员重新配置。
+        details["requires_reconfiguration"] = ["subscription", "schedules", "api_access_tokens"]
     record_admin_event(
-        db, admin.id, "tenant.status_changed", f"tenant:{tenant.id}",
+        db, admin.id, "tenant.status_changed", f"tenant:{tenant_id}",
         ip_address=request.client.host if request.client else None,
-        details={"from": previous, "to": payload.status, "reason": payload.reason},
+        details=details,
     )
     db.commit()
-    return {"tenant": {"id": tenant.id, "status": tenant.status}}
+    return {"tenant": {"id": tenant_id, "status": tenant.status}}
 
 
 @router.get("/subscriptions")

@@ -147,7 +147,9 @@ def download_delivery(
             directory = delivery.validate_existing_delivery_contract(directory)
         except GeoEngineError as exc:
             try:
-                directory = delivery.ensure_delivery_contract(project.slug, directory)
+                # 只读下载：重建遗留交付包时不归一化改写 geo/tasks/metrics/blueprint，
+                # 重建本身在项目锁内只写 delivery/<date>（即本次要下载的产物）。
+                directory = delivery.ensure_delivery_contract(project.slug, directory, persist=False)
             except GeoEngineError as rebuild_exc:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,

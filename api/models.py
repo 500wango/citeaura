@@ -435,6 +435,9 @@ class PublicAudit(Base):
     url = Column(String(2048), nullable=False)
     anonymous_id = Column(String(64), nullable=True, index=True)
     result_json = Column(Text, nullable=False, default="{}", server_default="{}")
+    # 一次性交接：注册成功后置位，避免同一个 audit_id 被反复挂到多个新账号上。
+    consumed_at = Column(DateTime(timezone=True), nullable=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
 
