@@ -52,6 +52,8 @@ services:
       # 启动时自动迁移（wait-for-db → 备份 → upgrade → 校验）。
       # 多副本部署必须设为 0 并改用一次性 job，否则会并发迁移。
       AUTO_MIGRATE: ${AUTO_MIGRATE:-1}
+      # 迁移备份写进持久卷，否则容器重建后备份一起消失。
+      CITEAURA_BACKUP_DIR: /app/work/backups
     build:
       context: .
       dockerfile: Dockerfile

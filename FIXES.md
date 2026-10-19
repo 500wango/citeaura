@@ -202,7 +202,9 @@ engine/tests   273 passed, 2 skipped
 
 ```bash
 # 生产（Docker）：构建后直接起，api 容器启动时自动 等库 → pg_dump 备份 → upgrade → 校验
-docker compose -f docker-compose.prod.yml up -d --build api
+# 必须带 --env-file，否则 compose 会去读 .env（DOMAIN/REDIS_PASSWORD 缺失直接报错）
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  --profile local-postgres up -d --build
 ```
 
 - `scripts/docker-entrypoint.sh` 在 `AUTO_MIGRATE=1`（compose 里的默认值）时执行

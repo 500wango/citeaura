@@ -49,16 +49,19 @@ def preflight(engine):
     """跑迁移前先看清它会影响什么。只读。"""
     report = {"revision": current_revision(engine), "demote_candidates": [], "duplicate_notification": []}
     with engine.connect() as conn:
-        current_rows = [
-            dict(row._mapping) for row in conn.execute(text(
-                f"""
-                SELECT tenant_id, id, plan, status, started_at, provider_subscription_id
-                FROM subscriptions
-                WHERE status IN {CURRENT_STATUSES}
-                ORDER BY tenant_id, started_at DESC NULLS LAST, id DESC
-                """
-            ))
-        ]
+        try:
+            current_rows = [
+                dict(row._mapping) for row in conn.execute(text(
+                    f"""
+                    SELECT tenant_id, id, plan, status, started_at, provider_subscription_id
+                    FROM subscriptions
+                    WHERE status IN {CURRENT_STATUSES}
+                    ORDER BY tenant_id, started_at DESC NULLS LAST, id DESC
+                    """
+                ))
+            ]
+        except Exception:  # noqa: BLE001 - 全新库还没有 subscriptions 表
+            current_rows = []
         # 顺序与迁移里的 ROW_NUMBER() 完全一致：同一租户只留第一条，其余都会被降级。
         seen = {}
         for row in current_rows:
