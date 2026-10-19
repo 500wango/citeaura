@@ -16,6 +16,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     CITEAURA_SOURCE_REVISION=${GIT_SHA}
 WORKDIR /app
+# pg_dump 供 scripts/migrate_db.py 在自动迁移前做整库备份。
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /wheels /wheels
 RUN pip install --no-index --find-links=/wheels /wheels/*
 COPY api ./api
@@ -28,8 +32,10 @@ RUN addgroup --system citeaura && adduser --system --ingroup citeaura citeaura \
 USER citeaura
 
 FROM runtime AS api
+COPY --chown=citeaura:citeaura scripts ./scripts
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready')"
+ENTRYPOINT ["sh", "/app/scripts/docker-entrypoint.sh"]
 CMD ["sh", "-c", "exec uvicorn api.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=\"${FORWARDED_ALLOW_IPS:-127.0.0.1}\""]
 
 FROM runtime AS worker

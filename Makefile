@@ -1,7 +1,11 @@
-.PHONY: dev test migrate migrate-safe migrate-check worker beat preflight check-work-root create-admin reset-admin-password reset-admin-password-prod grant-plan-prod
+.PHONY: dev test migrate migrate-safe migrate-check migrate-dev worker beat preflight check-work-root create-admin reset-admin-password reset-admin-password-prod grant-plan-prod
 
-dev:
+dev: migrate-dev
 	uvicorn api.main:app --reload
+
+# 本地开发启动前自动跟上 schema；用系统 sqlite/无 pg_dump 时失败不影响启动。
+migrate-dev:
+	-python3 scripts/migrate_db.py --allow-no-backup
 
 test:
 	python3 -m pytest api/tests -v

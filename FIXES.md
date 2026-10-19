@@ -196,7 +196,23 @@ engine/tests   273 passed, 2 skipped
   没有任何调用点——只读令牌的"只读"承诺此前只是文档。`_integration_context` 现在强制要求
   `read` scope。
 
-### 上线（一条命令）
+### 上线（现在不需要单独跑迁移）
+
+迁移已经接进启动流程，正常部署就等于迁移：
+
+```bash
+# 生产（Docker）：构建后直接起，api 容器启动时自动 等库 → pg_dump 备份 → upgrade → 校验
+docker compose -f docker-compose.prod.yml up -d --build api
+```
+
+- `scripts/docker-entrypoint.sh` 在 `AUTO_MIGRATE=1`（compose 里的默认值）时执行
+  `scripts/migrate_db.py`；版本已是最新就直接返回，不会每次都全库备份。
+- **迁移失败容器不会启动**（fail closed），不会带着旧 schema 提供服务。
+- **多副本部署必须 `AUTO_MIGRATE=0`** 并改用一次性 job，否则多个 api 会并发迁移。
+- 本地开发：`make dev` 现在会先跑 `migrate_dev`（失败不阻塞启动）。
+- 手动/CI 仍可用 `make migrate-check`（只读预检）与 `make migrate-safe`。
+
+
 
 ```bash
 cd /home/michael/project/citeaura
@@ -317,6 +333,14 @@ pg_restore -c -d <db> backups/pre-migrate-<ts>.dump   # 连数据一起回
 ---
 
 ## 9. 第四轮：按「该动/不该动」的判定收敛
+
+**第四轮结束：`api/tests 556 passed`、`engine/tests 273 passed / 2 skipped`，已推送。**
+
+唯一需要同步的断言是 `test_global_scope.py`（它断言的是旧的"覆盖历史指标"行为，
+现改为断言保持原值）。
+
+**本轮新增迁移 `0039_public_audit_consumed`**，所以部署时要再跑一次
+`make migrate-check && make migrate-safe`（只加两列，无数据修正）。
 
 ### 动了（5 条必须 + 1 条加固）
 
