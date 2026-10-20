@@ -20,6 +20,8 @@ celery_app.conf.update(
     task_time_limit=3600,
     task_soft_time_limit=3540,
     worker_pool="prefork",
+    # 隔离模式下每个任务会再起一个引擎子进程，默认 4 个并发槽位。
+    worker_concurrency=config.worker_concurrency(),
     # 长任务必须一个 worker 只预取一个：默认的 4 会让 4 个租户的项目互相排队。
     worker_prefetch_multiplier=1,
     # Redis broker 的默认可见性超时也是 3600s，与硬超时相等；任务被硬杀后会被
@@ -43,6 +45,10 @@ celery_app.conf.update(
         "reconcile-platform-usage": {
             "task": "citeaura.reconcile_platform_usage",
             "schedule": 60.0,
+        },
+        "cleanup-expired-projects": {
+            "task": "citeaura.cleanup_expired_projects",
+            "schedule": 86400.0,
         },
     },
 )

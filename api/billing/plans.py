@@ -2,7 +2,7 @@
 
 
 # Trial access window for new workspaces. Historical migrations retain their original dates.
-TRIAL_DAYS = 7
+TRIAL_DAYS = 14
 
 
 PLANS = {
@@ -11,7 +11,7 @@ PLANS = {
         "monthly_cny": 0,
         "monthly_usd": 0,
         "projects": 3,
-        "sample_runs": 2,
+        "sample_runs": 3,
     },
     "starter": {
         "name": "Starter",
@@ -34,14 +34,14 @@ PLANS = {
         "projects": 30,
         "sample_runs": None,
     },
-    "enterprise": {
-        "name": "Enterprise",
-        "monthly_cny": None,
-        "monthly_usd": None,
-        "projects": None,
-        "sample_runs": None,
-    },
 }
 
 
-SUBSCRIBABLE_PLANS = frozenset(("starter", "pro", "agency", "enterprise"))
+SUBSCRIBABLE_PLANS = frozenset(("starter", "pro", "agency"))
+
+# 能力按套餐售卖；trial 是完整闭环体验，但受采样次数限制。
+PLAN_FEATURES = {
+    "scheduled_monitoring": frozenset(("starter", "pro", "agency")),
+    "regression_alerts": frozenset(("pro", "agency")),
+    "white_label_delivery": frozenset(("agency",)),
+}

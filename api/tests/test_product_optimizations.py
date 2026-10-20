@@ -147,8 +147,8 @@ def test_question_cohort_evidence_requires_each_provider_mode_cohort():
     assert result["total"] == 1
     assert result["sufficient"] == 0
     assert result["items"][0]["samples"] == 4
-    assert result["items"][0]["required"] == 6
-    assert result["items"][0]["missing_samples"] == 2
+    assert result["items"][0]["required"] == 2 * measurement.MIN_QUESTION_SAMPLES
+    assert result["items"][0]["missing_samples"] == 2 * measurement.MIN_QUESTION_SAMPLES - 4
     assert {cell["engine_code"] for cell in result["items"][0]["cohorts"]} == {"openai", "deepseek"}
 
 
@@ -176,7 +176,7 @@ def test_question_cohort_evidence_counts_brand_verification_probes():
 
     assert result["sufficient"] == 1
     assert result["gaps"] == []
-    assert result["items"][0]["samples"] == 3
+    assert result["items"][0]["samples"] == measurement.MIN_QUESTION_SAMPLES
 
 
 def test_delivery_evidence_excludes_configured_but_unfunded_providers(tmp_path, monkeypatch):
@@ -469,7 +469,7 @@ def test_campaign_proposals_fail_closed_on_sampling_facts_and_asset_review(tmp_p
 
         (directory / "content" / "facts.md").parent.mkdir(parents=True)
         (directory / "content" / "facts.md").write_text("# Brand facts\n", "utf-8")
-        review = product_insights.build("project", [row, row, row], config)
+        review = product_insights.build("project", [row] * measurement.MIN_QUESTION_SAMPLES, config)
         assert review["campaign_proposals"]["items"][0]["status"] == "review_required"
         assert review["campaign_proposals"]["items"][0]["next_step"]["route"] == "#/facts"
 
@@ -480,7 +480,7 @@ def test_campaign_proposals_fail_closed_on_sampling_facts_and_asset_review(tmp_p
             "path": "drafts/q001.md", "status": "review_required",
             "issues": ["derived_from_unreviewed_brand_facts"],
         }]})
-        asset_review = product_insights.build("project", [row, row, row], config)
+        asset_review = product_insights.build("project", [row] * measurement.MIN_QUESTION_SAMPLES, config)
         proposal = asset_review["campaign_proposals"]["items"][0]
         assert proposal["status"] == "review_required"
         assert proposal["next_step"] == {

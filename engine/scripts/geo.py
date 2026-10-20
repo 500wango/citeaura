@@ -27,8 +27,11 @@ try:
 except ModuleNotFoundError as e:
     raise SystemExit(f"Missing dependency: {e.name}. Please run: pip3 install requests beautifulsoup4 lxml") from e
 
-DEFAULT_PLATFORMS = {
-    "cn": ["glm", "doubao", "deepseek", "kimi", "minimax", "nano_ai", "baidu"],
+import languages as L  # noqa: E402
+
+DEFAULT_SAMPLE_REPEAT = G.DEFAULT_SAMPLE_REPEAT
+
+DEFAULT_PLATFORMS = {    "cn": ["glm", "doubao", "deepseek", "kimi", "minimax", "nano_ai", "baidu"],
     "global": ["gemini", "openai", "claude", "grok", "perplexity", "deepseek", "chatgpt",
                "claude_web", "google_ai_overview", "google_ai_mode", "copilot", "gemini_web",
                "meta_ai", "you_com", "mistral_le_chat"],
@@ -80,10 +83,16 @@ def cmd_init(a):
         else:
             name = host
 
+    question_language = L.normalize_language(getattr(a, "question_language", L.AUTO))
+    report_language = str(getattr(a, "report_language", "en") or "en").strip().lower()
+    if report_language not in L.SUPPORTED_LANGUAGES:
+        report_language = "en"
     cfg = {
         "slug": slug,
         "created_at": G.now_iso(),
         "market": a.market,
+        "question_language": question_language,
+        "report_language": report_language,
         "brand": {
             "name": name,
             "aliases": [],
@@ -212,7 +221,12 @@ def cmd_autopilot(a):
         G.info("Skipped: --no-sample")
     elif G.load_config(a.slug).get("questions"):
         try:
-            S.run(a.slug, limit=a.limit)
+            S.run(
+                a.slug,
+                platforms=getattr(a, "platforms", None),
+                repeat=getattr(a, "repeat", G.DEFAULT_SAMPLE_REPEAT),
+                limit=a.limit,
+            )
         except Exception as e:  # noqa: BLE001
             G.info(f"Sampling skipped: {type(e).__name__}: {e}")
     G.info("═══ 5/8 Action Tickets & Blueprint ═══")
@@ -425,7 +439,12 @@ def cmd_serve(a):
         G.info("Skipped: --no-sample")
     else:
         try:
-            S.run(a.slug, limit=a.limit)
+            S.run(
+                a.slug,
+                platforms=getattr(a, "platforms", None),
+                repeat=getattr(a, "repeat", G.DEFAULT_SAMPLE_REPEAT),
+                limit=a.limit,
+            )
         except Exception as e:  # noqa: BLE001
             G.info(f"Sampling skipped: {type(e).__name__}: {e}")
     try:
@@ -477,6 +496,8 @@ def main():
     s.add_argument("--name")
     s.add_argument("--slug")
     s.add_argument("--market", choices=["cn", "global", "both"], default="cn")
+    s.add_argument("--question-language", default="auto", choices=["auto", *L.SUPPORTED_LANGUAGES])
+    s.add_argument("--report-language", default="en", choices=list(L.SUPPORTED_LANGUAGES))
     s.add_argument("--max-pages", type=int, default=25, dest="max_pages")
     s.add_argument("--force", action="store_true", help="Archive and rebuild an existing project")
     s.set_defaults(func=cmd_init)
@@ -527,7 +548,7 @@ def main():
     s = sub.add_parser("sample", help="Sample answers through configured APIs")
     s.add_argument("--slug", required=True)
     s.add_argument("--platforms", help="Comma-separated platform IDs")
-    s.add_argument("--repeat", type=int, default=1, help="Samples per question")
+    s.add_argument("--repeat", type=int, default=DEFAULT_SAMPLE_REPEAT, help="Samples per question")
     s.add_argument("--limit", type=int, default=None, help="Sample only the first N questions")
     s.set_defaults(func=cmd_sample)
 

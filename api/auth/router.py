@@ -164,7 +164,6 @@ def token_response(
     db: Session,
     expose_tokens=False,
     refresh_family_id=None,
-    sso_tenant_id=None,
 ):
     """签发令牌并设置同站 HttpOnly 会话 Cookie。
 
@@ -174,13 +173,12 @@ def token_response(
     # 令牌绑定到当前会话版本，密码重置后旧令牌立即失效。
     user = db.get(User, user_id)
     session_version = user.session_version if user is not None else 0
-    access_token = create_access_token(user_id, tenant_id, session_version, sso_tenant_id=sso_tenant_id)
+    access_token = create_access_token(user_id, tenant_id, session_version)
     family_id = refresh_family_id or str(uuid.uuid4())
     token_id = str(uuid.uuid4())
     refresh_token = create_refresh_token(
         user_id, tenant_id, session_version,
         family_id=family_id, token_id=token_id,
-        sso_tenant_id=sso_tenant_id,
     )
     db.add(RefreshToken(
         family_id=family_id,
@@ -454,7 +452,6 @@ def refresh(
         db,
         expose_tokens=request.headers.get("X-CiteAura-Session") != "cookie",
         refresh_family_id=stored.family_id,
-        sso_tenant_id=int(claims["sso_tid"]) if claims.get("sso_tid") else None,
     )
 
 
@@ -571,20 +568,12 @@ def switch_tenant(
         _error(status.HTTP_404_NOT_FOUND, "tenant_membership_not_found")
     if target_tenant.status != "active":
         _error(status.HTTP_403_FORBIDDEN, "account_disabled")
-    claims = _access_claims(request) or {}
-    sso_tenant = str(claims.get("sso_tid") or "")
-    if sso_tenant and sso_tenant != str(payload.tenant_id):
-        # IdP 断言出来的会话只属于那个租户，不能拿它切换进用户的其他工作区。
-        _error(status.HTTP_403_FORBIDDEN, "sso_session_tenant_restricted")
     return token_response(
         response,
         current_user.id,
         payload.tenant_id,
         db,
         expose_tokens=request.headers.get("X-CiteAura-Session") != "cookie",
-        # 必须把 sso_tid 带进新签发的令牌：否则先切到本租户就能洗掉该声明，
-        # 之后一次 switch-tenant 就能进入用户的其它工作区。
-        sso_tenant_id=int(sso_tenant) if sso_tenant else None,
     )
 
 

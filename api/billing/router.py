@@ -17,7 +17,7 @@ from api import config
 from api.auth.deps import get_current_user, require_owner
 from api.billing.limits import activation_funnel, usage
 from api.billing.plans import PLANS, SUBSCRIBABLE_PLANS
-from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
+from api.billing.platform_pool import POOL_PLANS, public_catalog, usage_summary
 from api.billing.access import subscription_is_current, sync_tenant_plan
 from api.billing import stripe as stripe_adapter
 from api.adapters import transactional_email
@@ -67,7 +67,8 @@ def _annual_price(monthly_price, discount):
     return int(total.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
-def _catalog():
+def _catalog(include_internal=False):
+    """对外目录只展示 USD；CNY 仅用于内部成本与 Stripe 本地币种结算。"""
     discount = config.billing_annual_discount_percent()
     plans = []
     for code, details in PLANS.items():
@@ -77,21 +78,25 @@ def _catalog():
         monthly_usd = details["monthly_usd"]
         annual_cny = _annual_price(monthly_cny, discount)
         annual_usd = _annual_price(monthly_usd, discount)
-        plans.append({
+        item = {
             "code": code,
             "name": details["name"],
-            "price_cny": monthly_cny,
             "price_usd": monthly_usd,
             "projects": details["projects"],
             "sample_runs": details["sample_runs"],
             "prices": {
-                "monthly": {"cny": monthly_cny, "usd": monthly_usd, "months": 1},
-                "annual": {"cny": annual_cny, "usd": annual_usd, "months": 12},
+                "monthly": {"usd": monthly_usd, "months": 1},
+                "annual": {"usd": annual_usd, "months": 12},
             },
-            "annual_discount_percent": float(discount) if monthly_cny is not None else None,
-            "annual_savings_cny": monthly_cny * 12 - annual_cny if monthly_cny is not None else None,
+            "annual_discount_percent": float(discount) if monthly_usd is not None else None,
             "annual_savings_usd": monthly_usd * 12 - annual_usd if monthly_usd is not None else None,
-        })
+        }
+        if include_internal:
+            item["price_cny"] = monthly_cny
+            item["prices"]["monthly"]["cny"] = monthly_cny
+            item["prices"]["annual"]["cny"] = annual_cny
+            item["annual_savings_cny"] = monthly_cny * 12 - annual_cny if monthly_cny is not None else None
+        plans.append(item)
     return plans
 
 
@@ -105,7 +110,7 @@ def _add_billing_period(value, billing_interval):
 
 
 def _plan(code):
-    return next(item for item in _catalog() if item["code"] == code)
+    return next(item for item in _catalog(include_internal=True) if item["code"] == code)
 
 
 def _payment_amount(plan, billing_interval):
@@ -207,7 +212,7 @@ def _validated_selection(value):
         tenant_id = int(metadata["tenant_id"])
     except (KeyError, TypeError, ValueError) as exc:
         raise stripe_adapter.StripeError("stripe_metadata_invalid") from exc
-    if plan_code not in SUBSCRIBABLE_PLANS or plan_code == "enterprise" or billing_interval not in ("monthly", "annual"):
+    if plan_code not in SUBSCRIBABLE_PLANS or billing_interval not in ("monthly", "annual"):
         raise stripe_adapter.StripeError("stripe_metadata_invalid")
     return tenant_id, plan_code, billing_interval, _plan(plan_code)
 
@@ -761,7 +766,7 @@ def platform_pool(current_user: User = Depends(get_current_user), db: Session = 
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
     return {
-        "eligible": tenant.plan in PAID_PLANS,
+        "eligible": tenant.plan in POOL_PLANS,
         "plan": tenant.plan,
         "engines": public_catalog(),
         "usage": usage_summary(db, tenant),
@@ -782,11 +787,6 @@ def subscribe(
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "no_tenant_membership"})
     _sync_tenant_plan(db, tenant.id)
-    if payload.plan == "enterprise":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"error": "enterprise_contact_required"},
-        )
     plan = _plan(payload.plan)
     active = db.query(Subscription).filter(
         Subscription.tenant_id == tenant.id,

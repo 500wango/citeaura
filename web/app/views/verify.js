@@ -32,6 +32,21 @@ export default {
     ]);
     const latest = history[history.length - 1];
     const canVerify = Array.isArray(tickets) && tickets.length > 0;
+    const effectLabels = {
+      draft: t('plan.effect_draft', {}, 'Draft'),
+      deployed: t('plan.effect_deployed', {}, 'Deployed'),
+      observing: t('plan.effect_observing', {}, 'Observing'),
+      effective: t('plan.effect_effective', {}, 'Effective'),
+      ineffective: t('plan.effect_ineffective', {}, 'Ineffective'),
+      inconclusive: t('plan.effect_inconclusive', {}, 'Inconclusive'),
+    };
+    const effectByTicket = new Map();
+    const effectCounts = { effective: 0, ineffective: 0, inconclusive: 0 };
+    (tickets || []).forEach((ticket) => {
+      const state = String(ticket?.effect?.state || '');
+      if (ticket?.id) effectByTicket.set(String(ticket.id), ticket.effect || {});
+      if (state in effectCounts) effectCounts[state] += 1;
+    });
     return `
       <div class="app-view-container">
         <div class="view-header">
@@ -48,6 +63,13 @@ export default {
         <div class="card" style="gap:var(--sp-2);border-left:3px solid var(--accent);margin-bottom:var(--sp-4);">
           <strong>${t('verify.progress_title', {}, 'What verification proves')}</strong>
           <span style="color:var(--ink-2);font-size:var(--fs-2);line-height:1.5;">${t('verify.progress_help', {}, 'A pass means the configured website check succeeded. It does not by itself prove that AI recommendations or traffic increased; those require a comparable measurement cycle.')}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-2);margin-bottom:var(--sp-4);">
+          ${[
+            ['effective', t('plan.effect_effective', {}, 'Effective'), 'var(--good)'],
+            ['ineffective', t('plan.effect_ineffective', {}, 'Ineffective'), 'var(--bad)'],
+            ['inconclusive', t('plan.effect_inconclusive', {}, 'Inconclusive'), 'var(--muted)'],
+          ].map(([state, label, color]) => `<div class="card" style="padding:var(--sp-3);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(label)}</span><strong style="font-size:var(--fs-5);color:${color};">${effectCounts[state]}</strong></div>`).join('')}
         </div>
         ${!canVerify ? renderEmpty({ title: t('verify.no_tickets_title', {}, 'No action tickets yet'), description: t('verify.no_tickets_desc', {}, 'Generate or create tickets before running verification.') }) : ''}
         ${history.length ? `
@@ -69,11 +91,12 @@ export default {
               </div>
               <div class="tbl" style="overflow-x:auto;">
                 <table class="table">
-                  <thead><tr><th>${t('verify.col_ticket', {}, 'Ticket')}</th><th>${t('verify.col_verdict', {}, 'Verdict')}</th><th>${t('verify.col_evidence', {}, 'Evidence')}</th></tr></thead>
+                  <thead><tr><th>${t('verify.col_ticket', {}, 'Ticket')}</th><th>${t('verify.col_verdict', {}, 'Verdict')}</th><th>${t('verify.col_effect', {}, 'Effect')}</th><th>${t('verify.col_evidence', {}, 'Evidence')}</th></tr></thead>
                   <tbody>${latest.results.map((item) => `
                     <tr>
                       <td><strong>${escapeHtml(item.ticket_id || 'Ticket')}</strong><div style="font-size:var(--fs-1);color:var(--muted);">${escapeHtml(item.title || '')}</div></td>
                       <td><span class="tag ${item.verdict === 'pass' ? 'pill-good' : item.verdict === 'fail' ? 'pill-bad' : 'tag-dim'}">${escapeHtml(item.verdict || 'pending')}</span></td>
+                      <td>${(() => { const state = String(effectByTicket.get(String(item.ticket_id))?.state || 'draft'); return `<span class="tag tag-dim">${escapeHtml(effectLabels[state] || state)}</span>`; })()}</td>
                       <td><div>${escapeHtml(item.evidence || '')}</div><div style="font-size:var(--fs-1);color:var(--muted);margin-top:2px;">${escapeHtml(progressLabel(item))}</div></td>
                     </tr>
                   `).join('')}</tbody>

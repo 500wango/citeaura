@@ -33,7 +33,7 @@ from api.adapters.network import NetworkTargetError, validate_outbound_url
 from api.auth.deps import get_current_user, require_editor, require_owner
 from api.billing.limits import check_product_access, check_project_creation, check_sample_run
 from api.pipeline_catalog import ENTITLEMENT_REQUIRED_ACTIONS
-from api.billing.platform_pool import PAID_PLANS, public_catalog, usage_summary
+from api.billing.platform_pool import POOL_PLANS, public_catalog, usage_summary
 from api.db import get_db
 from api import config
 from api.models import Job, Project, PublicAudit, Tenant, User
@@ -52,6 +52,7 @@ from api.adapters.localization import localize_tickets
 from api.projects import sampling as project_sampling
 from api.projects.schemas import (
     DeliverySendRequest,
+    ExperimentPatch,
     OffsiteTicketCreate,
     PipelineActionRequest,
     ProjectCreate,
@@ -270,7 +271,7 @@ def _sampling_funding_payload(db, tenant, project, user):
     for code in sorted(set(ENGINE_KEY_ENV) | pool_codes | set(byok) | custom_codes):
         if code in byok or code in custom_codes:
             source = "byok"
-        elif project.platform_pool_enabled and tenant.plan in PAID_PLANS and code in pool_codes:
+        elif project.platform_pool_enabled and tenant.plan in POOL_PLANS and code in pool_codes:
             source = "platform_pool"
         else:
             source = "unavailable"
@@ -278,7 +279,7 @@ def _sampling_funding_payload(db, tenant, project, user):
     return {
         "project_id": project.id,
         "platform_pool_enabled": bool(project.platform_pool_enabled),
-        "eligible": tenant.plan in PAID_PLANS,
+        "eligible": tenant.plan in POOL_PLANS,
         "can_edit": getattr(user, "tenant_role", None) == "owner",
         "plan": tenant.plan,
         "byok_engines": byok,

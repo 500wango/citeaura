@@ -162,6 +162,7 @@ def info(msg: str):
 SLUG_OK = re.compile(r"^[a-z0-9\u4e00-\u9fff][a-z0-9\u4e00-\u9fff-]{0,47}$")
 QUESTION_ID_OK = re.compile(r"^q\d{3,6}$")
 MAX_SAMPLE_REPEAT = 20
+DEFAULT_SAMPLE_REPEAT = 5
 
 
 def project_dir(slug: str) -> Path:

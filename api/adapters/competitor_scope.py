@@ -6,6 +6,7 @@ from copy import deepcopy
 from urllib.parse import urlparse
 
 from api.adapters.localization import normalize_english_typography
+import prompt_safety as prompt_guard
 
 
 RELATIONSHIP_SCHEMA_VERSION = 1
@@ -320,13 +321,14 @@ def normalize_user_competitors(items):
 def discover_competitors(ask_json, brand, market="global"):
     """Ask for structured peers and fail closed when direct-overlap evidence is absent."""
     brand = brand if isinstance(brand, dict) else {}
+    clean = lambda value: prompt_guard.sanitize_untrusted_text(value, limit=500)  # noqa: E731
     prompt = COMPETITOR_PROMPT.format(
-        site=_text(brand.get("site"), 2048) or "Not provided",
-        name=_text(brand.get("name")) or "Not provided",
-        industry=_text(brand.get("industry")) or "Not established",
-        definition=_text(brand.get("definition")) or "Not established",
-        products=", ".join(_text(item) for item in brand.get("products") or [] if _text(item)) or "Not established",
-        target_users=_text(brand.get("target_users")) or "Not established",
+        site=clean(_text(brand.get("site"), 2048) or "Not provided"),
+        name=clean(_text(brand.get("name")) or "Not provided"),
+        industry=clean(_text(brand.get("industry")) or "Not established"),
+        definition=clean(_text(brand.get("definition")) or "Not established"),
+        products=clean(", ".join(_text(item) for item in brand.get("products") or [] if _text(item)) or "Not established"),
+        target_users=clean(_text(brand.get("target_users")) or "Not established"),
     )
     result = ask_json(prompt)
     rows = result.get("competitors") if isinstance(result, dict) else []

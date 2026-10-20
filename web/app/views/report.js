@@ -41,6 +41,10 @@ export default {
     const userSummary = (report && report.user_summary) || {};
     const summaryScope = userSummary.evidence_scope || {};
     const confidence = quality && quality.confidence;
+    const sampleQuality = (quality && quality.measurement_quality && quality.measurement_quality.current) || {};
+    const sampleDone = Number(sampleQuality.successful ?? sampleQuality.total ?? 0);
+    const sampleTotal = Number(sampleQuality.total || 0);
+    const evidenceHint = t('report.evidence_ready_hint', { done: sampleDone, total: sampleTotal }, `Evidence complete (${sampleDone}/${sampleTotal} samples) · Instant packaging`);
     const confidenceLabel = confidence && confidence.label ? confidence.label : t('overview.no_baseline', {}, 'No baseline');
     const trend = (quality && quality.measurement_quality && quality.measurement_quality.trend) || {};
     const trendNote = trend.status === 'noteworthy'
@@ -70,8 +74,8 @@ export default {
             </button>
             <div style="font-size:11px;color:${confidence && confidence.sufficient ? 'var(--good)' : 'var(--muted)'};display:flex;align-items:center;gap:4px;">
               ${confidence && confidence.sufficient
-                ? `<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg> <span>${t('report.evidence_ready_hint', {}, 'Evidence complete (3/3 rounds) · Instant packaging')}</span>`
-                : `<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm6.5-.25A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25A.75.75 0 0 1 6.5 7.75ZM8 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg> <span>${t('report.evidence_gapfill_hint', {}, 'Will collect 3 rounds of evidence to meet audit compliance')}</span>`
+                ? `<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg> <span>${evidenceHint}</span>`
+                : `<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm6.5-.25A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25A.75.75 0 0 1 6.5 7.75ZM8 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg> <span>${t('report.evidence_gapfill_hint', {}, 'Will collect the configured rounds of evidence to meet audit compliance')}</span>`
               }
             </div>
           </div>

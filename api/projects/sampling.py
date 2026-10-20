@@ -4,9 +4,12 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError
 
 from api.adapters import sampling_control, workspace
+from api.adapters.storage import StorageQuotaExceeded, ensure_capacity
 from api.adapters.engine import load_custom_providers, load_tenant_keys, with_tenant_read_context
 from api.adapters.exceptions import GeoEngineError
-from api.billing.platform_pool import PAID_PLANS, public_catalog
+from api.analytics.clustered_stats import DEFAULT_REPEAT
+from api import config
+from api.billing.platform_pool import POOL_PLANS, public_catalog, trial_pool_remaining
 from api.projects.schemas import SampleEstimateRequest, SampleRequest
 from api.projects.access import error
 
@@ -49,20 +52,30 @@ def has_api_keys(db, tenant_id):
 
 
 def enable_platform_pool_if_available(tenant, project):
-    """Paid workspaces can run the first matrix from the platform pool."""
+    """试用与付费工作区都可以用平台池跑起步矩阵。"""
     if project.platform_pool_enabled:
         return True
-    if tenant.plan in PAID_PLANS and public_catalog():
+    if tenant.plan in POOL_PLANS and public_catalog():
+        if tenant.plan == "trial" and not config.trial_pool_enabled():
+            return False
         project.platform_pool_enabled = True
         return True
     return False
+
+
+def _pool_usable(db, tenant, project):
+    if not (project.platform_pool_enabled and tenant.plan in POOL_PLANS and public_catalog()):
+        return False
+    if tenant.plan == "trial":
+        return config.trial_pool_enabled() and trial_pool_remaining(db, tenant.id) > 0
+    return True
 
 
 def has_sampling_access(db, tenant, project):
     return (
         has_api_keys(db, tenant.id)
         or bool(load_custom_providers(db, tenant.id))
-        or bool(project.platform_pool_enabled and tenant.plan in PAID_PLANS and public_catalog())
+        or _pool_usable(db, tenant, project)
     )
 
 
@@ -79,7 +92,7 @@ def estimate(db, tenant, project, payload, enforce=False, allow_pool=True):
             db, tenant, project,
             platforms=platforms,
             limit=payload.limit if payload else None,
-            repeat=payload.repeat if payload else 1,
+            repeat=payload.repeat if payload else DEFAULT_REPEAT,
             question_ids=payload.question_ids if payload else None,
             allow_pool=allow_pool,
         )
@@ -121,11 +134,15 @@ def validated_estimate(db, tenant, project, payload, enforce=False, allow_pool=T
 
 def reserve(db, tenant, project, job, payload):
     try:
+        ensure_capacity(tenant.id)
+    except StorageQuotaExceeded:
+        error(status.HTTP_507_INSUFFICIENT_STORAGE, "tenant_storage_quota_exceeded")
+    try:
         return sampling_control.reserve(
             db, tenant, project, job,
             platforms=payload.platforms if payload else None,
             limit=payload.limit if payload else None,
-            repeat=payload.repeat if payload else 1,
+            repeat=payload.repeat if payload else DEFAULT_REPEAT,
             question_ids=payload.question_ids if payload else None,
         )
     except sampling_control.SamplingPlatformMarketMismatch as exc:
@@ -158,7 +175,7 @@ def pipeline_sample_payload(params):
         return SampleEstimateRequest(
             limit=value("limit"),
             platforms=platforms,
-            repeat=value("repeat", 1),
+            repeat=value("repeat", DEFAULT_REPEAT),
             question_ids=question_ids,
         )
     except ValidationError as exc:

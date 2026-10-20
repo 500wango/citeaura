@@ -1,0 +1,260 @@
+{
+  "version": "2.1",
+  "generated_at": "2026-10-20",
+  "sampling_modes": {
+    "api_parametric": "API·参数化知识",
+    "api_search": "API·联网检索",
+    "manual_product": "人工·产品端"
+  },
+  "api_providers": [
+    {
+      "code": "glm",
+      "name": "Zhipu GLM",
+      "key_env": "ZHIPUAI_API_KEY",
+      "market": "cn",
+      "sampling_mode": "api_parametric",
+      "search": false,
+      "note": "OpenAI-compatible endpoint without web search; sample the product interface separately.",
+      "product_surface": false,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "doubao",
+      "name": "Doubao (Ark API)",
+      "key_env": "ARK_API_KEY",
+      "market": "cn",
+      "sampling_mode": "api_search",
+      "search": true,
+      "note": "Uses Responses with web_search when enabled, otherwise falls back to parametric knowledge.",
+      "product_surface": false,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "deepseek",
+      "name": "DeepSeek",
+      "key_env": "DEEPSEEK_API_KEY",
+      "market": "global",
+      "sampling_mode": "api_parametric",
+      "search": false,
+      "note": "The official API does not search the web; it measures parametric brand knowledge.",
+      "product_surface": false,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "kimi",
+      "name": "Kimi",
+      "key_env": "MOONSHOT_API_KEY",
+      "market": "cn",
+      "sampling_mode": "api_parametric",
+      "search": false,
+      "note": "Web search is disabled; sample the product interface separately for search behavior.",
+      "product_surface": false,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "minimax",
+      "name": "MiniMax",
+      "key_env": "MINIMAX_API_KEY",
+      "market": "cn",
+      "sampling_mode": "api_parametric",
+      "search": false,
+      "note": "OpenAI-compatible endpoint without web search; sample Hailuo AI separately.",
+      "product_surface": false,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "gemini",
+      "name": "Gemini",
+      "key_env": "GEMINI_API_KEY",
+      "market": "global",
+      "sampling_mode": "api_search",
+      "search": true,
+      "note": "Uses Google Search grounding when enabled; this is not Google AI Overviews.",
+      "product_surface": false,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "openai",
+      "name": "OpenAI(ChatGPT)",
+      "key_env": "OPENAI_API_KEY",
+      "market": "global",
+      "sampling_mode": "api_search",
+      "search": true,
+      "note": "Uses Responses web_search when enabled; this is not ChatGPT Search.",
+      "product_surface": false,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "claude",
+      "name": "Claude",
+      "key_env": "ANTHROPIC_API_KEY",
+      "market": "global",
+      "sampling_mode": "api_search",
+      "search": true,
+      "note": "Uses the Messages web_search tool when enabled; this is not Claude.ai search.",
+      "product_surface": false,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "grok",
+      "name": "Grok",
+      "key_env": "XAI_API_KEY",
+      "market": "global",
+      "sampling_mode": "api_search",
+      "search": true,
+      "note": "Uses xAI web_search when enabled; this is not the X product interface.",
+      "product_surface": false,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "perplexity",
+      "name": "Perplexity",
+      "key_env": "PERPLEXITY_API_KEY",
+      "market": "global",
+      "sampling_mode": "api_search",
+      "search": true,
+      "note": "Native web search with citations.",
+      "product_surface": false,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    }
+  ],
+  "manual_surfaces": [
+    {
+      "code": "nano_ai",
+      "name": "Nano AI Search (360)",
+      "key_env": null,
+      "market": "cn",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "Product interface sampled manually; no public search API is documented.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "baidu",
+      "name": "Baidu AI Search",
+      "key_env": null,
+      "market": "cn",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "Product interface sampled manually; no public search API is documented.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "doubao_app",
+      "name": "Doubao App / Web",
+      "key_env": null,
+      "market": "cn",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "Consumer app surface; distinct from the Ark API provider.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "chatgpt",
+      "name": "ChatGPT Search",
+      "key_env": null,
+      "market": "global",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "ChatGPT product search surface; distinct from the OpenAI API provider.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "claude_web",
+      "name": "Claude Web Search",
+      "key_env": null,
+      "market": "global",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "Claude product search surface; distinct from the Anthropic API provider.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "google_ai_overview",
+      "name": "Google AI Overviews",
+      "key_env": null,
+      "market": "global",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "Search result surface; not the same as Gemini API grounding.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "google_ai_mode",
+      "name": "Google AI Mode",
+      "key_env": null,
+      "market": "global",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "Google Search AI Mode surface.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "copilot",
+      "name": "Microsoft Copilot",
+      "key_env": null,
+      "market": "global",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "Copilot product surface; sampled manually.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "gemini_web",
+      "name": "Gemini Web",
+      "key_env": null,
+      "market": "global",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "Gemini consumer surface; distinct from Gemini API grounding.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "meta_ai",
+      "name": "Meta AI",
+      "key_env": null,
+      "market": "global",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "Meta AI product surface; sampled manually.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "you_com",
+      "name": "You.com",
+      "key_env": null,
+      "market": "global",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "You.com search surface; sampled manually.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    },
+    {
+      "code": "mistral_le_chat",
+      "name": "Mistral Le Chat",
+      "key_env": null,
+      "market": "global",
+      "sampling_mode": "manual_product",
+      "search": true,
+      "note": "Le Chat product surface; sampled manually.",
+      "product_surface": true,
+      "canary": {"status": "unverified", "checked_at": null, "evidence": null}
+    }
+  ],
+  "default_platforms": {
+    "cn": ["glm", "doubao", "deepseek", "kimi", "minimax", "nano_ai", "baidu"],
+    "global": ["gemini", "openai", "claude", "grok", "perplexity", "deepseek", "chatgpt", "claude_web", "google_ai_overview", "google_ai_mode", "copilot", "gemini_web", "meta_ai", "you_com", "mistral_le_chat"],
+    "both": ["glm", "doubao", "deepseek", "kimi", "minimax", "nano_ai", "baidu", "gemini", "openai", "claude", "grok", "perplexity", "chatgpt", "claude_web", "google_ai_overview", "google_ai_mode", "copilot", "gemini_web", "meta_ai", "you_com", "mistral_le_chat"]
+  }
+}

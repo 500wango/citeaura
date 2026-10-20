@@ -41,6 +41,15 @@ def normalize_url(value: str) -> str:
     return value.rstrip("/")
 
 
+def suggest_market(value: str) -> str:
+    """按域名后缀推断市场；无法判断时按英文市场优先。"""
+    try:
+        hostname = (urlparse(normalize_url(value)).hostname or "").lower()
+    except PreflightError:
+        return "global"
+    return "cn" if hostname.endswith((".cn", ".com.cn", ".net.cn", ".org.cn")) else "global"
+
+
 def _check(name, ok, message, action=None, **extra):
     return {"name": name, "ok": bool(ok), "message": message, "action": None if ok else action, **extra}
 
@@ -69,7 +78,10 @@ def run(url: str, timeout: float = 8.0) -> dict:
             _check("homepage", False, "DNS unavailable", action="Verify homepage returns HTTP 2xx once DNS is resolved"),
             _check("robots", False, "DNS unavailable", action="Verify /robots.txt once DNS is resolved"),
         ])
-        return {"url": normalized, "checks": checks, "ready": False, "_machine_files": {}}
+        return {
+            "url": normalized, "checks": checks, "ready": False,
+            "suggested_market": suggest_market(normalized), "_machine_files": {},
+        }
 
     homepage = None
     try:
@@ -150,5 +162,6 @@ def run(url: str, timeout: float = 8.0) -> dict:
         "url": normalized,
         "checks": checks,
         "ready": all(item["ok"] for item in checks if item["name"] != "robots"),
+        "suggested_market": suggest_market(normalized),
         "_machine_files": {"robots": {"status": robots_status, "body": robots_body}},
     }

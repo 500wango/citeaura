@@ -16,8 +16,7 @@ import re
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor, as_completed
-from contextvars import copy_context
+from concurrent.futures import as_completed
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -26,14 +25,8 @@ from urllib.parse import urlparse
 import requests
 
 import geolib as G
+from context_executor import ThreadPoolExecutor
 
-
-class ThreadPoolExecutor(_ThreadPoolExecutor):
-    """Propagate runtime contexts to provider worker threads."""
-
-    def submit(self, fn, /, *args, **kwargs):
-        context = copy_context()
-        return super().submit(context.run, fn, *args, **kwargs)
 
 # Provider registry. Market determines which question set a provider receives.
 PROVIDERS = {
@@ -940,7 +933,7 @@ def _history_snapshot(slug: str, rows: list[dict]) -> dict:
 def run(
     slug: str,
     platforms: list[str] | None = None,
-    repeat: int = 1,
+    repeat: int = G.DEFAULT_SAMPLE_REPEAT,
     limit: int | None = None,
     question_ids: list[str] | None = None,
 ) -> dict:

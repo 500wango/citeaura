@@ -37,32 +37,22 @@ def test_celery_registers_all_pipeline_tasks():
     assert {"verify", "deliver", "plan"}.isdisjoint(tasks.PLATFORM_FUNDED_ACTIONS)
 
 
+
 def test_bootstrap_task_uses_tenant_context(monkeypatch):
     calls = []
 
-    @contextmanager
-    def fake_context(tenant_id, project_slug, action, job_id=None, allow_pool=True):
-        calls.append((tenant_id, project_slug))
-        yield
+    def fake_engine(tenant_id, project_slug, action, **kwargs):
+        calls.append(("engine", tenant_id, project_slug, action, kwargs["wrappers"]))
+        return {"status": "done"}
 
-    def fake_autopilot(args):
-        calls.append(("autopilot", args.slug, args.skip_llm, args.no_sample, args.limit, args.no_delivery))
-
-    @contextmanager
-    def fake_preserve(project_slug):
-        calls.append(("preserve", project_slug))
-        yield
-
-    @contextmanager
-    def fake_crawl_evidence(project_slug):
-        calls.append(("crawl-evidence", project_slug))
-        yield
-
-    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_autopilot=fake_autopilot))
-    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
-    monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
-    monkeypatch.setattr(tasks, "resilient_crawl_evidence", fake_crawl_evidence)
+    monkeypatch.setattr(tasks, "resolve_job_funding", lambda *args, **kwargs: ({
+        "keys": {}, "pool_codes": frozenset(), "tenant_id": 1,
+        "tenant_directory_slug": "tenant-a",
+    }, []))
+    monkeypatch.setattr(tasks, "with_tenant_read_context", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks, "run_engine_job", fake_engine)
     monkeypatch.setattr(tasks.baseline, "normalize_bootstrap_metadata", lambda slug: calls.append(("normalize", slug)))
+    monkeypatch.setattr(tasks, "_sync_claim_verification", lambda slug: None)
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
     monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: calls.append(("legacy-delivery", slug)))
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
@@ -76,10 +66,10 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
         "delivery_error": None,
     }
     assert calls == [
-        ("tenant-a", "example"),
-        ("preserve", "example"),
-        ("crawl-evidence", "example"),
-        ("autopilot", "example", True, True, None, True),
+        ("engine", "tenant-a", "example", "autopilot", (
+            "normalize_generated_outputs", "preserve_manual_tickets",
+            "resilient_crawl_evidence", "semantic_site_signals",
+        )),
         ("normalize", "example"),
         ("delivery", "example"),
         ("legacy-delivery", "example"),
@@ -90,31 +80,28 @@ def test_sample_task_normalizes_blueprint_after_recording_sampling(monkeypatch):
     calls = []
     sample_result = {"sample_count": 1, "platforms": {"openai": {"samples": 1}}}
 
-    @contextmanager
-    def fake_context(*args, **kwargs):
-        calls.append(("context", args[2]))
-        yield
-
-    def fake_sample_run(project_slug, platforms=None, repeat=1, limit=None):
-        calls.append(("sample", project_slug, platforms, repeat, limit))
+    def fake_engine(tenant_id, project_slug, action, **kwargs):
+        calls.append(("sample", project_slug, kwargs["platforms"], kwargs["repeat"], kwargs["limit"]))
+        assert kwargs["wrappers"] == ("normalize_project",)
         return sample_result
 
-    monkeypatch.setitem(sys.modules, "sample", types.SimpleNamespace(run=fake_sample_run))
-    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
+    monkeypatch.setattr(tasks, "resolve_job_funding", lambda *args, **kwargs: ({
+        "keys": {"openai": "test-key"}, "pool_codes": frozenset(), "tenant_id": 1,
+        "tenant_directory_slug": "tenant-a",
+    }, []))
+    monkeypatch.setattr(tasks, "with_tenant_read_context", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks, "run_engine_job", fake_engine)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
     monkeypatch.setattr(tasks, "_require_sampling_output", lambda result, slug, **kwargs: calls.append(("require", slug)) or result)
-    monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {"keys": {}, "pool_codes": ()})
     monkeypatch.setattr(tasks.measurement, "record_sampling", lambda slug, **kwargs: calls.append(("record", slug)))
+    monkeypatch.setattr(tasks, "_sync_projections", lambda *args, **kwargs: None)
+    monkeypatch.setattr(tasks, "_evaluate_effects", lambda slug: None)
     monkeypatch.setattr(tasks.global_scope, "normalize_project", lambda slug: calls.append(("normalize", slug)))
 
     result = tasks.task_sample.run("tenant-a", "example", limit=3, platforms=["openai"], repeat=2)
 
     assert result == sample_result
-    assert calls[1] == ("normalize", "example")
-    assert calls.index(("record", "example")) < len(calls) - 1
     assert calls == [
-        ("context", "sample"),
-        ("normalize", "example"),
         ("sample", "example", ["openai"], 2, 3),
         ("require", "example"),
         ("record", "example"),
@@ -125,24 +112,25 @@ def test_sample_task_normalizes_blueprint_after_recording_sampling(monkeypatch):
 def test_sample_task_forwards_question_scope_to_engine_and_manifest(monkeypatch):
     captured = {}
 
-    @contextmanager
-    def fake_context(*args, **kwargs):
-        yield {"keys": {}, "pool_codes": ()}
-
-    def fake_sample_run(project_slug, **kwargs):
+    def fake_engine(tenant_id, project_slug, action, **kwargs):
         captured["run"] = {"project_slug": project_slug, **kwargs}
         return {"sample_count": 1, "platforms": {"openai": {"samples": 1}}}
 
-    monkeypatch.setitem(sys.modules, "sample", types.SimpleNamespace(run=fake_sample_run))
-    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
+    monkeypatch.setattr(tasks, "resolve_job_funding", lambda *args, **kwargs: ({
+        "keys": {"openai": "test-key"}, "pool_codes": frozenset(), "tenant_id": 1,
+        "tenant_directory_slug": "tenant-a",
+    }, []))
+    monkeypatch.setattr(tasks, "with_tenant_read_context", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks, "run_engine_job", fake_engine)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
     monkeypatch.setattr(tasks, "_require_sampling_output", lambda result, slug, **kwargs: result)
-    monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {"keys": {}, "pool_codes": ()})
     monkeypatch.setattr(
         tasks.measurement,
         "record_sampling",
         lambda slug, **kwargs: captured.update({"manifest": {"project_slug": slug, **kwargs}}),
     )
+    monkeypatch.setattr(tasks, "_sync_projections", lambda *args, **kwargs: None)
+    monkeypatch.setattr(tasks, "_evaluate_effects", lambda slug: None)
     monkeypatch.setattr(tasks.global_scope, "normalize_project", lambda slug: None)
 
     tasks.task_sample.run(
@@ -151,7 +139,6 @@ def test_sample_task_forwards_question_scope_to_engine_and_manifest(monkeypatch)
 
     assert captured["run"]["question_ids"] == ["q101", "q102"]
     assert captured["manifest"]["question_ids"] == ["q101", "q102"]
-
 
 def test_sampling_success_uses_explicit_success_count_when_platform_aggregate_is_missing():
     result = {
@@ -398,30 +385,26 @@ def test_sampling_failure_reports_provider_error_from_current_jsonl(tmp_path, mo
     assert "runtime-only" not in message
 
 
+
 def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
     calls = []
 
-    @contextmanager
-    def fake_context(tenant_id, project_slug, action, job_id=None, allow_pool=True):
-        calls.append(("context", tenant_id, project_slug, action, allow_pool))
-        yield
+    def fake_engine(tenant_id, project_slug, action, **kwargs):
+        calls.append(("engine", tenant_id, project_slug, action, kwargs["pipeline_action"]))
+        assert "preserve_manual_tickets" in kwargs["wrappers"]
+        return {"status": "done", "action": kwargs["pipeline_action"], "project_slug": project_slug}
 
-    def fake_serve(args):
-        calls.append(("serve", args.slug, args.max_pages, args.limit, args.no_sample, args.draft, args.no_delivery))
-
-    @contextmanager
-    def fake_preserve(project_slug):
-        calls.append(("preserve", project_slug))
-        yield
-
-    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_serve=fake_serve))
-    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
-    monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
+    monkeypatch.setattr(tasks, "resolve_job_funding", lambda *args, **kwargs: ({
+        "keys": {}, "pool_codes": frozenset(), "tenant_id": 1,
+        "tenant_directory_slug": "tenant-a",
+    }, []))
+    monkeypatch.setattr(tasks, "with_tenant_read_context", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks, "run_engine_job", fake_engine)
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
     monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: None)
     monkeypatch.setattr(tasks, "_require_sampling_output", lambda *args, **kwargs: None)
-    monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {"keys": {}, "pool_codes": ()})
-    monkeypatch.setattr(tasks.measurement, "record_sampling", lambda *args, **kwargs: None)
+    monkeypatch.setattr(tasks, "_sync_projections", lambda *args, **kwargs: None)
+    monkeypatch.setattr(tasks, "measurement", types.SimpleNamespace(record_sampling=lambda *args, **kwargs: None))
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
     result = tasks.task_pipeline.run(
@@ -434,9 +417,7 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
     assert result["status"] == "done"
     assert result["action"] == "serve"
     assert calls == [
-        ("context", "tenant-a", "example", "serve", True),
-        ("preserve", "example"),
-        ("serve", "example", 8, 3, False, True, True),
+        ("engine", "tenant-a", "example", "pipeline", "serve"),
         ("delivery", "example"),
     ]
     with pytest.raises(ValueError, match="unsupported pipeline action"):
@@ -449,22 +430,27 @@ def test_deliver_task_uses_saas_delivery_renderer(monkeypatch):
     calls = []
 
     @contextmanager
-    def fake_context(tenant_id, project_slug, keys=None):
-        calls.append(("context", tenant_id, project_slug, keys))
+    def fake_context(tenant_slug, project_slug):
+        calls.append(("context", tenant_slug, project_slug))
         yield
 
-    monkeypatch.setattr(tasks, "with_tenant_context", fake_context)
-    monkeypatch.setattr(tasks, "_engine_keys", lambda tenant_id: {"openai": "runtime-only"})
+    monkeypatch.setattr(tasks, "resolve_job_funding", lambda *args, **kwargs: ({
+        "keys": {}, "pool_codes": frozenset(), "tenant_id": 1,
+        "tenant_directory_slug": "tenant-a",
+    }, []))
+    monkeypatch.setattr(tasks, "with_tenant_read_context", fake_context)
     monkeypatch.setattr(tasks.global_scope, "normalize_project", lambda slug: calls.append(("normalize", slug)))
     monkeypatch.setattr(tasks.site_signals, "validate_project_signals", lambda slug: calls.append(("validate", slug)))
+    monkeypatch.setattr(tasks, "_prepare_delivery_measurement", lambda *args, **kwargs: None)
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)) or "/formal/path")
+    monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: None)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
     result = tasks.task_deliver.run("tenant-a", "example")
 
     assert result == "/formal/path"
     assert calls == [
-        ("context", "tenant-a", "example", {"openai": "runtime-only"}),
+        ("context", "tenant-a", "example"),
         ("normalize", "example"),
         ("validate", "example"),
         ("delivery", "example"),
@@ -473,31 +459,29 @@ def test_deliver_task_uses_saas_delivery_renderer(monkeypatch):
 
 def test_pipeline_deliverables_rebuilds_coverage_aware_legacy_artifacts(monkeypatch):
     calls = []
+    wrappers = {}
 
-    @contextmanager
-    def fake_context(*args, **kwargs):
-        yield
+    def fake_engine(tenant_id, project_slug, action, **kwargs):
+        wrappers.update(kwargs["wrappers"] and {"wrappers": kwargs["wrappers"]})
+        calls.append((kwargs["pipeline_action"], project_slug))
+        return {"status": "done", "action": kwargs["pipeline_action"], "project_slug": project_slug}
 
-    @contextmanager
-    def fake_normalized_outputs(project_slug):
-        calls.append(("normalize-outputs", project_slug))
-        yield
-
-    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
+    monkeypatch.setattr(tasks, "resolve_job_funding", lambda *args, **kwargs: ({
+        "keys": {}, "pool_codes": frozenset(), "tenant_id": 1,
+        "tenant_directory_slug": "tenant-a",
+    }, []))
+    monkeypatch.setattr(tasks, "with_tenant_read_context", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks, "run_engine_job", fake_engine)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
-    monkeypatch.setattr(tasks.global_scope, "normalize_generated_outputs", fake_normalized_outputs)
     monkeypatch.setattr(tasks.site_signals, "validate_project_signals", lambda slug: calls.append(("validate", slug)))
-    monkeypatch.setattr(tasks, "_run_pipeline_action", lambda action, slug, params: calls.append((action, slug)) or {
-        "status": "done", "action": action, "project_slug": slug,
-    })
     monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: calls.append(("legacy-delivery", slug)))
 
     result = tasks.task_pipeline.run("tenant-a", "example", "deliverables")
 
     assert result == {"status": "done", "action": "deliverables", "project_slug": "example"}
+    assert wrappers["wrappers"] == ("normalize_project", "normalize_generated_outputs")
     assert calls == [
         ("validate", "example"),
-        ("normalize-outputs", "example"),
         ("deliverables", "example"),
         ("legacy-delivery", "example"),
     ]
@@ -506,40 +490,29 @@ def test_pipeline_deliverables_rebuilds_coverage_aware_legacy_artifacts(monkeypa
 def test_pipeline_autopilot_uses_resilient_crawl_evidence(monkeypatch):
     calls = []
 
-    @contextmanager
-    def fake_context(*args, **kwargs):
-        yield
+    def fake_engine(tenant_id, project_slug, action, **kwargs):
+        calls.append(("engine", kwargs["pipeline_action"]))
+        assert kwargs["wrappers"] == (
+            "normalize_project", "normalize_generated_outputs", "preserve_manual_tickets",
+            "resilient_crawl_evidence", "semantic_site_signals",
+        )
+        return {"status": "done"}
 
-    @contextmanager
-    def fake_preserve(project_slug):
-        calls.append(("preserve", project_slug))
-        yield
-
-    @contextmanager
-    def fake_crawl_evidence(project_slug):
-        calls.append(("crawl-evidence", project_slug))
-        yield
-
-    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
+    monkeypatch.setattr(tasks, "resolve_job_funding", lambda *args, **kwargs: ({
+        "keys": {}, "pool_codes": frozenset(), "tenant_id": 1,
+        "tenant_directory_slug": "tenant-a",
+    }, []))
+    monkeypatch.setattr(tasks, "with_tenant_read_context", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks, "run_engine_job", fake_engine)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
-    monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
-    monkeypatch.setattr(tasks, "resilient_crawl_evidence", fake_crawl_evidence)
     monkeypatch.setattr(tasks.baseline, "normalize_bootstrap_metadata", lambda slug: calls.append(("normalize", slug)))
-    monkeypatch.setattr(tasks, "_run_pipeline_action", lambda action, slug, params: calls.append((action, slug)))
     monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
-    monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: calls.append(("legacy-delivery", slug)))
-    monkeypatch.setattr(tasks.measurement, "record_sampling", lambda *args, **kwargs: None)
+    monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: None)
+    monkeypatch.setattr(tasks, "measurement", types.SimpleNamespace(record_sampling=lambda *args, **kwargs: None))
 
     tasks.task_pipeline.run("tenant-a", "example", "autopilot", params={"--no-sample": True})
 
-    assert calls == [
-        ("preserve", "example"),
-        ("crawl-evidence", "example"),
-        ("autopilot", "example"),
-        ("normalize", "example"),
-        ("delivery", "example"),
-        ("legacy-delivery", "example"),
-    ]
+    assert calls == [("engine", "autopilot"), ("normalize", "example"), ("delivery", "example")]
 
 
 def test_pipeline_autopilot_prepares_delivery_evidence(monkeypatch):
@@ -549,27 +522,20 @@ def test_pipeline_autopilot_prepares_delivery_evidence(monkeypatch):
         "ready": True,
     }
 
-    @contextmanager
-    def fake_context(*args, **kwargs):
-        yield {"keys": {}, "pool_codes": ()}
+    def fake_engine(tenant_id, project_slug, action, **kwargs):
+        return {"status": "done"}
 
-    @contextmanager
-    def fake_preserve(project_slug):
-        yield
-
-    @contextmanager
-    def fake_crawl_evidence(project_slug):
-        yield
-
-    monkeypatch.setattr(tasks, "_funded_engine_context", fake_context)
+    monkeypatch.setattr(tasks, "resolve_job_funding", lambda *args, **kwargs: ({
+        "keys": {}, "pool_codes": frozenset(), "tenant_id": 1,
+        "tenant_directory_slug": "tenant-a",
+    }, []))
+    monkeypatch.setattr(tasks, "with_tenant_read_context", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(tasks, "run_engine_job", fake_engine)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
-    monkeypatch.setattr(tasks, "preserve_manual_tickets", fake_preserve)
-    monkeypatch.setattr(tasks, "resilient_crawl_evidence", fake_crawl_evidence)
     monkeypatch.setattr(tasks.baseline, "normalize_bootstrap_metadata", lambda slug: None)
-    monkeypatch.setattr(tasks, "_run_pipeline_action", lambda *args: {"status": "done"})
     monkeypatch.setattr(tasks, "_require_sampling_output", lambda *args, **kwargs: None)
-    monkeypatch.setattr(tasks, "_engine_funding", lambda *args, **kwargs: {"keys": {}, "pool_codes": ()})
-    monkeypatch.setattr(tasks.measurement, "record_sampling", lambda *args, **kwargs: None)
+    monkeypatch.setattr(tasks, "_sync_projections", lambda *args, **kwargs: None)
+    monkeypatch.setattr(tasks, "measurement", types.SimpleNamespace(record_sampling=lambda *args, **kwargs: None))
     monkeypatch.setattr(
         tasks,
         "_prepare_delivery_measurement",
@@ -589,7 +555,6 @@ def test_pipeline_autopilot_prepares_delivery_evidence(monkeypatch):
         "measurement_scope": measurement_scope,
         "require_question_evidence": True,
     }) in calls
-
 
 def test_funded_context_unifies_historical_project_scope(monkeypatch):
     calls = []
@@ -1274,8 +1239,11 @@ def test_schedule_dispatcher_enqueues_due_projects_and_respects_guards(tmp_path,
 
     result = tasks.task_dispatch_schedules.run(now.isoformat())
 
-    assert result == {"scanned": 3, "enqueued": 1, "busy": 1, "quota_blocked": 1, "failed": 0}
-    assert calls == [(('pro-tenant', 'due'), {'job_id': 4})]
+    assert result == {"scanned": 3, "enqueued": 2, "busy": 1, "quota_blocked": 0, "failed": 0}
+    assert calls == [
+        (('pro-tenant', 'due'), {'job_id': 4}),
+        (('trial-tenant', 'limited'), {'job_id': 5}),
+    ]
     with session_factory() as db:
         due = db.get(Project, due_id)
         assert due.status == "processing"
@@ -1357,3 +1325,54 @@ def test_worker_tenant_record_resolves_numeric_slug_by_slug_first(tmp_path):
         assert result.id == t2.id
     finally:
         db.close()
+
+
+def test_trial_project_gets_day_seven_and_fourteen_retests_once(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'retests.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    created_at = datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc)
+    with session_factory() as db:
+        tenant = Tenant(name="trial-retest", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="retest",
+            url="https://retest.example",
+            status="ready",
+            created_at=created_at,
+        )
+        db.add(project)
+        db.flush()
+        db.add(Job(project_id=project.id, action="sample", status="done"))
+        db.commit()
+        project_id = project.id
+
+    calls = []
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(
+        tasks, "job_log_path",
+        lambda tenant_id, project_slug, job_id: tmp_path / "logs" / f"{job_id}.log",
+    )
+    monkeypatch.setattr(
+        tasks.task_cycle, "delay",
+        lambda *args, **kwargs: calls.append((args, kwargs)) or types.SimpleNamespace(id="cycle"),
+    )
+
+    first = tasks.task_dispatch_schedules.run(datetime(2026, 7, 8, 13, 0, tzinfo=timezone.utc).isoformat())
+    assert first["enqueued"] == 1
+    with session_factory() as db:
+        assert json.loads(db.get(Project, project_id).trial_retests_json) == [7]
+        queued = db.query(Job).filter(Job.project_id == project_id, Job.status == "queued").one()
+        queued.status = "done"
+        db.commit()
+
+    second = tasks.task_dispatch_schedules.run(datetime(2026, 7, 8, 14, 0, tzinfo=timezone.utc).isoformat())
+    assert second["enqueued"] == 0
+    assert len(calls) == 1
+
+    third = tasks.task_dispatch_schedules.run(datetime(2026, 7, 15, 13, 0, tzinfo=timezone.utc).isoformat())
+    assert third["enqueued"] == 1
+    with session_factory() as db:
+        assert json.loads(db.get(Project, project_id).trial_retests_json) == [7, 14]

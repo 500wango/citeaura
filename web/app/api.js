@@ -384,16 +384,6 @@ export const billing = {
 };
 
 /* ==========================================================================
-   SSO & Security 
-   ========================================================================== */
-export const sso = {
-  getConfig: () => request('/api/v1/sso/config'),
-  saveConfig: (body) => request('/api/v1/sso/config', { method: 'PUT', body }),
-  deleteConfig: () => request('/api/v1/sso/config', { method: 'DELETE' }),
-  getAuditEvents: () => fieldRequest(request('/api/v1/sso/audit-events'), 'events', []),
-};
-
-/* ==========================================================================
    Archive 
    ========================================================================== */
 export const archive = {
@@ -416,6 +406,5 @@ export default {
   outreach,
   team,
   billing,
-  sso,
   archive,
 };

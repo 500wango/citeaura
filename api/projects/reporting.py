@@ -4,6 +4,7 @@ from pathlib import Path
 
 from api.adapters import audit_presentation, brand_identity, global_scope, measurement, product_insights, report_quality, sampling_modes
 from api.adapters.engine import ENGINE_KEY_ENV, geolib, load_custom_providers, load_tenant_keys, with_tenant_read_context
+from api.analytics import clustered_stats
 from api.projects.access import error
 from api.projects.sampling import has_sampling_access
 
@@ -38,6 +39,11 @@ def engine_rows_by_mode(item, platform_rows):
             "sampling_mode_code": None,
             "mention_rate": item.get("mention"),
             "mention_interval": None,
+            "cluster_interval": None,
+            "category_interval": None,
+            "brand_probe_interval": None,
+            "brand_probe_sample_count": 0,
+            "failed_samples": 0,
             "median_rank": item.get("pos_median"),
             "sample_count": item.get("samples", 0),
             "citation_share": item.get("cite_share"),
@@ -49,6 +55,8 @@ def engine_rows_by_mode(item, platform_rows):
     rows = []
     for mode, mode_rows in grouped.items():
         ok_rows = [row for row in mode_rows if row.get("ok") and not row.get("brand_in_question")]
+        probe_rows = [row for row in mode_rows if row.get("ok") and row.get("brand_in_question")]
+        failed_rows = [row for row in mode_rows if not row.get("ok")]
         mentioned = [row for row in ok_rows if (row.get("analysis") or {}).get("brand_mentioned")]
         ranks = [
             (row.get("analysis") or {}).get("brand_rank")
@@ -56,6 +64,7 @@ def engine_rows_by_mode(item, platform_rows):
             if (row.get("analysis") or {}).get("brand_rank")
         ]
         mention_rate = (len(mentioned) / len(ok_rows)) if ok_rows else None
+        cluster_interval = clustered_stats.cluster_bootstrap_interval(ok_rows)
         rows.append({
             "engine_code": item.get("platform"),
             "engine_name": item.get("label") or item.get("platform"),
@@ -63,6 +72,11 @@ def engine_rows_by_mode(item, platform_rows):
             "sampling_mode_code": sampling_modes.code_for_label(mode),
             "mention_rate": mention_rate,
             "mention_interval": measurement.wilson_interval(len(mentioned), len(ok_rows)),
+            "cluster_interval": cluster_interval.as_dict(),
+            "category_interval": cluster_interval.as_dict(),
+            "brand_probe_interval": clustered_stats.cluster_bootstrap_interval(probe_rows).as_dict(),
+            "brand_probe_sample_count": len(probe_rows),
+            "failed_samples": len(failed_rows),
             "median_rank": sorted(ranks)[len(ranks) // 2] if ranks else None,
             "sample_count": len(ok_rows),
             "citation_share": item.get("cite_share") if len(grouped) == 1 else None,
@@ -108,6 +122,11 @@ def include_configured_engines(db, tenant, engines):
             "sampling_mode_code": sampling_modes.code_for_provider(provider),
             "mention_rate": None,
             "mention_interval": None,
+            "cluster_interval": None,
+            "category_interval": None,
+            "brand_probe_interval": None,
+            "brand_probe_sample_count": 0,
+            "failed_samples": 0,
             "median_rank": None,
             "sample_count": 0,
             "citation_share": None,
@@ -213,15 +232,36 @@ def product_report(project_slug, metrics):
         }
         for domain, evidence in sorted(citations.items(), key=lambda pair: (-pair[1]["count"], pair[0]))
     ]
+    category_rows = [row for row in rows if row.get("ok") and not row.get("brand_in_question")]
+    probe_rows = [row for row in rows if row.get("ok") and row.get("brand_in_question")]
+    failed_rows = [row for row in rows if not row.get("ok")]
+    failure_reasons = {}
+    for row in failed_rows:
+        reason = str(row.get("error") or row.get("search_evidence") or "unknown")
+        failure_reasons[reason] = failure_reasons.get(reason, 0) + 1
+    cluster_fields = ("question_id", "platform", "sample_mode")
+    question_breakdown = {
+        "category": clustered_stats.cluster_bootstrap_interval(
+            category_rows, cluster_fields=cluster_fields,
+        ).as_dict(),
+        "brand_probe": clustered_stats.cluster_bootstrap_interval(
+            probe_rows, cluster_fields=cluster_fields,
+        ).as_dict(),
+        "failed": {"samples": len(failed_rows), "reasons": failure_reasons},
+    }
     return {
         **(metrics or {}),
         "mention_rate": round(mention_rate, 4) if mention_rate is not None else None,
+        "mention_interval": clustered_stats.cluster_bootstrap_interval(
+            category_rows, cluster_fields=cluster_fields,
+        ).as_dict(),
         "sample_count": measured_count,
         "grade": audit.get("applicable_grade"),
         "engines": engines,
         "channels": channels,
         "audit": audit,
         "insights": insights,
+        "question_breakdown": question_breakdown,
         "measured": bool(measured),
         "sample_artifact": sample_path.stem if sample_path else None,
     }

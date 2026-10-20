@@ -13,7 +13,7 @@ const INTENT_PLAN_KEY = 'citeaura_intent_plan';
 const SUBSCRIBABLE = new Set(['starter', 'pro', 'agency']);
 
 function formatUsd(amount) {
-  if (amount === null || amount === undefined) return t('landing.plan_ent_price', {}, 'Custom');
+  if (amount === null || amount === undefined) return '—';
   return '$' + String(amount);
 }
 
@@ -46,10 +46,10 @@ function formatTrialEnds(value) {
 
 function readIntentPlan(params) {
   const fromRoute = String(params?.plan || '').toLowerCase();
-  if (SUBSCRIBABLE.has(fromRoute) || fromRoute === 'enterprise') return fromRoute;
+  if (SUBSCRIBABLE.has(fromRoute)) return fromRoute;
   try {
     const stored = String(sessionStorage.getItem(INTENT_PLAN_KEY) || '').toLowerCase();
-    if (SUBSCRIBABLE.has(stored) || stored === 'enterprise') return stored;
+    if (SUBSCRIBABLE.has(stored)) return stored;
   } catch (e) {}
   return '';
 }
@@ -250,20 +250,6 @@ export default {
             </button>
           </article>
 
-          <!-- Enterprise -->
-          <article class="price-card ${intentPlan === 'enterprise' ? 'is-intent' : ''}">
-            <p class="plan-name">Enterprise</p>
-            <p class="price"><strong>${t('landing.plan_ent_price', {}, 'Custom')}</strong></p>
-            <p class="plan-summary">${t('landing.plan_ent_summary', {}, 'Organization-scale private deployment')}</p>
-            <ul>
-              <li>${t('landing.plan_ent_1', {}, 'Dedicated private deploy & custom SLA')}</li>
-              <li>${t('landing.plan_ent_2', {}, 'Enterprise OIDC SSO & audit events')}</li>
-              <li>${t('landing.plan_ent_3', {}, 'Custom data retention & dedicated support team')}</li>
-            </ul>
-            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="enterprise">
-              ${t('billing.contact_sales', {}, 'Contact Sales')}
-            </button>
-          </article>
         </div>
       </div>
     `;
@@ -274,11 +260,6 @@ export default {
     const intentPlan = readIntentPlan(ctx.params);
 
     const startCheckout = async (plan, button) => {
-      if (plan === 'enterprise') {
-        toast.info(t('billing.contact_sales_tip', {}, 'Please contact sales@citeaura.com for enterprise plans.'));
-        clearIntentPlan();
-        return;
-      }
       if (!SUBSCRIBABLE.has(plan)) return;
       if (button) button.disabled = true;
       try {

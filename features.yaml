@@ -1,0 +1,90 @@
+version: "2.1"
+currency: USD
+trial_days: 14
+trial_retests:
+  - day: 1
+    action: baseline
+  - day: 7
+    action: cycle
+  - day: 14
+    action: cycle
+plans:
+  trial:
+    public: true
+    projects: 3
+    sample_runs_per_project: 3
+    scheduled_monitoring: false
+    regression_alerts: false
+    white_label: false
+  starter:
+    public: true
+    projects: 3
+    sample_runs_per_project: null
+    scheduled_monitoring: false
+    regression_alerts: false
+    white_label: false
+  pro:
+    public: true
+    projects: 10
+    sample_runs_per_project: null
+    scheduled_monitoring: true
+    regression_alerts: true
+    white_label: false
+  agency:
+    public: true
+    projects: 30
+    sample_runs_per_project: null
+    scheduled_monitoring: true
+    regression_alerts: true
+    white_label: true
+features:
+  - id: ai_engine_coverage
+    status: live
+    public: true
+    entitlements: [trial, starter, pro, agency]
+    note: Ten API engines plus twelve manually sampled product surfaces.
+  - id: byok
+    status: live
+    public: true
+    entitlements: [trial, starter, pro, agency]
+    note: User keys are encrypted at rest and injected only for the running job.
+  - id: platform_starting_scan
+    status: live
+    public: true
+    entitlements: [trial, starter, pro, agency]
+    note: Trial workspaces receive a platform-funded starting scan with a fixed budget.
+  - id: scheduled_monitoring
+    status: live
+    public: true
+    entitlements: [pro, agency]
+  - id: regression_alerts
+    status: live
+    public: true
+    entitlements: [pro, agency]
+  - id: white_label_delivery
+    status: live
+    public: true
+    entitlements: [agency]
+  - id: team_roles
+    status: live
+    public: true
+    entitlements: [starter, pro, agency]
+  - id: effect_verification
+    status: beta
+    public: true
+    entitlements: [trial, starter, pro, agency]
+    note: Observational target/control comparison with paired cluster bootstrap; not causal proof.
+  - id: report_language
+    status: beta
+    public: true
+    entitlements: [starter, pro, agency]
+    note: Question language is fully configurable; English report templates are the supported default.
+  - id: enterprise_sso
+    status: removed
+    public: false
+    entitlements: []
+  - id: audit_event_log
+    status: internal
+    public: false
+    entitlements: []
+    note: Internal security audit trail; not sold as a customer-facing compliance feature.

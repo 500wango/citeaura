@@ -984,3 +984,55 @@ def _build_map_markdown(name, blueprint):
     return "\n".join(lines)
 
 __all__ = tuple(name for name in globals() if not name.startswith("__"))
+
+
+CHECKLIST_AUDIENCES = {
+    "developers-checklist.md": ("Developers", ("Page technology", "Heading system", "Knowledge base")),
+    "content-checklist.md": ("Content", ("Content matrix", "Entity disambiguation")),
+    "outreach-checklist.md": ("Outreach", ("External evidence",)),
+}
+
+
+def _audience_checklist_markdown(tickets, packages, audience):
+    """按执行角色拆分验收清单；未完成项保留为可见待办。"""
+    selected = [ticket for ticket in tickets if str(ticket.get("package") or "") in packages]
+    lines = [
+        f"# {audience} checklist",
+        "",
+        "Items are copied from the delivery tickets. A checked box means the recorded status is done; "
+        "it does not prove an AI visibility change.",
+        "",
+    ]
+    for package in packages:
+        items = [ticket for ticket in selected if str(ticket.get("package") or "") == package]
+        lines.extend([f"## {package}", ""])
+        if not items:
+            lines.extend(["- No items in this package for the current delivery.", ""])
+            continue
+        for ticket in items:
+            checked = "x" if str(ticket.get("status") or "") == "done" else " "
+            title = str(ticket.get("title_en") or ticket.get("title") or ticket.get("id") or "Ticket")
+            acceptance = ticket.get("acceptance") or {}
+            if isinstance(acceptance, dict):
+                criterion = str(acceptance.get("desc_en") or acceptance.get("desc") or "").strip()
+            else:
+                criterion = str(acceptance).strip()
+            suffix = f" — acceptance: {criterion}" if criterion else ""
+            lines.append(f"- [{checked}] {ticket.get('id')} · {title}{suffix}")
+        lines.append("")
+    lines.extend([
+        "## Measurement caveat",
+        "",
+        "Effect states are observational target/control comparisons, not randomized experiments. "
+        "Inconclusive results stay inconclusive instead of being reported as wins.",
+        "",
+    ])
+    return "\n".join(lines)
+
+
+def audience_checklists(tickets):
+    """返回三个角色清单的 Markdown 内容，供交付包与导出复用。"""
+    return {
+        filename: _audience_checklist_markdown(tickets, packages, audience)
+        for filename, (audience, packages) in CHECKLIST_AUDIENCES.items()
+    }

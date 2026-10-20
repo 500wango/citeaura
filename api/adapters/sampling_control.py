@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func, text
 
 from api.adapters.engine import geolib, load_custom_providers, with_tenant_context
+from api.analytics.clustered_stats import DEFAULT_REPEAT
 from api.adapters import measurement, sampling_modes
 from api.billing.platform_pool import resolve_funding
 from api.models import Job, PlatformUsage, Project, Tenant
@@ -189,7 +190,7 @@ def release_reservation(job):
         job.budget_reservation_status = "released"
 
 
-def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=1, question_ids=None, allow_pool=True):
+def estimate(db, tenant, project, *, platforms=None, limit=None, repeat=DEFAULT_REPEAT, question_ids=None, allow_pool=True):
     """按当前问题集和资金来源估算一次采样，不返回密钥。"""
     import sample
 

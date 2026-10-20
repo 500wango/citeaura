@@ -8,7 +8,7 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 
-from api.adapters.engine import geolib, process_state_lock
+from api.adapters.engine import _PinnedAddressAdapter, geolib, process_state_lock
 from api.adapters.exceptions import GeoEngineError
 from api.adapters.network import NetworkTargetError, validate_outbound_url
 
@@ -176,18 +176,32 @@ def _repair_static_page(page, response):
     return page
 
 
+def _pinned_get(url, timeout):
+    """连接已校验的 DNS 地址，消除校验与请求之间的 TOCTOU。"""
+    current, addresses = validate_outbound_url(
+        url, require_https=False, return_addresses=True,
+    )
+    parsed = urlparse(current)
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    session = requests.Session()
+    session.trust_env = False
+    session.mount(f"{parsed.scheme}://", _PinnedAddressAdapter(parsed.hostname, addresses[0], port))
+    return current, session, session.get(
+        current,
+        timeout=timeout,
+        headers={"User-Agent": geolib.UA, "Accept": "text/plain, application/xml, text/xml;q=0.9"},
+        allow_redirects=False,
+        stream=True,
+    )
+
+
 def _fetch(url, timeout=10):
     try:
-        current = validate_outbound_url(url, require_https=False)
         response = None
+        session = None
+        current = validate_outbound_url(url, require_https=False)
         for _redirect in range(MAX_REDIRECTS + 1):
-            response = requests.get(
-                current,
-                timeout=timeout,
-                headers={"User-Agent": geolib.UA, "Accept": "text/plain, application/xml, text/xml;q=0.9"},
-                allow_redirects=False,
-                stream=True,
-            )
+            current, session, response = _pinned_get(current, timeout)
             if response.status_code not in (301, 302, 303, 307, 308):
                 break
             location = response.headers.get("Location")
@@ -195,6 +209,7 @@ def _fetch(url, timeout=10):
                 break
             redirected = urljoin(current, location)
             response.close()
+            session.close()
             if not _same_site(url, redirected):
                 raise NetworkTargetError("network_cross_site_redirect")
             current = validate_outbound_url(redirected, require_https=False)
@@ -209,6 +224,8 @@ def _fetch(url, timeout=10):
                 break
         response._content = b"".join(chunks)[:MAX_SIGNAL_BYTES]
         response._content_consumed = True
+        if session is not None:
+            session.close()
         return response
     except (NetworkTargetError, requests.RequestException) as exc:
         return exc

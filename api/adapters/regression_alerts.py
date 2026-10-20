@@ -5,6 +5,7 @@ import logging
 
 from api import config
 from api.adapters import measurement, notify
+from api.adapters.capabilities import feature_enabled
 from api.adapters.engine import geolib, tenant_slug, with_tenant_read_context
 from api.db import SessionLocal
 from api.models import Membership, Project, Tenant, User
@@ -110,6 +111,8 @@ def notify_if_needed(tenant_id, project_slug, action=None):
         ).first()
         if project is None or not project.alert_on_regression:
             return {"status": "skipped", "reason": "alerts_disabled"}
+        if feature_enabled("regression_alerts", tenant.plan) is False:
+            return {"status": "skipped", "reason": "feature_not_entitled"}
         with with_tenant_read_context(tenant.directory_slug or tenant_slug(str(tenant.id)), project.slug):
             events = measurement.regression_events(project.slug)
             if not events:

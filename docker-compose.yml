@@ -97,6 +97,7 @@ services:
       target: worker
     command: >-
       celery -A api.worker.celery_app worker --loglevel=INFO --pool=prefork
+      --concurrency=${WORKER_CONCURRENCY:-4}
     volumes:
       - .:/app
       - citeaura_work:/app/work

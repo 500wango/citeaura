@@ -59,7 +59,6 @@ def test_sensitive_session_endpoints_use_auth_rate_limit():
     assert {
         "/api/v1/admin/auth/password",
         "/api/v1/team/invitations/accept",
-        "/api/v1/sso/callback",
     } <= AUTH_PATHS
 
 

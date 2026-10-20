@@ -50,10 +50,6 @@ class Tenant(Base):
     usage_counters = relationship("UsageCounter", back_populates="tenant", cascade="all, delete-orphan")
     invitations = relationship("TeamInvitation", back_populates="tenant", cascade="all, delete-orphan")
     platform_usage = relationship("PlatformUsage", back_populates="tenant", cascade="all, delete-orphan")
-    sso_configuration = relationship(
-        "SsoConfiguration", back_populates="tenant", cascade="all, delete-orphan", uselist=False,
-    )
-    sso_identities = relationship("SsoIdentity", back_populates="tenant", cascade="all, delete-orphan")
     audit_events = relationship("AuditEvent", back_populates="tenant", cascade="all, delete-orphan")
     integration_credentials = relationship(
         "IntegrationCredential", back_populates="tenant", cascade="all, delete-orphan",
@@ -180,6 +176,12 @@ class Project(Base):
     slug = Column(String(128), nullable=False)
     url = Column(String(2048), nullable=False)
     market = Column(String(16), nullable=False, default="both", server_default="both")
+    question_language = Column(
+        String(16), nullable=False, default="auto", server_default="auto",
+    )
+    report_language = Column(
+        String(16), nullable=False, default="en", server_default="en",
+    )
     status = Column(String(32), nullable=False, default="pending", server_default="pending")
     schedule_interval_days = Column(Integer, nullable=True)
     schedule_next_run_at = Column(DateTime(timezone=True), nullable=True, index=True)
@@ -191,6 +193,7 @@ class Project(Base):
     alert_on_regression = Column(Boolean, nullable=False, default=False, server_default="false")
     visibility_plan_json = Column(Text, nullable=True)
     visibility_baseline_json = Column(Text, nullable=True)
+    trial_retests_json = Column(Text, nullable=True)
     archived_at = Column(DateTime(timezone=True), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -565,52 +568,6 @@ class PlatformUsageOutbox(Base):
     processed_at = Column(DateTime(timezone=True), nullable=True)
 
 
-class SsoConfiguration(Base):
-    __tablename__ = "sso_configurations"
-    __table_args__ = (
-        CheckConstraint("default_role IN ('editor', 'viewer')", name="ck_sso_configurations_default_role"),
-    )
-
-    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True)
-    provider_name = Column(String(128), nullable=False)
-    issuer_url = Column(String(2048), nullable=False)
-    client_id = Column(String(512), nullable=False)
-    encrypted_client_secret = Column(Text, nullable=True)
-    allowed_domains = Column(Text, nullable=False, default="[]", server_default="[]")
-    verified_domains = Column(Text, nullable=False, default="[]", server_default="[]")
-    default_role = Column(String(32), nullable=False, default="viewer", server_default="viewer")
-    enabled = Column(Boolean, nullable=False, default=False, server_default="false")
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
-
-    tenant = relationship("Tenant", back_populates="sso_configuration")
-
-
-class SsoIdentity(Base):
-    """IdP 主体到本地用户的绑定。
-
-    没有这张表时，SSO 只能用 email 断言身份：任何能配置 IdP 的租户 owner 都能
-    断言任意邮箱拿到别人的全局会话，再用 switch-tenant 进入对方的工作区。
-    """
-
-    __tablename__ = "sso_identities"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "issuer", "subject", name="uq_sso_identities_issuer_subject"),
-        Index("ix_sso_identities_user", "user_id"),
-    )
-
-    id = Column(Integer, primary_key=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    issuer = Column(String(2048), nullable=False)
-    subject = Column(String(255), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    last_login_at = Column(DateTime(timezone=True), nullable=True)
-
-    tenant = relationship("Tenant", back_populates="sso_identities")
-    user = relationship("User")
-
-
 class AuditEvent(Base):
     __tablename__ = "audit_events"
 
@@ -642,3 +599,100 @@ class IntegrationCredential(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     tenant = relationship("Tenant", back_populates="integration_credentials")
+
+
+class PromptProjection(Base):
+    """题库投影；文件系统 samples/metrics 仍是唯一真源。"""
+
+    __tablename__ = "prompt_projections"
+    __table_args__ = (
+        UniqueConstraint("project_id", "prompt_id", name="uq_prompt_projections_project_prompt"),
+        Index("ix_prompt_projections_tenant_project", "tenant_id", "project_id"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    prompt_id = Column(String(64), nullable=False)
+    market = Column(String(16), nullable=True)
+    language = Column(String(16), nullable=True)
+    category = Column(String(32), nullable=True)
+    group_name = Column(String(32), nullable=True)
+    text = Column(Text, nullable=False)
+    source_sha256 = Column(String(64), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class RunProjection(Base):
+    """采样运行投影；只保存可重建的汇总。"""
+
+    __tablename__ = "run_projections"
+    __table_args__ = (
+        UniqueConstraint("project_id", "run_id", name="uq_run_projections_project_run"),
+        Index("ix_run_projections_tenant_project", "tenant_id", "project_id"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    run_id = Column(String(128), nullable=False)
+    source_sha256 = Column(String(64), nullable=False)
+    repeat = Column(Integer, nullable=True)
+    platforms_json = Column(Text, nullable=False, default="[]", server_default="[]")
+    aggregation_json = Column(Text, nullable=False, default="{}", server_default="{}")
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class SampleProjection(Base):
+    """单条样本投影，唯一键含轮次，重复导入只保留一行。"""
+
+    __tablename__ = "sample_projections"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "run_id", "question_id", "platform", "round",
+            name="uq_sample_projections_identity",
+        ),
+        Index("ix_sample_projections_tenant_project", "tenant_id", "project_id"),
+        Index("ix_sample_projections_question", "project_id", "question_id"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    run_id = Column(String(128), nullable=False)
+    question_id = Column(String(64), nullable=False)
+    platform = Column(String(64), nullable=False)
+    sample_mode = Column(String(32), nullable=True)
+    round = Column(Integer, nullable=False, default=1, server_default="1")
+    ok = Column(Boolean, nullable=False, default=False, server_default="false")
+    mention = Column(Boolean, nullable=False, default=False, server_default="false")
+    top1 = Column(Boolean, nullable=False, default=False, server_default="false")
+    top3 = Column(Boolean, nullable=False, default=False, server_default="false")
+    raw_model = Column(String(128), nullable=True)
+    search_enabled = Column(Boolean, nullable=True)
+    answer_text = Column(Text, nullable=True)
+    row_sha256 = Column(String(64), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class ProjectionState(Base):
+    """每个项目的投影水位，用于幂等重建与错误观测。"""
+
+    __tablename__ = "projection_states"
+    __table_args__ = (
+        UniqueConstraint("project_id", name="uq_projection_states_project"),
+        Index("ix_projection_states_tenant_project", "tenant_id", "project_id"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    source_digest = Column(String(64), nullable=True)
+    indexed_digest = Column(String(64), nullable=True)
+    status = Column(String(32), nullable=False, default="pending", server_default="pending")
+    last_error = Column(Text, nullable=True)
+    indexed_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())

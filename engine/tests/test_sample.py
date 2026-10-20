@@ -538,10 +538,10 @@ class TestRunValidation(unittest.TestCase):
                  mock.patch.object(S, "ask", return_value=response) as ask:
                 metrics = S.run("demo", platforms=["deepseek"])
             row = G.read_jsonl(next((pdir / "samples").glob("*.jsonl")))[0]
-        ask.assert_called_once_with("deepseek", "有什么好用的工具？")
+        self.assertEqual(ask.call_count, G.DEFAULT_SAMPLE_REPEAT)
         self.assertEqual(row["market"], "cn")
         self.assertEqual(row["question_id"], "q001")
-        self.assertEqual(metrics["successful_sample_count"], 1)
+        self.assertEqual(metrics["successful_sample_count"], G.DEFAULT_SAMPLE_REPEAT)
 
     def test_deepseek_keeps_global_cohort_when_those_questions_exist(self):
         cfg = {
@@ -592,8 +592,11 @@ class TestRunValidation(unittest.TestCase):
         self.assertEqual(row["request_id"], "req-1")
         self.assertEqual(row["retry_count"], 1)
         self.assertEqual(row["search_evidence"], "provider_search_without_citations")
-        self.assertEqual(metrics["provider_observability"]["usage"]["total_tokens"], 11)
-        self.assertEqual(metrics["provider_observability"]["retries"], 1)
+        self.assertEqual(
+            metrics["provider_observability"]["usage"]["total_tokens"],
+            11 * G.DEFAULT_SAMPLE_REPEAT,
+        )
+        self.assertEqual(metrics["provider_observability"]["retries"], G.DEFAULT_SAMPLE_REPEAT)
 
 
 class TestSamplingConcurrency(unittest.TestCase):

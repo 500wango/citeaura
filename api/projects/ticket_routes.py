@@ -1,6 +1,7 @@
 """项目工单和 Playbook API。"""
 
 from api.projects.project_route_support import *  # noqa: F401,F403
+from api.adapters.experiment_cards import build_experiment_card, experiment_cards
 
 router = APIRouter(tags=["projects"])
 
@@ -178,5 +179,92 @@ def update_ticket(
     )
     db.commit()
     return {"ticket": localize_tickets(ticket_workflow.enrich([ticket]))[0]}
+
+@router.get("/{project_id}/experiments")
+def project_experiments(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """返回所有带有效果绑定的工单实验卡片。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_read_context(tenant, project.slug):
+        import tasks as engine_tasks
+
+        data = global_scope.normalize_tasks(project.slug, persist=False) or engine_tasks.load(project.slug)
+    return {"experiments": experiment_cards(data.get("tasks", []))}
+
+
+@router.get("/{project_id}/tickets/{ticket_id}/experiment")
+def ticket_experiment(
+    project_id: int,
+    ticket_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    try:
+        with with_tenant_read_context(tenant, project.slug):
+            spec = ticket_workflow.get_experiment(project.slug, ticket_id)
+            import tasks as engine_tasks
+            ticket = next(
+                (item for item in engine_tasks.load(project.slug).get("tasks", []) if item.get("id") == ticket_id),
+                {},
+            )
+    except KeyError:
+        _error(status.HTTP_404_NOT_FOUND, "ticket_not_found")
+    return {"experiment": spec, "card": build_experiment_card(ticket, spec)}
+
+
+@router.put("/{project_id}/tickets/{ticket_id}/experiment")
+def update_ticket_experiment(
+    project_id: int,
+    ticket_id: str,
+    payload: ExperimentPatch,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    if _active_job(db, project.id) is not None:
+        _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    changes = payload.model_dump(exclude_unset=True)
+    try:
+        with with_tenant_read_context(tenant, project.slug):
+            spec = ticket_workflow.update_experiment(project.slug, ticket_id, changes, current_user.email)
+    except KeyError:
+        _error(status.HTTP_404_NOT_FOUND, "ticket_not_found")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "experiment_update_failed", "detail": str(exc)},
+        ) from exc
+    return {"experiment": spec}
+
+
+@router.post("/{project_id}/tickets/{ticket_id}/experiment/evaluate")
+def evaluate_ticket_experiment(
+    project_id: int,
+    ticket_id: str,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    """用最新一次采样评估指定实验；观察期未结束时返回 observing。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    if _active_job(db, project.id) is not None:
+        _error(status.HTTP_409_CONFLICT, "project_job_already_running")
+    with with_tenant_read_context(tenant, project.slug):
+        ticket_workflow.record_effect_evaluations(project.slug)
+        spec = ticket_workflow.get_experiment(project.slug, ticket_id)
+        import tasks as engine_tasks
+        ticket = next(
+            (item for item in engine_tasks.load(project.slug).get("tasks", []) if item.get("id") == ticket_id),
+            {},
+        )
+    return {"experiment": spec, "card": build_experiment_card(ticket, spec)}
+
 
 __all__ = tuple(name for name in globals() if not name.startswith("__"))

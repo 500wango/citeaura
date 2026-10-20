@@ -45,7 +45,7 @@ def infer(plan, project_count, declared_segment=UNKNOWN):
     """已声明的客群不被行为覆盖；未声明时按套餐和项目数推断。"""
     if declared_segment in (SOLO, AGENCY):
         return declared_segment
-    if plan in ("agency", "enterprise"):
+    if plan == "agency":
         return AGENCY
     if (project_count or 0) > AGENCY_PROJECT_THRESHOLD:
         return AGENCY

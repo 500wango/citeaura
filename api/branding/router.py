@@ -12,7 +12,7 @@ from api.models import Tenant, User
 
 
 router = APIRouter(prefix="/api/v1/settings/delivery-branding", tags=["settings"])
-WHITE_LABEL_PLANS = frozenset(("agency", "enterprise"))
+WHITE_LABEL_PLANS = frozenset(("agency",))
 
 
 class BrandingRequest(BaseModel):

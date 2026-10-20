@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from api.adapters.engine import geolib
 from api.adapters.localization import normalize_english_typography
+import prompt_safety as prompt_guard
 
 
 HAN_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
@@ -237,10 +238,16 @@ def extract_brand_facts(ask_json, project_slug, digest):
     """Ask the configured model to classify and extract facts from official-site evidence."""
     config = geolib.load_config(project_slug)
     brand = config.get("brand") if isinstance(config.get("brand"), dict) else {}
-    site = _text(brand.get("site"), "Unknown official website", limit=2048)
-    prompt = ENGLISH_BRAND_PROMPT.replace("{site}", site) + str(digest or "") + "\n</official_site_evidence>"
+    site = prompt_guard.sanitize_untrusted_text(
+        _text(brand.get("site"), "Unknown official website", limit=2048), limit=2048,
+    )
+    safe_digest = prompt_guard.sanitize_untrusted_text(digest)
+    prompt = (
+        ENGLISH_BRAND_PROMPT.replace("{site}", site).replace("<official_site_evidence>", "")
+        + "\n" + prompt_guard.wrap_untrusted(safe_digest, tag="official_site_evidence")
+    )
     extracted = _model_brand(ask_json(prompt), brand)
-    evidence = " ".join(str(digest or "").split()).casefold()
+    evidence = " ".join(str(safe_digest).split()).casefold()
 
     def grounded(value):
         text = " ".join(str(value or "").split()).casefold()

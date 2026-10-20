@@ -11,7 +11,9 @@ from dotenv import load_dotenv
 from sqlalchemy.engine import make_url
 
 
-load_dotenv()
+# 隔离的引擎子进程不得从磁盘 .env 重新加载父进程已剥离的密钥。
+if os.getenv("CITEAURA_SKIP_DOTENV", "").lower() not in ("1", "true", "yes"):
+    load_dotenv()
 
 
 def database_url():
@@ -138,11 +140,6 @@ def session_cookie_secure():
     return production_proxy_mode() or os.getenv("SESSION_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
 
 
-def oidc_allow_insecure_localhost():
-    """仅在本地开发显式允许 OIDC 回环地址。"""
-    return _enabled("OIDC_ALLOW_INSECURE_LOCALHOST")
-
-
 def public_base_url():
     return os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
 
@@ -150,11 +147,6 @@ def allowed_hosts():
     """返回 TrustedHost 允许的额外主机名。"""
     value = os.getenv("ALLOWED_HOSTS", "")
     return tuple(item.strip().lower() for item in value.split(",") if item.strip())
-
-def sso_require_domain_verification():
-    """生产环境要求 SSO 域名完成 DNS TXT 验证。"""
-    return _enabled("SSO_REQUIRE_DOMAIN_VERIFICATION", "true")
-
 
 def source_revision():
     """返回部署源码版本，本地运行时回退读取 Git。"""
@@ -222,6 +214,49 @@ def platform_pool_global_monthly_cost_cny_fen_limit():
 def stale_running_job_timeout_seconds():
     """硬超时后的 Job 回收窗口，必须略大于 Celery 硬超时。"""
     return _integer("STALE_RUNNING_JOB_TIMEOUT_SECONDS", 4_500, minimum=3_660, maximum=86_400)
+
+
+def default_repeat():
+    """每题默认采样轮数；低于 3 轮的样本不用于效果归因。"""
+    return _integer("CITEAURA_DEFAULT_REPEAT", 5, minimum=1, maximum=10)
+
+
+def cluster_stats_enabled():
+    return _enabled("CITEAURA_CLUSTER_STATS", "true")
+
+
+def effect_verification_enabled():
+    return _enabled("CITEAURA_EFFECT_VERIFICATION", "true")
+
+
+def isolated_jobs_enabled():
+    return _enabled("CITEAURA_ISOLATED_JOBS", "true")
+
+
+def engine_job_timeout_seconds():
+    return _integer("CITEAURA_ENGINE_JOB_TIMEOUT", 3_600, minimum=30, maximum=86_400)
+
+
+def trial_pool_enabled():
+    return _enabled("CITEAURA_TRIAL_POOL", "true")
+
+
+def trial_starting_budget_cny_fen():
+    """试用起步扫描预算上限（分），默认约 2 美元。"""
+    return _integer("CITEAURA_TRIAL_BUDGET_CNY_FEN", 1_440, maximum=100_000_000)
+
+
+def tenant_storage_quota_mb():
+    return _integer("CITEAURA_TENANT_STORAGE_QUOTA_MB", 2_048, maximum=10_000_000)
+
+
+def project_retention_days():
+    """订阅取消后项目数据保留天数。"""
+    return _integer("CITEAURA_PROJECT_RETENTION_DAYS", 90, maximum=3_650)
+
+
+def worker_concurrency():
+    return _integer("WORKER_CONCURRENCY", 4, maximum=64)
 
 
 def billing_annual_discount_percent():

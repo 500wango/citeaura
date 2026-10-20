@@ -16,7 +16,7 @@ from api.adapters import brand_facts, brand_identity, competitor_scope, generate
 
 
 TEXT_SUFFIXES = {".txt", ".json", ".html", ".md"}
-CONFIG_PATCH_FIELDS = frozenset(("url", "market", "questions", "competitors", "platforms", "brand"))
+CONFIG_PATCH_FIELDS = frozenset(("url", "market", "question_language", "report_language", "questions", "competitors", "platforms", "brand"))
 
 
 def _usable_crawl_pages(project_slug: str):

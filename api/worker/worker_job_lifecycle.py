@@ -1,12 +1,13 @@
 """Worker Job claim, progress, and terminal-state lifecycle."""
 
 import json
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
+from api import config
 from api.adapters import locking, regression_alerts, sampling_control
 from api.adapters.engine import job_log_path, tenant_slug
 from api.adapters.log_translator import redact_secrets
@@ -28,8 +29,13 @@ def _task_facade():
 
 
 @contextmanager
-def _job_status(tenant_id, project_slug, action, job_id=None):
-    """把 Job 标为 running/done/failed，并提供粗粒度进度回调。"""
+def _job_status(tenant_id, project_slug, action, job_id=None, hold_project_lock=None):
+    """把 Job 标为 running/done/failed，并提供粗粒度进度回调。
+
+    隔离模式下项目锁由引擎子进程持有；父进程若同时持锁，子进程会等锁超时。
+    """
+    if hold_project_lock is None:
+        hold_project_lock = not config.isolated_jobs_enabled()
     tracked_job_id = None
     log_path = None
 
@@ -158,7 +164,11 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
             if state is not None:
                 _task_facade()._append_job_event(log_path, f"progress {state[0]} {state[1]}")
 
-        with locking.project_lock(tenant_slug(str(tenant_id)), project_slug, allow_reentrant=True):
+        lock_context = (
+            locking.project_lock(tenant_slug(str(tenant_id)), project_slug, allow_reentrant=True)
+            if hold_project_lock else nullcontext()
+        )
+        with lock_context:
             with _task_facade()._capture_task_output(log_path):
                 yield update
     except BaseException as exc:

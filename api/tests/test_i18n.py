@@ -321,7 +321,6 @@ def test_landing_howto_plan_names_and_effort_copy():
         assert catalog["literal.438226dccf6d"] == "Starter"
         assert catalog["literal.66d0c5e6b170"] == "Pro"
         assert catalog["literal.5c47e26c6ad2"] == "Agency"
-        assert catalog["literal.b4afff317fb1"] == "Enterprise"
     assert catalogs["zh"]["landing.compare_rarely_published"] == "很少发布"
     assert catalogs["zh"]["landing.howto_1_body"].startswith("填写")
     assert "努力" not in catalogs["zh"]["literal.db96722f2117"]

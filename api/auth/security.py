@@ -92,17 +92,12 @@ def create_access_token(
     user_id: int,
     tenant_id: int,
     session_version: int = 0,
-    sso_tenant_id: int | None = None,
 ) -> str:
-    """签发 access token。
-
-    sso_tenant_id 非空表示这是由租户 IdP 断言出来的会话：只能在该租户内使用，
-    不允许用 switch-tenant 切换到用户的其他工作区。
-    """
-    claims = {"sv": int(session_version)}
-    if sso_tenant_id is not None:
-        claims["sso_tid"] = str(sso_tenant_id)
-    return create_token(user_id, tenant_id, "access", timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES), claims)
+    """签发 access token。"""
+    return create_token(
+        user_id, tenant_id, "access",
+        timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES), {"sv": int(session_version)},
+    )
 
 
 def create_refresh_token(
@@ -111,7 +106,6 @@ def create_refresh_token(
     session_version: int = 0,
     family_id: str | None = None,
     token_id: str | None = None,
-    sso_tenant_id: int | None = None,
 ) -> str:
     """签发 refresh token。"""
     claims = {"sv": int(session_version)}
@@ -119,14 +113,7 @@ def create_refresh_token(
         claims["fid"] = family_id
     if token_id:
         claims["jti"] = token_id
-    if sso_tenant_id is not None:
-        claims["sso_tid"] = str(sso_tenant_id)
     return create_token(user_id, tenant_id, "refresh", timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS), claims)
-
-
-def create_sso_state(tenant_id: int) -> str:
-    """签发十分钟有效的 OIDC state。"""
-    return create_token(0, tenant_id, "sso_state", timedelta(minutes=10))
 
 
 def decode_token(token: str, expected_type: str = "access") -> dict:

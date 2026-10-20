@@ -8,6 +8,7 @@ from pathlib import Path
 from api.adapters.delivery_common import *  # noqa: F401,F403
 from api.adapters.delivery_documents import (
     _audit_markdown,
+    audience_checklists,
     _build_map_markdown,
     _execution_markdown,
     _risk_summary,
@@ -539,13 +540,15 @@ def _build_delivery(
     if coverage.get("channel_manual"):
         channel_stats.append(("Manual Confirmation", str(coverage["channel_manual"])))
     _write_document(directory, "06", build_map_markdown, channel_stats)
+    for filename, markdown in audience_checklists(tickets).items():
+        (directory / filename).write_text(markdown, "utf-8")
     asset_index["quality_gate"] = validate_delivery_quality(directory, display_audit, tickets, asset_index)
     (directory / "assets" / "index.json").write_text(
         json.dumps(asset_index, ensure_ascii=False, indent=2) + "\n", "utf-8",
     )
     _write_index(directory, name, site, delivery_date, display_audit, tickets, blueprint, asset_index, evidence)
     apply_delivery_branding(directory)
-    validate_delivery_language(directory)
+    validate_delivery_language(directory, config.get("report_language", "en"))
 
 
 def _delivery_target(project_directory, delivery_directory):

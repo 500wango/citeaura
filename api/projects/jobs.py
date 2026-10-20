@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from api.adapters.log_translator import redact_secrets, translate_engine_log
+from api.analytics.clustered_stats import DEFAULT_REPEAT
 from api.models import Job
 from api.pipeline_catalog import PIPELINE_ACTIONS, RETRYABLE_ACTIONS
 from api.worker.tasks import (
@@ -96,7 +97,7 @@ def safe_request_json(action, params=None):
         values = {
             "limit": params.get("limit", params.get("--limit")),
             "platforms": params.get("platforms", params.get("--platforms")),
-            "repeat": params.get("repeat", params.get("--repeat", 1)),
+            "repeat": params.get("repeat", params.get("--repeat", DEFAULT_REPEAT)),
             "question_ids": params.get("question_ids", params.get("--question-ids")),
         }
     elif action in PIPELINE_ACTIONS:
@@ -141,7 +142,7 @@ def dispatch_retry(task_name, tenant_name, project_slug, request, job_id, source
             project_slug,
             limit=request.get("limit", request.get("--limit")),
             platforms=request.get("platforms", request.get("--platforms")),
-            repeat=int(request.get("repeat", request.get("--repeat", 1)) or 1),
+            repeat=int(request.get("repeat", request.get("--repeat", DEFAULT_REPEAT)) or DEFAULT_REPEAT),
             question_ids=request.get("question_ids", request.get("--question-ids")),
             job_id=job_id,
         )

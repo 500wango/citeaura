@@ -9,6 +9,9 @@ import { confirmModal, openModal } from '../components/modal.js';
 import { renderEmpty, bindEmptyAction } from '../components/empty.js';
 import { escapeHtml } from '../safe-html.js';
 
+let activeProjectMarket = 'global';
+let activeQuestionLanguage = 'auto';
+
 export default {
   render: async (ctx) => {
     const projectId = ctx.activeProjectId;
@@ -31,6 +34,10 @@ export default {
         projects.getBrandOpportunities(projectId).catch(() => null),
       ]);
       insights = project?.insights || {};
+      if (project) {
+        activeProjectMarket = project.market || 'global';
+        activeQuestionLanguage = project.question_language || 'auto';
+      }
     } catch (err) {
       console.error('Failed to load questions:', err);
     }
@@ -169,7 +176,8 @@ export default {
     if (!projectId) return;
 
     const addQuestions = async (lines) => {
-      const items = lines.map((text) => ({ text, market: 'global', group: 'Recommendation', source: 'manual' }));
+      const market = activeProjectMarket === 'cn' ? 'cn' : 'global';
+      const items = lines.map((text) => ({ text, market, group: 'Recommendation', source: 'manual' }));
       await workspace.addQuestions(projectId, { items });
       toast.success(t('questions.added_success', {}, 'Questions added successfully'));
       await ctx.reloadCurrentView();
@@ -245,7 +253,7 @@ export default {
           await workspace.addQuestions(projectId, {
             items: [{
               text: button.getAttribute('data-text') || '',
-              market: 'global',
+              market: activeProjectMarket === 'cn' ? 'cn' : 'global',
               group: button.getAttribute('data-intent') || 'Research',
               source: 'prompt_research',
             }],

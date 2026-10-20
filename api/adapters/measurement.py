@@ -9,12 +9,14 @@ from api.adapters import brand_identity
 from api.adapters.engine import geolib
 from api.adapters.global_scope import is_global_sample, sample_artifact_path
 from api.adapters.sampling_modes import MODE_API, MODE_MANUAL, MODE_SEARCH, for_provider, for_row
+from api.analytics import clustered_stats
+from api.analytics.clustered_stats import DEFAULT_REPEAT
 
 
 SCHEMA_VERSION = "1.0"
 MIN_COMPARABLE_SAMPLES = 20
 MIN_REPRESENTATIVE_PLATFORMS = 2
-MIN_QUESTION_SAMPLES = 3
+MIN_QUESTION_SAMPLES = DEFAULT_REPEAT
 
 
 def wilson_interval(successes, samples):
@@ -379,6 +381,20 @@ def _run_rows(project_slug, run_id=None):
     return rows
 
 
+def run_rows(project_slug, run_id=None):
+    """按 run 读取可下钻样本；效果验证与投影复用同一读取口径。"""
+    return _run_rows(project_slug, run_id)
+
+
+def latest_run_id(project_slug):
+    files = sorted((geolib.project_dir(project_slug) / "metrics").glob("*.json"))
+    for path in reversed(files):
+        metrics = geolib.read_json(path, {}) or {}
+        if metrics.get("run_id"):
+            return str(metrics["run_id"])
+    return None
+
+
 def build_sampling_receipt(
     project_slug,
     *,
@@ -386,7 +402,7 @@ def build_sampling_receipt(
     requested_platforms=None,
     question_ids=None,
     limit=None,
-    repeat=1,
+    repeat=DEFAULT_REPEAT,
     job_id=None,
     funding=None,
 ):
@@ -638,6 +654,13 @@ def sampling_quality(project_slug):
 
     run_id = current.get("run_id")
     rows = _run_rows(project_slug, run_id)
+    analysis_rows = [row for row in rows if not row.get("brand_in_question")]
+    if current_rate is not None and current_n:
+        current_summary["mention_interval"] = wilson_interval(
+            round(current_rate * current_n), current_n,
+        )
+    current_cluster_interval = clustered_stats.cluster_bootstrap_interval(analysis_rows)
+    current_summary["cluster_interval"] = current_cluster_interval.as_dict()
     modes = set()
     for r in rows:
         if r.get("ok"):
@@ -675,6 +698,10 @@ def sampling_quality(project_slug):
     previous = metrics[-2]
     previous_rate, previous_n = _weighted_mention(previous)
     previous_confidence = _confidence(previous, previous_n)
+    previous_rows = [
+        row for row in _run_rows(project_slug, previous.get("run_id"))
+        if not row.get("brand_in_question")
+    ]
     comparable = True
     reason = "Question set, platforms, and sampling modes consistent"
     current_version = _question_version(current)
@@ -712,17 +739,43 @@ def sampling_quality(project_slug):
             ),
         }
     else:
-        variance = previous_rate * (1 - previous_rate) / previous_n + current_rate * (1 - current_rate) / current_n
-        z_score = abs(delta) / math.sqrt(variance) if variance > 0 else (float("inf") if delta else 0.0)
-        noteworthy = abs(delta) >= 0.05 and z_score >= 1.96
-        trend = {
-            "status": "noteworthy" if noteworthy else "normal_fluctuation",
-            "label": "Worth monitoring" if noteworthy else "Normal variance",
-            "direction": "up" if delta > 0 else ("down" if delta < 0 else "flat"),
-            "delta_pp": round(delta * 100, 2),
-            "z_score": round(z_score, 3) if math.isfinite(z_score) else None,
-            "detail": "Statistical variance does not imply optimization attribution; evaluate with ticket deployment timelines and multi-period trends.",
-        }
+        comparison = clustered_stats.paired_cluster_bootstrap(previous_rows, analysis_rows)
+        if comparison.status == "ok" and comparison.delta_low is not None:
+            # 题级配对 bootstrap：区间完全越过 ±5pp 才提示值得关注。
+            noteworthy = (
+                comparison.delta_low > clustered_stats.MIN_EFFECT
+                or comparison.delta_high < -clustered_stats.MIN_EFFECT
+            )
+            delta = comparison.delta
+            trend = {
+                "status": "noteworthy" if noteworthy else "normal_fluctuation",
+                "label": "Worth monitoring" if noteworthy else "Normal variance",
+                "direction": "up" if delta > 0 else ("down" if delta < 0 else "flat"),
+                "delta_pp": round(delta * 100, 2),
+                "delta_interval_pp": [
+                    round(comparison.delta_low * 100, 2),
+                    round(comparison.delta_high * 100, 2),
+                ],
+                "matched_clusters": comparison.matched_clusters,
+                "unmatched_previous": comparison.unmatched_previous,
+                "unmatched_current": comparison.unmatched_current,
+                "method": "paired_cluster_bootstrap",
+                "detail": "Statistical variance does not imply optimization attribution; evaluate with ticket deployment timelines and multi-period trends.",
+            }
+        else:
+            variance = previous_rate * (1 - previous_rate) / previous_n + current_rate * (1 - current_rate) / current_n
+            z_score = abs(delta) / math.sqrt(variance) if variance > 0 else (float("inf") if delta else 0.0)
+            noteworthy = abs(delta) >= 0.05 and z_score >= 1.96
+            trend = {
+                "status": "noteworthy" if noteworthy else "normal_fluctuation",
+                "label": "Worth monitoring" if noteworthy else "Normal variance",
+                "direction": "up" if delta > 0 else ("down" if delta < 0 else "flat"),
+                "delta_pp": round(delta * 100, 2),
+                "z_score": round(z_score, 3) if math.isfinite(z_score) else None,
+                "method": "normal_approximation",
+                "interval_status": comparison.status,
+                "detail": "Paired per-question samples are unavailable; this interval uses a normal approximation and cannot separate question-level clustering.",
+            }
     attribution_ready = bool(
         comparable
         and min(current_n, previous_n) >= MIN_COMPARABLE_SAMPLES
@@ -822,7 +875,7 @@ def record_sampling(
     requested_platforms=None,
     question_ids=None,
     limit=None,
-    repeat=1,
+    repeat=DEFAULT_REPEAT,
     job_id=None,
     byok_codes=None,
     pool_codes=None,

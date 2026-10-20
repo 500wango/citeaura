@@ -13,6 +13,7 @@ from sqlalchemy import or_
 
 from api import config
 from api.adapters import baseline, brand_facts, global_scope, locking, measurement, regression_alerts, sampling_control, site_signals, ticket_workflow
+from api.analytics.clustered_stats import DEFAULT_REPEAT
 from api.adapters.delivery import ensure_delivery_contract, ensure_legacy_deliverables_contract
 from api.adapters.engine import (
     ENGINE_MAX_REPEAT,
@@ -22,6 +23,7 @@ from api.adapters.engine import (
     load_tenant_keys,
     tenant_slug,
     with_tenant_context,
+    with_tenant_read_context,
 )
 from api.adapters.workspace import ensure_global_engine_scope, preserve_manual_tickets, resilient_crawl_evidence
 from api.billing.platform_pool import (
@@ -56,6 +58,43 @@ _database_connection_lost = _job_runtime.database_connection_lost
 
 
 logger = logging.getLogger(__name__)
+
+
+def _evaluate_effects(project_slug):
+    """采样后评估到期的效果实验；失败不影响采样主流程。"""
+    if not config.effect_verification_enabled():
+        return
+    try:
+        run_id = measurement.latest_run_id(project_slug)
+        rows = measurement.run_rows(project_slug, run_id) if run_id else None
+        ticket_workflow.record_effect_evaluations(
+            project_slug, current_rows=rows, run_id=run_id,
+        )
+    except Exception as exc:  # noqa: BLE001 - 效果评估不能回滚已完成的采样
+        logger.warning("effect evaluation failed for %s: %s", project_slug, exc)
+
+
+def _sync_projections(tenant_id, project_slug):
+    """把最新采样产物投影到数据库；失败只标记 dirty。"""
+    from api.adapters.engine import tenant_project_dir
+    from api.projections.service import mark_projection_dirty, sync_latest_run
+
+    db = SessionLocal()
+    try:
+        project = db.query(Project).filter(
+            Project.tenant_id == tenant_id, Project.slug == project_slug,
+        ).first()
+        if project is None:
+            return
+        try:
+            with with_tenant_read_context(tenant_id, project_slug):
+                sync_latest_run(db, tenant_id, project.id, tenant_project_dir(tenant_id, project_slug))
+        except Exception as exc:  # noqa: BLE001 - 投影是派生索引，不能回滚采样
+            db.rollback()
+            mark_projection_dirty(db, tenant_id, project.id, error=exc)
+            logger.warning("projection sync failed for %s: %s", project_slug, exc)
+    finally:
+        db.close()
 
 MAX_JOB_ATTEMPTS = 3
 REVIEW_RESERVATION_TTL = timedelta(hours=2)
@@ -144,6 +183,7 @@ def _safe_delivery_contract(tenant_id, project_slug, job_id=None, prepare_measur
 
 from api.worker.worker_funding import *  # noqa: F401,F403
 from api.worker.worker_pipeline import *  # noqa: F401,F403
+from api.worker.worker_isolation import *  # noqa: F401,F403
 from api.worker.worker_job_lifecycle import _job_status
 
 def _tenant_record(db, tenant_id):
@@ -240,37 +280,38 @@ def task_bootstrap(
     no_sample: bool = False,
     job_action: str = "bootstrap",
     job_id=None,
+    platforms=None,
+    repeat=None,
 ):
     """执行新项目的完整自动引导。"""
-    import geo
-
-    args = SimpleNamespace(
-        slug=project_slug, skip_llm=skip_llm, no_sample=no_sample, limit=None, no_delivery=True,
-    )
     started_at = datetime.now(timezone.utc)
     with _job_status(tenant_id, project_slug, job_action, job_id) as update:
         if update is _JOB_NOT_CLAIMED:
             return {"status": "ignored", "reason": "job_not_queued"}
         update = update or (lambda *args: None)
         update("bootstrap", 15)
-        with _funded_engine_context(
-            tenant_id, project_slug, job_action, job_id=job_id,
-            allow_pool=job_action in PLATFORM_FUNDED_ACTIONS,
-        ) as worker_funding:
-            with global_scope.normalize_generated_outputs(project_slug):
-                with preserve_manual_tickets(project_slug):
-                    with resilient_crawl_evidence(project_slug):
-                        with site_signals.semantic_site_signals(project_slug):
-                            geo.cmd_autopilot(args)
+        allow_pool = job_action in PLATFORM_FUNDED_ACTIONS
+        funding, custom_providers = resolve_job_funding(
+            tenant_id, project_slug, allow_pool=allow_pool,
+        )
+        runtime_tenant = funding.get("tenant_directory_slug") or str(tenant_id)
+        with with_tenant_read_context(runtime_tenant, project_slug):
+            run_engine_job(
+                tenant_id, project_slug, "autopilot", job_id=job_id, allow_pool=allow_pool,
+                funding=funding, custom_providers=custom_providers,
+                wrappers=(
+                    "normalize_generated_outputs", "preserve_manual_tickets",
+                    "resilient_crawl_evidence", "semantic_site_signals",
+                ),
+                skip_llm=skip_llm, no_sample=no_sample, limit=None, no_delivery=True,
+                platforms=platforms, repeat=repeat or DEFAULT_REPEAT,
+            )
             baseline.normalize_bootstrap_metadata(project_slug)
             update("finalizing", 90)
             if not no_sample:
                 _require_sampling_output(
                     _latest_metrics(project_slug), project_slug, job_id=job_id, started_at=started_at,
-                    funding=worker_funding,
-                )
-                funding = _engine_funding(
-                    tenant_id, project_slug, allow_pool=job_action in PLATFORM_FUNDED_ACTIONS,
+                    funding=funding,
                 )
                 latest_metrics = _latest_metrics(project_slug)
                 measurement.record_sampling(
@@ -278,13 +319,14 @@ def task_bootstrap(
                     source="api",
                     requested_platforms=None,
                     limit=None,
-                    repeat=1,
+                    repeat=repeat or DEFAULT_REPEAT,
                     job_id=job_id,
                     byok_codes=funding.get("keys", {}).keys(),
                     pool_codes=funding.get("pool_codes", ()),
                     result=latest_metrics,
-                    funding=worker_funding,
+                    funding=funding,
                 )
+                _sync_projections(tenant_id, project_slug)
             _sync_claim_verification(project_slug)
             delivery_error = _safe_delivery_contract(
                 tenant_id,
@@ -307,7 +349,7 @@ def task_sample(
     project_slug: str,
     limit: int | None = None,
     platforms: list[str] | None = None,
-    repeat: int = 1,
+    repeat: int = DEFAULT_REPEAT,
     question_ids: list[str] | None = None,
     job_id=None,
 ):
@@ -319,13 +361,14 @@ def task_sample(
             return {"status": "ignored", "reason": "job_not_queued"}
         update = update or (lambda *args: None)
         update("sampling", 15)
-        with _funded_engine_context(tenant_id, project_slug, "sample", job_id=job_id) as worker_funding:
-            global_scope.normalize_project(project_slug)
+        funding, custom_providers = resolve_job_funding(tenant_id, project_slug, allow_pool=False)
+        runtime_tenant = funding.get("tenant_directory_slug") or str(tenant_id)
+        with with_tenant_read_context(runtime_tenant, project_slug):
             config_path = geolib.project_dir(project_slug) / "geo.json"
             project_config = geolib.read_json(config_path, {}) if config_path.is_file() else {}
             _validate_requested_platforms(
                 platforms,
-                worker_funding,
+                funding,
                 project_market=project_config.get("market"),
             )
             sample_kwargs = {
@@ -335,12 +378,15 @@ def task_sample(
             }
             if question_ids:
                 sample_kwargs["question_ids"] = question_ids
-            result = sample.run(project_slug, **sample_kwargs)
+            result = run_engine_job(
+                tenant_id, project_slug, "sample", job_id=job_id, allow_pool=False,
+                funding=funding, custom_providers=custom_providers,
+                wrappers=("normalize_project",), **sample_kwargs,
+            )
             if job_id is None:
-                _require_sampling_output(result, project_slug, funding=worker_funding)
+                _require_sampling_output(result, project_slug, funding=funding)
             else:
-                _require_sampling_output(result, project_slug, job_id=job_id, funding=worker_funding)
-            funding = worker_funding or _engine_funding(tenant_id, project_slug)
+                _require_sampling_output(result, project_slug, job_id=job_id, funding=funding)
             measurement.record_sampling(
                 project_slug,
                 source="api",
@@ -352,9 +398,11 @@ def task_sample(
                 byok_codes=funding.get("keys", {}).keys(),
                 pool_codes=funding.get("pool_codes", ()),
                 result=result,
-                funding=worker_funding or funding,
+                funding=funding,
             )
+            _sync_projections(tenant_id, project_slug)
             global_scope.normalize_project(project_slug)
+            _evaluate_effects(project_slug)
             update("finalizing", 90)
             return result
 
@@ -362,27 +410,25 @@ def task_sample(
 @celery_app.task(name="citeaura.cycle")
 def task_cycle(tenant_id: str, project_slug: str, job_id=None):
     """执行抓取、体检、采样和报告周期。"""
-    import geo
-
-    args = SimpleNamespace(slug=project_slug, max_pages=None, limit=None)
     started_at = datetime.now(timezone.utc)
     with _job_status(tenant_id, project_slug, "cycle", job_id) as update:
         if update is _JOB_NOT_CLAIMED:
             return {"status": "ignored", "reason": "job_not_queued"}
         update = update or (lambda *args: None)
         update("crawl", 15)
-        with _funded_engine_context(
-            tenant_id, project_slug, "cycle", job_id=job_id, allow_pool=True,
-        ) as worker_funding:
-            global_scope.normalize_project(project_slug)
-            with site_signals.semantic_site_signals(project_slug):
-                with global_scope.normalize_generated_outputs(project_slug):
-                    geo.cmd_cycle(args)
+        funding, custom_providers = resolve_job_funding(tenant_id, project_slug, allow_pool=True)
+        runtime_tenant = funding.get("tenant_directory_slug") or str(tenant_id)
+        with with_tenant_read_context(runtime_tenant, project_slug):
+            run_engine_job(
+                tenant_id, project_slug, "cycle", job_id=job_id, allow_pool=True,
+                funding=funding, custom_providers=custom_providers,
+                wrappers=("normalize_project", "semantic_site_signals", "normalize_generated_outputs"),
+                max_pages=None, limit=None,
+            )
             _require_sampling_output(
                 _latest_metrics(project_slug), project_slug, job_id=job_id, started_at=started_at,
-                funding=worker_funding,
+                funding=funding,
             )
-            funding = _engine_funding(tenant_id, project_slug, allow_pool=True)
             latest_metrics = _latest_metrics(project_slug)
             measurement.record_sampling(
                 project_slug,
@@ -391,8 +437,10 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
                 byok_codes=funding.get("keys", {}).keys(),
                 pool_codes=funding.get("pool_codes", ()),
                 result=latest_metrics,
-                funding=worker_funding,
+                funding=funding,
             )
+            _sync_projections(tenant_id, project_slug)
+            _evaluate_effects(project_slug)
             update("finalizing", 90)
             return {"status": "done", "project_slug": project_slug}
 
@@ -400,15 +448,17 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
 @celery_app.task(name="citeaura.verify")
 def task_verify(tenant_id: str, project_slug: str, job_id=None):
     """执行工单自动验收。"""
-    import verify
-
     with _job_status(tenant_id, project_slug, "verify", job_id) as claim:
         if claim is _JOB_NOT_CLAIMED:
             return {"status": "ignored", "reason": "job_not_queued"}
-        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
-            global_scope.normalize_project(project_slug)
-            with site_signals.semantic_site_signals(project_slug):
-                report = verify.run(project_slug)
+        funding, custom_providers = resolve_job_funding(tenant_id, project_slug, allow_pool=False)
+        report = run_engine_job(
+            tenant_id, project_slug, "verify", job_id=job_id, allow_pool=False,
+            funding=funding, custom_providers=custom_providers,
+            wrappers=("normalize_project", "semantic_site_signals"),
+        )
+        runtime_tenant = funding.get("tenant_directory_slug") or str(tenant_id)
+        with with_tenant_read_context(runtime_tenant, project_slug):
             return ticket_workflow.record_verification(project_slug, report)
 
 
@@ -419,7 +469,9 @@ def task_deliver(tenant_id: str, project_slug: str, job_id=None):
         if claim is _JOB_NOT_CLAIMED:
             return {"status": "ignored", "reason": "job_not_queued"}
         update = claim or (lambda *args: None)
-        with with_tenant_context(str(tenant_id), project_slug, keys=_engine_keys(tenant_id)):
+        funding, _custom_providers = resolve_job_funding(tenant_id, project_slug, allow_pool=True)
+        runtime_tenant = funding.get("tenant_directory_slug") or str(tenant_id)
+        with with_tenant_read_context(runtime_tenant, project_slug):
             global_scope.normalize_project(project_slug)
             site_signals.validate_project_signals(project_slug)
             # The SaaS adapter is the sole owner of the formal delivery path.
@@ -441,45 +493,37 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
             return {"status": "ignored", "reason": "job_not_queued"}
         update = update or (lambda *args: None)
         update(action, 15)
-        with _funded_engine_context(
-            tenant_id,
-            project_slug,
-            action,
-            job_id=job_id,
-            allow_pool=action in PLATFORM_FUNDED_ACTIONS,
-        ) as worker_funding:
-            if action == "sample":
-                requested_platforms = (params or {}).get("--platforms", (params or {}).get("platforms"))
-            global_scope.normalize_project(project_slug)
+        allow_pool = action in PLATFORM_FUNDED_ACTIONS
+        funding, custom_providers = resolve_job_funding(
+            tenant_id, project_slug, allow_pool=allow_pool,
+        )
+        runtime_tenant = funding.get("tenant_directory_slug") or str(tenant_id)
+        if action == "sample":
+            requested_platforms = (params or {}).get("--platforms", (params or {}).get("platforms"))
+        with with_tenant_read_context(runtime_tenant, project_slug):
             if action == "sample":
                 config_path = geolib.project_dir(project_slug) / "geo.json"
                 project_config = geolib.read_json(config_path, {}) if config_path.is_file() else {}
                 _validate_requested_platforms(
                     requested_platforms,
-                    worker_funding,
+                    funding,
                     project_market=project_config.get("market"),
                 )
             if action in ("audit", "deliverables", "plan", "report", "deliver"):
                 site_signals.validate_project_signals(project_slug)
-            with global_scope.normalize_generated_outputs(project_slug):
-                if action in ("plan", "autopilot", "serve"):
-                    with preserve_manual_tickets(project_slug):
-                        if action == "autopilot":
-                            with resilient_crawl_evidence(project_slug):
-                                with site_signals.semantic_site_signals(project_slug):
-                                    result = _run_pipeline_action(action, project_slug, params)
-                        else:
-                            if action in ("serve",):
-                                with site_signals.semantic_site_signals(project_slug):
-                                    result = _run_pipeline_action(action, project_slug, params)
-                            else:
-                                result = _run_pipeline_action(action, project_slug, params)
-                else:
-                    if action in ("crawl", "verify"):
-                        with site_signals.semantic_site_signals(project_slug):
-                            result = _run_pipeline_action(action, project_slug, params)
-                    else:
-                        result = _run_pipeline_action(action, project_slug, params)
+        wrappers = ["normalize_project", "normalize_generated_outputs"]
+        if action in ("plan", "autopilot", "serve"):
+            wrappers.append("preserve_manual_tickets")
+        if action == "autopilot":
+            wrappers.append("resilient_crawl_evidence")
+        if action in ("autopilot", "serve", "crawl", "verify"):
+            wrappers.append("semantic_site_signals")
+        result = run_engine_job(
+            tenant_id, project_slug, "pipeline", job_id=job_id, allow_pool=allow_pool,
+            funding=funding, custom_providers=custom_providers,
+            wrappers=tuple(wrappers), pipeline_action=action, params=params,
+        )
+        with with_tenant_read_context(runtime_tenant, project_slug):
             if action in ("bootstrap", "autopilot"):
                 baseline.normalize_bootstrap_metadata(project_slug)
             if action == "sample" or (action in ("autopilot", "serve") and not (params or {}).get("--no-sample", False)):
@@ -491,24 +535,22 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                         project_slug,
                         job_id=job_id,
                         started_at=started_at,
-                        funding=worker_funding,
+                        funding=funding,
                     )
-                funding = _engine_funding(
-                    tenant_id, project_slug, allow_pool=action in PLATFORM_FUNDED_ACTIONS,
-                )
                 measurement.record_sampling(
                     project_slug,
                     source="api",
                     requested_platforms=(params or {}).get("--platforms"),
                     question_ids=(params or {}).get("--question-ids"),
                     limit=(params or {}).get("--limit"),
-                    repeat=(params or {}).get("--repeat", 1),
+                    repeat=(params or {}).get("--repeat", DEFAULT_REPEAT),
                     job_id=job_id,
                     byok_codes=funding.get("keys", {}).keys(),
                     pool_codes=funding.get("pool_codes", ()),
                     result=result if isinstance(result, dict) else _latest_metrics(project_slug),
-                    funding=worker_funding,
+                    funding=funding,
                 )
+                _sync_projections(tenant_id, project_slug)
                 if action == "sample":
                     global_scope.normalize_project(project_slug)
             update("finalizing", 90)

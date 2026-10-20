@@ -131,13 +131,13 @@ def test_platform_pool_api_is_explicit_byok_first_and_tenant_isolated(pool_clien
     billing = client.get("/api/v1/billing/usage", headers=first_headers)
     assert billing.json()["platform_pool"]["cost_cny"] == "0.00"
 
-    trial_blocked = client.put(
+    trial_funded = client.put(
         f"/api/v1/projects/{second_project_id}/sampling-funding",
         headers=second_headers,
         json={"platform_pool_enabled": True},
     )
-    assert trial_blocked.status_code == 403
-    assert trial_blocked.json()["error"] == "platform_pool_paid_plan_required"
+    assert trial_funded.status_code == 200
+    assert trial_funded.json()["platform_pool_enabled"] is True
     assert client.get(
         f"/api/v1/projects/{first_project_id}/sampling-funding",
         headers=second_headers,

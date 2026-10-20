@@ -69,13 +69,19 @@ def _json_language_violation(value):
     return isinstance(value, str) and _contains_disallowed_english(value)
 
 
-def delivery_language_violations(delivery_directory):
-    """Return paths containing Han text or unnormalized CJK/fullwidth typography."""
+def delivery_language_violations(delivery_directory, report_language="en"):
+    """Return paths violating the report language contract.
+
+    English packages reject Han text and CJK typography. Other supported report
+    languages only enforce valid UTF-8 and parseable JSON, because brand names
+    and citations legitimately contain Latin text.
+    """
     directory = Path(delivery_directory)
+    english_only = str(report_language or "en").lower() == "en"
     violations = set()
     for path in sorted(directory.rglob("*")):
         relative = path.relative_to(directory)
-        if any(_contains_disallowed_english(part) for part in relative.parts):
+        if english_only and any(_contains_disallowed_english(part) for part in relative.parts):
             violations.add(relative.as_posix())
         if not path.is_file():
             continue
@@ -85,7 +91,7 @@ def delivery_language_violations(delivery_directory):
             if path.suffix.lower() in TEXT_SUFFIXES:
                 violations.add(relative.as_posix())
             continue
-        if _contains_disallowed_english(text):
+        if english_only and _contains_disallowed_english(text):
             violations.add(relative.as_posix())
             continue
         if path.suffix.lower() == ".json":
@@ -94,14 +100,14 @@ def delivery_language_violations(delivery_directory):
             except json.JSONDecodeError:
                 violations.add(relative.as_posix())
                 continue
-            if _json_language_violation(value):
+            if english_only and _json_language_violation(value):
                 violations.add(relative.as_posix())
     return sorted(violations)
 
 
-def validate_delivery_language(delivery_directory):
-    """Reject a package if any path or decoded text violates the English contract."""
-    violations = delivery_language_violations(delivery_directory)
+def validate_delivery_language(delivery_directory, report_language="en"):
+    """Reject a package if any path or decoded text violates the language contract."""
+    violations = delivery_language_violations(delivery_directory, report_language)
     if violations:
-        raise GeoEngineError("delivery contains non-English content: " + ", ".join(violations))
+        raise GeoEngineError("delivery contains disallowed language content: " + ", ".join(violations))
     return Path(delivery_directory)

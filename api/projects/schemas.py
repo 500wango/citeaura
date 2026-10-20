@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field, field_validator
 
 from api.adapters import preflight
+from api.analytics.clustered_stats import DEFAULT_REPEAT
 
 
 class ProjectCreate(BaseModel):
@@ -14,7 +15,9 @@ class ProjectCreate(BaseModel):
     skip_llm: bool = False
     no_sample: bool = False
     audit_id: str | None = Field(default=None, min_length=16, max_length=64)
-    market: str = Field(default="both", pattern="^(cn|global|both)$")
+    market: str | None = Field(default=None, pattern="^(cn|global|both)$")
+    question_language: str = Field(default="auto", pattern="^(auto|en|zh|ja|ko|es|fr|de)$")
+    report_language: str = Field(default="en", pattern="^en$")
 
     @field_validator("url")
     @classmethod
@@ -35,7 +38,7 @@ class ProjectCreate(BaseModel):
 class SampleRequest(BaseModel):
     limit: int | None = Field(default=None, ge=1, le=1000)
     platforms: list[str] | None = None
-    repeat: int = Field(default=1, ge=1, le=10)
+    repeat: int = Field(default=DEFAULT_REPEAT, ge=1, le=10)
     question_ids: list[str] | None = Field(default=None, max_length=1000)
 
 
@@ -43,7 +46,9 @@ class ProjectPreflight(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
     question_count: int = Field(default=30, ge=1, le=1000)
     platforms: list[str] | None = None
-    market: str = Field(default="both", pattern="^(cn|global|both)$")
+    market: str | None = Field(default=None, pattern="^(cn|global|both)$")
+    question_language: str = Field(default="auto", pattern="^(auto|en|zh|ja|ko|es|fr|de)$")
+    report_language: str = Field(default="en", pattern="^en$")
 
     @field_validator("url")
     @classmethod
@@ -56,7 +61,6 @@ class TicketUpdate(BaseModel):
     owner: str | None = Field(default=None, min_length=1, max_length=128)
     due_date: str | None = None
     note: str = Field(default="", max_length=2000)
-
     @field_validator("status")
     @classmethod
     def validate_status(cls, value: str):
@@ -77,6 +81,15 @@ class TicketUpdate(BaseModel):
 
 class TicketBulkUpdate(TicketUpdate):
     ticket_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+class ExperimentPatch(BaseModel):
+    target_question_ids: list[str] | None = Field(default=None, max_length=1000)
+    control_question_ids: list[str] | None = Field(default=None, max_length=1000)
+    metric: str | None = Field(default=None, pattern="^(mention_rate|top1_rate|top3_rate)$")
+    observation_days: int | None = Field(default=None, ge=1, le=90)
+    min_effect: float | None = Field(default=None, ge=0, le=1)
+    confidence: float | None = Field(default=None, gt=0.5, lt=1)
 
 
 class OffsiteTicketCreate(BaseModel):
@@ -118,5 +131,5 @@ class SamplingBudgetRequest(BaseModel):
 class SampleEstimateRequest(BaseModel):
     limit: int | None = Field(default=None, ge=1, le=1000)
     platforms: list[str] | None = None
-    repeat: int = Field(default=1, ge=1, le=10)
+    repeat: int = Field(default=DEFAULT_REPEAT, ge=1, le=10)
     question_ids: list[str] | None = Field(default=None, max_length=1000)

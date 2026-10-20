@@ -11,7 +11,7 @@ from api.adapters.branding import load_branding
 from api.models import DeliveryShare
 
 
-WHITE_LABEL_PLANS = frozenset(("agency", "enterprise"))
+WHITE_LABEL_PLANS = frozenset(("agency",))
 SHARE_TTL_DAYS = 7
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 

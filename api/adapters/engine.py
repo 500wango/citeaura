@@ -2,12 +2,15 @@
 
 import json
 import os
+import random
 import re
 import sys
 import threading
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -56,6 +59,33 @@ NETWORK_REDIRECT_STATUSES = frozenset((301, 302, 303, 307, 308))
 NETWORK_RETRY_STATUSES = frozenset((429, 500, 502, 503, 504))
 NETWORK_MAX_REDIRECTS = 5
 NETWORK_MAX_ATTEMPTS = 2
+NETWORK_MAX_RETRY_AFTER = 60.0
+NETWORK_BASE_RETRY_DELAY = 0.35
+
+
+def _retry_delay(response=None):
+    """读取 Retry-After（秒或 HTTP 日期），封顶 60s 后叠加抖动。"""
+    delay = NETWORK_BASE_RETRY_DELAY
+    header = None
+    if response is not None:
+        try:
+            header = response.headers.get("Retry-After")
+        except AttributeError:
+            header = None
+    if header:
+        try:
+            delay = float(str(header).strip())
+        except (TypeError, ValueError):
+            try:
+                target = parsedate_to_datetime(str(header).strip())
+                if target.tzinfo is None:
+                    target = target.replace(tzinfo=timezone.utc)
+                delay = (target - datetime.now(timezone.utc)).total_seconds()
+            except (TypeError, ValueError, OverflowError):
+                delay = NETWORK_BASE_RETRY_DELAY
+    delay = max(0.0, min(float(delay), NETWORK_MAX_RETRY_AFTER))
+    # 抖动避免同一供应商的并发重试再次同步撞限流。
+    return delay + random.uniform(0, 0.5)
 ENGINE_MAX_REPEAT = geolib.MAX_SAMPLE_REPEAT
 
 CUSTOM_PROVIDER_CODE = re.compile(r"^custom_[a-z0-9][a-z0-9_-]{2,55}$")
@@ -159,18 +189,32 @@ def tenant_slug(value: str) -> str:
     return _valid_slug(geolib.slugify(str(raw or "")), "tenant")
 
 
+def _contained_work_path(path: Path) -> Path:
+    """工作区内的路径；拒绝符号链接或 .. 逃逸。"""
+    candidate = Path(path)
+    try:
+        candidate.resolve(strict=False).relative_to(WORK_ROOT.resolve(strict=False))
+    except ValueError as exc:
+        raise ValueError("work path escapes tenant root") from exc
+    return candidate
+
+
 def job_log_path(tenant_id: str, project_slug: str, job_id: int) -> Path:
     """返回租户项目内的 worker 日志路径。"""
     project_slug = _valid_slug(str(project_slug or ""), "project")
     job_id = int(job_id)
     if job_id <= 0:
         raise ValueError("invalid job id")
-    return WORK_ROOT / tenant_slug(tenant_id) / project_slug / ".jobs" / f"{job_id}.log"
+    return _contained_work_path(
+        WORK_ROOT / tenant_slug(tenant_id) / project_slug / ".jobs" / f"{job_id}.log"
+    )
 
 
 def tenant_project_dir(tenant_id: str, project_slug: str) -> Path:
     """返回租户项目绝对路径；只读 API 可直接使用，避免切换引擎全局路径。"""
-    return WORK_ROOT / tenant_slug(tenant_id) / _valid_slug(str(project_slug or ""), "project")
+    return _contained_work_path(
+        WORK_ROOT / tenant_slug(tenant_id) / _valid_slug(str(project_slug or ""), "project")
+    )
 
 
 @contextmanager
@@ -215,7 +259,12 @@ def inject_keys(keys: dict | None):
     for env_name, value in updates.items():
         if value is not None and "\x00" in str(value):
             raise ValueError(f"API key for {env_name} contains NUL byte")
-    all_names = set(ENGINE_KEY_ENV.values()) | set(updates)
+    # 引擎执行期间清空平台级配置环境，避免子进程/回退路径继承数据库或计费凭据。
+    platform_names = {
+        name for name in os.environ
+        if name.startswith("CITEAURA_") or name.startswith("PLATFORM_POOL_")
+    }
+    all_names = set(ENGINE_KEY_ENV.values()) | set(updates) | platform_names
     previous = {env_name: os.environ.get(env_name, _MISSING) for env_name in all_names}
     try:
         for env_name in all_names:
@@ -270,15 +319,16 @@ def protect_network_fetches():
                 except geolib.requests.RequestException:
                     if not retryable or attempt + 1 >= NETWORK_MAX_ATTEMPTS:
                         raise
-                    time.sleep(0.35)
+                    time.sleep(_retry_delay())
                     continue
                 if (
                     retryable
                     and response.status_code in NETWORK_RETRY_STATUSES
                     and attempt + 1 < NETWORK_MAX_ATTEMPTS
                 ):
+                    delay = _retry_delay(response)
                     response.close()
-                    time.sleep(0.35)
+                    time.sleep(delay)
                     continue
                 return response
             raise GeoEngineError("network_retry_exhausted")

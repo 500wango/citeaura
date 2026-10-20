@@ -62,3 +62,9 @@ def project_lock_redis(monkeypatch):
     client = MemoryRedis()
     monkeypatch.setattr(locking, "redis_client", lambda: client)
     return client
+
+
+@pytest.fixture(autouse=True)
+def isolated_jobs_off(monkeypatch):
+    """测试默认在同一进程执行引擎；隔离专项测试显式开启。"""
+    monkeypatch.setenv("CITEAURA_ISOLATED_JOBS", "off")

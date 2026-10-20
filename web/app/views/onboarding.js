@@ -34,6 +34,33 @@ export default {
               <input type="text" id="ob-name" class="input" placeholder="e.g. CiteAura">
             </div>
 
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4);">
+              <div class="field" style="margin:0;">
+                <label for="ob-market">${t('onboard.market_label', {}, 'Market')}</label>
+                <select id="ob-market" class="input">
+                  <option value="">${t('onboard.market_auto', {}, 'Auto-detect from domain')}</option>
+                  <option value="global">${t('onboard.market_global', {}, 'Global · English-first')}</option>
+                  <option value="cn">${t('onboard.market_cn', {}, 'China')}</option>
+                  <option value="both">${t('onboard.market_both', {}, 'Both markets')}</option>
+                </select>
+                <div class="field-hint">${t('onboard.market_hint', {}, 'Determines the engine set and question markets.')}</div>
+              </div>
+              <div class="field" style="margin:0;">
+                <label for="ob-question-language">${t('onboard.question_language_label', {}, 'Question language')}</label>
+                <select id="ob-question-language" class="input">
+                  <option value="auto">${t('onboard.language_auto', {}, 'Auto')}</option>
+                  <option value="en">English</option>
+                  <option value="zh">简体中文</option>
+                  <option value="ja">日本語</option>
+                  <option value="ko">한국어</option>
+                  <option value="es">Español</option>
+                  <option value="fr">Français</option>
+                  <option value="de">Deutsch</option>
+                </select>
+                <div class="field-hint">${t('onboard.question_language_hint', {}, 'Language used to generate the question bank.')}</div>
+              </div>
+            </div>
+
             <div id="ob-preflight" class="card" style="display:none;background:var(--page);padding:var(--sp-3);gap:var(--sp-2);"></div>
 
             <div class="card" style="background:var(--deep);padding:var(--sp-4);border-radius:var(--r-md);gap:var(--sp-3);">
@@ -121,8 +148,14 @@ export default {
 
       try {
         analytics.track(no_sample ? 'audit_only_selected' : 'full_baseline_selected', { source: 'onboarding' });
-        const preflight = await projects.preflight({ url });
+        const market = document.getElementById('ob-market')?.value || undefined;
+        const questionLanguage = document.getElementById('ob-question-language')?.value || 'auto';
+        const preflight = await projects.preflight({ url, market, question_language: questionLanguage });
         const site = preflight?.site || {};
+        if (!market && site.suggested_market) {
+          const selector = document.getElementById('ob-market');
+          if (selector) selector.value = site.suggested_market;
+        }
         if (preflightBox) {
           const checks = site.checks || [];
           preflightBox.style.display = 'flex';
@@ -146,7 +179,12 @@ export default {
 
         submitBtn.innerHTML = `<span class="spin"></span> ${t('common.initializing', {}, 'Initializing pipeline...')}`;
         const auditId = sessionStorage.getItem('citeaura_pending_audit_id') || undefined;
-        const res = await projects.create({ url, name: name || undefined, no_sample, skip_llm: false, audit_id: auditId });
+        const selectedMarket = document.getElementById('ob-market')?.value || undefined;
+        const selectedLanguage = document.getElementById('ob-question-language')?.value || 'auto';
+        const res = await projects.create({
+          url, name: name || undefined, no_sample, skip_llm: false, audit_id: auditId,
+          market: selectedMarket, question_language: selectedLanguage,
+        });
         toast.success(
           no_sample
             ? t('onboard.created_audit_only', {}, 'Brand pipeline started. Site audit will run without AI sampling.')

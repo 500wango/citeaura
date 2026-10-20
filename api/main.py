@@ -16,7 +16,6 @@ from api.admin.router import router as admin_router
 from api.analytics.router import router as analytics_router
 from api.integrations.router import router as integrations_router
 from api.auth.router import router as auth_router
-from api.auth.sso import router as sso_router
 from api.archive.router import router as archive_router
 from api.billing.router import router as billing_router
 from api.branding.router import router as branding_router
@@ -52,7 +51,6 @@ app.include_router(admin_router)
 app.include_router(analytics_router)
 app.include_router(integrations_router)
 app.include_router(auth_router)
-app.include_router(sso_router)
 app.include_router(archive_router)
 app.include_router(billing_router)
 app.include_router(branding_router)

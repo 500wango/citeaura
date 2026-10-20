@@ -11,7 +11,6 @@ from api import config
 
 
 NONCE_SIZE = 12
-SSO_STATE_AAD = b"sso-state"
 logger = logging.getLogger(__name__)
 
 

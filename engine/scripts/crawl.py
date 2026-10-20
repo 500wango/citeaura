@@ -13,7 +13,7 @@ import re
 import shutil
 import time
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
+from context_executor import ThreadPoolExecutor
 from html import unescape
 from urllib.parse import urlparse
 

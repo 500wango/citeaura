@@ -199,7 +199,8 @@ def validate_existing_delivery_contract(delivery_directory):
     asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
     if (asset_index.get("quality_gate") or {}).get("status") != "passed":
         raise GeoEngineError("delivery package quality gate is not passed")
-    validate_delivery_language(directory)
+    config = geolib.read_json(directory.parent.parent / "geo.json", {}) or {}
+    validate_delivery_language(directory, config.get("report_language", "en"))
     return directory
 
 

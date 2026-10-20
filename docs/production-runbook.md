@@ -27,7 +27,6 @@ chmod 600 .env.production
 - `JWT_SECRET`：至少 32 个字符的随机值。
 - `AES_KEY`：有效的 32 字节 Base64 密钥。部署后不要更换，否则已保存的 BYOK 无法解密。
 - `PRODUCTION_PROXY_MODE=true`、`SESSION_COOKIE_SECURE=true`、`RATE_LIMIT_ENABLED=true`。
-- `SSO_REQUIRE_DOMAIN_VERIFICATION=true`（启用企业 SSO 时保持开启）。
 - `ALLOWED_HOSTS`：逗号分隔的额外 Host；通常留空即可，主域及其子域会由 `PUBLIC_BASE_URL` 自动允许。
 
 不要把 `.env.production` 提交到 Git、同步到聊天工具或写入备份文档。部署脚本会拒绝缺失值、占位符、HTTP 公网地址和无效密钥。
@@ -60,27 +59,11 @@ curl --fail https://$DOMAIN/api/v1/health/ready
 scripts/acceptance.py --base-url https://$DOMAIN --production
 ```
 
-`/api/v1/health/ready` 应返回 HTTP 200，且数据库、迁移、Redis、Worker、加密和 JWT 检查为 true。若只运行 `docker compose up` 而未执行 `scripts/deploy.sh`，必须手动执行 `docker compose ... run --rm api alembic upgrade head`；当前数据库 head 为 `0034_sso_domain_verification`。
+`/api/v1/health/ready` 应返回 HTTP 200，且数据库、迁移、Redis、Worker、加密和 JWT 检查为 true。若只运行 `docker compose up` 而未执行 `scripts/deploy.sh`，必须手动执行 `docker compose ... run --rm api alembic upgrade head`；当前数据库 head 为 `0044_remove_enterprise_sso`。
 
-### 4. 首次注册与 SSO 域名验证
+### 4. 首次注册
 
-首次打开 `https://$DOMAIN/app` 注册的用户会自动成为自己工作区的 `owner`，即该工作区的租户 Owner。只有 Enterprise 工作区可以配置 SSO。
-
-SSO 启用前，Owner 需要完成每个登录邮箱域的 DNS TXT 验证：
-
-1. 在工作台保存 SSO 配置，暂时将 `enabled` 设为 `false`，`allowed_domains` 填企业邮箱域名，例如 `example.com`。
-2. 使用 Owner 的 Bearer token 调用：
-
-   ```bash
-   curl -X POST https://$DOMAIN/api/v1/sso/domains/verify \
-     -H "Authorization: Bearer ACCESS_TOKEN"
-   ```
-
-3. 按响应中的 `txt_name` 和 `txt_value` 创建 DNS TXT 记录。记录通常是 `_citeaura.example.com`，值为 `citeaura-domain-verification=TENANT_ID:example.com`。
-4. 等待 DNS 传播后再次调用验证接口，确认 `verified: true`。
-5. 保存同一 SSO 配置并设置 `enabled: true`。当 `SSO_REQUIRE_DOMAIN_VERIFICATION=true` 且任一域名未验证时，API 返回 `409 sso_domains_unverified`，不会启用登录。
-
-OIDC 回调地址固定为 `https://$DOMAIN/api/v1/sso/callback`。IdP 返回的 `email_verified` 必须为 true；当前实现不会自动把已经存在但未加入该租户的全局用户静默绑定进来，而是返回 `sso_identity_not_bound`，应通过团队邀请完成绑定。
+首次打开 `https://$DOMAIN/app` 注册的用户会自动成为自己工作区的 `owner`，即该工作区的租户 Owner。CiteAura 不提供 SSO 或企业私有部署，团队成员通过邀请加入。
 
 ### 5. 更新、回滚与数据备份
 
@@ -143,7 +126,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml ps
 7. Worker 固定使用 Celery `prefork` 池；不要在生产覆盖为 `threads`、`gevent` 或 `eventlet`，因为引擎租户上下文会临时注入进程环境和供应商注册表。
 8. 镜像和 CI 使用提交到仓库的 `requirements.lock`；依赖变更时同步更新 `requirements.txt` 与锁文件并重新跑全量测试。
 9. 配置 `AUTH_SMTP_*` 全局发件账号后，CiteAura 会发送注册欢迎邮件、付款成功通知、密码重置、交付包分享和回归告警；密码重置仍由 `PASSWORD_RESET_EMAIL_ENABLED` 单独控制。自建邮件服务器使用隐式 TLS 时配置 `AUTH_SMTP_PORT=465` 与 `AUTH_SMTP_SECURITY=ssl`；使用提交端口时配置 `AUTH_SMTP_PORT=587` 与 `AUTH_SMTP_SECURITY=starttls`，两者不能混用。SMTP 未配置时，欢迎/付款通知会记录跳过，且不会阻断注册或付款 Webhook。外链联络 SMTP 仍由各租户在工作台单独配置。
-10. 未配置对象存储时，Snapshot 保存在持久化的 `work/` 卷中；填写 S3 或 R2 兼容对象存储配置后，快照写入远端，用于异机留存。外链 SMTP 和 OIDC 凭证在租户工作台内配置，并由对应连接测试确认。
+10. 未配置对象存储时，Snapshot 保存在持久化的 `work/` 卷中；填写 S3 或 R2 兼容对象存储配置后，快照写入远端，用于异机留存。外链 SMTP 凭证在租户工作台内配置，并由对应连接测试确认。
 
 ## 预检与部署
 
@@ -319,4 +302,3 @@ python3 scripts/workflow_acceptance.py --base-url https://your-domain.example --
 
 - SMTP：保存凭证、创建草稿，人工核对收件人、主题和正文后发送。
 - 对象存储：创建快照、检查远端对象和清单，再执行恢复演练。
-- OIDC：使用允许域名登录，确认成员角色和审计事件。

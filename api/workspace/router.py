@@ -53,6 +53,8 @@ class ProjectConfigPatch(BaseModel):
 
     url: str | None = Field(default=None, max_length=2048)
     market: Literal["cn", "global", "both"] | None = None
+    question_language: Literal["auto", "en", "zh", "ja", "ko", "es", "fr", "de"] | None = None
+    report_language: Literal["en"] | None = None
     questions: list[dict] | None = Field(default=None, max_length=1000)
     competitors: list[dict] | None = Field(default=None, max_length=200)
     platforms: list[str] | None = Field(default=None, max_length=64)
@@ -191,6 +193,10 @@ def update_project_config(
         project.url = normalized_url
     market = config.get("market") if config.get("market") in ("cn", "global", "both") else "both"
     project.market = market
+    if config.get("question_language"):
+        project.question_language = str(config["question_language"])
+    if config.get("report_language"):
+        project.report_language = str(config["report_language"])
     db.commit()
     return {"ok": True, "config": config}
 

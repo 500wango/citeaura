@@ -13,7 +13,7 @@ from api.billing.plans import PLANS, TRIAL_DAYS
 
 
 TRIAL_PROJECT_LIMIT = 3
-TRIAL_SAMPLE_LIMIT_PER_PROJECT = 2
+TRIAL_SAMPLE_LIMIT_PER_PROJECT = 3
 SAMPLE_JOB_ACTIONS = ("sample", "sample-import", "cycle", "autopilot", "serve", "deliver")
 ACTIVATION_STEPS = (
     ("registration", "Registration"),

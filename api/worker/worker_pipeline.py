@@ -4,6 +4,7 @@ import json
 from types import SimpleNamespace
 
 from api.adapters import global_scope, measurement, sampling_control
+from api.analytics.clustered_stats import DEFAULT_REPEAT
 from api.adapters.engine import ENGINE_MAX_REPEAT, geolib, job_log_path
 from api.db import SessionLocal
 from api.models import Job, Project
@@ -62,19 +63,16 @@ def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None, status_u
     project_directory = geolib.project_dir(project_slug)
     if not (project_directory / "geo.json").is_file():
         return None
-    custom_providers = _task_facade()._engine_custom_providers(tenant_id)
+    funding, custom_providers = _task_facade().resolve_job_funding(
+        tenant_id, project_slug, allow_pool=True,
+    )
+    runtime_tenant = funding.get("tenant_directory_slug") or str(tenant_id)
     if job_id is not None:
         _task_facade()._append_job_event(
             job_log_path(tenant_id, project_slug, job_id),
             "[citeaura] Verifying delivery evidence completeness (client delivery requires 3-pass Wilson confidence per question)...",
         )
-    with _task_facade()._funded_engine_context(
-        tenant_id,
-        project_slug,
-        "sample",
-        job_id=job_id,
-        allow_pool=True,
-    ) as funding:
+    with _task_facade().with_tenant_read_context(runtime_tenant, project_slug):
         state = measurement.delivery_question_evidence(
             project_slug,
             funding=funding,
@@ -88,7 +86,7 @@ def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None, status_u
             question_ids = list(state.get("target_question_ids") or [])
             if not platforms or not question_ids:
                 return state
-            repeat = measurement.MIN_QUESTION_SAMPLES
+            repeat = DEFAULT_REPEAT
             if status_update:
                 status_update("gapfill", 30)
             if job_id is not None:
@@ -114,10 +112,10 @@ def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None, status_u
                 question_ids,
                 repeat,
             )
-            import sample
-
-            result = sample.run(
-                project_slug,
+            result = _task_facade().run_engine_job(
+                tenant_id, project_slug, "sample", job_id=job_id, allow_pool=True,
+                funding=funding, custom_providers=custom_providers,
+                wrappers=("normalize_project",),
                 platforms=platforms,
                 repeat=repeat,
                 question_ids=question_ids,

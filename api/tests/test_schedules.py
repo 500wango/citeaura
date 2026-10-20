@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import Job, Project
+from api.models import Job, Project, Tenant
 
 
 @pytest.fixture()
@@ -45,10 +45,17 @@ def _register(client, email):
     return client.get("/api/v1/me", headers=headers).json()["tenant"]["id"], headers
 
 
+def _set_plan(session_factory, tenant_id, plan):
+    with session_factory() as db:
+        db.get(Tenant, tenant_id).plan = plan
+        db.commit()
+
+
 def test_project_schedule_can_be_enabled_read_and_disabled(schedule_client):
     client, session_factory = schedule_client
     tenant_id, headers = _register(client, "owner@example.com")
     _, other_headers = _register(client, "other@example.com")
+    _set_plan(session_factory, tenant_id, "pro")
     with session_factory() as db:
         project = Project(
             tenant_id=tenant_id,
@@ -108,6 +115,7 @@ def test_project_schedule_can_be_enabled_read_and_disabled(schedule_client):
 def test_daily_schedule_is_supported(schedule_client):
     client, session_factory = schedule_client
     tenant_id, headers = _register(client, "daily@example.com")
+    _set_plan(session_factory, tenant_id, "pro")
     with session_factory() as db:
         project = Project(
             tenant_id=tenant_id,
@@ -129,7 +137,7 @@ def test_daily_schedule_is_supported(schedule_client):
     assert response.json()["schedule"]["interval_days"] == 1
 
 
-def test_trial_limit_blocks_new_schedule(schedule_client):
+def test_trial_cannot_enable_schedule(schedule_client):
     client, session_factory = schedule_client
     tenant_id, headers = _register(client, "limited@example.com")
     with session_factory() as db:
@@ -155,12 +163,14 @@ def test_trial_limit_blocks_new_schedule(schedule_client):
         json={"interval_days": 7},
     )
     assert blocked.status_code == 403
-    assert blocked.json()["error"] == "trial_limit_exceeded"
+    assert blocked.json()["error"] == "feature_not_entitled"
+    assert blocked.json()["feature"] == "scheduled_monitoring"
 
 
 def test_schedule_can_enable_regression_email_alerts(schedule_client):
     client, session_factory = schedule_client
     tenant_id, headers = _register(client, "alerts@example.com")
+    _set_plan(session_factory, tenant_id, "pro")
     with session_factory() as db:
         project = Project(
             tenant_id=tenant_id,

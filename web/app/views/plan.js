@@ -306,7 +306,20 @@ async function showTicketDetailModal(projectId, tid, ctx) {
     : (ticket.note || '');
   const verification = [...(ticket.activity || [])].reverse().find((item) => item.type === 'verification');
   const websiteVerified = verification ? verification.verdict !== 'fail' : false;
-  const remeasured = Boolean(verification);
+  const effect = ticket.effect || {};
+  const effectState = String(effect.state || 'draft');
+  const effectLabels = {
+    draft: t('plan.effect_draft', {}, 'Draft'),
+    deployed: t('plan.effect_deployed', {}, 'Deployed'),
+    observing: t('plan.effect_observing', {}, 'Observing'),
+    effective: t('plan.effect_effective', {}, 'Effective'),
+    ineffective: t('plan.effect_ineffective', {}, 'Ineffective'),
+    inconclusive: t('plan.effect_inconclusive', {}, 'Inconclusive'),
+  };
+  const effectLabel = effectLabels[effectState] || effectState;
+  const effectVerdict = effect.verdict || null;
+  const targetCount = Array.isArray(effect.target_question_ids) ? effect.target_question_ids.length : 0;
+  const controlCount = Array.isArray(effect.control_question_ids) ? effect.control_question_ids.length : 0;
   const affected = Array.isArray(ticket.affected) ? ticket.affected : (ticket.target_page ? [ticket.target_page] : []);
   const questions = Array.isArray(ticket.influenced_questions) ? ticket.influenced_questions : (Array.isArray(ticket.question_ids) ? ticket.question_ids : []);
   const evidence = Array.isArray(ticket.evidence) ? ticket.evidence : [];
@@ -324,8 +337,17 @@ async function showTicketDetailModal(projectId, tid, ctx) {
         ${[
           [t('plan.progress_change', {}, 'Change recorded'), isDone],
           [t('plan.progress_site', {}, 'Website verified'), websiteVerified],
-          [t('plan.progress_ai', {}, 'AI result re-measured'), remeasured && websiteVerified],
-        ].map(([label, complete]) => `<div style="padding:var(--sp-2);border:1px solid var(--line);background:var(--page);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${label}</span><strong style="font-size:var(--fs-2);color:${complete ? 'var(--good)' : 'var(--muted)'};">${complete ? t('common.complete', {}, 'Complete') : t('common.pending', {}, 'Pending')}</strong></div>`).join('')}
+          [t('plan.effect_state', {}, 'Effect verification'), effectState],
+        ].map(([label, value]) => `<div style="padding:var(--sp-2);border:1px solid var(--line);background:var(--page);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${label}</span><strong style="font-size:var(--fs-2);color:${value === true || ['effective', 'deployed', 'observing'].includes(value) ? 'var(--good)' : 'var(--muted)'};">${value === true ? t('common.complete', {}, 'Complete') : value === false ? t('common.pending', {}, 'Pending') : escapeHtml(effectLabel)}</strong></div>`).join('')}
+      </div>
+
+      <div style="padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-md);background:var(--page);">
+        <strong style="display:block;font-size:var(--fs-2);">${t('plan.effect_title', {}, 'Effect verification')}</strong>
+        <span style="color:var(--ink-2);font-size:var(--fs-2);line-height:1.5;">
+          ${t('plan.effect_detail', { state: effectLabel, target: targetCount, control: controlCount }, `State: ${effectLabel} · ${targetCount} target / ${controlCount} control questions`)}
+          ${effectVerdict ? ` · ${escapeHtml(String(effectVerdict))}` : ''}
+        </span>
+        <span style="display:block;color:var(--muted);font-size:var(--fs-1);margin-top:var(--sp-1);">${t('plan.effect_caveat', {}, 'Observational comparison, not randomized; confounders may remain.')}</span>
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--sp-3);padding-top:var(--sp-2);border-top:1px solid var(--line);">

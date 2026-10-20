@@ -122,7 +122,7 @@ def test_trial_project_limit_and_usage(billing_client, monkeypatch):
             db.commit()
             db.refresh(counter)
         assert usage.json()["projects_active"] == 3
-        assert usage.json()["sample_runs_lifetime_limit"] == 6
+        assert usage.json()["sample_runs_lifetime_limit"] == 9
         counter.platform_calls = 7
         counter.platform_cost_cny_fen = 21
         project_id = db.query(Project.id).first()[0]
@@ -176,9 +176,9 @@ def test_paid_project_limits_are_enforced_and_reported(billing_client):
 
     with session_factory() as db:
         tenant = db.query(Tenant).filter(Tenant.name == "pro-owner").one()
-        tenant.plan = "enterprise"
+        tenant.plan = "agency"
         db.commit()
-    assert client.get("/api/v1/billing/usage", headers=headers).json()["projects_limit"] is None
+    assert client.get("/api/v1/billing/usage", headers=headers).json()["projects_limit"] == 30
 
 
 def test_restoring_archived_project_respects_the_active_project_limit(billing_client):
@@ -308,7 +308,7 @@ def test_trial_sample_limit_is_per_project(billing_client, monkeypatch):
         db.query(Job).filter(Job.project_id == project_id, Job.action == "bootstrap").one().status = "done"
         db.commit()
 
-    for _ in range(2):
+    for _ in range(3):
         response = client.post(f"/api/v1/projects/{project_id}/sample", headers=headers)
         assert response.status_code == 202
         with session_factory() as db:
@@ -389,7 +389,7 @@ def test_usage_reports_activation_funnel_from_completed_workspace_facts(billing_
     }
     assert funnel["progress_percent"] == 100.0
     assert usage["projects_remaining"] == 2
-    assert usage["sample_runs_remaining"] == 3
+    assert usage["sample_runs_remaining"] == 6
     assert usage["platform_pool_calls"] == 0
 
 
@@ -417,7 +417,7 @@ def test_subscribe_creates_checkout_without_opening_limits(billing_client, monke
     )
     plans = client.get("/api/v1/billing/plans")
     assert plans.status_code == 200
-    assert {plan["code"] for plan in plans.json()["plans"]} == {"starter", "pro", "agency", "enterprise"}
+    assert {plan["code"] for plan in plans.json()["plans"]} == {"starter", "pro", "agency"}
     assert plans.json()["payment"] == {
         "provider": "stripe", "enabled": True, "configured": True, "currency": "usd",
     }
@@ -455,8 +455,8 @@ def test_annual_plan_catalog_and_checkout_amount(billing_client, monkeypatch):
 
     plans = client.get("/api/v1/billing/plans").json()["plans"]
     pro = next(plan for plan in plans if plan["code"] == "pro")
-    assert pro["prices"]["monthly"] == {"cny": 1499, "usd": 199, "months": 1}
-    assert pro["prices"]["annual"] == {"cny": 14989, "usd": 1990, "months": 12}
+    assert pro["prices"]["monthly"] == {"usd": 199, "months": 1}
+    assert pro["prices"]["annual"] == {"usd": 1990, "months": 12}
     assert pro["annual_savings_usd"] == 398
     assert pro["annual_discount_percent"] == 16.67
 
@@ -1121,7 +1121,7 @@ def test_subscribe_rejects_invalid_billing_interval(billing_client):
     assert response.status_code == 422
 
 
-def test_checkout_requires_stripe_configuration_and_rejects_enterprise(billing_client, monkeypatch):
+def test_checkout_requires_stripe_configuration(billing_client, monkeypatch):
     client, _ = billing_client
     headers = _register(client, "unconfigured-owner@example.com")
     monkeypatch.delenv("STRIPE_SECRET_KEY")
@@ -1135,13 +1135,6 @@ def test_checkout_requires_stripe_configuration_and_rejects_enterprise(billing_c
     )
     assert unavailable.status_code == 503
     assert unavailable.json() == {"error": "stripe_not_configured"}
-    enterprise = client.post(
-        "/api/v1/billing/subscribe",
-        headers=headers,
-        json={"plan": "enterprise"},
-    )
-    assert enterprise.status_code == 409
-    assert enterprise.json() == {"error": "enterprise_contact_required"}
 
 
 def test_disabled_billing_rejects_checkout_and_webhooks(billing_client, monkeypatch):
@@ -1310,8 +1303,8 @@ def test_deliver_job_counts_toward_trial_limit(billing_client):
         db.commit()
         db.refresh(project)
         
-        # Add 2 deliver jobs
-        for _ in range(2):
+        # Add 3 deliver jobs
+        for _ in range(3):
             job = Job(
                 project_id=project.id,
                 action="deliver",

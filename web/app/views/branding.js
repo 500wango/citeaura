@@ -64,7 +64,7 @@ export default {
               <div style="font-size:var(--fs-2);">
                 <strong style="color:var(--ink);">${t('branding.hide_badge_title', {}, 'Enable custom branding in client delivery packs')}</strong>
                 <div style="color:var(--muted);margin-top:2px;">
-                  ${t('branding.hide_badge_desc', {}, 'Requires an Agency or Enterprise plan and adds your header and footer to generated delivery documents.')}
+                  ${t('branding.hide_badge_desc', {}, 'Requires an Agency plan and adds your header and footer to generated delivery documents.')}
                 </div>
               </div>
             </label>

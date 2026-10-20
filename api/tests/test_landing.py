@@ -47,11 +47,13 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'data-i18n="landing.pricing_note"' in response.text
     assert "Scheduled re-sampling and email alerts on mention-rate drops" in response.text
     assert "One-click sendable white-label client pack" in response.text
-    assert "6 API engines + 9 product surfaces + custom" in response.text
+    assert "10 API engines + 12 product surfaces + custom" in response.text
     assert "5 BYOK engines + custom" not in response.text
     assert "model-ribbon-name\">DeepSeek</span>" in response.text
     assert "data-radar-bar=\"grok\"" in response.text
-    assert 'data-i18n="landing.ops_enterprise_dd"' in response.text
+    assert 'data-i18n="landing.evidence_loop_dd"' in response.text
+    assert "Enterprise" not in response.text
+    assert "OIDC SSO" not in response.text
     assert "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations" in response.text
     assert "id=\"about\"" in response.text
     assert "CiteAura versus traditional SEO tools" in response.text
@@ -59,7 +61,7 @@ def test_landing_page_is_public_and_links_to_application():
     assert 'data-i18n="landing.howto_title"' in response.text
     assert 'data-i18n="landing.howto_1_body"' in response.text
     assert 'data-i18n="landing.compare_rarely_published"' in response.text
-    assert "7-day trial" in response.text
+    assert "14-day trial" in response.text
     assert "Sources and definitions:" in response.text
 
 
@@ -420,7 +422,7 @@ def test_i18n_catalogs_are_public():
     assert data["nav.cta"] == "Start free trial"
     assert data["landing.plan_pro_3"] == "Scheduled re-sampling and email alerts on mention-rate drops"
     assert data["landing.plan_agency_2"] == "One-click sendable white-label client pack"
-    assert data["nav.status"] == "6 API engines + 9 product surfaces + custom"
+    assert data["nav.status"] == "10 API engines + 12 product surfaces + custom"
     assert "DeepSeek" in data["landing.truth_engines_dd"]
     assert "landing.title" in data
     assert client.get("/i18n/zh.json").status_code == 200

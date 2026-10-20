@@ -19,7 +19,8 @@ from api.models import Job, PlatformUsage, PlatformUsageOutbox, Project, UsageCo
 from api.billing.access import sync_tenant_plan
 
 
-PAID_PLANS = frozenset(("starter", "pro", "agency", "enterprise"))
+POOL_PLANS = frozenset(("trial", "starter", "pro", "agency"))
+PAID_PLANS = frozenset(("starter", "pro", "agency"))
 
 _METER_CONTEXT = ContextVar("citeaura_platform_meter", default=None)
 _METER_HOOK_LOCK = threading.Lock()
@@ -88,6 +89,7 @@ def public_catalog():
             "engine_name": provider.get("name", code),
             "sampling_mode": sampling_modes.for_provider(provider),
             "sampling_mode_code": sampling_modes.code_for_provider(provider),
+            "search": bool(provider.get("search")),
             "unit_price_cny_fen": item["unit_price_cny_fen"],
         })
     return catalog
@@ -95,6 +97,14 @@ def public_catalog():
 
 def _tenant(db, tenant_id):
     return resolve_tenant(db, tenant_id)
+
+
+def trial_pool_remaining(db, tenant_id):
+    """试用期平台池剩余预算（分）；按租户历史代付总额封顶。"""
+    spent = db.query(func.coalesce(func.sum(PlatformUsage.amount_cny_fen), 0)).filter(
+        PlatformUsage.tenant_id == tenant_id,
+    ).scalar()
+    return max(0, config.trial_starting_budget_cny_fen() - int(spent or 0))
 
 
 def resolve_funding(db, tenant_id, project_slug, allow_pool=True):
@@ -113,12 +123,15 @@ def resolve_funding(db, tenant_id, project_slug, allow_pool=True):
     ).first()
     byok = load_tenant_keys(db, tenant.id)
     pool = {}
-    if (
+    pool_allowed = (
         allow_pool
         and project is not None
         and project.platform_pool_enabled
-        and tenant.plan in PAID_PLANS
-    ):
+        and tenant.plan in POOL_PLANS
+    )
+    if pool_allowed and tenant.plan == "trial":
+        pool_allowed = config.trial_pool_enabled() and trial_pool_remaining(db, tenant.id) > 0
+    if pool_allowed:
         pool = configured_pool()
     pool_codes = frozenset(code for code in pool if code not in byok)
     keys = {code: item["key"] for code, item in pool.items()}

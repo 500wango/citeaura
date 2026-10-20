@@ -106,7 +106,7 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: types.SimpleNamespace(id="celery-1"))
 
     create_schema = client.app.openapi()["components"]["schemas"]["ProjectCreate"]
-    assert create_schema["properties"]["market"]["default"] == "both"
+    assert create_schema["properties"]["market"].get("default") is None
 
     created = client.post(
         "/api/v1/projects",
@@ -774,7 +774,7 @@ def test_sampling_budget_blocks_direct_pipeline_retry_and_schedule(project_clien
         json={"monthly_budget_cny_fen": None, "sample_call_limit": 1, "pause_on_budget_exceeded": True},
     )
     assert budget.status_code == 200
-    assert budget.json()["estimate"]["calls"] == 2
+    assert budget.json()["estimate"]["calls"] == 10
     assert budget.json()["estimate"]["byok_cost_cny_fen"] is None
 
     estimate = client.post(
@@ -810,6 +810,9 @@ def test_sampling_budget_blocks_direct_pipeline_retry_and_schedule(project_clien
     assert string_flag_blocked.status_code == 409
     assert string_flag_blocked.json()["error"] == "sample_call_limit_exceeded"
 
+    with session_factory() as db:
+        db.query(Tenant).one().plan = "pro"
+        db.commit()
     scheduled = client.post(
         f"/api/v1/projects/{project_id}/schedule",
         headers=headers,

@@ -10,6 +10,8 @@ class NetworkTargetError(ValueError):
 
 _CGNAT = ipaddress.ip_network("100.64.0.0/10")
 _NAT64_PREFIX = ipaddress.ip_network("64:ff9b::/96")
+_SIX_TO_FOUR_PREFIX = ipaddress.ip_network("2002::/16")
+_TEREDO_PREFIX = ipaddress.ip_network("2001::/32")
 
 def _is_safe_global(address):
     """检查地址是否真正可达公网，拦截 IPv4-mapped 和 NAT64 伪装。"""
@@ -22,6 +24,15 @@ def _is_safe_global(address):
     # Extract embedded IPv4 from NAT64 (64:ff9b::x.x.x.x)
     if isinstance(address, ipaddress.IPv6Address) and address in _NAT64_PREFIX:
         packed = address.packed[12:16]
+        embedded = ipaddress.IPv4Address(packed)
+        return embedded.is_global and not embedded.is_multicast and embedded not in _CGNAT
+    # 6to4 embeds the IPv4 address in bits 16-48 (2002:AABB:CCDD::/48).
+    if isinstance(address, ipaddress.IPv6Address) and address in _SIX_TO_FOUR_PREFIX:
+        embedded = ipaddress.IPv4Address(address.packed[2:6])
+        return embedded.is_global and not embedded.is_multicast and embedded not in _CGNAT
+    # Teredo obfuscates the client IPv4 (bytes 12-16, bitwise NOT).
+    if isinstance(address, ipaddress.IPv6Address) and address in _TEREDO_PREFIX:
+        packed = bytes(byte ^ 0xFF for byte in address.packed[12:16])
         embedded = ipaddress.IPv4Address(packed)
         return embedded.is_global and not embedded.is_multicast and embedded not in _CGNAT
     return address.is_global and not address.is_multicast

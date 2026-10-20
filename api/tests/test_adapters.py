@@ -435,7 +435,7 @@ def test_tenant_context_keeps_non_get_redirects_disabled(monkeypatch):
     assert calls == [("post", "https://example.com/hook", {"data": None, "json": None, "allow_redirects": False})]
 
 
-def _http_response(url, status, *, location=None, body=b""):
+def _http_response(url, status, *, location=None, body=b"", headers=None):
     response = requests.Response()
     response.url = url
     response.status_code = status
@@ -443,6 +443,8 @@ def _http_response(url, status, *, location=None, body=b""):
     response._content_consumed = True
     if location:
         response.headers["Location"] = location
+    for name, value in (headers or {}).items():
+        response.headers[name] = value
     return response
 
 
@@ -490,6 +492,28 @@ def test_tenant_context_rejects_cross_site_redirect(monkeypatch):
     with with_tenant_context("tenant", "project", keys={}):
         with pytest.raises(GeoEngineError, match="network_cross_site_redirect"):
             requests.get("https://example.com/")
+
+
+def test_tenant_context_honors_retry_after_with_cap_and_jitter(monkeypatch):
+    delays = []
+    responses = iter((429, 200))
+    monkeypatch.setattr(engine_adapter.time, "sleep", delays.append)
+    monkeypatch.setattr(engine_adapter.random, "uniform", lambda low, high: 0.0)
+    monkeypatch.setattr(
+        network.socket,
+        "getaddrinfo",
+        lambda host, port, type=None: [(2, 1, 6, "", ("93.184.216.34", port))],
+    )
+
+    def fake_request(session, method, url, **kwargs):
+        status = next(responses)
+        return _http_response(url, status, headers={"Retry-After": "600"})
+
+    monkeypatch.setattr(requests.sessions.Session, "request", fake_request)
+    with with_tenant_context("tenant", "project", keys={}):
+        assert requests.get("https://example.com/").status_code == 200
+
+    assert delays == [engine_adapter.NETWORK_MAX_RETRY_AFTER]
 
 
 def test_tenant_context_retries_temporary_get_failure(monkeypatch):
@@ -542,6 +566,13 @@ def test_network_guard_rejects_ipv4_mapped_and_nat64():
     assert not _is_safe_global("64:ff9b::a9fe:a9fe")
     assert not _is_safe_global("64:ff9b::7f00:1")
     assert not _is_safe_global("64:ff9b::a00:1")
+    # 6to4 wraps the IPv4 address in bits 16-48.
+    assert not _is_safe_global("2002:a9fe:a9fe::1")
+    assert not _is_safe_global("2002:7f00:1::1")
+    assert _is_safe_global("2002:808:808::1")
+    # Teredo stores the client IPv4 bitwise-negated in the last 32 bits.
+    assert not _is_safe_global("2001:0:4136:e378:8000:63bf:80ff:fffe")
+    assert _is_safe_global("2001:0:4136:e378:8000:63bf:f7f7:f7f7")
     assert _is_safe_global("8.8.8.8")
     assert _is_safe_global("2001:4860:4860::8888")
 

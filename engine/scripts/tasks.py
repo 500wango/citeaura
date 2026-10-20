@@ -6,6 +6,7 @@ its rationale, owner, acceptance criteria, and market.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime
 
 import geolib as G
@@ -17,6 +18,18 @@ EFFORT = {"S": "<=0.5 person-day", "M": "1-3 person-days", "L": ">=5 person-days
 VALID_STATUSES = ("todo", "doing", "done", "blocked", "wontfix")
 
 
+def _effect(tid=None):
+    return {
+        "version": 2, "state": "draft", "metric": "mention_rate",
+        "target_question_ids": [], "control_question_ids": [],
+        "observation_days": 14, "min_effect": 0.05, "confidence": 0.95,
+        "baseline_run_id": None, "latest_run_id": None,
+        "deployed_at": None, "observation_started_at": None, "observation_ends_at": None,
+        "verdict": None, "verdict_at": None, "evidence": {}, "card": {},
+        "ticket_id": tid,
+    }
+
+
 def _t(tid, priority, package, title, why, action, owner, effort, acceptance,
        market="both", affected=None, window="30_days", assets=None):
     return {
@@ -25,7 +38,40 @@ def _t(tid, priority, package, title, why, action, owner, effort, acceptance,
         "owner": owner, "effort": effort, "window": window,
         "affected": affected or [], "acceptance": acceptance,
         "status": "todo", "assets": assets or [], "evidence": [], "closed_at": None,
+        "effect": _effect(tid),
     }
+
+
+def _effect_split(cfg, market):
+    """Stable 60/40 split of eligible questions; both arms need 8 clusters."""
+    eligible = [
+        q for q in (cfg.get("questions") or [])
+        if isinstance(q, dict) and q.get("id") and not q.get("brand_in_question")
+        and (market in (None, "both") or q.get("market") in (market, "both"))
+    ]
+    if len(eligible) < 16:
+        return [], []
+    eligible.sort(key=lambda q: hashlib.sha256(
+        ("effect:" + str(q.get("id"))).encode("utf-8")
+    ).hexdigest())
+    target_count = max(8, int(round(len(eligible) * 0.6)))
+    return ([str(q["id"]) for q in eligible[:target_count]],
+            [str(q["id"]) for q in eligible[target_count:]])
+
+
+def _bind_effect(ticket, cfg):
+    check = str((ticket.get("acceptance") or {}).get("check") or "")
+    if not check.startswith("metrics.mention_rate_gte:"):
+        return
+    parts = check.split(":")
+    market = parts[1] if len(parts) > 1 else ticket.get("market")
+    target, control = _effect_split(cfg, market)
+    if target and control:
+        ticket.setdefault("effect", _effect(ticket.get("id")))
+        ticket["effect"].update({
+            "target_question_ids": target,
+            "control_question_ids": control,
+        })
 
 
 # ---------------------------------------------------------------- Generation rules
@@ -285,6 +331,7 @@ def build(slug: str) -> dict:
     win = {"P0": "30_days", "P1": "60_days", "P2": "90_days"}
     for t in tasks:
         t["window"] = win.get(t["priority"], "90_days")
+        _bind_effect(t, cfg)
 
     with G.project_lock(slug):
         # Preserve the latest state while serializing against status updates.
@@ -293,8 +340,14 @@ def build(slug: str) -> dict:
         for t in tasks:
             prev = old.get(t["id"]) if old.get(t["id"], {}).get("title") == t["title"] else old_by_title.get(t["title"])
             if prev:
-                t.update({"status": prev.get("status", "todo"), "evidence": prev.get("evidence", []),
-                          "assets": prev.get("assets", []), "closed_at": prev.get("closed_at")})
+                t.update({
+                    "status": prev.get("status", "todo"), "evidence": prev.get("evidence", []),
+                    "assets": prev.get("assets", []), "closed_at": prev.get("closed_at"),
+                    "due_date": prev.get("due_date"), "notes": prev.get("notes", []),
+                    "activity": prev.get("activity", []),
+                    "workflow_customized": prev.get("workflow_customized", False),
+                    "effect": prev.get("effect") or t.get("effect"),
+                })
 
         data = {
             "slug": slug, "generated_at": G.now_iso(), "market": cfg.get("market", "cn"),

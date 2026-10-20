@@ -1,6 +1,11 @@
 """项目创建、预检、项目状态和采样配置 API。"""
 
 from api.projects.project_route_support import *  # noqa: F401,F403
+from api.analytics.clustered_stats import DEFAULT_REPEAT
+from api.billing.entitlements import require_entitlement
+from api.billing.platform_pool import trial_pool_remaining
+from api.adapters.storage import StorageQuotaExceeded, ensure_capacity
+from api.billing.starter_scan import create_starter_scan_job
 
 router = APIRouter(tags=["projects"])
 
@@ -24,24 +29,25 @@ def project_preflight(
 ):
     """创建项目之前检查站点、采样能力并估算调用量。"""
     tenant = _tenant_for_user(db, current_user)
+    market = payload.market or preflight.suggest_market(payload.url)
     import sample
 
     custom_providers = load_custom_providers(db, tenant.id)
     custom_codes = {provider["code"] for provider in custom_providers}
     available = set(sample.PROVIDERS)
     byok = set(load_tenant_keys(db, tenant.id))
-    catalog = public_catalog() if tenant.plan in PAID_PLANS else []
+    catalog = public_catalog() if tenant.plan in POOL_PLANS else []
     pool_codes = {item["engine_code"] for item in catalog}
     funding = {"keys": {code: True for code in byok}, "pool_codes": pool_codes}
     requested = list(dict.fromkeys(payload.platforms or sampling_control.default_sample_platforms(
-        funding, custom_providers, sorted(available | custom_codes), payload.market,
+        funding, custom_providers, sorted(available | custom_codes), market,
     )))
     invalid = sorted(set(requested) - available - custom_codes)
     if invalid:
         _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "unsupported_api_platform")
     mismatched = [
         code for code in requested
-        if not sampling_control.platform_matches_market(code, payload.market, custom_providers)
+        if not sampling_control.platform_matches_market(code, market, custom_providers)
     ]
     if mismatched:
         raise HTTPException(
@@ -49,13 +55,13 @@ def project_preflight(
             detail={
                 "error": sampling_control.SamplingPlatformMarketMismatch.code,
                 "platforms": sorted(set(mismatched)),
-                "project_market": payload.market,
+                "project_market": market,
             },
         )
     effective = [
         code for code in requested
         if code in byok or code in pool_codes or code in custom_codes
-        if sampling_control.platform_matches_market(code, payload.market, custom_providers)
+        if sampling_control.platform_matches_market(code, market, custom_providers)
     ]
     pool_only = [code for code in effective if code in pool_codes and code not in byok]
     prices = {item["engine_code"]: item["unit_price_cny_fen"] for item in catalog}
@@ -108,7 +114,7 @@ def project_preflight(
                       "minutes": max(1, round(quick_calls * 0.4)) if quick_calls else 0},
             "full": {"questions": full_questions, "platforms": len(effective), "calls": full_calls,
                      "minutes": max(1, round(full_calls * 0.4)) if full_calls else 0},
-            "repeat": 1,
+            "repeat": DEFAULT_REPEAT,
             "platform_pool_cost_cny_fen": sum(full_questions * prices[code] for code in pool_only if code in prices),
             "cost_note": "BYOK costs are billed directly by API providers. Platform-pool engines are billed by CiteAura at the listed unit price.",
         },
@@ -126,6 +132,10 @@ def create_project(
     except NetworkTargetError as exc:
         _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc))
     tenant = _tenant_for_user(db, current_user, for_update=True)
+    try:
+        ensure_capacity(tenant.id)
+    except StorageQuotaExceeded:
+        _error(status.HTTP_507_INSUFFICIENT_STORAGE, "tenant_storage_quota_exceeded")
     public_audit = None
     audit_snapshot = None
     if payload.audit_id:
@@ -142,6 +152,7 @@ def create_project(
         except (TypeError, ValueError):
             audit_snapshot = None
     slug = geolib.slugify(payload.url)
+    market = payload.market or preflight.suggest_market(payload.url)
     existing = db.query(Project).filter(Project.tenant_id == tenant.id, Project.slug == slug).first()
     if existing is not None and existing.archived_at is None and existing.status != "archived":
         _error(status.HTTP_409_CONFLICT, "project_already_exists")
@@ -151,7 +162,9 @@ def create_project(
     if existing is not None:
         project = existing
         project.url = payload.url
-        project.market = payload.market
+        project.market = market
+        project.question_language = payload.question_language
+        project.report_language = payload.report_language
         project.status = "initializing"
         project.archived_at = None
         project.schedule_interval_days = None
@@ -161,7 +174,9 @@ def create_project(
             tenant_id=tenant.id,
             slug=slug,
             url=payload.url,
-            market=payload.market,
+            market=market,
+            question_language=payload.question_language,
+            report_language=payload.report_language,
             status="initializing",
         )
         db.add(project)
@@ -171,6 +186,15 @@ def create_project(
     has_sampling_access = _has_sampling_access(db, tenant, project)
     skip_llm = payload.skip_llm or not has_sampling_access
     no_sample = payload.no_sample or not has_sampling_access
+    starter_plan = None
+    pool_only_funding = not _has_api_keys(db, tenant.id) and not load_custom_providers(db, tenant.id)
+    if tenant.plan == "trial" and not no_sample and pool_only_funding and project.platform_pool_enabled:
+        starter_plan = create_starter_scan_job()
+        if starter_plan["status"] != "planned":
+            # 预算装不下一次矩阵：降级为抓取+体检+事实草稿，不发起 LLM 采样。
+            no_sample = True
+            skip_llm = True
+            starter_plan = None
     job_action = "bootstrap" if no_sample else "autopilot"
     if job_action == "autopilot":
         check_sample_run(db, tenant, project)
@@ -184,6 +208,9 @@ def create_project(
             "no_sample": no_sample,
             "job_action": job_action,
             "audit_id": payload.audit_id,
+            "platforms": starter_plan["platforms"] if starter_plan else None,
+            "repeat": starter_plan["repeat"] if starter_plan else None,
+            "starter_scan": starter_plan,
         }),
     )
     db.add(job)
@@ -230,12 +257,18 @@ def create_project(
                 url=payload.url,
                 name=payload.name.strip() if payload.name else None,
                 slug=slug,
-                market=payload.market,
+                market=market,
+                question_language=payload.question_language,
+                report_language=payload.report_language,
                 max_pages=25,
                 force=False,
             )
             with _route_facade().with_tenant_context(tenant.directory_slug, slug):
                 geo.cmd_init(args)
+                if starter_plan:
+                    starter_config = geolib.load_config(slug)
+                    starter_config["platforms"] = list(starter_plan["platforms"])
+                    geolib.save_config(slug, starter_config)
         except GeoEngineError as exc:
             _fail_initializing_job(db, project, job, exc)
             _error(status.HTTP_400_BAD_REQUEST, "engine_init_failed")
@@ -272,6 +305,8 @@ def create_project(
             no_sample=no_sample,
             job_action=job_action,
             job_id=job.id,
+            platforms=starter_plan["platforms"] if starter_plan else None,
+            repeat=starter_plan["repeat"] if starter_plan else None,
         )
         job.celery_task_id = getattr(task_result, "id", None)
         db.commit()
@@ -320,6 +355,8 @@ def list_projects(current_user: User = Depends(get_current_user), db: Session = 
                 "name": summaries.get(p.slug, {}).get("name", p.slug),
                 "site": summaries.get(p.slug, {}).get("site", p.url),
                 "market": p.market,
+                "question_language": p.question_language,
+                "report_language": p.report_language,
                 "status": p.status,
                 "avg_score": summaries.get(p.slug, {}).get("avg_score"),
                 "pages": summaries.get(p.slug, {}).get("pages"),
@@ -402,6 +439,8 @@ def project_detail(project_id: int, current_user: User = Depends(get_current_use
         "slug": project.slug,
         "url": project.url,
         "market": project.market,
+        "question_language": project.question_language,
+        "report_language": project.report_language,
         "status": project.status,
         "created_at": project.created_at,
     }
@@ -479,10 +518,14 @@ def update_sampling_funding(
     project = _project_for_user(db, current_user, project_id)
     tenant = _tenant_for_user(db, current_user)
     if payload.platform_pool_enabled:
-        if tenant.plan not in PAID_PLANS:
+        if tenant.plan not in POOL_PLANS:
             _error(status.HTTP_403_FORBIDDEN, "platform_pool_paid_plan_required")
         if not public_catalog():
             _error(status.HTTP_409_CONFLICT, "platform_pool_unavailable")
+        if tenant.plan == "trial" and (
+            not config.trial_pool_enabled() or trial_pool_remaining(db, tenant.id) <= 0
+        ):
+            _error(status.HTTP_403_FORBIDDEN, "platform_pool_trial_budget_exhausted")
     project.platform_pool_enabled = payload.platform_pool_enabled
     db.commit()
     return _sampling_funding_payload(db, tenant, project, current_user)
@@ -544,6 +587,7 @@ def update_project_schedule(
         project.schedule_interval_days = None
         project.schedule_next_run_at = None
     else:
+        require_entitlement(db, tenant.id, "scheduled_monitoring")
         check_sample_run(db, tenant, project)
         if project.monthly_budget_cny_fen is not None or project.sample_call_limit is not None:
             _validated_sample_estimate(db, tenant, project, SampleEstimateRequest(), enforce=True)
@@ -551,6 +595,8 @@ def update_project_schedule(
             project.schedule_next_run_at = datetime.now(timezone.utc) + timedelta(days=payload.interval_days)
         project.schedule_interval_days = payload.interval_days
     if payload.alert_on_regression is not None:
+        if payload.alert_on_regression:
+            require_entitlement(db, tenant.id, "regression_alerts")
         project.alert_on_regression = bool(payload.alert_on_regression)
     db.commit()
     db.refresh(project)

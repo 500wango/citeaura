@@ -1,5 +1,7 @@
 """SaaS 管线动作的唯一运行时目录。"""
 
+from api.analytics.clustered_stats import DEFAULT_REPEAT
+
 
 ACTION_CATALOG = {
     "crawl": {
@@ -20,7 +22,7 @@ ACTION_CATALOG = {
         "label": "AI Sampling",
         "args": ["--limit", "--repeat", "--platforms", "--question-ids"],
         "method": "cmd_sample",
-        "defaults": {"limit": None, "repeat": 1, "platforms": None, "question_ids": None},
+        "defaults": {"limit": None, "repeat": DEFAULT_REPEAT, "platforms": None, "question_ids": None},
         "retryable": True,
     },
     "bootstrap": {

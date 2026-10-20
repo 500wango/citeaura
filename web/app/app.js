@@ -86,7 +86,6 @@ export const TRACKS = [
       { id: 'outreach', labelKey: 'nav.outreach', defaultLabel: 'Media Outreach' },
       { id: 'entities', labelKey: 'nav.entities', defaultLabel: 'Entities' },
       { id: 'publishing', labelKey: 'nav.publishing', defaultLabel: 'Publishing Destinations' },
-      { id: 'security', labelKey: 'nav.security', defaultLabel: 'Enterprise Security' },
       { id: 'archive', labelKey: 'nav.archive', defaultLabel: 'Backup Snapshots' },
     ],
   },
@@ -123,7 +122,6 @@ const VIEW_LOADERS = {
   automation: () => import('./views/automation.js'),
   team: () => import('./views/team.js'),
   billing: () => import('./views/billing.js'),
-  security: () => import('./views/security.js'),
   archive: () => import('./views/archive.js'),
 };
 
@@ -781,7 +779,7 @@ async function init() {
 }
 
 const INTENT_PLAN_KEY = 'citeaura_intent_plan';
-const ENTRY_PLANS = new Set(['starter', 'pro', 'agency', 'enterprise']);
+const ENTRY_PLANS = new Set(['starter', 'pro', 'agency']);
 
 function normalizeLegacyAuthLink() {
   const params = new URLSearchParams(location.search);

@@ -249,7 +249,7 @@ def test_api_js_uses_cookie_session_refresh_and_unwraps_collections():
     assert "refreshSubscribers" not in text
     assert "_authRetried: true" in text
     assert "retryLoginTransport" in text
-    for field in ("jobs", "tickets", "members", "invitations", "schedule", "keys", "history", "deliveries", "events", "archives"):
+    for field in ("jobs", "tickets", "members", "invitations", "schedule", "keys", "history", "deliveries", "archives"):
         assert f"'{field}'" in text
 
 

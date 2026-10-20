@@ -10,7 +10,7 @@ from api.db import Base, get_db
 from api.main import app
 from api.models import ApiKey, CustomProvider
 from api.settings import router as settings_router
-from api.settings.crypto import SSO_STATE_AAD, decrypt_key, encrypt_key, key_aad
+from api.settings.crypto import decrypt_key, encrypt_key, key_aad
 
 
 @pytest.fixture()
@@ -126,16 +126,6 @@ def test_legacy_unbound_ciphertext_remains_readable_during_migration(monkeypatch
 
     # AAD 回退是一条需要被看见的退路：必须留下警告，方便运维安排重加密。
     assert "legacy ciphertext" in caplog.text
-
-
-def test_sso_state_ciphertext_is_bound_to_its_own_aad(monkeypatch):
-    monkeypatch.setenv("AES_KEY", base64.urlsafe_b64encode(b"0" * 32).decode())
-    assert SSO_STATE_AAD == b"sso-state"
-    encrypted = encrypt_key("sso-state-payload", SSO_STATE_AAD)
-
-    assert decrypt_key(encrypted, SSO_STATE_AAD) == "sso-state-payload"
-    with pytest.raises(ValueError, match="invalid encrypted API key"):
-        decrypt_key(encrypted, key_aad(1, "openai"))
 
 
 def test_key_list_uses_persisted_suffix_and_backfills_legacy_rows(settings_client):
