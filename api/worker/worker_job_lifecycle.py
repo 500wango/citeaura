@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
-from api import config
 from api.adapters import locking, regression_alerts, sampling_control
 from api.adapters.engine import job_log_path, tenant_slug
 from api.adapters.log_translator import redact_secrets
@@ -32,10 +31,11 @@ def _task_facade():
 def _job_status(tenant_id, project_slug, action, job_id=None, hold_project_lock=None):
     """把 Job 标为 running/done/failed，并提供粗粒度进度回调。
 
-    隔离模式下项目锁由引擎子进程持有；父进程若同时持锁，子进程会等锁超时。
+    隔离模式下项目锁仍由父进程持有；引擎子进程没有 Redis 凭据，
+    通过 CITEAURA_SKIP_PROJECT_LOCK 跳过取锁，避免同一项目被并发执行。
     """
     if hold_project_lock is None:
-        hold_project_lock = not config.isolated_jobs_enabled()
+        hold_project_lock = True
     tracked_job_id = None
     log_path = None
 

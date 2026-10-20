@@ -46,6 +46,7 @@ def sanitize_child_environment(environ=None):
     )
     clean.setdefault("PYTHONUNBUFFERED", "1")
     clean["CITEAURA_SKIP_DOTENV"] = "1"
+    clean["CITEAURA_SKIP_PROJECT_LOCK"] = "1"
     return clean
 
 

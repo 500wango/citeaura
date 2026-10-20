@@ -7,7 +7,7 @@ import re
 import sys
 import threading
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -222,10 +222,17 @@ def with_tenant_read_context(tenant_id: str, project_slug: str):
     """为文件型 API 读取设置并发安全的租户路径，不修改引擎全局状态。"""
     tenant_directory = tenant_slug(tenant_id)
     _valid_slug(str(project_slug or ""), "project")
+    # inject_keys 会在引擎执行期间清空 CITEAURA_* 环境变量，因此必须在进入
+    # 上下文时读取一次，不能等到锁工厂被调用时再读。
+    skip_project_lock = os.getenv("CITEAURA_SKIP_PROJECT_LOCK") == "1"
+
     def raise_error(message, code=1):
         raise GeoEngineError(message)
 
     def distributed_lock(slug):
+        if skip_project_lock:
+            # 隔离子进程不持有 Redis 凭据；项目锁由父进程的任务生命周期持有。
+            return nullcontext()
         # 同一租户/项目在同一调用上下文里会嵌套取锁（pipeline 内部再取），
         # key 本身按租户+项目隔离，重入是安全的；否则嵌套调用会阻塞后失败。
         return locking.project_lock(
@@ -462,11 +469,17 @@ def with_tenant_context(tenant_id: str, project_slug: str, keys: dict | None = N
         raise ValueError(f"invalid tenant slug: {raw_tenant!r}")
     tenant_directory = tenant_slug(raw_tenant)
     project_slug = _valid_slug(project_slug, "project")
+    # inject_keys 会在引擎执行期间清空 CITEAURA_* 环境变量，因此必须在进入
+    # 上下文时读取一次，不能等到锁工厂被调用时再读。
+    skip_project_lock = os.getenv("CITEAURA_SKIP_PROJECT_LOCK") == "1"
 
     def raise_error(message, code=1):
         raise GeoEngineError(message)
 
     def distributed_lock(slug):
+        if skip_project_lock:
+            # 隔离子进程不持有 Redis 凭据；项目锁由父进程的任务生命周期持有。
+            return nullcontext()
         # 同一租户/项目在同一调用上下文里会嵌套取锁（pipeline 内部再取），
         # key 本身按租户+项目隔离，重入是安全的；否则嵌套调用会阻塞后失败。
         return locking.project_lock(

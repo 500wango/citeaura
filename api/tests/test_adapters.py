@@ -64,6 +64,22 @@ def test_tenant_context_patches_paths_and_die_then_restores():
     assert geolib.current_work() == original_work
 
 
+def test_isolated_child_skips_project_lock(monkeypatch):
+    """子进程没有 Redis 凭据，项目锁由父进程持有，子进程不得再取锁。"""
+    monkeypatch.setenv("CITEAURA_SKIP_PROJECT_LOCK", "1")
+    calls = []
+    monkeypatch.setattr(
+        "api.adapters.engine.locking.project_lock",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with with_tenant_context("tenant", "project"):
+        with geolib.project_lock("project"):
+            pass
+
+    assert calls == []
+
+
 def test_key_injection_supports_engine_codes_and_restores_environment(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "old")
     monkeypatch.setenv("GEMINI_API_KEY", "global-fallback")

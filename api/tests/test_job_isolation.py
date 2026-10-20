@@ -31,6 +31,7 @@ def test_child_environment_drops_secrets(monkeypatch):
     for name in ("OPENAI_API_KEY", "DATABASE_URL", "CITEAURA_ISOLATED_JOBS", "PLATFORM_POOL_OPENAI"):
         assert name not in clean
     assert clean["CITEAURA_WORK_ROOT"] == "/tmp/work"
+    assert clean["CITEAURA_SKIP_PROJECT_LOCK"] == "1"
     assert "PATH" in clean
 
 
@@ -46,6 +47,7 @@ def test_parent_secrets_do_not_reach_child(monkeypatch):
     assert present["GEMINI_API_KEY"] is False
     assert present["DATABASE_URL"] is False
     assert present["CITEAURA_ISOLATED_JOBS"] is False
+    assert result["project_lock"] == "ok"
     assert result["tenant"] == "tenant-a"
 
 

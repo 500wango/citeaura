@@ -83,9 +83,14 @@ def _dispatch(action, slug, kwargs, tenant=None):
             "OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY",
             "DATABASE_URL", "CITEAURA_ISOLATED_JOBS", "CITEAURA_WORK_ROOT",
         )
+        # 子进程没有 Redis 凭据；取锁必须由父进程持有的锁短路。
+        import geolib
+        with geolib.project_lock(slug):
+            pass
         return {
             "tenant": tenant,
             "env_present": {name: bool(os.environ.get(name)) for name in names},
+            "project_lock": "ok",
         }
     if action == "sample":
         import sample
