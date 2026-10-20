@@ -418,3 +418,17 @@ pg_restore -c -d <db> ./pre-migrate-<ts>.dump
    ```
 
    不需要 `source .venv/bin/activate`（该目录是空壳，直接调用 `python3` 即可）。
+
+---
+
+## 10. 第五轮：关闭三个残留缺口
+
+**`api/tests 560 passed`、`engine/tests 273 passed / 2 skipped`。**
+
+1. **迁移 `0041_revoke_legacy_api_tokens`**：吊销所有 `created_by_user_id IS NULL`
+   且未吊销的集成令牌。这些令牌无法在用户停用/移除时定位，部署后旧 token 立即失效，
+   客户端需重新签发。`downgrade()` 刻意不恢复，避免重新暴露无主令牌。
+2. **登录时升级旧密码哈希**：`POST /auth/login` 验证成功后，若哈希不是
+   `sha256$` 前缀格式，用刚验证过的明文原地 rehash，旧账号不再受 bcrypt 72 字节截断影响。
+3. **outbox 跳过可观测**：对账遇到 `job_id IS NULL` 的事件仍标记 `processed`（无法
+   用唯一键去重），但写入 `last_error="missing_job_id"`，不再静默清空。

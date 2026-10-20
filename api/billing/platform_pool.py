@@ -343,15 +343,24 @@ def reconcile_usage_outbox(limit=100):
             }
             try:
                 if row.job_id is not None:
-                    record_usage(
+                    accepted = record_usage(
                         funding,
                         Counter({row.engine_code: row.calls}),
                         row.action,
                         job_id=row.job_id,
                     )
+                    # 空结果可能是重复入账（唯一键已存在）或 Job 已被删除；
+                    # 只在 Job 确实不存在时留痕，避免把幂等命中误报成异常。
+                    if accepted or db.query(Job.id).filter(Job.id == row.job_id).first() is not None:
+                        row.last_error = None
+                    else:
+                        row.last_error = "job_not_found"
+                else:
+                    # 没有 job_id 就无法用唯一键去重；标记原因而不是静默丢弃，
+                    # 否则这些未入账调用在运维侧完全不可见。
+                    row.last_error = "missing_job_id"
                 row.status = "processed"
                 row.processed_at = now
-                row.last_error = None
                 processed += 1
             except Exception as exc:  # noqa: BLE001 - 保留事件等待下一轮补偿
                 row.attempts += 1

@@ -490,3 +490,34 @@ def test_platform_pool_blocks_when_projected_exceeds_limit_with_zero_added_calls
     limits = sampling_control._limit_state(usage, reservations, added_calls, added_cost, limit, limit * 10)
     assert limits["calls_exceeded"] is True
     assert limits["cost_exceeded"] is True
+
+
+def test_usage_outbox_without_job_is_marked_for_operators(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'outbox-missing-job.sqlite'}")
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    Base.metadata.create_all(engine)
+    with session_factory() as db:
+        tenant = Tenant(name="outbox-missing-job", plan="pro")
+        db.add(tenant)
+        db.flush()
+        project = Project(tenant_id=tenant.id, slug="outbox-missing-job", url="https://missing-job.example")
+        db.add(project)
+        db.commit()
+        tenant_id, project_id = tenant.id, project.id
+
+    monkeypatch.setattr(platform_pool, "SessionLocal", session_factory)
+    funding = {
+        "tenant_id": tenant_id,
+        "project_id": project_id,
+        "pool_codes": frozenset(("openai",)),
+        "rates": {"openai": 5},
+    }
+    assert platform_pool.persist_usage_outbox(funding, {"openai": 2}, "sample") == 1
+    assert platform_pool.reconcile_usage_outbox() == 1
+
+    with session_factory() as db:
+        event = db.query(PlatformUsageOutbox).one()
+        assert event.status == "processed"
+        # 无 job_id 无法用唯一键去重，只能跳过，但必须留下可观测的原因。
+        assert event.last_error == "missing_job_id"
+        assert db.query(PlatformUsage).count() == 0

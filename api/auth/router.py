@@ -25,6 +25,7 @@ from api.auth.security import (
     REFRESH_TOKEN_COOKIE,
     REFRESH_TOKEN_EXPIRE_DAYS,
     DUMMY_PASSWORD_HASH,
+    PASSWORD_HASH_PREFIX,
     create_access_token,
     create_refresh_token,
     decode_token,
@@ -371,6 +372,9 @@ def login(request: Request, payload: LoginRequest, response: Response, db: Sessi
         _error(status.HTTP_403_FORBIDDEN, "account_disabled")
 
     user.last_login_at = datetime.now(timezone.utc)
+    if not user.password_hash.startswith(PASSWORD_HASH_PREFIX):
+        # 旧哈希仍受 bcrypt 72 字节截断影响；登录时用刚验证过的明文原地升级。
+        user.password_hash = hash_password(payload.password)
     db.commit()
 
     return token_response(

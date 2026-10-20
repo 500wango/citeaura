@@ -1,4 +1,5 @@
 import importlib
+from datetime import datetime
 
 import pytest
 import sqlalchemy as sa
@@ -243,3 +244,35 @@ def test_security_reliability_migration_repairs_data_before_unique_indexes():
                 {"id": 6, "notification_key": "pay_9"},
                 {"id": 7, "notification_key": "pay_9"},
             ])
+
+
+def test_legacy_api_tokens_without_creator_are_revoked():
+    migration = importlib.import_module("api.migrations.versions.0041_revoke_legacy_api_tokens")
+    engine = sa.create_engine("sqlite:///:memory:")
+    metadata = sa.MetaData()
+    tokens = sa.Table(
+        "api_access_tokens",
+        metadata,
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("created_by_user_id", sa.Integer, nullable=True),
+        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
+    )
+    metadata.create_all(engine)
+
+    with engine.begin() as connection:
+        connection.execute(tokens.insert(), [
+            {"id": 1, "created_by_user_id": None, "revoked_at": None},
+            {"id": 2, "created_by_user_id": None, "revoked_at": datetime(2026, 1, 1)},
+            {"id": 3, "created_by_user_id": 7, "revoked_at": None},
+        ])
+        migration.op = Operations(MigrationContext.configure(connection))
+        migration.upgrade()
+        rows = {
+            row.id: row.revoked_at
+            for row in connection.execute(sa.select(tokens.c.id, tokens.c.revoked_at))
+        }
+
+    # 无创建者且未吊销的存量令牌必须失效；已吊销的和可溯源的令牌保持不变。
+    assert rows[1] is not None
+    assert rows[2] is not None
+    assert rows[3] is None

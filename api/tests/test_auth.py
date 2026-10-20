@@ -1,15 +1,17 @@
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.auth import password_reset
+from api.auth.security import PASSWORD_HASH_PREFIX, verify_password
 from api.adapters.engine import tenant_slug
 from api.db import Base, get_db
 from api.main import app
-from api.models import PasswordResetToken, Subscription, Tenant, User
+from api.models import Membership, PasswordResetToken, Subscription, Tenant, User
 
 
 @pytest.fixture()
@@ -453,3 +455,30 @@ def test_long_tenant_names_get_distinct_directory_slugs(client):
             for row in db.query(Tenant).filter(Tenant.name.in_((first_name, second_name))).all()
         }
     assert directories == {first_name, second_name}
+
+
+def test_login_upgrades_legacy_bcrypt_hash(client):
+    legacy_hash = bcrypt.hashpw(b"legacy-password", bcrypt.gensalt()).decode("ascii")
+    with client.session_factory() as db:
+        tenant = Tenant(name="Legacy Workspace", plan="trial")
+        db.add(tenant)
+        db.flush()
+        user = User(email="legacy@example.com", password_hash=legacy_hash)
+        db.add(user)
+        db.flush()
+        db.add(Membership(tenant_id=tenant.id, user_id=user.id, role="owner"))
+        db.commit()
+        user_id = user.id
+
+    logged_in = client.post(
+        "/api/v1/auth/login",
+        json={"email": "legacy@example.com", "password": "legacy-password"},
+    )
+    assert logged_in.status_code == 200
+
+    with client.session_factory() as db:
+        upgraded = db.get(User, user_id).password_hash
+    assert upgraded != legacy_hash
+    assert upgraded.startswith(PASSWORD_HASH_PREFIX)
+    # 升级后的哈希仍必须能验证同一密码。
+    assert verify_password("legacy-password", upgraded)
