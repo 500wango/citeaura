@@ -177,7 +177,13 @@ def verify(engine):
     problems = []
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
-    for table in ("sso_identities", "subscription_demotions"):
+    for table in (
+        "subscription_demotions",
+        "prompt_projections",
+        "run_projections",
+        "sample_projections",
+        "projection_states",
+    ):
         if table not in tables:
             problems.append(f"缺少表 {table}")
     columns = {

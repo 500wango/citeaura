@@ -281,6 +281,59 @@ def test_backups_are_host_mounted_and_validated_before_migration():
     assert 'BACKUP_DIR="${BACKUP_DIR:-/var/backups/citeaura}"' in verify
 
 
+def test_migration_verify_expects_head_tables_and_not_dropped_sso(monkeypatch):
+    from scripts import migrate_db
+
+    tables = {
+        "jobs",
+        "api_keys",
+        "api_access_tokens",
+        "public_audits",
+        "subscriptions",
+        "subscription_demotions",
+        "prompt_projections",
+        "run_projections",
+        "sample_projections",
+        "projection_states",
+    }
+    columns = {
+        "jobs": {"heartbeat_at"},
+        "api_keys": {"key_suffix"},
+        "api_access_tokens": {"expires_at"},
+        "public_audits": {"consumed_at", "tenant_id"},
+    }
+
+    class FakeInspector:
+        def get_table_names(self):
+            return sorted(tables)
+
+        def get_columns(self, table):
+            return [{"name": name} for name in columns[table]]
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def execute(self, statement):
+            return types.SimpleNamespace(fetchall=lambda: [], scalar=lambda: 0)
+
+    class FakeEngine:
+        def connect(self):
+            return FakeConnection()
+
+    monkeypatch.setattr(migrate_db, "inspect", lambda engine: FakeInspector())
+    monkeypatch.setattr(migrate_db, "current_revision", lambda engine: "head")
+    monkeypatch.setattr(migrate_db, "target_revision", lambda: "head")
+
+    problems, demoted, revision = migrate_db.verify(FakeEngine())
+    assert problems == []
+    assert demoted == 0
+    assert revision == "head"
+
+
 def test_migration_backup_rejects_a_dump_pg_restore_cannot_read(tmp_path, monkeypatch):
     from scripts import migrate_db
 
