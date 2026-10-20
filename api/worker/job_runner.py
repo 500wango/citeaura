@@ -112,7 +112,7 @@ def _dispatch(action, slug, kwargs, tenant=None):
 def execute(payload):
     """在租户隔离与密钥上下文中执行一次动作。"""
     from api.adapters.engine import with_tenant_context
-    from api.billing.platform_pool import meter_platform_calls
+    from api.billing.metering import meter_platform_calls
 
     action = payload["action"]
     slug = payload["project_slug"]

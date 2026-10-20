@@ -1,10 +1,7 @@
 """平台 Key 池解析、BYOK 优先合并和按调用计费。"""
 
 import json
-import threading
 from collections import Counter
-from contextlib import contextmanager
-from contextvars import ContextVar
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func
@@ -14,6 +11,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from api import config
 from api.adapters.engine import ENGINE_KEY_ENV, load_tenant_keys, resolve_tenant
 from api.adapters import sampling_modes
+from api.billing.metering import meter_platform_calls  # noqa: F401 - 保持原有导出
 from api.db import SessionLocal
 from api.models import Job, PlatformUsage, PlatformUsageOutbox, Project, UsageCounter
 from api.billing.access import sync_tenant_plan
@@ -21,29 +19,6 @@ from api.billing.access import sync_tenant_plan
 
 POOL_PLANS = frozenset(("trial", "starter", "pro", "agency"))
 PAID_PLANS = frozenset(("starter", "pro", "agency"))
-
-_METER_CONTEXT = ContextVar("citeaura_platform_meter", default=None)
-_METER_HOOK_LOCK = threading.Lock()
-
-
-def _ensure_meter_hook():
-    """安装一次稳定的计量入口；每个任务的计数保存在 ContextVar 中。"""
-    import sample
-
-    with _METER_HOOK_LOCK:
-        if getattr(sample.ask, "_citeaura_meter_hook", False):
-            return
-        original = sample.ask
-
-        def metered(platform, *args, **kwargs):
-            meter = _METER_CONTEXT.get()
-            if meter is not None and platform in meter["codes"]:
-                with meter["lock"]:
-                    meter["counts"][platform] += 1
-            return original(platform, *args, **kwargs)
-
-        metered._citeaura_meter_hook = True
-        sample.ask = metered
 
 
 def _prices():
@@ -144,22 +119,6 @@ def resolve_funding(db, tenant_id, project_slug, allow_pool=True):
         "tenant_directory_slug": tenant.directory_slug,
         "project_id": project.id if project is not None else None,
     }
-
-
-@contextmanager
-def meter_platform_calls(engine_codes):
-    """统计通过平台池发出的逻辑引擎调用，覆盖采样及同管线 LLM 调用。"""
-    codes = frozenset(engine_codes)
-    counts = Counter()
-    if not codes:
-        yield counts
-        return
-    _ensure_meter_hook()
-    token = _METER_CONTEXT.set({"codes": codes, "counts": counts, "lock": threading.Lock()})
-    try:
-        yield counts
-    finally:
-        _METER_CONTEXT.reset(token)
 
 
 def _month_start(value=None):

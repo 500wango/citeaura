@@ -49,6 +49,18 @@ def test_parent_secrets_do_not_reach_child(monkeypatch):
     assert result["tenant"] == "tenant-a"
 
 
+def test_child_runs_without_database_url_in_production(monkeypatch):
+    """生产模式明确禁止默认 DATABASE_URL；子进程不触库，必须仍能导入。"""
+    monkeypatch.setenv("PRODUCTION_PROXY_MODE", "true")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    result, _usage, _stderr = job_process.run_job_process(
+        _payload("tenant-prod", {}),
+        timeout=30,
+    )
+    assert result["env_present"]["DATABASE_URL"] is False
+    assert result["tenant"] == "tenant-prod"
+
+
 def test_concurrent_tenants_do_not_share_keys(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "parent-secret")
     monkeypatch.setenv("GEMINI_API_KEY", "parent-secret-2")
