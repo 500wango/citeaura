@@ -302,7 +302,7 @@
   "questions.modal_title": "대상 질문 추가",
   "questions.modal_hint": "한 줄에 질문 하나를 입력하세요. 브랜드 평가 은행에 추가됩니다.",
   "plan.title": "엔지니어링 액션 티켓",
-  "plan.desc": "13개의 표준 최적화 티켓을 영향도 × 작업량으로 분류해 엔지니어링 ROI를 높이고 추천 격차를 줄입니다.",
+  "plan.desc": "{count}개의 표준 최적화 티켓을 영향도 × 작업량으로 분류해 엔지니어링 ROI를 높이고 추천 격차를 줄입니다.",
   "plan.mode_matrix": "2×2 매트릭스",
   "plan.mode_table": "표 목록",
   "plan.create_ticket_btn": "티켓 만들기",

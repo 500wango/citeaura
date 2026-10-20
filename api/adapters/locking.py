@@ -70,16 +70,22 @@ def project_lock(tenant_slug, project_slug, allow_reentrant=False):
     renewal_errors = []
 
     def renew():
+        transient_failures = 0
         while not stop.wait(renew_interval):
             try:
                 if not lock.extend(ttl, replace_ttl=True):
                     renewal_errors.append(RuntimeError("lock extension rejected"))
                     lost.set()
                     return
+                transient_failures = 0
             except (RedisError, LockError) as exc:
+                # Redis 抖动不应立刻判定锁丢失：锁在 TTL 内仍有效，
+                # 连续失败到接近 TTL 才放弃。
+                transient_failures += 1
                 renewal_errors.append(exc)
-                lost.set()
-                return
+                if transient_failures >= 3:
+                    lost.set()
+                    return
 
     renewer = threading.Thread(
         target=renew,

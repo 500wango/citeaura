@@ -17,7 +17,7 @@ def test_production_compose_binds_api_to_loopback_and_profiles_nginx():
 
     assert "${ENV_FILE:-.env.production}" in compose
     assert '"127.0.0.1:${APP_PORT:-18000}:8000"' in compose
-    assert 'FORWARDED_ALLOW_IPS:-127.0.0.1' in compose
+    assert 'FORWARDED_ALLOW_IPS:-127.0.0.1,172.16.0.0/12' in compose
     assert "--proxy-headers" in compose
     assert "--pool=prefork" in (ROOT / "Dockerfile").read_text("utf-8")
     assert "worker_pool=\"prefork\"" in (ROOT / "api/worker/celery_app.py").read_text("utf-8")
@@ -27,7 +27,7 @@ def test_production_compose_binds_api_to_loopback_and_profiles_nginx():
     assert 'profiles: ["local-postgres"]' in compose
     assert "name: ${CITEAURA_WORK_VOLUME:-citeaura_citeaura_work}" in compose
     assert "external: ${CITEAURA_WORK_EXTERNAL:-false}" in compose
-    assert "name: ${CITEAURA_WORK_VOLUME:-citeaura_citeaura_work}" in local_compose
+    assert "name: ${CITEAURA_DEV_WORK_VOLUME:-citeaura_dev_work}" in local_compose
     assert "external: ${CITEAURA_WORK_EXTERNAL:-false}" in local_compose
     for service in ("api", "worker", "beat"):
         section = local_compose.split(f"  {service}:\n", 1)[1]
@@ -55,11 +55,11 @@ def test_deploy_script_leaves_tls_to_host_caddy():
     assert 'APP_PORT="${APP_PORT:-18000}"' in deploy
     build = deploy.index("build api worker beat")
     repair_permissions = deploy.index("chown -R citeaura:citeaura /app/work")
-    migrate = deploy.index("run --rm api alembic upgrade head")
+    migrate = deploy.index("run --rm --entrypoint python3 api scripts/migrate_db.py")
     # 必须 force-recreate：否则「已是期望状态」的坏容器（端口未绑定）会跨部署存活，永远修不好
     start = deploy.index("up -d --force-recreate api worker beat")
     assert build < repair_permissions < migrate < start
-    assert "run --rm --user root api" in deploy
+    assert "run --rm --user root --entrypoint sh api" in deploy
     assert "up -d --build api worker beat nginx" not in deploy
     assert 'http://127.0.0.1:${APP_PORT}/api/v1/health/ready' in deploy
     assert 'curl --silent --show-error' in deploy

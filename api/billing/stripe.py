@@ -4,7 +4,6 @@ import hashlib
 import hmac
 import json
 import time
-import uuid
 
 import requests
 
@@ -150,7 +149,8 @@ def update_subscription(provider_subscription_id, tenant, plan, billing_interval
                 "metadata[plan]": plan["code"],
             },
             auth=auth,
-            headers={"Idempotency-Key": uuid.uuid4().hex},
+            # 确定性键：响应丢失后重试会命中同一 Price，而不是重复建价。
+            headers={"Idempotency-Key": f"citeaura-price-{tenant.id}-{plan['code']}-{billing_interval}-{amount}"},
             timeout=timeout,
         )
         price = price_response.json()
@@ -177,7 +177,8 @@ def update_subscription(provider_subscription_id, tenant, plan, billing_interval
             f"{API_BASE}/subscriptions/{provider_subscription_id}",
             data=data,
             auth=auth,
-            headers={"Idempotency-Key": uuid.uuid4().hex},
+            # 同一订阅的同一目标方案重试必须复用同一幂等键。
+            headers={"Idempotency-Key": f"citeaura-update-{provider_subscription_id}-{plan['code']}-{billing_interval}-{amount}"},
             timeout=timeout,
         )
         result = response.json()

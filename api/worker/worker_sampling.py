@@ -278,6 +278,10 @@ def _sampling_succeeded(result, project_slug, job_id=None, started_at=None):
     if isinstance(result, dict) and not result:
         return False
     if isinstance(result, dict) and result:
+        # 直接传入的 metrics 也必须由本次任务写出，否则上一次运行的样本
+        # 会被当成本次证据（引擎吞掉采样异常时尤其明显）。
+        if started_at is not None and not _metrics_written_since(project_slug, started_at):
+            return False
         if result.get("run_id"):
             rows = _sampling_rows(project_slug, result)
             if rows:

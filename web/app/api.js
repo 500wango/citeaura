@@ -14,14 +14,19 @@ const DEFAULT_TIMEOUT_MS = 30000;
 
 async function refreshSession() {
   if (!refreshPromise) {
+    // 刷新请求必须有超时：网络半开时挂起的 promise 会卡住之后所有 401 请求。
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 15000);
     refreshPromise = fetch('/api/v1/auth/refresh', {
       method: 'POST',
       credentials: 'include',
       headers: { 'X-CiteAura-Session': 'cookie', Accept: 'application/json' },
+      signal: controller.signal,
     })
       .then((response) => response.ok)
       .catch(() => false)
       .finally(() => {
+        window.clearTimeout(timer);
         refreshPromise = null;
       });
   }

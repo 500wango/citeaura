@@ -247,11 +247,8 @@ def register(
         if public_audit is None:
             _error(status.HTTP_400_BAD_REQUEST, "audit_handoff_expired")
     audit_handoff = json.loads(public_audit.result_json) if public_audit is not None else None
-    if db.query(User.id).filter(User.email == payload.email).first() is not None:
-        verify_password(payload.password, DUMMY_PASSWORD_HASH)
-        response.status_code = status.HTTP_202_ACCEPTED
-        return {"accepted": True, "audit": audit_handoff}
-
+    # 邀请必须在判断邮箱是否存在之前校验：否则同一请求会因邮箱是否已注册
+    # 返回 400 或 202，反向暴露账号存在性。
     invitation = invitation_for_token(db, payload.invitation_token, for_update=True) if payload.invitation_token else None
     country_code = request_country_code(request)
     if payload.invitation_token:
@@ -276,6 +273,11 @@ def register(
             trial_ends_at=datetime.now(timezone.utc) + timedelta(days=TRIAL_DAYS),
         )
         tenant.directory_slug = tenant.name
+
+    if db.query(User.id).filter(User.email == payload.email).first() is not None:
+        verify_password(payload.password, DUMMY_PASSWORD_HASH)
+        response.status_code = status.HTTP_202_ACCEPTED
+        return {"accepted": True, "audit": audit_handoff}
 
     user = User(
         email=payload.email,
@@ -324,9 +326,12 @@ def register(
         db.refresh(tenant)
     except IntegrityError:
         db.rollback()
-        # 并发注册同样不能泄露邮箱是否已存在。
-        response.status_code = status.HTTP_202_ACCEPTED
-        return {"accepted": True, "audit": audit_handoff}
+        # 只把“并发注册同一邮箱”当作幂等成功；租户名冲突等其他完整性问题
+        # 必须暴露出来，否则用户实际没有账号却收到成功响应。
+        if db.query(User.id).filter(User.email == payload.email).first() is not None:
+            response.status_code = status.HTTP_202_ACCEPTED
+            return {"accepted": True, "audit": audit_handoff}
+        _error(status.HTTP_409_CONFLICT, "registration_conflict")
 
     background_tasks.add_task(
         transactional_email.send_welcome_email_safe,
@@ -505,10 +510,8 @@ def forgot_password(
         ).first()
         if recent is not None:
             return {"accepted": True}
-        db.query(PasswordResetToken).filter(
-            PasswordResetToken.user_id == user.id,
-            PasswordResetToken.used_at.is_(None),
-        ).update({"used_at": now}, synchronize_session=False)
+        # 不批量作废旧链接：否则任何人只要反复触发本接口，就能让受害者
+        # 刚收到的重置链接持续失效（重置 DoS）。每个 token 仍是一次性的。
         token = password_reset.create_token()
         db.add(PasswordResetToken(
             user_id=user.id,

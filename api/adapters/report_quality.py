@@ -66,7 +66,8 @@ def assess(project_slug, has_sampling_access=False):
     pages_ok = int(site.get("pages_ok") or page_count or 0)
     crawl_ratio = pages_ok / pages_crawled if pages_crawled else 0
     # 不能用 `crawl_ratio or 1.0`：全站不可访问（ratio=0）时会被当成满分 35 分。
-    audit_ratio = 0 if not page_count else max(0.2, min(1.0, crawl_ratio))
+    # 不再设 0.2 下限：全站不可访问时给 7/35 分会让完整度与 readiness 自相矛盾。
+    audit_ratio = 0 if not page_count else min(1.0, crawl_ratio)
     audit_score = round(35 * audit_ratio)
     if not page_count:
         issues.append(_issue("audit_missing", "critical", "Site-wide GEO audit pending", "Re-run site crawl and page audit", "siteaudit"))

@@ -116,7 +116,12 @@ def question_cohort_evidence(rows, config, minimum=MIN_QUESTION_SAMPLES, expecte
         cells = []
         missing = 0
         for cohort in applicable_cohorts:
-            samples = int(grouped.get((question_id, cohort["key"])) or grouped.get((question_id, cohort["engine_code"]), 0))
+            # 配置了 cohort（expected_cohorts）时不能回退到引擎级计数：
+            # 那会把「API·联网检索」的样本算进「API·参数化知识」，
+            # 让没有证据的采样模式显示为已达标。回退只用于历史无 cohort 数据。
+            samples = int(grouped.get((question_id, cohort["key"]), 0))
+            if expected_cohorts is None:
+                samples = samples or int(grouped.get((question_id, cohort["engine_code"]), 0))
             gap = max(0, minimum - samples)
             missing += gap
             cells.append({

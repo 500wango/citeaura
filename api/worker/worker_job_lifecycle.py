@@ -196,7 +196,10 @@ def _job_status(tenant_id, project_slug, action, job_id=None):
                 job.finished_at = datetime.now(timezone.utc)
                 job.error = None
                 if project is not None:
-                    project.status = "ready"
+                    # 已归档项目可能仍有被 reclaim 后继续执行的任务；完成后
+                    # 不能把归档状态改回 ready。
+                    if project.status != "archived" and project.archived_at is None:
+                        project.status = "ready"
                     tenant = db.get(Tenant, project.tenant_id)
                     event_name = "sample_completed" if job.action in ("sample", "autopilot", "serve", "cycle") else "job_completed"
                     record_product_event(

@@ -240,14 +240,22 @@ SELECT * FROM subscription_demotions;
 ### 容器部署时
 
 ```bash
-docker compose -f docker-compose.prod.yml run --rm --entrypoint python3 api scripts/migrate_db.py
+# --env-file 是必需的：compose 不读 .env.production 时 DOMAIN/REDIS_PASSWORD 插值会直接失败。
+# 使用本地 postgres profile 时再加 --profile local-postgres。
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+    run --rm --entrypoint python3 api scripts/migrate_db.py
 ```
 
 ### 回滚
 
 ```bash
 alembic downgrade -1        # 只回结构（数据修正不回滚，降级明细会随表一起删除，先导出）
-pg_restore -c -d <db> backups/pre-migrate-<ts>.dump   # 连数据一起回
+# 自动迁移的备份在 citeaura_work 卷内的 /app/work/backups，不在宿主当前目录：
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+    exec api ls -l /app/work/backups
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+    cp api:/app/work/backups/pre-migrate-<ts>.dump ./pre-migrate-<ts>.dump
+pg_restore -c -d <db> ./pre-migrate-<ts>.dump
 ```
 
 ⚠️ 不要只回滚代码不回滚库：旧代码的 `_activate_checkout` 会撞上新的

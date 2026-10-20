@@ -484,8 +484,10 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
                 baseline.normalize_bootstrap_metadata(project_slug)
             if action == "sample" or (action in ("autopilot", "serve") and not (params or {}).get("--no-sample", False)):
                 if _should_require_sampling_result(action, params):
+                    # 统一读取落盘的 metrics：_run_pipeline_action 只返回状态字典，
+                    # 把它当作采样结果会让成功的采样被判失败。
                     _require_sampling_output(
-                        result if action == "sample" else _latest_metrics(project_slug),
+                        _latest_metrics(project_slug),
                         project_slug,
                         job_id=job_id,
                         started_at=started_at,

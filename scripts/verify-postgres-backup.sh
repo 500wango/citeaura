@@ -33,4 +33,23 @@ if [ "$mode" != "600" ]; then
 fi
 
 pg_restore --list "$latest" >/dev/null
+
+# 可选恢复演练：仅允许恢复到名字含 restore/verify 的临时库，防止误清生产库。
+if [ "${RESTORE_CHECK:-0}" = "1" ]; then
+  restore_url="${RESTORE_DATABASE_URL:-}"
+  if [ -z "$restore_url" ]; then
+    echo "RESTORE_DATABASE_URL is required when RESTORE_CHECK=1" >&2
+    exit 2
+  fi
+  case "$restore_url" in
+    *restore*|*verify*) ;;
+    *)
+      echo "RESTORE_DATABASE_URL must target a restore/verify database" >&2
+      exit 2
+      ;;
+  esac
+  pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges \
+    --dbname="$restore_url" "$latest" >/dev/null
+fi
+
 printf 'PostgreSQL backup OK: %s (age %ss)\n' "$latest" "$age"

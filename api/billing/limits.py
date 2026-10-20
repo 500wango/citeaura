@@ -212,9 +212,12 @@ def _raise_limit(detail: str, error="trial_limit_exceeded"):
 
 
 def check_product_access(db: Session, tenant: Tenant):
-    """阻止订阅结束的工作区继续执行付费产品能力。"""
+    """阻止订阅结束或试用过期的工作区继续执行付费产品能力。"""
     if effective_tenant_plan(db, tenant.id) == EXPIRED_PLAN:
         _raise_limit("an active subscription is required", error="subscription_required")
+    # 未订阅且试用到期的租户 plan 仍是 trial，effective_tenant_plan 不会返回
+    # expired；这里显式触发试用过期检查，避免交付包/外联等能力被继续使用。
+    _trial_active(tenant)
 
 
 def check_project_creation(db: Session, tenant: Tenant):
@@ -237,6 +240,8 @@ def check_project_creation(db: Session, tenant: Tenant):
 
 def check_sample_run(db: Session, tenant: Tenant, project: Project):
     """检查单项目和整个试用生命周期的采样次数。"""
+    # 锁住租户行，串行化额度检查：并发导入否则会各自读到未超限的计数。
+    db.query(Tenant.id).filter(Tenant.id == tenant.id).with_for_update().first()
     check_product_access(db, tenant)
     if _trial_active(tenant):
         count = _count_sampled_jobs(db, project_id=project.id)

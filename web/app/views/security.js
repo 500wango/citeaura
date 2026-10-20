@@ -148,8 +148,11 @@ export default {
       const default_role = document.getElementById('sso-default-role')?.value;
       const enabled = Boolean(document.getElementById('sso-enabled')?.checked);
 
+      const payload = { provider_name, issuer_url, client_id, allowed_domains, default_role, enabled };
+      // 留空表示保留已加密存储的 secret；发送空串会被后端当作主动清空。
+      if (client_secret) payload.client_secret = client_secret;
       try {
-        await sso.saveConfig({ provider_name, issuer_url, client_id, client_secret, allowed_domains, default_role, enabled });
+        await sso.saveConfig(payload);
         toast.success('SSO configuration saved successfully');
       } catch (err) {
         toast.error(tError(err));

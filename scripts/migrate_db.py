@@ -24,8 +24,24 @@ from sqlalchemy import create_engine, inspect, text  # noqa: E402
 
 from api import config  # noqa: E402
 
-TARGET_REVISION = "0039_public_audit_consumed"
 CURRENT_STATUSES = ("active", "trialing", "past_due")
+BACKUP_RETENTION = 10
+
+
+def _alembic_config():
+    from alembic.config import Config
+
+    root = Path(__file__).resolve().parents[1]
+    cfg = Config(str(root / "alembic.ini"))
+    cfg.set_main_option("script_location", str(root / "api" / "migrations"))
+    return cfg
+
+
+def target_revision():
+    """直接读取迁移目录的 head，避免新增迁移后硬编码版本号失配。"""
+    from alembic.script import ScriptDirectory
+
+    return ScriptDirectory.from_config(_alembic_config()).get_current_head()
 
 
 def _engine():
@@ -47,21 +63,31 @@ def current_revision(engine):
 
 def preflight(engine):
     """跑迁移前先看清它会影响什么。只读。"""
-    report = {"revision": current_revision(engine), "demote_candidates": [], "duplicate_notification": []}
+    report = {
+        "revision": current_revision(engine),
+        "demote_candidates": [],
+        "duplicate_notification": [],
+        "errors": [],
+    }
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
     with engine.connect() as conn:
-        try:
-            current_rows = [
-                dict(row._mapping) for row in conn.execute(text(
-                    f"""
-                    SELECT tenant_id, id, plan, status, started_at, provider_subscription_id
-                    FROM subscriptions
-                    WHERE status IN {CURRENT_STATUSES}
-                    ORDER BY tenant_id, started_at DESC NULLS LAST, id DESC
-                    """
-                ))
-            ]
-        except Exception:  # noqa: BLE001 - 全新库还没有 subscriptions 表
-            current_rows = []
+        current_rows = []
+        if "subscriptions" in tables:
+            try:
+                current_rows = [
+                    dict(row._mapping) for row in conn.execute(text(
+                        f"""
+                        SELECT tenant_id, id, plan, status, started_at, provider_subscription_id
+                        FROM subscriptions
+                        WHERE status IN {CURRENT_STATUSES}
+                        ORDER BY tenant_id, started_at DESC NULLS LAST, id DESC
+                        """
+                    ))
+                ]
+            except Exception as exc:  # noqa: BLE001 - 预检失败要显式报错而不是静默为空
+                conn.rollback()
+                report["errors"].append(f"subscriptions 预检失败: {exc}")
         # 顺序与迁移里的 ROW_NUMBER() 完全一致：同一租户只留第一条，其余都会被降级。
         seen = {}
         for row in current_rows:
@@ -69,19 +95,21 @@ def preflight(engine):
             seen[tenant] = seen.get(tenant, 0) + 1
             if seen[tenant] > 1:
                 report["demote_candidates"].append(row)
-        try:
-            report["duplicate_notification"] = [
-                dict(row._mapping) for row in conn.execute(text(
-                    """
-                    SELECT notification_key, count(*) AS rows
-                    FROM billing_events
-                    WHERE notification_key IS NOT NULL
-                    GROUP BY notification_key HAVING count(*) > 1
-                    """
-                ))
-            ]
-        except Exception:  # noqa: BLE001 - 旧库可能没有这张表
-            report["duplicate_notification"] = []
+        if "billing_events" in tables:
+            try:
+                report["duplicate_notification"] = [
+                    dict(row._mapping) for row in conn.execute(text(
+                        """
+                        SELECT notification_key, count(*) AS rows
+                        FROM billing_events
+                        WHERE notification_key IS NOT NULL
+                        GROUP BY notification_key HAVING count(*) > 1
+                        """
+                    ))
+                ]
+            except Exception as exc:  # noqa: BLE001 - 预检失败要显式报错
+                conn.rollback()
+                report["errors"].append(f"billing_events 预检失败: {exc}")
     return report
 
 
@@ -91,7 +119,11 @@ def backup(engine):
     if binary is None:
         return None
     directory = Path(os.getenv("CITEAURA_BACKUP_DIR", "backups"))
-    directory.mkdir(parents=True, exist_ok=True)
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        print(f"无法创建备份目录 {directory}: {exc}", file=sys.stderr)
+        return None
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     target = directory / f"pre-migrate-{stamp}.dump"
     parsed = engine.url
@@ -108,17 +140,20 @@ def backup(engine):
     if completed.returncode != 0:
         print(completed.stderr.strip(), file=sys.stderr)
         return None
+    # 整库转储包含密码哈希与加密密钥，不能沿用 pg_dump 默认的 0644。
+    try:
+        target.chmod(0o600)
+    except OSError as exc:
+        print(f"警告：无法收紧备份文件权限 {target}: {exc}", file=sys.stderr)
+    for stale in sorted(directory.glob("pre-migrate-*.dump"), key=lambda item: item.stat().st_mtime)[:-BACKUP_RETENTION]:
+        stale.unlink(missing_ok=True)
     return target
 
 
 def upgrade():
     from alembic import command
-    from alembic.config import Config
 
-    root = Path(__file__).resolve().parents[1]
-    cfg = Config(str(root / "alembic.ini"))
-    cfg.set_main_option("script_location", str(root / "api" / "migrations"))
-    command.upgrade(cfg, "head")
+    command.upgrade(_alembic_config(), "head")
 
 
 def verify(engine):
@@ -152,8 +187,9 @@ def verify(engine):
             problems.append(f"仍有 {len(duplicates)} 个租户存在多条当前订阅")
         demoted = conn.execute(text("SELECT count(*) FROM subscription_demotions")).scalar() or 0
         revision = current_revision(engine)
-    if revision != TARGET_REVISION:
-        problems.append(f"alembic 版本是 {revision}，期望 {TARGET_REVISION}")
+    expected = target_revision()
+    if revision != expected:
+        problems.append(f"alembic 版本是 {revision}，期望 {expected}")
     return problems, demoted, revision
 
 
@@ -164,9 +200,15 @@ def main():
     args = parser.parse_args()
 
     engine = _engine()
+    target = target_revision()
     report = preflight(engine)
-    print(f"当前版本: {report['revision']}  ->  目标: {TARGET_REVISION}")
-    if report["revision"] == TARGET_REVISION:
+    print(f"当前版本: {report['revision']}  ->  目标: {target}")
+    if report["errors"]:
+        print("\n预检失败，已中止：", file=sys.stderr)
+        for item in report["errors"]:
+            print(f"  - {item}", file=sys.stderr)
+        return 2
+    if report["revision"] == target:
         print("已经是最新版本，无需迁移。")
         return 0
     if report["demote_candidates"]:

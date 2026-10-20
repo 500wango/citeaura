@@ -21,7 +21,7 @@ def _hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def issue(db: Session, tenant: Tenant, name: str, ttl_days: int = DEFAULT_TTL_DAYS):
+def issue(db: Session, tenant: Tenant, name: str, ttl_days: int = DEFAULT_TTL_DAYS, created_by_user_id=None):
     """签发只读令牌；原文只在创建响应中返回一次。"""
     raw = TOKEN_PREFIX + secrets.token_urlsafe(32)
     try:
@@ -31,6 +31,7 @@ def issue(db: Session, tenant: Tenant, name: str, ttl_days: int = DEFAULT_TTL_DA
     ttl_days = max(1, min(requested_ttl, 365))
     row = ApiAccessToken(
         tenant_id=tenant.id,
+        created_by_user_id=created_by_user_id,
         name=name.strip(),
         token_prefix=raw[:12],
         token_hash=_hash(raw),

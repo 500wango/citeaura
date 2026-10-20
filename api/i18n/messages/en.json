@@ -302,7 +302,7 @@
   "questions.modal_title": "Add Target Questions",
   "questions.modal_hint": "Enter one question per line. Questions will be added to the brand evaluation bank.",
   "plan.title": "Engineering Action Tickets",
-  "plan.desc": "13 standardized optimization tickets categorized by Impact × Effort to maximize engineering ROI and close recommendation gaps.",
+  "plan.desc": "{count} standardized optimization tickets categorized by Impact × Effort to maximize engineering ROI and close recommendation gaps.",
   "plan.mode_matrix": "2×2 Matrix",
   "plan.mode_table": "Table List",
   "plan.create_ticket_btn": "Create Ticket",

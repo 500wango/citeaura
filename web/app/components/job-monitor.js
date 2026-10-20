@@ -46,8 +46,11 @@ export function createJobMonitor({ state, projects, toast, t, openTelemetryModal
 
   async function checkJobs() {
     if (!state.activeProjectId || !state.user) return;
+    const requestedProjectId = state.activeProjectId;
     try {
-      const jobs = await projects.getJobs(state.activeProjectId, { limit: 20 });
+      const jobs = await projects.getJobs(requestedProjectId, { limit: 20 });
+      // 切换项目后旧请求晚到：不能把旧项目的任务写进新项目的顶栏。
+      if (requestedProjectId !== state.activeProjectId) return;
       const active = Array.isArray(jobs) ? jobs.find((j) => j.status === 'running' || j.status === 'queued') : null;
       const indicator = document.getElementById('active-job-indicator');
       if (active) {

@@ -1,5 +1,6 @@
 """密码哈希和 JWT 安全工具。"""
 
+import base64
 import hashlib
 import hmac
 from datetime import datetime, timedelta, timezone
@@ -39,14 +40,27 @@ def _signing_key(token_type):
     return base
 
 
+PASSWORD_HASH_PREFIX = "sha256$"
+
+
+def _password_digest(password: str) -> bytes:
+    """先把任意长度密码压成固定 44 字节，绕开 bcrypt 的 72 字节上限。"""
+    return base64.b64encode(hashlib.sha256(password.encode("utf-8")).digest())
+
+
 def hash_password(password: str) -> str:
     """使用 bcrypt 哈希密码。"""
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("ascii")
+    digest = _password_digest(password)
+    return PASSWORD_HASH_PREFIX + bcrypt.hashpw(digest, bcrypt.gensalt()).decode("ascii")
 
 
 def verify_password(password: str, password_hash: str) -> bool:
     """验证明文密码是否匹配 bcrypt 哈希。"""
     try:
+        if password_hash.startswith(PASSWORD_HASH_PREFIX):
+            return bcrypt.checkpw(_password_digest(password), password_hash[len(PASSWORD_HASH_PREFIX):].encode("ascii"))
+        # 兼容历史哈希：bcrypt 只使用前 72 字节，旧账号仍可登录，
+        # 下次设置密码时会升级为带前缀的新格式。
         return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("ascii"))
     except (ValueError, UnicodeEncodeError):
         return False

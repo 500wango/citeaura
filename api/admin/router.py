@@ -583,6 +583,9 @@ def change_user_status(
     previous = user.status
     user.status = payload.status
     user.session_version += 1
+    if payload.status != "active":
+        # JWT 由 session_version 作废，但集成令牌不绑定会话版本，必须单独吊销。
+        _revoke_user_api_tokens(db, user, datetime.now(timezone.utc))
     record_admin_event(
         db, admin.id, "user.status_changed", f"user:{user.id}",
         ip_address=request.client.host if request.client else None,
@@ -657,6 +660,14 @@ def _cancel_tenant_billing(db: Session, tenant: Tenant, now):
         })
     db.commit()
     return {"status": "applied", "subscriptions": items}
+
+
+def _revoke_user_api_tokens(db: Session, user: User, now):
+    """吊销该用户创建的集成令牌；令牌本身没有用户绑定，只能按创建者定位。"""
+    return db.query(ApiAccessToken).filter(
+        ApiAccessToken.created_by_user_id == user.id,
+        ApiAccessToken.revoked_at.is_(None),
+    ).update({ApiAccessToken.revoked_at: now}, synchronize_session=False)
 
 
 def _revoke_tenant_api_tokens(db: Session, tenant: Tenant, now):

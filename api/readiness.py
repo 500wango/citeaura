@@ -1,5 +1,8 @@
 """生产依赖就绪检查。"""
 
+from functools import lru_cache
+from pathlib import Path
+
 from sqlalchemy import text
 
 from api import config
@@ -9,7 +12,29 @@ from api.settings.crypto import _master_key
 from api.worker.celery_app import celery_app
 
 
-EXPECTED_DB_REVISION = "0039_public_audit_consumed"
+REQUIRED_CHECKS = (
+    "database",
+    "migrations",
+    "redis",
+    "encryption",
+    "jwt",
+    "https",
+    "rate_limit_proxy_headers",
+    "stripe",
+    "password_reset_email",
+)
+
+
+@lru_cache(maxsize=1)
+def expected_db_revision():
+    """从迁移目录读取 head，避免新增迁移后忘记同步硬编码版本号。"""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    root = Path(__file__).resolve().parents[1]
+    cfg = Config(str(root / "alembic.ini"))
+    cfg.set_main_option("script_location", str(root / "api" / "migrations"))
+    return ScriptDirectory.from_config(cfg).get_current_head()
 
 
 def _worker_available():
@@ -28,7 +53,7 @@ def readiness_checks(db):
         checks["database"] = False
     try:
         revision = db.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-        checks["migrations"] = revision == EXPECTED_DB_REVISION
+        checks["migrations"] = revision == expected_db_revision()
     except Exception:  # noqa: BLE001 - 未迁移数据库应返回未就绪
         checks["migrations"] = False
     try:
@@ -52,4 +77,7 @@ def readiness_checks(db):
     )
     checks["stripe"] = not config.billing_enabled() or stripe_adapter.configured()
     checks["password_reset_email"] = not config.password_reset_email_enabled() or config.auth_smtp_configured()
-    return {"status": "ready" if all(checks.values()) else "not_ready", "checks": checks}
+    # worker 状态只作为观测项：API 的容器健康不应与某个 worker 副本绑定，
+    # 否则一次 worker 重启就会让 API 被判 unhealthy 并阻断部署。
+    ready = all(checks.get(name) for name in REQUIRED_CHECKS)
+    return {"status": "ready" if ready else "not_ready", "checks": checks}

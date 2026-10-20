@@ -302,7 +302,7 @@
   "questions.modal_title": "Hinzufügen von Zielfragen",
   "questions.modal_hint": "Geben Sie eine Frage pro Zeile ein. Fragen werden der Markenbewertungsbank hinzugefügt.",
   "plan.title": "Engineering-Aktions-Tickets",
-  "plan.desc": "Schließen Sie Empfehlungslücken mit 13 Standardtickets, sortiert nach Wirkung und Aufwand.",
+  "plan.desc": "Schließen Sie Empfehlungslücken mit {count} Standardtickets, sortiert nach Wirkung und Aufwand.",
   "plan.mode_matrix": "2×2-Matrix",
   "plan.mode_table": "Tabellenliste",
   "plan.create_ticket_btn": "Ticket erstellen",

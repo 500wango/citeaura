@@ -6,6 +6,7 @@ import { projects } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
+import { escapeHtml } from '../safe-html.js';
 
 export default {
   render: async (ctx) => {
@@ -14,10 +15,13 @@ export default {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
     }
 
-    let schedule = {};
+    // 读取失败必须中止渲染：用默认值回填表单，保存时会把真实调度整体覆盖。
+    let schedule;
     try {
-      schedule = await projects.getSchedule(projectId).catch(() => ({}));
-    } catch (e) {}
+      schedule = await projects.getSchedule(projectId);
+    } catch (err) {
+      return `<div class="app-view-container"><div class="banner bad">${escapeHtml(tError(err))}</div></div>`;
+    }
 
     const enabled = Boolean(schedule.enabled);
     const intervalDays = [1, 7, 14, 30].includes(schedule.interval_days) ? schedule.interval_days : 7;

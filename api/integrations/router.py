@@ -62,7 +62,7 @@ def create_api_token(
     db: Session = Depends(get_db),
 ):
     tenant = _tenant_for_owner(db, current_user)
-    row, raw = issue(db, tenant, payload.name)
+    row, raw = issue(db, tenant, payload.name, created_by_user_id=current_user.id)
     db.commit()
     return {"token": raw, "warning": "Copy this token now. CiteAura never stores or shows it again.", "api_token": _token_payload(row)}
 

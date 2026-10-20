@@ -373,9 +373,13 @@ def _guide_requires_steps(page):
     ))
 
 
-def _present_page(raw_page, evidence):
+def _present_page(raw_page, evidence, evidence_available=True):
     raw_page = raw_page if isinstance(raw_page, dict) else {}
     evidence = evidence if isinstance(evidence, dict) else {}
+    # 本次审计有 evidence 数据但该页未匹配（URL 规范化不一致等）时，
+    # 页面缺少真实证据，必须判为未评估，不能默认通过。
+    # 旧版产物完全没有 evidence 时才回退到 raw_page 自身字段。
+    strict_missing = bool(evidence_available) and not evidence
     merged = {**raw_page, **evidence, "url": raw_page.get("url") or evidence.get("url")}
     role = classify_page(merged)
     role_id = role["id"]
@@ -454,12 +458,16 @@ def _present_page(raw_page, evidence):
             status = 0
         elif "NON_200_STATUS" in codes:
             status = -1
-        else:
+        elif not strict_missing:
             status = 200
-    status = _number(status, 0)
-    unreachable = status == 0 or status >= 400 or "PAGE_UNREACHABLE" in codes
+    # 保留 None：严格模式下没有该页证据时不能默认成 0（会被当作不可访问）。
+    status = _number(status, 0) if status is not None else None
+    unreachable = status == 0 or (status is not None and status >= 400) or "PAGE_UNREACHABLE" in codes
     successful = status == 200 and not unreachable
-    if unreachable:
+    if status is None:
+        # 没有抓取证据也没有引擎结论：不能默认 200 并判为可访问。
+        record("accessibility", not_evaluated=True)
+    elif unreachable:
         record("accessibility", False, _finding(
             "PAGE_UNREACHABLE", "Page is not crawlable",
             f"The crawl returned HTTP {status or 'no response'}; downstream content checks were not evaluated.",
@@ -480,11 +488,15 @@ def _present_page(raw_page, evidence):
                 record(name, not_evaluated=True)
     else:
         noindex = "noindex" in str(evidence.get("meta_robots") or "").lower() or "NOINDEX" in codes
-        record("indexability", not noindex, None if not noindex else _finding(
-            "NOINDEX", "Page is excluded by noindex",
-            "Search and answer-engine crawlers are instructed not to index this public page.",
-            "Remove noindex only when this page is intended for public discovery.", "P0", "crawlability",
-        ))
+        if strict_missing and not noindex:
+            # 没有抓取证据时无法证明页面允许索引，不能默认通过。
+            record("indexability", not_evaluated=True)
+        else:
+            record("indexability", not noindex, None if not noindex else _finding(
+                "NOINDEX", "Page is excluded by noindex",
+                "Search and answer-engine crawlers are instructed not to index this public page.",
+                "Remove noindex only when this page is intended for public discovery.", "P0", "crawlability",
+            ))
 
         canonical_known = bool(evidence) or "NO_CANONICAL" in codes
         canonical_ok = bool(evidence.get("canonical")) if evidence else "NO_CANONICAL" not in codes
@@ -497,20 +509,25 @@ def _present_page(raw_page, evidence):
         else:
             record("canonical", not_evaluated=True)
 
-        rendered_ok = (
-            word_count >= 20 or para_count >= 2 or bool(h1) or
-            (not evidence and "SPA_SHELL" not in codes and "LOW_CONTENT_PAGE" not in codes)
-        )
-        record("rendered_content", rendered_ok, None if rendered_ok else _finding(
-            "SPA_SHELL", "No meaningful server-rendered content detected",
-            f"The crawler found {word_count} words and no reliable body structure in the initial HTML.",
-            "Render the page's essential public content in HTML through SSR, static generation, or prerendering.",
-            "P0", "crawlability",
-        ))
+        if strict_missing:
+            # 缺证据时把渲染内容及其派生检查全部判为未评估；rendered_ok 只用于
+            # 选择下面的分支，不能留给下游引用。
+            record("rendered_content", not_evaluated=True)
+            rendered_ok = False
+        else:
+            rendered_ok = word_count >= 20 or para_count >= 2 or bool(h1)
+            record("rendered_content", rendered_ok, None if rendered_ok else _finding(
+                "SPA_SHELL", "No meaningful server-rendered content detected",
+                f"The crawler found {word_count} words and no reliable body structure in the initial HTML.",
+                "Render the page's essential public content in HTML through SSR, static generation, or prerendering.",
+                "P0", "crawlability",
+            ))
 
         schema_applicable = bool(policy.get("schema"))
-        if schema_applicable:
-            schema_ok = bool(schema_types) or (not evidence and "NO_JSONLD" not in codes)
+        if schema_applicable and strict_missing:
+            record("structured_data", not_evaluated=True)
+        elif schema_applicable:
+            schema_ok = bool(schema_types) or "NO_JSONLD" not in codes
             record("structured_data", schema_ok, None if schema_ok else _finding(
                 "NO_JSONLD", "No JSON-LD detected for this content page",
                 "The page has no machine-readable structured data describing its visible content.",
@@ -581,7 +598,9 @@ def _present_page(raw_page, evidence):
                     "P1", "extractability",
                 ))
 
-            if policy.get("date"):
+            if policy.get("date") and strict_missing:
+                record("date", not_evaluated=True)
+            elif policy.get("date"):
                 passed = "NO_DATE" not in codes
                 record("date", passed, None if passed else _finding(
                     "NO_DATE", "Missing publication or update date",
@@ -590,7 +609,9 @@ def _present_page(raw_page, evidence):
                     "P2", "authority",
                 ))
 
-            if policy.get("external"):
+            if policy.get("external") and strict_missing:
+                record("external_evidence", not_evaluated=True)
+            elif policy.get("external"):
                 links = evidence.get("external_links")
                 passed = _number(links) >= 1 if links is not None else "FEW_EXTERNAL_LINKS" not in codes
                 record("external_evidence", passed, None if passed else _finding(
@@ -682,7 +703,11 @@ def present_audit_data(audit, evidence_pages=None, site_data=None):
     audit = audit if isinstance(audit, dict) else {}
     raw_pages = [page for page in audit.get("pages") or [] if isinstance(page, dict)]
     lookup = _evidence_lookup(evidence_pages or [])
-    pages = [_present_page(page, _page_evidence(page, lookup)) for page in raw_pages]
+    evidence_available = bool(evidence_pages)
+    pages = [
+        _present_page(page, _page_evidence(page, lookup), evidence_available=evidence_available)
+        for page in raw_pages
+    ]
 
     evaluated_pages = [page for page in pages if page.get("evaluation_status") == "evaluated"]
     score_eligible_pages = [page for page in pages if page.get("evaluation_status") != "excluded"]

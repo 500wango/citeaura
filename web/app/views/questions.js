@@ -5,7 +5,7 @@
 import { workspace, projects } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
-import { openModal } from '../components/modal.js';
+import { confirmModal, openModal } from '../components/modal.js';
 import { renderEmpty, bindEmptyAction } from '../components/empty.js';
 import { escapeHtml } from '../safe-html.js';
 
@@ -284,6 +284,7 @@ export default {
 
     document.querySelectorAll('.btn-del-question').forEach((button) => {
       button.addEventListener('click', async () => {
+        if (!(await confirmModal('Remove this question from the target set?', { title: 'Remove question', isDanger: true }))) return;
         try {
           await workspace.deleteQuestion(projectId, button.getAttribute('data-id'));
           toast.success('Question removed');

@@ -172,6 +172,11 @@ def record_usage(funding, counts, action, job_id=None):
                 Job.project_id == funding["project_id"],
             ).first() is not None:
                 valid_job_id = candidate
+        if valid_job_id is None:
+            # 没有有效 job_id 就没有幂等键：重复调用会重复计入配额与账单。
+            # 平台代付只发生在任务内，无主调用直接丢弃并留痕。
+            print("[citeaura] platform usage skipped: no valid job_id", flush=True)
+            return []
         month = _month_start()
         accepted = []
         total_calls = 0
@@ -337,12 +342,13 @@ def reconcile_usage_outbox(limit=100):
                 "rates": {row.engine_code: row.unit_price_cny_fen},
             }
             try:
-                record_usage(
-                    funding,
-                    Counter({row.engine_code: row.calls}),
-                    row.action,
-                    job_id=row.job_id,
-                )
+                if row.job_id is not None:
+                    record_usage(
+                        funding,
+                        Counter({row.engine_code: row.calls}),
+                        row.action,
+                        job_id=row.job_id,
+                    )
                 row.status = "processed"
                 row.processed_at = now
                 row.last_error = None

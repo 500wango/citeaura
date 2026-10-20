@@ -332,11 +332,14 @@ async function renderApp() {
       if (renderId !== renderSequence) return;
       const view = module.default;
       currentView = view;
-      const html = typeof view.render === 'function' ? await view.render(createContext()) : '';
+      const context = createContext();
+      const html = typeof view.render === 'function' ? await view.render(context) : '';
       if (renderId !== renderSequence) return;
       setSafeHtml(appRoot, html);
       localizeRenderedText(appRoot);
-      if (typeof view.mounted === 'function') view.mounted(createContext());
+      // mounted 必须复用 render 的 context：部分视图在 render 时把数据挂到 ctx 上
+      // （如 entities 的 _entities），换一个新 context 会静默丢失这些数据。
+      if (typeof view.mounted === 'function') view.mounted(context);
       // mounted() may append empty states, toasts, or modal labels after the
       // initial render. Scan once more so legacy literals do not leak English.
       localizeRenderedText(appRoot);
@@ -374,7 +377,7 @@ async function renderApp() {
       if (renderId !== renderSequence || context.activeProjectId !== state.activeProjectId) return;
       setSafeHtml(viewContainer, html);
       localizeRenderedText(viewContainer);
-      if (typeof view.mounted === 'function') view.mounted(createContext());
+      if (typeof view.mounted === 'function') view.mounted(context);
       localizeRenderedText(viewContainer);
     } catch (err) {
       if (renderId !== renderSequence) return;
@@ -600,8 +603,8 @@ function renderAppShell() {
             <!-- User Menu -->
             <div class="user-menu">
               <button type="button" class="user-menu-btn" id="user-menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="user-dropdown-menu">
-                <span class="user-avatar">${(state.user?.email || 'U')[0].toUpperCase()}</span>
-                <span style="font-weight:600;font-size:var(--fs-2);">${state.user?.email || 'User'}</span>
+                <span class="user-avatar">${escapeHtml((state.user?.email || 'U')[0].toUpperCase())}</span>
+                <span style="font-weight:600;font-size:var(--fs-2);">${escapeHtml(state.user?.email || 'User')}</span>
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
 

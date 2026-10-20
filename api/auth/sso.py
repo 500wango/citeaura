@@ -18,6 +18,7 @@ from api.auth import oidc
 from api.auth.deps import get_current_user, require_owner
 from api.auth.router import token_response
 from api.auth.security import create_sso_state, decode_token, hash_password
+from api.billing.access import effective_tenant_plan
 from api.country import request_country_code
 from api.db import get_db
 from api.models import AuditEvent, Membership, SsoConfiguration, SsoIdentity, Tenant, User
@@ -221,7 +222,7 @@ def start_sso_login(tenant_id: int, response: Response, db: Session = Depends(ge
     if tenant.status != "active":
         _error(status.HTTP_403_FORBIDDEN, "account_disabled")
     configuration = db.get(SsoConfiguration, tenant.id)
-    if tenant.plan != "enterprise" or configuration is None or not configuration.enabled:
+    if effective_tenant_plan(db, tenant.id) != "enterprise" or configuration is None or not configuration.enabled:
         _error(status.HTTP_404_NOT_FOUND, "sso_not_configured")
     if config.sso_require_domain_verification() and not (
         set(_domains(configuration)) & set(_verified_domains(configuration))
@@ -267,7 +268,7 @@ def sso_callback(
         _error(status.HTTP_400_BAD_REQUEST, "sso_context_invalid")
     tenant = _tenant(db, tenant_id)
     configuration = db.get(SsoConfiguration, tenant.id)
-    if tenant.plan != "enterprise" or configuration is None or not configuration.enabled:
+    if effective_tenant_plan(db, tenant.id) != "enterprise" or configuration is None or not configuration.enabled:
         _error(status.HTTP_404_NOT_FOUND, "sso_not_configured")
     redirect_uri = f"{config.public_base_url()}/api/v1/sso/callback"
     try:

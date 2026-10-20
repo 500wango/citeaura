@@ -667,7 +667,7 @@ def ensure_delivery_contract(
     config = global_scope.normalize_project(project_slug, persist=persist)
     from api.adapters import generated_assets
 
-    generated_assets.normalize_project_assets(project_slug, config=config)
+    generated_assets.normalize_project_assets(project_slug, config=config, persist=persist)
     project_directory = geolib.project_dir(project_slug)
     delivery_directory = Path(delivery_directory) if delivery_directory else _latest_delivery(project_directory)
     if delivery_directory is None:

@@ -20,7 +20,7 @@ class Result:
 class Database:
     def execute(self, statement):
         if "alembic_version" in str(statement):
-            return Result(readiness.EXPECTED_DB_REVISION)
+            return Result(readiness.expected_db_revision())
         return Result(1)
 
 
@@ -50,9 +50,9 @@ def test_readiness_requires_all_production_dependencies(monkeypatch):
 
 def test_readiness_requires_latest_migration():
     migrations = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
-    assert readiness.EXPECTED_DB_REVISION == migrations.get_current_head(), (
-        "readiness.EXPECTED_DB_REVISION 必须随每个新迁移一起升级；"
-        "否则按 FIXES.md 第 0 步迁移到 head 之后，/api/v1/health/ready 会一直返回 503"
+    assert readiness.expected_db_revision() == migrations.get_current_head(), (
+        "readiness 必须直接读取 alembic head；"
+        "硬编码版本号会在新增迁移后让 /api/v1/health/ready 永久 503"
     )
 
 
@@ -94,7 +94,7 @@ def test_readiness_allows_disabled_optional_features(monkeypatch):
     assert result["checks"]["password_reset_email"] is True
 
 
-def test_readiness_requires_an_active_worker(monkeypatch):
+def test_readiness_reports_worker_without_blocking_api(monkeypatch):
     monkeypatch.setattr(readiness, "redis_client", lambda: Redis())
     monkeypatch.setattr(readiness, "_worker_available", lambda: False)
     monkeypatch.setattr(readiness, "_master_key", lambda: b"a" * 32)
@@ -106,7 +106,8 @@ def test_readiness_requires_an_active_worker(monkeypatch):
 
     result = readiness.readiness_checks(Database())
 
-    assert result["status"] == "not_ready"
+    # worker 只作为观测项：API 本身仍可服务，不能因此被判 unhealthy。
+    assert result["status"] == "ready"
     assert result["checks"]["worker"] is False
 
 

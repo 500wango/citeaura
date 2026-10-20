@@ -328,12 +328,26 @@ def read_project_assets(project_slug, config=None):
     }
 
 
-def normalize_project_assets(project_slug, config=None):
+def normalize_project_assets(project_slug, config=None, persist=True):
     """Migrate managed legacy assets and return the safe product-visible tree."""
     project = geolib.project_dir(project_slug)
     assets = project / "assets"
     if not assets.is_dir():
         return {"tree": [], "visible_paths": frozenset(), "migrated": [], "excluded": {}}
+    if not persist:
+        # 只读路径（例如 GET 下载兜底重建）不能迁移或改写资产，只复用已有索引。
+        index = geolib.read_json(assets / "index.json", {}) or {}
+        if not isinstance(index, dict):
+            index = {}
+        records = [item for item in index.get("asset_records") or [] if isinstance(item, dict)]
+        return {
+            "tree": records,
+            "visible_paths": frozenset(
+                item["path"] for item in records if isinstance(item.get("path"), str)
+            ),
+            "migrated": [],
+            "excluded": index.get("excluded") or {},
+        }
 
     config = config if isinstance(config, dict) else geolib.load_config(project_slug)
     brand_facts.ensure_english_facts(project_slug, config=config)

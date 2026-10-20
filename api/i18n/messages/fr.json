@@ -302,7 +302,7 @@
   "questions.modal_title": "Ajouter des questions cibles",
   "questions.modal_hint": "Saisissez une question par ligne. Les questions seront ajoutées à la banque d'évaluation de la marque.",
   "plan.title": "Tickets d’action d’ingénierie",
-  "plan.desc": "Réduisez les écarts de recommandation avec 13 tickets standard classés par impact et effort.",
+  "plan.desc": "Réduisez les écarts de recommandation avec {count} tickets standard classés par impact et effort.",
   "plan.mode_matrix": "Matrice 2×2",
   "plan.mode_table": "Liste tabulaire",
   "plan.create_ticket_btn": "Créer un ticket",

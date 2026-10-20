@@ -67,9 +67,11 @@ if [[ "$database_host" == "postgres" ]]; then
     compose up -d --wait postgres
 fi
 compose build api worker beat
-compose run --rm --user root api \
-    chown -R citeaura:citeaura /app/work
-compose run --rm api alembic upgrade head
+# 覆盖 entrypoint：权限修复容器不应触发自动迁移（会以 root 产生备份）。
+compose run --rm --user root --entrypoint sh api \
+    -c 'chown -R citeaura:citeaura /app/work'
+# 走 migrate_db.py 而不是裸 alembic：保留备份、预检和数据修正校验。
+compose run --rm --entrypoint python3 api scripts/migrate_db.py
 # --force-recreate：compose 认为容器「已是期望状态」时只 start 不重建，于是已经坏掉的容器
 # （例如端口未绑定）会跨部署一直存活，重新部署同样的代码永远修不好它。
 compose up -d --force-recreate api worker beat
@@ -120,6 +122,8 @@ for attempt in $(seq 1 30); do
         printf '\n' >&2
         compose ps -a >&2
         report_api_container
+        printf '\n回滚：切回上一版本后重新执行 deploy.sh。\n' >&2
+        printf '迁移备份在 citeaura_work 卷的 /app/work/backups（见 FIXES.md 回滚章节）。\n' >&2
         exit 1
     fi
     sleep 2

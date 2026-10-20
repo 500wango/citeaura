@@ -302,7 +302,7 @@
   "questions.modal_title": "添加目标问题",
   "questions.modal_hint": "每行输入一个问题。问题会加入品牌评估库。",
   "plan.title": "工程行动工单",
-  "plan.desc": "按影响 × 工作量分类的 13 个标准优化工单，最大化工程投入回报并弥合推荐差距。",
+  "plan.desc": "按影响 × 工作量分类的 {count} 个标准优化工单，最大化工程投入回报并弥合推荐差距。",
   "plan.mode_matrix": "2×2 矩阵",
   "plan.mode_table": "表格列表",
   "plan.create_ticket_btn": "创建工单",

@@ -76,7 +76,7 @@ export default {
           <div class="view-title-group">
             <h1 class="view-title">${t('plan.title', {}, 'Engineering Action Tickets')}</h1>
             <p class="view-desc">
-              ${t('plan.desc', {}, `${tickets.length} optimization tickets categorized by Priority × Effort.`)}
+              ${t('plan.desc', { count: tickets.length }, `${tickets.length} optimization tickets categorized by Priority × Effort.`)}
             </p>
           </div>
           <div class="view-actions">
@@ -225,7 +225,14 @@ export default {
     document.getElementById('btn-save-visibility-plan')?.addEventListener('click', async () => {
       const phase = document.getElementById('visibility-phase')?.value || 'baseline';
       const next = document.getElementById('visibility-review')?.value || null;
-      const currentPlan = await projects.getVisibilityPlan(projectId).catch(() => ({}));
+      // 读取失败时不能用空对象继续保存：那会把服务端已有的目标与完成阶段清空。
+      let currentPlan;
+      try {
+        currentPlan = await projects.getVisibilityPlan(projectId);
+      } catch (err) {
+        toast.error(tError(err));
+        return;
+      }
       const completed = (currentPlan.plan?.completed_phases || []).filter((item) => item !== phase);
       try {
         await projects.updateVisibilityPlan(projectId, { status: currentPlan.plan?.status || 'active', current_phase: phase, next_review_at: next ? `${next}T00:00:00Z` : null, goals: currentPlan.plan?.goals || [], completed_phases: completed });

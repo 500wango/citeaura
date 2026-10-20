@@ -4,6 +4,7 @@
 
 import { auth } from '../api.js';
 import { t, tError } from '../i18n.js';
+import { escapeHtml } from '../safe-html.js';
 import { toast } from '../components/toast.js';
 
 export default {
@@ -22,7 +23,7 @@ export default {
           </div>
 
           <form id="reset-form" style="display:flex;flex-direction:column;gap:var(--sp-4);">
-            <input type="hidden" id="reset-token" value="${token}">
+            <input type="hidden" id="reset-token" value="${escapeHtml(token)}">
 
             <div class="field" style="margin:0;">
               <label for="new-password">${t('auth.new_password', {}, 'New Password')}</label>

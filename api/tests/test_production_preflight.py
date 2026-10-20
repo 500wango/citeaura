@@ -91,7 +91,7 @@ def test_preflight_migrates_missing_forwarded_proxy_default(tmp_path):
     env_file.write_text("DOMAIN=app.example\n", encoding="utf-8")
 
     assert ensure_legacy_environment_defaults(env_file) == ["FORWARDED_ALLOW_IPS"]
-    assert read_env(env_file)["FORWARDED_ALLOW_IPS"] == "127.0.0.1"
+    assert read_env(env_file)["FORWARDED_ALLOW_IPS"] == "127.0.0.1,172.16.0.0/12"
     assert ensure_legacy_environment_defaults(env_file) == []
 
 

@@ -207,6 +207,21 @@ def create_project(
     db.refresh(project)
     db.refresh(job)
 
+    if restoring_existing_workspace:
+        # 重新创建已归档项目时不能复用旧工作区：旧 audit/metrics/samples
+        # 会被新项目的首份报告当成本次基线。把旧目录改名留档后重新初始化。
+        try:
+            with _route_facade().with_tenant_context(tenant.directory_slug, slug):
+                project_directory = geolib.project_dir(slug)
+                stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                project_directory.rename(
+                    project_directory.with_name(f"{project_directory.name}.archived-{stamp}")
+                )
+            restoring_existing_workspace = False
+        except OSError as exc:
+            _fail_initializing_job(db, project, job, f"workspace_archive_failed: {exc}")
+            _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "workspace_archive_failed")
+
     if not restoring_existing_workspace:
         try:
             import geo

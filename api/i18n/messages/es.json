@@ -302,7 +302,7 @@
   "questions.modal_title": "Añadir preguntas al objetivo",
   "questions.modal_hint": "Introduzca una pregunta por línea. Se añadirán preguntas al banco de evaluación de marca.",
   "plan.title": "Tickets de acción de ingeniería",
-  "plan.desc": "Cierra las brechas de recomendación con 13 tickets estándar clasificados por impacto y esfuerzo.",
+  "plan.desc": "Cierra las brechas de recomendación con {count} tickets estándar clasificados por impacto y esfuerzo.",
   "plan.mode_matrix": "Matriz 2×2",
   "plan.mode_table": "Lista de tabla",
   "plan.create_ticket_btn": "Crear ticket",

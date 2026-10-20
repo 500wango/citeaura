@@ -1,6 +1,8 @@
 x-app: &app
   # Runtime dependencies are baked from requirements.lock by the Dockerfile targets.
-  image: python:3.12-slim
+  # 独立标签：与 build 同时使用 image 时，Compose 会把构建结果打成该标签；
+  # 沿用 python:3.12-slim 会覆盖本地基础镜像并污染宿主机其他项目。
+  image: citeaura-dev:local
   working_dir: /app
   volumes:
     - .:/app
@@ -41,7 +43,9 @@ x-app: &app
     OBJECT_STORAGE_SSE: ${OBJECT_STORAGE_SSE:-}
     OBJECT_STORAGE_RETENTION_COUNT: ${OBJECT_STORAGE_RETENTION_COUNT:-12}
     # 容器入口脚本在版本已是最新时直接返回，不会每次做备份。
-    AUTO_MIGRATE: ${AUTO_MIGRATE:-1}
+    # 开发环境由 `make dev` 在宿主机执行迁移；容器内默认关闭，
+    # 避免 bind mount 下 citeaura 用户无法写备份目录而启动失败。
+    AUTO_MIGRATE: ${AUTO_MIGRATE:-0}
   depends_on:
     postgres:
       condition: service_healthy
@@ -121,7 +125,10 @@ services:
       retries: 3
 
 volumes:
+  # 开发与生产使用不同卷名：两者 PG 主版本和 PGDATA 布局不同，
+  # 共用卷会在切换环境时初始化出第二个空集群。
   postgres_data:
+    name: ${CITEAURA_DEV_POSTGRES_VOLUME:-citeaura_dev_postgres_data}
   citeaura_work:
-    name: ${CITEAURA_WORK_VOLUME:-citeaura_citeaura_work}
+    name: ${CITEAURA_DEV_WORK_VOLUME:-citeaura_dev_work}
     external: ${CITEAURA_WORK_EXTERNAL:-false}

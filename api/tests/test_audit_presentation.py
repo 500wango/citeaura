@@ -266,3 +266,20 @@ def test_site_score_is_withheld_when_page_scoring_coverage_is_too_low():
     assert result["score_status"] == "insufficient_coverage"
     assert result["partial_applicable_avg_score"] is not None
     assert result["applicable_avg_score"] is None
+
+
+def test_page_without_matching_evidence_is_not_evaluated_instead_of_unreachable():
+    home_url = "https://example.com"
+    missing_url = "https://example.com/en/missing-evidence"
+    result = audit_presentation.present_audit_data(
+        _audit([_raw_page(home_url, word_count=300, codes=[]), _raw_page(missing_url, codes=[])]),
+        [_evidence(home_url, title="Example", word_count=300, para_count=10)],
+    )
+
+    page = next(item for item in result["pages"] if item["url"] == missing_url)
+    checks = {check["id"]: check["status"] for check in page["checks"]}
+
+    assert page["evaluation_status"] == "not_evaluated"
+    assert checks["accessibility"] == "not_evaluated"
+    assert checks["rendered_content"] == "not_evaluated"
+    assert "PAGE_UNREACHABLE" not in page["issue_codes"]

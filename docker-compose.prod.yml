@@ -1,8 +1,17 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    # 无上限的 json-file 日志会在崩溃循环或 INFO 输出下写满宿主磁盘，
+    # 进而让同机 PostgreSQL 无法写 WAL。
+    max-size: "10m"
+    max-file: "3"
+
 x-app: &app
   env_file:
     - ${ENV_FILE:-.env.production}
   environment:
     CITEAURA_SOURCE_REVISION: ${CITEAURA_SOURCE_REVISION:-unknown}
+  logging: *default-logging
   restart: unless-stopped
   depends_on:
     redis:
@@ -14,6 +23,7 @@ services:
   postgres:
     profiles: ["local-postgres"]
     image: postgres:${POSTGRES_MAJOR:-18}-alpine
+    logging: *default-logging
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-citeaura}
@@ -31,6 +41,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    logging: *default-logging
     restart: unless-stopped
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
@@ -65,7 +76,7 @@ services:
       - -c
       - >-
         exec uvicorn api.main:app --host 0.0.0.0 --port 8000 --proxy-headers
-        --forwarded-allow-ips="${FORWARDED_ALLOW_IPS:-127.0.0.1}"
+        --forwarded-allow-ips="${FORWARDED_ALLOW_IPS:-127.0.0.1,172.16.0.0/12}"
     volumes:
       - citeaura_work:/app/work
     ports:
@@ -93,6 +104,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    # 默认 10 秒后 SIGKILL；acks_late 会把未确认任务重投，给 Celery 留出
+    # 优雅关闭当前任务的时间。
+    stop_grace_period: 5m
 
   beat:
     <<: *app
@@ -108,14 +122,18 @@ services:
     healthcheck:
       # /proc/1/cmdline 用 NUL 分隔 argv，参数之间没有空格，所以必须按 NUL 切分后再判断成员。
       # 这里刻意不写反斜杠转义：YAML 双引号标量会把 \0 解析成真正的 NUL 字节，反而弄坏源码。
-      test: ["CMD", "python", "-c", "import pathlib,sys; sys.exit(0 if b'beat' in pathlib.Path('/proc/1/cmdline').read_bytes().split(bytes([0])) else 1)"]
+      # 进程存在不等于调度线程活着：同时要求 schedule 文件在 15 分钟内更新过。
+      test: ["CMD", "python", "-c", "import pathlib,sys,time; p=pathlib.Path('/app/work/celerybeat-schedule'); alive=b'beat' in pathlib.Path('/proc/1/cmdline').read_bytes().split(bytes([0])); fresh=(not p.exists()) or time.time()-p.stat().st_mtime < 900; sys.exit(0 if alive and fresh else 1)"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 90s
+    stop_grace_period: 2m
 
   nginx:
     profiles: ["standalone-nginx"]
     image: nginx:1.27-alpine
+    logging: *default-logging
     restart: unless-stopped
     depends_on:
       api:
@@ -133,8 +151,11 @@ services:
       - citeaura
 
 volumes:
+  # 显式命名，避免 Compose 项目名变化（-p、改名目录）时创建一套空库。
   postgres_data:
+    name: ${CITEAURA_POSTGRES_VOLUME:-citeaura_postgres_data}
   redis_data:
+    name: ${CITEAURA_REDIS_VOLUME:-citeaura_redis_data}
   citeaura_work:
     name: ${CITEAURA_WORK_VOLUME:-citeaura_citeaura_work}
     external: ${CITEAURA_WORK_EXTERNAL:-false}

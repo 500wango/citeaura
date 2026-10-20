@@ -105,6 +105,25 @@ export default {
     const diagnosticReady = Boolean(quality.diagnostic_ready || quality.effective_report);
     const visibilityReady = Boolean(quality.measured_visibility || quality.measurement_baseline_ready);
     const implementationReady = Boolean(quality.implementation_ready);
+    // 健康条只能展示真实审计结果；未采集的维度明确标注 unmeasured，
+    // 不能把所有维度写死成告警。
+    const audit = (report && report.audit) || {};
+    const siteHealth = audit.site || {};
+    const crawlMeasured = Number(audit.page_count || siteHealth.pages_crawled || 0) > 0;
+    const crawlOk = crawlMeasured && Number(siteHealth.pages_ok || 0) > 0;
+    const robotsMeasured = crawlMeasured && Object.prototype.hasOwnProperty.call(siteHealth, 'ai_bots_blocked');
+    const robotsOk = robotsMeasured && !(siteHealth.ai_bots_blocked || []).length;
+    const llmsMeasured = typeof siteHealth.has_llms_txt === 'boolean';
+    const llmsOk = llmsMeasured && Boolean(siteHealth.has_llms_txt);
+    const brandFacts = report && report.insights ? report.insights.brand_facts : undefined;
+    const brandFactsMeasured = brandFacts !== undefined && brandFacts !== null;
+    const brandFactsOk = brandFactsMeasured
+      && String(brandFacts).toLowerCase() !== 'missing'
+      && !(brandFacts && typeof brandFacts === 'object' && brandFacts.status === 'missing');
+    const healthIndicator = (label, measured, ok, title) => (
+      `<span class="health-indicator ${measured && ok ? 'is-ok' : 'is-warn'}" title="${escapeHtml(title)}">`
+      + `<span class="status-dot"></span>${escapeHtml(label)}${measured ? '' : ' unmeasured'}</span>`
+    );
     const firstValue = !diagnosticReady
       ? {
           label: t('overview.next_diagnostic_label', {}, 'Diagnostic in progress'),
@@ -200,12 +219,12 @@ export default {
         <div class="health-strip-card" style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);padding:10px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--muted);">6-Dim Health</span>
-            <span class="health-indicator is-warn" title="No measured robots.txt result"><span class="status-dot"></span>robots.txt unmeasured</span>
-            <span class="health-indicator is-warn" title="No measured WAF result"><span class="status-dot"></span>WAF unmeasured</span>
-            <span class="health-indicator is-warn" title="No measured llms.txt result"><span class="status-dot"></span>llms.txt unmeasured</span>
-            <span class="health-indicator ${quality.diagnostic_ready ? 'is-ok' : 'is-warn'}" title="Schema JSON-LD knowledge graph"><span class="status-dot"></span>Schema graph</span>
-            <span class="health-indicator is-warn" title="No measured brand facts result"><span class="status-dot"></span>Brand facts unmeasured</span>
-            <span class="health-indicator is-warn" title="No measured crawl result"><span class="status-dot"></span>Crawl unmeasured</span>
+            ${healthIndicator('robots.txt', robotsMeasured, robotsOk, robotsMeasured ? 'robots.txt checked by the last crawl' : 'No measured robots.txt result')}
+            ${healthIndicator('WAF', false, false, 'WAF is not measured by the audit')}
+            ${healthIndicator('llms.txt', llmsMeasured, llmsOk, llmsMeasured ? 'llms.txt checked by the last crawl' : 'No measured llms.txt result')}
+            ${healthIndicator('Schema graph', diagnosticReady, diagnosticReady, 'Schema JSON-LD knowledge graph')}
+            ${healthIndicator('Brand facts', brandFactsMeasured, brandFactsOk, brandFactsMeasured ? 'Brand facts extracted from sampled answers' : 'No measured brand facts result')}
+            ${healthIndicator('Crawl', crawlMeasured, crawlOk, crawlMeasured ? 'Crawl coverage from the last audit' : 'No measured crawl result')}
           </div>
           <span class="demo-provenance-pill" style="font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:12px;background:var(--deep);border:1px solid var(--line);color:var(--muted);">
             ${visibilityReady ? 'Traceable · Grounded' : '[DEMO · SYNTHETIC BASELINE]'}

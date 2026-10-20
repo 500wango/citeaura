@@ -7,7 +7,7 @@ import { t, tError, hasCatalogKey } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { samplingModeBadge } from '../components/badge.js';
 import { escapeHtml } from '../safe-html.js';
-import { openModal } from '../components/modal.js';
+import { confirmModal, openModal } from '../components/modal.js';
 
 const AVAILABLE_ENGINES = [
   { code: 'glm', name: 'Zhipu GLM', provider: 'Zhipu AI', market: 'CN' },
@@ -366,6 +366,7 @@ export default {
 
     document.querySelectorAll('.btn-revoke-api-token').forEach((btn) => {
       btn.addEventListener('click', async () => {
+        if (!(await confirmModal('Revoke this API token? Clients using it lose access immediately.', { title: 'Revoke API token', isDanger: true }))) return;
         try {
           await settings.revokeApiToken(btn.getAttribute('data-id'));
           await ctx.reloadCurrentView();
@@ -406,6 +407,7 @@ export default {
 
     document.querySelectorAll('.btn-del-custom').forEach((btn) => {
       btn.addEventListener('click', async () => {
+        if (!(await confirmModal('Delete this custom provider? Its saved credentials are removed.', { title: 'Delete provider', isDanger: true }))) return;
         try {
           await settings.deleteCustomProvider(btn.getAttribute('data-code'));
           await ctx.reloadCurrentView();
@@ -470,6 +472,7 @@ export default {
 
     document.querySelectorAll('.btn-del-key').forEach((btn) => {
       btn.addEventListener('click', async () => {
+        if (!(await confirmModal('Delete this model key? You will need to enter it again to sample.', { title: 'Delete key', isDanger: true }))) return;
         const code = btn.getAttribute('data-code');
         try {
           await settings.deleteKey(code);

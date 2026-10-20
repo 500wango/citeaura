@@ -452,6 +452,9 @@ class ApiAccessToken(Base):
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    # 令牌没有独立的用户身份，但记录创建者才能在停用/移除该用户时精确吊销，
+    # 否则被停用的 owner 仍能用存量令牌读取全租户报告。
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     name = Column(String(64), nullable=False)
     token_prefix = Column(String(16), nullable=False)
     token_hash = Column(String(64), nullable=False)

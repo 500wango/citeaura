@@ -9,9 +9,9 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from api.auth.deps import get_current_user, require_owner
-from api.auth.router import token_response
+from api.auth.router import _access_claims, token_response
 from api.db import get_db
-from api.models import Membership, TeamInvitation, Tenant, User
+from api.models import ApiAccessToken, Membership, TeamInvitation, Tenant, User
 from api.team.invitations import expires_at, invitation_for_token, is_expired, new_token, token_hash
 
 
@@ -238,6 +238,12 @@ def remove_member(
     if membership.role == "owner" and len(owners) <= 1:
         _error(status.HTTP_409_CONFLICT, "last_owner_required")
     db.delete(membership)
+    # 被移除的成员可能仍持有其创建的集成令牌，必须一并吊销。
+    db.query(ApiAccessToken).filter(
+        ApiAccessToken.tenant_id == tenant.id,
+        ApiAccessToken.created_by_user_id == user_id,
+        ApiAccessToken.revoked_at.is_(None),
+    ).update({ApiAccessToken.revoked_at: datetime.now(timezone.utc)}, synchronize_session=False)
     db.commit()
     return {"deleted": True, "user_id": user_id}
 
@@ -286,9 +292,16 @@ def accept_invitation(
             role=invitation.role,
         )
         db.add(membership)
+    claims = _access_claims(request) or {}
+    sso_tenant = str(claims.get("sso_tid") or "")
+    if sso_tenant and sso_tenant != str(invitation.tenant_id):
+        # IdP 断言出来的会话只能用于该租户，不能借接受邀请进入其他工作区。
+        _error(status.HTTP_403_FORBIDDEN, "sso_session_tenant_restricted")
     invitation.accepted_at = datetime.now(timezone.utc)
     db.commit()
     return token_response(
         response, current_user.id, invitation.tenant_id, db,
         expose_tokens=request.headers.get("X-CiteAura-Session") != "cookie",
+        # 保留 sso_tid：丢掉它会让新令牌变成可切换任意租户的普通会话。
+        sso_tenant_id=int(sso_tenant) if sso_tenant else None,
     )

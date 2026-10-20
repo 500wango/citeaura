@@ -178,6 +178,11 @@ if "${SUDO[@]}" test -f "$SITE_FILE"; then
 fi
 
 CADDY_TLS_DIRECTIVE="${CADDY_TLS_DIRECTIVE:-tls internal}"
+if [[ "$CADDY_TLS_DIRECTIVE" == "tls internal" ]]; then
+    # 自签证书只适用于 Cloudflare Full/Full(strict) 回源；直连主机的用户
+    # 会看到不受信任证书，而公开检查使用 curl -k 不会发现这一点。
+    printf 'Note: Caddy uses "tls internal" (self-signed). DNS must stay behind Cloudflare Full/Full(strict); pass --caddy-tls <directive> for direct TLS.\n' >&2
+fi
 
 {
     printf '%s {\n' "$DOMAIN"

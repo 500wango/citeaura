@@ -302,7 +302,7 @@
   "questions.modal_title": "対象質問を追加",
   "questions.modal_hint": "1行に1つの質問を入力してください。ブランド評価バンクに追加されます。",
   "plan.title": "エンジニアリングアクションチケット",
-  "plan.desc": "影響度 × 工数で分類した 13 の標準最適化チケットで、推薦ギャップを埋めます。",
+  "plan.desc": "影響度 × 工数で分類した {count} の標準最適化チケットで、推薦ギャップを埋めます。",
   "plan.mode_matrix": "2×2 マトリクス",
   "plan.mode_table": "テーブル一覧",
   "plan.create_ticket_btn": "チケットを作成",

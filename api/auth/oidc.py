@@ -177,6 +177,12 @@ def complete_login(configuration, redirect_uri, code, context):
         raise
     except (KeyError, requests.RequestException, ValueError, jwt.PyJWTError) as exc:
         raise OidcError("oidc_token_invalid") from exc
+    # 多受众 token 必须由本客户端签发（azp），否则同一 IdP 上的其他客户端
+    # 取得的 id_token 可能被重放到本服务。
+    audiences = claims.get("aud")
+    if isinstance(audiences, list) and len(audiences) > 1:
+        if claims.get("azp") != configuration.client_id:
+            raise OidcError("oidc_token_invalid")
     if claims.get("nonce") != context.get("nonce"):
         raise OidcError("oidc_nonce_invalid")
     email = str(claims.get("email") or "").strip().lower()
