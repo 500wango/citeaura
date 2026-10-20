@@ -20,6 +20,9 @@ Options:
   --env-file PATH    Production environment file (default: .env.production)
   --caddyfile PATH   Host Caddyfile (default: /etc/caddy/Caddyfile)
   --site-dir PATH    Managed Caddy site directory (default: /etc/caddy/sites)
+  --caddy-tls VALUE  Caddy tls directive (default: "tls internal"). Use
+                     "tls you@example.com" for direct automatic HTTPS,
+                     or "none" to omit the directive entirely.
   --skip-public-check
                      Do not wait for the public HTTPS endpoint
   -h, --help         Show this help
@@ -45,6 +48,11 @@ while (($#)); do
         --site-dir)
             [[ $# -ge 2 ]] || { printf '%s\n' '--site-dir requires a path' >&2; exit 2; }
             CADDY_SITE_DIR="$2"
+            shift 2
+            ;;
+        --caddy-tls)
+            [[ $# -ge 2 ]] || { printf '%s\n' '--caddy-tls requires a directive' >&2; exit 2; }
+            CADDY_TLS_DIRECTIVE="$2"
             shift 2
             ;;
         --skip-public-check)
@@ -178,10 +186,24 @@ if "${SUDO[@]}" test -f "$SITE_FILE"; then
 fi
 
 CADDY_TLS_DIRECTIVE="${CADDY_TLS_DIRECTIVE:-tls internal}"
+case "$CADDY_TLS_DIRECTIVE" in
+    none) ;;
+    "tls"|"tls internal"|"tls "*) ;;
+    *)
+        printf 'Invalid --caddy-tls value: %s\n' "$CADDY_TLS_DIRECTIVE" >&2
+        printf 'Expected "tls", "tls internal", "tls you@example.com", or "none".\n' >&2
+        exit 2
+        ;;
+esac
+if [[ "$CADDY_TLS_DIRECTIVE" == *$'\n'* || "$CADDY_TLS_DIRECTIVE" == *'{'* || "$CADDY_TLS_DIRECTIVE" == *'}'* ]]; then
+    printf 'Invalid --caddy-tls value: newlines and braces are not allowed.\n' >&2
+    exit 2
+fi
 if [[ "$CADDY_TLS_DIRECTIVE" == "tls internal" ]]; then
     # 自签证书只适用于 Cloudflare Full/Full(strict) 回源；直连主机的用户
-    # 会看到不受信任证书，而公开检查使用 curl -k 不会发现这一点。
-    printf 'Note: Caddy uses "tls internal" (self-signed). DNS must stay behind Cloudflare Full/Full(strict); pass --caddy-tls <directive> for direct TLS.\n' >&2
+    # 会看到不受信任证书，公开检查不做证书豁免，会如实报告失败。
+    printf 'Note: Caddy uses "tls internal" (self-signed). DNS must stay behind Cloudflare Full/Full(strict).\n' >&2
+    printf 'For direct hosting pass --caddy-tls "tls you@example.com" (or --caddy-tls none).\n' >&2
 fi
 
 {
@@ -217,10 +239,10 @@ if [[ "$SKIP_PUBLIC_CHECK" == false ]]; then
     PUBLIC_READY=false
     for _attempt in $(seq 1 18); do
         WWW_REDIRECT_TARGET="$(
-            curl -k --silent --show-error --head --output /dev/null --write-out '%{redirect_url}' \
+            curl --silent --show-error --head --output /dev/null --write-out '%{redirect_url}' \
                 "https://www.${DOMAIN}/sitemap.xml" 2>/dev/null || true
         )"
-        if curl -k --fail --silent --show-error "https://${DOMAIN}/api/v1/health/ready" >/dev/null 2>&1 \
+        if curl --fail --silent --show-error "https://${DOMAIN}/api/v1/health/ready" >/dev/null 2>&1 \
             && [[ "$WWW_REDIRECT_TARGET" == "https://${DOMAIN}/sitemap.xml" ]]; then
             PUBLIC_READY=true
             break

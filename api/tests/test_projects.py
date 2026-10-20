@@ -402,7 +402,14 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
     delivered = client.post(f"/api/v1/projects/{body['project_id']}/deliver", headers=headers)
     assert delivered.status_code == 202
     assert delivered.json()["job_id"] == 4
-    monkeypatch.setattr(project_router.delivery, "ensure_delivery_contract", lambda slug, directory, **kwargs: directory)
+    snapshot = tmp_path / "delivery-snapshots" / "2026-07-31"
+    snapshot.mkdir(parents=True)
+    (snapshot / "index.html").write_text("<h1>Delivery</h1>", "utf-8")
+    monkeypatch.setattr(
+        project_router.delivery,
+        "build_delivery_snapshot",
+        lambda slug, date, **kwargs: snapshot,
+    )
     archive = client.get(f"/api/v1/projects/{body['project_id']}/deliveries/2026-07-31", headers=headers)
     assert archive.status_code == 200
     assert archive.headers["content-type"] == "application/zip"
@@ -509,10 +516,10 @@ def test_delivery_download_rejects_noncompliant_legacy_package(project_client, m
     output.mkdir(parents=True)
     (output / "01-诊断报告.md").write_text("# 中文报告\n", "utf-8")
 
-    def reject_delivery(slug, directory, **kwargs):
+    def reject_delivery(slug, date, **kwargs):
         raise project_router.GeoEngineError("delivery contains non-English content: 01-诊断报告.md")
 
-    monkeypatch.setattr(project_router.delivery, "ensure_delivery_contract", reject_delivery)
+    monkeypatch.setattr(project_router.delivery, "build_delivery_snapshot", reject_delivery)
     response = client.get(
         f"/api/v1/projects/{created.json()['project_id']}/deliveries/2026-07-31",
         headers=headers,
@@ -522,7 +529,7 @@ def test_delivery_download_rejects_noncompliant_legacy_package(project_client, m
     assert "delivery_contract_invalid" in response.text
 
 
-def test_delivery_download_rebuilds_even_when_legacy_quality_gate_passed(project_client, monkeypatch, tmp_path):
+def test_delivery_download_builds_snapshot_without_writing_project(project_client, monkeypatch, tmp_path):
     client, _ = project_client
     headers = _register(client, "owner@example.com")
     monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_init=lambda args: None))
@@ -536,17 +543,20 @@ def test_delivery_download_rebuilds_even_when_legacy_quality_gate_passed(project
     (output / "assets" / "index.json").write_text(
         json.dumps({"quality_gate": {"status": "passed"}}), "utf-8",
     )
+    before = sorted(path.relative_to(output) for path in output.rglob("*"))
     calls = []
 
-    def rebuild(slug, directory, **kwargs):
-        calls.append((slug, directory))
-        (directory / "01-Audit-Report.html").write_text("formal", "utf-8")
-        (directory / "assets" / "index.json").write_text(
+    def rebuild(slug, date, **kwargs):
+        calls.append((slug, date))
+        snapshot = tmp_path / "delivery-snapshots" / date
+        (snapshot / "assets").mkdir(parents=True)
+        (snapshot / "01-Audit-Report.html").write_text("formal", "utf-8")
+        (snapshot / "assets" / "index.json").write_text(
             json.dumps({"diagnostic_ready": True, "source_revision": "current"}), "utf-8",
         )
-        return directory
+        return snapshot
 
-    monkeypatch.setattr(project_router.delivery, "ensure_delivery_contract", rebuild)
+    monkeypatch.setattr(project_router.delivery, "build_delivery_snapshot", rebuild)
     response = client.get(
         f"/api/v1/projects/{created.json()['project_id']}/deliveries/2026-07-31",
         headers=headers,
@@ -557,7 +567,10 @@ def test_delivery_download_rebuilds_even_when_legacy_quality_gate_passed(project
     assert response.headers["x-citeaura-source-revision"] == "current"
     with zipfile.ZipFile(io.BytesIO(response.content)) as bundle:
         assert "01-Audit-Report.html" in bundle.namelist()
-        assert "index.html" in bundle.namelist()
+        assert "index.html" not in bundle.namelist()
+    # 快照构建不得改动项目里的交付目录，且临时目录在响应后被清理。
+    assert sorted(path.relative_to(output) for path in output.rglob("*")) == before
+    assert not (tmp_path / "delivery-snapshots").exists()
 
 
 def test_project_isolation_and_duplicate_rejection(project_client, monkeypatch):

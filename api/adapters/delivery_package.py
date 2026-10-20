@@ -652,6 +652,47 @@ def ensure_legacy_deliverables_contract(project_slug: str, deliverables_director
     return target
 
 
+def build_delivery_snapshot(
+    project_slug: str,
+    delivery_date: str,
+    *,
+    measurement_scope=None,
+    require_question_evidence=False,
+):
+    """在系统临时目录构建一次性交付包，供只读下载使用。
+
+    不写项目目录（也不迁移资产）；调用方必须在响应构建完成后删除返回值的父目录。
+    """
+    if (
+        not delivery_date
+        or delivery_date in (".", "..")
+        or "/" in delivery_date
+        or "\\" in delivery_date
+    ):
+        raise ValueError("invalid delivery date")
+    config = global_scope.normalize_project(project_slug, persist=False)
+    from api.adapters import generated_assets
+
+    generated_assets.normalize_project_assets(project_slug, config=config, persist=False)
+    project_directory = geolib.project_dir(project_slug)
+    root = Path(tempfile.mkdtemp(prefix="citeaura-delivery-snapshot-"))
+    target = root / delivery_date
+    target.mkdir(parents=True, exist_ok=True)
+    try:
+        _build_delivery(
+            project_slug,
+            project_directory,
+            target,
+            delivery_date,
+            measurement_scope=measurement_scope,
+            require_question_evidence=require_question_evidence,
+        )
+    except BaseException:
+        shutil.rmtree(root, ignore_errors=True)
+        raise
+    return target
+
+
 def ensure_delivery_contract(
     project_slug: str,
     delivery_directory: Path | None = None,

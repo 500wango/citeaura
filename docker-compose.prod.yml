@@ -63,8 +63,8 @@ services:
       # 启动时自动迁移（wait-for-db → 备份 → upgrade → 校验）。
       # 多副本部署必须设为 0 并改用一次性 job，否则会并发迁移。
       AUTO_MIGRATE: ${AUTO_MIGRATE:-1}
-      # 迁移备份写进持久卷，否则容器重建后备份一起消失。
-      CITEAURA_BACKUP_DIR: /app/work/backups
+      # 备份挂到宿主目录：卷内备份无法被宿主校验脚本扫描，也会随卷一起丢失。
+      CITEAURA_BACKUP_DIR: /app/backups
     build:
       context: .
       dockerfile: Dockerfile
@@ -79,6 +79,7 @@ services:
         --forwarded-allow-ips="${FORWARDED_ALLOW_IPS:-127.0.0.1,172.16.0.0/12}"
     volumes:
       - citeaura_work:/app/work
+      - ${CITEAURA_BACKUP_HOST_DIR:-/var/backups/citeaura}:/app/backups
     ports:
       - "127.0.0.1:${APP_PORT:-18000}:8000"
     expose:

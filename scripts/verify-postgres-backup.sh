@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/citeaura/daily}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/citeaura}"
 MAX_AGE_HOURS="${MAX_AGE_HOURS:-26}"
 
 case "$MAX_AGE_HOURS" in

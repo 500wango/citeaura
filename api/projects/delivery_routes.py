@@ -1,5 +1,7 @@
 """项目验收、交付下载和发送 API。"""
 
+import shutil
+
 from api.projects.project_route_support import *  # noqa: F401,F403
 
 router = APIRouter(tags=["projects"])
@@ -141,25 +143,30 @@ def download_delivery(
         directory = geolib.project_dir(project.slug) / "delivery" / delivery_date
         if not directory.is_dir():
             _error(status.HTTP_404_NOT_FOUND, "delivery_not_found")
+        snapshot_root = None
         try:
-            # Published formal packages are immutable snapshots. Legacy or
-            # incomplete directories are rebuilt through the SaaS contract.
+            # Published formal packages are immutable snapshots and are only read.
             directory = delivery.validate_existing_delivery_contract(directory)
-        except GeoEngineError as exc:
+        except GeoEngineError:
             try:
-                # 只读下载：重建遗留交付包时不归一化改写 geo/tasks/metrics/blueprint，
-                # 重建本身在项目锁内只写 delivery/<date>（即本次要下载的产物）。
-                directory = delivery.ensure_delivery_contract(project.slug, directory, persist=False)
+                # 损坏/遗留包在系统临时目录重建：GET 不写项目目录，
+                # 打包完成后立即删除，避免每次下载都留下产物。
+                directory = delivery.build_delivery_snapshot(project.slug, delivery_date)
+                snapshot_root = directory.parent
             except GeoEngineError as rebuild_exc:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail={"error": "delivery_contract_invalid", "detail": str(rebuild_exc)},
                 ) from rebuild_exc
-        asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
-        readiness = str(asset_index.get("readiness") or "unknown")
-        package_kind = _delivery_package_kind(asset_index, readiness)
-        source_revision = str(asset_index.get("source_revision") or "unknown")
-        return _stream_delivery_zip(directory, package_kind, delivery_date, readiness, source_revision)
+        try:
+            asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
+            readiness = str(asset_index.get("readiness") or "unknown")
+            package_kind = _delivery_package_kind(asset_index, readiness)
+            source_revision = str(asset_index.get("source_revision") or "unknown")
+            return _stream_delivery_zip(directory, package_kind, delivery_date, readiness, source_revision)
+        finally:
+            if snapshot_root is not None:
+                shutil.rmtree(snapshot_root, ignore_errors=True)
 
 
 def _stream_delivery_zip(directory, package_kind, delivery_date, readiness, source_revision):

@@ -1,5 +1,6 @@
 """租户项目级 Redis 分布式锁。"""
 
+import logging
 import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -11,6 +12,8 @@ from redis.exceptions import LockError, RedisError
 from api import config
 from api.adapters.exceptions import DistributedLockError
 
+
+logger = logging.getLogger(__name__)
 
 LOCK_PREFIX = "citeaura:project-lock"
 _HELD_LOCKS = ContextVar("citeaura_held_project_locks", default=frozenset())
@@ -75,6 +78,11 @@ def project_lock(tenant_slug, project_slug, allow_reentrant=False):
             try:
                 if not lock.extend(ttl, replace_ttl=True):
                     renewal_errors.append(RuntimeError("lock extension rejected"))
+                    # 丢锁告警必须可检索：此时另一个 worker 可能已持有同一项目锁。
+                    logger.warning(
+                        "project lock extension rejected",
+                        extra={"tenant_slug": tenant_slug, "project_slug": project_slug},
+                    )
                     lost.set()
                     return
                 transient_failures = 0
@@ -84,6 +92,11 @@ def project_lock(tenant_slug, project_slug, allow_reentrant=False):
                 transient_failures += 1
                 renewal_errors.append(exc)
                 if transient_failures >= 3:
+                    logger.warning(
+                        "project lock lost after repeated renewal failures",
+                        extra={"tenant_slug": tenant_slug, "project_slug": project_slug},
+                        exc_info=exc,
+                    )
                     lost.set()
                     return
 

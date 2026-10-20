@@ -250,12 +250,10 @@ docker compose --env-file .env.production -f docker-compose.prod.yml \
 
 ```bash
 alembic downgrade -1        # 只回结构（数据修正不回滚，降级明细会随表一起删除，先导出）
-# 自动迁移的备份在 citeaura_work 卷内的 /app/work/backups，不在宿主当前目录：
-docker compose --env-file .env.production -f docker-compose.prod.yml \
-    exec api ls -l /app/work/backups
-docker compose --env-file .env.production -f docker-compose.prod.yml \
-    cp api:/app/work/backups/pre-migrate-<ts>.dump ./pre-migrate-<ts>.dump
-pg_restore -c -d <db> ./pre-migrate-<ts>.dump
+# 自动迁移的备份通过 bind mount 写在宿主 /var/backups/citeaura（可用
+# CITEAURA_BACKUP_HOST_DIR 覆盖），容器内路径是 /app/backups：
+ls -l /var/backups/citeaura/pre-migrate-*.dump
+pg_restore -c -d <db> /var/backups/citeaura/pre-migrate-<ts>.dump
 ```
 
 ⚠️ 不要只回滚代码不回滚库：旧代码的 `_activate_checkout` 会撞上新的
@@ -432,3 +430,26 @@ pg_restore -c -d <db> ./pre-migrate-<ts>.dump
    `sha256$` 前缀格式，用刚验证过的明文原地 rehash，旧账号不再受 bcrypt 72 字节截断影响。
 3. **outbox 跳过可观测**：对账遇到 `job_id IS NULL` 的事件仍标记 `processed`（无法
    用唯一键去重），但写入 `last_error="missing_job_id"`，不再静默清空。
+
+---
+
+## 11. 第六轮：收尾半修复项
+
+1. **TLS 模式显式化**：`one-click-deploy.sh` 新增 `--caddy-tls`（支持
+   `tls you@example.com` / `tls internal` / `none`），拒绝含换行或大括号的值。
+   公开 HTTPS 检查不再使用 `-k`，直连主机却配置自签证书会如实报告失败。
+2. **迁移备份可校验**：`pg_dump` 成功后立即执行 `pg_restore --list`，归档损坏或
+   不可读按“备份失败”中止迁移。备份改挂宿主
+   `${CITEAURA_BACKUP_HOST_DIR:-/var/backups/citeaura}:/app/backups`，
+   `verify-postgres-backup.sh` 默认扫描同一目录。
+3. **自动应用回滚**：部署前把运行中的 api/worker/beat 镜像打上
+   `citeaura-rollback-<service>:<timestamp>`；readiness 失败时重打标签并
+   `compose up -d --force-recreate --no-build` 恢复。不自动 downgrade 数据库；
+   回滚后本次部署仍以失败退出。`AUTO_ROLLBACK=0` 可关闭。
+4. **交付下载零项目写入**：GET 遇到损坏/遗留交付包时改为
+   `build_delivery_snapshot()` 在系统临时目录重建，打包后删除；
+   不再改写 `delivery/<date>`。`POST .../send` 仍会落盘（发送前需要正式快照）。
+5. **丢锁可检索**：续期被拒或连续失败时记录 warning（含 tenant/project）。
+   仍不中断已在进行中的管线；彻底写保护需要引擎写钩子，留待观察后处理。
+6. **错误响应形状**：明确接受现状（`{"error"}` 与 `{"error","detail"}` 并存），
+   不做跨 24 个路由的机械统一，仅继续排查内部异常文本泄漏。

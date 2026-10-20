@@ -140,6 +140,22 @@ def backup(engine):
     if completed.returncode != 0:
         print(completed.stderr.strip(), file=sys.stderr)
         return None
+    # 只看文件存在/大小会把截断的 dump 当成可用备份；pg_restore --list
+    # 能验证归档目录完整，失败就按“没有备份”处理并中止迁移。
+    restore_binary = shutil.which("pg_restore")
+    if restore_binary is None:
+        print("未找到 pg_restore，无法校验备份，按备份失败处理", file=sys.stderr)
+        return None
+    validated = subprocess.run(
+        [restore_binary, "--list", str(target)],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    if validated.returncode != 0:
+        print(validated.stderr.strip(), file=sys.stderr)
+        print(f"备份校验失败: {target}", file=sys.stderr)
+        return None
     # 整库转储包含密码哈希与加密密钥，不能沿用 pg_dump 默认的 0644。
     try:
         target.chmod(0o600)

@@ -2,6 +2,7 @@ import os
 import re
 import shlex
 import subprocess
+import types
 from pathlib import Path
 
 import yaml
@@ -53,13 +54,18 @@ def test_deploy_script_leaves_tls_to_host_caddy():
     assert "--tls-mode external" in deploy
     assert "--migrate-legacy" in deploy
     assert 'APP_PORT="${APP_PORT:-18000}"' in deploy
+    rollback_capture = deploy.index('docker tag "$image_id" "citeaura-rollback-')
     build = deploy.index("build api worker beat")
-    repair_permissions = deploy.index("chown -R citeaura:citeaura /app/work")
+    repair_permissions = deploy.index("chown -R citeaura:citeaura /app/work /app/backups")
     migrate = deploy.index("run --rm --entrypoint python3 api scripts/migrate_db.py")
     # 必须 force-recreate：否则「已是期望状态」的坏容器（端口未绑定）会跨部署存活，永远修不好
     start = deploy.index("up -d --force-recreate api worker beat")
-    assert build < repair_permissions < migrate < start
+    assert rollback_capture < build < repair_permissions < migrate < start
     assert "run --rm --user root --entrypoint sh api" in deploy
+    assert "rollback_previous_images" in deploy
+    assert "--force-recreate --no-build api worker beat" in deploy
+    assert "AUTO_ROLLBACK" in deploy
+    assert "chmod 700 /app/backups" in deploy
     assert "up -d --build api worker beat nginx" not in deploy
     assert 'http://127.0.0.1:${APP_PORT}/api/v1/health/ready' in deploy
     assert 'curl --silent --show-error' in deploy
@@ -189,6 +195,10 @@ def test_one_click_deploy_is_executable_and_documents_safe_caddy_update():
     assert "restoring the previous configuration" in text
     assert "restore_caddy 130" in text
     assert "restore_caddy 143" in text
+    assert "--caddy-tls" in result.stdout
+    assert "--caddy-tls" in text
+    # 公开检查不能靠 -k 吞掉证书错误，否则直连主机的自签证书会被当成部署成功。
+    assert "curl -k" not in text
     assert "www.%s {\\n" in text
     assert "redir https://%s{uri} permanent" in text
     assert '"https://www.${DOMAIN}/sitemap.xml"' in text
@@ -253,3 +263,45 @@ def test_recovery_inputs_reject_unrecognised_public_keys():
     assert "ssh-ed25519\\ *|ssh-rsa\\ *|ecdsa-sha2-nistp256\\ *" in workflow
     assert "is not a recognised OpenSSH public key line" in workflow
     assert 'grep -qxF -- "$PUBLIC_KEY" "$AUTHORIZED_KEYS"' in workflow
+
+
+def test_backups_are_host_mounted_and_validated_before_migration():
+    compose = yaml.safe_load((ROOT / "docker-compose.prod.yml").read_text("utf-8"))
+    api = compose["services"]["api"]
+
+    assert api["environment"]["CITEAURA_BACKUP_DIR"] == "/app/backups"
+    assert "${CITEAURA_BACKUP_HOST_DIR:-/var/backups/citeaura}:/app/backups" in api["volumes"]
+
+    migrate = (ROOT / "scripts/migrate_db.py").read_text("utf-8")
+    assert "pg_restore" in migrate
+    assert '"--list"' in migrate
+    assert "备份校验失败" in migrate
+
+    verify = (ROOT / "scripts/verify-postgres-backup.sh").read_text("utf-8")
+    assert 'BACKUP_DIR="${BACKUP_DIR:-/var/backups/citeaura}"' in verify
+
+
+def test_migration_backup_rejects_a_dump_pg_restore_cannot_read(tmp_path, monkeypatch):
+    from scripts import migrate_db
+
+    engine = types.SimpleNamespace(url=types.SimpleNamespace(
+        host="db.example", port=5432, username="citeaura",
+        password="secret", database="citeaura",
+    ))
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(
+            command,
+            1 if "--list" in command else 0,
+            "",
+            "invalid archive" if "--list" in command else "",
+        )
+
+    monkeypatch.setenv("CITEAURA_BACKUP_DIR", str(tmp_path))
+    monkeypatch.setattr(migrate_db.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(migrate_db.subprocess, "run", fake_run)
+
+    assert migrate_db.backup(engine) is None
+    assert any("--list" in command for command in calls)

@@ -66,10 +66,28 @@ compose up -d redis
 if [[ "$database_host" == "postgres" ]]; then
     compose up -d --wait postgres
 fi
+
+# 构建前保存当前运行镜像：readiness 失败时至少能把应用回滚到上一版本。
+# 只回滚镜像，不自动 downgrade 数据库（现有迁移均为前向兼容的加列/加表）。
+ROLLBACK_TAG="$(date -u +%Y%m%dT%H%M%SZ)"
+ROLLBACK_SERVICES=()
+ROLLBACK_TARGETS=()
+for service in api worker beat; do
+    container="$(compose ps -q "$service" 2>/dev/null | head -n 1 || true)"
+    [[ -n "$container" ]] || continue
+    image_id="$(docker inspect --format '{{.Image}}' "$container" 2>/dev/null || true)"
+    image_name="$(docker inspect --format '{{.Config.Image}}' "$container" 2>/dev/null || true)"
+    [[ -n "$image_id" && -n "$image_name" ]] || continue
+    if docker tag "$image_id" "citeaura-rollback-${service}:${ROLLBACK_TAG}" 2>/dev/null; then
+        ROLLBACK_SERVICES+=("$service")
+        ROLLBACK_TARGETS+=("$image_name")
+    fi
+done
+
 compose build api worker beat
 # 覆盖 entrypoint：权限修复容器不应触发自动迁移（会以 root 产生备份）。
 compose run --rm --user root --entrypoint sh api \
-    -c 'chown -R citeaura:citeaura /app/work'
+    -c 'mkdir -p /app/backups && chmod 700 /app/backups && chown -R citeaura:citeaura /app/work /app/backups'
 # 走 migrate_db.py 而不是裸 alembic：保留备份、预检和数据修正校验。
 compose run --rm --entrypoint python3 api scripts/migrate_db.py
 # --force-recreate：compose 认为容器「已是期望状态」时只 start 不重建，于是已经坏掉的容器
@@ -110,6 +128,17 @@ report_api_container() {
     compose logs --tail=80 --no-color api 2>&1 | redact_secrets >&2 || true
 }
 
+rollback_previous_images() {
+    local index service
+    ((${#ROLLBACK_SERVICES[@]} > 0)) || return 1
+    for index in "${!ROLLBACK_SERVICES[@]}"; do
+        service="${ROLLBACK_SERVICES[$index]}"
+        docker tag "citeaura-rollback-${service}:${ROLLBACK_TAG}" \
+            "${ROLLBACK_TARGETS[$index]}" 2>/dev/null || return 1
+    done
+    compose up -d --force-recreate --no-build api worker beat
+}
+
 for attempt in $(seq 1 30); do
     if curl --fail --silent --show-error \
         "http://127.0.0.1:${APP_PORT}/api/v1/health/ready" >/dev/null; then
@@ -122,8 +151,31 @@ for attempt in $(seq 1 30); do
         printf '\n' >&2
         compose ps -a >&2
         report_api_container
-        printf '\n回滚：切回上一版本后重新执行 deploy.sh。\n' >&2
-        printf '迁移备份在 citeaura_work 卷的 /app/work/backups（见 FIXES.md 回滚章节）。\n' >&2
+        if [[ "${AUTO_ROLLBACK:-1}" == "1" ]]; then
+            if rollback_previous_images; then
+                printf '\n已恢复上一版本应用镜像；数据库保持在新迁移版本，不自动降级。\n' >&2
+                rollback_ok=false
+                for rollback_attempt in $(seq 1 30); do
+                    if curl --fail --silent --show-error \
+                        "http://127.0.0.1:${APP_PORT}/api/v1/health/ready" >/dev/null; then
+                        rollback_ok=true
+                        break
+                    fi
+                    sleep 2
+                done
+                if [[ "$rollback_ok" == true ]]; then
+                    printf '上一版本已恢复服务；本次部署仍以失败退出。\n' >&2
+                else
+                    printf '自动回滚未能恢复服务，请按 FIXES.md 回滚章节人工处理。\n' >&2
+                fi
+            else
+                printf '\n没有可用的上一版本镜像，自动回滚未执行。\n' >&2
+            fi
+        else
+            printf '\n回滚：切回上一版本后重新执行 deploy.sh（AUTO_ROLLBACK=0 已关闭自动回滚）。\n' >&2
+        fi
+        printf '迁移备份在宿主 %s（见 FIXES.md 回滚章节）。\n' \
+            "${CITEAURA_BACKUP_HOST_DIR:-/var/backups/citeaura}" >&2
         exit 1
     fi
     sleep 2
