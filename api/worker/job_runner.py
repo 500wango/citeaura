@@ -109,7 +109,9 @@ def _dispatch(action, slug, kwargs, tenant=None):
         import geo
         from api.pipeline_catalog import ACTION_METHODS
         pipeline_action = kwargs["pipeline_action"]
-        getattr(geo, ACTION_METHODS[pipeline_action])(_namespace(pipeline_action, kwargs.get("params")))
+        args = _namespace(pipeline_action, kwargs.get("params"))
+        args.slug = slug
+        getattr(geo, ACTION_METHODS[pipeline_action])(args)
         return {"status": "done", "action": pipeline_action, "project_slug": slug}
     raise ValueError(f"unsupported engine action: {action}")
 

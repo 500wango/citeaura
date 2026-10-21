@@ -1,8 +1,10 @@
 """引擎子进程隔离：环境清洗、密钥传输与超时回收。"""
 
 import os
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 
 import pytest
 
@@ -93,6 +95,26 @@ def test_timeout_kills_process_group():
             timeout=1,
         )
     assert time.monotonic() - started < 20
+
+
+def test_pipeline_dispatch_injects_project_slug(monkeypatch):
+    """子进程 pipeline 分支必须注入 slug，否则 geo.cmd_* 读 a.slug 直接抛 AttributeError。"""
+    from api.worker import job_runner
+
+    seen = {}
+
+    def fake_cmd_sample(args):
+        seen["slug"] = args.slug
+        seen["limit"] = args.limit
+
+    monkeypatch.setitem(sys.modules, "geo", SimpleNamespace(cmd_sample=fake_cmd_sample))
+
+    result = job_runner._dispatch(
+        "pipeline", "acme", {"pipeline_action": "sample", "params": {"--limit": 5}},
+    )
+
+    assert seen == {"slug": "acme", "limit": 5}
+    assert result["project_slug"] == "acme"
 
 
 def test_parent_environment_is_unchanged(monkeypatch):
