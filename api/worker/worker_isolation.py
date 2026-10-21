@@ -3,7 +3,7 @@
 import time
 
 from api import config
-from api.adapters.engine import with_tenant_read_context
+from api.adapters.engine import job_log_path, with_tenant_read_context
 from api.adapters.workspace import ensure_global_engine_scope
 from api.billing.platform_pool import persist_usage_outbox, record_usage
 from api.worker import job_process, job_runner
@@ -75,7 +75,12 @@ def run_engine_job(tenant_id, project_slug, action, job_id=None, allow_pool=True
         "job_id": int(job_id) if job_id is not None else None,
     }
     if config.isolated_jobs_enabled():
-        result, usage, _stderr = job_process.run_job_process(payload, timeout=timeout)
+        log_path = None
+        if job_id is not None:
+            log_path = job_log_path(payload["tenant_directory"], project_slug, job_id)
+        result, usage, _stderr = job_process.run_job_process(
+            payload, timeout=timeout, log_path=log_path,
+        )
     else:
         result, usage = job_runner.execute(payload)
     _account_usage(funding, usage, action, job_id)

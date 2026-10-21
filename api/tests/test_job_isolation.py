@@ -117,6 +117,81 @@ def test_pipeline_dispatch_injects_project_slug(monkeypatch):
     assert result["project_slug"] == "acme"
 
 
+_STREAMING_CHILD = (
+    "import json, sys, time\n"
+    "sys.stderr.write('[geo] 1/8 Crawl Website\\n')\n"
+    "sys.stderr.flush()\n"
+    "time.sleep(1.5)\n"
+    "sys.stdout.write(json.dumps({'type': 'result', 'result': {'status': 'done'}, 'usage': {}}) + '\\n')\n"
+    "sys.stdout.flush()\n"
+)
+
+
+def test_job_log_receives_child_output_while_running(tmp_path):
+    """子进程 stderr 必须在运行期间落盘。
+
+    父进程的 capture_task_output 只重定向自己的 stdout/stderr；隔离子进程
+    若把 stderr 写进 PIPE，任务跑多久前端就多久看不到任何进度。
+    """
+    log_path = tmp_path / "jobs" / "7.log"
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(
+            job_process.run_job_process,
+            _payload("tenant-stream", {}),
+            60,
+            None,
+            log_path,
+            [sys.executable, "-u", "-c", _STREAMING_CHILD],
+        )
+        deadline = time.monotonic() + 15
+        streamed = ""
+        while time.monotonic() < deadline:
+            if log_path.exists():
+                streamed = log_path.read_text(encoding="utf-8")
+                if "1/8 Crawl Website" in streamed:
+                    break
+            if future.done():
+                break
+            time.sleep(0.05)
+        result, _usage, stderr = future.result()
+    assert "1/8 Crawl Website" in streamed
+    assert result == {"status": "done"}
+    assert "1/8 Crawl Website" in stderr
+
+
+def test_isolation_passes_job_log_path(monkeypatch):
+    """隔离分支必须把 Job 日志路径交给子进程，否则流式输出没有去处。"""
+    from api.worker import worker_isolation
+
+    seen = {}
+
+    def fake_run(payload, timeout=None, **kwargs):
+        seen["log_path"] = kwargs.get("log_path")
+        return {"status": "done"}, {}, ""
+
+    monkeypatch.setattr(worker_isolation.config, "isolated_jobs_enabled", lambda: True)
+    monkeypatch.setattr(worker_isolation.job_process, "run_job_process", fake_run)
+
+    worker_isolation.run_engine_job(
+        "uszx",
+        "lancco-com",
+        "autopilot",
+        job_id=7,
+        funding={
+            "tenant_id": 2,
+            "tenant_directory_slug": "uszx",
+            "keys": {},
+            "pool_codes": [],
+        },
+    )
+
+    log_path = seen["log_path"]
+    assert log_path is not None
+    assert log_path.name == "7.log"
+    assert log_path.parent.name == ".jobs"
+    assert "lancco-com" in log_path.parts
+
+
 def test_parent_environment_is_unchanged(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "parent-secret")
     before = dict(os.environ)

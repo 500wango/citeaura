@@ -73,29 +73,61 @@ def terminate_process_group(process, grace_seconds=10):
         pass
 
 
-def run_job_process(payload, timeout=None, environ=None):
-    """在子进程中执行一次引擎动作；返回 (result, usage, stderr)。"""
-    timeout = int(timeout or config.engine_job_timeout_seconds())
-    command = [sys.executable, "-m", "api.worker.job_runner"]
-    process = subprocess.Popen(
-        command,
-        cwd=str(PROJECT_ROOT),
-        env=sanitize_child_environment(environ),
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        start_new_session=True,
-    )
+def _file_tail(path, lines=8):
+    """从日志文件尾部取最后几行，用于子进程失败时的诊断。"""
+    if path is None:
+        return []
     try:
-        stdout, stderr = process.communicate(
-            job_protocol.encode_job_request(payload),
-            timeout=timeout,
+        with open(path, "rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(0, size - 4000))
+            text = handle.read().decode("utf-8", "replace")
+    except OSError:
+        return []
+    return text.strip().splitlines()[-lines:]
+
+
+def run_job_process(payload, timeout=None, environ=None, log_path=None, command=None):
+    """在子进程中执行一次引擎动作；返回 (result, usage, stderr)。
+
+    log_path 不为空时，子进程 stderr 直接追写该 Job 日志：引擎的逐步输出
+    必须在任务运行期间就能被前端轮询到，而不是结束后才一次性拿到。
+    """
+    timeout = int(timeout or config.engine_job_timeout_seconds())
+    command = command or [sys.executable, "-m", "api.worker.job_runner"]
+    log_handle = None
+    if log_path is not None:
+        try:
+            Path(log_path).parent.mkdir(parents=True, exist_ok=True)
+            log_handle = open(log_path, "a", encoding="utf-8", buffering=1)
+        except OSError:
+            log_handle = None
+    try:
+        process = subprocess.Popen(
+            command,
+            cwd=str(PROJECT_ROOT),
+            env=sanitize_child_environment(environ),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=log_handle if log_handle is not None else subprocess.PIPE,
+            text=True,
+            start_new_session=True,
         )
-    except subprocess.TimeoutExpired:
-        terminate_process_group(process)
-        stdout, stderr = process.communicate()
-        raise EngineJobTimeout(f"engine job timed out after {timeout}s")
+        try:
+            stdout, stderr = process.communicate(
+                job_protocol.encode_job_request(payload),
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            terminate_process_group(process)
+            stdout, stderr = process.communicate()
+            raise EngineJobTimeout(f"engine job timed out after {timeout}s")
+    finally:
+        if log_handle is not None:
+            log_handle.close()
+    if log_handle is not None:
+        stderr = "\n".join(_file_tail(log_path))
     result, usage, errors, _progress = job_protocol.parse_events(stdout)
     if errors:
         raise EngineJobError("; ".join(errors)[:2000])
