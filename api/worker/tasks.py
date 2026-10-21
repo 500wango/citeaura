@@ -76,22 +76,29 @@ def _evaluate_effects(project_slug):
 
 def _sync_projections(tenant_id, project_slug):
     """把最新采样产物投影到数据库；失败只标记 dirty。"""
-    from api.adapters.engine import tenant_project_dir
+    from api.adapters.engine import resolve_tenant, tenant_project_dir
     from api.projections.service import mark_projection_dirty, sync_latest_run
 
     db = SessionLocal()
     try:
+        # Celery 任务参数传的是租户目录名，不能直接和 integer 主键比较。
+        tenant = resolve_tenant(db, tenant_id)
+        if tenant is None:
+            return
         project = db.query(Project).filter(
-            Project.tenant_id == tenant_id, Project.slug == project_slug,
+            Project.tenant_id == tenant.id, Project.slug == project_slug,
         ).first()
         if project is None:
             return
+        directory = tenant.directory_slug or str(tenant_id)
         try:
-            with with_tenant_read_context(tenant_id, project_slug):
-                sync_latest_run(db, tenant_id, project.id, tenant_project_dir(tenant_id, project_slug))
+            with with_tenant_read_context(directory, project_slug):
+                sync_latest_run(
+                    db, tenant.id, project.id, tenant_project_dir(directory, project_slug),
+                )
         except Exception as exc:  # noqa: BLE001 - 投影是派生索引，不能回滚采样
             db.rollback()
-            mark_projection_dirty(db, tenant_id, project.id, error=exc)
+            mark_projection_dirty(db, tenant.id, project.id, error=exc)
             logger.warning("projection sync failed for %s: %s", project_slug, exc)
     finally:
         db.close()

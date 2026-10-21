@@ -628,6 +628,44 @@ def test_find_job_rejects_cross_tenant_or_wrong_action(tmp_path):
         assert tasks._find_job(db, "tenant-a", "first-project", "verify", first_job.id) is None
 
 
+def test_sync_projections_accepts_tenant_directory_slug(tmp_path, monkeypatch):
+    """任务参数是租户目录名；投影必须解析成主键，不能把它当整数列比较。"""
+    from api.adapters import engine as engine_adapter
+    from api.projections import service as projection_service
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'projections.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with session_factory() as db:
+        tenant = Tenant(name="Acme Co", directory_slug="uszx", plan="pro")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id, slug="lancco-com", url="https://lancco.com", market="global",
+        )
+        db.add(project)
+        db.commit()
+        tenant_id, project_id = tenant.id, project.id
+
+    synced = []
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(tasks, "with_tenant_read_context", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setattr(
+        engine_adapter, "tenant_project_dir",
+        lambda tenant_key, slug: tmp_path / str(tenant_key) / slug,
+    )
+    monkeypatch.setattr(
+        projection_service, "sync_latest_run",
+        lambda db, tenant_key, project_pk, directory: synced.append(
+            (tenant_key, project_pk, str(directory)),
+        ),
+    )
+
+    tasks._sync_projections("uszx", "lancco-com")
+
+    assert synced == [(tenant_id, project_id, str(tmp_path / "uszx" / "lancco-com"))]
+
+
 def test_job_status_updates_project_on_success_and_failure(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{tmp_path / 'status.sqlite'}")
     Base.metadata.create_all(engine)
