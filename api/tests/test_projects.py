@@ -573,6 +573,25 @@ def test_delivery_download_builds_snapshot_without_writing_project(project_clien
     assert not (tmp_path / "delivery-snapshots").exists()
 
 
+def test_project_creation_lets_engine_size_the_crawl(project_client, monkeypatch):
+    """写死 25 页会让中大型站点的页面级审计只覆盖不到一成，页数应由引擎按站点规模决定。"""
+    client, _ = project_client
+    headers = _register(client, "auto-pages@example.com")
+    captured = {}
+
+    def fake_init(args):
+        captured["max_pages"] = args.max_pages
+        return {"slug": args.slug}
+
+    monkeypatch.setattr(project_router, "with_tenant_context", lambda *args, **kwargs: _empty_context())
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_init=fake_init))
+    monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *a, **kw: types.SimpleNamespace(id="boot"))
+
+    created = client.post("/api/v1/projects", headers=headers, json={"url": "example.com"})
+    assert created.status_code == 202
+    assert captured["max_pages"] is None
+
+
 def test_project_isolation_and_duplicate_rejection(project_client, monkeypatch):
     client, _ = project_client
     owner_headers = _register(client, "owner@example.com")

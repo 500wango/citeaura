@@ -48,6 +48,31 @@ class GeoCliTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             geo.cmd_init(args("example.com", max_pages=0))
 
+    def test_init_defaults_to_auto_page_limit(self):
+        """不传页数时写 None，由 crawl 按 sitemap 规模决定；写死 25 会让大站只抽一成。"""
+        with tempfile.TemporaryDirectory() as d:
+            old_work = G.WORK
+            G.WORK = Path(d)
+            try:
+                init_args = args("example.com", max_pages=None)
+                init_args.name = "Example"
+                cfg = geo.cmd_init(init_args)
+                self.assertIsNone(cfg["pages"]["max"])
+            finally:
+                G.WORK = old_work
+
+    def test_init_keeps_explicit_page_limit(self):
+        with tempfile.TemporaryDirectory() as d:
+            old_work = G.WORK
+            G.WORK = Path(d)
+            try:
+                init_args = args("example.com", max_pages=8)
+                init_args.name = "Example"
+                cfg = geo.cmd_init(init_args)
+                self.assertEqual(cfg["pages"]["max"], 8)
+            finally:
+                G.WORK = old_work
+
     def test_init_rejects_unknown_market(self):
         with self.assertRaises(SystemExit):
             geo.cmd_init(args("example.com", market="unknown"))

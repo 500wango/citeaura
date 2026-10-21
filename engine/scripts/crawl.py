@@ -29,6 +29,20 @@ PRIORITY = [
 
 DEFAULT_SNAPSHOT_RUNS = 10
 
+# Discovery budget for sitemap URLs. Large sites need a close-enough denominator
+# for crawl coverage, and parsing <loc> entries is cheap compared with fetching.
+SITEMAP_DISCOVERY_LIMIT = 1000
+
+# Page budget by discovered site size. Page-level audit and tickets only cover
+# crawled pages, so a fixed quota under-represents medium and large sites.
+AUTO_PAGE_TIERS = ((150, 60), (500, 100))
+AUTO_PAGE_FALLBACK = 25
+AUTO_PAGE_MAX = 120
+
+# 旧版 init 无条件把 25 写进每个项目的 geo.json，且没有任何入口能改它。
+# 这个值无法与用户显式指定区分，继续当作配置会让存量项目的页面级审计永远停在 25 页。
+LEGACY_DEFAULT_PAGE_LIMIT = 25
+
 
 def _snapshot_retention() -> int:
     raw = os.environ.get("GEO_CRAWL_SNAPSHOT_RUNS")
@@ -52,7 +66,7 @@ def _prune_snapshots(root, keep: int | None = None) -> int:
     return removed
 
 
-def discover_sitemap(root: str, limit: int = 300) -> list[str]:
+def discover_sitemap(root: str, limit: int = SITEMAP_DISCOVERY_LIMIT) -> list[str]:
     urls: list[str] = []
     seen_maps = set()
     queue = [G.normalize_url(root, "/sitemap.xml"), G.normalize_url(root, "/sitemap_index.xml")]
@@ -293,11 +307,37 @@ def check_crawl_health(pages: list[dict]):
         G.die(f"Crawl failed: Only {ok}/{len(pages)} pages accessible (<20%). Check WAF/anti-scraping.")
 
 
+def auto_page_limit(sitemap_count: int) -> int:
+    """Size the crawl to the site instead of one fixed quota.
+
+    Small sites are crawled in full; larger ones get a bounded sample so page
+    level audit and tickets stay representative without unbounded fetch time.
+    """
+    count = max(0, int(sitemap_count or 0))
+    if count == 0:
+        return AUTO_PAGE_FALLBACK
+    if count <= 40:
+        return count
+    for ceiling, quota in AUTO_PAGE_TIERS:
+        if count <= ceiling:
+            return quota
+    return AUTO_PAGE_MAX
+
+
+def resolve_page_limit(cfg: dict, requested: int | None, sitemap_count: int):
+    """Explicit argument, then non-default project config, then the site-size default."""
+    if requested is not None:
+        return int(requested), "explicit"
+    configured = (cfg.get("pages") or {}).get("max")
+    if configured is not None and int(configured) != LEGACY_DEFAULT_PAGE_LIMIT:
+        return int(configured), "config"
+    return auto_page_limit(sitemap_count), "auto"
+
+
 def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
     cfg = G.load_config(slug)
     root = cfg["brand"]["site"].rstrip("/")
-    limit = max_pages if max_pages is not None else cfg.get("pages", {}).get("max", 25)
-    if limit < 1:
+    if max_pages is not None and max_pages < 1:
         raise ValueError("max_pages must be at least 1")
     if delay < 0:
         raise ValueError("delay must be non-negative")
@@ -306,11 +346,14 @@ def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
     staging = outdir / ".staging" / run_id
     (staging / "html").mkdir(parents=True, exist_ok=True)
 
-    G.info(f"Crawling {root} (limit: {limit} pages)")
-
     robots_txt = G.fetch_text(G.normalize_url(root, "/robots.txt"), allow_machine_file=True)
     llms_txt = G.fetch_text(G.normalize_url(root, "/llms.txt"), allow_machine_file=True)
     sitemap_urls = discover_sitemap(root)
+    limit, limit_source = resolve_page_limit(cfg, max_pages, len(sitemap_urls))
+    if limit < 1:
+        raise ValueError("max_pages must be at least 1")
+
+    G.info(f"Crawling {root} (limit: {limit} pages, source: {limit_source})")
 
     home = (
         {"url": root, "final_url": root, "status": 0, "html": "", "error": "Blocked by robots.txt"}
@@ -388,6 +431,15 @@ def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
         "ai_bots_blocked": blocked,
         "pages_crawled": len(pages),
         "pages_ok": sum(1 for p in pages if p["status"] == 200),
+        "coverage": {
+            "discovered_urls": len(sitemap_urls),
+            "discovered_is_partial": len(sitemap_urls) >= SITEMAP_DISCOVERY_LIMIT,
+            "crawled_pages": len(pages),
+            # 抓取集合可以包含 sitemap 之外的内部链接，覆盖率不能超过 100%。
+            "ratio": round(min(1.0, len(pages) / len(sitemap_urls)), 4) if sitemap_urls else None,
+            "mode": "full" if sitemap_urls and len(pages) >= len(sitemap_urls) else "sampled",
+            "limit_source": limit_source,
+        },
     }
     final_snapshots = outdir / "html" / run_id
     final_snapshots.parent.mkdir(parents=True, exist_ok=True)

@@ -62,6 +62,17 @@ export default {
     const scoreUnavailableLabel = usesApplicableScore ? t('siteaudit.not_scored', {}, 'Not scored') : t('common.unmeasured', {}, 'Unmeasured');
     const summary = audit.check_summary || {};
     const siteFindings = Array.isArray(audit.site_findings) ? audit.site_findings : [];
+    // 审计只覆盖抓取样本；不写分母时，用户会把样本当成全站结论。
+    const coverage = (audit.site || {}).coverage || {};
+    const coverageCrawled = Number(coverage.crawled_pages || 0);
+    const coverageDiscovered = Number(coverage.discovered_urls || 0);
+    const coverageRatio = Number(coverage.ratio);
+    const coverageNote = coverageCrawled && coverageDiscovered
+      ? `of ${coverageDiscovered}${coverage.discovered_is_partial ? '+' : ''} sitemap URLs`
+        + (Number.isFinite(coverageRatio)
+          ? ` (${Math.round(coverageRatio * 100)}%, ${coverage.mode || 'sampled'} crawl)`
+          : '')
+      : 'no sitemap discovered; coverage limited to internal links';
 
     return `
       <div class="app-view-container">
@@ -93,7 +104,7 @@ export default {
           <div class="card" style="gap:var(--sp-2);">
             <span class="kicker">${t('siteaudit.crawled_pages', {}, 'Audited Pages')}</span>
             <span class="num" style="font-size:var(--fs-7);font-weight:700;">${pages.length}</span>
-            <span style="color:var(--muted);font-size:11px;">${summary.excluded_pages || 0} utility pages excluded from content scoring</span>
+            <span style="color:var(--muted);font-size:11px;">${escapeHtml(coverageNote)} · ${summary.excluded_pages || 0} utility pages excluded from content scoring</span>
           </div>
           <div class="card" style="gap:var(--sp-2);">
             <span class="kicker">${t('siteaudit.applicable_checks', {}, 'Applicable Checks')}</span>

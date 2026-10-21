@@ -54,7 +54,7 @@ def cmd_init(a):
     if (parsed.scheme not in ("http", "https") or not host
             or parsed.username is not None or parsed.password is not None):
         G.die("Site URL must use http or https and include a valid hostname")
-    if a.max_pages < 1:
+    if a.max_pages is not None and a.max_pages < 1:
         G.die("max_pages must be at least 1")
     if a.market not in ("cn", "global", "both"):
         G.die("market must be one of: cn, global, both")
@@ -498,7 +498,8 @@ def main():
     s.add_argument("--market", choices=["cn", "global", "both"], default="cn")
     s.add_argument("--question-language", default="auto", choices=["auto", *L.SUPPORTED_LANGUAGES])
     s.add_argument("--report-language", default="en", choices=list(L.SUPPORTED_LANGUAGES))
-    s.add_argument("--max-pages", type=int, default=25, dest="max_pages")
+    s.add_argument("--max-pages", type=int, default=None, dest="max_pages",
+                   help="Pages to crawl; omit to size the crawl from the sitemap")
     s.add_argument("--force", action="store_true", help="Archive and rebuild an existing project")
     s.set_defaults(func=cmd_init)
 
@@ -507,7 +508,8 @@ def main():
     s.add_argument("--name")
     s.add_argument("--slug")
     s.add_argument("--market", choices=["cn", "global", "both"], default="both")
-    s.add_argument("--max-pages", type=int, default=25, dest="max_pages")
+    s.add_argument("--max-pages", type=int, default=None, dest="max_pages",
+                   help="Pages to crawl; omit to size the crawl from the sitemap")
     s.add_argument("--limit", type=int, default=None, help="Sample only the first N questions")
     s.add_argument("--no-sample", action="store_true", dest="no_sample")
     s.add_argument("--skip-llm", action="store_true", dest="skip_llm", help="Skip LLM-assisted bootstrap")

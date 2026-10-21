@@ -226,7 +226,7 @@ def sample_import_path(slug: str, filename: str) -> Path:
     return G.project_dir(slug) / "samples" / name
 
 
-def create_project(url: str, name: str, slug: str, market: str, max_pages: int) -> dict:
+def create_project(url: str, name: str, slug: str, market: str, max_pages: int | None) -> dict:
     import geo as CLI
 
     class A:
@@ -435,8 +435,10 @@ class Handler(BaseHTTPRequestHandler):
                 url = (body.get("url") or "").strip()
                 if not url:
                     return self._json({"ok": False, "error": "site_url_required"}, 400)
+                raw_pages = body.get("max_pages")
+                pages = int(raw_pages) if raw_pages not in (None, "") else None
                 cfg = create_project(url, body.get("name", ""), body.get("slug", ""),
-                                     body.get("market", "cn"), int(body.get("max_pages", 25)))
+                                     body.get("market", "cn"), pages)
                 return self._json({"ok": True, "slug": cfg["slug"]})
 
             if p == "/api/run":

@@ -111,6 +111,20 @@ export default {
     const siteHealth = audit.site || {};
     const crawlMeasured = Number(audit.page_count || siteHealth.pages_crawled || 0) > 0;
     const crawlOk = crawlMeasured && Number(siteHealth.pages_ok || 0) > 0;
+    // 页面级审计只覆盖抓取样本；分母必须一并展示，否则读数会被当成全站结论。
+    const crawlCoverage = siteHealth.coverage || {};
+    const discoveredUrls = Number(crawlCoverage.discovered_urls || 0);
+    const crawledPages = Number(crawlCoverage.crawled_pages || siteHealth.pages_crawled || audit.page_count || 0);
+    const coverageRatio = Number(crawlCoverage.ratio);
+    const coverageSuffix = crawlCoverage.discovered_is_partial ? '+' : '';
+    const crawlScopeNote = crawlMeasured
+      ? (discoveredUrls
+        ? `Crawled ${crawledPages}/${discoveredUrls}${coverageSuffix} sitemap URLs`
+          + (Number.isFinite(coverageRatio)
+            ? ` (${Math.round(coverageRatio * 100)}%, ${crawlCoverage.mode || 'sampled'} crawl)`
+            : '')
+        : `Crawled ${crawledPages} pages from internal links (no sitemap discovered)`)
+      : 'No measured crawl result';
     const robotsMeasured = crawlMeasured && Object.prototype.hasOwnProperty.call(siteHealth, 'ai_bots_blocked');
     const robotsOk = robotsMeasured && !(siteHealth.ai_bots_blocked || []).length;
     const llmsMeasured = typeof siteHealth.has_llms_txt === 'boolean';
@@ -224,7 +238,7 @@ export default {
             ${healthIndicator('llms.txt', llmsMeasured, llmsOk, llmsMeasured ? 'llms.txt checked by the last crawl' : 'No measured llms.txt result')}
             ${healthIndicator('Schema graph', diagnosticReady, diagnosticReady, 'Schema JSON-LD knowledge graph')}
             ${healthIndicator('Brand facts', brandFactsMeasured, brandFactsOk, brandFactsMeasured ? 'Brand facts extracted from sampled answers' : 'No measured brand facts result')}
-            ${healthIndicator('Crawl', crawlMeasured, crawlOk, crawlMeasured ? 'Crawl coverage from the last audit' : 'No measured crawl result')}
+            ${healthIndicator('Crawl', crawlMeasured, crawlOk, crawlScopeNote)}
           </div>
           <span class="demo-provenance-pill" style="font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:12px;background:var(--deep);border:1px solid var(--line);color:var(--muted);">
             ${visibilityReady ? 'Traceable · Grounded' : '[DEMO · SYNTHETIC BASELINE]'}

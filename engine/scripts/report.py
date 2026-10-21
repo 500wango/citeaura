@@ -118,6 +118,16 @@ def build_markdown(cfg, audit, metrics, prev_m, prev_a, todos) -> str:
     A(f"- Target Market: { {'cn':'Domestic (CN)','global':'Global','both':'Global & Domestic'}.get(cfg.get('market','global'), cfg.get('market')) }")
     A(f"- Crawled Pages: {audit['page_count']} pages; Average Site Score **{audit['avg_score']}**"
       + (delta(audit["avg_score"], prev_a["avg_score"]) if prev_a else " (Baseline run)"))
+    coverage = (audit.get("site") or {}).get("coverage") or {}
+    discovered = int(coverage.get("discovered_urls") or 0)
+    if coverage.get("crawled_pages") and discovered:
+        partial = "+" if coverage.get("discovered_is_partial") else ""
+        ratio = f"{coverage['ratio']:.0%}" if coverage.get("ratio") is not None else "—"
+        A(f"- Crawl Coverage: {coverage['crawled_pages']}/{discovered}{partial} sitemap URLs"
+          f" ({ratio}, {coverage.get('mode')} crawl)")
+    elif coverage.get("crawled_pages"):
+        A(f"- Crawl Coverage: {coverage['crawled_pages']} pages from internal links"
+          " (no sitemap discovered)")
     A("")
 
     A("## 1. Executive Summary")

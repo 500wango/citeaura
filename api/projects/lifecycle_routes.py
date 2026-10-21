@@ -260,7 +260,9 @@ def create_project(
                 market=market,
                 question_language=payload.question_language,
                 report_language=payload.report_language,
-                max_pages=25,
+                # None = 由引擎按 sitemap 规模决定抓取页数；写死上限会让
+                # 中大型站点的页面级审计和工单只覆盖不到一成站点。
+                max_pages=None,
                 force=False,
             )
             with _route_facade().with_tenant_context(tenant.directory_slug, slug):

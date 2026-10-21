@@ -205,5 +205,65 @@ class TestCrawlSelectionAndEvidence(unittest.TestCase):
                 G.WORK = old_work
 
 
+class AutoPageLimitTest(unittest.TestCase):
+    """写死页数会让中大站点的页面级审计只覆盖不到一成，必须按站点规模分档。"""
+
+    def test_small_sites_are_crawled_in_full(self):
+        self.assertEqual(crawl.auto_page_limit(0), 25)
+        self.assertEqual(crawl.auto_page_limit(18), 18)
+        self.assertEqual(crawl.auto_page_limit(40), 40)
+
+    def test_large_sites_get_a_bounded_quota(self):
+        self.assertEqual(crawl.auto_page_limit(41), 60)
+        self.assertEqual(crawl.auto_page_limit(150), 60)
+        self.assertEqual(crawl.auto_page_limit(151), 100)
+        self.assertEqual(crawl.auto_page_limit(500), 100)
+        self.assertEqual(crawl.auto_page_limit(501), 120)
+        self.assertEqual(crawl.auto_page_limit(5000), 120)
+
+    def test_explicit_limit_wins_over_config(self):
+        cfg = {"pages": {"max": 40}}
+        self.assertEqual(crawl.resolve_page_limit(cfg, 7, 300), (7, "explicit"))
+        self.assertEqual(crawl.resolve_page_limit(cfg, None, 300), (40, "config"))
+
+    def test_legacy_default_config_is_upgraded(self):
+        """存量项目里的 25 是旧版 init 写死的默认值，继续沿用等于改造没生效。"""
+        legacy = {"pages": {"max": crawl.LEGACY_DEFAULT_PAGE_LIMIT}}
+        self.assertEqual(crawl.resolve_page_limit(legacy, None, 900), (120, "auto"))
+        self.assertEqual(crawl.resolve_page_limit(legacy, 12, 900), (12, "explicit"))
+
+    def test_unset_config_falls_back_to_site_size(self):
+        self.assertEqual(crawl.resolve_page_limit({"pages": {"max": None}}, None, 300), (100, "auto"))
+        self.assertEqual(crawl.resolve_page_limit({}, None, 10), (10, "auto"))
+
+    def test_run_records_crawl_coverage(self):
+        """覆盖率必须落盘：报告和界面靠它区分全站抓取与抽样。"""
+        with tempfile.TemporaryDirectory() as d:
+            old_work = G.WORK
+            G.WORK = Path(d)
+            try:
+                pdir = G.project_dir("demo")
+                pdir.mkdir(parents=True, exist_ok=True)
+                (pdir / "geo.json").write_text(json.dumps({
+                    "brand": {"site": "https://example.com"}, "market": "global",
+                    "pages": {"seed": [], "max": None},
+                }), "utf-8")
+                locs = [f"https://example.com/p/{i}" for i in range(5)]
+                sitemap = "<urlset>" + "".join(f"<url><loc>{url}</loc></url>" for url in locs) + "</urlset>"
+                texts = {"https://example.com/sitemap.xml": sitemap}
+                ok = {"status": 200, "final_url": "https://example.com/", "error": None,
+                      "html": "<html><body><main><h1>Title</h1><p>Body text</p></main></body></html>"}
+                with mock.patch.object(G, "fetch_text", side_effect=lambda url, **kw: texts.get(url, "")), \
+                     mock.patch.object(G, "fetch", return_value=ok):
+                    site = crawl.run("demo", delay=0)
+                self.assertEqual(site["coverage"]["discovered_urls"], 5)
+                self.assertEqual(site["coverage"]["crawled_pages"], site["pages_crawled"])
+                self.assertEqual(site["coverage"]["ratio"], 1.0)
+                self.assertEqual(site["coverage"]["mode"], "full")
+                self.assertEqual(site["coverage"]["limit_source"], "auto")
+            finally:
+                G.WORK = old_work
+
+
 if __name__ == "__main__":
     unittest.main()
