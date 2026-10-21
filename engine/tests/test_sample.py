@@ -554,6 +554,46 @@ class TestRunValidation(unittest.TestCase):
         self.assertEqual([q["id"] for q in S.questions_for(cfg, "deepseek")], ["q101"])
         self.assertEqual([q["id"] for q in S.questions_for(cfg, "glm")], ["q001"])
 
+    def test_both_market_provider_samples_project_questions(self):
+        """自定义供应商的 both 表示覆盖两个地区，不该因为没有 both 问题被跳过。"""
+        cfg = {
+            "market": "both",
+            "questions": [
+                {"id": "q001", "market": "cn", "text": "有什么好用的工具？"},
+                {"id": "q101", "market": "global", "text": "Which tool is best?"},
+            ],
+        }
+        provider = {
+            "name": "Gateway", "market": "both", "base": "https://gateway.example.com/v1",
+            "model": "vendor/model", "model_env": None,
+            "key_env": "CITEAURA_CUSTOM_TEST_API_KEY", "note": "Custom provider",
+        }
+        with mock.patch.dict(S.PROVIDERS, {"custom_test_both": provider}):
+            self.assertEqual(
+                [q["id"] for q in S.questions_for(cfg, "custom_test_both")],
+                ["q001", "q101"],
+            )
+
+    def test_billing_failure_stops_remaining_requests(self):
+        """402 是确定性失败，继续跑满整轮只会制造上百条同样的错误。"""
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(G, "WORK", Path(tmp)):
+            pdir = G.project_dir("demo")
+            pdir.mkdir()
+            (pdir / "geo.json").write_text(json.dumps({
+                "brand": {"name": "Acme", "site": "https://acme.example", "aliases": []},
+                "market": "global", "platforms": ["deepseek"],
+                "questions": [{"id": "q001", "market": "global", "text": "Best tool?"}],
+            }), "utf-8")
+            failure = {"ok": False, "error": 'HTTP 402: {"error":{"message":"Insufficient Balance"}}'}
+            with mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test"}), \
+                 mock.patch.object(S, "ask", return_value=failure) as ask:
+                metrics = S.run("demo", repeat=5)
+            rows = G.read_jsonl(next((pdir / "samples").glob("*.jsonl")))
+        self.assertEqual(ask.call_count, 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(metrics["sample_count"], 1)
+        self.assertEqual(metrics["successful_sample_count"], 0)
+
     def test_no_market_matching_questions_does_not_create_empty_run(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(G, "WORK", Path(tmp)):
             pdir = G.project_dir("demo")

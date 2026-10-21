@@ -192,6 +192,11 @@ def questions_for(cfg: dict, platform: str, question_ids: list[str] | None = Non
     def selected_ok(question):
         return not selected or str(question.get("id")) in selected
 
+    if m == "both":
+        # 自定义供应商的 both 表示可服务两个地区，而不是只认 both 标记的问题；
+        # 否则项目问题全是 cn/global 时它会被整段跳过。
+        return [question for question in questions if selected_ok(question)]
+
     matched = [
         question for question in questions
         if selected_ok(question) and question_market(question) in ("both", m)
@@ -930,6 +935,16 @@ def _history_snapshot(slug: str, rows: list[dict]) -> dict:
 # ------------------------------------------------------------ Commands
 
 
+# 认证与余额类错误在同一轮采样内不会自行恢复，继续请求只会把一次
+# 凭据问题放大成上百条失败样本。
+FATAL_PROVIDER_STATUSES = frozenset((401, 402, 403))
+
+
+def _fatal_provider_error(error) -> bool:
+    match = re.search(r"HTTP (\d{3})", str(error or ""))
+    return bool(match) and int(match.group(1)) in FATAL_PROVIDER_STATUSES
+
+
 def run(
     slug: str,
     platforms: list[str] | None = None,
@@ -1067,6 +1082,15 @@ def run(
                     print(f"[geo] {done:3d}/{total} {flag} [{rec['platform']}] [Round {rec['round']}/{repeat}] {rec['question'][:32]}",
                           file=sys.stderr, flush=True)
                 out.append(rec)
+                if _fatal_provider_error(rec.get("error")):
+                    remaining = len(plat_jobs) - index - 1
+                    if remaining:
+                        with lock:
+                            G.info(
+                                f"Aborted {rec['platform']} after {rec['error'][:80]}; "
+                                f"{remaining} request(s) skipped"
+                            )
+                    break
                 if index + 1 < len(plat_jobs):
                     delay = _provider_delay(plat)
                     if delay:
