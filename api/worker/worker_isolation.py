@@ -1,6 +1,8 @@
 """隔离式引擎任务：父进程只调度、计量与写库，密钥只进入一次性子进程。"""
 
+import threading
 import time
+from contextlib import contextmanager
 
 from api import config
 from api.adapters.engine import job_log_path, with_tenant_read_context
@@ -9,11 +11,59 @@ from api.billing.platform_pool import persist_usage_outbox, record_usage
 from api.worker import job_process, job_runner
 from api.worker.worker_funding import _sync_custom_provider_scope, _sync_funded_engine_scope
 
+# 必须明显小于 STALE_RUNNING_JOB_TIMEOUT_SECONDS（默认 4500s）。
+HEARTBEAT_INTERVAL_SECONDS = 60
+
 
 def _task_facade():
     from api.worker import tasks as task_module
 
     return task_module
+
+
+@contextmanager
+def _job_heartbeat(job_id):
+    """子进程运行期间刷新 Job 心跳。
+
+    父进程阻塞在 communicate() 上时不会走阶段 update()，回收器会把仍在
+    采样的长任务误判成 worker_lost_or_timeout。
+    """
+    if job_id is None:
+        yield
+        return
+    from datetime import datetime, timezone
+
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from api.models import Job
+
+    stop = threading.Event()
+    logger = _task_facade().logger
+
+    def touch():
+        def operation(db):
+            job = db.get(Job, job_id)
+            if job is None or job.status != "running":
+                return
+            job.heartbeat_at = datetime.now(timezone.utc)
+
+        try:
+            _task_facade()._job_transaction(operation)
+        except SQLAlchemyError as exc:
+            # 心跳写不进去不能中断正在跑的采样。
+            logger.warning("Unable to refresh heartbeat for job %s: %s", job_id, exc)
+
+    def loop():
+        while not stop.wait(HEARTBEAT_INTERVAL_SECONDS):
+            touch()
+
+    thread = threading.Thread(target=loop, name=f"job-heartbeat-{job_id}", daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join(timeout=10)
 
 
 def resolve_job_funding(tenant_id, project_slug, allow_pool=True):
@@ -78,9 +128,10 @@ def run_engine_job(tenant_id, project_slug, action, job_id=None, allow_pool=True
         log_path = None
         if job_id is not None:
             log_path = job_log_path(payload["tenant_directory"], project_slug, job_id)
-        result, usage, _stderr = job_process.run_job_process(
-            payload, timeout=timeout, log_path=log_path,
-        )
+        with _job_heartbeat(job_id):
+            result, usage, _stderr = job_process.run_job_process(
+                payload, timeout=timeout, log_path=log_path,
+            )
     else:
         result, usage = job_runner.execute(payload)
     _account_usage(funding, usage, action, job_id)

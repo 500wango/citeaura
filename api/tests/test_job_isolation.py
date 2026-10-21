@@ -192,6 +192,48 @@ def test_isolation_passes_job_log_path(monkeypatch):
     assert "lancco-com" in log_path.parts
 
 
+def test_isolation_refreshes_heartbeat_while_child_runs(monkeypatch):
+    """子进程长跑期间父进程必须刷新心跳。
+
+    否则回收器只看到 claim 时的心跳，采到一半就会被当成
+    worker_lost_or_timeout 写死。
+    """
+    from api.worker import worker_isolation
+
+    beats = []
+    fake_tasks = SimpleNamespace(
+        logger=SimpleNamespace(warning=lambda *args, **kwargs: None),
+        _job_transaction=lambda operation, retries=2: beats.append(1),
+    )
+
+    def fake_run(payload, timeout=None, **kwargs):
+        time.sleep(0.4)
+        return {"status": "done"}, {}, ""
+
+    monkeypatch.setattr(worker_isolation, "_task_facade", lambda: fake_tasks)
+    monkeypatch.setattr(worker_isolation, "HEARTBEAT_INTERVAL_SECONDS", 0.05)
+    monkeypatch.setattr(worker_isolation.config, "isolated_jobs_enabled", lambda: True)
+    monkeypatch.setattr(worker_isolation.job_process, "run_job_process", fake_run)
+
+    worker_isolation.run_engine_job(
+        "uszx",
+        "lancco-com",
+        "autopilot",
+        job_id=7,
+        funding={
+            "tenant_id": 2,
+            "tenant_directory_slug": "uszx",
+            "keys": {},
+            "pool_codes": [],
+        },
+    )
+
+    assert len(beats) >= 2
+    settled = len(beats)
+    time.sleep(0.2)
+    assert len(beats) == settled
+
+
 def test_parent_environment_is_unchanged(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "parent-secret")
     before = dict(os.environ)
