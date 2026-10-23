@@ -185,6 +185,7 @@
   "landing.per_14_days": "₢ 킹",
   "landing.faq_index": "₢ 킹",
   "landing.faq_title": "FAQ",
+"landing.home.faq_lead": "<strong>CiteAura는 AI 가시성 트래킹, BYOK API 키, 클라이언트 인도에 대해 직접 답합니다.</strong> 아래 질문은 샘플링 모드, 가격, 체험판 포함 항목을 다룹니다.",
   "landing.faq_1_q": "API 샘플은 사용자가 제품 화면에서 보는 내용과 일치하나요?",
   "landing.faq_1_a": "반드시 일치하지는 않습니다. API 샘플은 제품 화면의 답변과 다를 수 있습니다. CiteAura는 각 샘플을 API · 모델 지식, API · 웹 기반 검색, 수동 · 제품 화면으로 표시하여 근거를 구분할 수 있게 합니다.",
   "landing.faq_2_q": "내 모델 API Key(BYOK)를 직접 제공해야 하나요?",

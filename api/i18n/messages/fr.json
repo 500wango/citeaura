@@ -185,6 +185,7 @@
   "landing.per_14_days": "/ 7 jours",
   "landing.faq_index": "C'est la raison pour laquelle la Commission a décidé de ne pas donner suite à cette demande.",
   "landing.faq_title": "Foire aux questions",
+"landing.home.faq_lead": "<strong>CiteAura répond directement aux questions sur la visibilité IA, les clés API BYOK et les mandats clients.</strong> Les questions ci-dessous couvrent les modes d’échantillonnage, les tarifs et le contenu de l’essai.",
   "landing.faq_1_q": "Les échantillons API correspondent-ils à ce que les utilisateurs voient dans l’interface du produit ?",
   "landing.faq_1_a": "Pas nécessairement. Les réponses obtenues via les API peuvent différer de celles de l’interface du produit. CiteAura distingue chaque échantillon : API · Connaissances du modèle, API · Recherche sur le Web ou Manuel · Surface du produit, pour identifier la nature des preuves.",
   "landing.faq_2_q": "Dois-je fournir mes propres API Key de modèle (BYOK) ?",

@@ -9,10 +9,12 @@
   <meta name="theme-color" content="#070b0a" data-theme-color>
   <script src="/runtime-assets/theme-init.js"></script>
   <link rel="preload" href="/site-assets/fonts/geist-latin-variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
   <link rel="stylesheet" href="/site-assets/styles/components.css">
   <link rel="stylesheet" href="/site-assets/styles/home.css">
+  <noscript><style>.reveal{opacity:1 !important;transform:none !important}</style></noscript>
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -288,8 +290,14 @@
 
   <main id="main">
     <section class="home-hero" id="simulator" aria-labelledby="hero-title">
+      <div class="hero-ambient" aria-hidden="true">
+        <span class="hero-glow hero-glow-a"></span>
+        <span class="hero-glow hero-glow-b"></span>
+        <span class="hero-grid"></span>
+      </div>
       <div class="page-shell">
         <div class="home-intro">
+          <div class="hero-eyebrow" aria-hidden="true"><span class="hero-eyebrow-dot"></span><span class="hero-eyebrow-rule"></span></div>
           <h1 id="hero-title" data-i18n="landing.hero_title">Track your AI visibility.<br>Know what to fix.</h1>
           <div class="home-intro-action">
             <p data-i18n="landing.hero_subtitle">Track brand mentions and citations. Prioritize fixes and verify changes.</p>
@@ -313,22 +321,22 @@
 
     <section class="section home-workflow" id="workflow" aria-labelledby="workflow-title">
       <div class="page-shell">
-        <h2 id="workflow-title" data-i18n="landing.home.workflow_title">Measure. Make changes. Check the evidence.</h2>
-        <p class="home-section-lead" data-i18n="landing.home.workflow_answer">CiteAura tracks brand mentions and citations in AI answers, turns audit findings into prioritized fixes, and verifies changes through checks and repeat sampling.</p>
+        <h2 id="workflow-title" class="reveal" data-i18n="landing.home.workflow_title">Measure. Make changes. Check the evidence.</h2>
+        <p class="home-section-lead reveal" data-i18n="landing.home.workflow_answer">CiteAura tracks brand mentions and citations in AI answers, turns audit findings into prioritized fixes, and verifies changes through checks and repeat sampling.</p>
         <ol class="home-steps">
-          <li><h3 data-i18n="landing.home.measure">Measure your starting point</h3><p data-i18n="landing.home.measure_body">Review answers to your target questions. See brand mentions and citations, with the model, sampling mode, and source attached.</p></li>
-          <li><h3 data-i18n="landing.home.act">Give your team a clear brief</h3><p data-i18n="landing.home.act_body">Turn site findings into prioritized engineering tickets with page references and acceptance criteria. Your team reviews and implements the changes.</p></li>
-          <li><h3 data-i18n="landing.home.verify">Check the work, then measure again</h3><p data-i18n="landing.home.verify_body">Verify deployed changes and repeat your sampling. Export the findings, work completed, and remaining limitations in a delivery pack.</p></li>
+          <li class="reveal"><h3 data-i18n="landing.home.measure">Measure your starting point</h3><p data-i18n="landing.home.measure_body">Review answers to your target questions. See brand mentions and citations, with the model, sampling mode, and source attached.</p></li>
+          <li class="reveal"><h3 data-i18n="landing.home.act">Give your team a clear brief</h3><p data-i18n="landing.home.act_body">Turn site findings into prioritized engineering tickets with page references and acceptance criteria. Your team reviews and implements the changes.</p></li>
+          <li class="reveal"><h3 data-i18n="landing.home.verify">Check the work, then measure again</h3><p data-i18n="landing.home.verify_body">Verify deployed changes and repeat your sampling. Export the findings, work completed, and remaining limitations in a delivery pack.</p></li>
         </ol>
-        <p class="home-chain" data-i18n="landing.evidence_chain">AI answer → citation gap → page change → acceptance check → re-test</p>
+        <p class="home-chain reveal" data-i18n="landing.evidence_chain">AI answer → citation gap → page change → acceptance check → re-test</p>
       </div>
     </section>
 
     <section class="section home-product" id="product" aria-labelledby="product-title">
       <div class="page-shell">
-        <h2 id="product-title" data-i18n="landing.home.product_title">From a finding to work you can hand off.</h2>
-        <p class="home-section-lead" data-i18n="landing.home.product_answer">CiteAura turns audit findings into engineering tickets with page references and acceptance criteria. Delivery packs collect findings, assets, and verification status for handoff.</p>
-        <div class="home-product-grid">
+        <h2 id="product-title" class="reveal" data-i18n="landing.home.product_title">From a finding to work you can hand off.</h2>
+        <p class="home-section-lead reveal" data-i18n="landing.home.product_answer">CiteAura turns audit findings into engineering tickets with page references and acceptance criteria. Delivery packs collect findings, assets, and verification status for handoff.</p>
+        <div class="home-product-grid reveal">
           <figure>
             <a href="/site-assets/product-tickets-real-v2.webp" target="_blank" rel="noopener noreferrer"><img src="/site-assets/product-tickets-real-v2.webp" width="3836" height="1660" loading="lazy" data-i18n-alt="landing.home.tickets_caption" alt="CiteAura Action Tickets product interface"></a>
             <figcaption data-i18n="landing.home.tickets_caption">Demo · Action Tickets: prioritize work and keep track of implementation. Illustrative workspace; no performance claim.</figcaption>
@@ -344,10 +352,10 @@
     <section class="extract-band section" id="about" aria-labelledby="about-title">
       <div class="page-shell">
         <div class="section-heading home-about-heading">
-          <h2 id="about-title" data-i18n="landing.about_title">What CiteAura is</h2>
-          <p data-i18n="landing.about_body">CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.</p>
+          <h2 id="about-title" class="reveal" data-i18n="landing.about_title">What CiteAura is</h2>
+          <p class="reveal" data-i18n="landing.about_body">CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.</p>
         </div>
-        <details class="home-method"><summary data-i18n="landing.home.methodology">How we measure, and what the results mean</summary><div class="disclosure-content">
+        <details class="home-method reveal"><summary data-i18n="landing.home.methodology">How we measure, and what the results mean</summary><div class="disclosure-content">
 
         <span class="home-note" data-engine-count="10" data-product-surface-count="12" data-i18n="public.landing.models_count">10 API engines + 12 product surfaces + custom</span>
         <div class="ribbon-grid ribbon-modes" aria-label="Sampling modes" data-i18n-aria="landing.modes_label">
@@ -374,7 +382,7 @@
           <div class="model-ribbon-card"><span class="model-ribbon-name" data-i18n="public.landing.custom_endpoint_name">Custom OpenAI-compatible</span><span class="model-ribbon-badge" data-i18n="public.landing.custom_endpoint_badge">Bring your own endpoint</span></div>
         </div>
       <p><span data-i18n="landing.bento_mention_label">Mention Rate</span> · <span data-i18n="landing.bento_citation_label">Citation Rate</span></p><a href="/methodology" data-i18n="nav.docs">Docs</a></div></details>
-        <div class="extract-grid">
+        <div class="extract-grid reveal">
           <article class="extract-card">
             <h3 data-i18n="landing.evidence_loop_title">Effect verification</h3>
             <p data-i18n="landing.evidence_loop_dd">A deployed ticket enters an observation window with a target and control question set. Verdicts are observational comparisons with intervals; they are not causal proof.</p>
@@ -384,14 +392,14 @@
             <p data-i18n="landing.evidence_boundary_body">Every result keeps the sampling mode, source, prompt cohort, and verification state visible. Unmeasured engines are reported as unmeasured.</p>
           </article>
         </div>
-        <details class="extract-card extract-card-wide disclosure-card">
+        <details class="extract-card extract-card-wide disclosure-card reveal">
           <summary><h3 data-i18n="public.landing.compare_title">CiteAura versus traditional SEO tools and mention dashboards</h3></summary>
           <div class="disclosure-content">
             <p data-i18n="public.landing.compare_intro">Use this comparison when choosing alternatives. CiteAura does not guarantee mentions, rankings, or citations.</p>
             <p><span data-i18n="public.landing.official_facts_index">Official facts index</span>: <a href="/llms.txt">/llms.txt</a> · <span data-i18n="landing.compare_rarely_published">Rarely published</span></p>
           </div>
         </details>
-        <details class="extract-card extract-card-wide disclosure-card">
+        <details class="extract-card extract-card-wide disclosure-card reveal">
           <summary><h3 data-i18n="landing.howto_title">How to run a CiteAura diagnostic</h3></summary>
           <div class="disclosure-content">
             <ol class="extract-steps">
@@ -403,7 +411,7 @@
             </ol>
           </div>
         </details>
-        <div class="home-sources">
+        <div class="home-sources reveal">
           <h3 data-i18n="landing.home.sources_title">What search providers document</h3>
           <p class="home-section-lead" data-i18n="landing.home.sources_answer">Google and OpenAI publish guidance on appearing in their AI search features. These sources explain eligibility and crawler access, not a guarantee of citations.</p>
           <figure>
@@ -425,17 +433,17 @@
       <div class="page-shell">
         <div class="pricing-head">
           <div class="section-heading">
-            <h2 id="pricing-title" data-i18n="landing.pricing_title">Choose the AI visibility plan that fits your growth</h2>
-            <p data-i18n="landing.home.cost">Model usage is separate from your subscription. With your own API keys, model providers bill you directly. Review any platform-funded budget before sampling.</p>
+            <h2 id="pricing-title" class="reveal" data-i18n="landing.pricing_title">Choose the AI visibility plan that fits your growth</h2>
+            <p class="reveal" data-i18n="landing.home.cost">Model usage is separate from your subscription. With your own API keys, model providers bill you directly. Review any platform-funded budget before sampling.</p>
           </div>
 
-          <div class="seg billing-toggle" role="group" data-i18n-aria="landing.billing_label" aria-label="Billing interval">
+          <div class="seg billing-toggle reveal" role="group" data-i18n-aria="landing.billing_label" aria-label="Billing interval">
             <button type="button" class="seg-opt is-active" data-billing="monthly" aria-pressed="true" data-i18n="landing.billing_monthly">Monthly</button>
             <button type="button" class="seg-opt" data-billing="annual" aria-pressed="false" data-i18n="landing.billing_annual">Annual · save ~20%</button>
           </div>
         </div>
 
-        <div class="pricing-grid">
+        <div class="pricing-grid reveal">
           <article class="price-card" data-plan-code="starter">
             <p class="plan-name" data-i18n="public.landing.plan_starter_name">Starter</p>
             <p class="price"><strong data-monthly="$79" data-annual="$759">$79</strong><span data-monthly="/ month" data-annual="/ year" data-i18n-monthly="landing.per_month" data-i18n-annual="landing.per_year">/ month</span></p>
@@ -475,7 +483,7 @@
 
         </div>
 
-        <p class="pricing-note">
+        <p class="pricing-note reveal">
           <span data-i18n="landing.pricing_note">No guarantee of mention or ranking. AI answers are noisy; trends need multiple sampling rounds.</span>
           <span data-i18n="landing.pricing_currency">Prices in USD.</span>
         </p>
@@ -485,32 +493,32 @@
     <section class="faq section" id="faq" aria-labelledby="faq-title">
       <div class="page-shell">
         <div class="section-heading">
-          <h2 id="faq-title" data-i18n="landing.faq_title">Frequently asked questions</h2>
-          <p class="home-section-lead"><strong>CiteAura provides direct answers to common questions about AI visibility tracking, BYOK API keys, and client retainers.</strong> Review the direct answers below regarding sampling modes, pricing, and trial inclusions.</p>
+          <h2 id="faq-title" class="reveal" data-i18n="landing.faq_title">Frequently asked questions</h2>
+          <p class="home-section-lead reveal" data-i18n="landing.home.faq_lead"><strong>CiteAura provides direct answers to common questions about AI visibility tracking, BYOK API keys, and client retainers.</strong> Review the direct answers below regarding sampling modes, pricing, and trial inclusions.</p>
         </div>
 
         <div class="faq-list">
-          <details>
+          <details class="reveal">
             <summary data-i18n="landing.faq_1_q">Do API samples match what users see in the product UI?</summary>
             <p data-i18n="landing.faq_1_a">Not necessarily. API samples can differ from product UI answers. CiteAura labels each sample as API · Model knowledge, API · Web-grounded retrieval, or Manual · Product surface so you can distinguish the evidence.</p>
           </details>
 
-          <details>
+          <details class="reveal">
             <summary data-i18n="landing.faq_2_q">Must I bring my own model API keys (BYOK)?</summary>
             <p data-i18n="landing.home.cost">Model usage is separate from your subscription. With your own API keys, model providers bill you directly. Review any platform-funded budget before sampling.</p>
           </details>
 
-          <details>
+          <details class="reveal">
             <summary data-i18n="landing.faq_3_q">Can CiteAura guarantee my brand will be ranked or mentioned by AI?</summary>
             <p data-i18n="landing.faq_3_a">No. Any vendor promising guaranteed AI recommendations is untruthful. CiteAura provides rigorous diagnosis, standardized engineering tickets, and repeatable verification evidence to help teams improve visibility over time.</p>
           </details>
 
-          <details>
+          <details class="reveal">
             <summary data-i18n="landing.faq_4_q">What is included in the 14-day free trial?</summary>
             <p data-i18n="landing.faq_4_a">The 14-day free trial includes 3 projects, 3 sample runs per project (a day-1 baseline plus automatic retests on day 7 and day 14), full reports, action tickets, effect observation, and delivery packages with no credit card required.</p>
           </details>
 
-          <details>
+          <details class="reveal">
             <summary data-i18n="landing.faq_5_q">Is CiteAura suitable for digital marketing agencies delivering to clients?</summary>
             <p data-i18n="landing.faq_5_a">Absolutely. The Agency plan is tailored for agencies with 30 active projects, team role permissions, white-label client headers, and downloadable client-ready delivery packs.</p>
           </details>
@@ -521,10 +529,10 @@
     <section class="section" id="free-tools" aria-labelledby="free-tool-title">
       <div class="page-shell">
         <div class="section-heading">
-          <h2 id="free-tool-title" data-i18n="landing.home.tools_title">Try one check before a full audit.</h2>
-          <p data-i18n="landing.home.tools_body">Check a public page without creating an account. Each tool answers one specific question.</p>
+          <h2 id="free-tool-title" class="reveal" data-i18n="landing.home.tools_title">Try one check before a full audit.</h2>
+          <p class="reveal" data-i18n="landing.home.tools_body">Check a public page without creating an account. Each tool answers one specific question.</p>
         </div>
-        <div class="home-tools">
+        <div class="home-tools reveal">
           <article class="home-tool"><h3 data-i18n="landing.free_tool_crawler_title">AI crawler access checker</h3><p data-i18n="landing.free_tool_crawler_desc">See whether GPTBot, PerplexityBot, ClaudeBot and other crawlers are blocked by robots.txt.</p><a class="btn btn-secondary" href="/crawler-check" data-i18n="landing.free_tool_crawler_cta">Open checker</a></article>
           <article class="home-tool"><h3 data-i18n="landing.free_tool_llms_title">llms.txt generator</h3><p data-i18n="landing.free_tool_llms_desc">Generate a reviewable machine-readable draft from your public homepage and download it as llms.txt.</p><a class="btn btn-secondary" href="/llms-txt-tool" data-i18n="landing.free_tool_llms_cta">Generate llms.txt</a></article>
           <article class="home-tool"><h3 data-i18n="landing.free_tool_schema_title">Brand Schema checker</h3><p data-i18n="landing.free_tool_schema_desc">Inspect homepage JSON-LD entity types and download a compact diagnosis for your team.</p><a class="btn btn-secondary" href="/schema-tool" data-i18n="landing.free_tool_schema_cta">Check Schema</a></article>
@@ -535,24 +543,24 @@
     <section class="blog-band section" id="blog" aria-labelledby="blog-title">
       <div class="page-shell">
         <div class="section-heading">
-          <h2 id="blog-title" data-i18n="landing.blog_title">Guides</h2>
-          <p data-i18n="landing.blog_body">Practical notes on measuring mentions, crawl access, llms.txt, and client diagnostic packs.</p>
+          <h2 id="blog-title" class="reveal" data-i18n="landing.blog_title">Guides</h2>
+          <p class="reveal" data-i18n="landing.blog_body">Practical notes on measuring mentions, crawl access, llms.txt, and client diagnostic packs.</p>
         </div>
-        <div class="blog-preview-grid">
+        <div class="blog-preview-grid reveal">
           <a class="blog-preview-card" href="/blog/measure-if-chatgpt-mentions-your-brand"><span class="blog-preview-kicker" data-i18n="public.landing.guide_measurement">Measurement</span><h3 data-i18n="public.landing.guide_measurement_title">Measure ChatGPT brand mentions: mention_rate, cohort, 3 sampling modes</h3><p data-i18n="public.landing.guide_measurement_desc">Fix a question set, log raw answers, and keep API knowledge separate from the product UI.</p></a>
           <a class="blog-preview-card" href="/blog/why-chatgpt-does-not-mention-my-brand"><span class="blog-preview-kicker" data-i18n="public.landing.guide_diagnosis">Diagnosis</span><h3 data-i18n="public.landing.guide_diagnosis_title">Why is my brand never mentioned in ChatGPT? 4 checks</h3><p data-i18n="public.landing.guide_diagnosis_desc">Separate extractability problems and thin official facts from ordinary answer noise.</p></a>
           <a class="blog-preview-card" href="/blog/gptbot-blocked-by-robots-txt"><span class="blog-preview-kicker" data-i18n="public.landing.guide_crawl">Crawl access</span><h3 data-i18n="public.landing.guide_crawl_title">gptbot robots.txt: find the Disallow and allow GPTBot safely</h3><p data-i18n="public.landing.guide_crawl_desc">Find the Disallow rule, allow public product pages, and re-check the live file.</p></a>
           <a class="blog-preview-card" href="/blog/what-to-put-in-llms-txt"><span class="blog-preview-kicker" data-i18n="public.landing.guide_llms">Discovery file</span><h3 data-i18n="public.landing.guide_llms_title">llms.txt best practices: facts, canonical URLs, what to leave out</h3><p data-i18n="public.landing.guide_llms_desc">Publish official facts and canonical links. Skip slogans you cannot source.</p></a>
           <a class="blog-preview-card" href="/blog/white-label-geo-diagnostic-report"><span class="blog-preview-kicker" data-i18n="public.landing.guide_agency">Agency delivery</span><h3 data-i18n="public.landing.guide_agency_title">White-Label GEO Diagnostic Reports for Agencies</h3><p data-i18n="public.landing.guide_agency_desc">Send site findings, labeled samples, and tickets, not a vendor-branded guarantee slide.</p></a>
         </div>
-        <p class="blog-preview-more"><a href="/blog" data-i18n="landing.blog_all">All guides →</a></p>
+        <p class="blog-preview-more reveal"><a href="/blog" data-i18n="landing.blog_all">All guides →</a></p>
       </div>
     </section>
 
     <section class="home-final" aria-labelledby="final-title">
       <div class="page-shell home-final-inner">
-        <div><h2 id="final-title" data-i18n="landing.home.final_title">Know what to work on next.</h2><p data-i18n="landing.home.final_body">Start with your website, review the evidence, and give your team a practical plan for AI visibility.</p></div>
-        <a class="btn btn-primary" href="/app?auth=register" data-i18n="nav.cta" rel="nofollow">Start free trial</a>
+        <div class="reveal"><h2 id="final-title" data-i18n="landing.home.final_title">Know what to work on next.</h2><p data-i18n="landing.home.final_body">Start with your website, review the evidence, and give your team a practical plan for AI visibility.</p></div>
+        <a class="btn btn-primary reveal" href="/app?auth=register" data-i18n="nav.cta" rel="nofollow">Start free trial</a>
       </div>
     </section>
   </main>

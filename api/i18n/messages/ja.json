@@ -185,6 +185,7 @@
   "landing.per_14_days": "/ 7日間",
   "landing.faq_index": "07 / よくある質問",
   "landing.faq_title": "よくある質問",
+"landing.home.faq_lead": "<strong>CiteAura は AI 可視性トラッキング、BYOK API キー、クライアント納品に関する質問に直接お答えします。</strong>以下ではサンプリングモード、料金、トライアル内容を扱います。",
   "landing.faq_1_q": "API サンプルは、ユーザーがプロダクト画面で見る内容と一致しますか？",
   "landing.faq_1_a": "必ずしも一致しません。API のサンプルは製品画面の回答と異なる場合があります。CiteAura は各サンプルを API · モデル知識、API · ウェブ検索連携、手動 · プロダクト画面と明示し、証拠を区別できるようにしています。",
   "landing.faq_2_q": "自分のモデル API キー（BYOK）を用意する必要がありますか？",

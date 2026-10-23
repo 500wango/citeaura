@@ -185,6 +185,7 @@
   "landing.per_14_days": "/ 14 Tage",
   "landing.faq_index": "07 / FAQ",
   "landing.faq_title": "Häufig gestellte Fragen",
+"landing.home.faq_lead": "<strong>CiteAura beantwortet direkt Fragen zu KI-Sichtbarkeit, BYOK-API-Schlüsseln und Kundenmandaten.</strong> Die folgenden Fragen behandeln Stichprobenmodi, Preise und den Trial-Umfang.",
   "landing.faq_1_q": "Stimmen API-Stichproben mit dem überein, was Nutzer in der Produktoberfläche sehen?",
   "landing.faq_1_a": "Nicht unbedingt. API-Stichproben können von Antworten in der Produktoberfläche abweichen. CiteAura kennzeichnet jede Stichprobe als API · Modellwissen, API · Web-basiertes Abrufen oder Manuell · Produktoberfläche, damit die Belege unterscheidbar bleiben.",
   "landing.faq_2_q": "Muss ich meine eigenen Modell-API-Keys (BYOK) bereitstellen?",

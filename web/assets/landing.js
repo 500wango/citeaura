@@ -891,12 +891,32 @@ function sanitizeLandingHtml(value) {
       /* ================================================================
      
      ================================================================ */
+  /* ================================================================
+     Home pointer effects: cursor-following glow on the evidence frame
+     ================================================================ */
+  function initHomeEffects() {
+    if (!document.body.classList.contains('home-page')) return;
+    if (!(window.matchMedia && window.matchMedia('(pointer: fine)').matches)) return;
+    var frame = document.querySelector('.home-evidence');
+    if (!frame) return;
+    frame.addEventListener('pointermove', function (event) {
+      var rect = frame.getBoundingClientRect();
+      frame.style.setProperty('--mouse-x', ((event.clientX - rect.left) / rect.width * 100).toFixed(2) + '%');
+      frame.style.setProperty('--mouse-y', ((event.clientY - rect.top) / rect.height * 100).toFixed(2) + '%');
+    });
+    frame.addEventListener('pointerleave', function () {
+      frame.style.setProperty('--mouse-x', '50%');
+      frame.style.setProperty('--mouse-y', '-20%');
+    });
+  }
+
   function init() {
     initTheme();
     initNav();
     initHeaderScroll();
     initBilling();
     initReveal();
+    initHomeEffects();
     initSimulator();
     initLocale();
     setLocale(detectLocale(), !!document.querySelector('.blog-article'));
