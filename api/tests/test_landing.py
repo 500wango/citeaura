@@ -89,6 +89,16 @@ def test_home_data_i18n_keys_exist_in_all_product_catalogs():
     catalogs = load_all_catalogs()
     for locale, catalog in catalogs.items():
         assert keys <= set(catalog), (locale, sorted(keys - set(catalog)))
+
+
+def test_pricing_scheduled_monitoring_matches_feature_entitlements():
+    from api.adapters.capabilities import feature
+
+    html = (Path(__file__).resolve().parents[2] / "web" / "pricing.html").read_text("utf-8")
+    row = re.search(r"<th>Scheduled monitoring</th>(.*?)</tr>", html).group(1)
+    cells = re.findall(r"<td>(.*?)</td>", row)
+    enabled = set(feature("scheduled_monitoring")["entitlements"])
+    assert cells == ["Yes" if plan in enabled else "—" for plan in ("starter", "pro", "agency")]
     
 
 def test_public_verification_pages_support_head_requests():
