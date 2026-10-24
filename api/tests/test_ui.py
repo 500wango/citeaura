@@ -612,7 +612,7 @@ def test_public_trial_copy_matches_billing_ssot():
     assert f"Starter trial: {TRIAL_DAYS} days" in (root / "web/llms.txt").read_text("utf-8")
     assert "14-day trial" in (root / "web/index.html").read_text("utf-8")
     pricing = (root / "web/pricing.html").read_text("utf-8")
-    assert "<th>Scheduled monitoring</th><td>Yes</td><td>Yes</td><td>Yes</td>" in pricing
+    assert "<th>Scheduled monitoring</th><td>—</td><td>Yes</td><td>Yes</td>" in pricing
 
 
 def test_sample_evidence_drawer_and_pdf_export_use_real_contracts():
