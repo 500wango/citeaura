@@ -58,6 +58,32 @@ def test_spa_is_served_with_citeaura_shell():
     assert response.headers["cache-control"] == "private, no-store, max-age=0"
 
 
+def test_public_pages_load_clarity_from_self_hosted_loader():
+    root = Path(__file__).resolve().parents[2] / "web"
+    for path in sorted(root.rglob("*.html")):
+        relative = path.relative_to(root)
+        source = path.read_text("utf-8")
+        if relative.parts[0] in {"app", "admin"}:
+            assert "/runtime-assets/clarity.js" not in source, path
+        else:
+            assert '<script defer src="/runtime-assets/clarity.js"></script>' in source, path
+
+    client = TestClient(app)
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert '<script defer src="/runtime-assets/clarity.js"></script>' in response.text
+    policy = response.headers["content-security-policy"]
+    assert "script-src 'self' https://*.clarity.ms;" in policy
+    assert "connect-src 'self' https://*.clarity.ms;" in policy
+    assert "img-src 'self' data: blob: https://*.clarity.ms;" in policy
+    assert "clarity.ms" not in client.get("/app").headers["content-security-policy"]
+
+    loader = client.get("/runtime-assets/clarity.js")
+    assert loader.status_code == 200
+    assert "ypn71kg86y" in loader.text
+
+
 def test_public_trailing_slash_redirect_uses_configured_canonical_url(monkeypatch):
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://citeaura.example")
 

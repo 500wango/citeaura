@@ -196,10 +196,18 @@ async def security_headers(request: Request, call_next):
             "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data: blob: https:; "
             "font-src data:; connect-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
         )
-    else:
+    elif request.url.path in ("/app", "/admin") or request.url.path.startswith(
+        ("/app/", "/app-assets/", "/admin/")
+    ):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
             "font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        )
+    else:
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self' https://*.clarity.ms; style-src 'self' 'unsafe-inline'; "
+            "font-src 'self'; img-src 'self' data: blob: https://*.clarity.ms; "
+            "connect-src 'self' https://*.clarity.ms; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         )
     ua = (request.headers.get("user-agent") or "").lower()
     if any(bot in ua for bot in ("bot", "gpt", "claude", "perplexity", "spider", "crawl")):
