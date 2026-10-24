@@ -3,11 +3,11 @@
  */
 
 import { projects } from '../api.js';
-import { hasCatalogKey, t, tError } from '../i18n.js';
+import { hasCatalogKey, issueText, t, tError, ticketField, translateBackendLabel } from '../i18n.js';
 import { confirmModal } from '../components/modal.js';
 import { toast } from '../components/toast.js';
 import { renderKpis } from '../components/kpi.js';
-import { gradeBadge, samplingModeBadge, statusPill } from '../components/badge.js';
+import { gradeBadge, samplingModeBadge, samplingModeLabel, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
 import { escapeHtml, safeHttpUrl } from '../safe-html.js';
 
@@ -72,13 +72,29 @@ export default {
     const summaryScope = userSummary.evidence_scope || {};
     const summaryFinding = userSummary.primary_finding || {};
     const qualityIssues = Array.isArray(quality.issues) ? quality.issues : [];
+    const summaryIssue = qualityIssues.find((item) => item.code === summaryFinding.code) || qualityIssues[0] || null;
+    const summaryHeadline = summaryIssue
+      ? issueText(summaryIssue)
+      : (summaryScope.measured
+        ? t('report.summary_measured_title', {}, 'AI visibility has been measured')
+        : t('report.summary_ready_title', {}, 'Your diagnostic is ready to review'));
+    const summaryWhy = summaryIssue
+      ? t('report.summary_why_primary', {}, 'Review the highest-priority finding before interpreting visibility results.')
+      : t('report.summary_why_default', {}, 'Use the evidence and action plan to decide what to improve first.');
+    const summaryAction = summaryIssue
+      ? issueText(summaryIssue, 'action')
+      : t('report.review_action', {}, 'Review the action plan');
+    const summaryLimitations = qualityIssues
+      .filter((item) => item !== summaryIssue && ['info', 'warning'].includes(item.severity))
+      .slice(0, 3)
+      .map((item) => issueText(item));
     const readiness = quality.readiness || {};
     const questionReadiness = readiness.question || {};
     const attributionReadiness = readiness.attribution || {};
     const sentiment = project.insights?.sentiment || {};
     const sentimentBands = Array.isArray(sentiment.bands) ? sentiment.bands : [];
     const trend = (quality.measurement_quality && quality.measurement_quality.trend) || {};
-    const trendLabel = trend.label ? escapeHtml(trend.label) : '';
+    const trendLabel = trend.label ? escapeHtml(translateBackendLabel(trend.label)) : '';
     const trendNote = trend.status === 'noteworthy'
       ? `${trendLabel || 'Trend'} ${escapeHtml(trend.direction || '')} ${trend.delta_pp != null ? `${escapeHtml(trend.delta_pp)} pp` : ''}`.trim()
       : (trendLabel || t('overview.trend_single', {}, 'Single-round observation; two comparable periods are required before calling a trend'));
@@ -94,7 +110,7 @@ export default {
     const visibilityMeasured = eligibleSamples > 0 && measuredEngines.length > 0;
     const mentionRateKnown = report && report.mention_rate !== null && report.mention_rate !== undefined;
     const cohortReason = !visibilityMeasured
-      ? (qualityIssues.find((item) => item.code === 'sampling_missing')?.message
+      ? (issueText(qualityIssues.find((item) => item.code === 'sampling_missing'))
         || t('overview.cohort_none', {}, 'No eligible cohort yet. Run a labeled sample to make this measurable.'))
       : (!mentionRateKnown
         ? t('overview.cohort_mixed_modes', {}, 'Sampling modes are shown separately; no combined mention rate is reported.')
@@ -169,7 +185,7 @@ export default {
       && !(brandFacts && typeof brandFacts === 'object' && brandFacts.status === 'missing');
     const healthIndicator = (label, measured, ok, title) => (
       `<span class="health-indicator ${measured && ok ? 'is-ok' : 'is-warn'}" title="${escapeHtml(title)}">`
-      + `<span class="status-dot"></span>${escapeHtml(label)}${measured ? '' : ' unmeasured'}</span>`
+      + `<span class="status-dot"></span>${escapeHtml(label)}${measured ? '' : ` ${escapeHtml(t('common.unmeasured', {}, 'Unmeasured'))}`}</span>`
     );
     const firstValue = !diagnosticReady
       ? {
@@ -230,7 +246,7 @@ export default {
           <dl>
             <div><dt>${t('overview.cohort_question_set', {}, 'Question set')}</dt><dd>${escapeHtml(questionSet.version || report?.question_set_version || '—')}${questionSet.count ? ` · ${Number(questionSet.count)} ${t('overview.cohort_questions', {}, 'questions')}` : ''}</dd></div>
             <div><dt>${t('overview.cohort_providers', {}, 'Providers')}</dt><dd>${providerNames.length ? escapeHtml(providerNames.join(', ')) : '—'}</dd></div>
-            <div><dt>${t('overview.cohort_mode', {}, 'Sampling mode')}</dt><dd>${measuredModes.length ? escapeHtml(measuredModes.join(' · ')) : '—'}</dd></div>
+            <div><dt>${t('overview.cohort_mode', {}, 'Sampling mode')}</dt><dd>${measuredModes.length ? escapeHtml(measuredModes.map((mode) => samplingModeLabel(mode)).join(' · ')) : '—'}</dd></div>
             <div><dt>${t('overview.cohort_window', {}, 'Window')}</dt><dd>${escapeHtml(reportDate || '—')}</dd></div>
             <div><dt>${t('overview.cohort_eligible', {}, 'Eligible samples')}</dt><dd class="num">${eligibleSamples || '—'}</dd></div>
           </dl>
@@ -322,19 +338,19 @@ export default {
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;">
             <div style="min-width:0;max-width:760px;">
               <span class="kicker">${t('overview.current_summary', {}, 'Current summary')}</span>
-              <h2 style="font-size:var(--fs-5);line-height:1.3;margin:var(--sp-1) 0 0;">${escapeHtml(userSummary.headline || t('overview.summary_pending', {}, 'Your diagnostic is being prepared'))}</h2>
-              <p style="margin:var(--sp-2) 0 0;color:var(--ink-2);line-height:1.5;">${escapeHtml(userSummary.why_it_matters || t('overview.summary_pending_detail', {}, 'Review the evidence and action plan when the diagnostic is ready.'))}</p>
+              <h2 style="font-size:var(--fs-5);line-height:1.3;margin:var(--sp-1) 0 0;">${escapeHtml(summaryHeadline)}</h2>
+              <p style="margin:var(--sp-2) 0 0;color:var(--ink-2);line-height:1.5;">${escapeHtml(summaryWhy)}</p>
             </div>
-            <a href="#/${escapeHtml(userSummary.next_route || 'plan')}" class="btn btn-primary btn-sm">${escapeHtml(userSummary.recommended_action || t('overview.action_next', {}, 'Review next action'))}<span aria-hidden="true"> →</span></a>
+            <a href="#/${escapeHtml(summaryIssue?.route || userSummary.next_route || 'plan')}" class="btn btn-primary btn-sm">${escapeHtml(summaryAction || t('overview.action_next', {}, 'Review next action'))}<span aria-hidden="true"> →</span></a>
           </div>
           <div style="display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;color:var(--muted);font-size:var(--fs-2);">
             <span>${summaryScope.measured ? t('overview.summary_measured', {}, 'Measured evidence') : t('overview.summary_unmeasured', {}, 'Visibility not measured')}</span>
             <span aria-hidden="true">·</span>
             <span>${t('overview.summary_samples', { count: Number(summaryScope.sample_count || 0) }, `${Number(summaryScope.sample_count || 0)} samples`)}</span>
-            ${summaryScope.confidence ? `<span aria-hidden="true">·</span><span>${escapeHtml(summaryScope.confidence)}</span>` : ''}
+            ${summaryScope.confidence ? `<span aria-hidden="true">·</span><span>${escapeHtml(translateBackendLabel(summaryScope.confidence))}</span>` : ''}
             ${summaryFinding.ticket_id ? `<span aria-hidden="true">·</span><span>${t('overview.summary_ticket', {}, 'Linked action ticket')} ${escapeHtml(summaryFinding.ticket_id)}</span>` : ''}
           </div>
-          ${(userSummary.limitations || []).length ? `<div style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(userSummary.limitations[0])}</div>` : ''}
+          ${summaryLimitations.length ? `<div style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(summaryLimitations[0])}</div>` : ''}
         </section>
         ${renderKpis(kpiData)}
         ${citationFeatures?.overview ? `<div class="card" style="gap:var(--sp-3);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('overview.citation_intelligence_title', {}, 'Citation Source Intelligence')}</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${t('overview.citation_intelligence_desc', {}, 'Latest web-enabled evidence, traceable to a sampling run.')}</p></div><a href="#/channels" class="btn btn-secondary btn-sm">${t('overview.view_channels', {}, 'View Channels')}</a></div>${citationSources?.status === 'measured' ? `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(citationSources.domains || []).slice(0,5).map((item) => `<span class="tag tag-neutral">${escapeHtml(item.domain)} · ${(item.share * 100).toFixed(1)}%</span>`).join('')}</div><span style="color:var(--muted);font-size:var(--fs-1);">${citationSources.total_citations} ${t('overview.citations_count', {}, 'citations')} · ${escapeHtml(citationSources.run_id || '')}</span>` : `<span style="color:var(--muted);">${t('channels.unmeasured_run_sample', {}, 'Unmeasured · Run a sample')}</span>`}</div>` : ''}
@@ -371,8 +387,8 @@ export default {
               : t('overview.next_steps', {}, 'Setup checklist')}</h3>
             ${qualityIssues.map((issue) => `
               <a href="#/${escapeHtml(issue.route || 'overview')}" style="display:flex;justify-content:space-between;gap:var(--sp-3);text-decoration:none;">
-                <span>${escapeHtml(issue.message)}</span>
-                <span style="font-size:var(--fs-2);">${escapeHtml(issue.action || t('common.open', {}, 'Open'))} →</span>
+                <span>${escapeHtml(issueText(issue))}</span>
+                <span style="font-size:var(--fs-2);">${escapeHtml(issueText(issue, 'action') || t('common.open', {}, 'Open'))} →</span>
               </a>
             `).join('')}
           </div>` : ''}
@@ -390,7 +406,7 @@ export default {
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-3);">
             ${[
               [t('overview.readiness_audit', {}, 'Audit'), readiness.audit?.label || t('overview.not_measured', {}, 'Not measured')],
-              [t('overview.readiness_measurement', {}, 'Measurement baseline'), readiness.measurement?.label || quality.measurement_quality?.confidence?.label || t('overview.no_baseline', {}, 'No baseline')],
+              [t('overview.readiness_measurement', {}, 'Measurement baseline'), translateBackendLabel(readiness.measurement?.label || quality.measurement_quality?.confidence?.label || t('overview.no_baseline', {}, 'No baseline'))],
               [t('overview.readiness_questions', {}, 'Questions'), questionReadiness.label || t('overview.not_measured', {}, 'Not measured')],
               [t('overview.readiness_attribution', {}, 'Attribution'), attributionReadiness.label || t('overview.no_comparable', {}, 'No comparable period')],
             ].map(([label, value]) => `<div style="padding:var(--sp-3);border:1px solid var(--line);background:var(--page);border-radius:var(--r-md);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(label)}</span><strong style="display:block;margin-top:4px;font-size:var(--fs-2);">${escapeHtml(value)}</strong></div>`).join('')}
@@ -451,8 +467,7 @@ export default {
                   .sort((left, right) => (priorityRank[left.priority] ?? 99) - (priorityRank[right.priority] ?? 99))
                   .slice(0, 5)
                   .map((ticket) => {
-                    const rawTitle = ticket.title_en || ticket.title || ticket.name || ticket.id;
-                    const title = hasCatalogKey(ticket.title) ? t(ticket.title) : rawTitle;
+                    const title = ticketField(ticket, 'title', 'title_en', ticket.name || ticket.id);
                     return `
                   <a class="ticket-item" href="#/plan" style="text-decoration:none;">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">

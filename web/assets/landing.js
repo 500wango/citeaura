@@ -155,6 +155,17 @@ function sanitizeLandingHtml(value) {
     });
   }
 
+  function applyProductShots() {
+    var locale = SUPPORTED_LOCALES.indexOf(state.locale) >= 0 ? state.locale : 'en';
+    $$('[data-product-shot]').forEach(function (node) {
+      var shot = node.getAttribute('data-product-shot');
+      if (!/^[a-z][a-z0-9-]*$/.test(shot || '')) return;
+      var asset = '/site-assets/product-' + shot + '-' + locale + '.webp';
+      if (node.tagName === 'IMG') node.setAttribute('src', asset);
+      else if (node.tagName === 'A') node.setAttribute('href', asset);
+    });
+  }
+
   function updateLocaleLinks() {
     $$('a[href]').forEach(function (link) {
       try {
@@ -345,6 +356,7 @@ function sanitizeLandingHtml(value) {
     applyBilling();
     renderThemeControl();
     applyNavGroupLabels();
+    applyProductShots();
     refreshPreviewLocale();
     localizeLegacyText();
   }

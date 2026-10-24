@@ -156,17 +156,23 @@ def localize_ticket(ticket):
     owner = ticket.get("owner") or ticket.get("role")
 
     for locale in SUPPORTED_LOCALES:
-        result[f"title_{locale}"] = _localize_text(title, locale)
-        result[f"desc_{locale}"] = _localize_text(desc, locale)
+        if not result.get(f"title_{locale}"):
+            result[f"title_{locale}"] = _localize_text(title, locale)
+        if not result.get(f"desc_{locale}"):
+            result[f"desc_{locale}"] = _localize_text(desc, locale)
         if why:
-            result[f"why_{locale}"] = _localize_text(why, locale)
+            if not result.get(f"why_{locale}"):
+                result[f"why_{locale}"] = _localize_text(why, locale)
         if action:
-            result[f"action_{locale}"] = _localize_text(action, locale)
+            if not result.get(f"action_{locale}"):
+                result[f"action_{locale}"] = _localize_text(action, locale)
         if package:
-            result[f"package_{locale}"] = _localize_text(package, locale)
+            if not result.get(f"package_{locale}"):
+                result[f"package_{locale}"] = _localize_text(package, locale)
             result[f"category_{locale}"] = result[f"package_{locale}"]
         if owner:
-            result[f"owner_{locale}"] = _localize_text(owner, locale)
+            if not result.get(f"owner_{locale}"):
+                result[f"owner_{locale}"] = _localize_text(owner, locale)
             result[f"role_{locale}"] = result[f"owner_{locale}"]
             
     # Localize acceptance criteria if present
@@ -174,7 +180,8 @@ def localize_ticket(ticket):
     if isinstance(acc, dict) and "desc" in acc:
         acc_copy = dict(acc)
         for locale in SUPPORTED_LOCALES:
-            acc_copy[f"desc_{locale}"] = _localize_text(acc.get("desc"), locale)
+            if not acc_copy.get(f"desc_{locale}"):
+                acc_copy[f"desc_{locale}"] = _localize_text(acc.get("desc"), locale)
         result["acceptance"] = acc_copy
 
     return result

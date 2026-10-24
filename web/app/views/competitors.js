@@ -7,6 +7,7 @@ import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
+import { samplingModeLabel } from '../components/badge.js';
 import { escapeHtml } from '../safe-html.js';
 
 export default {
@@ -134,7 +135,7 @@ export default {
           ${cohorts.length && entities.length && heatmapQuestions.length ? cohorts.map((cohort) => {
             const cohortKey = cohort.key;
             return `<div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
-              <div style="display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-3);"><strong>${escapeHtml(cohort.engine_name || cohort.engine_code)}</strong><span class="tag tag-dim">${escapeHtml(cohort.sampling_mode || '')}</span><span class="num" style="color:var(--muted);font-size:var(--fs-1);">n=${cohort.samples || 0}</span></div>
+              <div style="display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-3);"><strong>${escapeHtml(cohort.engine_name || cohort.engine_code)}</strong><span class="tag tag-dim">${escapeHtml(samplingModeLabel(cohort.sampling_mode_code || cohort.sampling_mode))}</span><span class="num" style="color:var(--muted);font-size:var(--fs-1);">n=${cohort.samples || 0}</span></div>
               <div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('questions.col_prompt', {}, 'Prompt')}</th>${entities.map((entity) => `<th style="text-align:right;">${escapeHtml(entity.name)}</th>`).join('')}</tr></thead><tbody>${heatmapQuestions.map((question) => {
                 const cells = ((question.cohorts || []).find((item) => item.cohort === cohortKey) || {}).cells || {};
                 return `<tr><td style="min-width:260px;"><strong>${escapeHtml(question.text || question.id)}</strong><div class="num" style="color:var(--muted);font-size:var(--fs-1);">${escapeHtml(question.id || '')}</div></td>${entities.map((entity) => {

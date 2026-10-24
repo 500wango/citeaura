@@ -3,7 +3,7 @@
  */
 
 import { analytics, projects } from '../api.js';
-import { t, tError } from '../i18n.js';
+import { issueText, t, tError, translateBackendLabel } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { gradeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
@@ -49,18 +49,35 @@ export default {
     const quality = report && report.report_quality;
     const userSummary = (report && report.user_summary) || {};
     const summaryScope = userSummary.evidence_scope || {};
+    const summaryFinding = userSummary.primary_finding || {};
     const confidence = quality && quality.confidence;
     const sampleQuality = (quality && quality.measurement_quality && quality.measurement_quality.current) || {};
     const sampleDone = Number(sampleQuality.successful ?? sampleQuality.total ?? 0);
     const sampleTotal = Number(sampleQuality.total || 0);
     const evidenceHint = t('report.evidence_ready_hint', { done: sampleDone, total: sampleTotal }, `Evidence complete (${sampleDone}/${sampleTotal} samples) · Instant packaging`);
-    const confidenceLabel = confidence && confidence.label ? confidence.label : t('overview.no_baseline', {}, 'No baseline');
+    const confidenceLabel = translateBackendLabel(confidence && confidence.label ? confidence.label : t('overview.no_baseline', {}, 'No baseline'));
     const trend = (quality && quality.measurement_quality && quality.measurement_quality.trend) || {};
     const trendNote = trend.status === 'noteworthy'
-      ? `${escapeHtml(trend.label || t('engines.trend', {}, 'Trend'))} ${trend.delta_pp != null ? `(${Number(trend.delta_pp)} pp)` : ''}`
-      : escapeHtml(trend.label || t('overview.no_comparable', {}, 'No comparable period'));
+      ? `${escapeHtml(translateBackendLabel(trend.label) || t('engines.trend', {}, 'Trend'))} ${trend.delta_pp != null ? `(${Number(trend.delta_pp)} pp)` : ''}`
+      : escapeHtml(translateBackendLabel(trend.label) || t('overview.no_comparable', {}, 'No comparable period'));
     const readinessKnown = Boolean(quality);
     const qualityIssues = Array.isArray(quality && quality.issues) ? quality.issues : [];
+    const summaryIssue = qualityIssues.find((item) => item.code === summaryFinding.code) || qualityIssues[0] || null;
+    const summaryHeadline = summaryIssue
+      ? issueText(summaryIssue)
+      : (summaryScope.measured
+        ? t('report.summary_measured_title', {}, 'AI visibility has been measured')
+        : t('report.summary_ready_title', {}, 'Your diagnostic is ready to review'));
+    const summaryWhy = summaryIssue
+      ? t('report.summary_why_primary', {}, 'Review the highest-priority finding before interpreting visibility results.')
+      : t('report.summary_why_default', {}, 'Use the evidence and action plan to decide what to improve first.');
+    const summaryAction = summaryIssue
+      ? issueText(summaryIssue, 'action')
+      : t('report.review_action', {}, 'Review the action plan');
+    const summaryLimitations = qualityIssues
+      .filter((item) => item !== summaryIssue && ['info', 'warning'].includes(item.severity))
+      .slice(0, 3)
+      .map((item) => issueText(item));
     const assetTotals = deliveries.reduce((totals, item) => {
       const summary = item && item.asset_summary ? item.asset_summary : {};
       totals.ready += Number(summary.ready || 0);
@@ -96,16 +113,16 @@ export default {
         ${activeJob ? `<div class="job-block-note" role="status"><span class="status-dot"></span>${escapeHtml(t('project_job_already_running', {}, 'A job is already running for this brand.'))} ${escapeHtml(activeJob.action || '')} · ${escapeHtml(activeJob.status || '')}</div>` : ''}
         <section class="card" style="gap:var(--sp-3);border-left:3px solid var(--accent);">
           <span class="kicker">${t('report.current_summary', {}, 'What this report says')}</span>
-          <h2 style="font-size:var(--fs-5);line-height:1.3;margin:0;">${escapeHtml(userSummary.headline || t('report.summary_pending', {}, 'Review the diagnostic findings and evidence.'))}</h2>
-          <p style="margin:0;color:var(--ink-2);line-height:1.5;">${escapeHtml(userSummary.why_it_matters || t('report.summary_detail', {}, 'The report separates measured evidence from items that still need review.'))}</p>
+          <h2 style="font-size:var(--fs-5);line-height:1.3;margin:0;">${escapeHtml(summaryHeadline)}</h2>
+          <p style="margin:0;color:var(--ink-2);line-height:1.5;">${escapeHtml(summaryWhy)}</p>
           <div style="display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;color:var(--muted);font-size:var(--fs-2);">
-            <span>${escapeHtml(userSummary.recommended_action || t('report.review_action', {}, 'Review the action plan'))}</span>
+            <span>${escapeHtml(summaryAction || t('report.review_action', {}, 'Review the action plan'))}</span>
             <span aria-hidden="true">·</span>
             <span>${summaryScope.measured ? t('report.measured_evidence', {}, 'Measured evidence') : t('report.unmeasured_evidence', {}, 'Visibility not measured')}</span>
             <span aria-hidden="true">·</span>
             <span>${Number(summaryScope.sample_count || 0)} ${t('common.samples', {}, 'samples')}</span>
           </div>
-          ${(userSummary.limitations || []).length ? `<div style="padding-top:var(--sp-2);border-top:1px solid var(--line);color:var(--muted);font-size:var(--fs-2);line-height:1.5;"><strong>${t('report.evidence_limits', {}, 'Evidence limits:')}</strong> ${escapeHtml(userSummary.limitations.join(' · '))}</div>` : ''}
+          ${summaryLimitations.length ? `<div style="padding-top:var(--sp-2);border-top:1px solid var(--line);color:var(--muted);font-size:var(--fs-2);line-height:1.5;"><strong>${t('report.evidence_limits', {}, 'Evidence limits:')}</strong> ${escapeHtml(summaryLimitations.join(' · '))}</div>` : ''}
         </section>
 
         <section class="card" style="gap:var(--sp-3);">
@@ -116,7 +133,7 @@ export default {
           ${!readinessKnown
             ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('report.readiness_run', {}, 'Run the diagnostic or refresh this report before generating a delivery pack.')}</p>`
             : qualityIssues.length
-              ? `<ul style="margin:0;padding-left:18px;color:var(--ink-2);font-size:var(--fs-2);line-height:1.6;">${qualityIssues.slice(0, 5).map((issue) => `<li><a href="#/${escapeHtml(issue.route || 'overview')}">${escapeHtml(issue.message)}</a>${issue.action ? ` — ${escapeHtml(issue.action)}` : ''}</li>`).join('')}</ul>`
+              ? `<ul style="margin:0;padding-left:18px;color:var(--ink-2);font-size:var(--fs-2);line-height:1.6;">${qualityIssues.slice(0, 5).map((issue) => `<li><a href="#/${escapeHtml(issue.route || 'overview')}">${escapeHtml(issueText(issue))}</a>${issue.action ? ` — ${escapeHtml(issueText(issue, 'action'))}` : ''}</li>`).join('')}</ul>`
               : `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('report.readiness_ready', {}, 'All recorded readiness checks passed for the current artifacts.')}</p>`}
         </section>
 
@@ -158,7 +175,7 @@ export default {
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
               <span class="kicker">03 · ${t('report.assets_card', {}, 'Assets')}</span>
               <strong style="font-size:var(--fs-2);margin-top:2px;">${t('report.asset_readiness_title', {}, 'Asset readiness')}</strong>
-              <span style="font-size:11px;color:var(--muted);margin-top:2px;">${assetTotals.ready} ready · ${assetTotals.needs_review} review · ${assetTotals.template} templates</span>
+              <span style="font-size:11px;color:var(--muted);margin-top:2px;">${t('report.asset_counts', { ready: assetTotals.ready, review: assetTotals.needs_review, templates: assetTotals.template }, `${assetTotals.ready} ready · ${assetTotals.needs_review} review · ${assetTotals.template} templates`)}</span>
             </div>
           </div>
         </div>

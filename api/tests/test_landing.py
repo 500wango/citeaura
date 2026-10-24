@@ -400,11 +400,14 @@ def test_public_pages_expose_social_card_metadata():
 
 def test_product_gallery_uses_current_dark_visual_assets():
     response = client.get("/")
-    assert 'src="/site-assets/product-overview-real-v2.webp"' in response.text
+    assert 'src="/site-assets/product-overview-en.webp"' in response.text
     assert "Demo · Actual product interface with illustrative workspace data." in response.text
     assert "Typical optimized baseline" not in response.text
-    assert 'src="/site-assets/product-tickets-real-v2.webp"' in response.text
-    assert 'src="/site-assets/product-delivery-real-v2.webp"' in response.text
+    assert 'src="/site-assets/product-tickets-en.webp"' in response.text
+    assert 'src="/site-assets/product-delivery-en.webp"' in response.text
+    assert 'data-product-shot="overview"' in response.text
+    assert 'data-product-shot="tickets"' in response.text
+    assert 'data-product-shot="delivery"' in response.text
     assert 'srcset="/site-assets/product-audit.webp"' not in response.text
     assert 'srcset="/site-assets/product-plan.webp"' not in response.text
     assert 'srcset="/site-assets/product-report.webp"' not in response.text
@@ -414,6 +417,15 @@ def test_product_gallery_uses_current_dark_visual_assets():
     assert 'src="/site-assets/product-audit-en.webp"' not in response.text
     assert 'src="/site-assets/product-plan-en.webp"' not in response.text
     assert 'src="/site-assets/product-assets-en.webp"' not in response.text
+
+
+def test_product_shots_are_available_for_every_supported_locale():
+    js = client.get("/site-assets/landing.js").text
+    assert "data-product-shot" in js
+    for locale in SUPPORTED_LOCALES:
+        for shot in ("overview", "tickets", "delivery"):
+            path = f"/site-assets/product-{shot}-{locale}.webp"
+            assert client.get(path).status_code == 200, path
 
 
 def test_i18n_catalogs_are_public():

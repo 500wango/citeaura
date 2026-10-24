@@ -130,7 +130,7 @@
 - Engines 的 raw answer 从整段直出改为可复核摘要，并新增 `Inspect evidence` 右侧 drawer；所有字段来自 `project_samples` 的真实回放数据。knowledge/manual 模式没有 URL 时显示 `No source URLs for this mode`。
 - 新增服务端 PDF：`GET /api/v1/projects/{project_id}/deliveries/{delivery_date}/pdf?document=01-Audit-Report`，支持 `01`–`06` 与 `index`；Report 页同时保留 `View HTML` 与 `PDF` 两个真实链接。
 - 补齐 198 个原先只存在于前端 fallback 或直接硬编码的界面 key（174 个 `t()` key + 24 个可见状态/默认值），7 个 locale 的 key 与 `{placeholder}` 完全一致；未翻译的 `literal.*` 仅保留合法业务值（如 `7-day` 分享链接和 `Weekly (7 Days)`）。
-- 营销页产品图改为当前工作台真实截图：Overview、Action Tickets、Delivery/Pack；删除了旧版宽幅界面图造成的尺寸声明漂移，alt/caption 与实际页面一致。
+- 营销页产品图改为当前工作台真实截图：Overview、Action Tickets、Delivery/Pack；删除了旧版宽幅界面图造成的尺寸声明漂移，alt/caption 与实际页面一致。2026-10-24 增量：产品图按 `en/zh/ja/ko/es/fr/de` 七种语言生成，首页通过 `data-product-shot` 随语言切换；英文-only 的 SEO 页固定使用英文图。
 - 服务端 PDF 已按文档主语言选择 Unicode CID 字体：中文 `STSong-Light`、日文 `HeiseiMin-W3`、韩文 `HYSMyeongJo-Medium`，英文保持 Helvetica；用真实中文 delivery 渲染检查，`·` 等 CID 缺字符号在渲染前替换。
 - Evidence Drawer 已用临时 fixture 的真实 sample replay 截图（1440 drawer、375 sheet）；fixture 只存在于 `/tmp/ca-ui-Ye5KWO`，未写入生产页面或仓库样例数据。
 - 本轮不改 `/api/v1/` 既有契约、计费、trial、引擎计算或权限判定；PDF 是新增只读能力，旧客户端可继续使用原 Download/ZIP 端点。

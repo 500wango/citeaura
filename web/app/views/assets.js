@@ -2,6 +2,7 @@ import { workspace, projects } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { renderEmpty } from '../components/empty.js';
+import { samplingModeLabel } from '../components/badge.js';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -67,7 +68,7 @@ function renderCampaignProposals(campaigns, { actionBlocked = false, actionBlock
               <span><strong>${escapeHtml(opportunity)}</strong></span>
               <span>${t('engines.col_mention_rate', {}, 'Aggregate mention')} ${escapeHtml(percent(promptEvidence.mention_rate))} · n=${Number(promptEvidence.samples || 0)}</span>
               <span>${escapeHtml(t('assets.cohort_baselines', { count: baselines.length }, '{count} separate cohort baseline(s)'))}</span>
-              ${takeoverEvidence.slice(0, 2).map((item) => `<span>${escapeHtml(item.competitor || t('assets.competitor', {}, 'Competitor'))} · ${escapeHtml(item.engine_name || '')} · ${escapeHtml(item.sampling_mode || '')}</span>`).join('')}
+              ${takeoverEvidence.slice(0, 2).map((item) => `<span>${escapeHtml(item.competitor || t('assets.competitor', {}, 'Competitor'))} · ${escapeHtml(item.engine_name || '')} · ${escapeHtml(samplingModeLabel(item.sampling_mode_code || item.sampling_mode))}</span>`).join('')}
             </div>
           </div>
           <div class="campaign-proposal-side">

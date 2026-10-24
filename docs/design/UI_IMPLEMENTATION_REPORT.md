@@ -332,3 +332,61 @@
 
 - key 完整性、占位符一致性和空值已自动校验；日语、韩语、西班牙语、德语的语义质量仍需母语者做一次编辑审校，这属于文案质量风险，不是缺 key 或运行时回退。
 - 长博客正文仍保留英文原文，语言选择器只切换已提供目录的页面框架与导航文案；未把未翻译的长文伪造成已本地化内容。
+
+## 11. 2026-10-24 增量：营销产品截图与七语言一致
+
+### 11.1 根因与范围
+
+- 营销首页仍引用固定中文 WebP：`product-overview-real-v2.webp`、`product-tickets-real-v2.webp`、`product-delivery-real-v2.webp`。`landing.js` 只切换文案，没有图片选择逻辑，因此切换到任何语言都显示中文截图。
+- SEO 页 `for-brands`、`for-agencies`、`ai-visibility-audit` 同样引用固定中文图；这些页面本身没有语言选择器，保持英文页，但产品图改为英文版本，避免英文页面配中文截图。
+
+### 11.2 实施内容
+
+| 文件 / 目录 | 变更 |
+|---|---|
+| `web/assets/product-{overview,tickets,delivery}-{en,zh,ja,ko,es,fr,de}.webp` | 21 张 1440×1000 真实工作台截图；每种语言使用对应界面语言、真实 i18n 文案与临时 fixture 数据 |
+| `web/assets/landing.js` | 新增 `applyProductShots()`；按当前 locale 将 `[data-product-shot]` 的 `src` 或 `href` 切到 `/site-assets/product-<shot>-<locale>.webp` |
+| `web/index.html` | Overview、Tickets、Delivery 图与查看链接加入 `data-product-shot`，默认英文资源 |
+| `web/for-brands.html`、`web/for-agencies.html`、`web/ai-visibility-audit.html` | 产品图改为英文 delivery 截图，移除固定中文 `*-clay.webp` 引用 |
+| `web/app/components/badge.js` | 新增 `samplingModeLabel()`；采样模式徽标复用同一份本地化标签；To Do / In Progress / Done 等状态标签走 i18n |
+| `web/app/i18n.js` | 新增 `translateBackendLabel()`、`issueText()`、`ticketField()`；本地化后端基线标签、质量问题、工单语言字段 |
+| `web/app/views/overview.js`、`report.js`、`plan.js`、`engines.js`、`competitors.js`、`assets.js` | 清除截图中的中文采样模式、英文基线标签、英文质量问题和英文工单字段 |
+| `api/i18n/messages/{en,zh,ja,ko,es,fr,de}.json` | 7 个目录各新增 31 个 key；覆盖摘要理由、代表性/有限/单轮基线、12 类报告质量问题及动作 |
+| `api/adapters/localization.py` | `localize_ticket()` 保留任务中已提供的 `*_<locale>` 字段，不再用英文回退覆盖 |
+| `api/tests/test_landing.py` | 更新当前产品图断言；校验 21 张 locale 资源可访问，且 `landing.js` 含 `data-product-shot` 契约 |
+
+截图中的工单、域名、样本数与引用仅存在于 `/tmp/ca-shots` 临时 SQLite / 工作目录，未写入仓库样例数据，也未注入生产页面。首页仍保留既有 “Demo · Actual product interface with illustrative workspace data” 免责声明。
+
+### 11.3 验证
+
+| 命令 | 结果 |
+|---|---|
+| `python3 -m pytest api/tests -q` | **621 passed**, 5 warnings |
+| `python3 -m pytest api/tests/test_landing.py api/tests/test_i18n.py -q` | **56 passed** |
+| `cd engine && python3 -m unittest discover -s tests` | **290 tests OK**, 2 skipped |
+| `node --check web/assets/landing.js` + 8 个改动 JS 文件 | pass |
+| `git diff --check` | pass |
+
+浏览器核对（本地 FastAPI + Chrome，1440×1000）：
+
+- 首页依次切换 `en / zh / ja / ko / es / fr / de`，`[data-product-shot]` 的图片与查看链接均切换为对应语言资源；`<html lang>` 分别为 `en / zh-CN / ja / ko / es / fr / de`。
+- 日语、法语、韩语 Overview / Action Tickets / Delivery 截图中不再出现中文采样模式、中文 KPI 或中文按钮；日期输入使用显式 `2026-11-07`，避免原生占位符回退。
+- SEO 页无语言选择器，保持英文页面与英文产品图，不再出现中文截图。
+
+### 11.4 截图路径
+
+| 文件 | 说明 |
+|---|---|
+| `docs/design/screenshots/marketing-home-overview-en.png` | 英文首页 Brand Overview 区块 |
+| `docs/design/screenshots/marketing-home-overview-ja.png` | 日语首页 Brand Overview 区块 |
+| `docs/design/screenshots/marketing-home-overview-fr.png` | 法语首页 Brand Overview 区块 |
+| `docs/design/screenshots/marketing-home-product-en.png` | 英文首页 Tickets / Delivery 区块 |
+| `docs/design/screenshots/marketing-home-product-ja.png` | 日语首页 Tickets / Delivery 区块 |
+| `docs/design/screenshots/marketing-home-product-fr.png` | 法语首页 Tickets / Delivery 区块 |
+
+### 11.5 兼容风险与后续
+
+- 21 张截图是静态资产；工作台可见文案或布局再次变化时需要重新生成，否则会与产品界面漂移。生成脚本未进入仓库，临时 fixture 仅在 `/tmp`。
+- 真实项目的工单业务内容可能仍以英文或用户输入语言出现；本轮只保证界面标签、标准状态、基线标签、质量问题与摘要走 i18n，不翻译用户/引擎内容。
+- 旧版 `product-*-real-v2.webp` 与 `*-clay.webp` 保留用于兼容外部引用和 `scripts/acceptance.py`，当前营销 HTML 已不再引用。
+- 回滚：还原上述 HTML / JS / i18n / localization 文件，并删除 21 张 `product-{overview,tickets,delivery}-<locale>.webp`；无数据库、计费或 API 契约变更。

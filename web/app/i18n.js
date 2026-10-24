@@ -199,6 +199,71 @@ export function translateText(value) {
   return currentCatalog[key] || fallbackCatalog[key] || value;
 }
 
+const BACKEND_LABEL_KEYS = {
+  'Representative baseline': 'overview.baseline_representative',
+  'Limited baseline': 'overview.baseline_limited',
+  'Single baseline': 'overview.baseline_single',
+  'No baseline': 'overview.no_baseline',
+};
+
+export function translateBackendLabel(value) {
+  const key = BACKEND_LABEL_KEYS[value];
+  return key ? t(key, {}, value) : value;
+}
+
+export function ticketField(ticket, field, enField, fallback = '') {
+  const locale = getLocale();
+  const localized = locale === 'en' ? '' : ticket?.[`${field}_${locale}`];
+  const source = localized || ticket?.[enField] || ticket?.[field] || fallback;
+  if (!source) return '';
+  return t(source, {}, source);
+}
+
+function issueParams(issue) {
+  const message = String(issue?.message || '');
+  if (issue?.code === 'crawl_limited') {
+    const found = message.match(/Only (\d+)\/(\d+) pages accessible/);
+    if (found) return { ok: found[1], crawled: found[2] };
+  }
+  if (issue?.code === 'question_evidence_limited') {
+    const found = message.match(/(\d+) question\(s\) are missing (\d+) comparable/);
+    if (found) return { questions: found[1], samples: found[2] };
+  }
+  if (issue?.code === 'sampling_insufficient') {
+    const found = message.match(/Currently only (\d+) valid samples/);
+    if (found) {
+      const minimum = String(issue?.action || '').match(/at least (\d+)/);
+      return { count: found[1], minimum: minimum ? minimum[1] : '20' };
+    }
+  }
+  if (issue?.code === 'sampling_platforms_limited') {
+    const found = message.match(/Currently only (\d+) sampled platform/);
+    if (found) {
+      const minimum = String(issue?.action || '').match(/at least (\d+)/);
+      return { count: found[1], minimum: minimum ? minimum[1] : '2' };
+    }
+  }
+  if (issue?.code === 'sampling_failure_high') {
+    const found = message.match(/failure rate is ([0-9.]+%)/);
+    if (found) return { rate: found[1] };
+  }
+  return {};
+}
+
+/** Localize a report-quality issue while preserving its original message as fallback. */
+export function issueText(issue, field = 'message') {
+  const code = issue?.code;
+  if (!code) return issue?.[field] || '';
+  let variant = code;
+  if (code === 'sampling_insufficient') {
+    if (/does not record/i.test(issue.message || '')) variant = 'sampling_insufficient_unrecorded';
+    else if (/Currently only/i.test(issue.message || '')) variant = 'sampling_insufficient_limited';
+  }
+  const key = `report.issue.${variant}.${field}`;
+  if (!hasCatalogKey(key)) return issue?.[field] || '';
+  return t(key, issueParams(issue), issue?.[field] || '');
+}
+
 /** Localize exact legacy literals left in older view templates. */
 export function localizeRenderedText(root = document) {
   if (currentLocale === DEFAULT_LOCALE || !root) return;
@@ -232,6 +297,9 @@ export default {
   setLocale,
   subscribeLocale,
   translateText,
+  translateBackendLabel,
+  ticketField,
+  issueText,
   localizeRenderedText,
   hasCatalogKey,
   tError,

@@ -4,7 +4,7 @@
 
 import { projects, workspace } from '../api.js';
 import { openModal } from '../components/modal.js';
-import { t, tError } from '../i18n.js';
+import { t, tError, translateBackendLabel } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { samplingModeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
@@ -97,8 +97,8 @@ export default {
     const trend = mq.trend || {};
     const attribution = mq.attribution || {};
     const trendNote = trend.status === 'noteworthy'
-      ? `${trend.label || t('engines.trend', {}, 'Trend')} ${trend.delta_pp != null ? `(${trend.delta_pp} pp)` : ''}`
-      : (trend.label || t('overview.trend_single', {}, 'Single-round observation. Two comparable periods are required before calling a trend.'));
+      ? `${translateBackendLabel(trend.label) || t('engines.trend', {}, 'Trend')} ${trend.delta_pp != null ? `(${trend.delta_pp} pp)` : ''}`
+      : (translateBackendLabel(trend.label) || t('overview.trend_single', {}, 'Single-round observation. Two comparable periods are required before calling a trend.'));
     const renderEngineTable = (rows) => `
             <div class="tbl" style="overflow-x:auto;">
               <table class="table">

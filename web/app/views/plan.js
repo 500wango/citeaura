@@ -3,19 +3,13 @@
  */
 
 import { analytics, projects } from '../api.js';
-import { hasCatalogKey, t, tError } from '../i18n.js';
+import { hasCatalogKey, t, tError, ticketField } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { openModal } from '../components/modal.js';
 import { statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
 import { escapeHtml } from '../safe-html.js';
 import { workspace } from '../api.js';
-
-function localizedTicketField(ticket, field, enField, fallback = '') {
-  const source = ticket?.[field] || ticket?.[enField] || fallback;
-  if (!source) return '';
-  return t(source, {}, ticket?.[enField] || source);
-}
 
 function ticketImpact(ticket) {
   const priority = String(ticket.priority || 'P1').toUpperCase();
@@ -191,10 +185,8 @@ export default {
                   ${tickets
                     .map(
                       (ticket, idx) => {
-                        const titleSource = ticket.title_en || ticket.title || ticket.name || ticket.id;
-                        const roleSource = ticket.owner_en || ticket.owner || ticket.role || t('plan.engineering', {}, 'Engineering');
-                        const title = hasCatalogKey(ticket.title) ? t(ticket.title) : titleSource;
-                        const role = hasCatalogKey(ticket.owner || ticket.role) ? t(ticket.owner || ticket.role) : roleSource;
+                        const title = ticketField(ticket, 'title', 'title_en', ticket.name || ticket.id);
+                        const role = ticketField(ticket, 'owner', 'owner_en', ticket.role || t('plan.engineering', {}, 'Engineering'));
                         return `
                         <tr>
                           <td class="num" style="color:var(--muted);">${idx + 1}</td>
@@ -277,10 +269,10 @@ export default {
 
 function renderTicketCard(ticket) {
   const isDone = ticket.status === 'done';
-  const title = localizedTicketField(ticket, 'title', 'title_en', ticket.name || ticket.id);
-  const role = localizedTicketField(ticket, 'owner', 'owner_en', ticket.role || t('plan.role_engineering', {}, 'Engineering'));
-  const action = localizedTicketField(ticket, 'action', 'action_en');
-  const acceptance = localizedTicketField(ticket.acceptance || {}, 'desc', 'desc_en');
+  const title = ticketField(ticket, 'title', 'title_en', ticket.name || ticket.id);
+  const role = ticketField(ticket, 'owner', 'owner_en', ticket.role || t('plan.role_engineering', {}, 'Engineering'));
+  const action = ticketField(ticket, 'action', 'action_en');
+  const acceptance = ticketField(ticket.acceptance || {}, 'desc', 'desc_en');
   return `
     <div class="ticket-item ${isDone ? 'is-done' : ''}" data-tid="${escapeHtml(ticket.id)}">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-2);">
@@ -305,11 +297,11 @@ async function showTicketDetailModal(projectId, tid, ctx, isViewer = false) {
 
   const ticket = tickets.find((t) => String(t.id) === String(tid)) || { id: tid };
 
-  const title = localizedTicketField(ticket, 'title', 'title_en', ticket.name || ticket.id);
-  const why = localizedTicketField(ticket, 'why', 'why_en', ticket.desc_en || ticket.desc || ticket.description || '');
-  const action = localizedTicketField(ticket, 'action', 'action_en');
-  const role = localizedTicketField(ticket, 'owner', 'owner_en', ticket.role_en || ticket.role || t('plan.role_engineering', {}, 'Engineering'));
-  const acceptance = localizedTicketField(ticket.acceptance || {}, 'desc', 'desc_en');
+  const title = ticketField(ticket, 'title', 'title_en', ticket.name || ticket.id);
+  const why = ticketField(ticket, 'why', 'why_en', ticket.desc_en || ticket.desc || ticket.description || '');
+  const action = ticketField(ticket, 'action', 'action_en');
+  const role = ticketField(ticket, 'owner', 'owner_en', ticket.role_en || ticket.role || t('plan.role_engineering', {}, 'Engineering'));
+  const acceptance = ticketField(ticket.acceptance || {}, 'desc', 'desc_en');
   const notes = Array.isArray(ticket.notes)
     ? ticket.notes.map((item) => item?.text || item?.note || '').filter(Boolean).join('\n')
     : (ticket.note || '');
