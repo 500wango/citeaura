@@ -53,6 +53,13 @@ export default {
 
     const currentMode = ctx.params.view || 'matrix';
     const timeline = visibilityPlan?.timeline || [];
+    const timelineStatusLabel = (status) => ({
+      complete: t('plan.timeline_complete', {}, 'complete'),
+      active: t('plan.timeline_active', {}, 'active'),
+      pending: t('plan.timeline_pending', {}, 'pending'),
+    }[status] || status);
+    const isViewer = ctx.role === 'viewer';
+    const readOnlyReason = t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.');
 
     // Categorize four quadrants
     const quickWins = [];
@@ -85,18 +92,19 @@ export default {
               <a href="#/plan?view=table" class="seg-opt ${currentMode === 'table' ? 'is-active' : ''}">${t('plan.mode_table', {}, 'Table List')}</a>
               <a href="#/plan?view=opportunities" class="seg-opt ${currentMode === 'opportunities' ? 'is-active' : ''}">${t('plan.opportunities', {}, 'Opportunities')}</a>
             </div>
-            <button type="button" id="btn-create-custom-ticket" class="btn btn-secondary btn-sm">
+            <button type="button" id="btn-create-custom-ticket" class="btn btn-secondary btn-sm" ${isViewer ? `disabled title="${escapeHtml(readOnlyReason)}"` : ''}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               <span>${t('plan.create_ticket_btn', {}, 'Create Ticket')}</span>
             </button>
           </div>
         </div>
 
-        ${timeline.length ? `<div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Operating timeline</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Advance phases after reviewing evidence and completing the linked work.</p></div><span class="tag tag-dim">${timeline.filter((item) => item.status === 'complete').length}/${timeline.length} complete</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--sp-2);">${timeline.map((item) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(item.label)}</span><strong class="${item.status === 'complete' ? 'pill-good' : item.status === 'active' ? 'pill-warn' : ''}">${escapeHtml(item.status)}</strong></div>`).join('')}</div></div>` : ''}
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(readOnlyReason)}</div>` : ''}
+        ${timeline.length ? `<div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('plan.timeline_title', {}, 'Operating timeline')}</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${t('plan.timeline_desc', {}, 'Advance phases after reviewing evidence and completing the linked work.')}</p></div><span class="tag tag-dim">${t('plan.timeline_progress', { complete: timeline.filter((item) => item.status === 'complete').length, total: timeline.length }, `${timeline.filter((item) => item.status === 'complete').length}/${timeline.length} complete`)}</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--sp-2);">${timeline.map((item) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(item.label)}</span><strong class="${item.status === 'complete' ? 'pill-good' : item.status === 'active' ? 'pill-warn' : ''}">${escapeHtml(timelineStatusLabel(item.status))}</strong></div>`).join('')}</div></div>` : ''}
 
-        <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Plan controls</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Explicitly record the current phase and completed implementation stages.</p></div><button type="button" id="btn-save-visibility-plan" class="btn btn-secondary btn-sm">Save plan</button></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--sp-3);"><label class="field" style="margin:0;"><span>Current phase</span><select id="visibility-phase" class="input">${timeline.map((item) => `<option value="${escapeHtml(item.key)}" ${visibilityPlan?.plan?.current_phase === item.key ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select></label><label class="field" style="margin:0;"><span>Next review</span><input id="visibility-review" class="input" type="date" value="${escapeHtml(visibilityPlan?.plan?.next_review_at ? String(visibilityPlan.plan.next_review_at).slice(0,10) : '')}"></label></div></div>
+        <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('plan.plan_controls_title', {}, 'Plan controls')}</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${t('plan.plan_controls_desc', {}, 'Explicitly record the current phase and completed implementation stages.')}</p></div><button type="button" id="btn-save-visibility-plan" class="btn btn-secondary btn-sm" ${isViewer ? `disabled title="${escapeHtml(readOnlyReason)}"` : ''}>${t('plan.save_plan', {}, 'Save plan')}</button></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--sp-3);"><label class="field" style="margin:0;"><span>${t('plan.current_phase', {}, 'Current phase')}</span><select id="visibility-phase" class="input" ${isViewer ? 'disabled' : ''}>${timeline.map((item) => `<option value="${escapeHtml(item.key)}" ${visibilityPlan?.plan?.current_phase === item.key ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select></label><label class="field" style="margin:0;"><span>${t('plan.next_review', {}, 'Next review')}</span><input id="visibility-review" class="input" type="date" value="${escapeHtml(visibilityPlan?.plan?.next_review_at ? String(visibilityPlan.plan.next_review_at).slice(0,10) : '')}" ${isViewer ? 'disabled' : ''}></label></div></div>
 
-        ${currentMode === 'opportunities' ? `<div class="card" style="padding:0;overflow:auto;"><table class="table"><caption class="sr-only">${t('plan.content_opportunities', {}, 'Content opportunities')}</caption><thead><tr><th>${t('questions.col_prompt', {}, 'Question')}</th><th>${t('plan.gap', {}, 'Gap')}</th><th>${t('plan.page_type', {}, 'Page type')}</th><th>${t('plan.evidence', {}, 'Evidence')}</th><th>${t('common.status', {}, 'Status')}</th><th>${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${opportunities.map((item) => `<tr><td>${escapeHtml(item.question)}</td><td>${escapeHtml(item.gap_type || '')}</td><td>${escapeHtml(item.suggested_page_type || '')}</td><td>${Number(item.evidence_count || (item.evidence || []).length)}</td><td>${escapeHtml(item.status || 'unmeasured')}</td><td><button type="button" class="btn btn-secondary btn-sm btn-opportunity-ticket" data-opportunity-id="${escapeHtml(item.id)}">${t('plan.create_ticket_btn', {}, 'Create ticket')}</button></td></tr>`).join('') || `<tr><td colspan="6">${t('channels.unmeasured_run_sample', {}, 'Unmeasured · Run a sample')}</td></tr>`}</tbody></table></div>` : ''}
+        ${currentMode === 'opportunities' ? `<div class="card" style="padding:0;overflow:auto;"><table class="table"><caption class="sr-only">${t('plan.content_opportunities', {}, 'Content opportunities')}</caption><thead><tr><th>${t('questions.col_prompt', {}, 'Question')}</th><th>${t('plan.gap', {}, 'Gap')}</th><th>${t('plan.page_type', {}, 'Page type')}</th><th>${t('plan.evidence', {}, 'Evidence')}</th><th>${t('common.status', {}, 'Status')}</th><th>${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${opportunities.map((item) => `<tr><td>${escapeHtml(item.question)}</td><td>${escapeHtml(item.gap_type || '')}</td><td>${escapeHtml(item.suggested_page_type || '')}</td><td>${Number(item.evidence_count || (item.evidence || []).length)}</td><td>${escapeHtml(item.status || 'unmeasured')}</td><td><button type="button" class="btn btn-secondary btn-sm btn-opportunity-ticket" data-opportunity-id="${escapeHtml(item.id)}" ${isViewer ? `disabled title="${escapeHtml(readOnlyReason)}"` : ''}>${t('plan.create_ticket_btn', {}, 'Create ticket')}</button></td></tr>`).join('') || `<tr><td colspan="6">${t('channels.unmeasured_run_sample', {}, 'Unmeasured · Run a sample')}</td></tr>`}</tbody></table></div>` : ''}
         ${
           currentMode === 'matrix' && currentMode !== 'opportunities'
             ? `
@@ -184,7 +192,7 @@ export default {
                     .map(
                       (ticket, idx) => {
                         const titleSource = ticket.title_en || ticket.title || ticket.name || ticket.id;
-                        const roleSource = ticket.owner_en || ticket.owner || ticket.role || 'Engineering';
+                        const roleSource = ticket.owner_en || ticket.owner || ticket.role || t('plan.engineering', {}, 'Engineering');
                         const title = hasCatalogKey(ticket.title) ? t(ticket.title) : titleSource;
                         const role = hasCatalogKey(ticket.owner || ticket.role) ? t(ticket.owner || ticket.role) : roleSource;
                         return `
@@ -199,8 +207,8 @@ export default {
                           <td><span class="tag ${ticketEffortBand(ticket) === 'low' ? 'pill-good' : 'tag-dim'}">${escapeHtml(ticket.effort || 'M')}</span></td>
                           <td>${statusPill(ticket.status)}</td>
                           <td style="text-align:right;">
-                            <button type="button" class="btn btn-secondary btn-sm btn-edit-ticket" data-tid="${escapeHtml(ticket.id)}">
-                              ${t('common.edit', {}, 'Edit')}
+                            <button type="button" class="btn btn-secondary btn-sm btn-edit-ticket" data-tid="${escapeHtml(ticket.id)}" ${isViewer ? `title="${escapeHtml(readOnlyReason)}"` : ''}>
+                              ${isViewer ? t('common.view', {}, 'View') : t('common.edit', {}, 'Edit')}
                             </button>
                           </td>
                         </tr>
@@ -221,6 +229,7 @@ export default {
   mounted: (ctx) => {
     const projectId = ctx.activeProjectId;
     if (!projectId) return;
+    const isViewer = ctx.role === 'viewer';
 
     document.getElementById('btn-save-visibility-plan')?.addEventListener('click', async () => {
       const phase = document.getElementById('visibility-phase')?.value || 'baseline';
@@ -236,7 +245,7 @@ export default {
       const completed = (currentPlan.plan?.completed_phases || []).filter((item) => item !== phase);
       try {
         await projects.updateVisibilityPlan(projectId, { status: currentPlan.plan?.status || 'active', current_phase: phase, next_review_at: next ? `${next}T00:00:00Z` : null, goals: currentPlan.plan?.goals || [], completed_phases: completed });
-        toast.success('Visibility plan updated');
+        toast.success(t('plan.visibility_plan_updated', {}, 'Visibility plan updated'));
       } catch (err) { toast.error(tError(err)); }
     });
     document.querySelectorAll('.btn-opportunity-ticket').forEach((button) => button.addEventListener('click', async () => {
@@ -252,13 +261,13 @@ export default {
       el.addEventListener('click', (e) => {
         const tid = el.getAttribute('data-tid');
         analytics.track('ticket_opened', { source: 'action_plan' });
-        if (tid) showTicketDetailModal(projectId, tid, ctx);
+        if (tid) showTicketDetailModal(projectId, tid, ctx, isViewer);
       });
     });
 
     // Custom ticket modal
     const customBtn = document.getElementById('btn-create-custom-ticket');
-    if (customBtn) {
+    if (customBtn && !customBtn.disabled) {
       customBtn.addEventListener('click', () => {
         showCreateTicketModal(projectId, ctx);
       });
@@ -288,7 +297,7 @@ function renderTicketCard(ticket) {
   `;
 }
 
-async function showTicketDetailModal(projectId, tid, ctx) {
+async function showTicketDetailModal(projectId, tid, ctx, isViewer = false) {
   let tickets = [];
   try {
     tickets = await projects.getTickets(projectId);
@@ -359,7 +368,7 @@ async function showTicketDetailModal(projectId, tid, ctx) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);">
         <div class="field" style="margin:0;">
           <label>${t('plan.col_status', {}, 'Status')}</label>
-          <select id="edit-ticket-status" class="input">
+          <select id="edit-ticket-status" class="input" ${isViewer ? 'disabled' : ''}>
             <option value="todo" ${ticket.status === 'todo' ? 'selected' : ''}>${t('plan.status_todo', {}, 'To Do')}</option>
             <option value="doing" ${ticket.status === 'doing' ? 'selected' : ''}>${t('plan.status_doing', {}, 'In Progress')}</option>
             <option value="done" ${ticket.status === 'done' ? 'selected' : ''}>${t('plan.status_done', {}, 'Done / Completed')}</option>
@@ -375,7 +384,7 @@ async function showTicketDetailModal(projectId, tid, ctx) {
 
       <div class="field" style="margin:0;">
         <label>${t('plan.notes_label', {}, 'Implementation Notes')}</label>
-        <textarea id="edit-ticket-notes" class="input" rows="3" placeholder="Add a new implementation note...">${escapeHtml(notes)}</textarea>
+        <textarea id="edit-ticket-notes" class="input" rows="3" placeholder="${t('plan.notes_placeholder', {}, 'Add a new implementation note...')}" ${isViewer ? 'disabled' : ''}>${escapeHtml(notes)}</textarea>
       </div>
     </div>
   `;
@@ -383,6 +392,7 @@ async function showTicketDetailModal(projectId, tid, ctx) {
   openModal({
     title: t('plan.ticket_details', {}, 'Ticket Details'),
     content,
+    showFooter: !isViewer,
     confirmText: t('common.save', {}, 'Save Changes'),
     onConfirm: async () => {
       const status = document.getElementById('edit-ticket-status')?.value;
@@ -408,7 +418,7 @@ async function showCreateTicketModal(projectId, ctx) {
     const id = question.id || '';
     const text = question.text || question.question || question.query || id;
     return `<label style="display:flex;gap:var(--sp-2);align-items:flex-start;font-size:var(--fs-2);">
-      <input type="checkbox" name="influenced-question" value="${escapeHtml(id)}">
+      <input type="checkbox" data-influenced-question value="${escapeHtml(id)}">
       <span><span class="num">${escapeHtml(id)}</span> ${escapeHtml(text)}</span>
     </label>`;
   }).join('');
@@ -416,11 +426,11 @@ async function showCreateTicketModal(projectId, ctx) {
     <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
       <div class="field" style="margin:0;">
         <label>${t('plan.target_page_label', {}, 'Target URL / Page')} *</label>
-        <input type="url" id="new-t-url" class="input" placeholder="https://example.com/review" required>
+        <input type="url" id="new-t-url" class="input" placeholder="${t('plan.target_page_placeholder', {}, 'https://example.com/review')}" required>
       </div>
       <div class="field" style="margin:0;">
         <label>${t('plan.create_title_label', {}, 'Requested Update')} *</label>
-        <textarea id="new-t-ask" class="input" rows="3" placeholder="Describe the factual change requested from the page owner" required></textarea>
+        <textarea id="new-t-ask" class="input" rows="3" placeholder="${t('plan.requested_update_placeholder', {}, 'Describe the factual change requested from the page owner')}" required></textarea>
       </div>
       <div class="field" style="margin:0;">
         <label>${t('plan.influenced_questions_label', {}, 'Influenced questions')} *</label>
@@ -436,7 +446,7 @@ async function showCreateTicketModal(projectId, ctx) {
     onConfirm: async () => {
       const url = document.getElementById('new-t-url')?.value.trim();
       const ask_text = document.getElementById('new-t-ask')?.value.trim();
-      const influenced_questions = Array.from(document.querySelectorAll('input[name="influenced-question"]:checked'))
+      const influenced_questions = Array.from(document.querySelectorAll('input[data-influenced-question]:checked'))
         .map((input) => input.value)
         .filter(Boolean);
 

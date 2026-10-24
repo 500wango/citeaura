@@ -639,7 +639,7 @@ def test_seo_technical_files_are_served():
     assert "https://citeaura.com/app/" not in llms_res.text
     assert "API - Parametric knowledge" in llms_res.text
     assert "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations" in llms_res.text
-    assert "7 days" in llms_res.text
+    assert "14 days" in llms_res.text
     assert client.head("/llms.txt").status_code == 200
 
 

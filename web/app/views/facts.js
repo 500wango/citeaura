@@ -67,6 +67,8 @@ export default {
       workspace.getFacts(projectId).catch(() => ({ exists: false, text: '' })),
       projects.getBrandOpportunities(projectId).catch(() => null),
     ]);
+    const isViewer = ctx.role === 'viewer';
+    const readOnlyReason = t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.');
     return `
       <div class="app-view-container">
         <div class="view-header">
@@ -75,20 +77,21 @@ export default {
             <p class="view-desc">${t('facts.desc', {}, 'CiteAura extracts facts from the official site, then verifies them against the crawl. The checkbox is only a human override. Inferred or paraphrased claims stay unpublished until they appear on the site or you approve them.')}</p>
           </div>
           <div class="view-actions">
-            <button type="button" id="btn-save-facts" class="btn btn-primary btn-sm">${t('facts.save_btn', {}, 'Save Fact Library')}</button>
+            <button type="button" id="btn-save-facts" class="btn btn-primary btn-sm" ${isViewer ? `disabled title="${escapeHtml(readOnlyReason)}"` : ''}>${t('facts.save_btn', {}, 'Save Fact Library')}</button>
           </div>
         </div>
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(readOnlyReason)}</div>` : ''}
         ${migrationNotice(facts)}
         ${reviewStatusNotice(facts)}
-        ${opportunities?.conflicts?.length ? `<div class="card" style="gap:var(--sp-3);"><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Potential fact conflicts</h3>${opportunities.conflicts.map((item) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><strong>${escapeHtml(item.claim)}</strong><div style="color:var(--muted);font-size:var(--fs-2);margin-top:4px;">Needs human review · ${(item.evidence || []).length} sampled contradiction(s)</div></div>`).join('')}</div>` : ''}
+        ${opportunities?.conflicts?.length ? `<div class="card" style="gap:var(--sp-3);"><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('facts.conflicts_title', {}, 'Potential fact conflicts')}</h3>${opportunities.conflicts.map((item) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><strong>${escapeHtml(item.claim)}</strong><div style="color:var(--muted);font-size:var(--fs-2);margin-top:4px;">${t('facts.conflict_review', { count: (item.evidence || []).length }, `Needs human review · ${(item.evidence || []).length} sampled contradiction(s)`)}</div></div>`).join('')}</div>` : ''}
         <div class="card" style="gap:var(--sp-3);">
           <div class="field" style="margin:0;">
             <label for="facts-markdown">${t('facts.markdown_label', {}, 'Official facts in Markdown')}</label>
-            <textarea id="facts-markdown" class="input" rows="22" placeholder="# Brand facts\n\n## Definition\n\nWrite the approved one-sentence definition.\n\n## Verified claims\n\n- Claim - Source URL - Verified YYYY-MM-DD">${escapeHtml(facts.text || '')}</textarea>
+            <textarea id="facts-markdown" class="input" rows="22" placeholder="${t('facts.markdown_placeholder', {}, '# Brand facts\n\n## Definition\n\nWrite the approved one-sentence definition.\n\n## Verified claims\n\n- Claim - Source URL - Verified YYYY-MM-DD')}" ${isViewer ? 'readonly' : ''}>${escapeHtml(facts.text || '')}</textarea>
             <span style="font-size:var(--fs-1);color:var(--muted);">${t('facts.markdown_tip', {}, 'This file is stored as <code>content/facts.md</code>. CiteAura does not mark a claim as verified without a source you provide.')}</span>
           </div>
           <label for="facts-approve" style="display:flex;align-items:flex-start;gap:var(--sp-2);font-size:var(--fs-2);">
-            <input type="checkbox" id="facts-approve" ${facts.reviewed ? 'checked' : ''}>
+            <input type="checkbox" id="facts-approve" ${facts.reviewed ? 'checked' : ''} ${isViewer ? 'disabled' : ''}>
             <span>${t('facts.approval_checkbox', {}, 'I reviewed every material claim, attached evidence, and approve this library for publishable derived assets. The diagnostic pack does not need this checkbox.')}</span>
           </label>
         </div>
@@ -97,7 +100,8 @@ export default {
 
   mounted: (ctx) => {
     const projectId = ctx.activeProjectId;
-    document.getElementById('btn-save-facts')?.addEventListener('click', async () => {
+    const saveBtn = document.getElementById('btn-save-facts');
+    if (saveBtn && !saveBtn.disabled) saveBtn.addEventListener('click', async () => {
       const text = document.getElementById('facts-markdown')?.value || '';
       const approve = Boolean(document.getElementById('facts-approve')?.checked);
       try {

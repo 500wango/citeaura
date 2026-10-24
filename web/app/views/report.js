@@ -20,23 +20,32 @@ export default {
 
     let report = null;
     let deliveries = [];
+    let jobs = [];
 
     try {
-      [report, deliveries] = await Promise.all([
+      [report, deliveries, jobs] = await Promise.all([
         projects.getReport(projectId).catch(() => null),
         projects.getDeliveries(projectId).catch(() => []),
+        projects.getJobs(projectId).catch(() => []),
       ]);
     } catch (err) {
       console.error('Failed to load report data:', err);
     }
 
+    const isViewer = ctx.role === 'viewer';
+    const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
     const canSendAny = deliveries.some((item) => item && item.can_send);
+    const readOnlyReason = isViewer
+      ? t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.')
+      : t('project_job_already_running', {}, 'A job is already running for this brand.');
+    const actionBlocked = isViewer || Boolean(activeJob);
     const activeProject = (ctx.projects || []).find((p) => String(p.id) === String(projectId) || p.slug === String(projectId)) || {};
     const projectSlug = activeProject.slug || projectId;
     const latestDate = deliveries && deliveries.length ? (typeof deliveries[0] === 'string' ? deliveries[0] : deliveries[0]?.date || deliveries[0]?.name) : null;
     const latestReportUrl = latestDate ? `/files/${encodeURIComponent(projectSlug)}/delivery/${encodeURIComponent(latestDate)}/01-Audit-Report.html` : null;
+    const latestPdfUrl = latestDate ? projects.getDeliveryPdfUrl(projectId, latestDate, '01-Audit-Report') : null;
     const overallGrade = report && report.grade;
-    const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : 'Unmeasured';
+    const mentionRate = report && report.mention_rate !== null && report.mention_rate !== undefined ? `${Math.round(report.mention_rate * 100)}%` : t('common.unmeasured', {}, 'Unmeasured');
     const quality = report && report.report_quality;
     const userSummary = (report && report.user_summary) || {};
     const summaryScope = userSummary.evidence_scope || {};
@@ -48,8 +57,10 @@ export default {
     const confidenceLabel = confidence && confidence.label ? confidence.label : t('overview.no_baseline', {}, 'No baseline');
     const trend = (quality && quality.measurement_quality && quality.measurement_quality.trend) || {};
     const trendNote = trend.status === 'noteworthy'
-      ? `${escapeHtml(trend.label || 'Trend')} ${trend.delta_pp != null ? `(${Number(trend.delta_pp)} pp)` : ''}`
+      ? `${escapeHtml(trend.label || t('engines.trend', {}, 'Trend'))} ${trend.delta_pp != null ? `(${Number(trend.delta_pp)} pp)` : ''}`
       : escapeHtml(trend.label || t('overview.no_comparable', {}, 'No comparable period'));
+    const readinessKnown = Boolean(quality);
+    const qualityIssues = Array.isArray(quality && quality.issues) ? quality.issues : [];
     const assetTotals = deliveries.reduce((totals, item) => {
       const summary = item && item.asset_summary ? item.asset_summary : {};
       totals.ready += Number(summary.ready || 0);
@@ -68,7 +79,7 @@ export default {
             </p>
           </div>
           <div class="view-actions" style="display:flex;flex-direction:column;align-items:flex-end;gap:var(--sp-1);">
-            <button type="button" id="btn-generate-delivery" class="btn btn-primary btn-sm" title="${t('report.generate_pack_tooltip', {}, 'Build client delivery package with verifiable evidence')}">
+            <button type="button" id="btn-generate-delivery" class="btn btn-primary btn-sm" ${actionBlocked ? `disabled title="${escapeHtml(readOnlyReason)}"` : `title="${t('report.generate_pack_tooltip', {}, 'Build client delivery package with verifiable evidence')}"`}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               <span>${t('report.generate_pack_btn', {}, 'Build New Delivery Pack')}</span>
             </button>
@@ -81,6 +92,8 @@ export default {
           </div>
         </div>
 
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(readOnlyReason)}</div>` : ''}
+        ${activeJob ? `<div class="job-block-note" role="status"><span class="status-dot"></span>${escapeHtml(t('project_job_already_running', {}, 'A job is already running for this brand.'))} ${escapeHtml(activeJob.action || '')} · ${escapeHtml(activeJob.status || '')}</div>` : ''}
         <section class="card" style="gap:var(--sp-3);border-left:3px solid var(--accent);">
           <span class="kicker">${t('report.current_summary', {}, 'What this report says')}</span>
           <h2 style="font-size:var(--fs-5);line-height:1.3;margin:0;">${escapeHtml(userSummary.headline || t('report.summary_pending', {}, 'Review the diagnostic findings and evidence.'))}</h2>
@@ -93,6 +106,18 @@ export default {
             <span>${Number(summaryScope.sample_count || 0)} ${t('common.samples', {}, 'samples')}</span>
           </div>
           ${(userSummary.limitations || []).length ? `<div style="padding-top:var(--sp-2);border-top:1px solid var(--line);color:var(--muted);font-size:var(--fs-2);line-height:1.5;"><strong>${t('report.evidence_limits', {}, 'Evidence limits:')}</strong> ${escapeHtml(userSummary.limitations.join(' · '))}</div>` : ''}
+        </section>
+
+        <section class="card" style="gap:var(--sp-3);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('report.readiness_title', {}, 'Readiness checklist')}</h3>
+            <span class="tag ${!readinessKnown || qualityIssues.length ? 'tag-warn' : 'pill-good'}">${!readinessKnown ? t('report.readiness_unavailable', {}, 'Readiness not evaluated') : qualityIssues.length ? t('report.readiness_review', {}, 'Review before delivery') : t('report.readiness_ready', {}, 'All recorded readiness checks passed for the current artifacts.')}</span>
+          </div>
+          ${!readinessKnown
+            ? `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('report.readiness_run', {}, 'Run the diagnostic or refresh this report before generating a delivery pack.')}</p>`
+            : qualityIssues.length
+              ? `<ul style="margin:0;padding-left:18px;color:var(--ink-2);font-size:var(--fs-2);line-height:1.6;">${qualityIssues.slice(0, 5).map((issue) => `<li><a href="#/${escapeHtml(issue.route || 'overview')}">${escapeHtml(issue.message)}</a>${issue.action ? ` — ${escapeHtml(issue.action)}` : ''}</li>`).join('')}</ul>`
+              : `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('report.readiness_ready', {}, 'All recorded readiness checks passed for the current artifacts.')}</p>`}
         </section>
 
         <!-- Deliverables Overview -->
@@ -114,21 +139,24 @@ export default {
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:var(--sp-4);">
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);">
-                <span class="kicker">01 · Audit</span>
+                <span class="kicker">01 · ${t('report.audit_card', {}, 'Audit')}</span>
                 ${latestReportUrl
-                  ? `<a href="${escapeHtml(latestReportUrl)}" target="_blank" rel="noopener noreferrer" class="tag tag-good" style="text-decoration:none;font-size:11px;font-weight:600;" title="Open HTML report and export to PDF">${t('common.view', {}, 'View')} / PDF ↗</a>`
-                  : `<button type="button" id="btn-quick-generate-pack" class="tag tag-neutral" style="cursor:pointer;font-size:11px;border:none;background:var(--line);color:var(--ink-2);" title="${t('report.generate_pack_tooltip', {}, 'Build client delivery package with verifiable evidence')}">${t('report.generate_pack_btn', {}, 'Build Diagnostic Pack')} ↗</button>`}
+                  ? `<span style="display:inline-flex;gap:var(--sp-2);">
+                      <a href="${escapeHtml(latestReportUrl)}" target="_blank" rel="noopener noreferrer" class="tag tag-good" style="text-decoration:none;font-size:11px;font-weight:600;">${t('report.open_html', {}, 'View HTML')} ↗</a>
+                      ${latestPdfUrl ? `<a href="${escapeHtml(latestPdfUrl)}" target="_blank" rel="noopener noreferrer" class="tag tag-good" style="text-decoration:none;font-size:11px;font-weight:600;">${t('report.download_pdf', {}, 'PDF')} ↗</a>` : ''}
+                    </span>`
+                  : `<button type="button" id="btn-quick-generate-pack" class="tag tag-neutral" style="cursor:pointer;font-size:11px;border:none;background:var(--line);color:var(--ink-2);" ${actionBlocked ? `disabled title="${escapeHtml(readOnlyReason)}"` : `title="${t('report.generate_pack_tooltip', {}, 'Build client delivery package with verifiable evidence')}"`}>${t('report.generate_pack_btn', {}, 'Build Diagnostic Pack')} ↗</button>`}
               </div>
               <strong style="font-size:var(--fs-2);margin-top:2px;">${t('report.deck_title', {}, 'Full GEO Audit Deck')}</strong>
               <span style="font-size:11px;color:var(--muted);margin-top:2px;">${t('report.deck_desc', {}, 'Crawlability & model blockers')}</span>
             </div>
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
-              <span class="kicker">02 · Action</span>
+              <span class="kicker">02 · ${t('report.action_card', {}, 'Action')}</span>
               <strong style="font-size:var(--fs-2);margin-top:2px;">${t('nav.plan', {}, 'Action Tickets')}</strong>
-              <span style="font-size:11px;color:var(--muted);margin-top:2px;">${t('literal.bbb414501acd', {}, 'Impact × Effort roadmap')}</span>
+              <span style="font-size:11px;color:var(--muted);margin-top:2px;">${t('report.impact_effort', {}, 'Impact × Effort roadmap')}</span>
             </div>
             <div class="card" style="background:var(--page);border-radius:var(--r-md);padding:var(--sp-3);">
-              <span class="kicker">03 · Assets</span>
+              <span class="kicker">03 · ${t('report.assets_card', {}, 'Assets')}</span>
               <strong style="font-size:var(--fs-2);margin-top:2px;">${t('report.asset_readiness_title', {}, 'Asset readiness')}</strong>
               <span style="font-size:11px;color:var(--muted);margin-top:2px;">${assetTotals.ready} ready · ${assetTotals.needs_review} review · ${assetTotals.template} templates</span>
             </div>
@@ -160,6 +188,7 @@ export default {
                     .map((d) => {
                       const dateStr = typeof d === 'string' ? d : d.date || d.name || 'Archive';
                       const dlUrl = projects.getDeliveryDownloadUrl(projectId, dateStr);
+                      const pdfUrl = projects.getDeliveryPdfUrl(projectId, dateStr, '01-Audit-Report');
                       const customerReady = d.readiness === 'customer_ready';
                       const reviewRequired = d.readiness === 'review_required';
                       const implementationReady = Boolean(d.implementation_ready);
@@ -177,8 +206,12 @@ export default {
                           ? t('report.download_diagnostic_zip', {}, 'Download diagnostic ZIP')
                           : t('report.download_review_zip', {}, 'Download review ZIP');
                       const backlogNote = !implementationReady && Array.isArray(d.implementation_backlog) && d.implementation_backlog.length
-                        ? `${Number((d.asset_summary || {}).template || 0)} outlines remain implementation backlog`
-                        : `${Number((d.asset_summary || {}).ready || 0)} ready · ${Number((d.asset_summary || {}).needs_review || 0)} review · ${Number((d.asset_summary || {}).template || 0)} templates`;
+                        ? t('report.backlog_note', { count: Number((d.asset_summary || {}).template || 0) }, `${Number((d.asset_summary || {}).template || 0)} outlines remain implementation backlog`)
+                        : t('report.asset_counts', {
+                          ready: Number((d.asset_summary || {}).ready || 0),
+                          review: Number((d.asset_summary || {}).needs_review || 0),
+                          templates: Number((d.asset_summary || {}).template || 0),
+                        }, `${Number((d.asset_summary || {}).ready || 0)} ready · ${Number((d.asset_summary || {}).needs_review || 0)} review · ${Number((d.asset_summary || {}).template || 0)} templates`);
                       return `
                       <tr>
                         <td>
@@ -192,18 +225,28 @@ export default {
                         </td>
                         <td style="text-align:right;">
                           <div style="display:inline-flex;align-items:center;gap:var(--sp-2);justify-content:flex-end;">
-                            <a href="/files/${encodeURIComponent(projectSlug)}/delivery/${encodeURIComponent(dateStr)}/01-Audit-Report.html" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" title="${t('common.view', {}, 'View')} report / PDF">
+                            <a href="/files/${encodeURIComponent(projectSlug)}/delivery/${encodeURIComponent(dateStr)}/01-Audit-Report.html" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" title="${t('report.open_html_title', {}, 'Open the HTML report')}">
                               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                              <span>${t('common.view', {}, 'View')} / PDF</span>
+                              <span>${t('report.open_html', {}, 'View HTML')}</span>
                             </a>
-                            <a href="${escapeHtml(dlUrl)}" class="btn btn-secondary btn-sm" download title="${escapeHtml(reviewRequired ? 'Contains assets that require review before publishing.' : implementationReady ? 'Diagnostic documents and publishable assets passed the current checks.' : customerReady ? 'Diagnostic final pack. Implementation outlines stay classified and do not block sending this ZIP.' : 'Readiness could not be confirmed.')}" aria-label="${escapeHtml(downloadLabel)}">
+                            <a href="${escapeHtml(pdfUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" title="${t('report.open_pdf_title', {}, 'Open the generated PDF in a new tab')}">
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="14" y2="17"></line></svg>
+                              <span>PDF</span>
+                            </a>
+                            <a href="${escapeHtml(dlUrl)}" class="btn btn-secondary btn-sm" download title="${escapeHtml(reviewRequired
+                              ? t('report.zip_review_hint', {}, 'Contains assets that require review before publishing.')
+                              : implementationReady
+                                ? t('report.zip_implementation_hint', {}, 'Diagnostic documents and publishable assets passed the current checks.')
+                                : customerReady
+                                  ? t('report.zip_diagnostic_hint', {}, 'Diagnostic final pack. Implementation outlines stay classified and do not block sending this ZIP.')
+                                  : t('report.zip_unknown_hint', {}, 'Readiness could not be confirmed.'))}" aria-label="${escapeHtml(downloadLabel)}">
                               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                               <span>${t(implementationReady ? 'report.download_implementation_zip' : customerReady ? 'report.download_diagnostic_zip' : 'report.download_review_zip', {}, downloadLabel)}</span>
                             </a>
                           </div>
                         </td>
                         ${canSendAny ? `<td style="text-align:right;">
-                            ${d.can_send
+                            ${d.can_send && !isViewer
                             ? `<button type="button" class="btn btn-primary btn-sm btn-send-pack" data-date="${escapeHtml(dateStr)}">${t('report.send_client_btn', {}, 'Send to client')}</button>`
                             : `<span style="font-size:var(--fs-1);color:var(--muted);">${t('report.send_unavailable', {}, 'Not sendable yet')}</span>`}
                         </td>` : ''}
@@ -235,9 +278,9 @@ export default {
 
     const generateBtn = document.getElementById('btn-generate-delivery');
     document.getElementById('btn-quick-generate-pack')?.addEventListener('click', () => {
-      generateBtn?.click();
+      if (generateBtn && !generateBtn.disabled) generateBtn.click();
     });
-    if (generateBtn) {
+    if (generateBtn && !generateBtn.disabled) {
       generateBtn.addEventListener('click', async () => {
         generateBtn.disabled = true;
         try {

@@ -573,6 +573,41 @@ def test_delivery_download_builds_snapshot_without_writing_project(project_clien
     assert not (tmp_path / "delivery-snapshots").exists()
 
 
+def test_delivery_pdf_renders_the_selected_markdown_document(project_client, monkeypatch, tmp_path):
+    client, _ = project_client
+    headers = _register(client, "owner@example.com")
+    monkeypatch.setitem(sys.modules, "geo", types.SimpleNamespace(cmd_init=lambda args: None))
+    monkeypatch.setattr(project_router.task_bootstrap, "delay", lambda *args, **kwargs: types.SimpleNamespace(id="task-1"))
+    created = client.post("/api/v1/projects", headers=headers, json={"url": "example.com"})
+    assert created.status_code == 202
+
+    output = tmp_path / "work" / "owner" / "example-com" / "delivery" / "2026-07-31"
+    (output / "assets").mkdir(parents=True)
+    (output / "01-Audit-Report.md").write_text(
+        "# Audit Report\n\n## Finding\n\n| Check | Result |\n| --- | --- |\n| Crawl | Passed |\n",
+        "utf-8",
+    )
+    (output / "assets" / "index.json").write_text(
+        json.dumps({"readiness": "customer_ready", "source_revision": "rev-1"}),
+        "utf-8",
+    )
+    monkeypatch.setattr(
+        project_router.delivery,
+        "validate_existing_delivery_contract",
+        lambda directory: output,
+    )
+
+    response = client.get(
+        f"/api/v1/projects/{created.json()['project_id']}/deliveries/2026-07-31/pdf?document=01-Audit-Report",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["x-citeaura-source-revision"] == "rev-1"
+    assert response.content.startswith(b"%PDF-")
+
+
 def test_project_creation_lets_engine_size_the_crawl(project_client, monkeypatch):
     """写死 25 页会让中大型站点的页面级审计只覆盖不到一成，页数应由引擎按站点规模决定。"""
     client, _ = project_client

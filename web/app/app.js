@@ -159,6 +159,7 @@ class AppState {
   constructor() {
     this.user = null;
     this.tenant = null;
+    this.role = 'viewer';
     this.projectsList = [];
     this.activeProjectId = null;
     this.activeJob = null;
@@ -174,6 +175,7 @@ class AppState {
   clearSession() {
     this.user = null;
     this.tenant = null;
+    this.role = 'viewer';
     this.projectsList = [];
     this.activeProjectId = null;
     this.activeJob = null;
@@ -187,6 +189,7 @@ class AppState {
       const me = await auth.getMe();
       this.user = me.user;
       this.tenant = me.tenant;
+      this.role = me.role || 'viewer';
     } catch (e) {
       if (e && e.status === 401) {
         this.clearSession();
@@ -284,6 +287,7 @@ function findTrackForView(viewId) {
 async function renderApp() {
   const renderId = ++renderSequence;
   cleanupCurrentView();
+  document.body.classList.remove('nav-open');
   const { route, params } = parseHash();
   state.currentRoute = route;
   state.currentParams = params;
@@ -436,6 +440,7 @@ function createContext() {
     state,
     user: state.user,
     tenant: state.tenant,
+    role: state.role,
     projects: state.projectsList,
     activeProjectId: state.activeProjectId,
     params: state.currentParams,
@@ -478,6 +483,7 @@ function createContext() {
 
 function renderAppShell() {
   const currentTrackObj = TRACKS.find((t) => t.id === state.currentTrack) || TRACKS[0];
+  const currentViewObj = currentTrackObj.views.find((view) => view.id === state.currentRoute) || currentTrackObj.views[0] || currentTrackObj;
   const activeProj = findProject(state.projectsList, state.activeProjectId);
 
   return `
@@ -489,15 +495,16 @@ function renderAppShell() {
             <span class="brand-mark"></span>
           </a>
 
-          <nav class="rail-nav">
+          <nav class="rail-nav" aria-label="${t('nav.primary', {}, 'Primary navigation')}">
             ${TRACKS.map((track) => {
               const isActive = track.id === state.currentTrack;
+              const trackLabel = t(track.labelKey, {}, track.defaultLabel);
               return `
-                <a href="#/${track.defaultView}" class="rail-btn ${isActive ? 'is-active' : ''}" data-track="${track.id}" title="${t(track.labelKey, {}, track.defaultLabel)}">
+                <a href="#/${track.defaultView}" class="rail-btn ${isActive ? 'is-active' : ''}" data-track="${track.id}" data-rail-label="${trackLabel}" aria-label="${trackLabel}" ${isActive ? 'aria-current="page"' : ''}>
                   <span class="rail-icon">
                     <img src="/site-assets/icons/${track.icon}.svg" width="18" height="18" alt="" style="filter: ${isActive ? 'none' : 'grayscale(1) opacity(0.7)'}">
                   </span>
-                  <span class="rail-label">${t(track.labelKey, {}, track.defaultLabel)}</span>
+                  <span class="rail-label">${trackLabel}</span>
                 </a>
               `;
             }).join('')}
@@ -533,10 +540,43 @@ function renderAppShell() {
         </div>
       </aside>
 
+      <div class="app-mobile-backdrop" id="app-mobile-backdrop" hidden></div>
+      <aside class="app-mobile-nav" id="app-mobile-nav" aria-label="${t('nav.primary', {}, 'Primary navigation')}" aria-hidden="true">
+        <div class="app-mobile-nav-head">
+          <a href="/" class="app-mobile-brand" title="CiteAura — ${t('common.back_to_home', {}, 'Return to Homepage')}">
+            <span class="brand-mark"></span>
+            <span>CiteAura</span>
+          </a>
+          <button type="button" class="app-mobile-close" id="app-mobile-close" aria-label="${t('common.close', {}, 'Close')}">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <nav class="app-mobile-nav-body">
+          ${TRACKS.map((track) => `
+            <div class="app-mobile-group ${track.id === state.currentTrack ? 'is-current' : ''}">
+              <span class="app-mobile-group-title">${t(track.labelKey, {}, track.defaultLabel)}</span>
+              ${track.views.filter((view) => !view.hidden).map((view) => `
+                <a href="#/${view.id}" class="app-mobile-link ${view.id === state.currentRoute ? 'is-active' : ''}" ${view.id === state.currentRoute ? 'aria-current="page"' : ''}>
+                  ${t(view.labelKey, {}, view.defaultLabel)}
+                </a>
+              `).join('')}
+            </div>
+          `).join('')}
+        </nav>
+        <div class="app-mobile-nav-foot">
+          <span>${escapeHtml(state.tenant?.name || '')}</span>
+          <span>${escapeHtml(state.tenant?.plan || 'trial')} · ${escapeHtml(state.role)}</span>
+        </div>
+      </aside>
+
       <!-- 3.  -->
       <div class="app-main">
         <header class="app-header">
           <div class="header-left">
+            <button type="button" class="app-mobile-toggle" id="app-mobile-toggle" aria-expanded="false" aria-controls="app-mobile-nav" aria-label="${t('nav.menu', {}, 'Open navigation')}">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+              <span class="sr-only">${t('nav.menu', {}, 'Open navigation')}</span>
+            </button>
             <!--  -->
             <div class="project-switcher">
               <button type="button" class="project-selector-btn" id="project-dropdown-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="project-dropdown-menu">
@@ -564,6 +604,12 @@ function renderAppShell() {
                   <span>${t('nav.add_brand', {}, 'Add Brand')}</span>
                 </a>
               </div>
+            </div>
+
+            <div class="header-context" aria-label="${t('nav.current_view', {}, 'Current view')}">
+              <span>${t(currentTrackObj.labelKey, {}, currentTrackObj.defaultLabel)}</span>
+              <span aria-hidden="true">/</span>
+              <strong>${escapeHtml(t(currentViewObj.labelKey, {}, currentViewObj.defaultLabel || ''))}</strong>
             </div>
 
             <!--  -->
@@ -609,7 +655,7 @@ function renderAppShell() {
               <div class="user-dropdown" id="user-dropdown-menu" role="menu" style="display:none;">
                 <div class="user-dropdown-info">
                   <div class="user-dropdown-email">${escapeHtml(state.user?.email || '')}</div>
-                  <div class="user-dropdown-tenant">${escapeHtml(state.tenant?.name || t('common.personal_workspace', {}, 'Personal Workspace'))} · ${escapeHtml(state.tenant?.plan || 'trial')}</div>
+                  <div class="user-dropdown-tenant">${escapeHtml(state.tenant?.name || t('common.personal_workspace', {}, 'Personal Workspace'))} · ${escapeHtml(state.tenant?.plan || 'trial')} · ${escapeHtml(state.role)}</div>
                 </div>
                 <a href="#/team" class="user-dropdown-item">${t('nav.team', {}, 'Team & Members')}</a>
                 <a href="#/billing" class="user-dropdown-item">${t('nav.billing', {}, 'Subscription & Billing')}</a>
@@ -630,6 +676,47 @@ function renderAppShell() {
 }
 
 function bindAppShellEvents() {
+  const mobileToggle = document.getElementById('app-mobile-toggle');
+  const mobileNav = document.getElementById('app-mobile-nav');
+  const mobileBackdrop = document.getElementById('app-mobile-backdrop');
+  const mobileClose = document.getElementById('app-mobile-close');
+  let mobileReturnFocus = null;
+  const setMobileNav = (open) => {
+    if (!mobileNav || !mobileBackdrop || !mobileToggle) return;
+    if (open) mobileReturnFocus = document.activeElement;
+    mobileNav.classList.toggle('is-open', open);
+    mobileToggle.setAttribute('aria-expanded', String(open));
+    mobileNav.setAttribute('aria-hidden', String(!open));
+    mobileBackdrop.hidden = !open;
+    document.body.classList.toggle('nav-open', open);
+    if (open) {
+      queueMicrotask(() => mobileNav.querySelector('.app-mobile-link.is-active, .app-mobile-link')?.focus?.({ preventScroll: true }));
+    } else if (mobileReturnFocus instanceof HTMLElement) {
+      mobileReturnFocus.focus?.({ preventScroll: true });
+      mobileReturnFocus = null;
+    }
+  };
+  mobileToggle?.addEventListener('click', () => setMobileNav(!mobileNav?.classList.contains('is-open')));
+  mobileClose?.addEventListener('click', () => setMobileNav(false));
+  mobileBackdrop?.addEventListener('click', () => setMobileNav(false));
+  mobileNav?.querySelectorAll('.app-mobile-link').forEach((link) => {
+    link.addEventListener('click', () => setMobileNav(false));
+  });
+  mobileNav?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab') return;
+    const focusable = mobileNav.querySelectorAll('a[href], button:not([disabled])');
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
   // 
   const projBtn = document.getElementById('project-dropdown-btn');
   const projMenu = document.getElementById('project-dropdown-menu');
@@ -760,6 +847,16 @@ document.addEventListener('keydown', (e) => {
     document.getElementById('user-menu-btn')?.setAttribute('aria-expanded', 'false');
     document.getElementById('app-lang-dropdown')?.classList.remove('is-open');
     document.getElementById('app-lang-toggle')?.setAttribute('aria-expanded', 'false');
+    const mobileNav = document.getElementById('app-mobile-nav');
+    if (mobileNav?.classList.contains('is-open')) {
+      mobileNav.classList.remove('is-open');
+      mobileNav.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('nav-open');
+      const backdrop = document.getElementById('app-mobile-backdrop');
+      if (backdrop) backdrop.hidden = true;
+      document.getElementById('app-mobile-toggle')?.setAttribute('aria-expanded', 'false');
+      document.getElementById('app-mobile-toggle')?.focus?.();
+    }
   }
 });
 

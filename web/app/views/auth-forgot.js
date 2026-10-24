@@ -10,31 +10,33 @@ export default {
   render: (ctx) => {
     return `
       <div class="auth-wrapper">
-        <div class="auth-box">
+        <main class="auth-box">
           <div class="auth-header">
             <a class="brand" href="/">
-              <span class="brand-mark" style="width:32px;height:32px;"></span>
-              <span class="brand-word" style="font-size:var(--fs-6);">CiteAura</span>
+              <span class="brand-mark auth-brand-mark"></span>
+              <span class="brand-word auth-brand-word">CiteAura</span>
             </a>
             <h1 class="auth-title">${t('auth.forgot_title', {}, 'Reset Password')}</h1>
             <p class="auth-subtitle">${t('auth.forgot_subtitle', {}, 'Enter your registered work email. If an account exists, a reset link will be dispatched.')}</p>
           </div>
 
-          <form id="forgot-form" style="display:flex;flex-direction:column;gap:var(--sp-4);">
-            <div class="field" style="margin:0;">
+          <form id="forgot-form" class="auth-form">
+            <div class="field">
               <label for="forgot-email">${t('auth.email', {}, 'Work Email')}</label>
               <input type="email" id="forgot-email" class="input" placeholder="name@company.com" required autocomplete="email">
             </div>
 
-            <button type="submit" class="btn btn-primary btn-block" style="margin-top:var(--sp-2);">
+            <p id="forgot-status" class="form-status is-error" role="alert" aria-live="polite" hidden></p>
+
+            <button type="submit" class="btn btn-primary btn-block">
               <span>${t('auth.send_reset_link', {}, 'Send Reset Link')}</span>
             </button>
           </form>
 
           <div class="auth-footer">
-            <a href="#/login" style="font-weight:600;">← ${t('auth.back_to_login', {}, 'Back to Sign In')}</a>
+            <a href="#/login" class="auth-footer-link">← ${t('auth.back_to_login', {}, 'Back to Sign In')}</a>
           </div>
-        </div>
+        </main>
       </div>
     `;
   },
@@ -47,7 +49,10 @@ export default {
       e.preventDefault();
       const email = document.getElementById('forgot-email').value.trim();
       const submitBtn = form.querySelector('button[type="submit"]');
+      const status = document.getElementById('forgot-status');
 
+      status.hidden = true;
+      status.textContent = '';
       submitBtn.disabled = true;
       submitBtn.innerHTML = `<span class="spin"></span> ${t('common.submitting', {}, 'Sending...')}`;
 
@@ -56,7 +61,10 @@ export default {
         toast.success(t('auth.reset_email_sent', {}, 'Password reset instructions sent. Please check your inbox.'));
         ctx.navigate('#/login');
       } catch (err) {
-        toast.error(tError(err));
+        const message = tError(err);
+        status.textContent = message;
+        status.hidden = false;
+        toast.error(message);
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<span>${t('auth.send_reset_link', {}, 'Send Reset Link')}</span>`;

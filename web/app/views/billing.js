@@ -72,6 +72,8 @@ export default {
     } catch (e) {}
 
     const currentPlan = usage.plan || 'trial';
+    const isOwner = ctx.role === 'owner';
+    const ownerOnly = t('common.owner_only', {}, 'Only the workspace owner can make this change.');
     const subscription = usage.subscription || null;
     const activeProjects = usage.projects_active || 0;
     const maxProjects = usage.projects_limit;
@@ -102,6 +104,7 @@ export default {
     const subscribeLabel = (code, label) => {
       const planName = PLAN_NAMES[code] || code;
       if (currentPlan === code) return t('billing.current_plan', {}, 'Current Plan');
+      if (!isOwner) return t('common.owner_only', {}, 'Only the workspace owner can make this change.');
       if (!paymentAvailable) return paymentUnavailable;
       if (!canUpgrade) return t('billing.plan_change_unavailable', {}, 'Plan change unavailable');
       if (activeSubscription) return t('billing.switch_to', { plan: planName }, `Switch to ${planName}`);
@@ -118,6 +121,7 @@ export default {
             </p>
           </div>
         </div>
+        ${isOwner ? '' : `<div class="read-only-note" role="status">${escapeHtml(ownerOnly)}</div>`}
 
         ${billingStatus === 'success' ? `
           <div class="banner good" style="margin-bottom:var(--sp-4);">
@@ -157,7 +161,7 @@ export default {
           ${subscription && ['active', 'trialing', 'past_due'].includes(subscription.status) ? `
             <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
               <span style="font-size:var(--fs-2);color:var(--muted);">${subscription.cancel_at_period_end ? t('billing.cancel_scheduled', {}, 'Cancellation scheduled for the end of the current billing period.') : t('billing.subscription_active', {}, 'Your subscription is active.')}</span>
-              ${subscription.cancel_at_period_end ? '' : `<button type="button" id="btn-cancel-subscription" class="btn btn-danger btn-sm">${t('billing.cancel_period_end', {}, 'Cancel at Period End')}</button>`}
+              ${subscription.cancel_at_period_end ? '' : `<button type="button" id="btn-cancel-subscription" class="btn btn-danger btn-sm" ${isOwner ? '' : `disabled title="${escapeHtml(ownerOnly)}"`}>${t('billing.cancel_period_end', {}, 'Cancel at Period End')}</button>`}
             </div>` : ''}
         </div>
 
@@ -208,7 +212,7 @@ export default {
               <li>${t('landing.plan_starter_2', {}, '13 standard action tickets & verification runs')}</li>
               <li>${t('landing.plan_starter_3', {}, 'Full reports & customer delivery packs')}</li>
             </ul>
-            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="starter" ${currentPlan === 'starter' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
+            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="starter" ${currentPlan === 'starter' || !isOwner || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
               ${subscribeLabel('starter', t('billing.subscribe_starter', {}, 'Subscribe Starter'))}
             </button>
           </article>
@@ -227,7 +231,7 @@ export default {
               <li>${t('landing.plan_pro_2', {}, 'Unlimited BYOK sampling')}</li>
               <li>${t('landing.plan_pro_3', {}, 'Scheduled re-sampling and email alerts on mention-rate drops')}</li>
             </ul>
-            <button type="button" class="btn btn-primary btn-block btn-subscribe" data-plan="pro" ${currentPlan === 'pro' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
+            <button type="button" class="btn btn-primary btn-block btn-subscribe" data-plan="pro" ${currentPlan === 'pro' || !isOwner || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
               ${subscribeLabel('pro', onTrial ? t('billing.upgrade_to_pro', {}, 'Upgrade to Pro') : t('landing.plan_pro_cta', {}, 'Subscribe Pro'))}
             </button>
           </article>
@@ -245,7 +249,7 @@ export default {
               <li>${t('landing.plan_agency_2', {}, 'One-click sendable white-label client pack')}</li>
               <li>${t('landing.plan_agency_3', {}, 'Team multi-role permissions & white-label delivery branding')}</li>
             </ul>
-            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="agency" ${currentPlan === 'agency' || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
+            <button type="button" class="btn btn-secondary btn-block btn-subscribe" data-plan="agency" ${currentPlan === 'agency' || !isOwner || !canUpgrade || !paymentAvailable ? 'disabled aria-disabled="true"' : ''}>
               ${subscribeLabel('agency', onTrial ? t('billing.upgrade_to_agency', {}, 'Upgrade to Agency') : t('landing.plan_agency_cta', {}, 'Subscribe Agency'))}
             </button>
           </article>
@@ -258,6 +262,7 @@ export default {
   mounted: (ctx) => {
     let currentInterval = 'monthly';
     const intentPlan = readIntentPlan(ctx.params);
+    if (ctx.role !== 'owner') return;
 
     const startCheckout = async (plan, button) => {
       if (!SUBSCRIBABLE.has(plan)) return;

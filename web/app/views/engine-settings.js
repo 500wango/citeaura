@@ -217,6 +217,9 @@ export default {
     configuredKeys.forEach((k) => {
       keyMap[k.engine_code] = k;
     });
+    const isOwner = ctx.role === 'owner';
+    const ownerOnly = t('common.owner_only', {}, 'Only the workspace owner can make this change.');
+    const ownerAttr = isOwner ? '' : `disabled title="${escapeHtml(ownerOnly)}"`;
 
     return `
       <div class="app-view-container">
@@ -228,13 +231,14 @@ export default {
             </p>
           </div>
         </div>
+        ${isOwner ? '' : `<div class="read-only-note" role="status">${escapeHtml(ownerOnly)}</div>`}
 
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('engine_settings.matrix_title', {}, 'Supported Model Matrix Endpoints')}</h3>
-            <button type="button" id="btn-add-custom-provider" class="btn btn-primary btn-sm">
+            <button type="button" id="btn-add-custom-provider" class="btn btn-primary btn-sm" ${ownerAttr}>
               <img src="/site-assets/icons/plus.svg" width="14" height="14" alt="">
-              <span>Add Provider</span>
+              <span>${t('engine_settings.add_provider', {}, 'Add Provider')}</span>
             </button>
           </div>
 
@@ -268,9 +272,9 @@ export default {
                         <div style="display:inline-flex;gap:var(--sp-2);">
                           ${
                             isSet
-                              ? `<button type="button" class="btn btn-secondary btn-sm btn-test-key" data-code="${eng.code}">${t('engine_settings.test_key', {}, 'Test')}</button>
-                                 <button type="button" class="btn btn-ghost btn-sm btn-del-key" data-code="${eng.code}" style="color:var(--bad);">✕</button>`
-                              : `<button type="button" class="btn btn-primary btn-sm btn-set-key" data-code="${eng.code}" data-name="${eng.name}">
+                              ? `<button type="button" class="btn btn-secondary btn-sm btn-test-key" data-code="${eng.code}" ${ownerAttr}>${t('engine_settings.test_key', {}, 'Test')}</button>
+                                 <button type="button" class="btn btn-ghost btn-sm btn-del-key" data-code="${eng.code}" style="color:var(--bad);" ${ownerAttr}>✕</button>`
+                              : `<button type="button" class="btn btn-primary btn-sm btn-set-key" data-code="${eng.code}" data-name="${eng.name}" ${ownerAttr}>
                                  ${t('engine_settings.configure_key', {}, 'Configure Key')}
                                </button>`
                           }
@@ -287,8 +291,8 @@ export default {
                     </td>
                     <td>
                       <span class="num">${escapeHtml(provider.code)}</span>
-                      <div class="num" style="font-size:11px;color:var(--muted);margin-top:var(--sp-1);word-break:break-all;">Base URL: ${escapeHtml(provider.base_url)}</div>
-                      <div class="num" style="font-size:11px;color:var(--muted);word-break:break-all;">Model ID: ${escapeHtml(provider.model_id)}</div>
+                      <div class="num" style="font-size:11px;color:var(--muted);margin-top:var(--sp-1);word-break:break-all;">${t('engine_settings.base_url_prefix', {}, 'Base URL:')} ${escapeHtml(provider.base_url)}</div>
+                      <div class="num" style="font-size:11px;color:var(--muted);word-break:break-all;">${t('engine_settings.model_id_prefix', {}, 'Model ID:')} ${escapeHtml(provider.model_id)}</div>
                       <div style="font-size:11px;color:var(--muted);">${t('engine_settings.protocol_label', {}, 'Protocol')}: ${escapeHtml(protocolLabel(provider.protocol))}</div>
                     </td>
                     <td>
@@ -297,14 +301,14 @@ export default {
                     </td>
                     <td style="text-align:right;">
                       <div style="display:inline-flex;gap:var(--sp-2);">
-                        <button type="button" class="btn btn-secondary btn-sm btn-edit-custom"
+                        <button type="button" class="btn btn-secondary btn-sm btn-edit-custom" ${ownerAttr}
                           data-name="${escapeHtml(provider.name)}"
                           data-base-url="${escapeHtml(provider.base_url)}"
                           data-model-id="${escapeHtml(provider.model_id)}"
                           data-protocol="${escapeHtml(provider.protocol || '')}"
                           data-search="${provider.search ? '1' : '0'}"
-                          data-extra-headers="${escapeHtml(extraHeadersToText(provider.extra_headers))}">Edit</button>
-                        <button type="button" class="btn btn-ghost btn-sm btn-del-custom" data-code="${escapeHtml(provider.code)}" style="color:var(--bad);">✕</button>
+                          data-extra-headers="${escapeHtml(extraHeadersToText(provider.extra_headers))}">${t('common.edit', {}, 'Edit')}</button>
+                        <button type="button" class="btn btn-ghost btn-sm btn-del-custom" data-code="${escapeHtml(provider.code)}" style="color:var(--bad);" ${ownerAttr}>✕</button>
                       </div>
                     </td>
                   </tr>
@@ -320,38 +324,39 @@ export default {
               <h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('engine_settings.mcp_access_title', {}, 'Public API & MCP access')}</h2>
               <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;max-width:70ch;">${t('engine_settings.mcp_access_desc', {}, 'Create a read-only token for reporting tools or an MCP client. Tokens are shown once, stored as hashes, and can be revoked by an owner.')}</p>
             </div>
-            <button type="button" id="btn-create-api-token" class="btn btn-secondary btn-sm">${t('engine_settings.create_token_btn', {}, 'Create read-only token')}</button>
+            <button type="button" id="btn-create-api-token" class="btn btn-secondary btn-sm" ${ownerAttr}>${t('engine_settings.create_token_btn', {}, 'Create read-only token')}</button>
           </div>
-          ${apiTokens.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('common.name', {}, 'Name')}</th><th>${t('engine_settings.col_prefix', {}, 'Prefix')}</th><th>${t('common.status', {}, 'Status')}</th><th>${t('engine_settings.col_last_used', {}, 'Last used')}</th><th style="text-align:right;">${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${apiTokens.map((token) => `<tr><td>${escapeHtml(token.name)}</td><td class="num">${escapeHtml(token.prefix)}…</td><td><span class="tag ${token.revoked_at ? 'tag-dim' : 'pill-good'}">${token.revoked_at ? 'Revoked' : 'Active · read only'}</span></td><td class="num">${escapeHtml(token.last_used_at || 'Not used')}</td><td style="text-align:right;">${token.revoked_at ? '' : `<button type="button" class="btn btn-ghost btn-sm btn-revoke-api-token" data-id="${escapeHtml(token.id)}" style="color:var(--bad);">Revoke</button>`}</td></tr>`).join('')}</tbody></table></div>` : `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('engine_settings.no_tokens', {}, 'No integration tokens created.')}</p>`}
+          ${apiTokens.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('common.name', {}, 'Name')}</th><th>${t('engine_settings.col_prefix', {}, 'Prefix')}</th><th>${t('common.status', {}, 'Status')}</th><th>${t('engine_settings.col_last_used', {}, 'Last used')}</th><th style="text-align:right;">${t('common.action', {}, 'Action')}</th></tr></thead><tbody>${apiTokens.map((token) => `<tr><td>${escapeHtml(token.name)}</td><td class="num">${escapeHtml(token.prefix)}…</td><td><span class="tag ${token.revoked_at ? 'tag-dim' : 'pill-good'}">${token.revoked_at ? t('engine_settings.token_revoked_status', {}, 'Revoked') : t('engine_settings.token_active_read_only', {}, 'Active · read only')}</span></td><td class="num">${escapeHtml(token.last_used_at || t('engine_settings.not_used', {}, 'Not used'))}</td><td style="text-align:right;">${token.revoked_at ? '' : `<button type="button" class="btn btn-ghost btn-sm btn-revoke-api-token" data-id="${escapeHtml(token.id)}" style="color:var(--bad);" ${ownerAttr}>${t('engine_settings.revoke_btn', {}, 'Revoke')}</button>`}</td></tr>`).join('')}</tbody></table></div>` : `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('engine_settings.no_tokens', {}, 'No integration tokens created.')}</p>`}
         </section>
       </div>
     `;
   },
 
   mounted: (ctx) => {
+    if (ctx.role !== 'owner') return;
     document.getElementById('btn-create-api-token')?.addEventListener('click', () => {
       openModal({
-        title: 'Create read-only API token',
-        content: '<div class="field"><label for="api-token-name">Token name</label><input id="api-token-name" class="input" maxlength="64" placeholder="MCP reporting" required><div class="field-hint">Read-only access to project lists, visibility reports, CSV exports, and prompt research.</div></div>',
-        confirmText: 'Create token',
+        title: t('engine_settings.create_token_title', {}, 'Create read-only API token'),
+        content: `<div class="field"><label for="api-token-name">${t('engine_settings.token_name', {}, 'Token name')}</label><input id="api-token-name" class="input" maxlength="64" placeholder="${t('engine_settings.token_name_placeholder', {}, 'MCP reporting')}" required><div class="field-hint">${t('engine_settings.token_scope_hint', {}, 'Read-only access to project lists, visibility reports, CSV exports, and prompt research.')}</div></div>`,
+        confirmText: t('engine_settings.create_token_btn', {}, 'Create token'),
         onConfirm: async () => {
           const name = document.getElementById('api-token-name')?.value.trim();
           if (!name) return false;
           try {
             const result = await settings.createApiToken(name);
             openModal({
-              title: 'Copy your API token',
+              title: t('engine_settings.copy_token_title', {}, 'Copy your API token'),
               showFooter: false,
-              content: `<p style="margin:0 0 var(--sp-3);">This value will not be shown again.</p><textarea id="new-api-token" class="input" rows="3" readonly>${escapeHtml(result.token)}</textarea><div style="display:flex;justify-content:flex-end;margin-top:var(--sp-3);"><button type="button" id="btn-copy-api-token" class="btn btn-primary btn-sm">Copy token</button></div>`,
+              content: `<p style="margin:0 0 var(--sp-3);">${t('engine_settings.token_once', {}, 'This value will not be shown again.')}</p><textarea id="new-api-token" class="input" rows="3" readonly>${escapeHtml(result.token)}</textarea><div style="display:flex;justify-content:flex-end;margin-top:var(--sp-3);"><button type="button" id="btn-copy-api-token" class="btn btn-primary btn-sm">${t('engine_settings.copy_token_btn', {}, 'Copy token')}</button></div>`,
             });
             document.getElementById('btn-copy-api-token')?.addEventListener('click', async () => {
               const value = document.getElementById('new-api-token')?.value || '';
               try {
                 await navigator.clipboard.writeText(value);
-                toast.success('Token copied');
+                toast.success(t('engine_settings.token_copied', {}, 'Token copied'));
               } catch (err) {
                 document.getElementById('new-api-token')?.select();
-                toast.success('Select and copy the token');
+                toast.success(t('engine_settings.token_select_copy', {}, 'Select and copy the token'));
               }
             });
             await ctx.reloadCurrentView();
@@ -366,11 +371,11 @@ export default {
 
     document.querySelectorAll('.btn-revoke-api-token').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!(await confirmModal('Revoke this API token? Clients using it lose access immediately.', { title: 'Revoke API token', isDanger: true }))) return;
+        if (!(await confirmModal(t('engine_settings.revoke_token_confirm', {}, 'Revoke this API token? Clients using it lose access immediately.'), { title: t('engine_settings.revoke_token_title', {}, 'Revoke API token'), isDanger: true }))) return;
         try {
           await settings.revokeApiToken(btn.getAttribute('data-id'));
           await ctx.reloadCurrentView();
-          toast.success('API token revoked');
+          toast.success(t('engine_settings.token_revoked', {}, 'API token revoked'));
         } catch (err) {
           toast.error(tError(err));
         }
@@ -382,7 +387,7 @@ export default {
         title: t('engine_settings.add_custom_provider_title', {}, 'Add Custom Provider'),
         content: customProviderForm(),
         confirmText: t('engine_settings.test_and_save_btn', {}, 'Test & Save'),
-        onConfirm: () => saveCustomProvider(ctx, 'Custom provider connected and saved'),
+        onConfirm: () => saveCustomProvider(ctx, t('engine_settings.custom_provider_saved', {}, 'Custom provider connected and saved')),
       });
     });
 
@@ -400,18 +405,18 @@ export default {
           title: t('engine_settings.edit_custom_provider_title', {}, 'Edit Custom Provider'),
           content: customProviderForm(provider),
           confirmText: t('engine_settings.test_and_save_btn', {}, 'Test & Save'),
-          onConfirm: () => saveCustomProvider(ctx, 'Custom provider connected and updated'),
+          onConfirm: () => saveCustomProvider(ctx, t('engine_settings.custom_provider_updated', {}, 'Custom provider connected and updated')),
         });
       });
     });
 
     document.querySelectorAll('.btn-del-custom').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!(await confirmModal('Delete this custom provider? Its saved credentials are removed.', { title: 'Delete provider', isDanger: true }))) return;
+        if (!(await confirmModal(t('engine_settings.delete_provider_confirm', {}, 'Delete this custom provider? Its saved credentials are removed.'), { title: t('engine_settings.delete_provider_title', {}, 'Delete provider'), isDanger: true }))) return;
         try {
           await settings.deleteCustomProvider(btn.getAttribute('data-code'));
           await ctx.reloadCurrentView();
-          toast.success('Custom provider removed');
+          toast.success(t('engine_settings.custom_provider_removed', {}, 'Custom provider removed'));
         } catch (err) {
           toast.error(tError(err));
         }
@@ -442,7 +447,7 @@ export default {
             try {
               await settings.saveKey(code, keyValue);
               await ctx.reloadCurrentView();
-              toast.success(`${name} API key encrypted and saved`);
+              toast.success(t('engine_settings.key_saved', { name }, `${name} API key encrypted and saved`));
               return true;
             } catch (err) {
               toast.error(tError(err));
@@ -460,7 +465,7 @@ export default {
         btn.innerHTML = `<span class="spin"></span>`;
         try {
           await settings.testKey(code);
-          toast.success('Key connection test passed!');
+          toast.success(t('engine_settings.key_test_passed', {}, 'Key connection test passed!'));
         } catch (err) {
           toast.error(tError(err));
         } finally {
@@ -472,12 +477,12 @@ export default {
 
     document.querySelectorAll('.btn-del-key').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!(await confirmModal('Delete this model key? You will need to enter it again to sample.', { title: 'Delete key', isDanger: true }))) return;
+        if (!(await confirmModal(t('engine_settings.delete_key_confirm', {}, 'Delete this model key? You will need to enter it again to sample.'), { title: t('engine_settings.delete_key_title', {}, 'Delete key'), isDanger: true }))) return;
         const code = btn.getAttribute('data-code');
         try {
           await settings.deleteKey(code);
           await ctx.reloadCurrentView();
-          toast.success('Key removed');
+          toast.success(t('engine_settings.key_removed', {}, 'Key removed'));
         } catch (err) {
           toast.error(tError(err));
         }

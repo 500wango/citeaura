@@ -31,7 +31,7 @@ function sanitizeLandingHtml(value) {
 (function () {
   'use strict';
 
-  var THEME_COLORS = { light: '#f7f9fa', dark: '#070b0a' };
+  var THEME_COLORS = { light: '#f8fafc', dark: '#0b1220' };
   // Only reviewed locales are exposed in the picker; other catalogs remain
   // addressable through an explicit `lang` query for staged rollout.
   var LOCALES = ['en', 'fr'];
@@ -438,7 +438,7 @@ function sanitizeLandingHtml(value) {
     var param = new URLSearchParams(location.search).get('theme');
     var saved = null;
     try { saved = localStorage.getItem('utheme'); } catch (e) {}
-    setTheme(param || saved || (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'dark'), false);
+    setTheme(param || saved || (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'), false);
     toggle = $('.theme-toggle');
     if (toggle) {
       toggle.addEventListener('click', function () {

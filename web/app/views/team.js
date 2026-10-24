@@ -14,6 +14,8 @@ export default {
   render: async (ctx) => {
     let members = [];
     let invitations = [];
+    const isOwner = ctx.role === 'owner';
+    const ownerOnly = t('common.owner_only', {}, 'Only the workspace owner can make this change.');
 
     try {
       [members, invitations] = await Promise.all([
@@ -32,11 +34,12 @@ export default {
             </p>
           </div>
           <div class="view-actions">
-            <button type="button" id="btn-invite-member" class="btn btn-primary btn-sm">
+            <button type="button" id="btn-invite-member" class="btn btn-primary btn-sm" ${isOwner ? '' : `disabled title="${escapeHtml(ownerOnly)}"`}>
               + ${t('team.invite_btn', {}, 'Invite Team Member')}
             </button>
           </div>
         </div>
+        ${isOwner ? '' : `<div class="read-only-note" role="status">${escapeHtml(ownerOnly)}</div>`}
 
         <!-- Active Members List -->
         <div class="card" style="padding:0;overflow:hidden;">
@@ -69,7 +72,7 @@ export default {
                     <td style="text-align:right;">
                       ${
                         m.role !== 'owner'
-                          ? `<button type="button" class="btn btn-ghost btn-sm btn-remove-member" data-id="${escapeHtml(m.user_id || m.id)}" style="color:var(--bad);">
+                          ? `<button type="button" class="btn btn-ghost btn-sm btn-remove-member" data-id="${escapeHtml(m.user_id || m.id)}" style="color:var(--bad);" ${isOwner ? '' : `disabled title="${escapeHtml(ownerOnly)}"`}>
                               ${t('common.remove', {}, 'Remove')}
                             </button>`
                           : `<span style="font-size:11px;color:var(--muted);">${t('team.workspace_owner', {}, 'Workspace Owner')}</span>`
@@ -111,7 +114,7 @@ export default {
                     <td><span class="tag tag-dim">${escapeHtml(inv.role)}</span></td>
                     <td><span class="tag ${inv.status === 'pending' ? 'tag-accent' : 'tag-dim'}">${escapeHtml(inv.status)}</span></td>
                       <td style="text-align:right;">
-                        <button type="button" class="btn btn-ghost btn-sm btn-revoke-inv" data-id="${escapeHtml(inv.id)}" style="color:var(--bad);" ${inv.status === 'pending' ? '' : 'disabled'}>
+                        <button type="button" class="btn btn-ghost btn-sm btn-revoke-inv" data-id="${escapeHtml(inv.id)}" style="color:var(--bad);" ${inv.status === 'pending' && isOwner ? '' : 'disabled'}>
                           ${t('team.revoke', {}, 'Revoke')}
                         </button>
                       </td>
@@ -131,6 +134,7 @@ export default {
   },
 
   mounted: (ctx) => {
+    if (ctx.role !== 'owner') return;
     document.getElementById('btn-invite-member')?.addEventListener('click', () => {
       openModal({
         title: t('team.invite_modal_title', {}, 'Invite Team Member'),

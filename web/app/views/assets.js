@@ -26,7 +26,7 @@ function percent(value) {
   return value === null || value === undefined ? t('common.unmeasured', {}, 'Unmeasured') : `${Math.round(Number(value) * 100)}%`;
 }
 
-function renderCampaignProposals(campaigns) {
+function renderCampaignProposals(campaigns, { actionBlocked = false, actionBlockReason = '' } = {}) {
   const items = Array.isArray(campaigns?.items) ? campaigns.items : [];
   const counts = campaigns?.counts || {};
   return `
@@ -61,13 +61,13 @@ function renderCampaignProposals(campaigns) {
               <span class="tag ${status.className}">${status.label}</span>
               ${takeoverEvidence.length ? `<span class="tag tag-outline">${t('assets.competitive_gap', {}, 'Competitive gap')}</span>` : ''}
             </div>
-            <h3>${escapeHtml(proposal.title || 'Campaign proposal')}</h3>
+            <h3>${escapeHtml(proposal.title || t('assets.campaign_proposal', {}, 'Campaign proposal'))}</h3>
             <p class="campaign-proposal-objective">${escapeHtml(proposal.objective || '')}</p>
             <div class="campaign-proposal-evidence">
               <span><strong>${escapeHtml(opportunity)}</strong></span>
               <span>${t('engines.col_mention_rate', {}, 'Aggregate mention')} ${escapeHtml(percent(promptEvidence.mention_rate))} · n=${Number(promptEvidence.samples || 0)}</span>
               <span>${escapeHtml(t('assets.cohort_baselines', { count: baselines.length }, '{count} separate cohort baseline(s)'))}</span>
-              ${takeoverEvidence.slice(0, 2).map((item) => `<span>${escapeHtml(item.competitor || 'Competitor')} · ${escapeHtml(item.engine_name || '')} · ${escapeHtml(item.sampling_mode || '')}</span>`).join('')}
+              ${takeoverEvidence.slice(0, 2).map((item) => `<span>${escapeHtml(item.competitor || t('assets.competitor', {}, 'Competitor'))} · ${escapeHtml(item.engine_name || '')} · ${escapeHtml(item.sampling_mode || '')}</span>`).join('')}
             </div>
           </div>
           <div class="campaign-proposal-side">
@@ -83,14 +83,16 @@ function renderCampaignProposals(campaigns) {
                 ${!tickets.length && !linkedAssets.length ? `<span class="muted">${t('assets.no_linked_work', {}, 'No linked implementation artifact yet')}</span>` : ''}
               </div>
             </div>
-            <div class="campaign-proposal-links" aria-label="Campaign workflow">
+            <div class="campaign-proposal-links" aria-label="${escapeHtml(t('assets.campaign_workflow', {}, 'Campaign workflow'))}">
               <span class="tag ${workflow.evidence?.status === 'available' ? 'pill-good' : 'pill-warn'}">${t('competitors.col_evidence', {}, 'Evidence')} ${escapeHtml(workflow.evidence?.status || 'pending')}</span>
               <span class="tag ${workflow.ticket?.status === 'linked' ? 'tag-neutral' : 'tag-dim'}">${t('verify.col_ticket', {}, 'Ticket')} ${escapeHtml(workflow.ticket?.status || 'missing')}</span>
               <span class="tag ${workflow.asset?.status === 'linked' ? 'tag-neutral' : 'tag-dim'}">${t('assets.file_label', {}, 'Asset')} ${escapeHtml(workflow.asset?.status || 'missing')}</span>
               <span class="tag ${workflow.review?.status === 'ready' ? 'pill-good' : 'pill-warn'}">${t('common.review_required', {}, 'Review')} ${escapeHtml(workflow.review?.status || 'required')}</span>
               <span class="tag tag-dim">${t('assets.verify_pending', {}, 'Verify pending')}</span>
             </div>
-            <a class="btn btn-secondary btn-sm campaign-proposal-action" data-action="${escapeHtml(proposal.next_step?.action || '')}" data-question-id="${escapeHtml(questionId)}" href="${escapeHtml(proposal.next_step?.route || '#/assets')}">${escapeHtml(proposal.next_step?.label || 'Review proposal')}</a>
+            ${proposal.next_step?.action === 'fill_question_gap' && actionBlocked
+              ? `<button type="button" class="btn btn-secondary btn-sm campaign-proposal-action" disabled title="${escapeHtml(actionBlockReason)}">${escapeHtml(proposal.next_step?.label || t('assets.review_proposal', {}, 'Review proposal'))}</button>`
+              : `<a class="btn btn-secondary btn-sm campaign-proposal-action" data-action="${escapeHtml(proposal.next_step?.action || '')}" data-question-id="${escapeHtml(questionId)}" href="${escapeHtml(proposal.next_step?.route || '#/assets')}">${escapeHtml(proposal.next_step?.label || t('assets.review_proposal', {}, 'Review proposal'))}</a>`}
           </div>
         </article>`;
       }).join('')}</div>` : `<div class="campaign-proposals-empty">${t('assets.no_proposals', {}, 'No proposals yet. Collect comparable samples to turn prompt gaps into reviewable work.')}</div>`}
@@ -104,10 +106,17 @@ export default {
     if (!projectId) {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
     }
-    const [assets, project] = await Promise.all([
+    const [assets, project, jobs] = await Promise.all([
       workspace.getAssets(projectId).catch(() => []),
       projects.get(projectId).catch(() => null),
+      projects.getJobs(projectId).catch(() => []),
     ]);
+    const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
+    const isViewer = ctx.role === 'viewer';
+    const actionBlocked = Boolean(activeJob) || isViewer;
+    const actionBlockReason = isViewer
+      ? t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.')
+      : t('project_job_already_running', {}, 'A job is already running for this brand.');
     const requestedQuestion = String(ctx.params?.question || '');
     const requestedPath = String(ctx.params?.path || '');
     const requestedAsset = assets.find((item) => {
@@ -125,10 +134,12 @@ export default {
         <div class="view-header">
           <div class="view-title-group"><h1 class="view-title">${t('assets.title', {}, 'Campaigns & Assets')}</h1><p class="view-desc">${t('assets.library_desc', {}, 'Review evidence-backed interventions, then prepare the assets required for implementation.')}</p></div>
           <div class="view-actions">${assets.length
-            ? `<button type="button" id="btn-save-asset" class="btn btn-primary btn-sm">${t('common.save', {}, 'Save Asset')}</button>`
-            : `<button type="button" id="btn-generate-assets" class="btn btn-primary btn-sm">${t('assets.generate_btn', {}, 'Generate assets')}</button>`}</div>
+            ? `<button type="button" id="btn-save-asset" class="btn btn-primary btn-sm" ${isViewer ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>${t('common.save', {}, 'Save Asset')}</button>`
+            : `<button type="button" id="btn-generate-assets" class="btn btn-primary btn-sm" ${actionBlocked ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>${t('assets.generate_btn', {}, 'Generate assets')}</button>`}</div>
         </div>
-        ${renderCampaignProposals(campaigns)}
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(actionBlockReason)}</div>` : ''}
+        ${activeJob ? `<div class="job-block-note" role="status"><span class="status-dot"></span>${escapeHtml(t('project_job_already_running', {}, 'A job is already running for this brand.'))} ${escapeHtml(activeJob.action || '')} · ${escapeHtml(activeJob.status || '')}</div>` : ''}
+        ${renderCampaignProposals(campaigns, { actionBlocked, actionBlockReason })}
         ${reviewRequired.length ? `<div class="banner warn" style="margin-bottom:var(--sp-4);"><div><strong>${t('common.review_required', {}, 'Review required')}.</strong> ${escapeHtml(t('assets.review_blocked_notice', { count: reviewRequired.length }, '{count} derived asset(s) cannot be published until the brand fact library and supporting evidence are approved.'))}</div></div>` : ''}
         ${assets.length ? `<div class="card" style="gap:var(--sp-4);">
           <div class="field" style="margin:0;">
@@ -139,7 +150,7 @@ export default {
           </div>
           <div class="field" style="margin:0;">
             <label for="asset-text">${t('assets.contents_label', {}, 'File contents')}</label>
-            <textarea id="asset-text" class="input" rows="24">${escapeHtml(first.text || '')}</textarea>
+            <textarea id="asset-text" class="input" rows="24" ${isViewer ? 'readonly' : ''}>${escapeHtml(first.text || '')}</textarea>
           </div>
         </div>` : renderEmpty({ title: 'No generated assets', description: 'Generate project-specific files from the current audit and approved facts library.' })}
       </div>`;
@@ -153,7 +164,9 @@ export default {
       const asset = await workspace.getAsset(projectId, pathSelect.value).catch(() => null);
       if (asset) editor.value = asset.text || '';
     });
-    document.getElementById('btn-generate-assets')?.addEventListener('click', async () => {
+    const generateBtn = document.getElementById('btn-generate-assets');
+    if (generateBtn && !generateBtn.disabled) generateBtn.addEventListener('click', async () => {
+      generateBtn.disabled = true;
       try {
         const res = await projects.triggerAction(projectId, 'generate');
         toast.success('Asset generation queued');
@@ -161,6 +174,8 @@ export default {
         if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'generate');
       } catch (err) {
         toast.error(tError(err));
+      } finally {
+        generateBtn.disabled = false;
       }
     });
     document.querySelectorAll('[data-action="fill_question_gap"]').forEach((button) => {
@@ -184,7 +199,8 @@ export default {
         }
       });
     });
-    document.getElementById('btn-save-asset')?.addEventListener('click', async () => {
+    const saveBtn = document.getElementById('btn-save-asset');
+    if (saveBtn && !saveBtn.disabled) saveBtn.addEventListener('click', async () => {
       try {
         await workspace.saveAsset(projectId, pathSelect.value, editor.value);
         toast.success('Asset saved');

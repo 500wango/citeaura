@@ -6,7 +6,7 @@
   <title data-i18n="public.sample.title">Sample GEO Diagnostic Report | CiteAura</title>
   <meta name="description" content="Explore an example CiteAura GEO diagnostic report with evidence, action tickets, and verification gates." data-i18n-content="public.sample.description">
   <meta name="robots" content="index, follow">
-  <meta name="theme-color" content="#f7f9fa">
+  <meta name="theme-color" content="#f8fafc">
   <link rel="canonical" href="https://citeaura.com/sample-report">
   <link rel="alternate" hreflang="x-default" href="https://citeaura.com/sample-report">
   <link rel="alternate" hreflang="en" href="https://citeaura.com/sample-report">
@@ -183,18 +183,24 @@
 
     /* Print Stylesheet (PDF Export Ready) */
     @media print {
+      @page { size: A4 portrait; margin: 16mm 18mm; }
       .sample-header, .sample-cta, .sample-nav-actions, .btn { display: none !important; }
-      body, .sample-page { background: #ffffff !important; color: #111111 !important; font-size: 10pt; }
+      html, body, .sample-page { background: #ffffff !important; color: #111111 !important; font-size: 10pt; height: auto !important; overflow: visible !important; }
       .sample-shell { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
-      .sample-hero { padding: 20px 0 !important; }
+      .sample-hero { padding: 20px 0 !important; break-inside: avoid; }
       .sample-grid, .ticket-list { break-inside: avoid; }
       .sample-kpi, .sample-ticket, .sample-table, .dovetail-card {
         border: 1px solid #d1d5db !important; background: #ffffff !important; color: #111111 !important;
         box-shadow: none !important; break-inside: avoid;
       }
+      .sample-table { display: table !important; width: 100% !important; overflow: visible !important; }
+      thead { display: table-header-group; }
+      tr { break-inside: avoid; page-break-inside: avoid; }
+      th, td { overflow-wrap: anywhere; word-break: break-word; }
       .sample-table th { background: #f3f4f6 !important; color: #374151 !important; }
       .dovetail-quote-box { border-left-color: #3b82f6 !important; }
       .dovetail-highlight { background: #e0e7ff !important; color: #1e3a8a !important; }
+      a { color: inherit !important; text-decoration: underline; }
     }
 
     @media (max-width: 720px) {

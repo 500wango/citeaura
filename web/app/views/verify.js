@@ -26,12 +26,20 @@ export default {
   render: async (ctx) => {
     const projectId = ctx.activeProjectId;
     if (!projectId) return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
-    const [history, tickets] = await Promise.all([
+    const [history, tickets, jobs] = await Promise.all([
       projects.getVerifyHistory(projectId).catch(() => []),
       projects.getTickets(projectId).catch(() => []),
+      projects.getJobs(projectId).catch(() => []),
     ]);
     const latest = history[history.length - 1];
-    const canVerify = Array.isArray(tickets) && tickets.length > 0;
+    const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
+    const isViewer = ctx.role === 'viewer';
+    const canVerify = Array.isArray(tickets) && tickets.length > 0 && !activeJob && !isViewer;
+    const verifyBlockReason = isViewer
+      ? t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.')
+      : activeJob
+        ? t('project_job_already_running', {}, 'A job is already running for this brand.')
+        : t('verify.no_tickets_desc', {}, 'Generate or create tickets before running verification.');
     const effectLabels = {
       draft: t('plan.effect_draft', {}, 'Draft'),
       deployed: t('plan.effect_deployed', {}, 'Deployed'),
@@ -55,13 +63,15 @@ export default {
             <p class="view-desc">${t('verify.desc', {}, 'Verification re-crawls the site and evaluates ticket acceptance checks against the latest audit and metrics artifacts.')}</p>
           </div>
           <div class="view-actions">
-            <button type="button" id="btn-run-verify-now" class="btn btn-primary btn-sm" ${canVerify ? '' : 'disabled'}>
+            <button type="button" id="btn-run-verify-now" class="btn btn-primary btn-sm" ${canVerify ? '' : `disabled title="${escapeHtml(verifyBlockReason)}"`}>
               ${t('verify.run_now', {}, 'Run Verification')}
             </button>
           </div>
         </div>
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.'))}</div>` : ''}
+        ${activeJob ? `<div class="job-block-note" role="status"><span class="status-dot"></span>${escapeHtml(t('project_job_already_running', {}, 'A job is already running for this brand.'))} ${escapeHtml(activeJob.action || '')} · ${escapeHtml(activeJob.status || '')}</div>` : ''}
         <div class="card" style="gap:var(--sp-2);border-left:3px solid var(--accent);margin-bottom:var(--sp-4);">
-          <strong>${t('verify.progress_title', {}, 'What verification proves')}</strong>
+          <div style="display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;"><strong>${t('verify.progress_title', {}, 'What verification proves')}</strong><span class="tag tag-dim">${t('verify.technical_only', {}, 'Technical check only')}</span></div>
           <span style="color:var(--ink-2);font-size:var(--fs-2);line-height:1.5;">${t('verify.progress_help', {}, 'A pass means the configured website check succeeded. It does not by itself prove that AI recommendations or traffic increased; those require a comparable measurement cycle.')}</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-2);margin-bottom:var(--sp-4);">
@@ -107,7 +117,10 @@ export default {
       </div>`;
   },
   mounted: (ctx) => {
-    document.getElementById('btn-run-verify-now')?.addEventListener('click', async () => {
+    const verifyNow = document.getElementById('btn-run-verify-now');
+    if (!verifyNow || verifyNow.disabled) return;
+    verifyNow.addEventListener('click', async () => {
+      verifyNow.disabled = true;
       try {
         const res = await projects.triggerAction(ctx.activeProjectId, 'verify');
         toast.success(t('verify.queued_success', {}, 'Verification task queued'));
@@ -115,6 +128,8 @@ export default {
         if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'verify');
       } catch (err) {
         toast.error(tError(err, 'verify.queued_failed'));
+      } finally {
+        verifyNow.disabled = false;
       }
     });
   },

@@ -1,4 +1,12 @@
-/* ：、reset、、 */
+/* Global reset, type, focus, and shared utilities. */
+
+@font-face {
+  font-family: "Geist";
+  src: url("/site-assets/fonts/geist-latin-variable.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 @font-face {
   font-family: "Space Grotesk";
@@ -50,7 +58,7 @@ body {
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: var(--fs-3);
-  line-height: 1.6;
+  line-height: 1.57;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -59,14 +67,14 @@ h1, h2, h3, h4 {
   color: var(--ink);
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
   text-wrap: balance;
 }
-h1 { font-size: var(--fs-8); }
-h2 { font-size: var(--fs-7); }
-h3 { font-size: var(--fs-6); font-weight: 500; }
-h4 { font-size: var(--fs-5); font-weight: 500; }
+h1 { font-size: var(--fs-8); line-height: 1.22; }
+h2 { font-size: var(--fs-7); line-height: 1.29; }
+h3 { font-size: var(--fs-6); font-weight: 600; line-height: 1.4; }
+h4 { font-size: var(--fs-5); font-weight: 600; }
 
 p { max-width: 76ch; text-wrap: pretty; }
 a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
@@ -108,7 +116,7 @@ ul, ol { padding: 0; list-style: none; }
 
 /*  */
 .num, .metric, td[data-num] {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }

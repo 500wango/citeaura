@@ -28,7 +28,7 @@ function renderFindings(page) {
     `).join('');
   }
   if (page.evaluation_status === 'excluded') {
-    return `<span class="tag tag-dim">${escapeHtml(page.evaluation_note || 'Excluded from public-content scoring')}</span>`;
+    return `<span class="tag tag-dim">${escapeHtml(page.evaluation_note || t('siteaudit.excluded_public_scoring', {}, 'Excluded from public-content scoring'))}</span>`;
   }
   if (page.evaluation_status === 'not_evaluated') {
     return `<span class="tag tag-dim">${t('siteaudit.insufficient_crawl_evidence', {}, 'Insufficient crawl evidence')}</span>`;
@@ -45,13 +45,21 @@ export default {
 
     let report = null;
     let citationReadiness = null;
+    let jobs = [];
     try {
-      [report, citationReadiness] = await Promise.all([
+      [report, citationReadiness, jobs] = await Promise.all([
         projects.getReport(projectId).catch(() => null),
         projects.getCitationReadiness(projectId).catch(() => null),
+        projects.getJobs(projectId).catch(() => []),
       ]);
     } catch (e) {}
 
+    const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
+    const isViewer = ctx.role === 'viewer';
+    const actionBlocked = Boolean(activeJob) || isViewer;
+    const actionBlockReason = isViewer
+      ? t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.')
+      : t('project_job_already_running', {}, 'A job is already running for this brand.');
     const audit = (report && report.audit) || {};
     const pages = (audit && audit.pages) || [];
     const usesApplicableScore = Number(audit.presentation_version || 0) >= 1;
@@ -68,11 +76,11 @@ export default {
     const coverageDiscovered = Number(coverage.discovered_urls || 0);
     const coverageRatio = Number(coverage.ratio);
     const coverageNote = coverageCrawled && coverageDiscovered
-      ? `of ${coverageDiscovered}${coverage.discovered_is_partial ? '+' : ''} sitemap URLs`
+      ? t('siteaudit.coverage_of', { count: `${coverageDiscovered}${coverage.discovered_is_partial ? '+' : ''}` }, `of ${coverageDiscovered}${coverage.discovered_is_partial ? '+' : ''} sitemap URLs`)
         + (Number.isFinite(coverageRatio)
-          ? ` (${Math.round(coverageRatio * 100)}%, ${coverage.mode || 'sampled'} crawl)`
+          ? ` (${t('siteaudit.coverage_percent', { percent: Math.round(coverageRatio * 100), mode: coverage.mode || 'sampled' }, `${Math.round(coverageRatio * 100)}%, ${coverage.mode || 'sampled'} crawl`)})`
           : '')
-      : 'no sitemap discovered; coverage limited to internal links';
+      : t('siteaudit.coverage_internal', {}, 'no sitemap discovered; coverage limited to internal links');
 
     return `
       <div class="app-view-container">
@@ -84,13 +92,15 @@ export default {
             </p>
           </div>
           <div class="view-actions">
-            <button type="button" id="btn-re-audit" class="btn btn-secondary btn-sm">
+            <button type="button" id="btn-re-audit" class="btn btn-secondary btn-sm" ${actionBlocked ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
               <span>${t('siteaudit.re_audit_btn', {}, 'Re-run Site Audit')}</span>
             </button>
           </div>
         </div>
 
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(actionBlockReason)}</div>` : ''}
+        ${activeJob ? `<div class="job-block-note" role="status"><span class="status-dot"></span>${escapeHtml(t('project_job_already_running', {}, 'A job is already running for this brand.'))} ${escapeHtml(activeJob.action || '')} · ${escapeHtml(activeJob.status || '')}</div>` : ''}
         <!-- Score Overview Card -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:var(--sp-4);">
           <div class="card" style="gap:var(--sp-2);">
@@ -98,28 +108,28 @@ export default {
             <div style="display:flex;align-items:center;gap:var(--sp-3);">
               ${grade ? gradeBadge(grade) : `<span class="tag tag-dim">${scoreUnavailableLabel}</span>`}
               <span class="num" style="font-size:var(--fs-7);font-weight:700;">${avgScore ?? scoreUnavailableLabel}</span>
-              ${avgScore === null ? '' : '<span style="color:var(--muted);font-size:var(--fs-2);">/ 100</span>'}
+              ${avgScore == null ? '' : '<span style="color:var(--muted);font-size:var(--fs-2);">/ 100</span>'}
             </div>
           </div>
           <div class="card" style="gap:var(--sp-2);">
             <span class="kicker">${t('siteaudit.crawled_pages', {}, 'Audited Pages')}</span>
             <span class="num" style="font-size:var(--fs-7);font-weight:700;">${pages.length}</span>
-            <span style="color:var(--muted);font-size:11px;">${escapeHtml(coverageNote)} · ${summary.excluded_pages || 0} utility pages excluded from content scoring</span>
+            <span style="color:var(--muted);font-size:11px;">${escapeHtml(coverageNote)} · ${t('siteaudit.utility_excluded', { count: summary.excluded_pages || 0 }, `${summary.excluded_pages || 0} utility pages excluded from content scoring`)}</span>
           </div>
           <div class="card" style="gap:var(--sp-2);">
             <span class="kicker">${t('siteaudit.applicable_checks', {}, 'Applicable Checks')}</span>
             <span class="num" style="font-size:var(--fs-7);font-weight:700;">${summary.passed || 0} / ${summary.evaluated || 0}</span>
-            <span style="color:var(--muted);font-size:11px;">${summary.not_evaluated || 0} not evaluated / ${summary.not_applicable || 0} not applicable</span>
+            <span style="color:var(--muted);font-size:11px;">${t('siteaudit.checks_summary', { notEvaluated: summary.not_evaluated || 0, notApplicable: summary.not_applicable || 0 }, `${summary.not_evaluated || 0} not evaluated / ${summary.not_applicable || 0} not applicable`)}</span>
           </div>
         </div>
 
         <div class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
-            <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Citation Readiness</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Evidence-backed signals for whether AI systems can access, extract and cite this site.</p></div>
+            <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('siteaudit.citation_title', {}, 'Citation Readiness')}</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${t('siteaudit.citation_desc', {}, 'Evidence-backed signals for whether AI systems can access, extract and cite this site.')}</p></div>
             <span class="tag ${citationReadiness?.status === 'measured' ? 'pill-good' : 'tag-dim'}">${citationReadiness?.score ?? t('common.unmeasured', {}, 'Unmeasured')}</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:var(--sp-2);">
-            ${(citationReadiness?.dimensions || []).map((item) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(item.label)}</span><strong>${item.score == null ? t('common.unmeasured', {}, 'Unmeasured') : `${item.score}/100`}</strong><span style="display:block;color:var(--faint);font-size:11px;">${(item.evidence || []).length} evidence item(s)</span></div>`).join('') || `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Run a site audit to calculate citation readiness.</p>`}
+            ${(citationReadiness?.dimensions || []).map((item) => `<div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${escapeHtml(item.label)}</span><strong>${item.score == null ? t('common.unmeasured', {}, 'Unmeasured') : `${item.score}/100`}</strong><span style="display:block;color:var(--faint);font-size:11px;">${t('siteaudit.evidence_count', { count: (item.evidence || []).length }, `${(item.evidence || []).length} evidence item(s)`)}</span></div>`).join('') || `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('siteaudit.run_audit_hint', {}, 'Run a site audit to calculate citation readiness.')}</p>`}
           </div>
           ${(citationReadiness?.crawler_checks || []).length ? `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${citationReadiness.crawler_checks.map((item) => `<span class="tag ${item.status === 'pass' ? 'pill-good' : item.status === 'fail' ? 'pill-bad' : 'tag-dim'}" title="${escapeHtml(item.action || '')}">${escapeHtml(item.name)} · ${escapeHtml(item.status)}</span>`).join('')}</div>` : ''}
         </div>
@@ -128,7 +138,7 @@ export default {
           <div class="card" style="gap:var(--sp-3);">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);">
               <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('siteaudit.site_level_findings', {}, 'Site-level Findings')}</h3>
-              <span class="tag tag-dim">${siteFindings.length} detected</span>
+              <span class="tag tag-dim">${t('siteaudit.detected_count', { count: siteFindings.length }, `${siteFindings.length} detected`)}</span>
             </div>
             <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">
               ${siteFindings.map((finding) => `
@@ -145,7 +155,7 @@ export default {
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('siteaudit.pages_table_title', {}, 'Page-level Applicable Audit')}</h3>
-            <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${pages.length} pages</span>
+            <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${t('siteaudit.pages_count', { count: pages.length }, `${pages.length} pages`)}</span>
           </div>
 
           ${
@@ -169,12 +179,12 @@ export default {
                       <td>
                         <div class="num" style="font-weight:600;color:var(--ink);overflow-wrap:anywhere;">${escapeHtml(p.url || p.path || '/')}</div>
                         <div style="display:flex;align-items:center;gap:var(--sp-2);margin-top:6px;flex-wrap:wrap;">
-                          <span class="tag tag-dim">${escapeHtml(p.role?.label || 'General content page')}</span>
-                          <span style="font-size:11px;color:var(--muted);">${p.check_summary?.evaluated || 0} checks / ${(p.check_summary?.not_applicable || 0) + (p.check_summary?.not_evaluated || 0)} skipped</span>
+                          <span class="tag tag-dim">${escapeHtml(p.role?.label || t('siteaudit.general_content_page', {}, 'General content page'))}</span>
+                          <span style="font-size:11px;color:var(--muted);">${t('siteaudit.checks_skipped', { evaluated: p.check_summary?.evaluated || 0, skipped: (p.check_summary?.not_applicable || 0) + (p.check_summary?.not_evaluated || 0) }, `${p.check_summary?.evaluated || 0} checks / ${(p.check_summary?.not_applicable || 0) + (p.check_summary?.not_evaluated || 0)} skipped`)}</span>
                         </div>
                       </td>
-                      <td>${p.applicable_grade ? gradeBadge(p.applicable_grade) : '<span class="tag tag-dim">Not scored</span>'}</td>
-                      <td data-num style="font-weight:700;color:var(--ink);">${p.applicable_score ?? 'Not scored'}</td>
+                      <td>${p.applicable_grade ? gradeBadge(p.applicable_grade) : `<span class="tag tag-dim">${t('siteaudit.not_scored', {}, 'Not scored')}</span>`}</td>
+                      <td data-num style="font-weight:700;color:var(--ink);">${p.applicable_score ?? t('siteaudit.not_scored', {}, 'Not scored')}</td>
                       <td>
                         <div style="display:flex;gap:4px;flex-wrap:wrap;">
                           ${renderFindings(p)}
@@ -190,7 +200,10 @@ export default {
           `
               : `
             <div style="padding:var(--sp-6);font-size:var(--fs-2);color:var(--muted);">
-              ${renderEmpty({ title: 'No site audit data', description: 'Run a site audit to measure crawlability and extraction structure.' })}
+              ${renderEmpty({
+                title: t('siteaudit.empty_title', {}, 'No site audit data'),
+                description: t('siteaudit.empty_desc', {}, 'Run a site audit to measure crawlability and extraction structure.'),
+              })}
             </div>
           `
           }
@@ -203,8 +216,8 @@ export default {
     const projectId = ctx.activeProjectId;
     if (!projectId) return;
 
-    document.getElementById('btn-re-audit')?.addEventListener('click', async () => {
-      const button = document.getElementById('btn-re-audit');
+    const button = document.getElementById('btn-re-audit');
+    if (button && !button.disabled) button.addEventListener('click', async () => {
       if (button) button.disabled = true;
       try {
         const res = await projects.triggerAction(projectId, 'audit');

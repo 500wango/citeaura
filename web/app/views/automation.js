@@ -27,6 +27,8 @@ export default {
     const intervalDays = [1, 7, 14, 30].includes(schedule.interval_days) ? schedule.interval_days : 7;
     const alertOnRegression = schedule.alert_on_regression !== false;
     const alertEmailReady = Boolean(schedule.alert_email_ready);
+    const isViewer = ctx.role === 'viewer';
+    const viewerOnly = t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.');
 
     return `
       <div class="app-view-container">
@@ -38,16 +40,17 @@ export default {
             </p>
           </div>
           <div class="view-actions">
-            <button type="button" id="btn-save-schedule" class="btn btn-primary btn-sm">
+            <button type="button" id="btn-save-schedule" class="btn btn-primary btn-sm" ${isViewer ? `disabled title="${escapeHtml(viewerOnly)}"` : ''}>
               <span>${t('common.save_changes', {}, 'Save Schedule')}</span>
             </button>
           </div>
         </div>
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(viewerOnly)}</div>` : ''}
 
         <div class="card" style="max-width:680px;gap:var(--sp-4);">
           <div class="card" style="background:var(--page);padding:var(--sp-4);border-radius:var(--r-md);">
             <label style="display:flex;align-items:flex-start;gap:var(--sp-3);cursor:pointer;">
-              <input type="checkbox" id="schedule-enabled" ${enabled ? 'checked' : ''} style="margin-top:2px;">
+              <input type="checkbox" id="schedule-enabled" ${enabled ? 'checked' : ''} style="margin-top:2px;" ${isViewer ? 'disabled' : ''}>
               <div style="font-size:var(--fs-2);">
                 <strong style="color:var(--ink);">${t('automation.enable_title', {}, 'Enable automated periodic monitoring')}</strong>
                 <div style="color:var(--muted);margin-top:2px;">
@@ -59,7 +62,7 @@ export default {
 
           <div class="field" style="margin:0;">
             <label>${t('automation.interval_label', {}, 'Monitoring Recurrence Interval')}</label>
-            <select id="schedule-interval" class="input">
+            <select id="schedule-interval" class="input" ${isViewer ? 'disabled' : ''}>
               <option value="1" ${intervalDays === 1 ? 'selected' : ''}>${t('automation.interval_daily', {}, 'Daily (1 Day)')}</option>
               <option value="7" ${intervalDays === 7 ? 'selected' : ''}>${t('automation.interval_weekly', {}, 'Weekly (7 Days)')}</option>
               <option value="14" ${intervalDays === 14 ? 'selected' : ''}>${t('automation.interval_biweekly', {}, 'Bi-Weekly (14 Days)')}</option>
@@ -69,7 +72,7 @@ export default {
 
           <div class="card" style="background:var(--page);padding:var(--sp-4);border-radius:var(--r-md);">
             <label style="display:flex;align-items:flex-start;gap:var(--sp-3);cursor:pointer;">
-              <input type="checkbox" id="schedule-alert" ${alertOnRegression ? 'checked' : ''} style="margin-top:2px;">
+              <input type="checkbox" id="schedule-alert" ${alertOnRegression ? 'checked' : ''} style="margin-top:2px;" ${isViewer ? 'disabled' : ''}>
               <div style="font-size:var(--fs-2);">
                 <strong style="color:var(--ink);">${t('automation.alert_title', {}, 'Email owners if mention rate drops')}</strong>
                 <div style="color:var(--muted);margin-top:2px;">
@@ -86,7 +89,7 @@ export default {
 
   mounted: (ctx) => {
     const projectId = ctx.activeProjectId;
-    if (!projectId) return;
+    if (!projectId || ctx.role === 'viewer') return;
 
     document.getElementById('btn-save-schedule')?.addEventListener('click', async () => {
       const enabled = document.getElementById('schedule-enabled')?.checked;

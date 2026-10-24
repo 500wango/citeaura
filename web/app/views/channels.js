@@ -18,7 +18,7 @@ function suggestedAsset(type) {
 
 async function runCitationSample(ctx, button) {
   const projectId = ctx.activeProjectId;
-  if (!projectId) return;
+  if (!projectId || button.disabled) return;
   button.disabled = true;
   try {
     const result = await projects.triggerSample(projectId);
@@ -41,13 +41,20 @@ export default {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
     }
 
-    const [report, externalEvidence, project, citationSources, citationFeatures] = await Promise.all([
+    const [report, externalEvidence, project, citationSources, citationFeatures, jobs] = await Promise.all([
       projects.getReport(projectId).catch(() => null),
       workspace.getExternalEvidence(projectId).catch(() => []),
       projects.get(projectId).catch(() => null),
       projects.getCitationSources(projectId).catch(() => null),
       projects.getCitationFeatures(projectId).catch(() => ({ channels: false })),
+      projects.getJobs(projectId).catch(() => []),
     ]);
+    const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
+    const isViewer = ctx.role === 'viewer';
+    const sampleBlocked = Boolean(activeJob) || isViewer;
+    const sampleBlockReason = isViewer
+      ? t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.')
+      : t('project_job_already_running', {}, 'A job is already running for this brand.');
     const channels = citationFeatures.channels && citationSources?.status === 'measured' ? citationSources.domains : (report?.channels || []);
     citationDomainState = new Map(channels.map((item) => [String(item.domain || ''), item]));
     const totalMentions = channels.reduce((sum, channel) => sum + Number(channel.count || 0), 0);
@@ -70,15 +77,17 @@ export default {
               <span>${t('channels.review_samples', {}, 'Review Raw Citations')}</span>
             </a>
             <a href="${escapeHtml(projects.exportCsv(projectId))}" class="btn btn-secondary btn-sm" download>
-              <span aria-hidden="true">↓</span><span>Download CSV</span>
+              <span aria-hidden="true">↓</span><span>${t('channels.download_csv', {}, 'Download CSV')}</span>
             </a>
-            <button type="button" class="btn btn-primary btn-sm btn-run-citation-sample">
+            <button type="button" class="btn btn-primary btn-sm btn-run-citation-sample" ${sampleBlocked ? `disabled title="${escapeHtml(sampleBlockReason)}"` : ''}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               <span>${t('channels.sample_now', {}, 'Run Citation Sampling')}</span>
             </button>
           </div>
         </div>
 
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(sampleBlockReason)}</div>` : ''}
+        ${activeJob ? `<div class="job-block-note" role="status"><span class="status-dot"></span>${escapeHtml(t('project_job_already_running', {}, 'A job is already running for this brand.'))} ${escapeHtml(activeJob.action || '')} · ${escapeHtml(activeJob.status || '')}</div>` : ''}
         <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;padding:0 var(--sp-1);">
           <div style="display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;">
             <span class="tag tag-neutral">${t('channels.evidence_badge', {}, 'Web citation evidence')}</span>
@@ -86,7 +95,7 @@ export default {
               ${t('channels.source_note', {}, 'Only source URLs returned by web-enabled model samples are counted.')}
             </span>
           </div>
-          ${cohort ? `<span class="tag tag-dim num">Cohort ${escapeHtml(cohort)}</span>` : ''}
+          ${cohort ? `<span class="tag tag-dim num">${t('channels.cohort_label', { cohort }, `Cohort ${cohort}`)}</span>` : ''}
         </div>
 
         ${channels.length ? `
@@ -94,7 +103,7 @@ export default {
             <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
               <div>
                 <h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('channels.top_domains', {}, 'Top Cited Domains')}</h2>
-                <p style="font-size:var(--fs-1);color:var(--muted);margin:2px 0 0;">${channels.length} domains · ${totalMentions} citation mentions</p>
+                <p style="font-size:var(--fs-1);color:var(--muted);margin:2px 0 0;">${t('channels.domain_mentions', { domains: channels.length, mentions: totalMentions }, `${channels.length} domains · ${totalMentions} citation mentions`)}</p>
               </div>
             </div>
             <div class="tbl" style="overflow-x:auto;">
@@ -129,12 +138,12 @@ export default {
                         <td style="max-width:340px;">
                           ${questions.length ? `
                             <div style="font-size:var(--fs-2);color:var(--ink);line-height:1.45;overflow-wrap:anywhere;">${escapeHtml(questions[0])}</div>
-                            ${questionCount > 1 ? `<span style="font-size:var(--fs-1);color:var(--muted);">+${questionCount - 1} more question${questionCount === 2 ? '' : 's'}</span>` : ''}
+                            ${questionCount > 1 ? `<span style="font-size:var(--fs-1);color:var(--muted);">${t('channels.more_questions', { count: questionCount - 1 }, `+${questionCount - 1} more questions`)}</span>` : ''}
                           ` : `<span style="color:var(--muted);">${t('channels.question_unavailable', {}, 'Question unavailable')}</span>`}
                         </td>
                         <td data-num style="font-weight:700;text-align:right;">${Number(channel.count || 0)}</td>
-                        <td data-num style="text-align:right;">${share.toFixed(1)}%</td>
-                        ${citationFeatures.channels ? `<td><span class="tag tag-neutral">${escapeHtml(suggestedAsset(channel.type))}</span></td><td><div style="display:flex;gap:var(--sp-1);flex-wrap:wrap;">${evidenceUrls.length ? `<a href="#/engines" class="btn btn-ghost btn-sm">${t('channels.review_samples', {}, 'View evidence')}</a>` : ''}<button type="button" class="btn btn-ghost btn-sm btn-create-citation-ticket" data-domain="${escapeHtml(channel.domain)}" data-run-id="${escapeHtml(citationSources?.run_id || cohort || '')}" data-asset="${escapeHtml(suggestedAsset(channel.type))}">${t('plan.create_ticket_btn', {}, 'Create ticket')}</button></div></td>` : `<td><a href="#/outreach" class="btn btn-ghost btn-sm">${t('channels.create_outreach', {}, 'Draft Outreach')} →</a></td>`}
+                        <td data-num style="text-align:right;">${totalMentions ? `${share.toFixed(1)}%` : t('common.unmeasured', {}, 'Unmeasured')}</td>
+                        ${citationFeatures.channels ? `<td><span class="tag tag-neutral">${escapeHtml(suggestedAsset(channel.type))}</span></td><td><div style="display:flex;gap:var(--sp-1);flex-wrap:wrap;">${evidenceUrls.length ? `<a href="#/engines" class="btn btn-ghost btn-sm">${t('channels.review_samples', {}, 'View evidence')}</a>` : ''}<button type="button" class="btn btn-ghost btn-sm btn-create-citation-ticket" data-domain="${escapeHtml(channel.domain)}" data-run-id="${escapeHtml(citationSources?.run_id || cohort || '')}" data-asset="${escapeHtml(suggestedAsset(channel.type))}" ${isViewer ? `disabled title="${escapeHtml(sampleBlockReason)}"` : ''}>${t('plan.create_ticket_btn', {}, 'Create ticket')}</button></div></td>` : `<td><a href="#/outreach" class="btn btn-ghost btn-sm">${t('channels.create_outreach', {}, 'Draft Outreach')} →</a></td>`}
                       </tr>
                     `;
                   }).join('')}
@@ -150,7 +159,7 @@ export default {
                 ${t('channels.no_citations_yet', {}, 'Run the configured model matrix. Citation domains will appear when a web-enabled model returns source URLs; parametric-only answers do not create citation evidence.')}
               </p>
               <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;justify-content:center;">
-                <button type="button" class="btn btn-primary btn-sm btn-run-citation-sample">${t('channels.sample_now', {}, 'Run Citation Sampling')}</button>
+                <button type="button" class="btn btn-primary btn-sm btn-run-citation-sample" ${sampleBlocked ? `disabled title="${escapeHtml(sampleBlockReason)}"` : ''}>${t('channels.sample_now', {}, 'Run Citation Sampling')}</button>
                 <a href="#/engine-settings" class="btn btn-secondary btn-sm">${t('engines.configure_keys', {}, 'Configure API Keys')}</a>
               </div>
             </div>
@@ -161,7 +170,7 @@ export default {
             <div><h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('channels.official_citation_gap', {}, 'Official citation gap')}</h2><p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">${t('channels.official_citation_gap_desc', {}, 'This compares the latest web-enabled citation cohort with your official domain. It is a source observation, not a ranking guarantee.')}</p></div>
             <span class="tag ${officialSource ? 'pill-good' : 'pill-warn'}">${officialSource ? `${officialSource.count || 0} mentions` : t('channels.not_observed', {}, 'Not observed')}</span>
           </div>
-          <div style="font-size:var(--fs-2);color:var(--muted);">Official domain: <strong style="color:var(--ink);">${escapeHtml(ownHost || 'Not recorded')}</strong>${officialSource ? ` · ${Number(officialSource.question_count || 0)} question contexts` : ' · add verified third-party evidence or review the source replay for the missing citation path.'}</div>
+          <div style="font-size:var(--fs-2);color:var(--muted);">${t('channels.official_domain', {}, 'Official domain:')} <strong style="color:var(--ink);">${escapeHtml(ownHost || t('channels.not_recorded', {}, 'Not recorded'))}</strong>${officialSource ? ` · ${t('channels.question_contexts', { count: Number(officialSource.question_count || 0) }, `${Number(officialSource.question_count || 0)} question contexts`)}` : ` · ${t('channels.missing_citation_path', {}, 'add verified third-party evidence or review the source replay for the missing citation path.')}`}</div>
         </section>
         <section class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
@@ -169,9 +178,9 @@ export default {
               <h2 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('channels.external_evidence_title', {}, 'External evidence records')}</h2>
               <p style="font-size:var(--fs-2);color:var(--muted);margin:4px 0 0;">${t('channels.external_evidence_desc', {}, 'Record real third-party sources and the facts they support. CiteAura does not invent or auto-verify external coverage.')}</p>
             </div>
-            <button type="button" id="btn-add-external-evidence" class="btn btn-secondary btn-sm">${t('channels.add_evidence_record', {}, 'Add evidence record')}</button>
+            <button type="button" id="btn-add-external-evidence" class="btn btn-secondary btn-sm" ${isViewer ? `disabled title="${escapeHtml(sampleBlockReason)}"` : ''}>${t('channels.add_evidence_record', {}, 'Add evidence record')}</button>
           </div>
-          ${externalEvidence.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('channels.col_source', {}, 'Source')}</th><th>${t('channels.col_fact_supported', {}, 'Fact supported')}</th><th>${t('channels.col_questions', {}, 'Questions')}</th><th>${t('common.status', {}, 'Status')}</th></tr></thead><tbody>${externalEvidence.map((record) => `<tr><td><a href="${escapeHtml(record.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.url)}</a><div style="color:var(--muted);font-size:var(--fs-1);">${escapeHtml(record.source_type || '')}</div></td><td>${escapeHtml(record.fact_supported || '')}</td><td>${escapeHtml((record.question_ids || []).join(', ') || 'Not mapped')}</td><td><span class="tag tag-warn">${t('channels.manual_confirmation_required', {}, 'Manual confirmation required')}</span></td></tr>`).join('')}</tbody></table></div>` : `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('channels.no_external_evidence', {}, 'No external evidence has been confirmed for this project.')}</p>`}
+          ${externalEvidence.length ? `<div class="tbl" style="overflow-x:auto;"><table class="table"><thead><tr><th>${t('channels.col_source', {}, 'Source')}</th><th>${t('channels.col_fact_supported', {}, 'Fact supported')}</th><th>${t('channels.col_questions', {}, 'Questions')}</th><th>${t('common.status', {}, 'Status')}</th></tr></thead><tbody>${externalEvidence.map((record) => `<tr><td><a href="${escapeHtml(record.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.url)}</a><div style="color:var(--muted);font-size:var(--fs-1);">${escapeHtml(record.source_type || '')}</div></td><td>${escapeHtml(record.fact_supported || '')}</td><td>${escapeHtml((record.question_ids || []).join(', ') || t('channels.not_mapped', {}, 'Not mapped'))}</td><td><span class="tag tag-warn">${t('channels.manual_confirmation_required', {}, 'Manual confirmation required')}</span></td></tr>`).join('')}</tbody></table></div>` : `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('channels.no_external_evidence', {}, 'No external evidence has been confirmed for this project.')}</p>`}
         </section>
       </div>
     `;
@@ -180,9 +189,11 @@ export default {
   mounted: (ctx) => {
     analytics.track('first_evidence_viewed', { project_id: ctx.activeProjectId, source: 'channels' });
     document.querySelectorAll('.btn-run-citation-sample').forEach((button) => {
+      if (button.disabled) return;
       button.addEventListener('click', () => runCitationSample(ctx, button));
     });
     document.querySelectorAll('.btn-create-citation-ticket').forEach((button) => {
+      if (button.disabled) return;
       button.addEventListener('click', async () => {
         const domain = button.dataset.domain || '';
         try {
@@ -198,17 +209,18 @@ export default {
         } catch (err) { toast.error(tError(err)); }
       });
     });
-    document.getElementById('btn-add-external-evidence')?.addEventListener('click', async () => {
+    const addEvidenceBtn = document.getElementById('btn-add-external-evidence');
+    if (addEvidenceBtn && !addEvidenceBtn.disabled) addEvidenceBtn.addEventListener('click', async () => {
       openModal({
         title: t('channels.add_evidence_modal_title', {}, 'Add external evidence record'),
-        content: `<div class="field"><label>${t('channels.source_url', {}, 'Source URL')}</label><input id="external-url" class="input" type="url" placeholder="https://example.com/source"></div><div class="field"><label>${t('channels.source_type', {}, 'Source type')}</label><input id="external-type" class="input" placeholder="Review platform, directory, encyclopedia"></div><div class="field"><label>${t('channels.col_fact_supported', {}, 'Fact supported')}</label><textarea id="external-fact" class="input" rows="4" placeholder="Which verified fact does this source support?"></textarea></div><div class="field"><label>${t('channels.question_ids', {}, 'Question IDs')}</label><input id="external-questions" class="input" placeholder="q101, q102"></div><div class="field"><label>${t('channels.reviewer', {}, 'Reviewer')}</label><input id="external-reviewer" class="input" placeholder="Reviewer name or email"></div>`,
+        content: `<div class="field"><label>${t('channels.source_url', {}, 'Source URL')}</label><input id="external-url" class="input" type="url" placeholder="https://example.com/source"></div><div class="field"><label>${t('channels.source_type', {}, 'Source type')}</label><input id="external-type" class="input" placeholder="${t('channels.source_type_placeholder', {}, 'Review platform, directory, encyclopedia')}"></div><div class="field"><label>${t('channels.col_fact_supported', {}, 'Fact supported')}</label><textarea id="external-fact" class="input" rows="4" placeholder="${t('channels.fact_placeholder', {}, 'Which verified fact does this source support?')}"></textarea></div><div class="field"><label>${t('channels.question_ids', {}, 'Question IDs')}</label><input id="external-questions" class="input" placeholder="q101, q102"></div><div class="field"><label>${t('channels.reviewer', {}, 'Reviewer')}</label><input id="external-reviewer" class="input" placeholder="${t('channels.reviewer_placeholder', {}, 'Reviewer name or email')}"></div>`,
         confirmText: t('channels.save_record', {}, 'Save record'),
         onConfirm: async () => {
           const url = document.getElementById('external-url')?.value?.trim();
           const sourceType = document.getElementById('external-type')?.value?.trim();
           const fact = document.getElementById('external-fact')?.value?.trim();
           if (!url || !sourceType || !fact) {
-            toast.error('URL, source type, and supported fact are required');
+            toast.error(t('channels.evidence_required', {}, 'URL, source type, and supported fact are required'));
             return false;
           }
           try {
@@ -219,11 +231,11 @@ export default {
               question_ids: (document.getElementById('external-questions')?.value || '').split(',').map((value) => value.trim()).filter(Boolean),
               reviewer: document.getElementById('external-reviewer')?.value?.trim() || '',
             });
-            toast.success('Evidence record saved');
+            toast.success(t('channels.evidence_saved', {}, 'Evidence record saved'));
             await ctx.reloadCurrentView();
             return true;
           } catch (err) {
-            toast.error(err.detail || 'Failed to save evidence record');
+            toast.error(err.detail || t('channels.evidence_save_failed', {}, 'Failed to save evidence record'));
             return false;
           }
         },

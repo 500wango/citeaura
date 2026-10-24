@@ -20,6 +20,8 @@ export default {
     try {
       archives = await archive.list(projectId).catch(() => []);
     } catch (e) {}
+    const isOwner = ctx.role === 'owner';
+    const ownerOnly = t('common.owner_only', {}, 'Only the workspace owner can make this change.');
 
     return `
       <div class="app-view-container">
@@ -31,11 +33,12 @@ export default {
             </p>
           </div>
           <div class="view-actions">
-            <button type="button" id="btn-create-snapshot" class="btn btn-primary btn-sm">
+            <button type="button" id="btn-create-snapshot" class="btn btn-primary btn-sm" ${isOwner ? '' : `disabled title="${escapeHtml(ownerOnly)}"`}>
               + ${t('archive.create_btn', {}, 'Create Snapshot')}
             </button>
           </div>
         </div>
+        ${isOwner ? '' : `<div class="read-only-note" role="status">${escapeHtml(ownerOnly)}</div>`}
 
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
@@ -63,11 +66,11 @@ export default {
                       (a) => `
                     <tr>
                       <td><span class="num" style="font-weight:700;">${escapeHtml(a.id)}</span></td>
-                      <td>${escapeHtml(a.note || 'Manual snapshot')}</td>
+                      <td>${escapeHtml(a.note || t('archive.manual_snapshot', {}, 'Manual snapshot'))}</td>
                       <td class="num">${a.file_count || '—'}</td>
                       <td class="num">${new Date(a.created_at).toLocaleString()}</td>
                       <td style="text-align:right;">
-                        <button type="button" class="btn btn-secondary btn-sm btn-restore-snap" data-id="${escapeHtml(a.id)}">
+                        <button type="button" class="btn btn-secondary btn-sm btn-restore-snap" data-id="${escapeHtml(a.id)}" ${isOwner ? '' : `disabled title="${escapeHtml(ownerOnly)}"`}>
                           ${t('archive.restore_btn', {}, 'Restore')}
                         </button>
                       </td>
@@ -83,8 +86,8 @@ export default {
                 ${renderEmpty({
                   title: t('archive.no_snapshots', {}, 'No Snapshots Found'),
                   description: t('archive.no_snapshots_desc', {}, 'Create point-in-time project snapshots before executing major ticket changes.'),
-                  actionText: t('archive.create_btn', {}, 'Create Snapshot'),
-                  onAction: () => document.getElementById('btn-create-snapshot')?.click(),
+                  actionText: isOwner ? t('archive.create_btn', {}, 'Create Snapshot') : '',
+                  onAction: isOwner ? () => document.getElementById('btn-create-snapshot')?.click() : null,
                 })}
               </div>`
           }
@@ -95,7 +98,7 @@ export default {
 
   mounted: (ctx) => {
     const projectId = ctx.activeProjectId;
-    if (!projectId) return;
+    if (!projectId || ctx.role !== 'owner') return;
 
     document.getElementById('btn-create-snapshot')?.addEventListener('click', () => {
       openModal({
@@ -103,7 +106,7 @@ export default {
         content: `
           <div class="field" style="margin:0;">
             <label>${t('archive.note_label', {}, 'Snapshot Note / Description')}</label>
-            <input type="text" id="snap-note" class="input" placeholder="e.g. Baseline before Q3 re-architecture">
+            <input type="text" id="snap-note" class="input" placeholder="${t('archive.snapshot_note_placeholder', {}, 'e.g. Baseline before Q3 re-architecture')}">
           </div>
         `,
         confirmText: t('archive.create_btn', {}, 'Create Snapshot'),

@@ -12,30 +12,30 @@ export default {
     return `
       <div class="app-view-container">
         <div class="wizard-card">
-          <div style="display:flex;flex-direction:column;gap:var(--sp-2);">
+          <header class="wizard-head">
             <div class="kicker">${t('onboard.kicker', {}, 'Brand Setup')}</div>
-            <h1 style="font-size:var(--fs-6);font-weight:700;letter-spacing:-0.02em;margin:0;">
+            <h1 class="wizard-title">
               ${t('onboard.title', {}, 'Add Brand for AI Visibility Measurement')}
             </h1>
-            <p style="color:var(--muted);font-size:var(--fs-3);line-height:1.6;margin:0;">
+            <p class="wizard-desc">
               ${t('onboard.desc', {}, 'Enter your official website URL. CiteAura will crawl core pages, extract facts, generate question sets, and initiate the initial diagnostic baseline.')}
             </p>
-          </div>
+          </header>
 
-          <form id="onboard-form" style="display:flex;flex-direction:column;gap:var(--sp-4);">
-            <div class="field" style="margin:0;">
+          <form id="onboard-form" class="wizard-form">
+            <div class="field">
               <label for="ob-url">${t('onboard.url_label', {}, 'Official Website Domain / URL')} *</label>
               <input type="url" id="ob-url" class="input" placeholder="https://yourbrand.com" required autocomplete="url">
               <div class="field-hint">${t('onboard.url_hint', {}, 'Must be a publicly accessible website over HTTPS or HTTP.')}</div>
             </div>
 
-            <div class="field" style="margin:0;">
+            <div class="field">
               <label for="ob-name">${t('onboard.name_label', {}, 'Brand Display Name')} (${t('common.optional', {}, 'Optional')})</label>
               <input type="text" id="ob-name" class="input" placeholder="e.g. CiteAura">
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4);">
-              <div class="field" style="margin:0;">
+            <div class="onboard-grid">
+              <div class="field">
                 <label for="ob-market">${t('onboard.market_label', {}, 'Market')}</label>
                 <select id="ob-market" class="input">
                   <option value="">${t('onboard.market_auto', {}, 'Auto-detect from domain')}</option>
@@ -45,7 +45,7 @@ export default {
                 </select>
                 <div class="field-hint">${t('onboard.market_hint', {}, 'Determines the engine set and question markets.')}</div>
               </div>
-              <div class="field" style="margin:0;">
+              <div class="field">
                 <label for="ob-question-language">${t('onboard.question_language_label', {}, 'Question language')}</label>
                 <select id="ob-question-language" class="input">
                   <option value="auto">${t('onboard.language_auto', {}, 'Auto')}</option>
@@ -61,30 +61,32 @@ export default {
               </div>
             </div>
 
-            <div id="ob-preflight" class="card" style="display:none;background:var(--page);padding:var(--sp-3);gap:var(--sp-2);"></div>
+            <section id="ob-preflight" class="onboard-preflight" role="status" aria-live="polite" hidden></section>
 
-            <div class="card" style="background:var(--deep);padding:var(--sp-4);border-radius:var(--r-md);gap:var(--sp-3);">
-              <div style="font-size:var(--fs-2);">
-                <strong style="color:var(--ink);">${t('onboard.choose_result_title', {}, 'Choose your first result')}</strong>
-                <div style="color:var(--muted);margin-top:4px;">${t('onboard.choose_result_desc', {}, 'Start with a technical diagnostic now, or add model access for a full AI baseline.')}</div>
+            <div class="onboard-mode-group" role="radiogroup" aria-labelledby="ob-mode-heading">
+              <div class="onboard-mode-heading" id="ob-mode-heading">
+                <strong>${t('onboard.choose_result_title', {}, 'Choose your first result')}</strong>
+                <span>${t('onboard.choose_result_desc', {}, 'Start with a technical diagnostic now, or add model access for a full AI baseline.')}</span>
               </div>
-              <label class="onboard-mode-option" style="display:flex;align-items:flex-start;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--brand);background:color-mix(in oklch, var(--brand) 8%, transparent);cursor:pointer;user-select:none;">
-                <input type="radio" name="ob-mode" value="audit" checked style="margin-top:3px;">
-                <div style="font-size:var(--fs-2);">
-                  <strong style="color:var(--ink);">${t('onboard.mode_audit_title', {}, 'Audit only · recommended')}</strong>
-                  <div style="color:var(--muted);margin-top:3px;">${t('onboard.mode_audit_desc', {}, 'Crawl, facts, tickets, and a diagnostic-ready report. No model API key or platform-pool funding required.')}</div>
-                </div>
+              <label class="onboard-mode-option">
+                <input type="radio" data-onboard-mode value="audit" checked>
+                <span class="onboard-mode-copy">
+                  <strong>${t('onboard.mode_audit_title', {}, 'Audit only · recommended')}</strong>
+                  <span>${t('onboard.mode_audit_desc', {}, 'Crawl, facts, tickets, and a diagnostic-ready report. No model API key or platform-pool funding required.')}</span>
+                </span>
               </label>
-              <label class="onboard-mode-option" style="display:flex;align-items:flex-start;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--line);background:var(--page);cursor:pointer;user-select:none;">
-                <input type="radio" name="ob-mode" value="baseline" style="margin-top:3px;">
-                <div style="font-size:var(--fs-2);">
-                  <strong style="color:var(--ink);">${t('onboard.mode_baseline_title', {}, 'Full AI baseline')}</strong>
-                  <div style="color:var(--muted);margin-top:3px;">${t('onboard.mode_baseline_desc', {}, 'Run labeled AI sampling after preflight. Configure BYOK or an eligible platform pool before the job starts; provider charges remain visible to you.')}</div>
-                </div>
+              <label class="onboard-mode-option">
+                <input type="radio" data-onboard-mode value="baseline">
+                <span class="onboard-mode-copy">
+                  <strong>${t('onboard.mode_baseline_title', {}, 'Full AI baseline')}</strong>
+                  <span>${t('onboard.mode_baseline_desc', {}, 'Run labeled AI sampling after preflight. Configure BYOK or an eligible platform pool before the job starts; provider charges remain visible to you.')}</span>
+                </span>
               </label>
             </div>
 
-            <div style="display:flex;align-items:center;justify-content:flex-end;gap:var(--sp-3);margin-top:var(--sp-4);padding-top:var(--sp-4);border-top:1px solid var(--line);">
+            <p id="onboard-status" class="form-status is-error" role="alert" hidden></p>
+
+            <div class="wizard-actions">
               <a href="#/overview" class="btn btn-secondary">${t('common.cancel', {}, 'Cancel')}</a>
               <button type="submit" id="ob-submit" class="btn btn-primary">
                 <span>${t('onboard.start_measurement', {}, 'Initialize Brand Pipeline')}</span>
@@ -99,6 +101,21 @@ export default {
   mounted: (ctx) => {
     const form = document.getElementById('onboard-form');
     if (!form) return;
+    const modeInputs = Array.from(form.querySelectorAll('input[data-onboard-mode]'));
+    modeInputs.forEach((input) => {
+      input.addEventListener('change', () => {
+        modeInputs.forEach((candidate) => {
+          candidate.checked = candidate === input;
+        });
+      });
+    });
+    const status = document.getElementById('onboard-status');
+    const setStatus = (message, kind = 'error') => {
+      if (!status) return;
+      status.textContent = message || '';
+      status.hidden = !message;
+      status.className = `form-status is-${kind}`;
+    };
 
     try {
       const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
@@ -125,9 +142,9 @@ export default {
       if (pendingAudit && Array.isArray(pendingAudit.checks)) {
         const preflightBox = document.getElementById('ob-preflight');
         if (preflightBox) {
-          preflightBox.style.display = 'flex';
+          preflightBox.hidden = false;
           const repair = pendingAudit.first_repair;
-          preflightBox.innerHTML = `<strong style="font-size:var(--fs-2);">${t('onboard.audit_findings_title', {}, 'Your public audit findings')}</strong>${repair?.status === 'observed_gap' ? `<div class="card" style="padding:var(--sp-3);"><strong>${t('plan.opportunities', {}, 'Opportunities')}</strong><div>${escapeHtml(repair.recommended_action || repair.finding || '')}</div><small>${t('plan.acceptance_label', {}, 'Acceptance:')} ${escapeHtml(repair.acceptance_criteria || '')}</small></div>` : ''}${pendingAudit.checks.slice(0, 6).map((check) => `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);font-size:var(--fs-2);"><span>${escapeHtml(check.name || t('landing.preview_site_check', {}, 'Site check'))}</span><span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : escapeHtml(check.message || t('plan.gap', {}, 'Gap'))}</span></div>`).join('')}`;
+          preflightBox.innerHTML = `<strong class="onboard-preflight-title">${t('onboard.audit_findings_title', {}, 'Your public audit findings')}</strong>${repair?.status === 'observed_gap' ? `<div class="onboard-repair"><strong>${t('plan.opportunities', {}, 'Opportunities')}</strong><div>${escapeHtml(repair.recommended_action || repair.finding || '')}</div><small>${t('plan.acceptance_label', {}, 'Acceptance:')} ${escapeHtml(repair.acceptance_criteria || '')}</small></div>` : ''}${pendingAudit.checks.slice(0, 6).map((check) => `<div class="onboard-check-row"><span>${escapeHtml(check.name || t('landing.preview_site_check', {}, 'Site check'))}</span><span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : escapeHtml(check.message || t('plan.gap', {}, 'Gap'))}</span></div>`).join('')}`;
         }
       }
     } catch (e) {
@@ -138,11 +155,12 @@ export default {
       e.preventDefault();
       const url = document.getElementById('ob-url').value.trim();
       const name = document.getElementById('ob-name').value.trim();
-      const selectedMode = document.querySelector('input[name="ob-mode"]:checked')?.value || 'audit';
+      const selectedMode = document.querySelector('input[data-onboard-mode]:checked')?.value || 'audit';
       const no_sample = selectedMode !== 'baseline';
       const submitBtn = document.getElementById('ob-submit');
       const preflightBox = document.getElementById('ob-preflight');
 
+      setStatus('');
       submitBtn.disabled = true;
       submitBtn.innerHTML = `<span class="spin"></span> ${t('common.checking_site', {}, 'Checking site...')}`;
 
@@ -158,22 +176,26 @@ export default {
         }
         if (preflightBox) {
           const checks = site.checks || [];
-          preflightBox.style.display = 'flex';
-          preflightBox.innerHTML = checks.map((check) => (
-            `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);font-size:var(--fs-2);">
+          preflightBox.hidden = false;
+          preflightBox.innerHTML = `<strong class="onboard-preflight-title">${t('onboard.preflight_title', {}, 'Preflight checks')}</strong>${checks.map((check) => (
+            `<div class="onboard-check-row">
               <span>${escapeHtml(check.name || t('landing.preview_site_check', {}, 'Site check'))}</span>
-              <span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : escapeHtml(check.message || 'Failed')}</span>
+              <span class="${check.ok ? 'pill-good' : 'pill-bad'}">${check.ok ? 'OK' : escapeHtml(check.message || t('common.failed', {}, 'Failed'))}</span>
             </div>`
-          )).join('');
+          )).join('')}`;
         }
         if (site.ready === false) {
           const failed = (site.checks || []).find((check) => !check.ok);
-          throw { error: 'site_not_ready', detail: failed?.action || failed?.message || 'Site is not reachable yet' };
+          const reason = failed?.action || failed?.message || '';
+          throw {
+            error: 'site_not_ready',
+            detail: t('onboard.site_not_ready', { reason }, `Site is not ready: ${reason}`),
+          };
         }
         if (!no_sample && preflight && preflight.can_sample === false) {
           throw {
             error: 'sampling_not_configured',
-            detail: 'No model access is configured yet. Select Audit only to get the diagnostic now, or connect a BYOK key in Model Keys (BYOK) and retry the baseline.',
+            detail: t('onboard.sampling_not_configured', {}, 'No model access is configured yet. Select Audit only to get the diagnostic now, or connect a BYOK key in Model Keys (BYOK) and retry the baseline.'),
           };
         }
 
@@ -208,12 +230,15 @@ export default {
         }
       } catch (err) {
         if (err.error === 'sampling_not_configured') {
+          setStatus(err.detail, 'info');
           toast.info(err.detail);
           submitBtn.disabled = false;
           submitBtn.innerHTML = `<span>${t('onboard.start_measurement', {}, 'Initialize Brand Pipeline')}</span>`;
           return;
         }
-        toast.error(tError(err));
+        const message = err.error === 'site_not_ready' ? err.detail : tError(err);
+        setStatus(message);
+        toast.error(message);
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<span>${t('onboard.start_measurement', {}, 'Initialize Brand Pipeline')}</span>`;
       }

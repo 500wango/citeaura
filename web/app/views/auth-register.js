@@ -10,59 +10,62 @@ export default {
   render: (ctx) => {
     return `
       <div class="auth-wrapper">
-        <div class="auth-box">
+        <main class="auth-box">
           <div class="auth-header">
             <a class="brand" href="/">
-              <span class="brand-mark" style="width:32px;height:32px;"></span>
-              <span class="brand-word" style="font-size:var(--fs-6);">CiteAura</span>
+              <span class="brand-mark auth-brand-mark"></span>
+              <span class="brand-word auth-brand-word">CiteAura</span>
             </a>
-            <h1 class="auth-title">${t('auth.register_title', {}, 'Start 7-Day Free Trial')}</h1>
+            <h1 class="auth-title">${t('auth.register_title', {}, 'Start 14-Day Free Trial')}</h1>
             <p class="auth-subtitle">${t('auth.register_subtitle', {}, 'No credit card required. Includes 3 projects and full engineering tickets.')}</p>
           </div>
 
-          <form id="register-form" style="display:flex;flex-direction:column;gap:var(--sp-4);">
-            <div class="field" style="margin:0;">
+          <form id="register-form" class="auth-form">
+            <div class="field">
               <label for="reg-tenant">${t('auth.tenant_name', {}, 'Organization / Team Name')}</label>
               <input type="text" id="reg-tenant" class="input" placeholder="Acme Growth Inc" required autocomplete="organization">
             </div>
 
-            <div class="field" style="margin:0;">
+            <div class="field">
               <label for="reg-email">${t('auth.email', {}, 'Work Email')}</label>
               <input type="email" id="reg-email" class="input" placeholder="name@company.com" required autocomplete="email">
             </div>
 
-            <div class="field" style="margin:0;">
+            <div class="field">
               <label for="reg-password">${t('auth.password', {}, 'Password')}</label>
-              <input type="password" id="reg-password" class="input" placeholder="Minimum 8 characters" minlength="8" required autocomplete="new-password">
+              <input type="password" id="reg-password" class="input" placeholder="${t('auth.password_min_hint', {}, 'Minimum 8 characters.')}" minlength="8" required autocomplete="new-password">
+              <div class="field-hint">${t('auth.password_min_hint', {}, 'Minimum 8 characters.')}</div>
             </div>
 
-            <div class="field" style="margin:0;">
+            <div class="field">
               <label for="reg-confirm">${t('auth.confirm_password', {}, 'Confirm Password')}</label>
-              <input type="password" id="reg-confirm" class="input" placeholder="Re-enter password" minlength="8" required autocomplete="new-password">
+              <input type="password" id="reg-confirm" class="input" placeholder="${t('auth.reenter_password', {}, 'Re-enter password')}" minlength="8" required autocomplete="new-password">
             </div>
 
-            <div class="field" style="margin:0;">
-              <label for="reg-segment">How will you use CiteAura? <span style="color:var(--muted);">(optional)</span></label>
+            <div class="field">
+              <label for="reg-segment">${t('auth.segment_label', {}, 'How will you use CiteAura?')} <span class="field-optional">(${t('common.optional', {}, 'Optional')})</span></label>
               <select id="reg-segment" class="input">
-                <option value="">Choose one</option>
-                <option value="solo">For my brand / company</option>
-                <option value="agency">For clients / consulting work</option>
+                <option value="">${t('auth.segment_choose', {}, 'Choose one')}</option>
+                <option value="solo">${t('auth.segment_solo', {}, 'For my brand / company')}</option>
+                <option value="agency">${t('auth.segment_agency', {}, 'For clients / consulting work')}</option>
               </select>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-block" style="margin-top:var(--sp-2);">
+            <p id="register-status" class="form-status is-error" role="alert" aria-live="polite" hidden></p>
+
+            <button type="submit" class="btn btn-primary btn-block">
               <span>${t('auth.register_btn', {}, 'Create Workspace')}</span>
             </button>
-            <p style="font-size:var(--fs-1);color:var(--muted);text-align:center;margin:var(--sp-2) 0 0 0;line-height:1.5;">
-              ${t('auth.by_signing_up', {}, 'By signing up, you agree to our')} <a href="/terms" target="_blank" style="color:var(--accent);text-decoration:underline;">${t('nav.terms', {}, 'Terms of Service')}</a> ${t('common.and', {}, 'and')} <a href="/privacy" target="_blank" style="color:var(--accent);text-decoration:underline;">${t('nav.privacy', {}, 'Privacy Policy')}</a>.
+            <p class="auth-legal">
+              ${t('auth.by_signing_up', {}, 'By signing up, you agree to our')} <a href="/terms" target="_blank">${t('nav.terms', {}, 'Terms of Service')}</a> ${t('common.and', {}, 'and')} <a href="/privacy" target="_blank">${t('nav.privacy', {}, 'Privacy Policy')}</a>.
             </p>
           </form>
 
           <div class="auth-footer">
             <span>${t('auth.have_account', {}, 'Already have an account?')}</span>
-            <a href="#/login" style="font-weight:600;margin-left:var(--sp-1);">${t('auth.sign_in_link', {}, 'Sign In')}</a>
+            <a href="#/login" class="auth-footer-link">${t('auth.sign_in_link', {}, 'Sign In')}</a>
           </div>
-        </div>
+        </main>
       </div>
     `;
   },
@@ -80,9 +83,15 @@ export default {
       const confirm = document.getElementById('reg-confirm').value;
       const segment = document.getElementById('reg-segment')?.value || '';
       const submitBtn = form.querySelector('button[type="submit"]');
+      const status = document.getElementById('register-status');
 
+      status.hidden = true;
+      status.textContent = '';
       if (password !== confirm) {
-        toast.error(t('auth.passwords_must_match', {}, 'Passwords do not match'));
+        const message = t('auth.passwords_must_match', {}, 'Passwords do not match');
+        status.textContent = message;
+        status.hidden = false;
+        toast.error(message);
         return;
       }
 
@@ -125,7 +134,7 @@ export default {
         await auth.login({ email, password });
         await ctx.reloadSession();
         toast.success(t('auth.register_success', {}, 'Workspace created successfully'));
-        // 从落地页带 ?plan=pro 注册时，直接进入计费页发起升级，无需等 7 天试用结束。
+        // 从落地页带 ?plan=pro 注册时，直接进入计费页发起升级，无需等 14 天试用结束。
         let intentPlan = '';
         try {
           intentPlan = String(sessionStorage.getItem('citeaura_intent_plan') || '').toLowerCase();
@@ -136,7 +145,10 @@ export default {
           ctx.navigate('#/onboarding');
         }
       } catch (err) {
-        toast.error(tError(err));
+        const message = tError(err);
+        status.textContent = message;
+        status.hidden = false;
+        toast.error(message);
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<span>${t('auth.register_btn', {}, 'Create Workspace')}</span>`;

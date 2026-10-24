@@ -1,3 +1,4 @@
+import json
 import re
 import shutil
 import subprocess
@@ -396,7 +397,7 @@ def test_frontend_contracts_match_backend_request_models():
     assert "Project response mismatch" in engines
     assert "Sample response project mismatch" in engines
     assert "flex-wrap:wrap;min-width:0;" in engines
-    assert "escapeHtml(s.platform_name || s.platform || 'AI Model')" in engines
+    assert "escapeHtml(s.platform_name || s.platform || t('engines.ai_model', {}, 'AI Model'))" in engines
 
 
 def test_dynamic_html_uses_sanitized_entry_points_and_no_inline_handlers():
@@ -509,3 +510,126 @@ def test_project_files_use_cookie_auth_and_remain_tenant_isolated(ui_client):
 
     client.cookies.clear()
     assert client.get("/files/first-project/delivery/2026-07-31/index.html").status_code == 401
+
+def test_workspace_ui_preserves_evidence_semantics():
+    root = Path(__file__).resolve().parents[2]
+    overview = (root / "web/app/views/overview.js").read_text("utf-8")
+    engines = (root / "web/app/views/engines.js").read_text("utf-8")
+    plan = (root / "web/app/views/plan.js").read_text("utf-8")
+    verify = (root / "web/app/views/verify.js").read_text("utf-8")
+    report = (root / "web/app/views/report.js").read_text("utf-8")
+    app_js = (root / "web/app/app.js").read_text("utf-8")
+    channels = (root / "web/app/views/channels.js").read_text("utf-8")
+    siteaudit = (root / "web/app/views/siteaudit.js").read_text("utf-8")
+    assets = (root / "web/app/views/assets.js").read_text("utf-8")
+    competitors = (root / "web/app/views/competitors.js").read_text("utf-8")
+    questions = (root / "web/app/views/questions.js").read_text("utf-8")
+    facts = (root / "web/app/views/facts.js").read_text("utf-8")
+    blueprint = (root / "web/app/views/blueprint.js").read_text("utf-8")
+    team = (root / "web/app/views/team.js").read_text("utf-8")
+    billing = (root / "web/app/views/billing.js").read_text("utf-8")
+    engine_settings = (root / "web/app/views/engine-settings.js").read_text("utf-8")
+    archive = (root / "web/app/views/archive.js").read_text("utf-8")
+    outreach = (root / "web/app/views/outreach.js").read_text("utf-8")
+    publishing = (root / "web/app/views/publishing.js").read_text("utf-8")
+    project_settings = (root / "web/app/views/project-settings.js").read_text("utf-8")
+    automation = (root / "web/app/views/automation.js").read_text("utf-8")
+    entities = (root / "web/app/views/entities.js").read_text("utf-8")
+    workbench = (root / "web/app/views/workbench.js").read_text("utf-8")
+    auth_forgot = (root / "web/app/views/auth-forgot.js").read_text("utf-8")
+    auth_reset = (root / "web/app/views/auth-reset.js").read_text("utf-8")
+    auth_invite = (root / "web/app/views/auth-invite.js").read_text("utf-8")
+    auth_register = (root / "web/app/views/auth-register.js").read_text("utf-8")
+    onboarding = (root / "web/app/views/onboarding.js").read_text("utf-8")
+    gaps = (root / "web/app/views/gaps.js").read_text("utf-8")
+    branding_view = (root / "web/app/views/branding.js").read_text("utf-8")
+    landing_css = (root / "web/assets/styles/landing.css").read_text("utf-8")
+    theme_init = (root / "web/assets/theme-init.js").read_text("utf-8")
+
+    assert "[DEMO · SYNTHETIC BASELINE]" not in overview
+    assert "overview.cohort_none" in overview
+    assert "overview.kpi_denominator" in overview
+    assert 'id="btn-run-sample" class="btn btn-secondary btn-sm"' in overview
+    assert "activeJob || isViewer" in overview
+    assert 'id="btn-run-verify" class="btn btn-secondary btn-sm"' in overview
+
+    assert "Median position" in engines and "Avg Rank" not in engines
+    assert "engines.no_source_urls" in engines
+    assert "ctx.role === 'viewer'" in plan
+    assert "plan.viewer_read_only" in plan
+    assert "verify.technical_only" in verify and "activeJob" in verify
+    assert "report.readiness_unavailable" in report and "activeJob" in report
+    assert "#9df22f" not in landing_css
+    assert "dark ? '#0b1220' : '#f8fafc'" in theme_init
+
+    for source in (channels, siteaudit, assets, competitors, questions, facts, blueprint):
+        assert "ctx.role === 'viewer'" in source
+        assert "plan.viewer_read_only" in source
+    assert "totalMentions ?" in channels
+    assert "avgScore == null" in siteaudit
+    assert "fill_question_gap" in assets and "actionBlocked" in assets
+    assert "common.owner_only" in team and "ctx.role !== 'owner'" in team
+    assert "common.owner_only" in billing and "ctx.role !== 'owner'" in billing
+    assert "common.owner_only" in engine_settings and "ctx.role !== 'owner'" in engine_settings
+    assert "common.owner_only" in archive and "ctx.role !== 'owner'" in archive
+    assert "common.owner_only" in outreach and "plan.viewer_read_only" in outreach
+    assert "common.owner_only" in publishing and "plan.viewer_read_only" in publishing
+    assert "common.owner_only" in project_settings and "plan.viewer_read_only" in project_settings
+    assert "plan.viewer_read_only" in automation
+    assert "plan.viewer_read_only" in entities
+    assert "okSamples.length ?" in workbench and "common.unmeasured" in workbench
+
+    assert 'aria-live="polite"' in auth_forgot and "form-status" in auth_forgot
+    assert 'aria-live="polite"' in auth_reset and "auth.password_min_hint" in auth_reset
+    assert "tError(err, 'auth.invalid_invite_desc')" in auth_invite
+    assert "invitation_token: token" in auth_invite
+    assert "7-Day" not in auth_register
+    assert "auth.segment_label" in auth_register
+    register_title = json.loads((root / "api/i18n/messages/en.json").read_text("utf-8"))["auth.register_title"]
+    assert "14-Day" in register_title
+    assert "projects.preflight" in onboarding and "projects.create" in onboarding and "no_sample" in onboarding
+    assert "onboard-mode-option:has(input:checked)" in (root / "web/assets/styles/app.css").read_text("utf-8")
+    assert "data-onboard-mode" in onboarding and 'name="ob-mode"' not in onboarding
+    assert "data-influenced-question" in plan
+    assert "share || 0" not in gaps and "common.unmeasured" in gaps
+    assert "samplingModeBadge(item.sampling_mode)" in gaps
+    assert "brandConfig.available" in branding_view and "brandConfig.can_edit" in branding_view
+    assert "branding.delete()" in branding_view
+
+    assert "this.role = me.role" in app_js and "role: state.role" in app_js
+    assert (root / "web/assets/styles/app-print.css").is_file()
+    assert "table-header-group" in (root / "web/assets/styles/app-print.css").read_text("utf-8")
+    assert "@page" in (root / "web/sample-report.html").read_text("utf-8")
+
+
+def test_public_trial_copy_matches_billing_ssot():
+    from api.billing.plans import TRIAL_DAYS
+
+    root = Path(__file__).resolve().parents[2]
+    assert TRIAL_DAYS == 14
+    assert f"{TRIAL_DAYS} days" in (root / "web/docs.html").read_text("utf-8")
+    assert f"{TRIAL_DAYS}-day free trial" in (root / "web/terms.html").read_text("utf-8")
+    assert f"Starter trial: {TRIAL_DAYS} days" in (root / "web/llms.txt").read_text("utf-8")
+    assert "14-day trial" in (root / "web/index.html").read_text("utf-8")
+    pricing = (root / "web/pricing.html").read_text("utf-8")
+    assert "<th>Scheduled monitoring</th><td>Yes</td><td>Yes</td><td>Yes</td>" in pricing
+
+
+def test_sample_evidence_drawer_and_pdf_export_use_real_contracts():
+    root = Path(__file__).resolve().parents[2]
+    drawer = (root / "web/app/components/evidence-drawer.js").read_text("utf-8")
+    engines = (root / "web/app/views/engines.js").read_text("utf-8")
+    api_js = (root / "web/app/api.js").read_text("utf-8")
+    report = (root / "web/app/views/report.js").read_text("utf-8")
+
+    assert "sample.run_id" in drawer
+    assert "sample.question_id" in drawer
+    assert "sample.raw_model" in drawer
+    assert "sample.sampling_mode_code" in drawer
+    assert "sample.search_enabled" in drawer
+    assert "safeHttpUrl" in drawer
+    assert "drawer: true" in drawer
+    assert "data-evidence-index" in engines
+    assert "openEvidenceDrawer(sample)" in engines
+    assert "getDeliveryPdfUrl" in api_js
+    assert "projects.getDeliveryPdfUrl" in report

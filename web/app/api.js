@@ -268,6 +268,8 @@ export const projects = {
     ));
   }),
   getDeliveryDownloadUrl: (id, date) => `/api/v1/projects/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(date)}`,
+  getDeliveryPdfUrl: (id, date, document = '01-Audit-Report') =>
+    `/api/v1/projects/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(date)}/pdf?document=${encodeURIComponent(document)}`,
   sendDeliveryPack: (id, date, body = {}) =>
     request(`/api/v1/projects/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(date)}/send`, {
       method: 'POST',

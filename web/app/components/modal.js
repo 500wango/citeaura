@@ -25,6 +25,8 @@ export function openModal({
   title = '',
   content = '',
   width = 'min(580px, 95vw)',
+  panelClass = '',
+  drawer = false,
   showFooter = true,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
@@ -37,11 +39,11 @@ export function openModal({
 
   const root = getRoot();
   const backdrop = document.createElement('div');
-  backdrop.className = 'modal';
+  backdrop.className = drawer ? 'modal modal-drawer' : 'modal';
   backdrop.setAttribute('role', 'presentation');
 
   const box = document.createElement('div');
-  box.className = 'box';
+  box.className = panelClass ? `box ${panelClass}` : 'box';
   box.style.width = width;
   box.setAttribute('role', 'dialog');
   box.setAttribute('aria-modal', 'true');

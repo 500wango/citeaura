@@ -3,6 +3,8 @@
 import shutil
 
 from api.projects.project_route_support import *  # noqa: F401,F403
+from api.adapters import branding as delivery_branding
+from api.adapters import pdf as delivery_pdf
 
 router = APIRouter(tags=["projects"])
 
@@ -164,6 +166,78 @@ def download_delivery(
             package_kind = _delivery_package_kind(asset_index, readiness)
             source_revision = str(asset_index.get("source_revision") or "unknown")
             return _stream_delivery_zip(directory, package_kind, delivery_date, readiness, source_revision)
+        finally:
+            if snapshot_root is not None:
+                shutil.rmtree(snapshot_root, ignore_errors=True)
+
+
+@router.get("/{project_id}/deliveries/{delivery_date}/pdf")
+def download_delivery_pdf(
+    project_id: int,
+    delivery_date: str,
+    document: str = Query(default="01-Audit-Report"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Render one delivery Markdown document as a PDF without changing the package."""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", delivery_date):
+        _error(status.HTTP_400_BAD_REQUEST, "invalid_delivery_date")
+    if document == "index":
+        document_stem = "index"
+    else:
+        match = re.fullmatch(r"(0[1-6])(?:-[A-Za-z0-9-]+)?", str(document or ""))
+        if not match:
+            _error(status.HTTP_400_BAD_REQUEST, "invalid_delivery_document")
+        document_stem = f"{match.group(1)}-{delivery.REQUIRED_DOCUMENTS[match.group(1)]}"
+
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    with with_tenant_context(tenant.directory_slug, project.slug):
+        directory = geolib.project_dir(project.slug) / "delivery" / delivery_date
+        if not directory.is_dir():
+            _error(status.HTTP_404_NOT_FOUND, "delivery_not_found")
+        snapshot_root = None
+        try:
+            directory = delivery.validate_existing_delivery_contract(directory)
+        except GeoEngineError:
+            try:
+                directory = delivery.build_delivery_snapshot(project.slug, delivery_date)
+                snapshot_root = directory.parent
+            except GeoEngineError as rebuild_exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={"error": "delivery_contract_invalid", "detail": str(rebuild_exc)},
+                ) from rebuild_exc
+        try:
+            markdown_path = directory / f"{document_stem}.md"
+            if not markdown_path.is_file():
+                _error(status.HTTP_404_NOT_FOUND, "delivery_document_not_found")
+            markdown = markdown_path.read_text("utf-8")
+            asset_index = geolib.read_json(directory / "assets" / "index.json", {}) or {}
+            readiness = str(asset_index.get("readiness") or "unknown")
+            source_revision = str(asset_index.get("source_revision") or "unknown")
+            branding = delivery_branding.load_branding()
+            pdf_bytes = delivery_pdf.render_markdown_pdf(
+                markdown,
+                title=document_stem.replace("-", " "),
+                metadata={
+                    "Project": project.slug,
+                    "Delivery": delivery_date,
+                    "Readiness": readiness,
+                },
+                branding=branding,
+                footer_text=branding.get("footer_text") or branding.get("company_name") or "CiteAura",
+            )
+            filename = delivery_pdf.pdf_filename(document_stem, delivery_date, project.slug)
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'inline; filename="{filename}"',
+                    "X-CiteAura-Delivery-Readiness": readiness,
+                    "X-CiteAura-Source-Revision": source_revision,
+                },
+            )
         finally:
             if snapshot_root is not None:
                 shutil.rmtree(snapshot_root, ignore_errors=True)

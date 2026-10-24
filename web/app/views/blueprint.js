@@ -8,7 +8,16 @@ export default {
   render: async (ctx) => {
     const projectId = ctx.activeProjectId;
     if (!projectId) return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
-    const blueprint = await workspace.getBlueprint(projectId).catch(() => ({}));
+    const [blueprint, jobs] = await Promise.all([
+      workspace.getBlueprint(projectId).catch(() => ({})),
+      projects.getJobs(projectId).catch(() => []),
+    ]);
+    const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
+    const isViewer = ctx.role === 'viewer';
+    const actionBlocked = Boolean(activeJob) || isViewer;
+    const actionBlockReason = isViewer
+      ? t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.')
+      : t('project_job_already_running', {}, 'A job is already running for this brand.');
     const channels = blueprint.channels || [];
     const coverage = blueprint.coverage || {};
     return `
@@ -19,9 +28,11 @@ export default {
             <p class="view-desc">${t('blueprint.desc', {}, 'Priority channels and coverage from the current project build map.')}</p>
           </div>
           <div class="view-actions">
-            <button type="button" id="btn-build-blueprint" class="btn btn-secondary btn-sm">${t('blueprint.rebuild_map', {}, 'Rebuild map')}</button>
+            <button type="button" id="btn-build-blueprint" class="btn btn-secondary btn-sm" ${actionBlocked ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>${t('blueprint.rebuild_map', {}, 'Rebuild map')}</button>
           </div>
         </div>
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(actionBlockReason)}</div>` : ''}
+        ${activeJob ? `<div class="job-block-note" role="status"><span class="status-dot"></span>${escapeHtml(t('project_job_already_running', {}, 'A job is already running for this brand.'))} ${escapeHtml(activeJob.action || '')} · ${escapeHtml(activeJob.status || '')}</div>` : ''}
         <div class="card" style="margin-bottom:var(--sp-4);">
           ${t('blueprint.covered_stat', {
             covered: Number(coverage.channel_covered || 0),
@@ -48,7 +59,8 @@ export default {
       </div>`;
   },
   mounted: (ctx) => {
-    document.getElementById('btn-build-blueprint')?.addEventListener('click', async () => {
+    const button = document.getElementById('btn-build-blueprint');
+    if (button && !button.disabled) button.addEventListener('click', async () => {
       try {
         const res = await projects.triggerAction(ctx.activeProjectId, 'blueprint');
         toast.success(t('blueprint.rebuild_queued', {}, 'Blueprint rebuild queued'));

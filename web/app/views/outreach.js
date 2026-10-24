@@ -30,6 +30,10 @@ export default {
     const drafts = outreachData.drafts || [];
     draftState = drafts;
     const hasSmtp = Boolean(outreachData.smtp?.configured);
+    const isOwner = ctx.role === 'owner';
+    const isViewer = ctx.role === 'viewer';
+    const ownerOnly = t('common.owner_only', {}, 'Only the workspace owner can make this change.');
+    const viewerOnly = t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.');
 
     return `
       <div class="app-view-container">
@@ -41,23 +45,24 @@ export default {
             </p>
           </div>
           <div class="view-actions">
-            <button type="button" id="btn-config-smtp" class="btn btn-secondary btn-sm">
+            <button type="button" id="btn-config-smtp" class="btn btn-secondary btn-sm" ${isOwner ? '' : `disabled title="${escapeHtml(ownerOnly)}"`}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               <span>${hasSmtp ? t('outreach.smtp_configured', {}, 'SMTP Configured') : t('outreach.setup_smtp', {}, 'Configure SMTP')}</span>
             </button>
-            <button type="button" id="btn-new-draft" class="btn btn-primary btn-sm">
+            <button type="button" id="btn-new-draft" class="btn btn-primary btn-sm" ${isViewer ? `disabled title="${escapeHtml(viewerOnly)}"` : ''}>
               + ${t('outreach.new_pitch_btn', {}, 'New Pitch Draft')}
             </button>
           </div>
         </div>
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(viewerOnly)}</div>` : ''}
 
-        <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Off-site entity & attribution</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${escapeHtml(attribution.attribution?.caveat || 'External source data is not configured.')}</p></div><span class="tag tag-dim">${escapeHtml(attribution.status || 'not_configured')}</span></div><div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(attribution.next_steps || []).map((step) => `<span class="tag tag-neutral">${escapeHtml(step)}</span>`).join('')}</div></div>
+        <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);"><div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('outreach.offsite_title', {}, 'Off-site entity & attribution')}</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${escapeHtml(attribution.attribution?.caveat || t('outreach.no_external_data', {}, 'External source data is not configured.'))}</p></div><span class="tag tag-dim">${escapeHtml(attribution.status || t('outreach.not_configured', {}, 'Not configured'))}</span></div><div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(attribution.next_steps || []).map((step) => `<span class="tag tag-neutral">${escapeHtml(step)}</span>`).join('')}</div></div>
 
         <!-- Outreach Drafts List -->
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('outreach.drafts_head', {}, 'Outreach Pitch Queue')}</h3>
-            <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${drafts.length} drafts</span>
+            <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${t('outreach.drafts_count', { count: drafts.length }, `${drafts.length} drafts`)}</span>
           </div>
 
           ${
@@ -82,7 +87,7 @@ export default {
                       <td>${escapeHtml(d.subject)}</td>
                       <td><span class="tag ${d.status === 'sent' ? 'pill-good' : 'tag-dim'}">${escapeHtml(d.status || 'draft')}</span></td>
                       <td style="text-align:right;">
-                        <button type="button" class="btn btn-primary btn-sm btn-send-draft" data-id="${escapeHtml(d.id)}" ${['draft', 'failed'].includes(d.status) ? '' : 'disabled'}>
+                        <button type="button" class="btn btn-primary btn-sm btn-send-draft" data-id="${escapeHtml(d.id)}" ${['draft', 'failed'].includes(d.status) && !isViewer ? '' : 'disabled'} ${isViewer ? `title="${escapeHtml(viewerOnly)}"` : ''}>
                           ${t('outreach.review_send', {}, 'Review & Send')}
                         </button>
                       </td>
@@ -98,8 +103,8 @@ export default {
                 ${renderEmpty({
                   title: t('outreach.no_drafts', {}, 'No Outreach Drafts'),
                   description: t('outreach.no_drafts_desc', {}, 'Create outreach pitches to request authoritative citation mentions from industry blogs and directories.'),
-                  actionText: t('outreach.new_pitch_btn', {}, 'New Pitch Draft'),
-                  onAction: () => document.getElementById('btn-new-draft')?.click(),
+                  actionText: isViewer ? '' : t('outreach.new_pitch_btn', {}, 'New Pitch Draft'),
+                  onAction: isViewer ? null : () => document.getElementById('btn-new-draft')?.click(),
                 })}
               </div>`
           }
@@ -110,7 +115,7 @@ export default {
 
   mounted: (ctx) => {
     const projectId = ctx.activeProjectId;
-    if (!projectId) return;
+    if (!projectId || ctx.role === 'viewer') return;
 
     document.getElementById('btn-new-draft')?.addEventListener('click', async () => {
       const tickets = await projects.getTickets(projectId).catch(() => []);

@@ -1,0 +1,148 @@
+/* Printable workspace reports. Screen layout keeps its own shell; print
+   removes navigation and lets report content flow across A4 pages. */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm 18mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0b1220 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 10.5pt;
+    line-height: 1.5;
+  }
+
+  .app-layout {
+    display: block !important;
+    height: auto !important;
+    width: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  .app-rail,
+  .app-subnav,
+  .app-header,
+  .app-mobile-nav,
+  .app-mobile-backdrop,
+  .toast-stack,
+  #modal-root {
+    display: none !important;
+  }
+
+  .app-main {
+    display: block !important;
+    height: auto !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .app-view-container {
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .view-actions,
+  .seg,
+  .cohort-bar-action,
+  .job-block-note,
+  .btn {
+    display: none !important;
+  }
+
+  .view-header,
+  .card,
+  .kpi,
+  .cohort-bar,
+  .ticket-item,
+  .sample-replay-card,
+  .matrix-quadrant {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .card,
+  .kpi,
+  .cohort-bar,
+  .matrix-quadrant,
+  .sample-replay-card {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+
+  .view-title {
+    font-size: 22pt !important;
+    color: #0b1220 !important;
+  }
+
+  .view-desc,
+  .kpi-sub,
+  .muted {
+    color: #475569 !important;
+  }
+
+  .kpis {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10pt !important;
+  }
+
+  .cohort-bar {
+    display: block !important;
+  }
+
+  .tbl {
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  th,
+  td {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    border-color: #cbd5e1 !important;
+    color: #0b1220 !important;
+  }
+
+  th {
+    background: #f1f5f9 !important;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: underline;
+  }
+
+  img,
+  svg {
+    max-width: 100% !important;
+  }
+}

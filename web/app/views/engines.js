@@ -9,6 +9,16 @@ import { toast } from '../components/toast.js';
 import { samplingModeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
 import { escapeHtml, safeHttpUrl } from '../safe-html.js';
+import { openEvidenceDrawer } from '../components/evidence-drawer.js';
+
+let renderedSamples = [];
+
+function answerPreview(sample) {
+  const value = sample.ok === false
+    ? t('evidence.sample_failed', { error: sample.error || t('evidence.unknown_error', {}, 'Unknown provider error') }, `Sampling failed: ${sample.error || 'Unknown provider error'}`)
+    : (sample.answer || t('evidence.empty_answer', {}, 'Empty model response'));
+  return value.length > 420 ? `${value.slice(0, 417).trimEnd()}...` : value;
+}
 
 export default {
   render: async (ctx) => {
@@ -21,11 +31,13 @@ export default {
     let samples = [];
     let sampleCohort = null;
     let sampleEstimate = null;
+    let jobs = [];
 
     try {
-      [enginesData, sampleEstimate] = await Promise.all([
+      [enginesData, sampleEstimate, jobs] = await Promise.all([
         projects.getEngines(projectId).catch(() => null),
         projects.estimateSample(projectId).catch(() => null),
+        projects.getJobs(projectId).catch(() => []),
       ]);
       if (enginesData && String(enginesData.project_id) !== String(projectId)) {
         throw new Error('Project response mismatch');
@@ -47,6 +59,14 @@ export default {
     }
 
     const engines = (enginesData && enginesData.engines) || [];
+    renderedSamples = samples;
+    const unmeasured = t('common.unmeasured', {}, 'Unmeasured');
+    const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
+    const isViewer = ctx.role === 'viewer';
+    const actionBlocked = Boolean(activeJob) || isViewer;
+    const actionBlockReason = isViewer
+      ? t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.')
+      : t('project_job_already_running', {}, 'A job is already running for this brand.');
     const modeKey = (mode) => {
       const n = String(mode || '').toLowerCase();
       if (n.includes('manual') || n.includes('surface') || n.includes('人工')) return 'manual';
@@ -55,9 +75,9 @@ export default {
       return 'other';
     };
     const modeGroups = [
-      { key: 'search', title: 'API · Web-grounded retrieval', hint: 'Official search tools. This is not ChatGPT Search or Google AI Overviews.' },
-      { key: 'parametric', title: 'API · Model knowledge', hint: 'Provider APIs with no live retrieval.' },
-      { key: 'manual', title: 'Manual · Product surface', hint: 'Answers pasted from ChatGPT, Claude.ai, or Google AI Overviews.' },
+      { key: 'search', title: t('landing.mode_search', {}, 'API · Web-grounded retrieval'), hint: t('engines.mode_search_hint', {}, 'Official search tools. This is not ChatGPT Search or Google AI Overviews.') },
+      { key: 'parametric', title: t('landing.mode_parametric', {}, 'API · Model knowledge'), hint: t('engines.mode_parametric_hint', {}, 'Provider APIs with no live retrieval.') },
+      { key: 'manual', title: t('landing.mode_manual', {}, 'Manual · Product surface'), hint: t('engines.mode_manual_hint', {}, 'Answers pasted from ChatGPT, Claude.ai, or Google AI Overviews.') },
     ];
     const grouped = Object.fromEntries(modeGroups.map((group) => [group.key, engines.filter((eng) => modeKey(eng.sampling_mode) === group.key)]));
     grouped.other = engines.filter((eng) => modeKey(eng.sampling_mode) === 'other');
@@ -66,14 +86,19 @@ export default {
     const readiness = (enginesData && enginesData.readiness) || {};
     const questionReadiness = readiness.question || {};
     const questionGaps = Array.isArray(questionReadiness.gaps) ? questionReadiness.gaps : [];
+    const questionReady = Boolean(questionReadiness.ready);
+    const sampleQuestionSet = sampleEstimate?.question_set_version;
+    const sampleQuestionSetLabel = typeof sampleQuestionSet === 'string'
+      ? sampleQuestionSet
+      : sampleQuestionSet?.version || t('engines.current', {}, 'current');
     const providerObservability = enginesData?.provider_observability?.platforms || {};
     const samplingReceipt = enginesData?.sampling_receipt || null;
     const limitations = confidence.limitations || mq.limitations || [];
     const trend = mq.trend || {};
     const attribution = mq.attribution || {};
     const trendNote = trend.status === 'noteworthy'
-      ? `${trend.label || 'Trend'} ${trend.delta_pp != null ? `(${trend.delta_pp} pp)` : ''}`
-      : (trend.label || 'Single-round observation. Two comparable periods are required before calling a trend.');
+      ? `${trend.label || t('engines.trend', {}, 'Trend')} ${trend.delta_pp != null ? `(${trend.delta_pp} pp)` : ''}`
+      : (trend.label || t('overview.trend_single', {}, 'Single-round observation. Two comparable periods are required before calling a trend.'));
     const renderEngineTable = (rows) => `
             <div class="tbl" style="overflow-x:auto;">
               <table class="table">
@@ -82,8 +107,8 @@ export default {
                     <th>${t('engines.col_engine', {}, 'Engine')}</th>
                     <th>${t('engines.col_mode', {}, 'Sampling Mode')}</th>
                     <th style="text-align:right;">${t('engines.col_mention_rate', {}, 'Mention Rate')}</th>
-                    <th style="text-align:right;">95% Interval</th>
-                    <th style="text-align:right;">${t('engines.col_avg_rank', {}, 'Avg Rank')}</th>
+                    <th style="text-align:right;">${t('engines.interval_95', {}, '95% interval')}</th>
+                    <th style="text-align:right;">${t('engines.col_avg_rank', {}, 'Median position')}</th>
                     <th style="text-align:right;">${t('engines.col_citation_share', {}, 'Citation Share')}</th>
                     <th style="text-align:right;">${t('engines.col_samples', {}, 'Samples')}</th>
                     <th>${t('common.status', {}, 'Status')}</th>
@@ -101,18 +126,18 @@ export default {
                       </td>
                       <td>${samplingModeBadge(eng.sampling_mode_code || eng.sampling_mode)}</td>
                       <td data-num style="font-size:var(--fs-4);font-weight:700;color:var(--ink);">
-                        ${eng.mention_rate !== null && eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : 'Unmeasured'}
+                        ${eng.mention_rate !== null && eng.mention_rate !== undefined ? `${Math.round(eng.mention_rate * 100)}%` : unmeasured}
                       </td>
                       <td data-num style="font-family:var(--font-mono);font-size:var(--fs-1);">
                         ${eng.mention_interval
                           ? `${Math.round(eng.mention_interval.lower * 100)}-${Math.round(eng.mention_interval.upper * 100)}%`
-                          : 'Unmeasured'}
+                          : unmeasured}
                       </td>
                       <td data-num style="font-weight:600;">
-                        ${eng.median_rank !== null && eng.median_rank !== undefined ? `#${Number(eng.median_rank).toFixed(1)}` : 'Unmeasured'}
+                        ${eng.median_rank !== null && eng.median_rank !== undefined ? `#${Number(eng.median_rank).toFixed(1)}` : unmeasured}
                       </td>
                       <td data-num>
-                        ${eng.citation_share !== null && eng.citation_share !== undefined ? `${Math.round(eng.citation_share * 100)}%` : 'Unmeasured'}
+                        ${eng.citation_share !== null && eng.citation_share !== undefined ? `${Math.round(eng.citation_share * 100)}%` : unmeasured}
                       </td>
                       <td data-num>${eng.sample_count || 0}</td>
                       <td>
@@ -140,20 +165,22 @@ export default {
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
               <span>${t('engines.configure_keys', {}, 'Configure API Keys')}</span>
             </a>
-            <button type="button" id="btn-import-surface" class="btn btn-secondary btn-sm">
+            <button type="button" id="btn-import-surface" class="btn btn-secondary btn-sm" ${actionBlocked ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>
               <span>${t('engines.log_surface_answer', {}, 'Log product-surface answer')}</span>
             </button>
-            <button type="button" id="btn-trigger-sample" class="btn btn-primary btn-sm">
+            <button type="button" id="btn-trigger-sample" class="btn btn-primary btn-sm" ${actionBlocked ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               <span>${t('engines.sample_now', {}, 'Sample Matrix Now')}</span>
             </button>
-            ${questionGaps.length ? `<button type="button" id="btn-fill-question-gaps" class="btn btn-secondary btn-sm">
+            ${questionGaps.length ? `<button type="button" id="btn-fill-question-gaps" class="btn btn-secondary btn-sm" ${actionBlocked ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
               <span>Fill ${questionGaps.length} cohort gap${questionGaps.length === 1 ? '' : 's'}</span>
             </button>` : ''}
           </div>
         </div>
 
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.'))}</div>` : ''}
+        ${activeJob ? `<div class="job-block-note" role="status"><span class="status-dot"></span>${escapeHtml(t('project_job_already_running', {}, 'A job is already running for this brand.'))} ${escapeHtml(activeJob.action || '')} · ${escapeHtml(activeJob.status || '')}</div>` : ''}
         ${limitations.length ? `<div class="card" style="padding:var(--sp-4);border-color:var(--line);">
           <strong style="display:block;margin-bottom:6px;">${t('engines.measurement_limited_title', {}, 'Measurement is a limited baseline')}</strong>
           <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">
@@ -166,11 +193,11 @@ export default {
             <div>
               <strong style="display:block;margin-bottom:6px;">${t('engines.evidence_readiness_title', {}, 'Evidence readiness')}</strong>
               <p style="margin:0;color:var(--muted);font-size:var(--fs-2);">
-                ${escapeHtml(questionReadiness.label || 'Question-level evidence is not measured yet')}
+                ${escapeHtml(questionReadiness.label || t('engines.question_evidence_unmeasured', {}, 'Question-level evidence is not measured yet'))}
                 ${questionReadiness.total ? ` · ${questionReadiness.sufficient || 0}/${questionReadiness.total} questions meet the minimum in every provider/mode cohort` : ''}
               </p>
             </div>
-            ${questionGaps.length ? `<span class="tag tag-warn">${t('engines.per_question_evidence_limited', {}, 'Per-question evidence limited')}</span>` : `<span class="tag pill-good">${t('engines.question_evidence_ready', {}, 'Question evidence ready')}</span>`}
+            ${questionReady ? `<span class="tag pill-good">${t('engines.question_evidence_ready', {}, 'Question evidence ready')}</span>` : `<span class="tag tag-warn">${t('engines.per_question_evidence_limited', {}, 'Per-question evidence limited')}</span>`}
           </div>
         </div>
 
@@ -178,29 +205,29 @@ export default {
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <div>
               <strong style="display:block;margin-bottom:4px;">${t('engines.worker_sampling_receipt', {}, 'Worker sampling receipt')}</strong>
-              <span style="font-size:var(--fs-2);color:var(--muted);">Asynchronous execution evidence; credentials are never shown.</span>
+              <span style="font-size:var(--fs-2);color:var(--muted);">${t('engines.async_evidence_note', {}, 'Asynchronous execution evidence; credentials are never shown.')}</span>
             </div>
-            <span class="tag ${samplingReceipt.status === 'succeeded' ? 'pill-good' : 'tag-warn'}">${escapeHtml(samplingReceipt.status || 'Not recorded')}</span>
+            <span class="tag ${samplingReceipt.status === 'succeeded' ? 'pill-good' : 'tag-warn'}">${escapeHtml(samplingReceipt.status || t('engines.not_recorded', {}, 'Not recorded'))}</span>
           </div>
           <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-3);">
-            <span class="tag tag-neutral">${Number(samplingReceipt.successful_samples || 0)} successful</span>
-            <span class="tag tag-dim">${Number(samplingReceipt.failed_samples || 0)} failed</span>
-            <span class="tag tag-dim">${Number((samplingReceipt.skipped_platforms || []).length)} skipped platforms</span>
+            <span class="tag tag-neutral">${escapeHtml(t('engines.successful_samples', { count: Number(samplingReceipt.successful_samples || 0) }, `${Number(samplingReceipt.successful_samples || 0)} successful`))}</span>
+            <span class="tag tag-dim">${escapeHtml(t('engines.failed_samples', { count: Number(samplingReceipt.failed_samples || 0) }, `${Number(samplingReceipt.failed_samples || 0)} failed`))}</span>
+            <span class="tag tag-dim">${escapeHtml(t('engines.skipped_platforms', { count: Number((samplingReceipt.skipped_platforms || []).length) }, `${Number((samplingReceipt.skipped_platforms || []).length)} skipped platforms`))}</span>
           </div>
         </div>` : ''}
 
         <div class="card" style="padding:var(--sp-4);border-color:var(--line);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
-            <div><strong style="display:block;margin-bottom:4px;">${t('engines.comparable_period_title', {}, 'Comparable period analysis')}</strong><span style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(attribution.label || 'No comparable period')} · ${escapeHtml(attribution.method || 'Fixed measurement identity required')}</span></div>
-            <span class="tag ${attribution.ready ? 'pill-good' : 'tag-dim'}">${attribution.ready ? 'Attribution-ready baseline' : 'Do not attribute yet'}</span>
+            <div><strong style="display:block;margin-bottom:4px;">${t('engines.comparable_period_title', {}, 'Comparable period analysis')}</strong><span style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(attribution.label || t('engines.no_comparable_period', {}, 'No comparable period'))} · ${escapeHtml(attribution.method || t('engines.measurement_identity_required', {}, 'Fixed measurement identity required'))}</span></div>
+            <span class="tag ${attribution.ready ? 'pill-good' : 'tag-dim'}">${attribution.ready ? t('engines.attribution_ready', {}, 'Attribution-ready baseline') : t('engines.attribution_not_ready', {}, 'Do not attribute yet')}</span>
           </div>
-          ${attribution.comparisons?.length ? `<div class="tbl" style="overflow-x:auto;margin-top:var(--sp-3);"><table class="table"><thead><tr><th>${t('engines.col_provider', {}, 'Provider')}</th><th style="text-align:right;">${t('engines.col_previous', {}, 'Previous')}</th><th style="text-align:right;">${t('engines.col_current', {}, 'Current')}</th><th style="text-align:right;">${t('engines.col_delta', {}, 'Delta')}</th></tr></thead><tbody>${attribution.comparisons.map((item) => `<tr><td>${escapeHtml(item.engine_code || '')}</td><td data-num>${Math.round(Number(item.previous_rate || 0) * 100)}%</td><td data-num>${Math.round(Number(item.current_rate || 0) * 100)}%</td><td data-num>${Number(item.delta_pp || 0).toFixed(1)} pp</td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:var(--sp-3) 0 0;color:var(--muted);font-size:var(--fs-2);">Run the same question set, providers, models, and sampling modes in a later period to unlock comparable deltas.</p>'}
+          ${attribution.comparisons?.length ? `<div class="tbl" style="overflow-x:auto;margin-top:var(--sp-3);"><table class="table"><thead><tr><th>${t('engines.col_provider', {}, 'Provider')}</th><th style="text-align:right;">${t('engines.col_previous', {}, 'Previous')}</th><th style="text-align:right;">${t('engines.col_current', {}, 'Current')}</th><th style="text-align:right;">${t('engines.col_delta', {}, 'Delta')}</th></tr></thead><tbody>${attribution.comparisons.map((item) => `<tr><td>${escapeHtml(item.engine_code || '')}</td><td data-num>${Math.round(Number(item.previous_rate || 0) * 100)}%</td><td data-num>${Math.round(Number(item.current_rate || 0) * 100)}%</td><td data-num>${Number(item.delta_pp || 0).toFixed(1)} pp</td></tr>`).join('')}</tbody></table></div>` : `<p style="margin:var(--sp-3) 0 0;color:var(--muted);font-size:var(--fs-2);">${t('engines.attribution_required', {}, 'Run the same question set, providers, models, and sampling modes in a later period to unlock comparable deltas.')}</p>`}
         </div>
 
         ${sampleEstimate?.estimate ? `<div class="card" style="padding:var(--sp-4);border-color:var(--line);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
-            <div><strong style="display:block;margin-bottom:4px;">${t('engines.next_sample_estimate', {}, 'Next sample estimate')}</strong><span style="font-size:var(--fs-2);color:var(--muted);">${Number(sampleEstimate.estimate.calls || 0)} calls · about ${Number(sampleEstimate.estimate.minutes || 0)} minutes · question set ${escapeHtml(sampleEstimate.question_set_version || 'current')}</span></div>
-            <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;"><span class="tag tag-neutral">BYOK ${Number(sampleEstimate.estimate.byok_calls || 0)}</span><span class="tag tag-neutral">Pool ${Number(sampleEstimate.estimate.platform_pool_calls || 0)}</span>${sampleEstimate.estimate.platform_pool_cost_cny_fen ? `<span class="tag tag-warn">Pool cost ¥${(Number(sampleEstimate.estimate.platform_pool_cost_cny_fen) / 100).toFixed(2)}</span>` : ''}</div>
+            <div><strong style="display:block;margin-bottom:4px;">${t('engines.next_sample_estimate', {}, 'Next sample estimate')}</strong><span style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(t('engines.sample_estimate_meta', { calls: Number(sampleEstimate.estimate.calls || 0), minutes: Number(sampleEstimate.estimate.minutes || 0), questionSet: String(sampleQuestionSetLabel) }, `${Number(sampleEstimate.estimate.calls || 0)} calls · about ${Number(sampleEstimate.estimate.minutes || 0)} minutes · question set ${String(sampleQuestionSetLabel)}`))}</span></div>
+            <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;"><span class="tag tag-neutral">${escapeHtml(t('engines.byok_calls', { count: Number(sampleEstimate.estimate.byok_calls || 0) }, `BYOK ${Number(sampleEstimate.estimate.byok_calls || 0)}`))}</span><span class="tag tag-neutral">${escapeHtml(t('engines.pool_calls', { count: Number(sampleEstimate.estimate.platform_pool_calls || 0) }, `Pool ${Number(sampleEstimate.estimate.platform_pool_calls || 0)}`))}</span>${sampleEstimate.estimate.platform_pool_cost_cny_fen ? `<span class="tag tag-warn">${escapeHtml(t('engines.pool_cost', { amount: (Number(sampleEstimate.estimate.platform_pool_cost_cny_fen) / 100).toFixed(2) }, `Pool cost ¥${(Number(sampleEstimate.estimate.platform_pool_cost_cny_fen) / 100).toFixed(2)}`))}</span>` : ''}</div>
           </div>
           <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-3);">${(sampleEstimate.platforms || []).map((item) => `<span class="tag tag-dim">${escapeHtml(item.provider_name || item.engine_name || item.engine_code)}${item.model_id ? ` · ${escapeHtml(item.model_id)}` : ''} · ${escapeHtml(item.funding_source || item.source || 'unavailable')}</span>`).join('')}</div>
         </div>` : ''}
@@ -213,11 +240,11 @@ export default {
           </div>
           ${grouped[group.key].length
             ? renderEngineTable(grouped[group.key])
-            : `<div style="padding:var(--sp-6);color:var(--muted);font-size:var(--fs-2);">No ${group.title} observations yet.</div>`}
+            : `<div style="padding:var(--sp-6);color:var(--muted);font-size:var(--fs-2);">${t('engines.no_mode_observations', { mode: group.title }, `No ${group.title} observations yet.`)}</div>`}
         </div>`).join('')}
         ${grouped.other.length ? `<div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);">
-            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Other</h3>
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('engines.other_mode', {}, 'Other')}</h3>
           </div>
           ${renderEngineTable(grouped.other)}
         </div>` : ''}
@@ -232,8 +259,8 @@ export default {
               </p>
             </div>
             <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">
-              ${enginesData?.question_set_version ? `<span class="tag tag-neutral">Question set ${escapeHtml(enginesData.question_set_version)}</span>` : ''}
-              ${sampleCohort?.excluded_sample_count ? `<span class="tag tag-dim">${sampleCohort.excluded_sample_count} historical sample${sampleCohort.excluded_sample_count === 1 ? '' : 's'} excluded</span>` : ''}
+              ${enginesData?.question_set_version ? `<span class="tag tag-neutral">${t('engines.question_set_label', {}, 'Question set')} ${escapeHtml(enginesData.question_set_version)}</span>` : ''}
+              ${sampleCohort?.excluded_sample_count ? `<span class="tag tag-dim">${t('engines.historical_excluded', { count: sampleCohort.excluded_sample_count }, `${sampleCohort.excluded_sample_count} historical samples excluded`)}</span>` : ''}
             </div>
           </div>
 
@@ -245,22 +272,23 @@ export default {
                 .map(
                   (s, idx) => {
                     const matchedIdentity = s.analysis?.matched_identity?.text || s.analysis?.matched_identity?.value;
+                    const sampleMode = s.sampling_mode_code || (s.sample_mode === 'manual' || s.terminal === 'web' ? 'manual' : (s.search_enabled ? 'search' : 'parametric'));
                     const mentionBadge = s.analysis?.brand_mentioned
-                      ? `<span class="tag pill-good">Mentioned${matchedIdentity ? ` via "${escapeHtml(matchedIdentity)}"` : ''}</span>`
+                      ? `<span class="tag pill-good">${t('engines.mentioned', {}, 'Mentioned')}${matchedIdentity ? ` ${t('engines.via_identity', { identity: matchedIdentity }, `via "${matchedIdentity}"`)}` : ''}</span>`
                       : `<span class="tag tag-dim">${t('common.not_mentioned', {}, 'Not Mentioned')}</span>`;
                     return `
                 <div class="sample-replay-card">
                   <div class="sample-head">
                     <div style="display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;min-width:0;">
-                      <strong class="sample-model-tag">${escapeHtml(s.platform_name || s.platform || 'AI Model')}</strong>
-                      ${samplingModeBadge(s.sampling_mode_code || (s.sample_mode === 'manual' || s.terminal === 'web' ? 'manual' : (s.search_enabled ? 'search' : 'parametric')))}
+                      <strong class="sample-model-tag">${escapeHtml(s.platform_name || s.platform || t('engines.ai_model', {}, 'AI Model'))}</strong>
+                      ${samplingModeBadge(sampleMode)}
                       ${mentionBadge}
                     </div>
                     <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${escapeHtml(s.date || '')}</span>
                   </div>
 
-                  <div class="sample-query">${escapeHtml(s.question || 'Question unavailable')}</div>
-                  <div class="sample-answer">${escapeHtml(s.ok ? (s.answer || 'Empty model response') : `Sampling failed: ${s.error || 'Unknown provider error'}`)}</div>
+                  <div class="sample-query">${escapeHtml(s.question || t('engines.question_unavailable', {}, 'Question unavailable'))}</div>
+                  <div class="sample-answer sample-answer-preview">${escapeHtml(answerPreview(s))}</div>
 
                   ${
                     s.citations && s.citations.length
@@ -280,8 +308,13 @@ export default {
                         .join('')}
                     </div>
                   `
-                      : ''
+                      : (modeKey(sampleMode) !== 'search'
+                        ? `<div class="sample-citations"><span class="tag tag-dim">${t('engines.no_source_urls', {}, 'No source URLs for this mode')}</span></div>`
+                        : '')
                   }
+                  <div class="sample-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" data-evidence-index="${idx}">${t('evidence.inspect', {}, 'Inspect evidence')}</button>
+                  </div>
                 </div>
               `; }
                 )
@@ -305,9 +338,9 @@ export default {
       const questions = await workspace.getQuestions(projectId).catch(() => []);
       const options = (questions || []).map((q) => `<option value="${escapeHtml(q.id || '')}">${escapeHtml(q.id || '')} · ${escapeHtml(q.text || '')}</option>`).join('');
       openModal({
-        title: 'Log a product-surface answer',
-        content: `<p style="margin:0 0 var(--sp-3);color:var(--muted);font-size:var(--fs-2);">Paste what you saw in ChatGPT, Claude.ai, or Google AI Overviews. This stays in a separate cohort from API samples.</p>
-          <div class="field"><label>Product surface</label>
+        title: t('engines.log_surface_title', {}, 'Log a product-surface answer'),
+        content: `<p style="margin:0 0 var(--sp-3);color:var(--muted);font-size:var(--fs-2);">${t('engines.log_surface_desc', {}, 'Paste what you saw in ChatGPT, Claude.ai, or Google AI Overviews. This stays in a separate cohort from API samples.')}</p>
+          <div class="field"><label>${t('engines.product_surface', {}, 'Product surface')}</label>
             <select id="surface-platform" class="input">
               <option value="chatgpt">ChatGPT Search</option>
               <option value="claude_web">Claude.ai</option>
@@ -323,19 +356,19 @@ export default {
               <option value="doubao_app">Doubao App / Web</option>
             </select>
           </div>
-          <div class="field"><label>Question</label>
-            <select id="surface-question" class="input">${options || '<option value="">No questions yet</option>'}</select>
+          <div class="field"><label>${t('engines.question', {}, 'Question')}</label>
+            <select id="surface-question" class="input">${options || `<option value="">${t('engines.no_questions_yet', {}, 'No questions yet')}</option>`}</select>
           </div>
-          <div class="field"><label>Answer transcript</label>
-            <textarea id="surface-answer" class="input" rows="8" placeholder="Paste the exact answer text"></textarea>
+          <div class="field"><label>${t('engines.answer_transcript', {}, 'Answer transcript')}</label>
+            <textarea id="surface-answer" class="input" rows="8" placeholder="${t('engines.answer_placeholder', {}, 'Paste the exact answer text')}"></textarea>
           </div>`,
-        confirmText: 'Save transcript',
+        confirmText: t('engines.save_transcript', {}, 'Save transcript'),
         onConfirm: async () => {
           const platform = document.getElementById('surface-platform')?.value;
           const questionId = document.getElementById('surface-question')?.value;
           const answer = document.getElementById('surface-answer')?.value || '';
           if (!questionId || !answer.trim()) {
-            toast.error('Choose a question and paste the answer');
+            toast.error(t('engines.surface_required', {}, 'Choose a question and paste the answer'));
             return false;
           }
           try {
@@ -343,11 +376,11 @@ export default {
               platform,
               items: [{ question_id: questionId, answer: answer.trim() }],
             });
-            toast.success('Product-surface answer saved');
+            toast.success(t('engines.surface_saved', {}, 'Product-surface answer saved'));
             await ctx.reloadCurrentView();
             return true;
           } catch (err) {
-            toast.error(err.detail || 'Import failed');
+            toast.error(err.detail || t('engines.surface_import_failed', {}, 'Import failed'));
             return false;
           }
         },
@@ -383,9 +416,9 @@ export default {
         try {
           const res = await projects.triggerSampleGaps(projectId);
           if (res?.status === 'no_gaps') {
-            toast.success('No question-level sampling gaps remain');
+            toast.success(t('engines.no_gaps', {}, 'No question-level sampling gaps remain'));
           } else {
-            toast.success('Question-level gap sampling queued');
+            toast.success(t('engines.gap_sampling_queued', {}, 'Question-level gap sampling queued'));
             ctx.pollActiveJobs();
             if (res?.job_id && typeof ctx.openTelemetry === 'function') ctx.openTelemetry(res.job_id, 'sample');
           }
@@ -396,5 +429,13 @@ export default {
         }
       });
     }
+
+    document.querySelectorAll('[data-evidence-index]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const index = Number(button.getAttribute('data-evidence-index'));
+        const sample = Number.isInteger(index) ? renderedSamples[index] : null;
+        if (sample) openEvidenceDrawer(sample);
+      });
+    });
   },
 };

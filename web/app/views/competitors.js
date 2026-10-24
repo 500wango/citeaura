@@ -26,6 +26,8 @@ export default {
       insights = project?.insights || {};
     } catch (e) {}
 
+    const isViewer = ctx.role === 'viewer';
+    const readOnlyReason = t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.');
     const competitors = config.competitors || [];
     const discoveryByName = Object.fromEntries(
       (discovery.items || []).map((item) => [item.name, item]),
@@ -50,13 +52,14 @@ export default {
             </p>
           </div>
           <div class="view-actions">
-            <button type="button" id="btn-add-competitor" class="btn btn-primary btn-sm">
+            <button type="button" id="btn-add-competitor" class="btn btn-primary btn-sm" ${isViewer ? `disabled title="${escapeHtml(readOnlyReason)}"` : ''}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               <span>${t('competitors.add_btn', {}, 'Add Competitor')}</span>
             </button>
           </div>
         </div>
 
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(readOnlyReason)}</div>` : ''}
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:var(--sp-4);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('competitors.list_title', {}, 'Monitored Competitors')}</h3>
@@ -93,10 +96,10 @@ export default {
                         <td class="num" style="color:var(--muted);">${idx + 1}</td>
                         <td><strong style="font-size:var(--fs-3);">${escapeHtml(name || '')}</strong></td>
                         <td class="num" style="color:var(--muted);">${escapeHtml(domain || '—')}</td>
-                        <td>${escapeHtml(relationship === 'direct_competitor' ? 'Direct competitor' : relationship)}</td>
+                        <td>${escapeHtml(relationship === 'direct_competitor' ? t('competitors.direct_competitor', {}, 'Direct competitor') : relationship)}</td>
                         <td>${escapeHtml(evidence)}</td>
                         <td style="text-align:right;">
-                          <button type="button" class="btn btn-ghost btn-sm btn-del-comp" data-comp="${escapeHtml(name || '')}" style="color:var(--bad);">
+                          <button type="button" class="btn btn-ghost btn-sm btn-del-comp" data-comp="${escapeHtml(name || '')}" style="color:var(--bad);" ${isViewer ? `disabled title="${escapeHtml(readOnlyReason)}"` : ''}>
                             ${t('common.remove', {}, 'Remove')}
                           </button>
                         </td>
@@ -112,8 +115,8 @@ export default {
                 ${renderEmpty({
                   title: t('competitors.no_competitors', {}, 'No Competitors Configured'),
                   description: t('competitors.no_competitors_desc', {}, 'Add your top industry competitors to compare recommendation shares across AI search engines.'),
-                  actionText: t('competitors.add_btn', {}, 'Add Competitor'),
-                  onAction: () => document.getElementById('btn-add-competitor')?.click(),
+                  actionText: isViewer ? '' : t('competitors.add_btn', {}, 'Add Competitor'),
+                  onAction: isViewer ? null : () => document.getElementById('btn-add-competitor')?.click(),
                 })}
               </div>`
           }
@@ -152,7 +155,7 @@ export default {
     if (!projectId) return;
 
     const addBtn = document.getElementById('btn-add-competitor');
-    if (addBtn) {
+    if (addBtn && !addBtn.disabled) {
       addBtn.addEventListener('click', () => {
         const content = `
           <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
@@ -202,6 +205,7 @@ export default {
     }
 
     document.querySelectorAll('.btn-del-comp').forEach((btn) => {
+      if (btn.disabled) return;
       btn.addEventListener('click', async () => {
         const compName = btn.getAttribute('data-comp');
         try {

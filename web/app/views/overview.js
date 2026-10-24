@@ -65,6 +65,9 @@ export default {
     const doneTickets = Array.isArray(tickets) ? tickets.filter((item) => item.status === 'done').length : 0;
     const engines = (report && report.engines) || [];
     const quality = (report && report.report_quality) || project.report_quality || {};
+    const measurementQuality = quality.measurement_quality || {};
+    const currentSamples = measurementQuality.current || {};
+    const measurementConfidence = quality.confidence || measurementQuality.confidence || {};
     const userSummary = (report && report.user_summary) || {};
     const summaryScope = userSummary.evidence_scope || {};
     const summaryFinding = userSummary.primary_finding || {};
@@ -80,9 +83,32 @@ export default {
       ? `${trendLabel || 'Trend'} ${escapeHtml(trend.direction || '')} ${trend.delta_pp != null ? `${escapeHtml(trend.delta_pp)} pp` : ''}`.trim()
       : (trendLabel || t('overview.trend_single', {}, 'Single-round observation; two comparable periods are required before calling a trend'));
     const measuredEngines = engines.filter((item) => item.sample_count);
+    const eligibleSamples = Number(report?.sample_count || currentSamples.successful || 0);
+    const provenance = (report && report.provenance) || {};
+    const questionSet = provenance.question_set || {};
+    const providerNames = [...new Set(measuredEngines.map((item) => (
+      item.provider_name || item.engine_name || item.engine_code
+    )).filter(Boolean))];
+    const measuredModes = [...new Set(measuredEngines.map((item) => item.sampling_mode).filter(Boolean))];
+    const reportDate = report?.date || (report?.sample_artifact ? String(report.sample_artifact) : '');
+    const visibilityMeasured = eligibleSamples > 0 && measuredEngines.length > 0;
+    const mentionRateKnown = report && report.mention_rate !== null && report.mention_rate !== undefined;
+    const cohortReason = !visibilityMeasured
+      ? (qualityIssues.find((item) => item.code === 'sampling_missing')?.message
+        || t('overview.cohort_none', {}, 'No eligible cohort yet. Run a labeled sample to make this measurable.'))
+      : (!mentionRateKnown
+        ? t('overview.cohort_mixed_modes', {}, 'Sampling modes are shown separately; no combined mention rate is reported.')
+        : '');
     const plan = visibilityPlan?.plan || {};
     const baseline = visibilityPlan?.baseline;
-    const phaseLabels = { baseline: 'Baseline', technical: 'Technical crawl', citation: 'Citation readiness', content: 'Content opportunities', offsite: 'Off-site entity', review: 'Review & re-measure' };
+    const phaseLabels = {
+      baseline: t('overview.phase_baseline', {}, 'Baseline'),
+      technical: t('overview.phase_technical', {}, 'Technical crawl'),
+      citation: t('overview.phase_citation', {}, 'Citation readiness'),
+      content: t('overview.phase_content', {}, 'Content opportunities'),
+      offsite: t('overview.phase_offsite', {}, 'Off-site entity'),
+      review: t('overview.phase_review', {}, 'Review & re-measure'),
+    };
     const goals = Array.isArray(plan.goals) ? plan.goals : [];
     const priorityRank = { P0: 0, P1: 1, P2: 2 };
     const quickWins = (Array.isArray(tickets) ? tickets : [])
@@ -96,6 +122,10 @@ export default {
     const projectUrl = safeHttpUrl(rawProjectUrl)
       || (/^[\w.-]+\.[a-z]{2,}(?:[/?#].*)?$/i.test(rawProjectUrl) ? safeHttpUrl(`https://${rawProjectUrl}`) : '');
     const activeJob = Array.isArray(jobs) ? jobs.find((job) => ['queued', 'running'].includes(job.status)) : null;
+    const isViewer = ctx.role === 'viewer';
+    const actionBlockReason = isViewer
+      ? t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.')
+      : t('project_job_already_running', {}, 'A job is already running for this brand.');
     const isGeneratingQuestions = !hasQuestions && (
       ['initializing', 'bootstrapping'].includes(projectStatus)
       || (Array.isArray(jobs) && jobs.some((job) => (
@@ -119,12 +149,15 @@ export default {
     const coverageSuffix = crawlCoverage.discovered_is_partial ? '+' : '';
     const crawlScopeNote = crawlMeasured
       ? (discoveredUrls
-        ? `Crawled ${crawledPages}/${discoveredUrls}${coverageSuffix} sitemap URLs`
+        ? t('overview.crawl_scope_sitemap', {
+          crawled: crawledPages,
+          discovered: `${discoveredUrls}${coverageSuffix}`,
+        }, `Crawled ${crawledPages}/${discoveredUrls}${coverageSuffix} sitemap URLs`)
           + (Number.isFinite(coverageRatio)
-            ? ` (${Math.round(coverageRatio * 100)}%, ${crawlCoverage.mode || 'sampled'} crawl)`
+            ? ` (${t('overview.crawl_scope_percent', { percent: Math.round(coverageRatio * 100), mode: crawlCoverage.mode || 'sampled' }, `${Math.round(coverageRatio * 100)}%, ${crawlCoverage.mode || 'sampled'} crawl`)})`
             : '')
-        : `Crawled ${crawledPages} pages from internal links (no sitemap discovered)`)
-      : 'No measured crawl result';
+        : t('overview.crawl_scope_internal', { count: crawledPages }, `Crawled ${crawledPages} pages from internal links (no sitemap discovered)`))
+      : t('overview.crawl_scope_none', {}, 'No measured crawl result');
     const robotsMeasured = crawlMeasured && Object.prototype.hasOwnProperty.call(siteHealth, 'ai_bots_blocked');
     const robotsOk = robotsMeasured && !(siteHealth.ai_bots_blocked || []).length;
     const llmsMeasured = typeof siteHealth.has_llms_txt === 'boolean';
@@ -169,11 +202,47 @@ export default {
             };
 
     const kpiData = [
-      { label: t('overview.kpi_mention_rate', {}, 'AI Mention Rate'), value: mentionRate, className: 'num', sub: trendNote },
+      {
+        label: t('overview.kpi_mention_rate', {}, 'AI Mention Rate'),
+        value: mentionRate,
+        className: 'num',
+        state: mentionRateKnown ? 'measured' : 'unmeasured',
+        sub: trendNote,
+        meta: mentionRateKnown || visibilityMeasured
+          ? t('overview.kpi_denominator', { count: eligibleSamples }, `${eligibleSamples} eligible samples`)
+          : t('overview.cohort_none_short', {}, 'No eligible samples'),
+        title: t('overview.kpi_mention_detail', {}, 'Share of successful, eligible answers that mention the brand. Brand-named probe questions are excluded.'),
+      },
       { label: t('overview.kpi_grade', {}, 'Technical Audit Grade'), value: overallGrade ? gradeBadge(overallGrade) : unmeasured },
       { label: t('overview.kpi_tickets', {}, 'Action Tickets'), value: `${doneTickets} / ${totalTickets}`, sub: t('overview.tickets_pending', { count: totalTickets - doneTickets }, `${totalTickets - doneTickets} pending`) },
-      { label: t('overview.kpi_engines', {}, 'Measured Engines'), value: String(measuredEngines.length), sub: t('overview.engines_in_matrix', { count: engines.length }, `${engines.length} in matrix`) },
+      { label: t('overview.kpi_engines', {}, 'Measured Engines'), value: String(measuredEngines.length), sub: t('overview.engines_in_matrix', { count: engines.length }, `${engines.length} in matrix`), state: measuredEngines.length ? 'measured' : 'unmeasured' },
     ];
+
+    const cohortBar = `
+      <section class="cohort-bar" aria-label="${t('overview.cohort_title', {}, 'Measurement cohort')}">
+        <div class="cohort-bar-main">
+          <div class="cohort-bar-title">
+            <span>${t('overview.cohort_title', {}, 'Measurement cohort')}</span>
+            ${visibilityMeasured
+              ? measuredModes.map((mode) => samplingModeBadge(mode)).join('')
+              : `<span class="tag tag-dim">${unmeasured}</span>`}
+          </div>
+          <dl>
+            <div><dt>${t('overview.cohort_question_set', {}, 'Question set')}</dt><dd>${escapeHtml(questionSet.version || report?.question_set_version || '—')}${questionSet.count ? ` · ${Number(questionSet.count)} ${t('overview.cohort_questions', {}, 'questions')}` : ''}</dd></div>
+            <div><dt>${t('overview.cohort_providers', {}, 'Providers')}</dt><dd>${providerNames.length ? escapeHtml(providerNames.join(', ')) : '—'}</dd></div>
+            <div><dt>${t('overview.cohort_mode', {}, 'Sampling mode')}</dt><dd>${measuredModes.length ? escapeHtml(measuredModes.join(' · ')) : '—'}</dd></div>
+            <div><dt>${t('overview.cohort_window', {}, 'Window')}</dt><dd>${escapeHtml(reportDate || '—')}</dd></div>
+            <div><dt>${t('overview.cohort_eligible', {}, 'Eligible samples')}</dt><dd class="num">${eligibleSamples || '—'}</dd></div>
+          </dl>
+          ${cohortReason ? `<p class="cohort-bar-note">${escapeHtml(cohortReason)}</p>` : ''}
+        </div>
+        <div class="cohort-bar-action">
+          <a href="#/${visibilityMeasured ? 'engines' : (measurementConfidence && !measurementConfidence.sufficient ? 'engine-settings' : 'engines')}" class="btn btn-secondary btn-sm">
+            ${visibilityMeasured ? t('overview.cohort_inspect', {}, 'Inspect cohort') : t('overview.cohort_configure', {}, 'Configure sampling')}
+          </a>
+        </div>
+      </section>
+    `;
 
     return `
       <div class="app-view-container">
@@ -190,18 +259,18 @@ export default {
                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
               </a>` : `<span class="num">${escapeHtml(project.url || '')}</span>`}
               <span style="color:var(--faint);margin:0 var(--sp-2);">·</span>
-              <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${t('common.market', {}, 'Market')}: ${escapeHtml(project.market || 'Universal')}</span>
+              <span style="font-family:var(--font-mono);font-size:var(--fs-1);color:var(--muted);">${t('common.market', {}, 'Market')}: ${escapeHtml(project.market || t('overview.universal_market', {}, 'Universal'))}</span>
             </div>
           </div>
           <div class="view-actions">
-            <button type="button" id="btn-rerun-autopilot" class="btn btn-secondary btn-sm" ${activeJob ? 'disabled aria-busy="true"' : ''}>
+            <button type="button" id="btn-rerun-autopilot" class="btn btn-secondary btn-sm" ${(activeJob || isViewer) ? `disabled ${activeJob ? 'aria-busy="true"' : ''} title="${escapeHtml(actionBlockReason)}"` : ''}>
               ${activeJob ? '<span class="spin"></span>' : ''}
               <span id="rerun-autopilot-label">${activeJob
                 ? t('overview.pipeline_running', {}, 'Pipeline Running')
                 : t('overview.action_rerun_autopilot', {}, 'Rerun Autopilot')}</span>
             </button>
             ${hasQuestions ? `
-              <button type="button" id="btn-run-sample" class="btn btn-secondary btn-sm">
+              <button type="button" id="btn-run-sample" class="btn btn-secondary btn-sm" ${(activeJob || isViewer) ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 <span>${t('overview.action_sample', {}, 'Fill Sample Gaps')}</span>
               </button>` : isGeneratingQuestions ? `
@@ -213,7 +282,7 @@ export default {
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 <span>${t('questions.add_btn', {}, 'Add Target Questions')}</span>
               </a>`}
-            <button type="button" id="btn-run-verify" class="btn btn-secondary btn-sm">
+            <button type="button" id="btn-run-verify" class="btn btn-secondary btn-sm" ${(activeJob || isViewer) ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
               <span>${t('overview.action_verify', {}, 'Verify Changes')}</span>
             </button>
@@ -229,19 +298,22 @@ export default {
           </div>
         </div>
 
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(actionBlockReason)}</div>` : ''}
+        ${activeJob ? `<div class="job-block-note" role="status"><span class="status-dot"></span>${escapeHtml(t('project_job_already_running', {}, 'A job is already running for this brand.'))} ${escapeHtml(activeJob.action || '')} · ${escapeHtml(activeJob.status || '')}</div>` : ''}
+        ${cohortBar}
+
         <!-- Better Stack 6-Dimension Health Lights & Telemetry Bar -->
         <div class="health-strip-card" style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);padding:10px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--muted);">6-Dim Health</span>
-            ${healthIndicator('robots.txt', robotsMeasured, robotsOk, robotsMeasured ? 'robots.txt checked by the last crawl' : 'No measured robots.txt result')}
-            ${healthIndicator('WAF', false, false, 'WAF is not measured by the audit')}
-            ${healthIndicator('llms.txt', llmsMeasured, llmsOk, llmsMeasured ? 'llms.txt checked by the last crawl' : 'No measured llms.txt result')}
-            ${healthIndicator('Schema graph', diagnosticReady, diagnosticReady, 'Schema JSON-LD knowledge graph')}
-            ${healthIndicator('Brand facts', brandFactsMeasured, brandFactsOk, brandFactsMeasured ? 'Brand facts extracted from sampled answers' : 'No measured brand facts result')}
-            ${healthIndicator('Crawl', crawlMeasured, crawlOk, crawlScopeNote)}
+            <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--muted);">${t('overview.evidence_checks', {}, 'Evidence checks')}</span>
+            ${healthIndicator('robots.txt', robotsMeasured, robotsOk, robotsMeasured ? t('overview.robots_checked', {}, 'robots.txt checked by the last crawl') : t('overview.robots_unmeasured', {}, 'No measured robots.txt result'))}
+            ${healthIndicator('llms.txt', llmsMeasured, llmsOk, llmsMeasured ? t('overview.llms_checked', {}, 'llms.txt checked by the last crawl') : t('overview.llms_unmeasured', {}, 'No measured llms.txt result'))}
+            ${healthIndicator(t('overview.brand_facts', {}, 'Brand facts'), brandFactsMeasured, brandFactsOk, brandFactsMeasured ? t('overview.facts_checked', {}, 'Brand facts extracted from sampled answers') : t('overview.facts_unmeasured', {}, 'No measured brand facts result'))}
+            ${healthIndicator(t('overview.crawl', {}, 'Crawl'), crawlMeasured, crawlOk, crawlScopeNote)}
+            ${healthIndicator(t('overview.kpi_mention_rate', {}, 'AI Mention Rate'), visibilityMeasured, visibilityMeasured, visibilityMeasured ? t('overview.eligible_sample_meta', { count: eligibleSamples }, `${eligibleSamples} eligible samples`) : t('overview.no_eligible_samples', {}, 'No eligible samples'))}
           </div>
           <span class="demo-provenance-pill" style="font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:12px;background:var(--deep);border:1px solid var(--line);color:var(--muted);">
-            ${visibilityReady ? 'Traceable · Grounded' : '[DEMO · SYNTHETIC BASELINE]'}
+            ${visibilityMeasured ? t('overview.cohort_traceable', {}, 'Traceable to a labeled cohort') : unmeasured}
           </span>
         </div>
 
@@ -265,18 +337,18 @@ export default {
           ${(userSummary.limitations || []).length ? `<div style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(userSummary.limitations[0])}</div>` : ''}
         </section>
         ${renderKpis(kpiData)}
-        ${citationFeatures?.overview ? `<div class="card" style="gap:var(--sp-3);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">Citation Source Intelligence</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">Latest web-enabled evidence, traceable to a sampling run.</p></div><a href="#/channels" class="btn btn-secondary btn-sm">View Channels</a></div>${citationSources?.status === 'measured' ? `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(citationSources.domains || []).slice(0,5).map((item) => `<span class="tag tag-neutral">${escapeHtml(item.domain)} · ${(item.share * 100).toFixed(1)}%</span>`).join('')}</div><span style="color:var(--muted);font-size:var(--fs-1);">${citationSources.total_citations} citations · ${escapeHtml(citationSources.run_id || '')}</span>` : `<span style="color:var(--muted);">Unmeasured · Run a sample</span>`}</div>` : ''}
+        ${citationFeatures?.overview ? `<div class="card" style="gap:var(--sp-3);"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);"><div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('overview.citation_intelligence_title', {}, 'Citation Source Intelligence')}</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${t('overview.citation_intelligence_desc', {}, 'Latest web-enabled evidence, traceable to a sampling run.')}</p></div><a href="#/channels" class="btn btn-secondary btn-sm">${t('overview.view_channels', {}, 'View Channels')}</a></div>${citationSources?.status === 'measured' ? `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(citationSources.domains || []).slice(0,5).map((item) => `<span class="tag tag-neutral">${escapeHtml(item.domain)} · ${(item.share * 100).toFixed(1)}%</span>`).join('')}</div><span style="color:var(--muted);font-size:var(--fs-1);">${citationSources.total_citations} ${t('overview.citations_count', {}, 'citations')} · ${escapeHtml(citationSources.run_id || '')}</span>` : `<span style="color:var(--muted);">${t('channels.unmeasured_run_sample', {}, 'Unmeasured · Run a sample')}</span>`}</div>` : ''}
         <div class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
-            <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">AI Visibility Operating Plan</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${phaseLabels[plan.current_phase] || 'Baseline'} · ${escapeHtml(plan.status || 'active')}</p></div>
-            <button type="button" id="btn-capture-visibility-baseline" class="btn btn-secondary btn-sm">${baseline ? 'Refresh baseline' : 'Capture baseline'}</button>
+            <div><h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('overview.operating_plan_title', {}, 'AI Visibility Operating Plan')}</h3><p style="margin:3px 0 0;color:var(--muted);font-size:var(--fs-2);">${phaseLabels[plan.current_phase] || phaseLabels.baseline} · ${escapeHtml(plan.status || 'active')}</p></div>
+            <button type="button" id="btn-capture-visibility-baseline" class="btn btn-secondary btn-sm" ${isViewer ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>${baseline ? t('overview.refresh_baseline', {}, 'Refresh baseline') : t('overview.capture_baseline', {}, 'Capture baseline')}</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-2);">
-            <div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Phase</span><strong>${phaseLabels[plan.current_phase] || 'Baseline'}</strong></div>
-            <div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Baseline</span><strong>${baseline ? new Date(baseline.captured_at).toLocaleDateString() : unmeasured}</strong></div>
-            <div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">Goals</span><strong>${goals.length || '—'}</strong></div>
+            <div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${t('overview.phase_label', {}, 'Phase')}</span><strong>${phaseLabels[plan.current_phase] || phaseLabels.baseline}</strong></div>
+            <div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${t('overview.baseline_label', {}, 'Baseline')}</span><strong>${baseline ? new Date(baseline.captured_at).toLocaleDateString() : unmeasured}</strong></div>
+            <div style="padding:var(--sp-3);background:var(--page);border:1px solid var(--line);"><span style="display:block;color:var(--muted);font-size:var(--fs-1);">${t('overview.goals_label', {}, 'Goals')}</span><strong>${goals.length || '—'}</strong></div>
           </div>
-          ${goals.length ? `<div style="display:flex;flex-wrap:wrap;gap:var(--sp-2);">${goals.map((goal) => `<span class="tag tag-dim">${escapeHtml(goal.label || goal.type)} · ${escapeHtml(goal.target)}</span>`).join('')}</div>` : '<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">Set measurable goals to track progress across sampling cycles.</p>'}
+          ${goals.length ? `<div style="display:flex;flex-wrap:wrap;gap:var(--sp-2);">${goals.map((goal) => `<span class="tag tag-dim">${escapeHtml(goal.label || goal.type)} · ${escapeHtml(goal.target)}</span>`).join('')}</div>` : `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('overview.set_goals', {}, 'Set measurable goals to track progress across sampling cycles.')}</p>`}
         </div>
         <div class="card" style="gap:var(--sp-3);">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
@@ -307,7 +379,7 @@ export default {
 
         <details class="card" style="gap:var(--sp-3);" open>
           <summary style="cursor:pointer;font-size:var(--fs-4);font-weight:600;">${t('overview.quick_wins_title', {}, 'This week: quick wins')} <span style="color:var(--muted);font-size:var(--fs-2);font-weight:400;">${t('overview.quick_wins_desc', {}, 'High-impact actions with a small effort estimate')}</span></summary>
-          ${quickWins.length ? `<div style="display:flex;flex-direction:column;gap:var(--sp-2);margin-top:var(--sp-2);">${quickWins.map((ticket) => `<a href="#/plan" style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--line);background:var(--page);text-decoration:none;"><span><strong style="display:block;font-size:var(--fs-2);">${escapeHtml(ticket.title || ticket.name || ticket.id)}</strong><span style="display:block;color:var(--muted);font-size:var(--fs-1);margin-top:3px;">${escapeHtml(ticket.action || ticket.why || 'Review the linked action ticket')}</span></span><span class="tag pill-warn">${escapeHtml(ticket.priority || 'P1')} · ${escapeHtml(ticket.effort || 'S')}</span></a>`).join('')}</div>` : `<p style="margin:var(--sp-2) 0 0;color:var(--muted);font-size:var(--fs-2);">${t('overview.quick_wins_empty', {}, 'No small-effort actions are currently identified. Review the full action plan for pending work.')}</p>`}
+          ${quickWins.length ? `<div style="display:flex;flex-direction:column;gap:var(--sp-2);margin-top:var(--sp-2);">${quickWins.map((ticket) => `<a href="#/plan" style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--line);background:var(--page);text-decoration:none;"><span><strong style="display:block;font-size:var(--fs-2);">${escapeHtml(ticket.title || ticket.name || ticket.id)}</strong><span style="display:block;color:var(--muted);font-size:var(--fs-1);margin-top:3px;">${escapeHtml(ticket.action || ticket.why || t('overview.review_action_ticket', {}, 'Review the linked action ticket'))}</span></span><span class="tag pill-warn">${escapeHtml(ticket.priority || 'P1')} · ${escapeHtml(ticket.effort || 'S')}</span></a>`).join('')}</div>` : `<p style="margin:var(--sp-2) 0 0;color:var(--muted);font-size:var(--fs-2);">${t('overview.quick_wins_empty', {}, 'No small-effort actions are currently identified. Review the full action plan for pending work.')}</p>`}
         </details>
 
         <div class="card" style="gap:var(--sp-3);">
@@ -504,7 +576,7 @@ export default {
     }
 
     const sampleBtn = document.getElementById('btn-run-sample');
-    if (sampleBtn) {
+    if (sampleBtn && !sampleBtn.disabled) {
       sampleBtn.addEventListener('click', async () => {
         sampleBtn.disabled = true;
         try {
@@ -531,7 +603,7 @@ export default {
     }
 
     const verifyBtn = document.getElementById('btn-run-verify');
-    if (verifyBtn) {
+    if (verifyBtn && !verifyBtn.disabled) {
       verifyBtn.addEventListener('click', async () => {
         verifyBtn.disabled = true;
         try {
@@ -550,12 +622,12 @@ export default {
     }
 
     const baselineBtn = document.getElementById('btn-capture-visibility-baseline');
-    if (baselineBtn) {
+    if (baselineBtn && !baselineBtn.disabled) {
       baselineBtn.addEventListener('click', async () => {
         baselineBtn.disabled = true;
         try {
           await projects.captureVisibilityBaseline(projectId);
-          toast.success('Visibility baseline captured');
+          toast.success(t('overview.baseline_captured', {}, 'Visibility baseline captured'));
           await ctx.reloadCurrentView();
         } catch (err) {
           toast.error(tError(err));

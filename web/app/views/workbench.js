@@ -21,6 +21,8 @@ export default {
     }
     const question = data.question;
     const samples = data.samples || [];
+    const okSamples = samples.filter((sample) => sample.ok);
+    const mentionedSamples = okSamples.filter((sample) => sample.mentioned);
     return `
       <div class="app-view-container">
         <div class="view-header">
@@ -42,7 +44,7 @@ export default {
           <span style="font-size:var(--fs-2);color:var(--muted);">${escapeHtml(question?.id || t('workbench.no_qid', {}, 'No question ID'))}${data.sample_date ? ` | ${escapeHtml(t('workbench.latest_artifact', { date: data.sample_date }, `Latest sample artifact: ${data.sample_date}`))}` : ''}</span>
           <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${(data.sources || []).map((source) => `<a class="tag tag-neutral workbench-source" href="#/assets?question=${encodeURIComponent(qid)}&path=${encodeURIComponent(source.path || '')}" title="${escapeHtml(source.path)}">${escapeHtml(source.kind)}: ${escapeHtml(source.path)}</a>`).join('')}</div>
         </div>
-        ${samples.length ? `<div class="card" style="display:flex;flex-wrap:wrap;gap:var(--sp-5);"><span><strong>${new Set(samples.map((s) => s.engine_code || s.engine_name)).size}</strong> ${t('workbench.models', {}, 'models')}</span><span><strong>${samples.filter((s) => s.ok && s.mentioned).length}/${samples.filter((s) => s.ok).length || 0}</strong> ${t('workbench.mentioned_summary', {}, 'mentioned')}</span><span>${escapeHtml(data.sample_date || '')}</span></div>` : ''}
+        ${samples.length ? `<div class="card" style="display:flex;flex-wrap:wrap;gap:var(--sp-5);"><span><strong>${new Set(samples.map((s) => s.engine_code || s.engine_name)).size}</strong> ${t('workbench.models', {}, 'models')}</span><span><strong>${okSamples.length ? `${mentionedSamples.length}/${okSamples.length}` : t('common.unmeasured', {}, 'Unmeasured')}</strong> ${t('workbench.mentioned_summary', {}, 'mentioned')}</span><span>${escapeHtml(data.sample_date || '')}</span></div>` : ''}
         <div style="display:flex;flex-direction:column;gap:var(--sp-4);">
           ${!loadFailed && samples.length ? samples.map((sample) => {
             const mentionedText = !sample.ok
@@ -63,7 +65,7 @@ export default {
               </div>
               <details>
                 <summary>${t('workbench.answer_summary', {}, 'Inspect model answer')}</summary>
-                <div class="sample-answer">${escapeHtml(sample.ok ? (sample.answer || t('workbench.empty_response', {}, 'Empty model response')) : t('workbench.sampling_failed', { error: sample.error || 'Unknown provider error' }, `Sampling failed: ${sample.error || 'Unknown provider error'}`))}</div>
+                <div class="sample-answer">${escapeHtml(sample.ok ? (sample.answer || t('workbench.empty_response', {}, 'Empty model response')) : t('workbench.sampling_failed', { error: sample.error || t('evidence.unknown_error', {}, 'Unknown provider error') }, `Sampling failed: ${sample.error || t('evidence.unknown_error', {}, 'Unknown provider error')}`))}</div>
               </details>
               <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;"><a class="btn btn-ghost btn-sm" href="#/assets?question=${encodeURIComponent(qid)}">${t('workbench.view_assets', {}, 'View assets')}</a><a class="btn btn-ghost btn-sm" href="#/plan?question=${encodeURIComponent(qid)}">${t('workbench.open_tickets', {}, 'Open tickets')}</a></div>
               ${(sample.citations || []).length ? `<div class="sample-citations">${sample.citations.map((citation) => {

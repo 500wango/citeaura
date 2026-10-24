@@ -11,6 +11,10 @@ export default {
     if (!projectId) return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
     const project = await projects.get(projectId).catch(() => null);
     if (!project) return `<div class="app-view-container">${t('project_settings.not_found', {}, 'Project not found')}</div>`;
+    const isOwner = ctx.role === 'owner';
+    const isViewer = ctx.role === 'viewer';
+    const ownerOnly = t('common.owner_only', {}, 'Only the workspace owner can make this change.');
+    const viewerOnly = t('plan.viewer_read_only', {}, 'Viewer access: you can inspect evidence but cannot change tickets or plans.');
     return `
       <div class="app-view-container">
         <div class="view-header">
@@ -18,24 +22,25 @@ export default {
             <h1 class="view-title">${t('project_settings.title', {}, 'Project Settings')}</h1>
             <p class="view-desc">${t('project_settings.desc', {}, 'Update the canonical website URL, market routing, and question language. Report output stays English in this release.')}</p>
           </div>
-          <div class="view-actions"><button type="button" id="btn-save-project-settings" class="btn btn-primary btn-sm">${t('project_settings.save_btn', {}, 'Save Settings')}</button></div>
+          <div class="view-actions"><button type="button" id="btn-save-project-settings" class="btn btn-primary btn-sm" ${isViewer ? `disabled title="${escapeHtml(viewerOnly)}"` : ''}>${t('project_settings.save_btn', {}, 'Save Settings')}</button></div>
         </div>
+        ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(viewerOnly)}</div>` : ''}
         <div style="display:flex;flex-direction:column;gap:var(--sp-6);max-width:680px;">
           <div class="card" style="gap:var(--sp-4);">
-            <div class="field" style="margin:0;"><label>${t('project_settings.url_label', {}, 'Canonical website URL')}</label><input type="url" id="proj-url-input" class="input" value="${escapeHtml(safeHttpUrl(project.url) || project.url || '')}"></div>
+            <div class="field" style="margin:0;"><label>${t('project_settings.url_label', {}, 'Canonical website URL')}</label><input type="url" id="proj-url-input" class="input" value="${escapeHtml(safeHttpUrl(project.url) || project.url || '')}" ${isViewer ? 'readonly' : ''}></div>
             <div class="field" style="margin:0;">
               <label for="proj-market-input">${t('project_settings.market_label', {}, 'Market')}</label>
-              <select id="proj-market-input" class="input">
-                <option value="global" ${project.market === 'global' ? 'selected' : ''}>Global · English-first</option>
-                <option value="cn" ${project.market === 'cn' ? 'selected' : ''}>China</option>
-                <option value="both" ${project.market === 'both' ? 'selected' : ''}>Both markets</option>
+              <select id="proj-market-input" class="input" ${isViewer ? 'disabled' : ''}>
+                <option value="global" ${project.market === 'global' ? 'selected' : ''}>${t('project_settings.market_global', {}, 'Global · English-first')}</option>
+                <option value="cn" ${project.market === 'cn' ? 'selected' : ''}>${t('project_settings.market_cn', {}, 'China')}</option>
+                <option value="both" ${project.market === 'both' ? 'selected' : ''}>${t('project_settings.market_both', {}, 'Both markets')}</option>
               </select>
               <div class="field-hint">${t('project_settings.market_hint', {}, 'Changing the market changes the engine cohort; existing samples are attributed separately.')}</div>
             </div>
             <div class="field" style="margin:0;">
               <label for="proj-language-input">${t('project_settings.question_language_label', {}, 'Question language')}</label>
-              <select id="proj-language-input" class="input">
-                <option value="auto" ${(project.question_language || 'auto') === 'auto' ? 'selected' : ''}>Auto</option>
+              <select id="proj-language-input" class="input" ${isViewer ? 'disabled' : ''}>
+                <option value="auto" ${(project.question_language || 'auto') === 'auto' ? 'selected' : ''}>${t('project_settings.language_auto', {}, 'Auto')}</option>
                 <option value="en" ${project.question_language === 'en' ? 'selected' : ''}>English</option>
                 <option value="zh" ${project.question_language === 'zh' ? 'selected' : ''}>简体中文</option>
                 <option value="ja" ${project.question_language === 'ja' ? 'selected' : ''}>日本語</option>
@@ -49,14 +54,14 @@ export default {
           <div class="card" style="border-color:var(--bad);gap:var(--sp-3);">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;color:var(--bad);">${t('project_settings.archive_title', {}, 'Archive project')}</h3>
             <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${t('project_settings.archive_desc', {}, 'Archiving removes the project from the active workspace list and keeps filesystem artifacts on disk. It does not permanently delete files.')}</p>
-            <button type="button" id="btn-delete-project" class="btn btn-danger btn-sm" style="align-self:flex-start;">${t('project_settings.archive_btn', {}, 'Archive Project')}</button>
+            <button type="button" id="btn-delete-project" class="btn btn-danger btn-sm" style="align-self:flex-start;" ${isOwner ? '' : `disabled title="${escapeHtml(ownerOnly)}"`}>${t('project_settings.archive_btn', {}, 'Archive Project')}</button>
           </div>
         </div>
       </div>`;
   },
   mounted: (ctx) => {
     const projectId = ctx.activeProjectId;
-    document.getElementById('btn-save-project-settings')?.addEventListener('click', async () => {
+    if (ctx.role !== 'viewer') document.getElementById('btn-save-project-settings')?.addEventListener('click', async () => {
       const url = document.getElementById('proj-url-input')?.value.trim();
       const market = document.getElementById('proj-market-input')?.value;
       const questionLanguage = document.getElementById('proj-language-input')?.value;
@@ -70,7 +75,7 @@ export default {
         toast.error(tError(err));
       }
     });
-    document.getElementById('btn-delete-project')?.addEventListener('click', async () => {
+    if (ctx.role === 'owner') document.getElementById('btn-delete-project')?.addEventListener('click', async () => {
       const confirmed = await confirmModal(t('project_settings.archive_confirm', {}, 'Archive this project? Files will remain on disk and the project can be recreated after cleanup or restore.'), { isDanger: true, confirmText: t('project_settings.archive_btn', {}, 'Archive project') });
       if (!confirmed) return;
       try {
