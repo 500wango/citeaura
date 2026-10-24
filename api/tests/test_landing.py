@@ -596,6 +596,7 @@ def test_landing_js_supports_international_locales():
     assert "fetch('/i18n/en.json')" in response.text
     assert "fetch('/i18n/' + state.locale + '.json')" in response.text
     assert "function publicValue(key, fallback, params)" in response.text
+    assert "rememberDefault(summary, 'nav-label'" in response.text
     assert "public.landing.preview_log_ready" in response.text
     assert "new WeakMap()" in response.text
     assert "function refreshPreviewLocale()" in response.text

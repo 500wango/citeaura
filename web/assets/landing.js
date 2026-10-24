@@ -149,7 +149,7 @@ function sanitizeLandingHtml(value) {
     $$('.nav-group summary').forEach(function (summary) {
       var textNode = summary.firstChild;
       if (!textNode || textNode.nodeType !== 3) return;
-      var source = normalizeText(textNode.nodeValue);
+      var source = rememberDefault(summary, 'nav-label', normalizeText(textNode.nodeValue));
       var value = catalogValue(keys[source]);
       if (value != null) textNode.nodeValue = ' ' + value + ' ';
     });

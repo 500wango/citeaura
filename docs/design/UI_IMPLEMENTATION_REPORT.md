@@ -390,3 +390,10 @@
 - 真实项目的工单业务内容可能仍以英文或用户输入语言出现；本轮只保证界面标签、标准状态、基线标签、质量问题与摘要走 i18n，不翻译用户/引擎内容。
 - 旧版 `product-*-real-v2.webp` 与 `*-clay.webp` 保留用于兼容外部引用和 `scripts/acceptance.py`，当前营销 HTML 已不再引用。
 - 回滚：还原上述 HTML / JS / i18n / localization 文件，并删除 21 张 `product-{overview,tickets,delivery}-<locale>.webp`；无数据库、计费或 API 契约变更。
+
+## 12. 2026-10-24 增量：导航分组标题跨语言切换修复
+
+- 根因：`applyNavGroupLabels()` 从 `<summary>` 当前文本反查翻译 key。首次切换英文到法语后，`Product / Resources` 已被改写为 `Produit / Ressources`；再切中文时反查失败，分组标题保留法语，而 `data-i18n` 的“解决方案 / 价格”正常变中文，形成混合语言。刷新后可能暂时恢复，但这不是缓存问题。
+- 修复：用 `rememberDefault(summary, 'nav-label', ...)` 保存首次英文源标签，后续无论切到哪种语言都从稳定源匹配 `nav.product_group`、`nav.solutions_group`、`nav.resources_group`。未改 HTML 结构、翻译目录或后端契约。
+- 验证：`python3 -m pytest api/tests/test_landing.py -q` 为 **35 passed**；`node --check web/assets/landing.js` 与 `git diff --check` 通过。
+- 浏览器复现路径：Chrome 打开 `/fr`，切到中文后 `<html lang="zh-CN">`，导航为“产品 / 解决方案 / 资源 / 价格”，无法语残留。截图：`docs/design/screenshots/marketing-nav-zh-after-fr.png`。
