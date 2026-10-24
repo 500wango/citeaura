@@ -134,3 +134,10 @@
 - 服务端 PDF 已按文档主语言选择 Unicode CID 字体：中文 `STSong-Light`、日文 `HeiseiMin-W3`、韩文 `HYSMyeongJo-Medium`，英文保持 Helvetica；用真实中文 delivery 渲染检查，`·` 等 CID 缺字符号在渲染前替换。
 - Evidence Drawer 已用临时 fixture 的真实 sample replay 截图（1440 drawer、375 sheet）；fixture 只存在于 `/tmp/ca-ui-Ye5KWO`，未写入生产页面或仓库样例数据。
 - 本轮不改 `/api/v1/` 既有契约、计费、trial、引擎计算或权限判定；PDF 是新增只读能力，旧客户端可继续使用原 Download/ZIP 端点。
+
+### 8.2 第三批增量（2026-10-24）
+
+- 发现公开营销站语言选择器仍硬编码 `LOCALES = ['en', 'fr']`，与后端 7 locale 和 SPA 7 locale 不一致。现已统一为 `en, zh, ja, ko, es, fr, de`，并补齐 `public/{ja,ko,es,de}.json`。
+- 新增公开页 key 覆盖测试，扫描 `web/**/*.html` 的 `data-i18n*` 与 JS 中的 `public.*` key，要求每个非英文 locale 的产品目录 + 公开目录无缺失项。
+- 左侧 rail 从“仅图标 + hover tooltip”改为常驻图标和文字标签，宽度 92px；移动端继续使用完整文字导航抽屉。`aria-label`、`aria-current` 和键盘焦点未改。
+- 详细文件、测试结果与截图见 `UI_IMPLEMENTATION_REPORT.md` 第 10 节。

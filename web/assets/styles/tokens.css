@@ -110,10 +110,10 @@
   /* Layout */
   --shell: 1200px;
   --header-h: 64px;
-  --rail-w: 64px;
+  --rail-w: 92px;
   --panel-w: 184px;
-  --ca-sidebar-width: 248px;
-  --ca-sidebar-compact: 64px;
+  --ca-sidebar-width: 276px;
+  --ca-sidebar-compact: 92px;
   --ca-marketing-max: 1200px;
   --ca-workspace-max: 1600px;
 

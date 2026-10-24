@@ -32,10 +32,8 @@ function sanitizeLandingHtml(value) {
   'use strict';
 
   var THEME_COLORS = { light: '#f8fafc', dark: '#0b1220' };
-  // Only reviewed locales are exposed in the picker; other catalogs remain
-  // addressable through an explicit `lang` query for staged rollout.
-  var LOCALES = ['en', 'fr'];
   var SUPPORTED_LOCALES = ['en', 'zh', 'ja', 'ko', 'es', 'fr', 'de'];
+  var LOCALES = SUPPORTED_LOCALES.slice();
   var LOCALE_LABELS = { en: 'English (EN)', zh: '简体中文 (ZH)', ja: '日本語 (JA)', ko: '한국어 (KO)', es: 'Español (ES)', fr: 'Français (FR)', de: 'Deutsch (DE)' };
   var LOCALE_HTML_LANG = { en: 'en', zh: 'zh-CN', ja: 'ja', ko: 'ko', es: 'es', fr: 'fr', de: 'de' };
   var state = { locale: 'en', theme: 'dark', billing: 'monthly', catalog: {}, fallbackCatalog: {}, literalCatalog: {}, defaults: new WeakMap(), activeDomain: 'yourbrand.com', catalogRequest: 0 };

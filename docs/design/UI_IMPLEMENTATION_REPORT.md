@@ -197,10 +197,10 @@
 
 | 命令 | 结果 |
 |---|---|
-| `python3 -m pytest api/tests -q` | **619 passed**, 5 warnings, 104.86s |
+| `python3 -m pytest api/tests -q` | **620 passed**, 5 warnings, 106.26s |
 | `cd engine && python3 -m unittest discover -s tests` | **OK**, 2 skipped |
-| `python3 -m pytest api/tests/test_ui.py api/tests/test_i18n.py -q` | **54 passed**, 2.81s |
-| `python3 -m pytest api/tests/test_landing.py -q` | **33 passed**, 2.09s |
+| `python3 -m pytest api/tests/test_ui.py api/tests/test_i18n.py -q` | **55 passed**, 2.18s |
+| `python3 -m pytest api/tests/test_landing.py -q` | **34 passed**, 2.09s |
 | `python3 -m pytest api/tests/test_delivery_documents.py api/tests/test_projects.py::test_delivery_pdf_renders_the_selected_markdown_document -q` | **5 passed**（CJK 字体选择、中文 Markdown、PDF `%PDF-`、`application/pdf`、source revision header） |
 | `node --check` 全部改动 JS + `landing.js` + `theme-init.js` | pass |
 | `test_frontend_view_modules_parse_as_es_modules` | pass（所有 view 作为 ES module 导入） |
@@ -246,7 +246,9 @@
 | `overview-mobile-nav-375.png` | 移动导航抽屉 |
 | `engines-desktop.png` | Visibility Matrix |
 | `engines-mobile-375.png` | Visibility Matrix 移动端 |
-| `rail-tooltip-desktop.png` | 左侧 rail 图标在 hover/focus 时显示当前功能区名称 |
+| `rail-labels-desktop.png` | 左侧 rail 常驻显示图标与功能区文字，不再依赖 hover |
+| `i18n-picker-7-desktop.png` | 公开页语言菜单完整显示 7 个 locale |
+| `i18n-docs-ja-desktop.png` | 切换日语后的 Docs 页面 |
 | `tickets-desktop.png` | Action Tickets |
 | `verify-desktop.png` | Closed-Loop Verify |
 | `report-desktop.png` | Client Delivery Packs |
@@ -293,3 +295,40 @@
 2. 若引入浏览器测试，优先补 Overview 空状态、Viewer ticket、活动 job 互斥与 375 宽度；不要复制本轮的手动截图脚本为正式测试。
 3. 服务端 PDF 已落地并覆盖英/中/日/韩字体；后续只需在新增特殊符号或 emoji 时补充字体回退测试。
 4. 定期用 `TRIAL_DAYS`/`PLAN_FEATURES` 驱动的契约测试防止公开文案再次漂移。
+
+## 10. 2026-10-24 增量：7 locale 对齐与 rail 可读性
+
+### 10.1 语言选择器
+
+- 公开营销站的 `web/assets/landing.js` 原先把 `LOCALES` 限制为 `['en', 'fr']`，与后端 `SUPPORTED_LOCALES = ("en", "zh", "ja", "ko", "es", "fr", "de")` 和 SPA `web/app/i18n.js` 不一致。现已统一为 7 个 locale，隐藏的 `site-locale` select 同步补齐 7 个 option。
+- 同步修改 `web/index.html`、`web/docs.html`、`web/blog/index.html` 及 9 个含语言选择器的博客正文页，避免无 JS 或辅助技术读取到旧的 2 项列表。
+- 新增完整公开页目录：`api/i18n/messages/public/{ja,ko,es,de}.json`，每个目录 221 个当前公开页实际引用的 key；`zh`/`fr` 保留已有的更多 key。加上既有产品目录后，所有非英文 locale 的缺失 key 为 0。
+- 修正 `zh`/`fr` 的存量漂移：`public.g2.sec1_h2`、`public.landing.models_count`、`public.landing.models_aria`，以及法语缺失的 `public.meta.g3_*`、`g4_*`、`g5_*`。
+- 产品目录 `api/i18n/messages/{en,zh,ja,ko,es,fr,de}.json` 仍保持 2574 个相同 key；本次检查未发现 placeholder 不一致、空值或 `[[missing:` 标记。
+
+### 10.2 控制台 rail
+
+- `--rail-w` 由 64px 调整为 92px，`rail-btn` 改为图标在上、文字在下的常驻布局。用户无需 hover 或读屏即可识别概览、监测、诊断、执行、交付、设置。
+- 保留现有 `aria-label`、`aria-current`、键盘焦点与移动端抽屉；移动端仍使用完整文字导航。
+
+### 10.3 验证
+
+| 命令 | 结果 |
+|---|---|
+| `python3 -m pytest api/tests -q` | **620 passed**, 5 warnings, 106.26s |
+| `python3 -m pytest api/tests/test_landing.py -q` | **34 passed** |
+| `python3 -m pytest api/tests/test_i18n.py -q` | **21 passed** |
+| `cd engine && python3 -m unittest discover -s tests` | **290 tests OK**, 2 skipped |
+| `node --check web/assets/landing.js` | pass |
+| `git diff --check` | pass |
+
+浏览器核对（本地临时 SQLite + FastAPI + Chrome）：
+
+- 1440 控制台 rail 常驻显示 6 个功能区中文标签，当前项同时有选中背景和左侧指示条。
+- 公开页语言菜单显示 `English / 简体中文 / 日本語 / 한국어 / Español / Français / Deutsch`。
+- 选择日语后 `<html lang="ja">`、标题和 Docs H1 均为日语；截图见 `docs/design/screenshots/i18n-picker-7-desktop.png`、`i18n-docs-ja-desktop.png`。
+
+### 10.4 剩余风险
+
+- key 完整性、占位符一致性和空值已自动校验；日语、韩语、西班牙语、德语的语义质量仍需母语者做一次编辑审校，这属于文案质量风险，不是缺 key 或运行时回退。
+- 长博客正文仍保留英文原文，语言选择器只切换已提供目录的页面框架与导航文案；未把未翻译的长文伪造成已本地化内容。

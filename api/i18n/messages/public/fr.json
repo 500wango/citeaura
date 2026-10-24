@@ -34,8 +34,8 @@
   "public.landing.plan_starter_name": "Starter",
   "public.landing.plan_pro_name": "Pro",
   "public.landing.plan_agency_name": "Agency",
-  "public.landing.models_aria": "Modes d'échantillonnage et moteurs d'IA pris en charge",
-  "public.landing.models_count": "6 moteurs API + 9 surfaces produit + personnalisé",
+  "public.landing.models_aria": "Moteurs d’IA pris en charge",
+  "public.landing.models_count": "10 moteurs API + 12 surfaces produit + personnalisé",
   "public.landing.custom_endpoint_name": "Compatible OpenAI personnalisé",
   "public.landing.custom_endpoint_badge": "Apportez votre propre endpoint",
   "public.landing.preview_preparing": "Préparation de l'espace de travail {domain}…",
@@ -305,5 +305,12 @@
   "public.meta.docs_description": "Documentation CiteAura : de l'exploration de site et l'échantillonnage IA aux tickets de diagnostic, à la vérification et à la livraison client.",
   "public.meta.blog_title": "Guides de visibilité IA et GEO | CiteAura",
   "public.meta.blog_description": "Guides pratiques sur les mentions de marque dans ChatGPT, l'accès GPTBot, llms.txt et les diagnostics GEO en marque blanche.",
-  "public.guide.breadcrumb_aria": "Fil d'Ariane"
+  "public.guide.breadcrumb_aria": "Fil d'Ariane",
+  "public.g2.sec1_h2": "Les 4 catégories de diagnostic",
+  "public.meta.g3_title": "gptbot robots.txt : trouver le Disallow et autoriser GPTBot | CiteAura",
+  "public.meta.g3_description": "GPTBot est-il bloqué par votre robots.txt ou Cloudflare WAF ? Comment trouver les règles User-agent: GPTBot Disallow et autoriser les robots OpenAI en toute sécurité avec des tests curl.",
+  "public.meta.g4_title": "Bonnes pratiques llms.txt : faits, URL, ce qu’il faut omettre | CiteAura",
+  "public.meta.g4_description": "Un llms.txt officiel et concis : des faits vérifiables et des URL publiques. Évitez les slogans, les classements et les affirmations non vérifiées.",
+  "public.meta.g5_title": "Rapports de diagnostic GEO en marque blanche pour les agences | CiteAura",
+  "public.meta.g5_description": "Spécification technique des rapports de diagnostic GEO en marque blanche : structure du pack, exports de preuves, visibilité avant/après et workflows d’agence."
 }

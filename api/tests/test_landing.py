@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from api.main import app
+from api.i18n import SUPPORTED_LOCALES
 from api.i18n.catalog import load_all_catalogs
 
 
@@ -435,7 +436,7 @@ def test_public_zh_catalog_covers_docs_and_guides():
     assert response.status_code == 200
     catalog = response.json()
     assert catalog["public.meta.docs_title"].startswith("CiteAura 文档")
-    assert catalog["public.g2.sec1_h2"] == "ChatGPT 跳过品牌的常见原因"
+    assert catalog["public.g2.sec1_h2"] == "4 类诊断因素"
 
     root = Path(__file__).resolve().parents[2] / "web"
     pages = [root / "docs.html", root / "blog" / "index.html", *sorted((root / "blog").glob("*.html"))]
@@ -475,6 +476,25 @@ def test_public_fr_catalog_covers_all_localized_public_pages():
     assert fr_res.status_code == 200
     assert "[[missing:" not in fr_res.text
     assert "Périmètre des preuves" in fr_res.text
+
+
+def test_public_catalogs_cover_all_referenced_keys_for_every_locale():
+    root = Path(__file__).resolve().parents[2] / "web"
+    keys = set()
+    for page in root.rglob("*.html"):
+        keys.update(re.findall(r'data-i18n(?:-[a-z]+)*="([^"]+)"', page.read_text("utf-8")))
+    for script in root.rglob("*.js"):
+        keys.update(re.findall(r"['\"](public\.[A-Za-z0-9_.-]+)['\"]", script.read_text("utf-8")))
+
+    product_catalogs = load_all_catalogs()
+    for locale in SUPPORTED_LOCALES:
+        if locale == "en":
+            continue
+        response = client.get(f"/i18n/public/{locale}.json")
+        assert response.status_code == 200, locale
+        available = set(product_catalogs[locale]) | set(response.json())
+        missing = sorted(key for key in keys if key not in available)
+        assert not missing, (locale, missing)
 
 
 def test_public_zh_catalog_covers_all_localized_public_pages():
@@ -559,7 +579,7 @@ def test_landing_js_supports_international_locales():
     assert response.status_code == 200
     assert "localStorage.setItem('ulang'" in response.text
     assert "function detectLocale()" in response.text
-    assert "var LOCALES = ['en', 'fr']" in response.text
+    assert "var LOCALES = SUPPORTED_LOCALES.slice()" in response.text
     assert "LOCALE_ASSET_VERSION" not in response.text
     assert "fetch('/i18n/en.json')" in response.text
     assert "fetch('/i18n/' + state.locale + '.json')" in response.text
