@@ -387,8 +387,8 @@ Disallow: /</code></pre>
 curl -I -A "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.0; +https://openai.com/gptbot)" https://citeaura.com/robots.txt</code></pre>
 
     <h2 id="verification">Verification and model expectations</h2>
-    <p>CiteAura audits fetch the live robots.txt from your canonical domain, resolve redirect chains, and evaluate RFC 9309 precedence rules. If a public marketing route is blocked, the audit generates an actionable engineering ticket with reproducible test commands.</p>
-    <p>Permitting crawler access in robots.txt allows compliant bots to retrieve your pages. It does not guarantee that a model will index the content, retrieve it during prompt evaluation, cite your domain, or rank your brand favorably in answers. Retrieval depends on index recency, prompt relevance, and runtime search intent.</p>
+    <p id="citeaura-records">CiteAura audits fetch the live robots.txt from your canonical domain, resolve redirect chains, and evaluate RFC 9309 precedence rules. If a public marketing route is blocked, the audit generates an actionable engineering ticket with reproducible test commands.</p>
+    <p id="not-a-ranking-promise">Permitting crawler access in robots.txt allows compliant bots to retrieve your pages. It does not guarantee that a model will index the content, retrieve it during prompt evaluation, cite your domain, or rank your brand favorably in answers. Retrieval depends on index recency, prompt relevance, and runtime search intent.</p>
 
     <h2>Sources</h2>
     <ul>

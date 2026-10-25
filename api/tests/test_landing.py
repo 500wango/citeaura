@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
+from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from api.main import app
@@ -353,6 +355,19 @@ def test_public_markup_has_no_manual_asset_version_queries():
             continue
         source = path.read_text("utf-8")
         assert re.search(r"(?:/site-assets/|/runtime-assets/|/app(?:-assets)?/|/i18n/)[^\"'\\s<>?]+\\?v=", source) is None, path
+
+
+def test_public_pages_have_no_dead_same_page_anchors():
+    """Every in-page link must resolve to an element on the same page."""
+    root = Path(__file__).resolve().parents[2] / "web"
+    for path in sorted(root.rglob("*.html")):
+        soup = BeautifulSoup(path.read_text("utf-8"), "html.parser")
+        for link in soup.find_all("a", href=True):
+            parsed = urlparse(link["href"])
+            if parsed.path or not parsed.fragment:
+                continue
+            fragment = unquote(parsed.fragment)
+            assert soup.find(id=fragment), f"{path}: missing anchor #{fragment}"
 
 
 def test_pages_use_the_runtime_theme_entrypoint():
@@ -912,12 +927,13 @@ def test_seo_canonical_redirects_and_nofollow_contracts():
     assert res.status_code == 308
     assert res.headers["location"] == "http://testserver/pricing"
 
-    # 3. Redundant ?lang= query param redirects to clean URL
+    # 3. Functional ?lang= query param is preserved instead of redirected away
     for path in ("/docs?lang=fr", "/privacy?lang=fr", "/terms?lang=fr", "/blog/sell-geo-retainers-with-delivery-packs?lang=fr"):
         res = client.get(path, follow_redirects=False)
-        assert res.status_code == 308
-        clean_target = path.split("?")[0]
-        assert res.headers["location"] == f"http://testserver{clean_target}"
+        assert res.status_code == 200
+    res = client.get("/docs/?lang=fr", follow_redirects=False)
+    assert res.status_code == 308
+    assert res.headers["location"] == "http://testserver/docs?lang=fr"
 
     # 4. Marketing attribution params like ?ref=producthunt are preserved without redirect
     res = client.get("/?ref=producthunt", follow_redirects=False)

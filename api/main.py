@@ -69,7 +69,7 @@ _NON_PUBLIC_PREFIXES = ("/api/", "/app", "/admin", "/files/", "/site-assets/", "
 
 
 def _public_canonical_redirect(request: Request):
-    """Build an HTTPS-safe canonical URL for public trailing-slash, .html, or query variants."""
+    """Build an HTTPS-safe canonical URL for public trailing-slash and .html variants."""
     path = request.url.path
     if any(path == p or path.startswith(p if p.endswith("/") else p + "/") for p in _NON_PUBLIC_PREFIXES):
         return None
@@ -90,12 +90,7 @@ def _public_canonical_redirect(request: Request):
         new_path = path.rstrip("/")
         needs_redirect = True
 
-    # 4. Strip redundant ?lang= query param from public pages
     new_query = request.url.query
-    if "lang=" in request.url.query:
-        params = [p for p in request.url.query.split("&") if p and not p.startswith("lang=")]
-        new_query = "&".join(params)
-        needs_redirect = True
 
     if not needs_redirect:
         return None
