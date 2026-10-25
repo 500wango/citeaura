@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Free llms.txt Generator &amp; Validator for AI Search | CiteAura</title>
-  <meta name="description" content="Generate and validate your official /llms.txt file from public homepage metadata. Provide AI search engines with clean, machine-readable brand facts.">
+  <title>Free llms.txt Generator &amp; Validator | CiteAura</title>
+  <meta name="description" content="Generate a human-reviewed llms.txt draft from public homepage metadata. Optional for supporting agents; Google Search does not use llms.txt.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <link rel="canonical" href="https://citeaura.com/llms-txt-tool">
@@ -18,16 +18,16 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/llms-txt-tool">
-  <meta property="og:title" content="Free llms.txt Generator &amp; Validator for AI Search | CiteAura">
-  <meta property="og:description" content="Build an official /llms.txt manifest that tells AI engines what your company does and which canonical pages matter.">
+  <meta property="og:title" content="Free llms.txt Generator &amp; Validator | CiteAura">
+  <meta property="og:description" content="Generate a human-reviewed llms.txt draft from public homepage metadata. Optional for supporting agents; Google Search does not use llms.txt.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-default.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="CiteAura free llms.txt generator">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="llms.txt Generator · CiteAura">
-  <meta name="twitter:description" content="Generate a clean, sourced llms.txt manifest from public homepage metadata.">
+  <meta name="twitter:title" content="Free llms.txt Generator &amp; Validator | CiteAura">
+  <meta name="twitter:description" content="Generate a human-reviewed llms.txt draft from public homepage metadata. Google Search does not use llms.txt.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-default.png">
 
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
@@ -50,7 +50,7 @@
         "url": "https://citeaura.com/llms-txt-tool",
         "applicationCategory": "DeveloperApplication",
         "operatingSystem": "All",
-        "description": "Generate and validate reviewable llms.txt drafts from public homepage metadata for generative AI search engines.",
+        "description": "Generate and validate human-reviewed llms.txt drafts from public homepage metadata for agents that support the convention.",
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -71,7 +71,7 @@
           "url": "https://citeaura.com/about"
         },
         "datePublished": "2026-09-06",
-        "dateModified": "2026-09-06"
+        "dateModified": "2026-10-25"
       },
       {
         "@type": "BreadcrumbList",
@@ -89,7 +89,7 @@
             "name": "What is an llms.txt file?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "An llms.txt file is a markdown-formatted plain text file deployed at your site root or /.well-known/llms.txt that provides AI crawlers with concise entity definitions, key facts, and curated links to essential documentation."
+              "text": "An llms.txt file is a proposed Markdown convention at /llms.txt. It gives supporting agents a concise set of entity definitions, verified facts, and canonical links. It is not a Google Search requirement, and Google Search does not use it."
             }
           },
           {
@@ -97,15 +97,23 @@
             "name": "Does publishing an llms.txt guarantee AI recommendations?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "No. The file is a discovery aid that reduces extraction ambiguity, not a ranking guarantee. Answer engines evaluate full page content, third-party corroboration, and user context."
+              "text": "No. Some agents or crawlers may ignore the file. It is a discovery aid, not a ranking or citation guarantee."
             }
           },
           {
             "@type": "Question",
-            "name": "Where should the llms.txt file be hosted?",
+              "name": "Where should the llms.txt file be hosted?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Host it at https://yourdomain.com/llms.txt or https://yourdomain.com/.well-known/llms.txt with content-type text/plain; charset=utf-8, and reference it in your robots.txt or HTML link headers."
+                "text": "Publish it at https://yourdomain.com/llms.txt with a successful text response. /.well-known/llms.txt is not required by the convention. robots.txt and link headers are not required to use the file."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is llms.txt required for Google Search?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. Google Search does not use llms.txt and does not require special AI text files or markup for AI Overviews or AI Mode."
             }
           }
         ]
@@ -160,7 +168,7 @@
     <header>
       <span class="seo-kicker">CiteAura Free GEO Tool</span>
       <h1>llms.txt generator &amp; validator</h1>
-      <p class="seo-lead">Create a clean, human-reviewed llms.txt draft from your public homepage metadata. The file acts as a machine-readable discovery index for generative AI engines.</p>
+      <p class="seo-lead">Create a human-reviewed llms.txt draft from your public homepage metadata for agents that support the convention. Google Search does not use llms.txt.</p>
     </header>
 
     <section class="tool-form-card">
@@ -184,12 +192,12 @@
     </section>
 
     <section class="seo-section" aria-labelledby="llms-guide-title">
-      <h2 id="llms-guide-title">What belongs in an official llms.txt?</h2>
-      <p class="seo-lead">An llms.txt file is designed for automated parsers that need quick, reliable context about your brand without crawling thousands of promotional pages.</p>
+      <h2 id="llms-guide-title">What belongs in a reviewable llms.txt?</h2>
+      <p class="seo-lead">An llms.txt file is intended for automated parsers that choose to read it. It is not a universal indexing standard and does not replace crawlable HTML.</p>
       <div class="seo-grid" style="margin-top:var(--sp-6);">
         <article class="seo-panel">
           <span class="seo-label">Identity</span>
-          <h3>Standard Brand Definition</h3>
+          <h3>Clear Brand Definition</h3>
           <p>A single clear sentence defining what the company is, who it serves, and what primary problem it solves. Skip hyperbolic marketing claims.</p>
         </article>
         <article class="seo-panel">
@@ -203,9 +211,9 @@
           <p>Explicit statements of what your product does not do, avoiding AI hallucination and incorrect feature attribution in customer answers.</p>
         </article>
         <article class="seo-panel">
-          <span class="seo-label">Token Budget</span>
-          <h3>Context Window Safety</h3>
-          <p>Keep your root file below 5 KB (~1,500 tokens). Massive documentation dumps should go into an optional <code>/llms-full.txt</code> to avoid exceeding agent context limits.</p>
+          <span class="seo-label">Editorial Size</span>
+          <h3>Keep the Index Scannable</h3>
+          <p>Five kilobytes is a practical editorial target, not a protocol limit. Keep the root file concise and link to fuller documentation instead of copying it into the index.</p>
         </article>
       </div>
     </section>
@@ -237,19 +245,23 @@
       <div class="seo-faq">
         <details open>
           <summary>What is an llms.txt file?</summary>
-          <p>An llms.txt file is a markdown-formatted plain text file deployed at your site root or /.well-known/llms.txt that provides AI crawlers with concise entity definitions, key facts, and curated links to essential documentation.</p>
+          <p>An llms.txt file is a proposed Markdown convention at /llms.txt. It gives supporting agents concise entity definitions, verified facts, and canonical links. It is not a Google Search requirement, and Google Search does not use it.</p>
         </details>
         <details>
           <summary>Does publishing an llms.txt guarantee AI recommendations?</summary>
-          <p>No. The file is a discovery aid that reduces extraction ambiguity, not a ranking guarantee. Answer engines evaluate full page content, third-party corroboration, and user context.</p>
+          <p>No. Some agents or crawlers may ignore the file. It is a discovery aid, not a ranking or citation guarantee.</p>
         </details>
         <details>
           <summary>Where should the llms.txt file be hosted?</summary>
-          <p>Host it at https://yourdomain.com/llms.txt or https://yourdomain.com/.well-known/llms.txt with content-type text/plain; charset=utf-8, and reference it in your robots.txt or HTML link headers.</p>
+          <p>Publish it at https://yourdomain.com/llms.txt with a successful text response. /.well-known/llms.txt is not required by the convention. robots.txt and link headers are not required to use the file.</p>
+        </details>
+        <details>
+          <summary>Is llms.txt required for Google Search?</summary>
+          <p>No. Google Search does not use llms.txt and does not require special AI text files or markup for AI Overviews or AI Mode.</p>
         </details>
         <details>
           <summary>What is the recommended size limit for llms.txt vs llms-full.txt?</summary>
-          <p>Keep your root <code>/llms.txt</code> under 5 KB (roughly 1,000–1,500 tokens). Automated retrieval agents use this file as a concise index to discover relevant canonical paths. If you have extensive documentation, publish an optional <code>/llms-full.txt</code>, but ensure individual sections do not overflow the typical retrieval chunk window (typically 2,000–4,000 tokens).</p>
+          <p>Five kilobytes is practical editorial guidance, not a protocol limit. Keep the index short enough to scan and link to canonical pages for detail. Size and truncation behavior vary by client, so test with the agents you care about.</p>
         </details>
       </div>
     </section>
@@ -257,7 +269,7 @@
     <section class="seo-footer-cta" aria-labelledby="tool-cta-title">
       <div>
         <h2 id="tool-cta-title">Audit your complete GEO readiness.</h2>
-        <p>Combine llms.txt with site crawlability, structured data, and multi-model visibility sampling.</p>
+        <p>Combine llms.txt with site crawlability, accurate structured data, and measured AI visibility.</p>
       </div>
       <a class="btn btn-primary" href="/ai-visibility-audit">Start full audit <span aria-hidden="true">→</span></a>
     </section>

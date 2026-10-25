@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Google AI Overviews Optimization: Technical Guide to Citations | CiteAura</title>
-  <meta name="description" content="Technical guide to Google AI Overviews optimization: Gemini synthesis mechanics, Googlebot vs Google-Extended crawl governance, snippet directive controls, and citation verification.">
+  <title>Google AI Overviews: Official SEO Guide | CiteAura</title>
+  <meta name="description" content="What Google's official documentation says about AI Overviews eligibility, snippets, indexing, Google-Extended, and measuring performance in Search Console.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/runtime-assets/theme-init.js"></script>
@@ -21,8 +21,8 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/google-ai-overviews-optimization">
-  <meta property="og:title" content="Google AI Overviews Optimization: Engineering Guide">
-  <meta property="og:description" content="Learn how Google AI Overviews select citation cards and what official guidance says about technical accessibility and web indexing.">
+  <meta property="og:title" content="Google AI Overviews: Official SEO Guide">
+  <meta property="og:description" content="What Google's official documentation says about AI Overviews eligibility, snippets, indexing, Google-Extended, and Search Console measurement.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-default.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -34,10 +34,10 @@
       {
         "@type": "Article",
         "@id": "https://citeaura.com/google-ai-overviews-optimization#article",
-        "headline": "Google AI Overviews Optimization: Technical Guide to Citations",
-        "description": "Technical guide to Google AI Overviews optimization: Gemini synthesis mechanics, Googlebot vs Google-Extended crawl governance, snippet directive controls, and citation verification.",
+        "headline": "Google AI Overviews: Official SEO Guide",
+        "description": "What Google's official documentation says about AI Overviews eligibility, snippets, indexing, Google-Extended, and measuring performance in Search Console.",
         "datePublished": "2026-08-12",
-        "dateModified": "2026-09-20",
+        "dateModified": "2026-10-25",
         "author": {
           "@type": "Organization",
           "name": "CiteAura Research Team",
@@ -85,16 +85,16 @@
     <section class="seo-hero">
       <div>
         <span class="seo-kicker">Search Engine Systems</span>
-        <h1>Google AI Overviews: The Technical Guide to Earning Search Citations</h1>
-        <p class="seo-lead">Google AI Overviews synthesize web information directly above organic search results. Contrary to speculative myths about artificial chunking or proprietary tags, Google's official documentation confirms that AI Overviews build directly upon core web ranking systems, Googlebot rendering, and structured entity disambiguation.</p>
-        <p class="seo-meta">By <a href="/authors" style="color:var(--accent);text-decoration:none;font-weight:600;">CiteAura Research Team</a> · Updated September 2026</p>
+        <h1>Google AI Overviews: What Official Documentation Says</h1>
+        <p class="seo-lead">Google AI Overviews build on Search's core ranking and quality systems. Google says there are no additional requirements or AI-specific optimizations; eligibility starts with an indexed page that is eligible to appear with a snippet.</p>
+        <p class="seo-meta">By <a href="/authors" style="color:var(--accent);text-decoration:none;font-weight:600;">CiteAura Research Team</a> · Updated October 2026</p>
       </div>
     </section>
 
     <!-- Interactive Tool Callout -->
     <div style="background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--r-md);padding:var(--sp-4) var(--sp-5);margin:var(--sp-6) 0;">
-      <h3 style="margin:0 0 4px;font-size:var(--fs-4);">Validate your entity graph for Google AI Overviews</h3>
-      <p style="margin:0 0 var(--sp-3);font-size:var(--fs-2);color:var(--ink-2);">Google uses Schema.org to understand brand entities. Verify whether your Organization and Product schema are valid and disambiguated:</p>
+      <h3 style="margin:0 0 4px;font-size:var(--fs-4);">Validate your entity graph for Google Search</h3>
+      <p style="margin:0 0 var(--sp-3);font-size:var(--fs-2);color:var(--ink-2);">Google does not require AI-specific Schema.org markup. Check that your Organization and Product schema match visible content and support rich-result eligibility:</p>
       <a class="btn btn-primary btn-sm" href="/schema-tool">Open Brand Schema Checker (Free) &rarr;</a>
     </div>
 
@@ -102,16 +102,17 @@
       <h2>How Google AI Overviews Select Citation Sources</h2>
       <p>Google's generative search features do not operate as an isolated crawler. According to Google Search Central, AI Overviews represent an inference layer evaluated over Google's standard web index:</p>
       <ol>
-        <li><strong>Candidate Selection from Organic Index:</strong> Pages must first be crawled by <code>Googlebot</code>, indexed, and evaluated by Google's core ranking systems (including the Helpful Content and E-E-A-T evaluations). Only URLs that meet Google's baseline quality thresholds enter the candidate pool.</li>
-        <li><strong>Query Understanding &amp; Information Slicing:</strong> Gemini models evaluate the search intent and retrieve relevant document passages from candidate documents.</li>
-        <li><strong>Snippet Directive Evaluation:</strong> Google inspects robots meta tags. Directives such as <code>nosnippet</code>, <code>max-snippet</code>, or the inline HTML attribute <code>data-nosnippet</code> explicitly govern what text Google is legally permitted to extract and display in generative overviews.</li>
-        <li><strong>Source Card Carousel Binding:</strong> Citation links (cards) appear on the right side of the overview box or inline. These cards link to pages that substantiate specific sentences in the generated summary.</li>
+        <li><strong>Candidate Selection from the Search Index:</strong> Pages must be crawled by <code>Googlebot</code>, indexed, and eligible to be shown in Google Search with a snippet. Google's core ranking and quality systems determine which pages are retrieved; Google has not published an AI-specific candidate threshold.</li>
+        <li><strong>Query Fan-Out and Retrieval:</strong> Google documents query fan-out and retrieval-augmented generation. The exact model and passage-selection details can vary between AI Overviews and AI Mode.</li>
+        <li><strong>Snippet Directive Evaluation:</strong> Directives such as <code>nosnippet</code>, <code>max-snippet</code>, or <code>data-nosnippet</code> limit what text Google may show from a page in Search and its AI features. They affect display controls, not a separate legal-permission test.</li>
+        <li><strong>Supporting Source Links:</strong> AI Overviews and AI Mode may show a wider, more diverse set of supporting links. Google does not guarantee that a page will be cited even when it meets the requirements.</li>
       </ol>
+      <div class="seo-callout"><p><strong>Measure the result:</strong> Use the <a href="https://developers.google.com/search/docs/fundamentals/ai-optimization-guide#measure-visibility-in-generative-ai-features-with-search-console" rel="noopener noreferrer">Generative AI performance report in Search Console</a> to see how content performs in Google's generative AI features. No third-party tool has access to Google's internal ranking or AI systems.</p></div>
     </section>
 
     <section class="seo-section">
       <h2>Googlebot vs. Google-Extended: Clarifying the Crawl Boundary</h2>
-      <p>A widespread misconception is that blocking <code>Google-Extended</code> protects content from Google AI Overviews. This is factually incorrect according to Google's official crawler documentation:</p>
+      <p><code>Googlebot</code> controls crawling for Google Search. <code>Google-Extended</code> is a separate robots.txt token for whether crawled content may be used for training future Gemini models and for grounding in Gemini Apps and Grounding with Google Search on Vertex AI. It does not affect a site's inclusion in Google Search and is not a ranking signal.</p>
       <div class="seo-table-wrap">
         <table class="seo-table">
           <thead>
@@ -124,13 +125,13 @@
           <tbody>
             <tr>
               <td><code>Googlebot</code></td>
-              <td>Crawls web pages for Google Search indexing.</td>
-              <td><strong>Required.</strong> If you block Googlebot, your site is removed from both traditional search and Google AI Overviews.</td>
+              <td>Crawls and renders pages for Google Search indexing.</td>
+              <td><strong>Required for Search eligibility.</strong> Blocking Googlebot can remove your site from Search and its AI features.</td>
             </tr>
             <tr>
               <td><code>Google-Extended</code></td>
-              <td>Controls training data ingestion for Gemini standalone foundation models.</td>
-              <td><strong>No impact on Search.</strong> Blocking Google-Extended prevents your text from training standalone LLMs, but your site remains fully eligible for Google Search and AI Overviews.</td>
+              <td>Controls use of crawled content for training future Gemini models and for grounding in Gemini Apps and Grounding with Google Search on Vertex AI.</td>
+              <td><strong>No effect on Search inclusion or ranking.</strong> It also does not determine AI Overviews eligibility. It can limit use in other Gemini grounding surfaces.</td>
             </tr>
           </tbody>
         </table>
@@ -139,32 +140,32 @@
 
     <section class="seo-section">
       <h2>Controlling Extraction with Standard HTML Snippet Directives</h2>
-      <p>Google provides standard, W3C-compliant web controls to specify how content can be extracted without blocking indexing:</p>
+      <p>Google provides standard controls that limit what text can be shown without blocking indexing:</p>
       <ul>
         <li><code>&lt;meta name="robots" content="max-snippet:150"&gt;</code>: Limits textual snippet extraction to a maximum character count.</li>
-        <li><code>&lt;span data-nosnippet&gt;Proprietary data&lt;/span&gt;</code>: Tells Googlebot and Gemini not to include the enclosed span in search snippets or generative summaries.</li>
+        <li><code>&lt;span data-nosnippet&gt;Proprietary data&lt;/span&gt;</code>: Excludes the enclosed text from snippets and previews in Google Search, including its AI features.</li>
         <li><code>&lt;meta name="robots" content="nosnippet"&gt;</code>: Prevents any snippet or generative overview display in search results.</li>
       </ul>
     </section>
 
     <section class="seo-section">
       <h2>How CiteAura Diagnoses Google AI Overview Readiness</h2>
-      <p>CiteAura tests the deterministic technical foundations that determine whether Google's headless rendering pipeline can index your canonical facts:</p>
+      <p>CiteAura checks the technical foundations that determine whether Google can crawl, index, and display your canonical facts:</p>
       <div class="seo-grid">
         <article class="seo-panel">
           <span class="seo-label">DOM Extractability</span>
           <h3>Server-Rendered Clarity</h3>
-          <p>We check that critical product facts, tables, and definitions are present in initial server HTML, preventing rendering timeouts during rapid indexing cycles.</p>
+          <p>We check that critical product facts, tables, and definitions are present in server-rendered HTML, so rendering delays do not hide them from inspection.</p>
         </article>
         <article class="seo-panel">
           <span class="seo-label">Entity Disambiguation</span>
           <h3>JSON-LD Validation</h3>
-          <p>We validate that your Organization, Product, and Article schema define unambiguous entity relationships that align with visible on-page copy.</p>
+          <p>We validate that Organization, Product, and Article schema match visible copy and do not claim attributes the page does not support.</p>
         </article>
         <article class="seo-panel">
           <span class="seo-label">Verification &amp; Tickets</span>
           <h3>Actionable Engineering Tasks</h3>
-          <p>CiteAura generates concrete engineering tickets for missing attributes or unsemantic DOM elements, closing the loop with automated re-crawling post-deployment.</p>
+          <p>CiteAura generates concrete engineering tickets for missing attributes or unclear DOM structure, then supports re-crawling after deployment.</p>
         </article>
       </div>
     </section>
@@ -172,7 +173,7 @@
     <section class="seo-footer-cta">
       <div>
         <h2>Audit your site for Google AI Overviews</h2>
-        <p>Ensure your site is technically prepared for Google's generative search future. Run a free technical preflight with CiteAura.</p>
+        <p>Check whether your key facts are indexed, eligible for snippets, and present in rendered HTML. Run a free technical preflight with CiteAura.</p>
       </div>
       <a class="btn btn-primary" href="/app?auth=register" rel="nofollow">Start free trial <span aria-hidden="true">&rarr;</span></a>
     </section>

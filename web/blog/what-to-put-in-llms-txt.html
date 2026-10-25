@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="public.meta.g4_title">llms.txt best practices: facts, URLs, what to skip | CiteAura</title>
-  <meta name="description" content="A short official llms.txt: checkable facts and public URLs. Skip slogans, rankings, and unverified claims." data-i18n-content="public.meta.g4_description">
+  <meta name="description" content="An optional llms.txt draft: checkable facts and public URLs. Google Search does not use it. Skip slogans, rankings, and unverified claims." data-i18n-content="public.meta.g4_description">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/runtime-assets/theme-init.js"></script>
@@ -24,7 +24,7 @@
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/what-to-put-in-llms-txt">
   <meta property="og:title" content="llms.txt best practices: facts, URLs, what to skip | CiteAura" data-i18n-content="public.meta.g4_title">
-  <meta property="og:description" content="A short official llms.txt: checkable facts and public URLs. Skip slogans, rankings, and unverified claims." data-i18n-content="public.meta.g4_description">
+  <meta property="og:description" content="An optional llms.txt draft: checkable facts and public URLs. Google Search does not use it. Skip slogans, rankings, and unverified claims." data-i18n-content="public.meta.g4_description">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -32,7 +32,7 @@
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="llms.txt best practices: facts, URLs, what to skip | CiteAura" data-i18n-content="public.meta.g4_title">
-  <meta name="twitter:description" content="A short official llms.txt: checkable facts and public URLs. Skip slogans, rankings, and unverified claims." data-i18n-content="public.meta.g4_description">
+  <meta name="twitter:description" content="An optional llms.txt draft: checkable facts and public URLs. Google Search does not use it. Skip slogans, rankings, and unverified claims." data-i18n-content="public.meta.g4_description">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
@@ -65,10 +65,10 @@
       {
         "@type": "Article",
         "headline": "llms.txt best practices: facts, canonical URLs, what to leave out",
-        "description": "A short official llms.txt: checkable facts and public URLs. Skip slogans, rankings, and unverified claims.",
+        "description": "An optional llms.txt draft: checkable facts and public URLs. Google Search does not use it. Skip slogans, rankings, and unverified claims.",
         "url": "https://citeaura.com/blog/what-to-put-in-llms-txt",
         "datePublished": "2026-08-17",
-        "dateModified": "2026-09-14",
+        "dateModified": "2026-10-25",
         "author": {
           "@type": "Organization",
           "name": "CiteAura Research Team",
@@ -88,10 +88,10 @@
         "mainEntity": [
           {
             "@type": "Question",
-            "name": "What are the official llms.txt syntax conventions and best practices?",
+            "name": "What are the llms.txt syntax conventions and best practices?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "According to llmstxt.org conventions: serve the file at /llms.txt as text/plain; charset=utf-8, begin with an H1 brand title, include a concise blockquote summary, and structure canonical documentation links with Markdown unordered lists."
+              "text": "The llmstxt.org proposal uses /llms.txt with a single H1, a short blockquote summary, and Markdown links to canonical resources. It is a convention, not a universal standard; Google Search does not use llms.txt."
             }
           },
           {
@@ -131,7 +131,7 @@
             "name": "What is the recommended size limit for llms.txt vs llms-full.txt?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Keep your root /llms.txt under 5 KB (approx. 1,000 to 1,500 tokens). Overly large files risk overflowing LLM context window limits during retrieval. Use /llms.txt as a clean index map and reserve /llms-full.txt for modular expanded documentation."
+              "text": "Five kilobytes is practical editorial guidance, not a protocol limit. Large files may be truncated or ignored depending on the client. Keep the index short and link to canonical pages for detail."
             }
           }
         ]
@@ -186,8 +186,8 @@
     <header class="blog-header">
       <span class="blog-kicker" data-i18n="g4.kicker">Discovery file — Engineering guide</span>
       <h1 data-i18n="g4.h1">llms.txt best practices: facts, canonical URLs, what to leave out</h1>
-      <p class="blog-lead" data-i18n="g4.lead">An <code>/llms.txt</code> file serves as a lightweight, plain-text index hosted at your canonical root domain. It provides AI crawlers and automated retrieval tools with verified entity definitions, canonical resource links, and factual assertions backed by public HTML pages. This guide covers file formatting, HTTP serving requirements, pre-deployment validation, common maintenance pitfalls, and how to automate file generation from a single source of truth.</p>
-      <p class="blog-meta">Updated 14 September 2026 · 9 min read · Technical</p>
+      <p class="blog-lead" data-i18n="g4.lead">An <code>/llms.txt</code> file is an optional plain-text index for crawlers and agents that support the convention. Google Search does not use it. It can provide verified entity definitions, canonical resource links, and factual assertions backed by public HTML pages. This guide covers formatting, hosting, validation, maintenance, and automated generation.</p>
+      <p class="blog-meta">Updated 25 October 2026 · 9 min read · Technical</p>
       <p class="blog-byline">By CiteAura Research Team</p>
     </header>
     <div class="editorial-notice-box">
@@ -210,8 +210,8 @@
     </nav>
 
     <h2 id="spec">1. The spec: purpose and scope</h2>
-    <p>The <code>/llms.txt</code> standard (proposed via <a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> and tracked in the <a href="https://github.com/AnswerDotAI/llms-txt" rel="noopener noreferrer">Answer.AI repository</a>) defines a simple convention: a Markdown-formatted index placed at the website root to provide language models with a concise map of core resources and verified facts.</p>
-    <p>Core characteristics of the standard:</p>
+    <p>The <code>/llms.txt</code> proposal (published at <a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> and tracked in the <a href="https://github.com/AnswerDotAI/llms-txt" rel="noopener noreferrer">Answer.AI repository</a>) defines a simple convention: a Markdown-formatted index placed at the website root to provide language models with a concise map of core resources and verified facts.</p>
+    <p>Core characteristics of the convention:</p>
     <ul>
       <li><strong>Root location:</strong> Must be served directly at <code>https://example.com/llms.txt</code> rather than within subdirectories.</li>
       <li><strong>Format:</strong> Clean Markdown without HTML markup, front matter, or script tags.</li>
@@ -221,19 +221,21 @@
     </ul>
     <p>When crawlers encounter complex client-rendered web applications, they may fail to extract key product descriptions before timing out. A lightweight text index gives automated fetchers an accessible fallback containing canonical links and core product assertions.</p>
     <div class="blog-callout">
-      <p>Public HTML pages remain the authoritative source of truth. The <code>llms.txt</code> file is an index referencing those pages. Any discrepancy between the two means the index is outdated.</p>
+      <p>Public HTML pages remain the authoritative source of truth. The <code>llms.txt</code> file is an optional index referencing those pages. Google Search does not use it, and Google does not require special AI text files or markup for AI Overviews or AI Mode. Any discrepancy between the index and the public pages means the index is outdated.</p>
     </div>
 
     <h2>Sources</h2>
     <ul>
-      <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — The proposed /llms.txt standard for plain-text fact indexes at the site root.</li>
+      <li><a href="https://llmstxt.org/" rel="noopener noreferrer">llmstxt.org</a> — The proposed /llms.txt convention for plain-text fact indexes at the site root.</li>
       <li><a href="https://github.com/AnswerDotAI/llms-txt" rel="noopener noreferrer">Answer.AI llms-txt repository</a> — Schema specifications, parsers, and reference implementations.</li>
+      <li><a href="https://developers.google.com/search/docs/fundamentals/ai-optimization-guide" rel="noopener noreferrer">Google Search Central: AI optimization guide</a> — States that Google Search does not use llms.txt.</li>
+      <li><a href="https://www.bing.com/webmasters/help/webmaster-guidelines-30fba23a" rel="noopener noreferrer">Bing Webmaster Guidelines</a> — Crawling, indexing, and grounding guidance that applies to Bing and Copilot.</li>
       <li><a href="https://schema.org/Organization" rel="noopener noreferrer">Schema.org Organization</a> — Ensuring entity attributes align between public HTML, structured data, and plain-text indexes.</li>
       <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Type" rel="noopener noreferrer">MDN: Content-Type</a> — HTTP header compatibility for text/plain plain-text indexes.</li>
     </ul>
 
     <h2 id="shape">2. Markdown structure and formatting</h2>
-    <p>While the specification allows standard Markdown syntax, following a consistent structural schema ensures predictable parsing across different LLM ingestion tools:</p>
+    <p>While the specification allows standard Markdown syntax, following a consistent structure supports predictable parsing across different LLM ingestion tools:</p>
     <pre><code># Brand Name
 
 &gt; One-sentence, verifiable description that matches the homepage definition.
@@ -269,7 +271,7 @@
     <div class="blog-callout" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--sp-3);background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.04));border-left:4px solid var(--accent);padding:var(--sp-4) var(--sp-5);">
       <div>
         <strong style="color:var(--ink);display:block;margin-bottom:var(--sp-1);">Interactive Generator &amp; Syntax Checker</strong>
-        <p style="margin:0;font-size:var(--fs-2);color:var(--ink-2);">Generate a compliant <code>llms.txt</code> file from your homepage metadata or test your existing draft against official specifications.</p>
+        <p style="margin:0;font-size:var(--fs-2);color:var(--ink-2);">Generate a reviewable <code>llms.txt</code> draft from your homepage metadata or test an existing file against the published llmstxt.org conventions.</p>
       </div>
       <a class="btn btn-primary btn-sm" href="/llms-txt-tool" style="white-space:nowrap;">Open llms.txt Tool &rarr;</a>
     </div>
@@ -298,15 +300,15 @@ X-Content-Type-Options: nosniff
       <li><strong>Core navigation links (4–8 URLs):</strong> Product overviews, documentation, pricing tables, contact points, and system status pages.</li>
       <li><strong>Key factual assertions (3–6 bullet points):</strong> Regional availability, compliance certifications, primary platform integrations, or architecture properties, each linked to a supporting page.</li>
     </ul>
-    <p>Keep the root file under 5 KB (roughly 1,000 to 1,500 tokens). A concise, link-dense document is easier for crawlers to fetch, cache, and process than an exhaustive promotional page.</p>
+    <p>Treat 5 KB as a practical editorial target, not a protocol limit. A concise, link-dense document is easier for clients to fetch, cache, and process than an exhaustive promotional page.</p>
 
-    <h3 id="token-budget">Token Budget: Avoiding the llms-full.txt Context Overflow</h3>
-    <p>A frequent implementation failure (tracked in <a href="https://github.com/AnswerDotAI/llms-txt/issues/55" rel="noopener noreferrer">AnswerDotAI/llms-txt Issue #55</a>) is concatenating hundreds of documentation pages into an oversized <code>/llms-full.txt</code>. When retrieval agents ingest multi-megabyte files, they risk overflowing model context window limits or getting truncated before reading core definitions.</p>
-    <p>To keep your discovery architecture lightweight and compliant:</p>
+    <h3 id="token-budget">Editorial Size: Keeping llms-full.txt Usable</h3>
+    <p>A frequent implementation problem (tracked in <a href="https://github.com/AnswerDotAI/llms-txt/issues/55" rel="noopener noreferrer">AnswerDotAI/llms-txt Issue #55</a>) is concatenating hundreds of documentation pages into an oversized <code>/llms-full.txt</code>. Client behavior varies, and a multi-megabyte file may be truncated or ignored before core definitions are reached. No universal client limit is published.</p>
+    <p>To keep the discovery file practical:</p>
     <ul>
-      <li>Use <code>/llms.txt</code> exclusively as an index map under 5 KB that links directly to canonical HTML or markdown docs.</li>
+      <li>Use <code>/llms.txt</code> as a concise index map that links directly to canonical HTML or Markdown docs.</li>
       <li>If deploying an optional <code>/llms-full.txt</code>, break extensive reference material into modular chapters with anchor links.</li>
-      <li>Audit your token budget before deployment using <a href="/llms-txt-tool">CiteAura's free llms.txt generator and context validator</a>.</li>
+      <li>Review the estimated size before deployment using <a href="/llms-txt-tool">CiteAura's free llms.txt generator</a>.</li>
     </ul>
 
     <h2 id="anti-patterns">5. Maintenance anti-patterns</h2>
@@ -331,7 +333,7 @@ X-Content-Type-Options: nosniff
       <li>Verify the file starts with a single H1 and contains valid H2 headings.</li>
       <li>Confirm all URLs use absolute HTTPS formats and return HTTP 200 responses.</li>
       <li>Check that every factual assertion references an active source URL.</li>
-      <li>Ensure total file size remains below 5 KB.</li>
+      <li>Review size as an editorial target; larger files are a client-dependent risk, not a protocol violation.</li>
     </ol>
 
     <h2 id="pipeline">6. Generation and CI validation</h2>
@@ -371,7 +373,7 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
     <div class="blog-cta" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--sp-4);">
       <div style="flex:1 1 280px;">
         <strong style="color:var(--ink);display:block;font-size:var(--fs-3);margin-bottom:var(--sp-1);">Ready to inspect or publish your llms.txt?</strong>
-        <p style="margin:0;font-size:var(--fs-2);color:var(--ink-2);">Use our free web tool to generate and validate compliant drafts in seconds, or launch a CiteAura workspace to audit your brand's AI search visibility across Perplexity, ChatGPT, and Bing.</p>
+        <p style="margin:0;font-size:var(--fs-2);color:var(--ink-2);">Use our free web tool to generate and review llms.txt drafts, or launch a CiteAura workspace to audit your brand's AI search visibility across Perplexity, ChatGPT, and Bing.</p>
       </div>
       <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;">
         <a class="btn btn-secondary btn-sm" href="/llms-txt-tool">Free Generator &amp; Validator</a>
@@ -384,8 +386,8 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
 
     <section class="blog-faq" id="faq" aria-labelledby="faq-heading">
       <h2 id="faq-heading">FAQ: publishing llms.txt</h2>
-      <h3>What are the official llms.txt syntax conventions and best practices?</h3>
-      <p>According to llmstxt.org conventions: serve the file at <code>/llms.txt</code> as <code>text/plain; charset=utf-8</code> directly at the site root, begin with an H1 brand title, include a concise blockquote summary, and structure canonical documentation links with clean Markdown unordered lists.</p>
+      <h3>What are the llms.txt syntax conventions and best practices?</h3>
+      <p>The llmstxt.org proposal uses <code>/llms.txt</code> with a single H1, a short blockquote summary, and Markdown links to canonical resources. It is a convention, not a universal standard; Google Search does not use llms.txt.</p>
       <h3>What should not go in llms.txt?</h3>
       <p>Do not include private internal endpoints, staging environments, login-protected content, or unsubstantiated claims. Avoid hardcoding raw pricing figures; link to your live pricing page instead.</p>
       <h3>Does llms.txt guarantee AI mentions?</h3>
@@ -395,7 +397,7 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
       <h3>How do I validate llms.txt before deploy?</h3>
       <p>Check that the file contains clean Markdown headings, absolute HTTPS links, reachable source URLs for all factual claims, and valid UTF-8 encoding.</p>
       <h3>What is the recommended size limit for llms.txt vs llms-full.txt?</h3>
-      <p>Keep your root <code>/llms.txt</code> under 5 KB (approx. 1,000 to 1,500 tokens). Overly large files risk overflowing LLM context window limits during retrieval. Use <code>/llms.txt</code> as a clean index map and reserve <code>/llms-full.txt</code> for modular expanded documentation.</p>
+      <p>Five kilobytes is practical editorial guidance, not a protocol limit. Large files may be truncated or ignored depending on the client. Keep the index short and link to canonical pages for detail.</p>
     </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">

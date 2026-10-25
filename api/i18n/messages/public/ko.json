@@ -174,7 +174,7 @@
   "public.meta.docs_title": "CiteAura 문서: AI 가시성 측정 및 개선",
   "public.meta.g3_description": "GPTBot이 robots.txt 또는 Cloudflare WAF에 의해 차단되었나요? User-agent: GPTBot Disallow 규칙을 찾고 curl 테스트로 OpenAI 크롤러를 안전하게 허용하는 방법을 알아보세요.",
   "public.meta.g3_title": "gptbot robots.txt: Disallow를 찾아 GPTBot 허용 | CiteAura",
-  "public.meta.g4_description": "간결한 공식 llms.txt에는 검증 가능한 사실과 공개 URL을 작성합니다. 슬로건, 순위 및 검증되지 않은 주장은 제외하세요.",
+  "public.meta.g4_description": "선택적이고 간결한 llms.txt: 검증 가능한 사실과 공개 URL. Google Search는 사용하지 않습니다. 슬로건, 순위 및 검증되지 않은 주장은 제외하세요.",
   "public.meta.g4_title": "llms.txt 모범 사례: 사실, URL, 작성하지 말아야 할 내용 | CiteAura",
   "public.meta.g5_description": "화이트 라벨 GEO 진단 보고서의 기술 사양: 팩 구조, 증거 내보내기, 전후 가시성 및 대행사 워크플로.",
   "public.meta.g5_title": "대행사를 위한 화이트 라벨 GEO 진단 보고서 | CiteAura",

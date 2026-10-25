@@ -310,7 +310,7 @@
   "public.meta.g3_title": "gptbot robots.txt : trouver le Disallow et autoriser GPTBot | CiteAura",
   "public.meta.g3_description": "GPTBot est-il bloqué par votre robots.txt ou Cloudflare WAF ? Comment trouver les règles User-agent: GPTBot Disallow et autoriser les robots OpenAI en toute sécurité avec des tests curl.",
   "public.meta.g4_title": "Bonnes pratiques llms.txt : faits, URL, ce qu’il faut omettre | CiteAura",
-  "public.meta.g4_description": "Un llms.txt officiel et concis : des faits vérifiables et des URL publiques. Évitez les slogans, les classements et les affirmations non vérifiées.",
+  "public.meta.g4_description": "Un llms.txt facultatif et concis : des faits vérifiables et des URL publiques. Google Search ne l'utilise pas. Évitez les slogans, les classements et les affirmations non vérifiées.",
   "public.meta.g5_title": "Rapports de diagnostic GEO en marque blanche pour les agences | CiteAura",
   "public.meta.g5_description": "Spécification technique des rapports de diagnostic GEO en marque blanche : structure du pack, exports de preuves, visibilité avant/après et workflows d’agence."
 }

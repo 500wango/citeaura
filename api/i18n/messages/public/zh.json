@@ -11,7 +11,7 @@
   "public.meta.g1_description": "用固定问题集、原始回答和采样模式，建立可复核的 ChatGPT 品牌提及率基线。",
   "public.meta.g2_description": "从抓取阻断、事实抽取、结构化数据和测量噪声中定位 ChatGPT 跳过品牌的真正原因。",
   "public.meta.g3_description": "最长匹配 User-agent、curl -A GPTBot 验证、Cloudflare 托管 robots 前置规则，以及如何确认线上文件。",
-  "public.meta.g4_description": "一份短的官方 llms.txt：可核对的事实和公开 URL。不要写口号、排名和未核实声明。",
+  "public.meta.g4_description": "一份可选且简短的 llms.txt：可核对的事实和公开 URL。Google Search 不使用它。不要写口号、排名和未核实声明。",
   "public.meta.g5_description": "把站点诊断、标注采样、行动工单和验收证据整理成可交付的白标 GEO 客户包。",
   "public.docs.th_stage": "阶段",
   "public.docs.th_happens": "执行内容",

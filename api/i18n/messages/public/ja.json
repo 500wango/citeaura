@@ -174,7 +174,7 @@
   "public.meta.docs_title": "CiteAura ドキュメント：AI 可視性の測定と改善",
   "public.meta.g3_description": "GPTBot が robots.txt や Cloudflare WAF でブロックされていませんか？User-agent: GPTBot の Disallow ルールを見つけ、curl テストで OpenAI のクローラーを安全に許可する方法を説明します。",
   "public.meta.g3_title": "gptbot robots.txt：Disallow を見つけて GPTBot を許可 | CiteAura",
-  "public.meta.g4_description": "短い公式 llms.txt には、検証可能な事実と公開 URL を記載します。スローガン、順位、未検証の主張は避けてください。",
+  "public.meta.g4_description": "任意の短い llms.txt：検証可能な事実と公開 URL。Google Search は使用しません。スローガン、順位、未検証の主張は避けてください。",
   "public.meta.g4_title": "llms.txt のベストプラクティス：事実、URL、記載すべきでない内容 | CiteAura",
   "public.meta.g5_description": "ホワイトラベル GEO 診断レポートの技術仕様：パック構成、エビデンスのエクスポート、前後の可視性、代理店ワークフロー。",
   "public.meta.g5_title": "代理店向けホワイトラベル GEO 診断レポート | CiteAura",

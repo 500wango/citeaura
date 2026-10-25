@@ -174,7 +174,7 @@
   "public.meta.docs_title": "Documentación de CiteAura: medir y mejorar la visibilidad en IA",
   "public.meta.g3_description": "¿GPTBot está bloqueado por su robots.txt o por Cloudflare WAF? Cómo encontrar reglas User-agent: GPTBot Disallow y permitir los rastreadores de OpenAI de forma segura con pruebas curl.",
   "public.meta.g3_title": "gptbot robots.txt: encontrar el Disallow y permitir GPTBot | CiteAura",
-  "public.meta.g4_description": "Un llms.txt oficial y breve: hechos comprobables y URL públicas. Evite eslóganes, clasificaciones y afirmaciones no verificadas.",
+  "public.meta.g4_description": "Un llms.txt opcional y breve: hechos comprobables y URL públicas. Google Search no lo utiliza. Evite eslóganes, clasificaciones y afirmaciones no verificadas.",
   "public.meta.g4_title": "Mejores prácticas de llms.txt: hechos, URL y qué omitir | CiteAura",
   "public.meta.g5_description": "Especificación técnica de informes de diagnóstico GEO de marca blanca: estructura del paquete, exportación de evidencia, visibilidad antes y después y flujos de agencia.",
   "public.meta.g5_title": "Informes de diagnóstico GEO de marca blanca para agencias | CiteAura",

@@ -194,10 +194,10 @@
     <p>In generative search engines operating in <code>API · Web-grounded retrieval</code> mode, the pipeline is leaner and less forgiving:</p>
 
     <ol>
-      <li><strong>Rapid headless extraction:</strong> When a user asks a question like <em>"What is CiteAura's monthly pricing and what engines does it audit?"</em>, the retrieval orchestrator fetches the top relevant URLs using lightweight headless clients (such as <code>GPTBot</code> or <code>PerplexityBot</code>).</li>
-      <li><strong>Token budgeting and strip-down:</strong> Crawlers strip scripts, styles, and bloated DOM trees. However, fast extractors prioritize raw <code>&lt;script type="application/ld+json"&gt;</code> blocks because they offer high-density facts (name, category, price, official profiles) in predictable JSON objects without parsing heuristic DOM tags.</li>
-      <li><strong>Entity disambiguation:</strong> Many brand names are common nouns or verbs (e.g., "Aura", "Notion", "Linear", "Mercury"). An isolated prompt about "pricing for Mercury" confuses parametric memory. An unambiguous JSON-LD <code>Organization</code> object declaring <code>sameAs</code> links to Crunchbase, GitHub, and official social profiles resolves that ambiguity instantly.</li>
-      <li><strong>Grounding verification:</strong> Generative models synthesize candidate answers by cross-checking extracted statements against visible DOM text. If your JSON-LD claims your product starts at $49 but visible pricing in your pricing table says $79, the model detects conflicting evidence. It either falls back to third-party review directories or omits the citation completely to avoid hallucination penalties.</li>
+      <li><strong>Provider-dependent retrieval:</strong> When a user asks a question like <em>"What is CiteAura's monthly pricing and what engines does it audit?"</em>, the provider retrieves and renders candidate pages using systems whose behavior and JavaScript support vary. Check each provider's crawler documentation instead of assuming one extraction path.</li>
+      <li><strong>Extraction limits vary:</strong> Retrieval clients may strip scripts, styles, and parts of the DOM. Some clients read JSON-LD; others rely on visible text. Accurate JSON-LD can provide compact facts, but the visible page remains the authoritative source.</li>
+      <li><strong>Entity disambiguation:</strong> Many brand names are common nouns or verbs (e.g., "Aura", "Notion", "Linear", "Mercury"). An isolated prompt about "pricing for Mercury" can be ambiguous. A consistent JSON-LD <code>Organization</code> object with verified <code>sameAs</code> links can help clarify the entity.</li>
+      <li><strong>Grounding verification:</strong> Generative answers may cross-check extracted statements against visible page text. If your JSON-LD claims your product starts at $49 but visible pricing says $79, the conflict can make the page less reliable. Providers do not publish a fixed conflict-resolution path.</li>
     </ol>
 
     <div class="table-shell">
@@ -218,12 +218,12 @@
           <tr>
             <td><strong>Parsing Environment</strong></td>
             <td>Full browser rendering engine (Evergreen Googlebot with JS execution).</td>
-            <td>Headless fast fetchers; token-budgeted RAG context windows.</td>
+            <td>Provider-dependent retrieval; passage and context limits vary.</td>
           </tr>
           <tr>
             <td><strong>Handling of Contradictions</strong></td>
             <td>Snippets may fail to show, but general body ranking is largely retained.</td>
-            <td>Divergence induces factual uncertainty; citation rate drops sharply.</td>
+            <td>Divergence can create factual uncertainty; citation outcomes are not guaranteed.</td>
           </tr>
           <tr>
             <td><strong>High-Value Schema Types</strong></td>

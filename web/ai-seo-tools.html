@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI SEO Tools: Architecture, Capabilities, and Evaluation Guide | CiteAura</title>
-  <meta name="description" content="Technical guide to evaluating AI SEO software: prompt scrapers vs legacy search suites vs ground-truth diagnostic engines. Learn architectural differences and verification standards.">
+  <title>AI SEO Tools: Evaluation Guide | CiteAura</title>
+  <meta name="description" content="Evaluate AI SEO tools by what they can observe: sampling provenance, crawler access, citation evidence, and verification against a defined cohort.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/runtime-assets/theme-init.js"></script>
@@ -21,8 +21,8 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/ai-seo-tools">
-  <meta property="og:title" content="AI SEO Tools: Architecture, Capabilities, and Evaluation Guide">
-  <meta property="og:description" content="Understand the three architectural tiers of AI visibility software and how closed-loop verification works.">
+  <meta property="og:title" content="AI SEO Tools: Evaluation Guide">
+  <meta property="og:description" content="Evaluate AI SEO tools by sampling provenance, crawler access, citation evidence, and verification against a defined cohort.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-default.png">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">
@@ -32,8 +32,8 @@
       {
         "@type": "Article",
         "@id": "https://citeaura.com/ai-seo-tools#article",
-        "headline": "AI SEO Tools: Architecture, Capabilities, and Evaluation Guide",
-        "description": "Technical guide to evaluating AI SEO software: prompt scrapers vs legacy search suites vs ground-truth diagnostic engines. Learn architectural differences and verification standards.",
+        "headline": "AI SEO Tools: Evaluation Guide",
+        "description": "Evaluate AI SEO tools by what they can observe: sampling provenance, crawler access, citation evidence, and verification against a defined cohort.",
         "datePublished": "2026-08-16",
         "author": {
           "@type": "Organization",
@@ -82,9 +82,9 @@
     <section class="seo-hero">
       <div>
         <span class="seo-kicker">Software Architecture</span>
-        <h1>AI SEO Tools: The Three Architectural Tiers of Generative Search Software</h1>
-        <p class="seo-lead">The market for "AI SEO software" encompasses tools with radically different technical foundations. Understanding the difference between consumer prompt scrapers, legacy keyword suites, and ground-truth diagnostic engines is essential for teams seeking verifiable outcomes rather than vanity metrics.</p>
-        <p class="seo-meta">By <a href="/authors" style="color:var(--accent);text-decoration:none;font-weight:600;">CiteAura Research Team</a> · Updated September 2026</p>
+        <h1>AI SEO Tools: How to Evaluate Evidence, Not Just Dashboards</h1>
+        <p class="seo-lead">AI visibility tools differ in what they actually observe. Evaluate sampling provenance, crawler access, citation evidence, and whether outputs can be verified against the same questions and time window.</p>
+        <p class="seo-meta">By <a href="/authors" style="color:var(--accent);text-decoration:none;font-weight:600;">CiteAura Research Team</a> · Updated October 2026</p>
       </div>
     </section>
 
@@ -113,13 +113,13 @@
               <td><strong>Tier 2</strong></td>
               <td>Legacy Search Suites with AI Add-Ons</td>
               <td>Traditional Google SERP scraping with LLM feature extraction.</td>
-              <td>Optimizes for keyword volume rather than RAG context windows or machine-readable files.</td>
+              <td>May optimize for keyword volume while offering limited visibility into retrieval and citation outcomes.</td>
               <td>Traditional backlink analysis, keyword ranking, legacy SEO retention.</td>
             </tr>
             <tr>
               <td><strong>Tier 3</strong></td>
-              <td>Ground-Truth GEO Diagnostic Engines (CiteAura)</td>
-              <td>Direct crawler emulation, reproducible API cohorts, BYOK model, and deterministic acceptance checks.</td>
+              <td>Evidence-First GEO Workflows (CiteAura)</td>
+              <td>Crawler checks, explicit sampling cohorts, BYOK models, and reviewable acceptance checks.</td>
               <td>Requires engineering collaboration; does not offer speculative rank guarantees.</td>
               <td>Technical site remediation, Jira engineering tickets, verified agency client retainers.</td>
             </tr>
@@ -133,8 +133,8 @@
       <p>Traditional SEO suites rely on three foundational assumptions that break down in answer engines:</p>
       <ol>
         <li><strong>Static Positions Do Not Exist:</strong> An LLM does not generate a fixed ranking list. A single query evaluated across 10 rounds may produce varying syntax, different citation placements, and distinct competitor comparisons.</li>
-        <li><strong>Crawlers Operate on New Protocol Boundaries:</strong> Allowing Googlebot does not automatically ensure accessibility for <code>GPTBot</code>, <code>ClaudeBot</code>, or <code>PerplexityBot</code>. Each crawler enforces distinct timeout parameters, cache policies, and rendering rules under RFC 9309.</li>
-        <li><strong>Token Constraints Dictate Extraction:</strong> Traditional crawlers index millions of words. Fast RAG clients strip formatting to fit tokens into context windows. If facts are wrapped in heavy interactive DOM components, the model simply drops the passage.</li>
+        <li><strong>Crawler Access Is Provider-Specific:</strong> Allowing Googlebot does not automatically ensure access for <code>GPTBot</code>, <code>ClaudeBot</code>, or <code>PerplexityBot</code>. Check each provider's documented user agents, IP ranges, and WAF behavior.</li>
+        <li><strong>Passage Selection Varies:</strong> Retrieval systems may extract passages instead of entire pages. Keep critical facts in rendered HTML, but do not assume a fixed token budget or that a particular layout will always be selected.</li>
       </ol>
     </section>
 
@@ -161,19 +161,19 @@
         <article class="seo-panel">
           <span class="seo-label">Structured Data</span>
           <h3><a href="/schema-tool">Brand Schema Checker</a></h3>
-          <p>Validate your Organization and SoftwareApplication JSON-LD graphs against entity disambiguation standards.</p>
+          <p>Validate your Organization and SoftwareApplication JSON-LD graphs against visible page content and entity clarity checks.</p>
         </article>
         <article class="seo-panel">
           <span class="seo-label">Machine Files</span>
           <h3><a href="/llms-txt-tool">llms.txt Generator</a></h3>
-          <p>Generate clean, token-efficient Markdown manifests to guide autonomous AI agents across your documentation.</p>
+          <p>Generate reviewable llms.txt drafts for agents that support the convention. Google Search does not use llms.txt.</p>
         </article>
       </div>
     </section>
 
     <section class="seo-footer-cta">
       <div>
-        <h2>Adopt the Engineering Standard for GEO</h2>
+        <h2>Adopt an Evidence-First GEO Workflow</h2>
         <p>Move beyond passive monitoring. Audit your technical foundations and generate verified client deliverables with CiteAura.</p>
       </div>
       <a class="btn btn-primary" href="/app?auth=register" rel="nofollow">Start free trial <span aria-hidden="true">&rarr;</span></a>

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Free Brand Schema &amp; Entity Checker for AI Search | CiteAura</title>
-  <meta name="description" content="Inspect JSON-LD structured data and Schema.org entities on your site. Find missing schemas that AI search engines rely on for attribution.">
+  <title>Free Brand Schema &amp; Entity Checker | CiteAura</title>
+  <meta name="description" content="Inspect JSON-LD structured data and Schema.org entities on your site. See which types are declared and whether they match visible page content.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <link rel="canonical" href="https://citeaura.com/schema-tool">
@@ -18,8 +18,8 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/schema-tool">
-  <meta property="og:title" content="Free Brand Schema &amp; Entity Checker for AI Search | CiteAura">
-  <meta property="og:description" content="Check which Schema.org types your website declares and identify missing structured data needed for AI search citations.">
+  <meta property="og:title" content="Free Brand Schema &amp; Entity Checker | CiteAura">
+  <meta property="og:description" content="Check which Schema.org types your website declares and whether they match visible page content.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-default.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -27,7 +27,7 @@
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Brand Schema Checker · CiteAura">
-  <meta name="twitter:description" content="Inspect JSON-LD markup and entity declarations for generative search engines.">
+  <meta name="twitter:description" content="Inspect JSON-LD markup and entity declarations on public websites.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-default.png">
 
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
@@ -50,7 +50,7 @@
         "url": "https://citeaura.com/schema-tool",
         "applicationCategory": "DeveloperApplication",
         "operatingSystem": "All",
-        "description": "Inspect JSON-LD structured data and Schema.org entity declarations on public websites for AI search engines.",
+        "description": "Inspect JSON-LD structured data and Schema.org entity declarations on public websites.",
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -71,7 +71,7 @@
           "url": "https://citeaura.com/about"
         },
         "datePublished": "2026-09-06",
-        "dateModified": "2026-09-06"
+        "dateModified": "2026-10-25"
       },
       {
         "@type": "BreadcrumbList",
@@ -89,7 +89,7 @@
             "name": "Why does Schema.org markup matter for AI search?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Answer engines like Perplexity, ChatGPT, and Google Gemini ingest structured JSON-LD data to connect brand entities, product capabilities, official pricing, and author expertise into factual knowledge graphs."
+              "text": "Structured data can clarify entities, product details, and relationships, and it can support rich results in Google Search. Google does not require AI-specific schema or guarantee that structured data alone will produce an AI citation."
             }
           },
           {
@@ -97,7 +97,7 @@
             "name": "Which Schema types are most important for SaaS and brands?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Organization (official company identity and logo), SoftwareApplication or Product (features and offers), FAQPage (direct question-answer extraction), and Article (editorial authority and dateModified)."
+              "text": "Organization, WebSite, SoftwareApplication or Product, and Article are common starting points. Choose types that match visible page content; not every page needs every type."
             }
           },
           {
@@ -105,7 +105,7 @@
             "name": "Can Schema markup compensate for missing text on the page?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "No. Google and AI search engines enforce that structured data must match visible on-page content. Hidden or unsupported markup can result in manual penalties or extraction disregard."
+              "text": "No. Structured data should match visible on-page content. Google may ignore markup that is unsupported by the page, and Bing says inaccurate or misleading markup can reduce trust and eligibility."
             }
           }
         ]
@@ -187,22 +187,22 @@
 
     <section class="seo-section" aria-labelledby="schema-importance-title">
       <h2 id="schema-importance-title">Core Schema types for generative search</h2>
-      <p class="seo-lead">Structured data helps LLMs connect ambiguous brand mentions with authoritative entity attributes and official features.</p>
+      <p class="seo-lead">Structured data can clarify entity attributes and support rich-result eligibility. It does not replace visible copy, and Google does not require special AI schema.</p>
       <div class="seo-grid" style="margin-top:var(--sp-6);">
         <article class="seo-panel">
           <span class="seo-label">Identity</span>
           <h3>Organization &amp; WebSite</h3>
-          <p>Declares canonical brand name, official website URL, logo asset, and social proof links, eliminating confusion between products and founders.</p>
+          <p>Makes the canonical brand name, website URL, logo, and social profiles consistent with the visible page.</p>
         </article>
         <article class="seo-panel">
           <span class="seo-label">Product Context</span>
           <h3>SoftwareApplication / Product</h3>
-          <p>Provides pricing tiers, operating systems, and feature sets in machine-readable format, directly feeding generative comparison answers.</p>
+          <p>Describes pricing tiers, operating systems, and features in machine-readable form when those details are also visible on the page. Providers decide independently whether to use the markup.</p>
         </article>
         <article class="seo-panel">
           <span class="seo-label">Q&amp;A Extraction</span>
           <h3>FAQPage &amp; HowTo</h3>
-          <p>Structures procedural and informational content so retrieval engines extract verified answers verbatim without hallucinations.</p>
+          <p>Clarifies question-and-answer content that is already visible. It does not guarantee verbatim extraction or prevent model errors.</p>
         </article>
       </div>
     </section>
@@ -216,7 +216,7 @@
         </a>
         <a class="tool-link-box" href="/llms-txt-tool">
           <h4>llms.txt Generator →</h4>
-          <p>Generate and validate your official /llms.txt discovery file.</p>
+          <p>Generate a reviewable /llms.txt draft for agents that support the convention.</p>
         </a>
         <a class="tool-link-box" href="/blog/brand-fact-library-guide">
           <h4>Brand Fact Library Guide →</h4>
@@ -234,15 +234,15 @@
       <div class="seo-faq">
         <details open>
           <summary>Why does Schema.org markup matter for AI search?</summary>
-          <p>Answer engines like Perplexity, ChatGPT, and Google Gemini ingest structured JSON-LD data to connect brand entities, product capabilities, official pricing, and author expertise into factual knowledge graphs.</p>
+          <p>Structured data can clarify entities, product details, and relationships, and it can support rich results in Google Search. Google does not require AI-specific schema or guarantee that structured data alone will produce an AI citation.</p>
         </details>
         <details>
           <summary>Which Schema types are most important for SaaS and brands?</summary>
-          <p>Organization (official company identity and logo), SoftwareApplication or Product (features and offers), FAQPage (direct question-answer extraction), and Article (editorial authority and dateModified).</p>
+          <p>Organization, WebSite, SoftwareApplication or Product, and Article are common starting points. Choose types that match visible page content; not every page needs every type.</p>
         </details>
         <details>
           <summary>Can Schema markup compensate for missing text on the page?</summary>
-          <p>No. Google and AI search engines enforce that structured data must match visible on-page content. Hidden or unsupported markup can result in manual penalties or extraction disregard.</p>
+          <p>No. Structured data should match visible on-page content. Google may ignore markup that is unsupported by the page, and Bing says inaccurate or misleading markup can reduce trust and eligibility.</p>
         </details>
       </div>
     </section>

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Perplexity SEO: How to Get Your Brand Cited by Perplexity AI | CiteAura</title>
-  <meta name="description" content="Technical guide to Perplexity SEO: Sonar-Pro RAG retrieval pipeline, PerplexityBot crawler rules, citation anchor scoring, and how to verify brand attribution with CiteAura.">
+  <title>Perplexity SEO: Citation &amp; Crawler Guide | CiteAura</title>
+  <meta name="description" content="Perplexity SEO guide: documented PerplexityBot and Perplexity-User behavior, robots.txt and WAF access, citation-ready content, and measurable verification.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <script src="/runtime-assets/theme-init.js"></script>
@@ -21,8 +21,8 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/perplexity-seo">
-  <meta property="og:title" content="Perplexity SEO: Technical Guide to Earning AI Citations">
-  <meta property="og:description" content="Understand the Sonar-Pro retrieval pipeline, PerplexityBot robots.txt configuration, and how to turn citation gaps into engineering tickets.">
+  <meta property="og:title" content="Perplexity SEO: Citation &amp; Crawler Guide">
+  <meta property="og:description" content="Documented Perplexity crawler behavior, robots.txt and WAF access, citation-ready content, and measurable verification.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-default.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -34,10 +34,10 @@
       {
         "@type": "Article",
         "@id": "https://citeaura.com/perplexity-seo#article",
-        "headline": "Perplexity SEO: How to Get Your Brand Cited by Perplexity AI",
-        "description": "Technical guide to Perplexity SEO: Sonar-Pro RAG retrieval pipeline, PerplexityBot crawler rules, citation anchor scoring, and how to verify brand attribution with CiteAura.",
+        "headline": "Perplexity SEO: Citation & Crawler Guide",
+        "description": "Perplexity SEO guide: documented PerplexityBot and Perplexity-User behavior, robots.txt and WAF access, citation-ready content, and measurable verification.",
         "datePublished": "2026-08-10",
-        "dateModified": "2026-09-20",
+        "dateModified": "2026-10-25",
         "author": {
           "@type": "Organization",
           "name": "CiteAura Research Team",
@@ -85,9 +85,9 @@
     <section class="seo-hero">
       <div>
         <span class="seo-kicker">Engine Architecture</span>
-        <h1>Perplexity SEO: The Engineering Guide to Earning Answer Citations</h1>
-        <p class="seo-lead">Perplexity AI combines live web indexation with LLM synthesis models (Sonar and Sonar-Pro). To earn citation cards rather than being summarized through third-party intermediaries, websites must understand how PerplexityBot crawls, extracts, and anchors factual claims.</p>
-        <p class="seo-meta">By <a href="/authors" style="color:var(--accent);text-decoration:none;font-weight:600;">CiteAura Research Team</a> · Updated September 2026</p>
+        <h1>Perplexity SEO: A Crawler and Citation Guide</h1>
+        <p class="seo-lead">Perplexity combines live web retrieval with language-model synthesis. You can verify which crawler is requesting your site, whether robots.txt or a WAF blocks it, and whether a defined prompt cohort cites your domain.</p>
+        <p class="seo-meta">By <a href="/authors" style="color:var(--accent);text-decoration:none;font-weight:600;">CiteAura Research Team</a> · Updated October 2026</p>
       </div>
     </section>
 
@@ -100,12 +100,12 @@
 
     <section class="seo-section">
       <h2>How Perplexity's RAG Architecture Selects Sources</h2>
-      <p>Traditional search engines calculate PageRank and keyword density across pre-indexed documents, serving a list of blue links for the user to evaluate. Perplexity operates an automated <strong>Retrieval-Augmented Generation (RAG)</strong> pipeline that executes in real-time:</p>
+      <p>Perplexity uses a <strong>Retrieval-Augmented Generation (RAG)</strong> workflow: relevant web pages are retrieved, extracted, and supplied to a language model that produces an answer with source links. Perplexity has not published a complete candidate count, ranking order, or retrieval timing, so separate documented behavior from implementation details that remain undisclosed.</p>
       <ol>
-        <li><strong>Query Decomposition:</strong> When a user asks <em>"What are the best GEO platforms for B2B SaaS and how do their pricing plans compare?"</em>, Perplexity breaks the query into multiple sub-queries sent concurrently to web search index APIs (including Brave Search and internal web clusters).</li>
-        <li><strong>Live Crawl &amp; Snippet Retrieval:</strong> The top 10&ndash;20 candidate pages are fetched on demand. The crawler extracts headings, paragraph text, and structured data while discarding advertising scripts, complex client-side bundles, and navigations.</li>
-        <li><strong>Context Window Insertion:</strong> Extracted document passages are assembled into the LLM context window alongside the user prompt.</li>
-        <li><strong>Numerical Citation Binding:</strong> As the model generates the synthesized response, its internal attention heads attach bracketed citation markers (e.g., <code>[1]</code>, <code>[2]</code>) pointing back to the specific source URLs whose tokens justified the factual sentence.</li>
+        <li><strong>Query Handling:</strong> Perplexity may reformulate or decompose a question into related searches. The number of sub-queries, search suppliers, and ranking order are not fully documented.</li>
+        <li><strong>Live Fetch and Extraction:</strong> When a page is retrieved, the system extracts readable text and links. The exact number of candidate pages, selection thresholds, and parser behavior is not public.</li>
+        <li><strong>Context Assembly:</strong> Selected passages are supplied to a language model as context. Context size and passage selection can vary by product and query.</li>
+        <li><strong>Citation Display:</strong> The answer surface returns numbered source links. How the model binds a specific sentence to a source is not publicly specified.</li>
       </ol>
     </section>
 
@@ -126,13 +126,13 @@
             <tr>
               <td><strong>Mentioned Only (No Link)</strong></td>
               <td>Model mentions your name from pre-trained parametric memory or an aggregator review, but cites a directory (e.g., G2, Reddit).</td>
-              <td>Zero direct referral traffic; risk of displaying outdated pricing or competitor bias.</td>
+              <td>No direct link from that answer; referral and attribution are not guaranteed.</td>
               <td>Create structured brand fact library and entity anchors on canonical product pages.</td>
             </tr>
             <tr>
               <td><strong>Official Citation (Direct Link)</strong></td>
-              <td>Perplexity fetches your canonical URL, verifies facts directly, and places your domain in the numbered citation array.</td>
-              <td>High-intent qualified referral clicks and verified entity ownership.</td>
+              <td>The answer links to your canonical URL and records the citation at the answer level.</td>
+              <td>A direct referral opportunity; users can inspect the cited page for current facts.</td>
               <td>Verify robots.txt access and ensure high extractability on canonical pricing and feature tables.</td>
             </tr>
           </tbody>
@@ -142,10 +142,10 @@
 
     <section class="seo-section">
       <h2>Configuring robots.txt for Perplexity</h2>
-      <p>Perplexity utilizes two primary user-agent tokens defined under RFC 9309:</p>
+      <p>Perplexity documents two user-agent tokens with different roles:</p>
       <ul>
-        <li><code>PerplexityBot</code>: The automated background crawler used for web indexation and content caching.</li>
-        <li><code>Perplexity-User</code>: The user-initiated real-time retrieval agent that fetches URLs when a user asks a live question in Perplexity Pro.</li>
+        <li><code>PerplexityBot</code>: Used to surface and link websites in Perplexity search results. Perplexity says it is not used to crawl content for AI foundation models.</li>
+        <li><code>Perplexity-User</code>: A user-triggered fetcher that may visit a page to answer a question. It is not used for background crawling or training, and Perplexity says it generally ignores robots.txt rules.</li>
       </ul>
       <pre><code># Recommended robots.txt configuration for Perplexity
 User-agent: PerplexityBot
@@ -154,11 +154,10 @@ Disallow: /admin/
 Disallow: /app/
 Disallow: /api/
 
-User-agent: Perplexity-User
-Allow: /
-Disallow: /admin/
-Disallow: /app/</code></pre>
-      <p><em>Warning:</em> Blocking <code>PerplexityBot</code> while allowing other bots will ensure your competitor's marketing copy is cited when users ask comparison queries about your software.</p>
+# Perplexity-User is user-triggered and generally ignores robots.txt.
+# If you want those fetches to succeed, allow the documented IP ranges in your WAF.</code></pre>
+      <p><em>Warning:</em> Blocking <code>PerplexityBot</code> can remove your pages from Perplexity's search and citation surface. It does not guarantee that a competitor will be cited instead.</p>
+      <p>Source: <a href="https://docs.perplexity.ai/docs/resources/perplexity-crawlers" rel="noopener noreferrer">Perplexity crawler documentation</a>.</p>
     </section>
 
     <section class="seo-section">
@@ -173,7 +172,7 @@ Disallow: /app/</code></pre>
         <article class="seo-panel">
           <span class="seo-label">Step 2: Citation Cohort Sampling</span>
           <h3>Run Controlled Prompt Cohorts</h3>
-          <p>We sample Perplexity Sonar and Sonar-Pro across fixed, buyer-intent query vectors, recording raw responses and isolating citation arrays to detect takeover gaps.</p>
+          <p>We sample Perplexity Sonar and Sonar-Pro across fixed, buyer-intent query cohorts, recording raw responses and citation outcomes for comparison.</p>
         </article>
         <article class="seo-panel">
           <span class="seo-label">Step 3: Engineering Ticketing</span>
@@ -186,7 +185,7 @@ Disallow: /app/</code></pre>
     <section class="seo-footer-cta">
       <div>
         <h2>Diagnose your Perplexity citation readiness</h2>
-        <p>Inspect your domain with CiteAura's automated diagnostic engine and discover exactly why answer engines cite competitors over your brand.</p>
+        <p>Inspect your domain with CiteAura's diagnostic workflow, then review the crawl, content, and sample evidence behind any observed citation gap.</p>
       </div>
       <a class="btn btn-primary" href="/app?auth=register" rel="nofollow">Start free trial <span aria-hidden="true">&rarr;</span></a>
     </section>
