@@ -7,7 +7,17 @@
   <meta name="description" content="Audit your website DOM extractability. Learn how AI text extractors parse HTML, why client-side JavaScript traps content, and how to audit text recovery rates.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
-  <script src="/runtime-assets/theme-init.js"></script>
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
@@ -36,54 +46,73 @@
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          {
-            "@type": "ListItem",
-            "position": 1,
-            "name": "Home",
-            "item": "https://citeaura.com/"
-          },
-          {
-            "@type": "ListItem",
-            "position": 2,
-            "name": "Guides",
-            "item": "https://citeaura.com/blog"
-          },
-          {
-            "@type": "ListItem",
-            "position": 3,
-            "name": "Extractability Audit",
-            "item": "https://citeaura.com/blog/extractability-audit"
-          }
-        ]
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://citeaura.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Guides",
+          "item": "https://citeaura.com/blog"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Extractability Audit",
+          "item": "https://citeaura.com/blog/extractability-audit"
+        }
+      ]
+    },
+    {
+      "@type": "Article",
+      "headline": "Extractability Audit: Can AI Read Your Pages?",
+      "description": "How headless AI text extractors convert HTML into text chunks, why JavaScript hydration traps content, and how to conduct a DOM extractability audit.",
+      "url": "https://citeaura.com/blog/extractability-audit",
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-01",
+      "author": {
+        "@id": "https://citeaura.com/#research-team"
       },
-      {
-        "@type": "Article",
-        "headline": "Extractability Audit: Can AI Read Your Pages?",
-        "description": "How headless AI text extractors convert HTML into text chunks, why JavaScript hydration traps content, and how to conduct a DOM extractability audit.",
-        "url": "https://citeaura.com/blog/extractability-audit",
-        "datePublished": "2026-09-01",
-        "dateModified": "2026-09-01",
-        "author": {
-          "@type": "Organization",
-          "name": "CiteAura Research Team",
-          "url": "https://citeaura.com/authors"
-        },
-        "publisher": {
-          "@type": "Organization",
-          "name": "CiteAura",
-          "url": "https://citeaura.com",
-          "logo": "https://citeaura.com/site-assets/logo.png"
-        },
-        "mainEntityOfPage": "https://citeaura.com/blog/extractability-audit"
+      "publisher": {
+        "@id": "https://citeaura.com/#organization"
+      },
+      "mainEntityOfPage": "https://citeaura.com/blog/extractability-audit",
+      "image": [
+        "https://citeaura.com/site-assets/og-guides.png"
+      ],
+      "inLanguage": "en",
+      "@id": "https://citeaura.com/blog/extractability-audit#article"
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#research-team",
+      "name": "CiteAura Research Team",
+      "url": "https://citeaura.com/authors",
+      "parentOrganization": {
+        "@id": "https://citeaura.com/#organization"
       }
-    ]
-  }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png",
+      "sameAs": [
+        "https://github.com/500wango/citeaura"
+      ]
+    }
+  ]
+}
   </script>
   <script defer src="/runtime-assets/clarity.js"></script>
 </head>
@@ -237,7 +266,7 @@ Acceptance Criteria:
         <span class="footer-copy">© 2026 CiteAura</span>
       </div>
 
-      <nav class="footer-links" aria-label="Footer Navigation">
+      <nav class="footer-links" aria-label="Footer Navigation"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a>
         <a href="/docs">Docs</a>
         <a href="/blog">Guides</a>
         <a href="/for-agencies">For agencies</a>

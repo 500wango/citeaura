@@ -74,9 +74,12 @@ def test_public_pages_load_clarity_from_self_hosted_loader():
     assert response.status_code == 200
     assert '<script defer src="/runtime-assets/clarity.js"></script>' in response.text
     policy = response.headers["content-security-policy"]
-    assert "script-src 'self' https://*.clarity.ms;" in policy
-    assert "connect-src 'self' https://*.clarity.ms;" in policy
-    assert "img-src 'self' data: blob: https://*.clarity.ms;" in policy
+    assert "script-src 'self' 'sha256-" in policy
+    assert "https://*.clarity.ms" in policy
+    assert "https://static.cloudflareinsights.com;" in policy
+    assert "connect-src 'self' https://*.clarity.ms https://c.bing.com https://cloudflareinsights.com;" in policy
+    assert "img-src 'self' data: blob: https://*.clarity.ms https://c.bing.com;" in policy
+    assert "'unsafe-inline'" not in policy.split("script-src")[1].split(";")[0]
     assert "clarity.ms" not in client.get("/app").headers["content-security-policy"]
 
     loader = client.get("/runtime-assets/clarity.js")

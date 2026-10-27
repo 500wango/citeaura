@@ -27,47 +27,47 @@ SITE_BASE_URL = os.getenv("SITE_BASE_URL", "https://citeaura.com").rstrip("/")
 PUBLIC_PAGES = (
     {"path": "/", "lastmod": "2026-09-08", "changefreq": "weekly", "priority": "1.0"},
     {"path": "/fr", "lastmod": "2026-09-08", "changefreq": "weekly", "priority": "0.9"},
-    {"path": "/docs", "lastmod": "2026-08-20", "changefreq": "weekly", "priority": "0.8"},
-    {"path": "/ai-visibility-audit", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.9"},
+    {"path": "/docs", "lastmod": "2026-09-12", "changefreq": "weekly", "priority": "0.8"},
+    {"path": "/ai-visibility-audit", "lastmod": "2026-10-27", "changefreq": "monthly", "priority": "0.9"},
     {"path": "/ai-seo-tools", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
     {"path": "/answer-engine-optimization", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
-    {"path": "/google-ai-overviews-optimization", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
-    {"path": "/perplexity-seo", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
+    {"path": "/google-ai-overviews-optimization", "lastmod": "2026-10-25", "changefreq": "monthly", "priority": "0.9"},
+    {"path": "/perplexity-seo", "lastmod": "2026-10-25", "changefreq": "monthly", "priority": "0.9"},
     {"path": "/llm-optimization", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
-    {"path": "/ai-brand-monitoring", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
-    {"path": "/for-agencies", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.8"},
-    {"path": "/for-brands", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.8"},
+    {"path": "/ai-brand-monitoring", "lastmod": "2026-10-25", "changefreq": "monthly", "priority": "0.9"},
+    {"path": "/for-agencies", "lastmod": "2026-10-27", "changefreq": "monthly", "priority": "0.8"},
+    {"path": "/for-brands", "lastmod": "2026-10-27", "changefreq": "monthly", "priority": "0.8"},
     {"path": "/methodology", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/pricing", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/sample-report", "lastmod": "2026-08-23", "changefreq": "monthly", "priority": "0.8"},
     {"path": "/crawler-check", "lastmod": "2026-09-06", "changefreq": "monthly", "priority": "0.7"},
-    {"path": "/llms-txt-tool", "lastmod": "2026-09-06", "changefreq": "monthly", "priority": "0.7"},
-    {"path": "/schema-tool", "lastmod": "2026-09-06", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/llms-txt-tool", "lastmod": "2026-10-25", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/schema-tool", "lastmod": "2026-10-25", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/about", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/contact", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/compare", "lastmod": "2026-09-15", "changefreq": "weekly", "priority": "0.8"},
-    {"path": "/compare/citeaura-vs-profound", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
-    {"path": "/compare/citeaura-vs-otterly", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
-    {"path": "/compare/citeaura-vs-higeo", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
-    {"path": "/compare/citeaura-vs-semrush-ai", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.7"},
-    {"path": "/editorial-policy", "lastmod": "2026-09-15", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/compare", "lastmod": "2026-09-20", "changefreq": "weekly", "priority": "0.8"},
+    {"path": "/compare/citeaura-vs-profound", "lastmod": "2026-09-20", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/compare/citeaura-vs-otterly", "lastmod": "2026-09-20", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/compare/citeaura-vs-higeo", "lastmod": "2026-09-20", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/compare/citeaura-vs-semrush-ai", "lastmod": "2026-09-20", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/editorial-policy", "lastmod": "2026-09-26", "changefreq": "monthly", "priority": "0.7"},
     {"path": "/authors", "lastmod": "2026-09-15", "changefreq": "weekly", "priority": "0.7"},
     {"path": "/blog", "lastmod": "2026-09-14", "changefreq": "weekly", "priority": "0.7"},
     {"path": "/blog/best-ai-visibility-tools", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/measure-if-chatgpt-mentions-your-brand", "lastmod": "2026-09-14", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt", "lastmod": "2026-09-14", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/why-chatgpt-does-not-mention-my-brand", "lastmod": "2026-09-14", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/perplexity-citation-audit", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/google-ai-overviews-citation-guide", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/what-to-put-in-llms-txt", "lastmod": "2026-09-14", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/perplexity-citation-audit", "lastmod": "2026-09-02", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/google-ai-overviews-citation-guide", "lastmod": "2026-09-02", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/what-to-put-in-llms-txt", "lastmod": "2026-10-25", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/gptbot-blocked-by-robots-txt", "lastmod": "2026-09-14", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/ai-crawler-access-checklist", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/ai-crawler-access-checklist", "lastmod": "2026-09-02", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/geo-vs-seo", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/geo-vs-seo-differences", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/extractability-audit", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/white-label-geo-diagnostic-report", "lastmod": "2026-08-20", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/white-label-geo-diagnostic-report", "lastmod": "2026-08-24", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/brand-fact-library-guide", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/how-to-get-ai-to-cite-your-site", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/how-to-get-ai-to-cite-your-site", "lastmod": "2026-09-02", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/geo-blueprint-guide", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/sampling-modes-explained", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/citation-readiness-score", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
@@ -75,8 +75,8 @@ PUBLIC_PAGES = (
     {"path": "/blog/verification-geo-mesurer-visibilite-ia", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/ai-visibility-diagnosis-for-brands", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/diagnostic-visibilite-ia-marques", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/sell-geo-retainers-with-delivery-packs", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/ai-search-directory-listings-guide", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/sell-geo-retainers-with-delivery-packs", "lastmod": "2026-09-02", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/blog/ai-search-directory-listings-guide", "lastmod": "2026-09-02", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/json-ld-schema-for-ai-search", "lastmod": "2026-09-10", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/schema-json-ld-pour-la-recherche-ia", "lastmod": "2026-09-10", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/why-chatgpt-cites-competitor-not-your-brand", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
@@ -400,6 +400,25 @@ def serve_favicon_ico():
 def serve_llms_txt():
     """返回 CiteAura 的公开机器可读产品说明。"""
     return FileResponse(WEB_ROOT / "llms.txt", media_type="text/plain; charset=utf-8")
+
+
+@router.get("/.well-known/security.txt")
+@router.head("/.well-known/security.txt")
+def serve_security_txt():
+    """返回漏洞披露联系方式。"""
+    content = "\n".join(
+        (
+            "Contact: mailto:privacy@citeaura.com",
+            "Expires: 2027-12-31T00:00:00Z",
+            "Preferred-Languages: en, fr",
+            f"Canonical: {SITE_BASE_URL}/.well-known/security.txt",
+        )
+    ) + "\n"
+    return Response(
+        content=content,
+        media_type="text/plain; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.get("/i18n/{locale}.json")

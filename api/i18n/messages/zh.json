@@ -2603,5 +2603,12 @@
   "report.issue.playbook_missing.message": "行动工单待生成",
   "report.issue.playbook_missing.action": "生成行动计划",
   "report.issue.delivery_missing.message": "诊断包尚未生成",
-  "report.issue.delivery_missing.action": "构建诊断包"
+  "report.issue.delivery_missing.action": "构建诊断包",
+  "nav.ai_seo_tools": "AI SEO 工具",
+  "nav.aeo": "答案引擎优化",
+  "nav.google_ai_overviews": "Google AI 概览",
+  "nav.perplexity_seo": "Perplexity SEO",
+  "nav.llm_optimization": "LLM 优化",
+  "nav.ai_brand_monitoring": "AI 品牌监测",
+  "nav.compare": "对比平台"
 }

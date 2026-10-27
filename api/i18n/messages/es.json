@@ -2603,5 +2603,12 @@
   "report.issue.playbook_missing.message": "Tickets de acción pendientes",
   "report.issue.playbook_missing.action": "Generar plan de acción",
   "report.issue.delivery_missing.message": "El paquete de diagnóstico aún no se ha compilado",
-  "report.issue.delivery_missing.action": "Crear el paquete de diagnóstico"
+  "report.issue.delivery_missing.action": "Crear el paquete de diagnóstico",
+  "nav.ai_seo_tools": "Herramientas SEO de IA",
+  "nav.aeo": "Optimización para motores de respuesta",
+  "nav.google_ai_overviews": "Vistas de IA de Google",
+  "nav.perplexity_seo": "SEO para Perplexity",
+  "nav.llm_optimization": "Optimización LLM",
+  "nav.ai_brand_monitoring": "Monitorización de marca IA",
+  "nav.compare": "Comparar plataformas"
 }

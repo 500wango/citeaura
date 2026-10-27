@@ -60,7 +60,7 @@ def test_landing_page_is_public_and_links_to_application():
     assert "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations" in response.text
     assert "id=\"about\"" in response.text
     assert "CiteAura versus traditional SEO tools" in response.text
-    assert "Step 1." in response.text
+    assert "Add the official website URL and create a workspace." in response.text
     assert 'data-i18n="landing.howto_title"' in response.text
     assert 'data-i18n="landing.howto_1_body"' in response.text
     assert 'data-i18n="landing.compare_rarely_published"' in response.text
@@ -340,11 +340,16 @@ def test_frontend_asset_cache_contract_is_explicit():
         assert response.status_code == 200, path
         assert response.headers["cache-control"] == "public, max-age=31536000, immutable", path
 
-    # HTML 页面：不缓存
-    for path in ("/", "/docs", "/blog", "/docs.js", "/manifest.webmanifest"):
+    # HTML 页面：允许边缘缓存，浏览器每次回源校验
+    for path in ("/", "/docs", "/blog"):
         response = client.get(path)
         assert response.status_code == 200, path
-        assert response.headers["cache-control"] == "public, no-store, max-age=0", path
+        assert response.headers["cache-control"] == "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400", path
+
+    for path in ("/docs.js", "/manifest.webmanifest"):
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.headers["cache-control"] == "public, no-cache", path
 
 
 def test_public_markup_has_no_manual_asset_version_queries():
@@ -695,7 +700,7 @@ def test_seo_technical_files_are_served():
     assert "https://citeaura.com/contact" in llms_res.text
     assert "https://citeaura.com/blog" in llms_res.text
     assert "https://citeaura.com/app/" not in llms_res.text
-    assert "API - Parametric knowledge" in llms_res.text
+    assert "API · Parametric knowledge" in llms_res.text
     assert "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations" in llms_res.text
     assert "14 days" in llms_res.text
     assert client.head("/llms.txt").status_code == 200

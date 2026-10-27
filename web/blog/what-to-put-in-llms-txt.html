@@ -7,7 +7,17 @@
   <meta name="description" content="An optional llms.txt draft: checkable facts and public URLs. Google Search does not use it. Skip slogans, rankings, and unverified claims." data-i18n-content="public.meta.g4_description">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
-  <script src="/runtime-assets/theme-init.js"></script>
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
@@ -36,108 +46,127 @@
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          {
-            "@type": "ListItem",
-            "position": 1,
-            "name": "Home",
-            "item": "https://citeaura.com/"
-          },
-          {
-            "@type": "ListItem",
-            "position": 2,
-            "name": "Guides",
-            "item": "https://citeaura.com/blog"
-          },
-          {
-            "@type": "ListItem",
-            "position": 3,
-            "name": "llms.txt best practices: facts, canonical URLs, what to leave out",
-            "item": "https://citeaura.com/blog/what-to-put-in-llms-txt"
-          }
-        ]
-      },
-      {
-        "@type": "Article",
-        "headline": "llms.txt best practices: facts, canonical URLs, what to leave out",
-        "description": "An optional llms.txt draft: checkable facts and public URLs. Google Search does not use it. Skip slogans, rankings, and unverified claims.",
-        "url": "https://citeaura.com/blog/what-to-put-in-llms-txt",
-        "datePublished": "2026-08-17",
-        "dateModified": "2026-10-25",
-        "author": {
-          "@type": "Organization",
-          "name": "CiteAura Research Team",
-          "url": "https://citeaura.com/authors"
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://citeaura.com/"
         },
-        "publisher": {
-          "@type": "Organization",
-          "name": "CiteAura",
-          "url": "https://citeaura.com",
-          "logo": "https://citeaura.com/site-assets/logo.png"
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Guides",
+          "item": "https://citeaura.com/blog"
         },
-        "mainEntityOfPage": "https://citeaura.com/blog/what-to-put-in-llms-txt"
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "llms.txt best practices: facts, canonical URLs, what to leave out",
+          "item": "https://citeaura.com/blog/what-to-put-in-llms-txt"
+        }
+      ]
+    },
+    {
+      "@type": "Article",
+      "headline": "llms.txt best practices: facts, canonical URLs, what to leave out",
+      "description": "An optional llms.txt draft: checkable facts and public URLs. Google Search does not use it. Skip slogans, rankings, and unverified claims.",
+      "url": "https://citeaura.com/blog/what-to-put-in-llms-txt",
+      "datePublished": "2026-08-17",
+      "dateModified": "2026-10-25",
+      "author": {
+        "@id": "https://citeaura.com/#research-team"
       },
-      {
-        "@type": "FAQPage",
-        "@id": "https://citeaura.com/blog/what-to-put-in-llms-txt#faq",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "What are the llms.txt syntax conventions and best practices?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "The llmstxt.org proposal uses /llms.txt with a single H1, a short blockquote summary, and Markdown links to canonical resources. It is a convention, not a universal standard; Google Search does not use llms.txt."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "What should not go in llms.txt?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Leave out private routes, staging URLs, login-only content, credentials, and claims that are not supported by an official public page. Never copy pricing into llms.txt that you do not also maintain on the live pricing page — stale pricing is the most common trust failure crawlers detect."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Does llms.txt guarantee AI mentions?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "No. It is an optional discovery convention proposed at llmstxt.org. A reachable file does not prove that a model read it or will mention the brand. Treat verification as: the file is reachable as text/plain, its links are 200, and its claims match public HTML — not that a model consumed it."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Where should llms.txt be published?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Publish it as text/plain; charset=utf-8 at the canonical site root, for example https://example.com/llms.txt. Serve from the canonical host (apex or www, not both without redirect), allow GET without auth, and return Cache-Control that reflects how often facts change."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How do I validate llms.txt before deploy?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Parse the Markdown, enforce heading order (single H1, then H2 sections), check every URL is absolute https on your canonical host or allow-listed, and assert each fact line has a source URL you control. Schema-style checks catch stale pricing, relative links, and forbidden sections before deploy."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "What is the recommended size limit for llms.txt vs llms-full.txt?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Five kilobytes is practical editorial guidance, not a protocol limit. Large files may be truncated or ignored depending on the client. Keep the index short and link to canonical pages for detail."
-            }
+      "publisher": {
+        "@id": "https://citeaura.com/#organization"
+      },
+      "mainEntityOfPage": "https://citeaura.com/blog/what-to-put-in-llms-txt",
+      "image": [
+        "https://citeaura.com/site-assets/og-guides.png"
+      ],
+      "inLanguage": "en",
+      "@id": "https://citeaura.com/blog/what-to-put-in-llms-txt#article"
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://citeaura.com/blog/what-to-put-in-llms-txt#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What are the llms.txt syntax conventions and best practices?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The llmstxt.org proposal uses /llms.txt with a single H1, a short blockquote summary, and Markdown links to canonical resources. It is a convention, not a universal standard; Google Search does not use llms.txt."
           }
-        ]
+        },
+        {
+          "@type": "Question",
+          "name": "What should not go in llms.txt?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Leave out private routes, staging URLs, login-only content, credentials, and claims that are not supported by an official public page. Never copy pricing into llms.txt that you do not also maintain on the live pricing page — stale pricing is the most common trust failure crawlers detect."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does llms.txt guarantee AI mentions?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. It is an optional discovery convention proposed at llmstxt.org. A reachable file does not prove that a model read it or will mention the brand. Treat verification as: the file is reachable as text/plain, its links are 200, and its claims match public HTML — not that a model consumed it."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where should llms.txt be published?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Publish it as text/plain; charset=utf-8 at the canonical site root, for example https://example.com/llms.txt. Serve from the canonical host (apex or www, not both without redirect), allow GET without auth, and return Cache-Control that reflects how often facts change."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I validate llms.txt before deploy?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Parse the Markdown, enforce heading order (single H1, then H2 sections), check every URL is absolute https on your canonical host or allow-listed, and assert each fact line has a source URL you control. Schema-style checks catch stale pricing, relative links, and forbidden sections before deploy."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the recommended size limit for llms.txt vs llms-full.txt?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Five kilobytes is practical editorial guidance, not a protocol limit. Large files may be truncated or ignored depending on the client. Keep the index short and link to canonical pages for detail."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#research-team",
+      "name": "CiteAura Research Team",
+      "url": "https://citeaura.com/authors",
+      "parentOrganization": {
+        "@id": "https://citeaura.com/#organization"
       }
-    ]
-  }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png",
+      "sameAs": [
+        "https://github.com/500wango/citeaura"
+      ]
+    }
+  ]
+}
   </script>
   <script defer src="/runtime-assets/clarity.js"></script>
 </head>
@@ -435,7 +464,7 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
         <span class="footer-copy">© 2026 CiteAura</span>
       </div>
 
-      <nav class="footer-links" aria-label="Footer Navigation" data-i18n-aria="public.docs.footer_nav">
+      <nav class="footer-links" aria-label="Footer Navigation" data-i18n-aria="public.docs.footer_nav"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a>
         <a href="/docs" data-i18n="nav.docs">Docs</a>
         <a href="/blog" data-i18n="nav.guides">Guides</a>
         <a href="/about" data-i18n="literal.6b21fb791ac0">About</a>

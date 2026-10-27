@@ -19,3 +19,4 @@ deploy/certs/
 promo-video/
 test-report-*.txt
 backups/
+.qoder/

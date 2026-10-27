@@ -8,7 +8,17 @@
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <meta name="author" content="Équipe de recherche CiteAura">
-  <script src="/runtime-assets/theme-init.js"></script>
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
@@ -18,10 +28,7 @@
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="canonical" href="https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia">
-  <link rel="alternate" hreflang="fr" href="https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia">
-  <link rel="alternate" hreflang="en" href="https://citeaura.com/blog/json-ld-schema-for-ai-search">
-  <link rel="alternate" hreflang="x-default" href="https://citeaura.com/blog/json-ld-schema-for-ai-search">
+  <link rel="canonical" href="https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia"><link rel="alternate" hreflang="x-default" href="https://citeaura.com/blog/json-ld-schema-for-ai-search"><link rel="alternate" hreflang="en" href="https://citeaura.com/blog/json-ld-schema-for-ai-search"><link rel="alternate" hreflang="fr" href="https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
   <meta property="og:type" content="article">
@@ -42,92 +49,73 @@
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          {
-            "@type": "ListItem",
-            "position": 1,
-            "name": "Accueil",
-            "item": "https://citeaura.com/"
-          },
-          {
-            "@type": "ListItem",
-            "position": 2,
-            "name": "Guides",
-            "item": "https://citeaura.com/blog"
-          },
-          {
-            "@type": "ListItem",
-            "position": 3,
-            "name": "Schéma JSON-LD pour la recherche IA",
-            "item": "https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia"
-          }
-        ]
-      },
-      {
-        "@type": "Article",
-        "headline": "Schéma JSON-LD pour la recherche IA : comment les LLM extraient les entités de marque",
-        "description": "Analyse technique du rôle des données structurées JSON-LD dans les moteurs génératifs, la résolution d'entités dans les pipelines RAG et la prévention des divergences avec le DOM.",
-        "url": "https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia",
-        "datePublished": "2026-09-10",
-        "dateModified": "2026-09-10",
-        "author": {
-          "@type": "Organization",
-          "name": "CiteAura Research Team",
-          "url": "https://citeaura.com/authors"
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Accueil",
+          "item": "https://citeaura.com/"
         },
-        "publisher": {
-          "@type": "Organization",
-          "name": "CiteAura",
-          "url": "https://citeaura.com",
-          "logo": "https://citeaura.com/site-assets/logo.png"
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Guides",
+          "item": "https://citeaura.com/blog"
         },
-        "mainEntityOfPage": "https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia"
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Schéma JSON-LD pour la recherche IA",
+          "item": "https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia"
+        }
+      ]
+    },
+    {
+      "@type": "Article",
+      "headline": "Schéma JSON-LD pour la recherche IA : comment les LLM extraient les entités de marque",
+      "description": "Analyse technique du rôle des données structurées JSON-LD dans les moteurs génératifs, la résolution d'entités dans les pipelines RAG et la prévention des divergences avec le DOM.",
+      "url": "https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia",
+      "datePublished": "2026-09-10",
+      "dateModified": "2026-09-10",
+      "author": {
+        "@id": "https://citeaura.com/#research-team"
       },
-      {
-        "@type": "FAQPage",
-        "@id": "https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia#faq",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "Le balisage JSON-LD garantit-il d'être cité par ChatGPT ou Perplexity ?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Non. Les données structurées ne constituent en aucun cas une garantie de citation. Elles fournissent un ancrage sémantique à haute densité facilitant la désambiguïsation de votre entité de marque et la validation de vos faits publics par les extracteurs RAG."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Pourquoi les robots d'indexation IA préfèrent-ils le JSON-LD aux microdonnées ?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Le JSON-LD réside dans des blocs autonomes <script type=\"application/ld+json\">. Les extracteurs headless et les robots d'exploration rapide peuvent parser directement ces objets JSON sans devoir construire ni parcourir l'arborescence complète du DOM."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Que se passe-t-il lorsque le prix dans le schéma contredit le texte visible ?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Une divergence entre le balisage structuré et le texte visible sur la page crée une contradiction factuelle. Face à cette incertitude lors de la synthèse RAG, les modèles omettent fréquemment de citer le domaine pour éviter les pénalités d'hallucination."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Quels types de schémas offrent les signaux les plus déterminants pour l'IA ?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Les quatre blocs essentiels sont Organization (avec des liens sameAs faisant autorité), SoftwareApplication ou Product (avec les offres et tarifs explicites), WebSite et FAQPage (avec des réponses directes et atomiques)."
-            }
-          }
-        ]
+      "publisher": {
+        "@id": "https://citeaura.com/#organization"
+      },
+      "mainEntityOfPage": "https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia",
+      "image": [
+        "https://citeaura.com/site-assets/og-guides.png"
+      ],
+      "inLanguage": "fr",
+      "@id": "https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia#article"
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#research-team",
+      "name": "CiteAura Research Team",
+      "url": "https://citeaura.com/authors",
+      "parentOrganization": {
+        "@id": "https://citeaura.com/#organization"
       }
-    ]
-  }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png",
+      "sameAs": [
+        "https://github.com/500wango/citeaura"
+      ]
+    }
+  ]
+}
   </script>
   <script defer src="/runtime-assets/clarity.js"></script>
 </head>
@@ -421,7 +409,7 @@
         <span class="footer-copy">&copy; 2026 CiteAura</span>
       </div>
 
-      <nav class="footer-links" aria-label="Navigation de bas de page">
+      <nav class="footer-links" aria-label="Navigation de bas de page"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a>
         <a href="/docs">Documentation</a>
         <a href="/blog">Guides</a>
         <a href="/for-agencies">Pour les agences</a>

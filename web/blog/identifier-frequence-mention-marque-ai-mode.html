@@ -3,12 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Identifier la fréquence de mention de marque dans AI Mode : protocole | CiteAura</title>
+  <title>Identifier la fréquence de mention de marque dans AI Mode : protocole</title>
   <meta name="description" content="AI Mode puise dans l'index Google avec des requêtes conversationnelles. Protocole complet : cohorte adaptée, multi-tours, taux de mention et de citation.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <meta name="author" content="Équipe Recherche CiteAura">
-  <script src="/runtime-assets/theme-init.js"></script>
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
@@ -19,9 +29,6 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="canonical" href="https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode">
-  <link rel="alternate" hreflang="fr" href="https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode">
-  <link rel="alternate" hreflang="en" href="https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand">
-  <link rel="alternate" hreflang="x-default" href="https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
   <meta property="og:type" content="article">
@@ -43,65 +50,112 @@
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          {
-            "@type": "ListItem",
-            "position": 1,
-            "name": "Accueil",
-            "item": "https://citeaura.com/"
-          },
-          {
-            "@type": "ListItem",
-            "position": 2,
-            "name": "Guides",
-            "item": "https://citeaura.com/blog"
-          },
-          {
-            "@type": "ListItem",
-            "position": 3,
-            "name": "Identifier la fréquence de mention de marque dans AI Mode : protocole de mesure",
-            "item": "https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode"
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Accueil",
+          "item": "https://citeaura.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Guides",
+          "item": "https://citeaura.com/blog"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Identifier la fréquence de mention de marque dans AI Mode : protocole de mesure",
+          "item": "https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode"
+        }
+      ]
+    },
+    {
+      "@type": "Article",
+      "headline": "Identifier la fréquence de mention de marque dans AI Mode : protocole de mesure",
+      "description": "AI Mode puise dans l'index Google avec des requêtes conversationnelles. Protocole complet : cohorte adaptée, multi-tours, taux de mention et de citation.",
+      "url": "https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode",
+      "datePublished": "2026-10-06",
+      "dateModified": "2026-10-06",
+      "author": {
+        "@id": "https://citeaura.com/#research-team"
+      },
+      "publisher": {
+        "@id": "https://citeaura.com/#organization"
+      },
+      "mainEntityOfPage": "https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode",
+      "wordCount": 927,
+      "image": [
+        "https://citeaura.com/site-assets/og-guides.png"
+      ],
+      "inLanguage": "fr",
+      "@id": "https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode#article"
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "AI Mode utilise-t-il les mêmes sources que ChatGPT ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Non. AI Mode puise principalement dans l'index Google (résultats web classiques), tandis que ChatGPT en mode connecté utilise Bing et ses crawlers propres, avec une forte pondération des sources communautaires comme Reddit. Une stratégie de visibilité doit couvrir les deux index."
           }
-        ]
-      },
-      {
-        "@type": "Article",
-        "headline": "Identifier la fréquence de mention de marque dans AI Mode : protocole de mesure",
-        "description": "AI Mode puise dans l'index Google avec des requêtes conversationnelles. Protocole complet : cohorte adaptée, multi-tours, taux de mention et de citation.",
-        "url": "https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode",
-        "datePublished": "2026-10-06",
-        "dateModified": "2026-10-06",
-        "author": {
-          "@type": "Organization",
-          "name": "CiteAura Research Team",
-          "url": "https://citeaura.com/authors"
         },
-        "publisher": {
-          "@type": "Organization",
-          "name": "CiteAura",
-          "url": "https://citeaura.com",
-          "logo": "https://citeaura.com/site-assets/logo.png"
+        {
+          "@type": "Question",
+          "name": "Faut-il un fichier llms.txt pour AI Mode ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Non, pas spécifiquement. Google a indiqué qu'aucun fichier ou balisage spécial n'est requis pour ses fonctionnalités IA : une page indexée, éligible aux extraits, avec un contenu de qualité suffit à être candidate. Le llms.txt reste utile comme résumé machine de votre offre, tous moteurs confondus (générateur gratuit)."
+          }
         },
-        "mainEntityOfPage": "https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode",
-        "wordCount": 927
-      },
-      {
-        "@type": "FAQPage",
-        "@id": "https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode#faq",
-        "mainEntity": [
-          {"@type": "Question","name": "AI Mode utilise-t-il les mêmes sources que ChatGPT ?","acceptedAnswer": {"@type": "Answer","text": "Non. AI Mode puise principalement dans l'index Google (résultats web classiques), tandis que ChatGPT en mode connecté utilise Bing et ses crawlers propres, avec une forte pondération des sources communautaires comme Reddit. Une stratégie de visibilité doit couvrir les deux index."}},
-          {"@type": "Question","name": "Faut-il un fichier llms.txt pour AI Mode ?","acceptedAnswer": {"@type": "Answer","text": "Non, pas spécifiquement. Google a indiqué qu'aucun fichier ou balisage spécial n'est requis pour ses fonctionnalités IA : une page indexée, éligible aux extraits, avec un contenu de qualité suffit à être candidate. Le llms.txt reste utile comme résumé machine de votre offre, tous moteurs confondus (générateur gratuit)."}},
-          {"@type": "Question","name": "Pourquoi ma marque apparaît-elle dans AI Overviews mais pas dans AI Mode ?","acceptedAnswer": {"@type": "Answer","text": "Les deux produits partagent l'index Google mais pas les mêmes logiques de reranking conversationnel. AI Mode reformule et enchaîne : une marque citée dans un résumé statique peut disparaître dès la deuxième question d'une conversation. Mesurez les deux séparément, surtout le multi-tours."}},
-          {"@type": "Question","name": "Combien de temps avant de voir un effet dans AI Mode ?","acceptedAnswer": {"@type": "Answer","text": "La récupération s'appuie sur l'index Google : après correction de vos pages (accessibilité, contenu, données structurées), comptez quelques jours à quelques semaines selon la fréquence de crawl de votre site. Vérifiez l'indexation dans Search Console avant de conclure."}}
-        ]
+        {
+          "@type": "Question",
+          "name": "Pourquoi ma marque apparaît-elle dans AI Overviews mais pas dans AI Mode ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Les deux produits partagent l'index Google mais pas les mêmes logiques de reranking conversationnel. AI Mode reformule et enchaîne : une marque citée dans un résumé statique peut disparaître dès la deuxième question d'une conversation. Mesurez les deux séparément, surtout le multi-tours."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Combien de temps avant de voir un effet dans AI Mode ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "La récupération s'appuie sur l'index Google : après correction de vos pages (accessibilité, contenu, données structurées), comptez quelques jours à quelques semaines selon la fréquence de crawl de votre site. Vérifiez l'indexation dans Search Console avant de conclure."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#research-team",
+      "name": "CiteAura Research Team",
+      "url": "https://citeaura.com/authors",
+      "parentOrganization": {
+        "@id": "https://citeaura.com/#organization"
       }
-    ]
-  }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png",
+      "sameAs": [
+        "https://github.com/500wango/citeaura"
+      ]
+    }
+  ]
+}
   </script>
   <script defer src="/runtime-assets/clarity.js"></script>
 </head>
@@ -264,7 +318,7 @@
         <p class="footer-tagline">Plateforme de diagnostic, exécution et vérification GEO (Generative Engine Optimization).</p>
         <span class="footer-copy">© 2026 CiteAura</span>
       </div>
-      <nav class="footer-links" aria-label="Liens de bas de page">
+      <nav class="footer-links" aria-label="Liens de bas de page"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a>
         <a href="/docs">Documentation</a>
         <a href="/blog">Guides</a>
         <a href="/about">À propos</a>

@@ -2603,5 +2603,12 @@
   "report.issue.playbook_missing.message": "Aktionstickets ausstehend",
   "report.issue.playbook_missing.action": "Aktionsplan erstellen",
   "report.issue.delivery_missing.message": "Diagnosepaket noch nicht erstellt",
-  "report.issue.delivery_missing.action": "Diagnosepaket erstellen"
+  "report.issue.delivery_missing.action": "Diagnosepaket erstellen",
+  "nav.ai_seo_tools": "KI-SEO-Tools",
+  "nav.aeo": "Answer-Engine-Optimierung",
+  "nav.google_ai_overviews": "KI-Übersichten von Google",
+  "nav.perplexity_seo": "Perplexity SEO",
+  "nav.llm_optimization": "LLM-Optimierung",
+  "nav.ai_brand_monitoring": "KI-Markenmonitoring",
+  "nav.compare": "Plattformen vergleichen"
 }

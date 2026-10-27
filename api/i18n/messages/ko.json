@@ -183,7 +183,7 @@
   "landing.per_month": "/ 월",
   "landing.per_year": "/ 년",
   "landing.per_14_days": "/ 14일",
-  "landing.faq_index": "₢ 킹",
+  "landing.faq_index": "07 / 자주 묻는 질문",
   "landing.faq_title": "FAQ",
   "landing.home.faq_lead": "<strong>CiteAura는 AI 가시성 트래킹, BYOK API 키, 클라이언트 인도에 대해 직접 답합니다.</strong> 아래 질문은 샘플링 모드, 가격, 체험판 포함 항목을 다룹니다.",
   "landing.faq_1_q": "API 샘플은 사용자가 제품 화면에서 보는 내용과 일치하나요?",
@@ -2603,5 +2603,12 @@
   "report.issue.playbook_missing.message": "액션 티켓이 대기 중입니다",
   "report.issue.playbook_missing.action": "액션 계획을 생성하세요",
   "report.issue.delivery_missing.message": "진단 팩이 아직 생성되지 않았습니다",
-  "report.issue.delivery_missing.action": "진단 팩을 생성하세요"
+  "report.issue.delivery_missing.action": "진단 팩을 생성하세요",
+  "nav.ai_seo_tools": "AI SEO 도구",
+  "nav.aeo": "답변 엔진 최적화",
+  "nav.google_ai_overviews": "Google AI 개요",
+  "nav.perplexity_seo": "Perplexity SEO",
+  "nav.llm_optimization": "LLM 최적화",
+  "nav.ai_brand_monitoring": "AI 브랜드 모니터링",
+  "nav.compare": "플랫폼 비교"
 }

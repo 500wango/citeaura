@@ -7,7 +7,17 @@
   <meta name="description" content="Compare CiteAura plans for GEO audits, AI visibility sampling, verification, scheduled monitoring, and white-label client delivery.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f8fafc">
-  <script src="/runtime-assets/theme-init.js"></script>
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
   <script defer src="/site-assets/seo-attribution.js"></script>
   <script defer src="/site-assets/site-nav.js"></script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
@@ -17,7 +27,142 @@
   <meta property="og:type" content="website"><meta property="og:site_name" content="CiteAura"><meta property="og:url" content="https://citeaura.com/pricing"><meta property="og:title" content="CiteAura Pricing | GEO Audit and AI Visibility Plans"><meta property="og:description" content="Plans for evidence-based GEO diagnosis, sampling, verification, and client delivery."><meta property="og:image" content="https://citeaura.com/site-assets/og-default.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="CiteAura pricing and GEO workflow">
   <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="CiteAura Pricing | GEO Audit and AI Visibility Plans"><meta name="twitter:description" content="Choose a plan for GEO diagnosis, AI visibility sampling, and verification."><meta name="twitter:image" content="https://citeaura.com/site-assets/og-default.png">
   <script type="application/ld+json">
-  { "@context": "https://schema.org", "@graph": [ { "@type": "WebPage", "@id": "https://citeaura.com/pricing#page", "url": "https://citeaura.com/pricing", "name": "CiteAura Pricing", "description": "Plans for evidence-based GEO diagnosis, sampling, verification, and client delivery.", "datePublished": "2026-08-01", "dateModified": "2026-08-26", "author": { "@type": "Organization", "name": "CiteAura Engineering & Research Team", "url": "https://citeaura.com/about" }, "publisher": { "@type": "Organization", "name": "CiteAura", "url": "https://citeaura.com", "sameAs": ["https://github.com/500wango/citeaura", "https://x.com/citeaura"] }, "about": { "@id": "https://citeaura.com/#software" } }, { "@type": "BreadcrumbList", "itemListElement": [ { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://citeaura.com/" }, { "@type": "ListItem", "position": 2, "name": "Pricing", "item": "https://citeaura.com/pricing" } ] }, { "@type": "OfferCatalog", "name": "CiteAura plans", "itemListElement": [ { "@type": "Offer", "name": "Starter", "price": "79", "priceCurrency": "USD", "url": "https://citeaura.com/pricing", "availability": "https://schema.org/InStock" }, { "@type": "Offer", "name": "Pro", "price": "199", "priceCurrency": "USD", "url": "https://citeaura.com/pricing", "availability": "https://schema.org/InStock" }, { "@type": "Offer", "name": "Agency", "price": "499", "priceCurrency": "USD", "url": "https://citeaura.com/pricing", "availability": "https://schema.org/InStock" } ] }, { "@type": "FAQPage", "mainEntity": [ { "@type": "Question", "name": "Is there a free trial?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Eligible new workspaces receive a 14-day trial with no credit card requirement." } }, { "@type": "Question", "name": "Are API model costs included?", "acceptedAnswer": { "@type": "Answer", "text": "CiteAura is BYOK-first. You configure the providers you intend to use, and the workspace shows which providers are measured, funded, or unmeasured." } }, { "@type": "Question", "name": "Does a plan guarantee AI mentions or rankings?", "acceptedAnswer": { "@type": "Answer", "text": "No. Plans provide the workflow and evidence needed to diagnose and verify work. Provider behavior remains outside a plan guarantee." } } ] } ] }
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://citeaura.com/pricing#page",
+      "url": "https://citeaura.com/pricing",
+      "name": "CiteAura Pricing",
+      "description": "Plans for evidence-based GEO diagnosis, sampling, verification, and client delivery.",
+      "datePublished": "2026-08-01",
+      "dateModified": "2026-08-26",
+      "author": {
+        "@id": "https://citeaura.com/#research-team"
+      },
+      "publisher": {
+        "@id": "https://citeaura.com/#organization"
+      },
+      "about": {
+        "@id": "https://citeaura.com/#software"
+      },
+      "inLanguage": "en"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://citeaura.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Pricing",
+          "item": "https://citeaura.com/pricing"
+        }
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://citeaura.com/#software",
+      "name": "CiteAura",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "Generative engine optimization",
+      "operatingSystem": "Web browser",
+      "url": "https://citeaura.com/",
+      "description": "GEO workspace that audits public sites, samples AI answers, turns gaps into tickets, and verifies delivery.",
+      "publisher": {
+        "@id": "https://citeaura.com/#organization"
+      },
+      "hasOfferCatalog": {
+        "@id": "https://citeaura.com/pricing#plans"
+      }
+    },
+    {
+      "@type": "OfferCatalog",
+      "@id": "https://citeaura.com/pricing#plans",
+      "name": "CiteAura plans",
+      "itemListElement": [
+        {
+          "@type": "Offer",
+          "name": "Starter",
+          "price": "79",
+          "priceCurrency": "USD",
+          "url": "https://citeaura.com/pricing",
+          "availability": "https://schema.org/InStock"
+        },
+        {
+          "@type": "Offer",
+          "name": "Pro",
+          "price": "199",
+          "priceCurrency": "USD",
+          "url": "https://citeaura.com/pricing",
+          "availability": "https://schema.org/InStock"
+        },
+        {
+          "@type": "Offer",
+          "name": "Agency",
+          "price": "499",
+          "priceCurrency": "USD",
+          "url": "https://citeaura.com/pricing",
+          "availability": "https://schema.org/InStock"
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is there a free trial?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Eligible new workspaces receive a 14-day trial with no credit card requirement."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Are API model costs included?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "CiteAura is BYOK-first. You configure the providers you intend to use, and the workspace shows which providers are measured, funded, or unmeasured."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does a plan guarantee AI mentions or rankings?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Plans provide the workflow and evidence needed to diagnose and verify work. Provider behavior remains outside a plan guarantee."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#research-team",
+      "name": "CiteAura Research Team",
+      "url": "https://citeaura.com/authors",
+      "parentOrganization": {
+        "@id": "https://citeaura.com/#organization"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png",
+      "sameAs": [
+        "https://github.com/500wango/citeaura"
+      ]
+    }
+  ]
+}
   </script>
   <script defer src="/runtime-assets/clarity.js"></script>
 </head>
@@ -30,6 +175,6 @@
     <section class="seo-section" aria-labelledby="pricing-faq-title"><h2 id="pricing-faq-title">Pricing questions</h2><div class="seo-faq"><details open><summary>Is there a free trial?</summary><p>Yes. Eligible new workspaces receive a 14-day trial with no credit card requirement.</p></details><details><summary>Are API model costs included?</summary><p>CiteAura is BYOK-first. You configure the providers you intend to use, and the workspace shows which providers are measured, funded, or unmeasured.</p></details><details><summary>Does a plan guarantee AI mentions or rankings?</summary><p>No. Plans provide the workflow and evidence needed to diagnose and verify work. Provider behavior remains outside a plan guarantee.</p></details></div></section>
     <section class="seo-footer-cta" aria-labelledby="pricing-cta-title"><div><h2 id="pricing-cta-title">See the workflow before choosing a plan.</h2><p>Run the same public audit that starts every CiteAura project.</p></div><a class="btn btn-primary" href="/#simulator">Start a free audit <span aria-hidden="true">→</span></a></section>
   </main>
-  <footer class="site-footer"><div class="page-shell footer-layout"><div class="footer-brand"><a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a><p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p><span class="footer-copy">© 2026 CiteAura</span></div><nav class="footer-links" aria-label="Footer Navigation"><a href="/for-agencies">For agencies</a><a href="/for-brands">For brands</a><a href="/methodology">Methodology</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/blog">Guides</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></nav></div></footer>
+  <footer class="site-footer"><div class="page-shell footer-layout"><div class="footer-brand"><a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a><p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p><span class="footer-copy">© 2026 CiteAura</span></div><nav class="footer-links" aria-label="Footer Navigation"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a><a href="/for-agencies">For agencies</a><a href="/for-brands">For brands</a><a href="/methodology">Methodology</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/blog">Guides</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></nav></div></footer>
 </body>
 </html>

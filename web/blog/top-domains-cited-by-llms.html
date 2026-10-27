@@ -3,11 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The 20 Domains LLMs Cite Most (and What It Means for Your Brand) | CiteAura</title>
-  <meta name="description" content="Semrush analyzed 325,000 AI search prompts: Reddit, LinkedIn, Wikipedia, YouTube and Medium dominate LLM citations. No brand website cracks the top 20. Here's what the data means for GEO.">
+  <title>The 20 Domains LLMs Cite Most (and What It Means for Your Brand)</title>
+  <meta name="description" content="Semrush analyzed 325,000 AI search prompts: Reddit, LinkedIn, Wikipedia and YouTube dominate LLM citations. See what that means for your brand.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
-  <script src="/runtime-assets/theme-init.js"></script>
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
@@ -17,20 +27,20 @@
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="canonical" href="https://citeaura.com/blog/top-domains-cited-by-llms">
+  <link rel="canonical" href="https://citeaura.com/blog/top-domains-cited-by-llms"><link rel="alternate" hreflang="x-default" href="https://citeaura.com/blog/top-domains-cited-by-llms"><link rel="alternate" hreflang="en" href="https://citeaura.com/blog/top-domains-cited-by-llms"><link rel="alternate" hreflang="fr" href="https://citeaura.com/blog/principaux-domaines-cites-par-les-llm">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/top-domains-cited-by-llms">
   <meta property="og:title" content="The 20 Domains LLMs Cite Most (and What It Means for Your Brand) | CiteAura">
-  <meta property="og:description" content="Semrush analyzed 325,000 AI search prompts: Reddit, LinkedIn, Wikipedia, YouTube and Medium dominate LLM citations. No brand website cracks the top 20. Here's what the data means for GEO.">
+  <meta property="og:description" content="Semrush analyzed 325,000 AI search prompts: Reddit, LinkedIn, Wikipedia and YouTube dominate LLM citations. See what that means for your brand.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="CiteAura guides — field notes on AI visibility.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="The 20 Domains LLMs Cite Most (and What It Means for Your Brand) | CiteAura">
-  <meta name="twitter:description" content="Semrush analyzed 325,000 AI search prompts: Reddit, LinkedIn, Wikipedia, YouTube and Medium dominate LLM citations. No brand website cracks the top 20. Here's what the data means for GEO.">
+  <meta name="twitter:description" content="Semrush analyzed 325,000 AI search prompts: Reddit, LinkedIn, Wikipedia and YouTube dominate LLM citations. See what that means for your brand.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
   <script type="application/ld+json">
 {
@@ -67,18 +77,18 @@
       "datePublished": "2026-10-06",
       "dateModified": "2026-10-06",
       "author": {
-        "@type": "Organization",
-        "name": "CiteAura Research Team",
-        "url": "https://citeaura.com/authors"
+        "@id": "https://citeaura.com/#research-team"
       },
       "publisher": {
-        "@type": "Organization",
-        "name": "CiteAura",
-        "url": "https://citeaura.com",
-        "logo": "https://citeaura.com/site-assets/logo.png"
+        "@id": "https://citeaura.com/#organization"
       },
       "mainEntityOfPage": "https://citeaura.com/blog/top-domains-cited-by-llms",
-      "wordCount": 960
+      "wordCount": 960,
+      "image": [
+        "https://citeaura.com/site-assets/og-guides.png"
+      ],
+      "inLanguage": "en",
+      "@id": "https://citeaura.com/blog/top-domains-cited-by-llms#article"
     },
     {
       "@type": "FAQPage",
@@ -109,6 +119,25 @@
           }
         }
       ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#research-team",
+      "name": "CiteAura Research Team",
+      "url": "https://citeaura.com/authors",
+      "parentOrganization": {
+        "@id": "https://citeaura.com/#organization"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png",
+      "sameAs": [
+        "https://github.com/500wango/citeaura"
+      ]
     }
   ]
 }
@@ -130,7 +159,7 @@
     <header class="blog-header">
       <span class="blog-kicker">Diagnosis</span>
       <h1>The 20 Domains LLMs Cite Most (and What It Means for Your Brand)</h1>
-      <p class="blog-lead">When ChatGPT recommends your competitor instead of you, the cause is rarely product quality. These seven evidence gaps explain the difference — and each one has a concrete fix.</p>
+      <p class="blog-lead">Semrush analyzed 325,000 AI search prompts and found that user-generated content dominates AI citations. This guide breaks down the 20 domains LLMs cite most, why they win, and what brands can do about it.</p>
       <p class="blog-meta">Published 6 October 2026 · 8 min read · Diagnosis</p>
       <p class="blog-byline">By CiteAura Research Team</p>
     </header>
@@ -241,7 +270,7 @@
       </div>
     </div>
   </article>
-<footer class="site-footer"><div class="page-shell footer-layout"><div class="footer-brand"><a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a><p class="footer-tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p><span class="footer-copy">© 2026 CiteAura</span></div><nav class="footer-links" aria-label="Footer Navigation"><a href="/docs">Docs</a><a href="/blog">Guides</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/app?auth=login" rel="nofollow">Sign In</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></nav></div></footer>
+<footer class="site-footer"><div class="page-shell footer-layout"><div class="footer-brand"><a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a><p class="footer-tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p><span class="footer-copy">© 2026 CiteAura</span></div><nav class="footer-links" aria-label="Footer Navigation"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a><a href="/docs">Docs</a><a href="/blog">Guides</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/app?auth=login" rel="nofollow">Sign In</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></nav></div></footer>
   <script defer src="/site-assets/landing.js"></script><script defer src="/site-assets/site-nav.js"></script><script defer src="/site-assets/seo-attribution.js"></script>
 </body>
 </html>

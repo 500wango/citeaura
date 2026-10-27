@@ -22,21 +22,38 @@ INDEXNOW_ENDPOINTS = (
     "https://yandex.com/indexnow",
 )
 
-# Canonical 33 public pages on CiteAura
 DEFAULT_PUBLIC_PATHS = [
     "/",
+    "/fr",
     "/docs",
     "/ai-visibility-audit",
+    "/ai-seo-tools",
+    "/answer-engine-optimization",
+    "/google-ai-overviews-optimization",
+    "/perplexity-seo",
+    "/llm-optimization",
+    "/ai-brand-monitoring",
     "/for-agencies",
     "/for-brands",
     "/methodology",
     "/pricing",
     "/sample-report",
+    "/crawler-check",
+    "/llms-txt-tool",
+    "/schema-tool",
     "/about",
     "/contact",
+    "/compare",
+    "/compare/citeaura-vs-profound",
+    "/compare/citeaura-vs-otterly",
+    "/compare/citeaura-vs-higeo",
+    "/compare/citeaura-vs-semrush-ai",
+    "/editorial-policy",
+    "/authors",
     "/blog",
     "/blog/best-ai-visibility-tools",
     "/blog/measure-if-chatgpt-mentions-your-brand",
+    "/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt",
     "/blog/why-chatgpt-does-not-mention-my-brand",
     "/blog/perplexity-citation-audit",
     "/blog/google-ai-overviews-citation-guide",
@@ -44,6 +61,7 @@ DEFAULT_PUBLIC_PATHS = [
     "/blog/gptbot-blocked-by-robots-txt",
     "/blog/ai-crawler-access-checklist",
     "/blog/geo-vs-seo",
+    "/blog/geo-vs-seo-differences",
     "/blog/extractability-audit",
     "/blog/white-label-geo-diagnostic-report",
     "/blog/brand-fact-library-guide",
@@ -52,9 +70,22 @@ DEFAULT_PUBLIC_PATHS = [
     "/blog/sampling-modes-explained",
     "/blog/citation-readiness-score",
     "/blog/geo-verification-loop",
+    "/blog/verification-geo-mesurer-visibilite-ia",
     "/blog/ai-visibility-diagnosis-for-brands",
+    "/blog/diagnostic-visibilite-ia-marques",
     "/blog/sell-geo-retainers-with-delivery-packs",
     "/blog/ai-search-directory-listings-guide",
+    "/blog/json-ld-schema-for-ai-search",
+    "/blog/schema-json-ld-pour-la-recherche-ia",
+    "/blog/why-chatgpt-cites-competitor-not-your-brand",
+    "/blog/pourquoi-chatgpt-cite-concurrent-pas-marque",
+    "/blog/why-chatgpt-cites-competitor-offsite-factors",
+    "/blog/pourquoi-chatgpt-concurrent-raisons-hors-site",
+    "/blog/mesurer-exposition-marque-resultats-chatgpt",
+    "/blog/comprendre-comment-chatgpt-mentionne-marque",
+    "/blog/identifier-frequence-mention-marque-ai-mode",
+    "/blog/top-domains-cited-by-llms",
+    "/blog/principaux-domaines-cites-par-les-llm",
     "/privacy",
     "/terms",
 ]
@@ -66,16 +97,19 @@ def discover_public_urls():
     web_dir = script_dir.parent / "web"
     
     if web_dir.exists() and web_dir.is_dir():
-        paths = ["/"]
+        paths = {"/", "/fr", "/blog", "/authors"}
         for p in web_dir.glob("*.html"):
             if p.name != "index.html":
-                paths.append(f"/{p.stem}")
-        blog_dir = web_dir / "blog"
-        if blog_dir.exists():
-            paths.append("/blog")
-            for p in blog_dir.glob("*.html"):
+                paths.add(f"/{p.stem}")
+        for sub in ("blog", "compare"):
+            sub_dir = web_dir / sub
+            if not sub_dir.exists():
+                continue
+            if sub == "blog":
+                paths.add("/blog")
+            for p in sub_dir.glob("*.html"):
                 if p.name != "index.html":
-                    paths.append(f"/blog/{p.stem}")
+                    paths.add(f"/{sub}/{p.stem}")
         return sorted({f"https://{HOST}{path}" for path in paths})
     
     return sorted({f"https://{HOST}{path}" for path in DEFAULT_PUBLIC_PATHS})

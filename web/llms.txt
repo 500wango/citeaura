@@ -5,6 +5,13 @@
 ## Official pages
 
 - [Website](https://citeaura.com/): Product definition, comparison, pricing, and how-to.
+- [Website (French)](https://citeaura.com/fr): Version française de la page produit.
+- [AI SEO Tools](https://citeaura.com/ai-seo-tools): How to evaluate AI visibility tools by evidence, sampling modes, and verification.
+- [Answer Engine Optimization (AEO)](https://citeaura.com/answer-engine-optimization): Technical guide to citations in synthesized answers.
+- [Google AI Overviews](https://citeaura.com/google-ai-overviews-optimization): What Google's official documentation says about AI Overviews.
+- [Perplexity SEO](https://citeaura.com/perplexity-seo): Crawler access and citation guide for Perplexity.
+- [LLM Optimization](https://citeaura.com/llm-optimization): Brand visibility across large language model answers.
+- [AI Brand Monitoring](https://citeaura.com/ai-brand-monitoring): Track mentions and citations across AI engines.
 - [About CiteAura](https://citeaura.com/about): Product scope, evidence boundaries, and source specifications.
 - [Contact CiteAura](https://citeaura.com/contact): Privacy requests, workspace support, and product documentation.
 - [Documentation](https://citeaura.com/docs): Setup, measurement, execution, verification, and delivery guidance.
@@ -15,6 +22,10 @@
 - [Pricing](https://citeaura.com/pricing): Starter, Pro, Agency, and Enterprise plan capacity and trial terms.
 - [Sample GEO Diagnostic Report](https://citeaura.com/sample-report): Example diagnostic with evidence, action tickets, and verification gates.
 - [Compare GEO Platforms](https://citeaura.com/compare): Empirical evaluation methodology and head-to-head comparisons with alternative AI visibility platforms.
+- [CiteAura vs Profound](https://citeaura.com/compare/citeaura-vs-profound): Side-by-side platform comparison.
+- [CiteAura vs Otterly AI](https://citeaura.com/compare/citeaura-vs-otterly): Side-by-side platform comparison.
+- [CiteAura vs HiGEO](https://citeaura.com/compare/citeaura-vs-higeo): Side-by-side platform comparison.
+- [CiteAura vs Semrush AI](https://citeaura.com/compare/citeaura-vs-semrush-ai): Side-by-side platform comparison.
 - [Editorial Policy & AI Transparency](https://citeaura.com/editorial-policy): Standards on human authorship, AI assistance disclosure, testing reproducibility, and fact-checking.
 - [CiteAura Research & Engineering Group](https://citeaura.com/authors): Multidisciplinary research working group behind the open-source GEO engine and evaluation standards.
 - [AI Crawler Checker](https://citeaura.com/crawler-check): Test robots.txt rules against GPTBot, ClaudeBot, and other AI crawlers.
@@ -23,7 +34,7 @@
 - [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
 - [JSON-LD Schema for AI Search: How LLMs Extract Brand Entities](https://citeaura.com/blog/json-ld-schema-for-ai-search)
 - [Schéma JSON-LD pour la recherche IA : extraction des entités de marque](https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia)
-- [Best AI Visibility Tools 2026: Tested for Real Mentions](https://citeaura.com/blog/best-ai-visibility-tools)
+- [Best AI Visibility Tools 2026: How to Evaluate Evidence](https://citeaura.com/blog/best-ai-visibility-tools)
 - [How to Measure ChatGPT Brand Mentions](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
 - [Identifier la fréquence de mention de marque dans ChatGPT](https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt)
 - [Why ChatGPT Does Not Mention Your Brand](https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand)
@@ -69,7 +80,7 @@
 - Typical API sampling cost: under 1 percent of one Starter month
 - Priority ticket windows: 30 days or 60 days
 - Key encryption: AES-256-GCM
-- Updated: 2026-08-26
+- Updated: 2026-10-27
 
 ## Product workflow
 
@@ -92,7 +103,7 @@
 
 ## Measurement integrity
 
-- Sampling outputs retain one of these modes: API - Parametric knowledge, API - Search grounded, or Manual - Product interface.
+- Sampling outputs retain one of these modes: API · Parametric knowledge, API · Web-grounded retrieval, or Manual · Product interface.
 - Unmeasured providers and insufficient sample coverage are disclosed rather than estimated.
 - CiteAura does not guarantee AI mentions, rankings, citations, or optimization outcomes.
 

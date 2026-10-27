@@ -7,7 +7,17 @@
   <meta name="description" content="Learn what CiteAura measures, how its GEO diagnostic workflow works, and where its AI visibility evidence stops." data-i18n-content="public.about.description">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
-  <script src="/runtime-assets/theme-init.js"></script>
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
@@ -38,27 +48,31 @@
   <meta name="twitter:description" content="What CiteAura measures, how the workflow works, and what its evidence does not claim.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-default.png">
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "AboutPage",
-    "@id": "https://citeaura.com/about#page",
-    "url": "https://citeaura.com/about",
-    "name": "About CiteAura",
-    "description": "What CiteAura measures, how its GEO diagnostic workflow works, and where its evidence stops.",
-    "dateModified": "2026-08-20",
-    "author": {
-      "@type": "Organization",
-      "name": "CiteAura",
-      "url": "https://citeaura.com/about"
-    },
-    "mainEntity": {
-      "@type": "Organization",
-      "@id": "https://citeaura.com/#organization",
-      "name": "CiteAura",
-      "url": "https://citeaura.com",
-      "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification."
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@context": "https://schema.org",
+      "@type": "AboutPage",
+      "@id": "https://citeaura.com/about#page",
+      "url": "https://citeaura.com/about",
+      "name": "About CiteAura",
+      "description": "What CiteAura measures, how its GEO diagnostic workflow works, and where its evidence stops.",
+      "dateModified": "2026-08-20",
+      "author": {
+        "@id": "https://citeaura.com/#organization"
+      },
+      "mainEntity": {
+        "@type": "Organization",
+        "@id": "https://citeaura.com/#organization",
+        "name": "CiteAura",
+        "url": "https://citeaura.com",
+        "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification."
+      },
+      "inLanguage": "en"
     }
-  }
+  ]
+}
   </script>
   <style>
     .public-page {
@@ -202,7 +216,7 @@
         <p class="footer-tagline" data-i18n="landing.footer_tagline">Next-gen Generative Engine Optimization (GEO) diagnosis, execution, and delivery.</p>
         <span class="footer-copy">&copy; 2026 CiteAura Software Systems</span>
       </div>
-      <nav class="footer-links" aria-label="Footer Navigation" data-i18n-aria="public.docs.footer_nav">
+      <nav class="footer-links" aria-label="Footer Navigation" data-i18n-aria="public.docs.footer_nav"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a>
         <a href="/docs" data-i18n="nav.docs">Docs</a>
         <a href="/blog" data-i18n="nav.guides">Guides</a>
         <a href="/authors">Authors</a>

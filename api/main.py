@@ -1,11 +1,15 @@
 """FastAPI 应用入口。"""
 
+import base64
+import hashlib
+import mimetypes
 import time
 from urllib.parse import urlparse, urlsplit, urlunsplit
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.concurrency import run_in_threadpool
 from sqlalchemy.exc import IntegrityError
@@ -32,6 +36,16 @@ from api.workspace.router import router as workspace_router
 from api.readiness import readiness_checks
 from api.rate_limit import AUTH_PATHS, RateLimitUnavailable, check_request
 
+
+# 系统 mimetypes 数据库在精简镜像中缺这些映射，会导致 webp/woff2 以 octet-stream 返回。
+mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("font/woff", ".woff")
+
+# 主题初始化已内联到公开页面，CSP 用内容哈希放行，避免额外阻塞请求。
+_THEME_INIT_SHA = base64.b64encode(
+    hashlib.sha256((WEB_ROOT / "assets" / "theme-init.js").read_bytes()).digest()
+).decode()
 
 _docs_url = "/api/docs" if config.api_docs_enabled() else None
 _redoc_url = "/api/redoc" if config.api_docs_enabled() else None
@@ -118,6 +132,12 @@ def _public_canonical_redirect(request: Request):
 @app.middleware("http")
 async def canonical_public_paths(request: Request, call_next):
     """Keep public pages on one permanent, non-trailing-slash URL."""
+    if request.url.path == "/admin":
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+        proto = request.headers.get("x-forwarded-proto")
+        if not proto:
+            proto = "http" if any(local in host for local in ("localhost", "127.0.0.1", "testserver")) else "https"
+        return RedirectResponse(url=f"{proto.split(',')[0].strip()}://{host}/admin/", status_code=308)
     redirect = _public_canonical_redirect(request)
     if redirect is not None:
         return redirect
@@ -175,10 +195,13 @@ async def security_headers(request: Request, call_next):
             response.headers["Cache-Control"] = "public, no-cache"
         else:
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-    elif request.url.path in ("/docs.js", "/manifest.webmanifest") or response.headers.get("content-type", "").lower().startswith(
-        "text/html"
-    ):
-        response.headers["Cache-Control"] = "public, no-store, max-age=0"
+    elif request.url.path in ("/docs.js", "/manifest.webmanifest"):
+        response.headers["Cache-Control"] = "public, no-cache"
+    elif response.headers.get("content-type", "").lower().startswith("text/html"):
+        # 营销页内容不随用户变化，允许边缘缓存 1 小时并后台刷新；浏览器每次回源校验。
+        response.headers["Cache-Control"] = (
+            "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400"
+        )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
@@ -200,9 +223,12 @@ async def security_headers(request: Request, call_next):
         )
     else:
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self' https://*.clarity.ms; style-src 'self' 'unsafe-inline'; "
-            "font-src 'self'; img-src 'self' data: blob: https://*.clarity.ms; "
-            "connect-src 'self' https://*.clarity.ms; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+            f"default-src 'self'; script-src 'self' 'sha256-{_THEME_INIT_SHA}' "
+            "https://*.clarity.ms https://static.cloudflareinsights.com; "
+            "style-src 'self' 'unsafe-inline'; font-src 'self'; "
+            "img-src 'self' data: blob: https://*.clarity.ms https://c.bing.com; "
+            "connect-src 'self' https://*.clarity.ms https://c.bing.com https://cloudflareinsights.com; "
+            "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         )
     ua = (request.headers.get("user-agent") or "").lower()
     if any(bot in ua for bot in ("bot", "gpt", "claude", "perplexity", "spider", "crawl")):
@@ -233,14 +259,31 @@ async def integrity_error_handler(request: Request, exc: IntegrityError):
     return JSONResponse(status_code=500, content={"error": "database_integrity_error"})
 
 
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    """统一返回 API 错误 JSON，同时保留 FastAPI 的标准 detail 兼容性。"""
+def _http_exception_response(request: Request, exc: StarletteHTTPException):
+    """对公开页面返回可读的 HTML 404，其余路径保持 JSON 错误体。"""
+    accept = (request.headers.get("accept") or "").lower()
+    public_path = not request.url.path.startswith(_NON_PUBLIC_PREFIXES)
+    if exc.status_code == 404 and public_path and "text/html" in accept:
+        page = WEB_ROOT / "404.html"
+        if page.is_file():
+            return HTMLResponse(status_code=404, content=page.read_text("utf-8"))
     if isinstance(exc.detail, dict) and "error" in exc.detail:
         content = exc.detail
     else:
         content = {"detail": exc.detail}
-    return JSONResponse(status_code=exc.status_code, content=content, headers=exc.headers)
+    return JSONResponse(status_code=exc.status_code, content=content, headers=getattr(exc, "headers", None))
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """统一返回 API 错误 JSON，同时保留 FastAPI 的标准 detail 兼容性。"""
+    return _http_exception_response(request, exc)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def starlette_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """路由层 404 与 FastAPI 层保持一致的响应格式。"""
+    return _http_exception_response(request, exc)
 
 
 @app.get("/api/v1/health")

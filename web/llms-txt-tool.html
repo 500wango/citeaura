@@ -35,91 +35,127 @@
   <link rel="stylesheet" href="/site-assets/styles/components.css">
   <link rel="stylesheet" href="/site-assets/styles/landing.css">
   <link rel="stylesheet" href="/site-assets/styles/seo-pages.css">
-  <script src="/runtime-assets/theme-init.js"></script>
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
   <script defer src="/site-assets/site-nav.js"></script>
   <script defer src="/site-assets/free-tools-llms.js"></script>
 
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "WebApplication",
-        "@id": "https://citeaura.com/llms-txt-tool#app",
-        "name": "llms.txt Generator & Validator",
-        "url": "https://citeaura.com/llms-txt-tool",
-        "applicationCategory": "DeveloperApplication",
-        "operatingSystem": "All",
-        "description": "Generate and validate human-reviewed llms.txt drafts from public homepage metadata for agents that support the convention.",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        },
-        "publisher": {
-          "@type": "Organization",
-          "name": "CiteAura",
-          "url": "https://citeaura.com",
-          "sameAs": [
-            "https://github.com/500wango/citeaura",
-            "https://x.com/citeaura"
-          ]
-        },
-        "author": {
-          "@type": "Organization",
-          "name": "CiteAura Engineering & Research Team",
-          "url": "https://citeaura.com/about"
-        },
-        "datePublished": "2026-09-06",
-        "dateModified": "2026-10-25"
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "@id": "https://citeaura.com/llms-txt-tool#app",
+      "name": "llms.txt Generator & Validator",
+      "url": "https://citeaura.com/llms-txt-tool",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "All",
+      "description": "Generate and validate human-reviewed llms.txt drafts from public homepage metadata for agents that support the convention.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
       },
-      {
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://citeaura.com/" },
-          { "@type": "ListItem", "position": 2, "name": "Free GEO Tools", "item": "https://citeaura.com/#free-tools" },
-          { "@type": "ListItem", "position": 3, "name": "llms.txt Generator", "item": "https://citeaura.com/llms-txt-tool" }
-        ]
+      "publisher": {
+        "@id": "https://citeaura.com/#organization"
       },
-      {
-        "@type": "FAQPage",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "What is an llms.txt file?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "An llms.txt file is a proposed Markdown convention at /llms.txt. It gives supporting agents a concise set of entity definitions, verified facts, and canonical links. It is not a Google Search requirement, and Google Search does not use it."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Does publishing an llms.txt guarantee AI recommendations?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "No. Some agents or crawlers may ignore the file. It is a discovery aid, not a ranking or citation guarantee."
-            }
-          },
-          {
-            "@type": "Question",
-              "name": "Where should the llms.txt file be hosted?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-                "text": "Publish it at https://yourdomain.com/llms.txt with a successful text response. /.well-known/llms.txt is not required by the convention. robots.txt and link headers are not required to use the file."
-              }
-            },
-            {
-              "@type": "Question",
-              "name": "Is llms.txt required for Google Search?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "No. Google Search does not use llms.txt and does not require special AI text files or markup for AI Overviews or AI Mode."
-            }
+      "author": {
+        "@id": "https://citeaura.com/#research-team"
+      },
+      "datePublished": "2026-09-06",
+      "dateModified": "2026-10-25"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://citeaura.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Free GEO Tools",
+          "item": "https://citeaura.com/#free-tools"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "llms.txt Generator",
+          "item": "https://citeaura.com/llms-txt-tool"
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is an llms.txt file?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "An llms.txt file is a proposed Markdown convention at /llms.txt. It gives supporting agents a concise set of entity definitions, verified facts, and canonical links. It is not a Google Search requirement, and Google Search does not use it."
           }
-        ]
+        },
+        {
+          "@type": "Question",
+          "name": "Does publishing an llms.txt guarantee AI recommendations?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Some agents or crawlers may ignore the file. It is a discovery aid, not a ranking or citation guarantee."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where should the llms.txt file be hosted?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Publish it at https://yourdomain.com/llms.txt with a successful text response. /.well-known/llms.txt is not required by the convention. robots.txt and link headers are not required to use the file."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is llms.txt required for Google Search?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Google Search does not use llms.txt and does not require special AI text files or markup for AI Overviews or AI Mode."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#research-team",
+      "name": "CiteAura Research Team",
+      "url": "https://citeaura.com/authors",
+      "parentOrganization": {
+        "@id": "https://citeaura.com/#organization"
       }
-    ]
-  }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png",
+      "sameAs": [
+        "https://github.com/500wango/citeaura"
+      ]
+    }
+  ]
+}
   </script>
   <style>
     .tool-form-card { padding: var(--sp-6); border: 1px solid var(--divider); background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--sh-sm); margin: var(--sp-6) 0; }
@@ -282,7 +318,7 @@
         <p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p>
         <span class="footer-copy">© 2026 CiteAura</span>
       </div>
-      <nav class="footer-links" aria-label="Footer Navigation">
+      <nav class="footer-links" aria-label="Footer Navigation"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a>
         <a href="/for-agencies">For agencies</a>
         <a href="/for-brands">For brands</a>
         <a href="/methodology">Methodology</a>

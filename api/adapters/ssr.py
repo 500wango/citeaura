@@ -202,11 +202,76 @@ def _render_landing_cached(locale: str, site_base: str) -> str:
     if locale == "fr":
         _fr_href_map = {
             "/blog/measure-if-chatgpt-mentions-your-brand": "/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt",
-            "/blog/why-chatgpt-does-not-mention-my-brand": "/blog/diagnostic-visibilite-ia-marques",
-            "/blog/white-label-geo-diagnostic-report": "/blog/verification-geo-mesurer-visibilite-ia",
+            "/blog/why-chatgpt-cites-competitor-not-your-brand": "/blog/pourquoi-chatgpt-cite-concurrent-pas-marque",
+            "/blog/why-chatgpt-cites-competitor-offsite-factors": "/blog/pourquoi-chatgpt-concurrent-raisons-hors-site",
+            "/blog/geo-verification-loop": "/blog/verification-geo-mesurer-visibilite-ia",
+            "/blog/ai-visibility-diagnosis-for-brands": "/blog/diagnostic-visibilite-ia-marques",
+            "/blog/json-ld-schema-for-ai-search": "/blog/schema-json-ld-pour-la-recherche-ia",
+            "/blog/geo-vs-seo": "/blog/geo-vs-seo-differences",
+            "/blog/top-domains-cited-by-llms": "/blog/principaux-domaines-cites-par-les-llm",
         }
         for a_tag in soup.find_all("a", href=True):
             if a_tag["href"] in _fr_href_map:
                 a_tag["href"] = _fr_href_map[a_tag["href"]]
 
+    _localize_jsonld(soup, catalog, locale, site_base, html_lang)
+
     return str(soup)
+
+
+_FAQ_KEYS = (
+    ("landing.faq_1_q", "landing.faq_1_a"),
+    ("landing.faq_2_q", "landing.home.cost"),
+    ("landing.faq_3_q", "landing.faq_3_a"),
+    ("landing.faq_4_q", "landing.faq_4_a"),
+    ("landing.faq_5_q", "landing.faq_5_a"),
+)
+
+
+def _plain(text: str | None) -> str:
+    """把目录里的富文本答案压成 JSON-LD 需要的纯文本。"""
+    if not text:
+        return ""
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text)).strip()
+
+
+def _localize_jsonld(soup: BeautifulSoup, catalog: dict, locale: str, site_base: str, html_lang: str) -> None:
+    """把从英文页复制的 JSON-LD 改写为当前语言的页面实体。"""
+    for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        try:
+            doc = json.loads(script.string or "")
+        except (TypeError, ValueError):
+            continue
+        nodes = doc.get("@graph") if isinstance(doc, dict) else None
+        if not isinstance(nodes, list):
+            nodes = [doc]
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            raw_type = node.get("@type")
+            types = set(raw_type if isinstance(raw_type, list) else [raw_type])
+            if "WebPage" in types:
+                node["@id"] = f"{site_base}/{locale}#webpage"
+                node["url"] = f"{site_base}/{locale}"
+                node["inLanguage"] = html_lang
+                if catalog.get("landing.title"):
+                    node["name"] = _plain(catalog["landing.title"])
+                if catalog.get("landing.meta_description"):
+                    node["description"] = _plain(catalog["landing.meta_description"])
+            if "FAQPage" in types:
+                questions = []
+                for q_key, a_key in _FAQ_KEYS:
+                    question = _plain(catalog.get(q_key))
+                    answer = _plain(catalog.get(a_key))
+                    if question and answer:
+                        questions.append(
+                            {
+                                "@type": "Question",
+                                "name": question,
+                                "acceptedAnswer": {"@type": "Answer", "text": answer},
+                            }
+                        )
+                node["@id"] = f"{site_base}/{locale}#faq"
+                node["inLanguage"] = html_lang
+                node["mainEntity"] = questions
+        script.string = json.dumps(doc, ensure_ascii=False, indent=2)

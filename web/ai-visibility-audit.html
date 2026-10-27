@@ -7,7 +7,17 @@
   <meta name="description" content="Run an AI visibility audit to find crawl, content, and citation gaps behind missing brand mentions. Turn evidence into tickets and verify the fix.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
-  <script src="/runtime-assets/theme-init.js"></script>
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
   <script defer src="/site-assets/seo-attribution.js"></script>
   <script defer src="/site-assets/site-nav.js"></script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
@@ -35,48 +45,103 @@
   <meta name="twitter:description" content="Find the evidence behind missing AI brand mentions and verify the fix.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-default.png">
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "WebPage",
-        "@id": "https://citeaura.com/ai-visibility-audit#page",
-        "url": "https://citeaura.com/ai-visibility-audit",
-        "name": "AI Visibility Audit Software",
-        "description": "A practical AI visibility audit for crawl access, official facts, answer evidence, and verification.",
-        "dateModified": "2026-08-26",
-        "isPartOf": { "@id": "https://citeaura.com/#website" },
-        "about": { "@id": "https://citeaura.com/#software" }
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://citeaura.com/ai-visibility-audit#page",
+      "url": "https://citeaura.com/ai-visibility-audit",
+      "name": "AI Visibility Audit Software",
+      "description": "A practical AI visibility audit for crawl access, official facts, answer evidence, and verification.",
+      "dateModified": "2026-10-27",
+      "isPartOf": {
+        "@id": "https://citeaura.com/#website"
       },
-      {
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://citeaura.com/" },
-          { "@type": "ListItem", "position": 2, "name": "AI Visibility Audit", "item": "https://citeaura.com/ai-visibility-audit" }
-        ]
+      "about": {
+        "@id": "https://citeaura.com/#software"
       },
-      {
-        "@type": "FAQPage",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "What is an AI visibility audit?",
-            "acceptedAnswer": { "@type": "Answer", "text": "An AI visibility audit checks whether a public website exposes the pages and official facts that AI systems can reach, extract, retrieve, and cite for a defined question set." }
-          },
-          {
-            "@type": "Question",
-            "name": "Does an AI visibility audit replace traditional SEO?",
-            "acceptedAnswer": { "@type": "Answer", "text": "No. Traditional SEO and AI visibility audits answer different questions. Use both when you need search traffic and evidence about how AI answers describe a brand." }
-          },
-          {
-            "@type": "Question",
-            "name": "Can I start an audit without a model API key?",
-            "acceptedAnswer": { "@type": "Answer", "text": "Yes. CiteAura can start with a public technical audit. Model sampling is a separate, explicitly labeled evidence stream that can be added later." }
+      "inLanguage": "en"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://citeaura.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "AI Visibility Audit",
+          "item": "https://citeaura.com/ai-visibility-audit"
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is an AI visibility audit?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "An AI visibility audit checks whether a public website exposes the pages and official facts that AI systems can reach, extract, retrieve, and cite for a defined question set."
           }
-        ]
+        },
+        {
+          "@type": "Question",
+          "name": "Does an AI visibility audit replace traditional SEO?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Traditional SEO and AI visibility audits answer different questions. Use both when you need search traffic and evidence about how AI answers describe a brand."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I start an audit without a model API key?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. CiteAura can start with a public technical audit. Model sampling is a separate, explicitly labeled evidence stream that can be added later."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://citeaura.com/#software",
+      "name": "CiteAura",
+      "author": {
+        "@id": "https://citeaura.com/#organization"
+      },
+      "publisher": {
+        "@id": "https://citeaura.com/#organization"
+      },
+      "description": "CiteAura is a Generative Engine Optimization platform that audits, measures, and improves brand citations, mentions, and visibility in generative AI engines, then closes the loop with engineering tickets and verification.",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web Application",
+      "dateModified": "2026-10-27"
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://citeaura.com/#website",
+      "url": "https://citeaura.com",
+      "name": "CiteAura",
+      "publisher": {
+        "@id": "https://citeaura.com/#organization"
       }
-    ]
-  }
+    }
+  ]
+}
   </script>
   <script defer src="/runtime-assets/clarity.js"></script>
 </head>
@@ -176,6 +241,6 @@
     </section>
   </main>
 
-  <footer class="site-footer"><div class="page-shell footer-layout"><div class="footer-brand"><a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a><p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p><span class="footer-copy">© 2026 CiteAura</span></div><nav class="footer-links" aria-label="Footer Navigation"><a href="/ai-visibility-audit">AI visibility audit</a><a href="/for-agencies">For agencies</a><a href="/for-brands">For brands</a><a href="/methodology">Methodology</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/blog">Guides</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></nav></div></footer>
+  <footer class="site-footer"><div class="page-shell footer-layout"><div class="footer-brand"><a class="brand" href="/" aria-label="CiteAura Home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a><p class="footer-tagline">Evidence-based GEO diagnosis, execution, and delivery.</p><span class="footer-copy">© 2026 CiteAura</span></div><nav class="footer-links" aria-label="Footer Navigation"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a><a href="/ai-visibility-audit">AI visibility audit</a><a href="/for-agencies">For agencies</a><a href="/for-brands">For brands</a><a href="/methodology">Methodology</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/blog">Guides</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></nav></div></footer>
 </body>
 </html>

@@ -3,12 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Les 20 domaines les plus cités par les LLM (analyse pour votre marque) | CiteAura</title>
-  <meta name="description" content="Semrush a analysé 325 000 prompts de recherche IA : Reddit, LinkedIn, Wikipédia, YouTube et Medium dominent les citations des LLM. Aucun site de marque dans le top 20. Ce que ces données signifient pour le GEO.">
+  <title>Les 20 domaines les plus cités par les LLM (analyse pour votre marque)</title>
+  <meta name="description" content="Semrush a analysé 325 000 prompts IA : Reddit, LinkedIn, Wikipédia et YouTube dominent les citations LLM. Ce que ces données signifient pour votre marque.">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#f7f9fa">
   <meta name="author" content="Équipe Recherche CiteAura">
-  <script src="/runtime-assets/theme-init.js"></script>
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
@@ -18,17 +28,14 @@
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="canonical" href="https://citeaura.com/blog/principaux-domaines-cites-par-les-llm">
-  <link rel="alternate" hreflang="fr" href="https://citeaura.com/blog/principaux-domaines-cites-par-les-llm">
-  <link rel="alternate" hreflang="en" href="https://citeaura.com/blog/top-domains-cited-by-llms">
-  <link rel="alternate" hreflang="x-default" href="https://citeaura.com/blog/top-domains-cited-by-llms">
+  <link rel="canonical" href="https://citeaura.com/blog/principaux-domaines-cites-par-les-llm"><link rel="alternate" hreflang="x-default" href="https://citeaura.com/blog/top-domains-cited-by-llms"><link rel="alternate" hreflang="en" href="https://citeaura.com/blog/top-domains-cited-by-llms"><link rel="alternate" hreflang="fr" href="https://citeaura.com/blog/principaux-domaines-cites-par-les-llm">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
 
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="CiteAura">
   <meta property="og:url" content="https://citeaura.com/blog/principaux-domaines-cites-par-les-llm">
   <meta property="og:title" content="Les 20 domaines les plus cités par les LLM (analyse pour votre marque) | CiteAura">
-  <meta property="og:description" content="Semrush a analysé 325 000 prompts de recherche IA : Reddit, LinkedIn, Wikipédia, YouTube et Medium dominent les citations des LLM. Aucun site de marque dans le top 20. Ce que ces données signifient pour le GEO.">
+  <meta property="og:description" content="Semrush a analysé 325 000 prompts IA : Reddit, LinkedIn, Wikipédia et YouTube dominent les citations LLM. Ce que ces données signifient pour votre marque.">
   <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -39,7 +46,7 @@
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Les 20 domaines les plus cités par les LLM (analyse pour votre marque) | CiteAura">
-  <meta name="twitter:description" content="Semrush a analysé 325 000 prompts de recherche IA : Reddit, LinkedIn, Wikipédia, YouTube et Medium dominent les citations des LLM. Aucun site de marque dans le top 20. Ce que ces données signifient pour le GEO.">
+  <meta name="twitter:description" content="Semrush a analysé 325 000 prompts IA : Reddit, LinkedIn, Wikipédia et YouTube dominent les citations LLM. Ce que ces données signifient pour votre marque.">
   <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
 
   <script type="application/ld+json">
@@ -77,18 +84,18 @@
       "datePublished": "2026-10-06",
       "dateModified": "2026-10-06",
       "author": {
-        "@type": "Organization",
-        "name": "CiteAura Research Team",
-        "url": "https://citeaura.com/authors"
+        "@id": "https://citeaura.com/#research-team"
       },
       "publisher": {
-        "@type": "Organization",
-        "name": "CiteAura",
-        "url": "https://citeaura.com",
-        "logo": "https://citeaura.com/site-assets/logo.png"
+        "@id": "https://citeaura.com/#organization"
       },
       "mainEntityOfPage": "https://citeaura.com/blog/principaux-domaines-cites-par-les-llm",
-      "wordCount": 1010
+      "wordCount": 1010,
+      "image": [
+        "https://citeaura.com/site-assets/og-guides.png"
+      ],
+      "inLanguage": "fr",
+      "@id": "https://citeaura.com/blog/principaux-domaines-cites-par-les-llm#article"
     },
     {
       "@type": "FAQPage",
@@ -118,6 +125,25 @@
             "text": "Pas directement : chaque lien sortant de Wikipédia est en nofollow, donc zéro PageRank transmis. Mais Wikipédia est n°3 des domaines cités par les LLM, donc une présence Wikipédia fait énormément pour la visibilité IA. C'est l'illustration la plus nette du divorce GEO/SEO : optimisez pour être cité, pas seulement lié."
           }
         }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#research-team",
+      "name": "CiteAura Research Team",
+      "url": "https://citeaura.com/authors",
+      "parentOrganization": {
+        "@id": "https://citeaura.com/#organization"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png",
+      "sameAs": [
+        "https://github.com/500wango/citeaura"
       ]
     }
   ]
@@ -183,7 +209,7 @@
     <header class="blog-header">
       <span class="blog-kicker">Guide GEO</span>
       <h1>Les 20 domaines les plus cités par les LLM (et ce que cela signifie pour votre marque)</h1>
-      <p class="blog-lead">Le nom de votre marque apparaît-il dans ChatGPT ? Y a-t-il un lien vers votre site ? Est-elle recommandée ou simplement listée ? Voici le protocole complet pour mesurer ces trois dimensions avec une méthode reproductible.</p>
+      <p class="blog-lead">Semrush a analysé 325 000 prompts de recherche IA et constate que les contenus générés par les utilisateurs dominent les citations. Ce guide détaille les 20 domaines les plus cités par les LLM, pourquoi ils gagnent, et ce que les marques peuvent en faire.</p>
       <p class="blog-meta">Publié le 6 octobre 2026 · 8 min de lecture · Guide GEO</p>
       <p class="blog-byline">Par l’équipe de recherche CiteAura</p>
     </header>
@@ -307,7 +333,7 @@
         <p class="footer-tagline">Plateforme de diagnostic, exécution et vérification GEO (Generative Engine Optimization).</p>
         <span class="footer-copy">© 2026 CiteAura</span>
       </div>
-      <nav class="footer-links" aria-label="Liens de bas de page">
+      <nav class="footer-links" aria-label="Liens de bas de page"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a>
         <a href="/docs">Documentation</a>
         <a href="/blog">Guides</a>
         <a href="/about">À propos</a>

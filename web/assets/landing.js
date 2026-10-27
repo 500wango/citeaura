@@ -161,7 +161,15 @@ function sanitizeLandingHtml(value) {
       var shot = node.getAttribute('data-product-shot');
       if (!/^[a-z][a-z0-9-]*$/.test(shot || '')) return;
       var asset = '/site-assets/product-' + shot + '-' + locale + '.webp';
-      if (node.tagName === 'IMG') node.setAttribute('src', asset);
+      if (node.tagName === 'IMG') {
+        if (locale === 'en') {
+          var enSrcset = node.getAttribute('data-srcset-en');
+          if (enSrcset) node.setAttribute('srcset', enSrcset);
+        } else {
+          node.removeAttribute('srcset');
+        }
+        node.setAttribute('src', asset);
+      }
       else if (node.tagName === 'A') node.setAttribute('href', asset);
     });
   }

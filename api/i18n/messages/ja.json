@@ -2603,5 +2603,12 @@
   "report.issue.playbook_missing.message": "アクションチケットが保留中です",
   "report.issue.playbook_missing.action": "アクションプランを生成してください",
   "report.issue.delivery_missing.message": "診断パックはまだ作成されていません",
-  "report.issue.delivery_missing.action": "診断パックを作成してください"
+  "report.issue.delivery_missing.action": "診断パックを作成してください",
+  "nav.ai_seo_tools": "AI SEOツール",
+  "nav.aeo": "回答エンジン最適化",
+  "nav.google_ai_overviews": "Google AI 概要",
+  "nav.perplexity_seo": "Perplexity SEO",
+  "nav.llm_optimization": "LLM最適化",
+  "nav.ai_brand_monitoring": "AIブランドモニタリング",
+  "nav.compare": "プラットフォーム比較"
 }
