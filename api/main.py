@@ -264,7 +264,7 @@ def _http_exception_response(request: Request, exc: StarletteHTTPException):
     accept = (request.headers.get("accept") or "").lower()
     public_path = not request.url.path.startswith(_NON_PUBLIC_PREFIXES)
     if exc.status_code == 404 and public_path and "text/html" in accept:
-        page = WEB_ROOT / "404.html"
+        page = WEB_ROOT / "fr" / "404.html" if request.url.path.startswith("/fr") else WEB_ROOT / "404.html"
         if page.is_file():
             return HTMLResponse(status_code=404, content=page.read_text("utf-8"))
     if isinstance(exc.detail, dict) and "error" in exc.detail:

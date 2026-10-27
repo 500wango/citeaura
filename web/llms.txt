@@ -6,6 +6,9 @@
 
 - [Website](https://citeaura.com/): Product definition, comparison, pricing, and how-to.
 - [Website (French)](https://citeaura.com/fr): Version française de la page produit.
+- [Tarifs (French)](https://citeaura.com/fr/pricing): Offres Starter, Pro et Agency, essai de 14 jours et BYOK.
+- [Audit de visibilité IA (French)](https://citeaura.com/fr/ai-visibility-audit): Contrôles, étapes et vérification en français.
+- [Guides en français](https://citeaura.com/fr/blog): Index des guides GEO en français.
 - [AI SEO Tools](https://citeaura.com/ai-seo-tools): How to evaluate AI visibility tools by evidence, sampling modes, and verification.
 - [Answer Engine Optimization (AEO)](https://citeaura.com/answer-engine-optimization): Technical guide to citations in synthesized answers.
 - [Google AI Overviews](https://citeaura.com/google-ai-overviews-optimization): What Google's official documentation says about AI Overviews.
@@ -33,10 +36,10 @@
 - [Brand Schema Checker](https://citeaura.com/schema-tool): Inspect and validate JSON-LD structured data and entity signals.
 - [Guides](https://citeaura.com/blog): Long-form answers to measurement and diagnosis questions.
 - [JSON-LD Schema for AI Search: How LLMs Extract Brand Entities](https://citeaura.com/blog/json-ld-schema-for-ai-search)
-- [Schéma JSON-LD pour la recherche IA : extraction des entités de marque](https://citeaura.com/blog/schema-json-ld-pour-la-recherche-ia)
+- [Schéma JSON-LD pour la recherche IA : extraction des entités de marque](https://citeaura.com/fr/blog/schema-json-ld-pour-la-recherche-ia)
 - [Best AI Visibility Tools 2026: How to Evaluate Evidence](https://citeaura.com/blog/best-ai-visibility-tools)
 - [How to Measure ChatGPT Brand Mentions](https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand)
-- [Identifier la fréquence de mention de marque dans ChatGPT](https://citeaura.com/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt)
+- [Identifier la fréquence de mention de marque dans ChatGPT](https://citeaura.com/fr/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt)
 - [Why ChatGPT Does Not Mention Your Brand](https://citeaura.com/blog/why-chatgpt-does-not-mention-my-brand)
 - [Perplexity Citation Audit: Are You Cited or Just Mentioned?](https://citeaura.com/blog/perplexity-citation-audit)
 - [Google AI Overviews: How to Get Cited](https://citeaura.com/blog/google-ai-overviews-citation-guide)
@@ -44,7 +47,7 @@
 - [GPTBot Blocked by robots.txt? Find and Fix the Rule](https://citeaura.com/blog/gptbot-blocked-by-robots-txt)
 - [AI Crawler Access Checklist: GPTBot, ClaudeBot, PerplexityBot](https://citeaura.com/blog/ai-crawler-access-checklist)
 - [GEO vs SEO: What Changes and What Stays](https://citeaura.com/blog/geo-vs-seo)
-- [GEO vs SEO : ce qui change et ce qui reste](https://citeaura.com/blog/geo-vs-seo-differences): Guide en français.
+- [GEO vs SEO : ce qui change et ce qui reste](https://citeaura.com/fr/blog/geo-vs-seo-differences): Guide en français.
 - [Extractability Audit: Can AI Read Your Pages?](https://citeaura.com/blog/extractability-audit)
 - [White-Label GEO Diagnostic Reports for Agencies](https://citeaura.com/blog/white-label-geo-diagnostic-report)
 - [Brand Fact Library: Stop AI Hallucinating Your Brand](https://citeaura.com/blog/brand-fact-library-guide)
@@ -53,20 +56,20 @@
 - [Sampling Modes Explained: Model Knowledge vs Web Retrieval vs Manual](https://citeaura.com/blog/sampling-modes-explained)
 - [Citation Readiness Score: 5 Dimensions](https://citeaura.com/blog/citation-readiness-score)
 - [GEO Verification: Check Fixes and Measure AI Visibility](https://citeaura.com/blog/geo-verification-loop)
-- [Vérification GEO : corrections et visibilité IA](https://citeaura.com/blog/verification-geo-mesurer-visibilite-ia): Guide en français.
+- [Vérification GEO : corrections et visibilité IA](https://citeaura.com/fr/blog/verification-geo-mesurer-visibilite-ia): Guide en français.
 - [For Brands: AI Visibility Diagnosis in 5 Steps](https://citeaura.com/blog/ai-visibility-diagnosis-for-brands)
-- [Diagnostic de visibilité IA pour les marques en 5 étapes](https://citeaura.com/blog/diagnostic-visibilite-ia-marques): Guide en français.
+- [Diagnostic de visibilité IA pour les marques en 5 étapes](https://citeaura.com/fr/blog/diagnostic-visibilite-ia-marques): Guide en français.
 - [For Agencies: Sell GEO Retainers With Delivery Packs](https://citeaura.com/blog/sell-geo-retainers-with-delivery-packs)
 - [AI Search Directory Listings: Are They Worth It? (DR Gate)](https://citeaura.com/blog/ai-search-directory-listings-guide)
 - [Why Does ChatGPT Cite My Competitor But Not My Brand? 7 Diagnosed Causes](https://citeaura.com/blog/why-chatgpt-cites-competitor-not-your-brand)
-- [Pourquoi ChatGPT cite votre concurrent mais pas votre marque : 7 causes](https://citeaura.com/blog/pourquoi-chatgpt-cite-concurrent-pas-marque): Guide en français.
+- [Pourquoi ChatGPT cite votre concurrent mais pas votre marque : 7 causes](https://citeaura.com/fr/blog/pourquoi-chatgpt-cite-concurrent-pas-marque): Guide en français.
 - [Why Does ChatGPT Cite My Competitor? The Off-Site Reasons](https://citeaura.com/blog/why-chatgpt-cites-competitor-offsite-factors)
-- [Pourquoi ChatGPT cite votre concurrent : les raisons hors-site](https://citeaura.com/blog/pourquoi-chatgpt-concurrent-raisons-hors-site): Guide en français.
-- [Mesurer l'exposition de marque dans les résultats ChatGPT : guide complet](https://citeaura.com/blog/mesurer-exposition-marque-resultats-chatgpt): Guide en français.
+- [Pourquoi ChatGPT cite votre concurrent : les raisons hors-site](https://citeaura.com/fr/blog/pourquoi-chatgpt-concurrent-raisons-hors-site): Guide en français.
+- [Mesurer l'exposition de marque dans les résultats ChatGPT : guide complet](https://citeaura.com/fr/blog/mesurer-exposition-marque-resultats-chatgpt): Guide en français.
 - [The 20 Domains LLMs Cite Most (and What It Means for Your Brand)](https://citeaura.com/blog/top-domains-cited-by-llms)
-- [Les 20 domaines les plus cités par les LLM (et ce que cela signifie pour votre marque)](https://citeaura.com/blog/principaux-domaines-cites-par-les-llm): Guide en français.
-- [Comprendre comment ChatGPT mentionne votre marque](https://citeaura.com/blog/comprendre-comment-chatgpt-mentionne-marque): Guide en français.
-- [Identifier la fréquence de mention de marque dans AI Mode](https://citeaura.com/blog/identifier-frequence-mention-marque-ai-mode): Guide en français.
+- [Les 20 domaines les plus cités par les LLM (et ce que cela signifie pour votre marque)](https://citeaura.com/fr/blog/principaux-domaines-cites-par-les-llm): Guide en français.
+- [Comprendre comment ChatGPT mentionne votre marque](https://citeaura.com/fr/blog/comprendre-comment-chatgpt-mentionne-marque): Guide en français.
+- [Identifier la fréquence de mention de marque dans AI Mode](https://citeaura.com/fr/blog/identifier-frequence-mention-marque-ai-mode): Guide en français.
 - [Privacy Policy](https://citeaura.com/privacy): Data handling and privacy terms.
 - [Terms of Service](https://citeaura.com/terms): Service terms and acceptable use.
 

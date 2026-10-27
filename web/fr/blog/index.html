@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guides GEO en français | Méthodes et analyses | CiteAura</title>
+  <meta name="description" content="Guides en français sur la visibilité IA : mesurer les mentions de marque, vérifier les citations et suivre les résultats des moteurs génératifs.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/blog.css">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="canonical" href="https://citeaura.com/fr/blog">
+  <link rel="alternate" hreflang="x-default" href="https://citeaura.com/blog">
+  <link rel="alternate" hreflang="en" href="https://citeaura.com/blog">
+  <link rel="alternate" hreflang="fr" href="https://citeaura.com/fr/blog">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/fr/blog">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:title" content="Guides GEO en français | Méthodes et analyses | CiteAura">
+  <meta property="og:description" content="Guides en français sur la visibilité IA : mentions de marque, citations, données structurées et vérification des résultats.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-guides.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Guides GEO en français CiteAura">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Guides GEO en français | Méthodes et analyses | CiteAura">
+  <meta name="twitter:description" content="Guides en français sur la visibilité IA : mentions de marque, citations, données structurées et vérification des résultats.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-guides.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "CollectionPage",
+      "@id": "https://citeaura.com/fr/blog#page",
+      "url": "https://citeaura.com/fr/blog",
+      "name": "Guides GEO en français",
+      "description": "Guides et analyses en français sur la visibilité IA, la mesure des mentions de marque et la vérification des citations.",
+      "inLanguage": "fr",
+      "dateModified": "2026-09-14",
+      "isPartOf": { "@id": "https://citeaura.com/#website" },
+      "publisher": { "@id": "https://citeaura.com/#organization" },
+      "mainEntity": {
+        "@type": "ItemList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "url": "https://citeaura.com/fr/blog/principaux-domaines-cites-par-les-llm" },
+          { "@type": "ListItem", "position": 2, "url": "https://citeaura.com/fr/blog/mesurer-exposition-marque-resultats-chatgpt" },
+          { "@type": "ListItem", "position": 3, "url": "https://citeaura.com/fr/blog/comprendre-comment-chatgpt-mentionne-marque" },
+          { "@type": "ListItem", "position": 4, "url": "https://citeaura.com/fr/blog/identifier-frequence-mention-marque-ai-mode" },
+          { "@type": "ListItem", "position": 5, "url": "https://citeaura.com/fr/blog/pourquoi-chatgpt-cite-concurrent-pas-marque" },
+          { "@type": "ListItem", "position": 6, "url": "https://citeaura.com/fr/blog/pourquoi-chatgpt-concurrent-raisons-hors-site" },
+          { "@type": "ListItem", "position": 7, "url": "https://citeaura.com/fr/blog/verification-geo-mesurer-visibilite-ia" },
+          { "@type": "ListItem", "position": 8, "url": "https://citeaura.com/fr/blog/diagnostic-visibilite-ia-marques" },
+          { "@type": "ListItem", "position": 9, "url": "https://citeaura.com/fr/blog/geo-vs-seo-differences" },
+          { "@type": "ListItem", "position": 10, "url": "https://citeaura.com/fr/blog/schema-json-ld-pour-la-recherche-ia" },
+          { "@type": "ListItem", "position": 11, "url": "https://citeaura.com/fr/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt" }
+        ]
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://citeaura.com/fr" },
+        { "@type": "ListItem", "position": 2, "name": "Guides", "item": "https://citeaura.com/fr/blog" }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png",
+      "sameAs": ["https://github.com/500wango/citeaura"]
+    }
+  ]
+}
+  </script>
+  <script defer src="/runtime-assets/clarity.js"></script>
+</head>
+<body>
+<header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/fr" aria-label="Accueil CiteAura">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Ouvrir la navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+
+      <nav id="primary-nav" class="nav-links" aria-label="Navigation principale">
+        <details class="nav-group"><summary>Produit <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/fr#about">Présentation</a><a href="/fr#workflow">Fonctionnement</a><a href="/fr#product">Fonctionnalités</a><a href="/fr/ai-visibility-audit">Audit visibilité IA</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">Pour les marques</a><a href="/for-agencies">Pour les agences</a></div></details>
+        <details class="nav-group"><summary>Ressources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Documentation</a><a href="/fr/blog" class="is-current" aria-current="page">Guides</a><a href="/methodology">Méthodologie</a><a href="/sample-report">Exemple de rapport</a></div></details>
+        <a href="/fr/pricing">Tarifs</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Basculer vers le thème sombre" title="Changer de thème">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <div class="lang-dropdown" id="lang-dropdown">
+          <button type="button" class="lang-picker-btn" id="lang-picker-toggle" aria-haspopup="menu" aria-expanded="false" title="Changer de langue">
+            <svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <span class="sr-only">Langue</span>
+          </button>
+          <div class="lang-menu" id="lang-menu" role="menu"></div>
+          <label class="sr-only" for="site-locale">Langue</label>
+          <select id="site-locale" class="site-locale-compact" aria-label="Langue" style="display: none;">
+            <option value="en">English (EN)</option>
+            <option value="zh">简体中文 (ZH)</option>
+            <option value="ja">日本語 (JA)</option>
+            <option value="ko">한국어 (KO)</option>
+            <option value="es">Español (ES)</option>
+            <option value="fr" selected>Français (FR)</option>
+            <option value="de">Deutsch (DE)</option>
+          </select>
+        </div>
+        <a class="nav-sign-in" href="/app?auth=login" rel="nofollow">Connexion</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register" rel="nofollow">Démarrer l'essai gratuit</a>
+      </div>
+    </div>
+  </header>
+  <main class="blog-shell">
+    <nav class="blog-crumb" aria-label="Fil d’Ariane">
+      <a href="/fr">Accueil</a>
+      <span aria-hidden="true">/</span>
+      <span>Guides</span>
+    </nav>
+
+    <header class="blog-header">
+      <span class="blog-kicker">Guides</span>
+      <h1>Mesurer et diagnostiquer la visibilité IA d’une marque</h1>
+      <p class="blog-lead"><strong>La visibilité IA (Generative Engine Optimization) est la présence mesurable, la fréquence de citation et l’exactitude factuelle d’une marque dans les moteurs de recherche IA.</strong> Ces articles répondent à des questions précises sur les mentions dans ChatGPT, les blocages de robots, <code>llms.txt</code> et les packs de diagnostic client.</p>
+      <p class="blog-lead">Pour le flux de travail complet, consultez la page <a href="/fr/ai-visibility-audit">audit de visibilité IA</a>.</p>
+    </header>
+
+    <div class="blog-list">
+      <a class="blog-card" href="/fr/blog/principaux-domaines-cites-par-les-llm" hreflang="fr">
+        <h2>Les 20 domaines les plus cités par les LLM</h2>
+        <p>325 000 prompts analysés par Semrush : Reddit, LinkedIn et Wikipédia dominent les citations. Aucun site de marque dans le top 20.</p>
+        <span class="blog-card-meta">6 oct. 2026 · Recherche</span>
+      </a>
+      <a class="blog-card" href="/fr/blog/mesurer-exposition-marque-resultats-chatgpt" hreflang="fr">
+        <h2>Mesurer l’exposition de marque dans les résultats ChatGPT</h2>
+        <p>Taux de mention, taux de citation et sentiment : le protocole complet avec cohorte de questions et suivi dans le temps.</p>
+        <span class="blog-card-meta">6 oct. 2026 · Guide GEO</span>
+      </a>
+      <a class="blog-card" href="/fr/blog/comprendre-comment-chatgpt-mentionne-marque" hreflang="fr">
+        <h2>Comprendre comment ChatGPT mentionne votre marque</h2>
+        <p>Connaissances paramétriques et recherche web : identifiez par quel canal vous apparaissez pour choisir la bonne stratégie.</p>
+        <span class="blog-card-meta">6 oct. 2026 · Guide GEO</span>
+      </a>
+      <a class="blog-card" href="/fr/blog/identifier-frequence-mention-marque-ai-mode" hreflang="fr">
+        <h2>Identifier la fréquence de mention de marque dans AI Mode</h2>
+        <p>AI Mode puise dans l’index Google avec des requêtes conversationnelles. Protocole : cohorte adaptée, multi-tours, taux de mention.</p>
+        <span class="blog-card-meta">6 oct. 2026 · Guide GEO</span>
+      </a>
+      <a class="blog-card" href="/fr/blog/pourquoi-chatgpt-cite-concurrent-pas-marque" hreflang="fr">
+        <h2>Pourquoi ChatGPT cite votre concurrent mais pas votre marque</h2>
+        <p>Sept causes diagnostiquées : blocage GPTBot, faits insuffisants, présence Reddit, entité de marque — avec un correctif pour chacune.</p>
+        <span class="blog-card-meta">6 oct. 2026 · Diagnostic</span>
+      </a>
+      <a class="blog-card" href="/fr/blog/pourquoi-chatgpt-concurrent-raisons-hors-site" hreflang="fr">
+        <h2>Pourquoi ChatGPT cite votre concurrent : les raisons hors-site</h2>
+        <p>Votre site passe les contrôles techniques et ChatGPT cite pourtant votre concurrent ? L’écart est hors-site : sources tierces et entité fragmentée.</p>
+        <span class="blog-card-meta">6 oct. 2026 · Diagnostic</span>
+      </a>
+      <a class="blog-card" href="/fr/blog/verification-geo-mesurer-visibilite-ia" hreflang="fr">
+        <h2>Vérification GEO : mesurer l’effet des corrections</h2>
+        <p>Validez les corrections déployées, recueillez des réponses comparables et interprétez les variations sans surestimer leur cause.</p>
+        <span class="blog-card-meta">12 sept. 2026 · Vérification</span>
+      </a>
+      <a class="blog-card" href="/fr/blog/diagnostic-visibilite-ia-marques" hreflang="fr">
+        <h2>Diagnostic de visibilité IA pour les marques</h2>
+        <p>Questions d’achat, accès aux pages, faits produit, tickets exploitables et vérification des changements sur un site public.</p>
+        <span class="blog-card-meta">12 sept. 2026 · Diagnostic</span>
+      </a>
+      <a class="blog-card" href="/fr/blog/geo-vs-seo-differences" hreflang="fr">
+        <h2>GEO vs SEO : ce qui change et ce qui reste</h2>
+        <p>Comparez GEO et SEO, distinguez mentions, citations et visites, puis choisissez les améliorations utiles à votre équipe.</p>
+        <span class="blog-card-meta">12 sept. 2026 · Comparaison</span>
+      </a>
+      <a class="blog-card" href="/fr/blog/schema-json-ld-pour-la-recherche-ia" hreflang="fr">
+        <h2>Schéma JSON-LD pour la recherche IA et les entités</h2>
+        <p>Structurez vos schémas pour ChatGPT Search, Perplexity et Claude, résolvez les entités et évitez les hallucinations.</p>
+        <span class="blog-card-meta">10 sept. 2026 · Technique</span>
+      </a>
+      <a class="blog-card" href="/fr/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt" hreflang="fr">
+        <h2>Identifier la fréquence de mention de marque dans ChatGPT</h2>
+        <p>Méthode d’ingénierie par cohorte, formule de calcul et tests de robustesse pour mesurer une fréquence de mention.</p>
+        <span class="blog-card-meta">7 sept. 2026 · Guide GEO</span>
+      </a>
+    </div>
+
+    <p class="blog-lead" style="margin-top:var(--sp-6);">Les guides en anglais sont sur <a href="/blog" hreflang="en">la page Guides principale</a>.</p>
+  </main>
+<footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/fr" aria-label="Accueil CiteAura"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
+        <p class="footer-tagline">Plateforme de diagnostic, exécution et vérification GEO (Generative Engine Optimization).</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+      <nav class="footer-links" aria-label="Liens de bas de page"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a>
+        <a href="/docs">Documentation</a>
+        <a href="/fr/blog">Guides</a>
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/app?auth=login" rel="nofollow">Connexion</a>
+        <a href="/privacy">Politique de confidentialité</a>
+        <a href="/terms">Conditions d'utilisation</a>
+      </nav>
+    </div>
+  </footer>
+  <script defer src="/site-assets/landing.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
+</body>
+</html>

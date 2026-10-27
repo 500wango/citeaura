@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page introuvable | CiteAura</title>
+  <meta name="robots" content="noindex, follow">
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <style>
+    .not-found { max-width: 720px; margin: 0 auto; padding: 96px 24px; }
+    .not-found h1 { font-size: clamp(28px, 4vw, 44px); margin-bottom: 16px; }
+    .not-found p { color: var(--muted); line-height: 1.7; margin-bottom: 12px; }
+    .not-found-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+    .not-found-links a { padding: 10px 18px; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; }
+    .not-found-links a:hover { border-color: var(--signal); }
+  </style>
+  <script defer src="/runtime-assets/clarity.js"></script>
+</head>
+<body>
+  <main class="not-found">
+    <p class="eyebrow">404</p>
+    <h1>Cette page n’existe pas</h1>
+    <p>L’adresse a peut-être changé, ou la page n’a jamais été publiée. Rien n’a été mesuré ni modifié sur votre compte.</p>
+    <p>Repartez depuis une page qui existe :</p>
+    <nav class="not-found-links" aria-label="Pages suggérées">
+      <a href="/fr">Accueil</a>
+      <a href="/fr/ai-visibility-audit">Audit de visibilité IA</a>
+      <a href="/docs">Documentation</a>
+      <a href="/fr/blog">Guides</a>
+      <a href="/fr/pricing">Tarifs</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </main>
+</body>
+</html>

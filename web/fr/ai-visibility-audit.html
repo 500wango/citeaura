@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit de visibilité IA : logiciel d'audit GEO | CiteAura</title>
+  <meta name="description" content="Audit de visibilité IA : identifiez les blocages d'exploration, de contenu et de citation derrière les mentions manquantes, puis vérifiez les correctifs.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#f7f9fa">
+  <script>(function () {
+  var param = new URLSearchParams(location.search).get('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('utheme'); } catch (e) {}
+  var choice = param || saved;
+  var dark = choice ? choice === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b1220' : '#f8fafc');
+})();
+</script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site-assets/styles/tokens.css">
+  <link rel="stylesheet" href="/site-assets/styles/base.css">
+  <link rel="stylesheet" href="/site-assets/styles/components.css">
+  <link rel="stylesheet" href="/site-assets/styles/landing.css">
+  <link rel="stylesheet" href="/site-assets/styles/seo-pages.css">
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="canonical" href="https://citeaura.com/fr/ai-visibility-audit">
+  <link rel="alternate" hreflang="x-default" href="https://citeaura.com/ai-visibility-audit">
+  <link rel="alternate" hreflang="en" href="https://citeaura.com/ai-visibility-audit">
+  <link rel="alternate" hreflang="fr" href="https://citeaura.com/fr/ai-visibility-audit">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="CiteAura LLMs.txt Manifest">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="CiteAura">
+  <meta property="og:url" content="https://citeaura.com/fr/ai-visibility-audit">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:title" content="Audit de visibilité IA : logiciel d'audit GEO | CiteAura">
+  <meta property="og:description" content="Un audit de visibilité IA concret : accès des robots, faits officiels, preuves de réponse et vérification.">
+  <meta property="og:image" content="https://citeaura.com/site-assets/og-default.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Audit de visibilité IA CiteAura">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Audit de visibilité IA : logiciel d'audit GEO | CiteAura">
+  <meta name="twitter:description" content="Identifiez les blocages derrière les mentions manquantes, puis vérifiez les correctifs avec des preuves traçables.">
+  <meta name="twitter:image" content="https://citeaura.com/site-assets/og-default.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://citeaura.com/fr/ai-visibility-audit#page",
+      "url": "https://citeaura.com/fr/ai-visibility-audit",
+      "name": "Audit de visibilité IA",
+      "description": "Un audit de visibilité IA concret pour l'accès des robots, les faits officiels, les preuves de réponse et la vérification.",
+      "dateModified": "2026-08-26",
+      "inLanguage": "fr",
+      "isPartOf": { "@id": "https://citeaura.com/#website" },
+      "about": { "@id": "https://citeaura.com/#software" },
+      "publisher": { "@id": "https://citeaura.com/#organization" }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Accueil", "item": "https://citeaura.com/fr" },
+        { "@type": "ListItem", "position": 2, "name": "Audit de visibilité IA", "item": "https://citeaura.com/fr/ai-visibility-audit" }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://citeaura.com/fr/ai-visibility-audit#faq",
+      "inLanguage": "fr",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Qu'est-ce qu'un audit de visibilité IA ?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Un audit de visibilité IA vérifie si un site public expose les pages et les faits officiels que les systèmes IA peuvent atteindre, extraire, récupérer et citer pour un ensemble de questions défini." }
+        },
+        {
+          "@type": "Question",
+          "name": "Un audit de visibilité IA remplace-t-il le SEO classique ?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Non. Le SEO classique et l'audit de visibilité IA répondent à des questions différentes. Utilisez les deux lorsque vous avez besoin de trafic de recherche et de preuves sur la façon dont les réponses IA décrivent une marque." }
+        },
+        {
+          "@type": "Question",
+          "name": "Peut-on commencer sans clé API de modèle ?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Oui. Commencez par un audit technique public. L'échantillonnage de modèles est un flux de preuves distinct, explicitement étiqueté, que vous ajoutez ensuite." }
+        },
+        {
+          "@type": "Question",
+          "name": "Que prouve un audit réussi ?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Il prouve que les contrôles définis ont réussi pour la source et la fenêtre de temps enregistrées. Il ne garantit ni classement, ni mention, ni citation future." }
+        }
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://citeaura.com/#software",
+      "name": "CiteAura",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "Generative engine optimization",
+      "operatingSystem": "Navigateur web",
+      "url": "https://citeaura.com/",
+      "publisher": { "@id": "https://citeaura.com/#organization" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://citeaura.com/#organization",
+      "name": "CiteAura",
+      "url": "https://citeaura.com",
+      "logo": "https://citeaura.com/site-assets/logo.png",
+      "sameAs": ["https://github.com/500wango/citeaura"]
+    }
+  ]
+}
+  </script>
+  <script defer src="/runtime-assets/clarity.js"></script>
+</head>
+<body>
+<header class="site-header">
+    <div class="page-shell header-layout">
+      <a class="brand" href="/fr" aria-label="Accueil CiteAura">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-word">CiteAura</span>
+      </a>
+
+      <button type="button" class="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Ouvrir la navigation">
+        <svg class="icon-menu" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        <span class="sr-only">Menu</span>
+      </button>
+
+      <nav id="primary-nav" class="nav-links" aria-label="Navigation principale">
+        <details class="nav-group"><summary>Produit <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/fr#about">Présentation</a><a href="/fr#workflow">Fonctionnement</a><a href="/fr#product">Fonctionnalités</a><a href="/fr/ai-visibility-audit" class="is-current" aria-current="page">Audit visibilité IA</a></div></details>
+        <details class="nav-group"><summary>Solutions <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/for-brands">Pour les marques</a><a href="/for-agencies">Pour les agences</a></div></details>
+        <details class="nav-group"><summary>Ressources <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="nav-group-menu"><a href="/docs">Documentation</a><a href="/fr/blog">Guides</a><a href="/methodology">Méthodologie</a><a href="/sample-report">Exemple de rapport</a></div></details>
+        <a href="/fr/pricing">Tarifs</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="theme-toggle" aria-pressed="false" aria-label="Basculer vers le thème sombre" title="Changer de thème">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <div class="lang-dropdown" id="lang-dropdown">
+          <button type="button" class="lang-picker-btn" id="lang-picker-toggle" aria-haspopup="menu" aria-expanded="false" title="Changer de langue">
+            <svg class="icon-globe" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <span class="sr-only">Langue</span>
+          </button>
+          <div class="lang-menu" id="lang-menu" role="menu"></div>
+          <label class="sr-only" for="site-locale">Langue</label>
+          <select id="site-locale" class="site-locale-compact" aria-label="Langue" style="display: none;">
+            <option value="en">English (EN)</option>
+            <option value="zh">简体中文 (ZH)</option>
+            <option value="ja">日本語 (JA)</option>
+            <option value="ko">한국어 (KO)</option>
+            <option value="es">Español (ES)</option>
+            <option value="fr" selected>Français (FR)</option>
+            <option value="de">Deutsch (DE)</option>
+          </select>
+        </div>
+        <a class="nav-sign-in" href="/app?auth=login" rel="nofollow">Connexion</a>
+        <a class="btn btn-primary btn-sm nav-cta" href="/app?auth=register" rel="nofollow">Démarrer l'essai gratuit</a>
+      </div>
+    </div>
+  </header>
+  <main class="seo-page">
+    <nav class="blog-crumb" aria-label="Fil d’Ariane"><a href="/fr">Accueil</a><span aria-hidden="true">/</span><span>Audit de visibilité IA</span></nav>
+    <section class="seo-hero" aria-labelledby="audit-title">
+      <div>
+        <span class="seo-kicker">Audit de visibilité IA</span>
+        <h1 id="audit-title">Un audit qui sépare ce que vous contrôlez de ce que vous observez.</h1>
+        <p class="seo-lead">Explorez le site public, enregistrez ce qui est mesurable, puis échantillonnez des réponses avec une cohorte de fournisseurs explicite. Chaque constat reste lié à sa source, à son mode d'échantillonnage et à sa fenêtre de mesure.</p>
+        <div class="seo-cta"><a class="btn btn-primary" href="/fr#simulator">Lancer l'audit public <span aria-hidden="true">→</span></a><a class="btn btn-secondary" href="/fr/pricing">Voir les tarifs</a></div>
+        <p class="seo-meta">Sans clé de modèle pour commencer · Étiquettes d'échantillonnage visibles · Preuves traçables</p>
+      </div>
+      <div class="seo-hero-media">
+        <div class="seo-panel">
+          <span class="seo-label">Périmètre des preuves</span>
+          <h3>Une mesure, un mode, une source</h3>
+          <p>Les connaissances paramétriques, la recherche web et les observations manuelles de l'interface produit restent trois flux distincts. Une couverture absente reste non mesurée.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="audit-checks-title">
+      <h2 id="audit-checks-title">Ce qu'un audit de visibilité IA doit vérifier.</h2>
+      <p>Un audit utile sépare la source que vous contrôlez des réponses que vous observez. Cela évite de fondre un problème d'exploration, un fait officiel absent et une variation normale du modèle dans un score inexpliqué.</p>
+      <div class="seo-grid">
+        <article class="seo-panel"><span class="seo-label">01 · Accès</span><h3>La source est-elle trouvable ?</h3><p>Examinez les URL canoniques, les règles robots, les sitemaps, <code>llms.txt</code>, le HTML rendu et les liens qui définissent la source publique.</p></article>
+        <article class="seo-panel"><span class="seo-label">02 · Extraction</span><h3>Les faits sont-ils compréhensibles ?</h3><p>Vérifiez la définition du produit, les tarifs, les données structurées, les affirmations officielles et la structure des pages qui rendent une marque identifiable et citable.</p></article>
+        <article class="seo-panel"><span class="seo-label">03 · Mesure</span><h3>La réponse contient-elle des preuves ?</h3><p>Utilisez un ensemble de questions fixe et une cohorte de fournisseurs. Conservez les réponses brutes, les mentions, les citations, la couverture et le mode d'échantillonnage.</p></article>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="audit-workflow-title">
+      <h2 id="audit-workflow-title">Comment mener un audit de visibilité IA.</h2>
+      <div class="seo-steps">
+        <div class="seo-step"><div class="seo-step-number">01</div><div><h3>Définir les questions d'achat</h3><p>Partez des questions de catégorie, de comparaison, de recommandation, de prix et de problème qu'un acheteur réel pourrait poser. Gardez les sondes de marque séparées.</p></div></div>
+        <div class="seo-step"><div class="seo-step-number">02</div><div><h3>Explorer le site public canonique</h3><p>Consignez ce qu'un robot peut atteindre et ce que le HTML initial expose avant de modifier le contenu ou d'ajouter des assets générés.</p></div></div>
+        <div class="seo-step"><div class="seo-step-number">03</div><div><h3>Échantillonner une cohorte définie</h3><p>Étiquetez séparément les connaissances paramétriques, la recherche web et les observations manuelles. Une couverture absente reste non mesurée.</p></div></div>
+        <div class="seo-step"><div class="seo-step-number">04</div><div><h3>Transformer les écarts en tickets</h3><p>Priorisez la plus petite correction utile de page, de fait, de schéma ou d'exploration, avec une condition d'acceptation vérifiable.</p></div></div>
+        <div class="seo-step"><div class="seo-step-number">05</div><div><h3>Réexplorer et rééchantillonner</h3><p>Comparez la même source, les mêmes questions, la même cohorte et la même fenêtre. Une réponse modifiée est une preuve pour ce périmètre, pas une garantie universelle.</p></div></div>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="audit-comparison-title">
+      <h2 id="audit-comparison-title">Audit de visibilité IA et audit SEO classique.</h2>
+      <div class="seo-table-wrap">
+        <table class="seo-table">
+          <thead><tr><th>Question</th><th>Audit SEO classique</th><th>Audit de visibilité IA</th></tr></thead>
+          <tbody>
+            <tr><th>Signal principal</th><td>Les robots de recherche peuvent-ils découvrir, comprendre et indexer la page ?</td><td>Les systèmes IA peuvent-ils atteindre, extraire, récupérer, mentionner ou citer la source définie ?</td></tr>
+            <tr><th>Preuves</th><td>Contrôles techniques, contenu des pages, liens et données de performance de recherche.</td><td>Contrôles techniques et réponses par question, citations, fournisseur, mode et couverture d'échantillonnage.</td></tr>
+            <tr><th>Livrable</th><td>Constats SEO et recommandations de visibilité en recherche.</td><td>Tickets appuyés par des preuves, contrôles d'acceptation et rééchantillonnage comparable.</td></tr>
+            <tr><th>Limite</th><td>Ne prouve pas comment chaque produit IA répondra.</td><td>Ne garantit ni classements, ni mentions, ni citations hors de la cohorte et de la période définies.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="seo-source-list">Consultez la <a href="/methodology">méthodologie de mesure CiteAura</a> pour les règles de cohorte, ou commencez par le <a href="/fr/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt">guide de mesure des mentions de marque dans ChatGPT</a>.</p>
+    </section>
+
+    <section class="seo-section" aria-labelledby="audit-timing-title">
+      <h2 id="audit-timing-title">Quand un audit de visibilité IA est utile.</h2>
+      <div class="seo-grid">
+        <article class="seo-panel"><span class="seo-label">Nouvelle catégorie</span><h3>Avant un lancement</h3><p>Vérifiez que la définition canonique du produit, les questions d'achat et les faits officiels sont disponibles avant d'attendre que les réponses IA décrivent l'offre.</p></article>
+        <article class="seo-panel"><span class="seo-label">Changement de site</span><h3>Après une migration</h3><p>Vérifiez à nouveau les redirections, la structure des pages, les fichiers machine, les données structurées et les liens qui gardent la source identifiable.</p></article>
+        <article class="seo-panel"><span class="seo-label">Travail continu</span><h3>Avant une décision trimestrielle</h3><p>Conservez une référence comparable pour les équipes contenu, ingénierie et croissance, plutôt qu'une capture d'écran d'une seule réponse.</p></article>
+      </div>
+    </section>
+
+    <section class="seo-section" aria-labelledby="audit-faq-title">
+      <h2 id="audit-faq-title">Questions fréquentes sur l'audit de visibilité IA.</h2>
+      <div class="seo-faq">
+        <details open><summary>Qu'est-ce qu'un audit de visibilité IA ?</summary><p>Un audit de visibilité IA vérifie si un site public expose les pages et les faits officiels que les systèmes IA peuvent atteindre, extraire, récupérer et citer pour un ensemble de questions défini.</p></details>
+        <details><summary>Un audit de visibilité IA remplace-t-il le SEO classique ?</summary><p>Non. Le SEO classique et l'audit de visibilité IA répondent à des questions différentes. Utilisez les deux lorsque vous avez besoin de trafic de recherche et de preuves sur la façon dont les réponses IA décrivent une marque.</p></details>
+        <details><summary>Peut-on commencer sans clé API de modèle ?</summary><p>Oui. Commencez par un audit technique public. L'échantillonnage de modèles est un flux de preuves distinct, explicitement étiqueté, que vous ajoutez ensuite.</p></details>
+        <details><summary>Que prouve un audit réussi ?</summary><p>Il prouve que les contrôles définis ont réussi pour la source et la fenêtre de temps enregistrées. Il ne garantit ni classement, ni mention, ni citation future.</p></details>
+      </div>
+    </section>
+
+    <section class="seo-footer-cta" aria-labelledby="audit-cta-title">
+      <div><h2 id="audit-cta-title">Commencez par des preuves inspectables dès aujourd'hui.</h2><p>Lancez un audit technique public avant de connecter la moindre clé de modèle.</p></div>
+      <a class="btn btn-primary" href="/fr#simulator">Lancer un audit <span aria-hidden="true">→</span></a>
+    </section>
+  </main>
+<footer class="site-footer">
+    <div class="page-shell footer-layout">
+      <div class="footer-brand">
+        <a class="brand" href="/fr" aria-label="Accueil CiteAura"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">CiteAura</span></a>
+        <p class="footer-tagline">Plateforme de diagnostic, exécution et vérification GEO (Generative Engine Optimization).</p>
+        <span class="footer-copy">© 2026 CiteAura</span>
+      </div>
+      <nav class="footer-links" aria-label="Liens de bas de page"><a href="/ai-seo-tools" data-i18n="nav.ai_seo_tools">AI SEO tools</a><a href="/answer-engine-optimization" data-i18n="nav.aeo">Answer engine optimization</a><a href="/google-ai-overviews-optimization" data-i18n="nav.google_ai_overviews">Google AI Overviews</a><a href="/perplexity-seo" data-i18n="nav.perplexity_seo">Perplexity SEO</a><a href="/llm-optimization" data-i18n="nav.llm_optimization">LLM optimization</a><a href="/ai-brand-monitoring" data-i18n="nav.ai_brand_monitoring">AI brand monitoring</a><a href="/compare" data-i18n="nav.compare">Compare platforms</a>
+        <a href="/docs">Documentation</a>
+        <a href="/fr/blog">Guides</a>
+        <a href="/about">À propos</a>
+        <a href="/contact">Contact</a>
+        <a href="/app?auth=login" rel="nofollow">Connexion</a>
+        <a href="/privacy">Politique de confidentialité</a>
+        <a href="/terms">Conditions d'utilisation</a>
+      </nav>
+    </div>
+  </footer>
+  <script defer src="/site-assets/landing.js"></script>
+  <script defer src="/site-assets/site-nav.js"></script>
+  <script defer src="/site-assets/seo-attribution.js"></script>
+</body>
+</html>

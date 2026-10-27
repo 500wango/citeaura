@@ -201,14 +201,17 @@ def _render_landing_cached(locale: str, site_base: str) -> str:
     # ── 13. 本地化内链映射（当 locale 为 fr 时，将博客卡片定向至已有的法语本地化资产）
     if locale == "fr":
         _fr_href_map = {
-            "/blog/measure-if-chatgpt-mentions-your-brand": "/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt",
-            "/blog/why-chatgpt-cites-competitor-not-your-brand": "/blog/pourquoi-chatgpt-cite-concurrent-pas-marque",
-            "/blog/why-chatgpt-cites-competitor-offsite-factors": "/blog/pourquoi-chatgpt-concurrent-raisons-hors-site",
-            "/blog/geo-verification-loop": "/blog/verification-geo-mesurer-visibilite-ia",
-            "/blog/ai-visibility-diagnosis-for-brands": "/blog/diagnostic-visibilite-ia-marques",
-            "/blog/json-ld-schema-for-ai-search": "/blog/schema-json-ld-pour-la-recherche-ia",
-            "/blog/geo-vs-seo": "/blog/geo-vs-seo-differences",
-            "/blog/top-domains-cited-by-llms": "/blog/principaux-domaines-cites-par-les-llm",
+            "/pricing": "/fr/pricing",
+            "/ai-visibility-audit": "/fr/ai-visibility-audit",
+            "/blog": "/fr/blog",
+            "/blog/measure-if-chatgpt-mentions-your-brand": "/fr/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt",
+            "/blog/why-chatgpt-cites-competitor-not-your-brand": "/fr/blog/pourquoi-chatgpt-cite-concurrent-pas-marque",
+            "/blog/why-chatgpt-cites-competitor-offsite-factors": "/fr/blog/pourquoi-chatgpt-concurrent-raisons-hors-site",
+            "/blog/geo-verification-loop": "/fr/blog/verification-geo-mesurer-visibilite-ia",
+            "/blog/ai-visibility-diagnosis-for-brands": "/fr/blog/diagnostic-visibilite-ia-marques",
+            "/blog/json-ld-schema-for-ai-search": "/fr/blog/schema-json-ld-pour-la-recherche-ia",
+            "/blog/geo-vs-seo": "/fr/blog/geo-vs-seo-differences",
+            "/blog/top-domains-cited-by-llms": "/fr/blog/principaux-domaines-cites-par-les-llm",
         }
         for a_tag in soup.find_all("a", href=True):
             if a_tag["href"] in _fr_href_map:

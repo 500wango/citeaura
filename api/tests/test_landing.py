@@ -956,3 +956,40 @@ def test_seo_canonical_redirects_and_nofollow_contracts():
     admin_html = (Path(__file__).resolve().parents[2] / "web" / "admin" / "index.html").read_text("utf-8")
     assert '<link rel="canonical" href="https://citeaura.com/admin">' in admin_html
 
+
+
+def test_french_locale_pages_live_under_the_fr_prefix():
+    """法语页面必须位于 /fr/ 前缀下，并与英文对应页互相声明 hreflang。"""
+    pairs = {
+        "/fr/pricing": "/pricing",
+        "/fr/ai-visibility-audit": "/ai-visibility-audit",
+        "/fr/blog": "/blog",
+        "/fr/blog/principaux-domaines-cites-par-les-llm": "/blog/top-domains-cited-by-llms",
+    }
+
+    for path, english in pairs.items():
+        response = client.get(path)
+        assert response.status_code == 200, path
+        body = response.text
+        assert '<html lang="fr"' in body, path
+        assert f'<link rel="canonical" href="https://citeaura.com{path}">' in body, path
+        assert f'hreflang="en" href="https://citeaura.com{english}"' in body, path
+        assert f'hreflang="fr" href="https://citeaura.com{path}"' in body, path
+        assert "[[missing:" not in body, path
+
+        english_body = client.get(english).text
+        assert f'hreflang="fr" href="https://citeaura.com{path}"' in english_body, english
+
+    # 旧的法语博客路径以 308 迁移到 /fr/blog/
+    legacy = client.get("/blog/principaux-domaines-cites-par-les-llm", follow_redirects=False)
+    assert legacy.status_code == 308
+    assert legacy.headers["location"] == "/fr/blog/principaux-domaines-cites-par-les-llm"
+
+    # 法语路径下的 404 返回法语页面
+    missing = client.get("/fr/unknown-page", headers={"accept": "text/html"})
+    assert missing.status_code == 404
+    assert "Cette page n’existe pas" in missing.text
+
+    llms = client.get("/llms.txt").text
+    for path in pairs:
+        assert f"https://citeaura.com{path}" in llms, path

@@ -27,6 +27,9 @@ SITE_BASE_URL = os.getenv("SITE_BASE_URL", "https://citeaura.com").rstrip("/")
 PUBLIC_PAGES = (
     {"path": "/", "lastmod": "2026-09-08", "changefreq": "weekly", "priority": "1.0"},
     {"path": "/fr", "lastmod": "2026-09-08", "changefreq": "weekly", "priority": "0.9"},
+    {"path": "/fr/pricing", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.7"},
+    {"path": "/fr/ai-visibility-audit", "lastmod": "2026-08-26", "changefreq": "monthly", "priority": "0.9"},
+    {"path": "/fr/blog", "lastmod": "2026-09-14", "changefreq": "weekly", "priority": "0.7"},
     {"path": "/docs", "lastmod": "2026-09-12", "changefreq": "weekly", "priority": "0.8"},
     {"path": "/ai-visibility-audit", "lastmod": "2026-10-27", "changefreq": "monthly", "priority": "0.9"},
     {"path": "/ai-seo-tools", "lastmod": "2026-09-08", "changefreq": "monthly", "priority": "0.9"},
@@ -55,7 +58,7 @@ PUBLIC_PAGES = (
     {"path": "/blog", "lastmod": "2026-09-14", "changefreq": "weekly", "priority": "0.7"},
     {"path": "/blog/best-ai-visibility-tools", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/measure-if-chatgpt-mentions-your-brand", "lastmod": "2026-09-14", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt", "lastmod": "2026-09-14", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/fr/blog/identifier-la-frequence-de-mention-de-marque-dans-chatgpt", "lastmod": "2026-09-14", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/why-chatgpt-does-not-mention-my-brand", "lastmod": "2026-09-14", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/perplexity-citation-audit", "lastmod": "2026-09-02", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/google-ai-overviews-citation-guide", "lastmod": "2026-09-02", "changefreq": "monthly", "priority": "0.6"},
@@ -63,7 +66,7 @@ PUBLIC_PAGES = (
     {"path": "/blog/gptbot-blocked-by-robots-txt", "lastmod": "2026-09-14", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/ai-crawler-access-checklist", "lastmod": "2026-09-02", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/geo-vs-seo", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/geo-vs-seo-differences", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/fr/blog/geo-vs-seo-differences", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/extractability-audit", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/white-label-geo-diagnostic-report", "lastmod": "2026-08-24", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/brand-fact-library-guide", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
@@ -72,28 +75,34 @@ PUBLIC_PAGES = (
     {"path": "/blog/sampling-modes-explained", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/citation-readiness-score", "lastmod": "2026-09-01", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/geo-verification-loop", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/verification-geo-mesurer-visibilite-ia", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/fr/blog/verification-geo-mesurer-visibilite-ia", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/ai-visibility-diagnosis-for-brands", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/diagnostic-visibilite-ia-marques", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/fr/blog/diagnostic-visibilite-ia-marques", "lastmod": "2026-09-12", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/sell-geo-retainers-with-delivery-packs", "lastmod": "2026-09-02", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/ai-search-directory-listings-guide", "lastmod": "2026-09-02", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/json-ld-schema-for-ai-search", "lastmod": "2026-09-10", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/schema-json-ld-pour-la-recherche-ia", "lastmod": "2026-09-10", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/fr/blog/schema-json-ld-pour-la-recherche-ia", "lastmod": "2026-09-10", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/why-chatgpt-cites-competitor-not-your-brand", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/pourquoi-chatgpt-cite-concurrent-pas-marque", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/fr/blog/pourquoi-chatgpt-cite-concurrent-pas-marque", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/why-chatgpt-cites-competitor-offsite-factors", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/pourquoi-chatgpt-concurrent-raisons-hors-site", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/mesurer-exposition-marque-resultats-chatgpt", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/comprendre-comment-chatgpt-mentionne-marque", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/identifier-frequence-mention-marque-ai-mode", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/fr/blog/pourquoi-chatgpt-concurrent-raisons-hors-site", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/fr/blog/mesurer-exposition-marque-resultats-chatgpt", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/fr/blog/comprendre-comment-chatgpt-mentionne-marque", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/fr/blog/identifier-frequence-mention-marque-ai-mode", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/top-domains-cited-by-llms", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/blog/principaux-domaines-cites-par-les-llm", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
+    {"path": "/fr/blog/principaux-domaines-cites-par-les-llm", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/privacy", "lastmod": "2026-08-19", "changefreq": "monthly", "priority": "0.3"},
     {"path": "/terms", "lastmod": "2026-08-19", "changefreq": "monthly", "priority": "0.3"},
 )
 BLOG_PREFIX = "/blog/"
 BLOG_SLUGS = tuple(
     page["path"].removeprefix(BLOG_PREFIX) for page in PUBLIC_PAGES if page["path"].startswith(BLOG_PREFIX)
+)
+FR_BLOG_PREFIX = "/fr/blog/"
+FR_BLOG_SLUGS = tuple(
+    page["path"].removeprefix(FR_BLOG_PREFIX)
+    for page in PUBLIC_PAGES
+    if page["path"].startswith(FR_BLOG_PREFIX)
 )
 
 
@@ -114,6 +123,39 @@ def serve_landing_fr():
         media_type="text/html; charset=utf-8",
         headers={"Cache-Control": "public, max-age=3600, stale-while-revalidate=86400"},
     )
+
+
+@router.get("/fr/pricing")
+@router.head("/fr/pricing")
+def serve_fr_pricing():
+    """返回法语定价页。"""
+    return FileResponse(WEB_ROOT / "fr" / "pricing.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/fr/ai-visibility-audit")
+@router.head("/fr/ai-visibility-audit")
+def serve_fr_ai_visibility_audit():
+    """返回法语 AI 可见性审计页。"""
+    return FileResponse(WEB_ROOT / "fr" / "ai-visibility-audit.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/fr/blog")
+@router.head("/fr/blog")
+def serve_fr_blog_index():
+    """返回法语指南索引页。"""
+    return FileResponse(WEB_ROOT / "fr" / "blog" / "index.html", media_type="text/html; charset=utf-8")
+
+
+@router.get("/fr/blog/{slug}")
+@router.head("/fr/blog/{slug}")
+def serve_fr_blog_article(slug: str):
+    """返回白名单内的法语长尾文章。"""
+    if slug not in FR_BLOG_SLUGS:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    path = WEB_ROOT / "fr" / "blog" / f"{slug}.html"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    return FileResponse(path, media_type="text/html; charset=utf-8")
 
 
 @router.get("/crawler-check")
@@ -308,6 +350,8 @@ def serve_blog_index():
 @router.head("/blog/{slug}")
 def serve_blog_article(slug: str):
     """返回白名单内的静态长尾文章；未知 slug 返回 404。"""
+    if slug in FR_BLOG_SLUGS:
+        return RedirectResponse(url=f"/fr/blog/{slug}", status_code=308)
     if slug not in BLOG_SLUGS:
         raise HTTPException(status_code=404, detail={"error": "not_found"})
     path = WEB_ROOT / "blog" / f"{slug}.html"
