@@ -4,6 +4,7 @@ import json
 from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 
+from celery.exceptions import SoftTimeLimitExceeded
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -172,7 +173,11 @@ def _job_status(tenant_id, project_slug, action, job_id=None, hold_project_lock=
             with _task_facade()._capture_task_output(log_path):
                 yield update
     except BaseException as exc:
-        error_message = redact_secrets(f"{type(exc).__name__}: {exc}")
+        if isinstance(exc, SoftTimeLimitExceeded):
+            # 稳定机器码：前端与运维按此识别"未跑完超时"，而不是展示重复的类名。
+            error_message = "task_timeout: worker soft time limit exceeded"
+        else:
+            error_message = redact_secrets(f"{type(exc).__name__}: {exc}")
         _task_facade()._append_job_event(log_path, f"{action} failed: {error_message}")
         if tracked_job_id is not None:
             def mark_failed(db):

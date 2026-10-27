@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from celery import current_task
+
 from api import config
 from api.worker import job_protocol
 
@@ -88,13 +90,31 @@ def _file_tail(path, lines=8):
     return text.strip().splitlines()[-lines:]
 
 
+def _task_soft_time_limit():
+    """返回当前 Celery 任务的软超时；非任务上下文返回 None。"""
+    request = getattr(current_task, "request", None)
+    if request is None or getattr(request, "called_directly", True):
+        return None
+    value = getattr(current_task, "soft_time_limit", None) or getattr(
+        request, "soft_time_limit", None,
+    )
+    if not value:
+        # 短任务没有 per-task 配置，交给全局软超时兜底。
+        from celery import current_app
+        value = current_app.conf.task_soft_time_limit
+    try:
+        return float(value) if value else None
+    except (TypeError, ValueError):
+        return None
+
+
 def run_job_process(payload, timeout=None, environ=None, log_path=None, command=None):
     """在子进程中执行一次引擎动作；返回 (result, usage, stderr)。
 
     log_path 不为空时，子进程 stderr 直接追写该 Job 日志：引擎的逐步输出
     必须在任务运行期间就能被前端轮询到，而不是结束后才一次性拿到。
     """
-    timeout = int(timeout or config.engine_job_timeout_seconds())
+    timeout = int(timeout or config.engine_job_timeout_seconds(_task_soft_time_limit()))
     command = command or [sys.executable, "-m", "api.worker.job_runner"]
     log_handle = None
     if log_path is not None:
@@ -123,6 +143,11 @@ def run_job_process(payload, timeout=None, environ=None, log_path=None, command=
             terminate_process_group(process)
             stdout, stderr = process.communicate()
             raise EngineJobTimeout(f"engine job timed out after {timeout}s")
+        except BaseException:
+            # 父进程被 Celery 软超时等中断时，子进程在独立会话里不会自动退出：
+            # 不回收进程组就会在 Job 已失败后继续调用付费 API 并写入产物。
+            terminate_process_group(process)
+            raise
     finally:
         if log_handle is not None:
             log_handle.close()

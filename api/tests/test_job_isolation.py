@@ -239,3 +239,41 @@ def test_parent_environment_is_unchanged(monkeypatch):
     before = dict(os.environ)
     job_process.run_job_process(_payload("tenant-env", {"gemini": "child-key"}), timeout=30)
     assert dict(os.environ) == before
+
+
+def test_engine_timeout_stays_below_task_soft_limit(monkeypatch):
+    """子进程超时必须早于 Celery 软超时，父进程才有机会回收进程组。"""
+    monkeypatch.delenv("CITEAURA_ENGINE_JOB_TIMEOUT", raising=False)
+    assert job_process.config.engine_job_timeout_seconds(3540) == 3480
+    monkeypatch.setenv("CITEAURA_ENGINE_JOB_TIMEOUT", "7140")
+    assert job_process.config.engine_job_timeout_seconds(7200) == 7140
+    assert job_process.config.engine_job_timeout_seconds(3540) == 3480
+
+
+def test_soft_time_limit_terminates_child_group(monkeypatch):
+    """父进程被软超时打断时必须终止子进程组。
+
+    否则引擎子进程会在 Job 已失败后继续调用付费 API 并写入产物。
+    """
+    from celery.exceptions import SoftTimeLimitExceeded
+
+    terminated = []
+
+    class Child:
+        pid = 4242
+        returncode = None
+
+        def communicate(self, *args, **kwargs):
+            raise SoftTimeLimitExceeded()
+
+    monkeypatch.setattr(job_process.subprocess, "Popen", lambda *args, **kwargs: Child())
+    monkeypatch.setattr(
+        job_process,
+        "terminate_process_group",
+        lambda process, **kwargs: terminated.append(process),
+    )
+
+    with pytest.raises(SoftTimeLimitExceeded):
+        job_process.run_job_process(_payload("tenant-soft", {}), timeout=30)
+
+    assert [process.pid for process in terminated] == [4242]

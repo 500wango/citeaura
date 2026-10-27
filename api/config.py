@@ -233,8 +233,33 @@ def isolated_jobs_enabled():
     return _enabled("CITEAURA_ISOLATED_JOBS", "true")
 
 
-def engine_job_timeout_seconds():
-    return _integer("CITEAURA_ENGINE_JOB_TIMEOUT", 3_600, minimum=30, maximum=86_400)
+def engine_job_timeout_seconds(soft_limit=None):
+    """引擎子进程超时。
+
+    必须早于 Celery 软超时，父进程才能先回收整个进程组；否则父进程被
+    SoftTimeLimitExceeded 打断后，引擎子进程会在 Job 已失败的情况下继续
+    调用付费 API 并写产物。显式配置的值同样受软超时约束。
+    """
+    configured = os.getenv("CITEAURA_ENGINE_JOB_TIMEOUT")
+    if configured:
+        value = _integer("CITEAURA_ENGINE_JOB_TIMEOUT", 3_600, minimum=30, maximum=86_400)
+    elif soft_limit:
+        value = int(soft_limit) - 60
+    else:
+        value = 3_600
+    if soft_limit:
+        value = min(value, int(soft_limit) - 60)
+    return max(30, value)
+
+
+def long_task_soft_time_limit_seconds():
+    """诊断、采样与交付等长任务的 Celery 软超时。"""
+    return _integer("WORKER_LONG_TASK_SOFT_TIME_LIMIT", 7_200, minimum=3_600, maximum=43_200)
+
+
+def long_task_time_limit_seconds():
+    """长任务硬超时，留给软超时处理与进程组回收的余量。"""
+    return long_task_soft_time_limit_seconds() + 300
 
 
 def trial_pool_enabled():

@@ -37,6 +37,21 @@ def test_celery_registers_all_pipeline_tasks():
     assert {"verify", "deliver", "plan"}.isdisjoint(tasks.PLATFORM_FUNDED_ACTIONS)
 
 
+def test_long_running_tasks_get_extended_time_limits():
+    """首次诊断实测约 70 分钟，不能被短任务的 59 分钟软超时打断。"""
+    annotations = celery_app.conf.task_annotations or {}
+    for name in (
+        "citeaura.bootstrap",
+        "citeaura.sample",
+        "citeaura.cycle",
+        "citeaura.pipeline",
+        "citeaura.deliver",
+    ):
+        assert annotations[name]["soft_time_limit"] > celery_app.conf.task_soft_time_limit
+        assert annotations[name]["time_limit"] > annotations[name]["soft_time_limit"]
+    visibility_timeout = celery_app.conf.broker_transport_options["visibility_timeout"]
+    assert visibility_timeout > max(item["time_limit"] for item in annotations.values())
+
 
 def test_bootstrap_task_uses_tenant_context(monkeypatch):
     calls = []
