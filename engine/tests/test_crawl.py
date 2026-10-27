@@ -265,5 +265,46 @@ class AutoPageLimitTest(unittest.TestCase):
                 G.WORK = old_work
 
 
+class TestCrawlRedirectPolicy(unittest.TestCase):
+    def test_blocked_redirect_is_not_fetched(self):
+        response = FakeResp(302)
+        response.headers['Location'] = '/private'
+        target = (G.urlparse('http://x.test/'), ('93.184.216.34',))
+        robots = 'User-agent: CiteAuraEngine\nDisallow: /private\n\nUser-agent: *\nAllow: /\n'
+        with mock.patch.object(G, '_request_pinned', return_value=response) as request, \
+             mock.patch.object(G, '_validate_fetch_target', return_value=target):
+            result = G.fetch('http://x.test/', retries=0, redirect_policy=lambda url: not
+                             crawl.robots_disallows(robots, 'CiteAuraEngine', G.urlparse(url).path))
+        self.assertEqual(result['status'], 0)
+        self.assertEqual(result['final_url'], 'http://x.test/private')
+        self.assertEqual(request.call_count, 1)
+
+    def test_subdomain_uses_own_robots_policy(self):
+        with tempfile.TemporaryDirectory() as d:
+            old_work = G.WORK
+            G.WORK = Path(d)
+            try:
+                pdir = G.project_dir("demo")
+                pdir.mkdir(parents=True)
+                (pdir / "geo.json").write_text(json.dumps({
+                    "brand": {"site": "https://example.com"}, "market": "global",
+                    "pages": {"seed": ["https://docs.example.com/private"], "max": 5},
+                }), "utf-8")
+                robots = {"https://docs.example.com/robots.txt":
+                          "User-agent: CiteAuraEngine\nDisallow: /private\n"}
+                calls = []
+                def fetch(url, **kwargs):
+                    calls.append(url)
+                    return {"url": url, "final_url": url, "status": 200, "error": None,
+                            "html": "<html><body>ok</body></html>"}
+                with mock.patch.object(G, "fetch_text", side_effect=lambda url, **kw: robots.get(url, "")) as text, \
+                     mock.patch.object(G, "fetch", side_effect=fetch):
+                    crawl.run("demo", delay=0)
+                self.assertNotIn("https://docs.example.com/private", calls)
+                self.assertIn("https://docs.example.com/robots.txt", [c.args[0] for c in text.call_args_list])
+            finally:
+                G.WORK = old_work
+
+
 if __name__ == "__main__":
     unittest.main()

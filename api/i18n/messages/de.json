@@ -2610,5 +2610,8 @@
   "nav.perplexity_seo": "Perplexity SEO",
   "nav.llm_optimization": "LLM-Optimierung",
   "nav.ai_brand_monitoring": "KI-Markenmonitoring",
-  "nav.compare": "Plattformen vergleichen"
+  "nav.compare": "Plattformen vergleichen",
+  "assets.load_failed": "Das Asset konnte nicht geladen werden. Bitte erneut versuchen.",
+  "billing.load_failed": "Die Abrechnungsdaten sind nicht verfügbar. Bitte erneut versuchen.",
+  "overview.tickets_unavailable": "Tickets nicht verfügbar"
 }

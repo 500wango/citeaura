@@ -726,6 +726,15 @@ def test_job_status_updates_project_on_success_and_failure(tmp_path, monkeypatch
     with session_factory() as db:
         assert db.get(Job, verify_job_id).status == "failed"
         assert db.get(Project, project_id).status == "failed"
+        job = Job(project_id=project_id, action="verify", status="queued", budget_reservation_status="reserved")
+        db.add(job)
+        db.commit()
+        pending_job_id = job.id
+    with pytest.raises(RuntimeError, match="platform_usage_accounting_pending"):
+        with tasks._job_status("tenant-a", "example", "verify", pending_job_id):
+            raise RuntimeError("platform_usage_accounting_pending")
+    with session_factory() as db:
+        assert db.get(Job, pending_job_id).budget_reservation_status == "review"
 
     bootstrap_log = (tmp_path / "logs" / f"{bootstrap_job_id}.log").read_text("utf-8")
     verify_log = (tmp_path / "logs" / f"{verify_job_id}.log").read_text("utf-8")
@@ -1074,7 +1083,7 @@ def test_job_status_marks_failure_when_log_directory_is_not_writable(tmp_path, m
         assert db.get(Project, project_id).status == "failed"
 
 
-def test_reclaim_stale_jobs_releases_project_after_worker_loss(tmp_path):
+def test_reclaim_stale_jobs_preserves_uncertain_usage_after_worker_loss(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'reclaim.sqlite'}")
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -1102,12 +1111,12 @@ def test_reclaim_stale_jobs_releases_project_after_worker_loss(tmp_path):
         assert tasks._reclaim_stale_jobs(db, now) == 1
     with session_factory() as db:
         assert db.get(Job, job_id).status == "failed"
-        assert db.get(Job, job_id).error == "worker_lost_or_timeout"
-        assert db.get(Job, job_id).budget_reservation_status == "released"
+        assert db.get(Job, job_id).error == "platform_usage_accounting_pending: worker_lost_or_timeout"
+        assert db.get(Job, job_id).budget_reservation_status == "review"
         assert db.get(Project, project_id).status == "failed"
 
 
-def test_reclaim_stale_jobs_releases_queued_job_lost_by_broker(tmp_path):
+def test_reclaim_stale_jobs_keeps_unpublished_job_for_recovery(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'reclaim-queued.sqlite'}")
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -1134,11 +1143,10 @@ def test_reclaim_stale_jobs_releases_queued_job_lost_by_broker(tmp_path):
         db.add(job)
         db.commit()
         job_id, project_id = job.id, project.id
-        assert tasks._reclaim_stale_jobs(db, now) == 1
+        assert tasks._reclaim_stale_jobs(db, now) == 0
     with session_factory() as db:
-        assert db.get(Job, job_id).status == "failed"
-        assert db.get(Job, job_id).error == "worker_lost_or_timeout"
-        assert db.get(Project, project_id).status == "failed"
+        assert db.get(Job, job_id).status == "queued"
+        assert db.get(Project, project_id).status == "processing"
 
 
 def test_reclaim_stale_jobs_reclaims_queued_job_even_with_celery_delivery_id(tmp_path):
@@ -1429,3 +1437,91 @@ def test_trial_project_gets_day_seven_and_fourteen_retests_once(tmp_path, monkey
     assert third["enqueued"] == 1
     with session_factory() as db:
         assert json.loads(db.get(Project, project_id).trial_retests_json) == [7, 14]
+
+
+def test_recover_queued_job_without_broker_id(tmp_path, monkeypatch):
+    from api.projects import jobs
+    from api.worker.worker_maintenance import _recover_unpublished_jobs
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'recovery.sqlite'}")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine)
+    now = datetime.now(timezone.utc)
+    with factory() as db:
+        tenant = Tenant(name='recovery-tenant', directory_slug='recovery-tenant', plan='trial')
+        db.add(tenant)
+        db.flush()
+        project = Project(tenant_id=tenant.id, slug='example', url='https://example.com', market='global')
+        db.add(project)
+        db.flush()
+        job = Job(project_id=project.id, action='sample', status='queued',
+                  request_json='{"limit": 3}', created_at=now - timedelta(minutes=10))
+        db.add(job)
+        db.commit()
+        job_id = job.id
+    sent = []
+    monkeypatch.setattr(jobs.task_sample, 'delay', lambda *a, **kw: sent.append((a, kw)) or types.SimpleNamespace(id='recovered'))
+    with factory() as db:
+        _recover_unpublished_jobs(db, now)
+        assert db.get(Job, job_id).celery_task_id == 'recovered'
+        _recover_unpublished_jobs(db, now)
+    assert len(sent) == 1
+    assert sent[0][1]['limit'] == 3
+    engine.dispose()
+
+
+def test_unpublished_job_survives_broker_outage_then_recovers(tmp_path, monkeypatch):
+    from api.projects import jobs
+    from api.worker.worker_maintenance import _recover_unpublished_jobs
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'broker-outage.sqlite'}")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine)
+    now = datetime.now(timezone.utc)
+    with factory() as db:
+        tenant = Tenant(name='outage-tenant', directory_slug='outage-tenant', plan='trial')
+        db.add(tenant)
+        db.flush()
+        project = Project(tenant_id=tenant.id, slug='example', url='https://example.com', market='global', status='sampling')
+        db.add(project)
+        db.flush()
+        job = Job(project_id=project.id, action='sample', status='queued', created_at=now - timedelta(hours=3))
+        db.add(job)
+        db.commit()
+        job_id = job.id
+        monkeypatch.setattr(jobs.task_sample, 'delay', lambda *a, **kw: (_ for _ in ()).throw(RuntimeError('broker down')))
+        _recover_unpublished_jobs(db, now)
+        assert tasks._reclaim_stale_jobs(db, now) == 0
+        assert db.get(Job, job_id).status == 'queued'
+        monkeypatch.setattr(jobs.task_sample, 'delay', lambda *a, **kw: types.SimpleNamespace(id='recovered'))
+        _recover_unpublished_jobs(db, now)
+        assert db.get(Job, job_id).celery_task_id == 'recovered'
+    engine.dispose()
+
+
+def test_redelivered_funded_job_preserves_uncertain_usage(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'redelivery-funded.sqlite'}")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with factory() as db:
+        tenant = Tenant(name="tenant-funded", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(tenant_id=tenant.id, slug="example", url="https://example.com", status="processing")
+        db.add(project)
+        db.flush()
+        job = Job(project_id=project.id, action="sample", status="running", celery_task_id="task-id",
+                  budget_reservation_status="reserved", reserved_platform_calls=5)
+        db.add(job)
+        db.commit()
+        job_id = job.id
+    monkeypatch.setattr(tasks, "SessionLocal", factory)
+    monkeypatch.setattr(tasks, "_redelivered_task_id", lambda: "task-id")
+    monkeypatch.setattr(tasks, "job_log_path", lambda *args: tmp_path / "job.log")
+    with tasks._job_status("tenant-funded", "example", "sample", job_id) as claim:
+        assert claim is tasks._JOB_NOT_CLAIMED
+    with factory() as db:
+        job = db.get(Job, job_id)
+        assert job.status == "running"
+        assert job.budget_reservation_status == "reserved"
+    engine.dispose()

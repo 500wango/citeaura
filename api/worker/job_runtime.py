@@ -3,13 +3,14 @@
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 
 from api.db import SessionLocal
 from api.models import Job, Project
 from api.adapters.sampling_control import release_reservation
 from api import config
+from api.pipeline_catalog import PIPELINE_ACTIONS
 
 
 def as_utc(value):
@@ -37,10 +38,15 @@ def reclaim_stale_jobs(db, now):
     last_seen = func.coalesce(Job.heartbeat_at, Job.started_at, Job.created_at)
     stale = db.query(Job).filter(
         Job.status.in_(("queued", "running")),
+        # 尚未记录 task id 的已知动作由周期派发器补偿；broker 故障期间
+        # 不得被陈旧回收器提前标记失败。
+        or_(Job.status != "queued", Job.celery_task_id.isnot(None),
+            Job.action.notin_(("bootstrap", "autopilot", "sample", "cycle", "verify", "deliver", *PIPELINE_ACTIONS))),
         last_seen < cutoff,
     ).all()
     reclaimed = 0
     for job in stale:
+        uncertain_usage = job.status == "running" and job.budget_reservation_status == "reserved"
         # 条件更新：SELECT 与 COMMIT 之间已完成的 Job 不能被覆写成 failed。
         claimed = db.query(Job).filter(
             Job.id == job.id,
@@ -51,7 +57,8 @@ def reclaim_stale_jobs(db, now):
                 Job.status: "failed",
                 Job.stage: "failed",
                 Job.finished_at: now,
-                Job.error: "worker_lost_or_timeout",
+                Job.error: "platform_usage_accounting_pending: worker_lost_or_timeout" if uncertain_usage else "worker_lost_or_timeout",
+                Job.budget_reservation_status: "review" if uncertain_usage else job.budget_reservation_status,
             },
             synchronize_session=False,
         )

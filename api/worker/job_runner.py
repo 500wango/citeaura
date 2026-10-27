@@ -116,7 +116,7 @@ def _dispatch(action, slug, kwargs, tenant=None):
     raise ValueError(f"unsupported engine action: {action}")
 
 
-def execute(payload):
+def execute(payload, on_usage=None):
     """在租户隔离与密钥上下文中执行一次动作。"""
     from api.adapters.engine import with_tenant_context
     from api.billing.metering import meter_platform_calls
@@ -128,7 +128,7 @@ def execute(payload):
     pool_codes = payload.get("pool_codes") or ()
     kwargs = payload.get("kwargs") or {}
     usage = {}
-    with meter_platform_calls(pool_codes) as counts:
+    with meter_platform_calls(pool_codes, on_usage=on_usage) as counts:
         with with_tenant_context(
             payload["tenant_directory"], slug, keys=keys, custom_providers=providers,
         ):
@@ -142,11 +142,15 @@ def execute(payload):
 
 def main():
     _die_with_parent()
-    from api.worker.job_protocol import decode_job_request, error_event, result_event
+    from api.worker.job_protocol import decode_job_request, error_event, result_event, usage_event
 
     try:
         payload = decode_job_request(sys.stdin.read())
-        result, usage = execute(payload)
+        def report_usage(counts):
+            _PROTOCOL_STDOUT.write(usage_event(counts) + "\n")
+            _PROTOCOL_STDOUT.flush()
+
+        result, usage = execute(payload, on_usage=report_usage)
         _PROTOCOL_STDOUT.write(result_event(result, usage) + "\n")
         _PROTOCOL_STDOUT.flush()
         return 0

@@ -22,6 +22,47 @@ def _task_facade():
     return tasks
 
 
+def _recover_unpublished_jobs(db, now):
+    """重新投递提交后尚未记录 Celery task id 的 Job。"""
+    from api.pipeline_catalog import PIPELINE_ACTIONS
+    from api.projects.jobs import dispatch_retry, request_payload
+
+    cutoff = now - timedelta(minutes=5)
+    ids = [row[0] for row in db.query(Job.id).filter(
+        Job.status == "queued", Job.celery_task_id.is_(None), Job.created_at < cutoff,
+    ).all()]
+    db.rollback()
+    for job_id in ids:
+        job = db.query(Job).filter(
+            Job.id == job_id, Job.status == "queued", Job.celery_task_id.is_(None),
+        ).with_for_update(skip_locked=True).first()
+        if job is None:
+            db.rollback()
+            continue
+        project = db.get(Project, job.project_id)
+        tenant = db.get(Tenant, project.tenant_id) if project is not None else None
+        if tenant is None or job.action not in {"bootstrap", "autopilot", "sample", "cycle", "verify", "deliver", *PIPELINE_ACTIONS}:
+            db.rollback()
+            continue
+        if tenant.status != "active":
+            job.status = "failed"
+            job.stage = "failed"
+            job.error = "tenant_disabled"
+            job.finished_at = now
+            sampling_control.release_reservation(job)
+            if project.status != "archived":
+                project.status = "ready"
+            db.commit()
+            continue
+        try:
+            result = dispatch_retry(None, tenant.directory_slug, project.slug,
+                                    request_payload(job.request_json), job.id, job.action)
+            job.celery_task_id = getattr(result, "id", None)
+            db.commit()
+        except Exception:  # noqa: BLE001 - 下次调度继续恢复
+            db.rollback()
+
+
 @celery_app.task(name="citeaura.dispatch_schedules")
 def task_dispatch_schedules(now_iso=None):
     """扫描到期项目并投递周期复跑任务。"""
@@ -31,6 +72,7 @@ def task_dispatch_schedules(now_iso=None):
     result = {"scanned": 0, "enqueued": 0, "busy": 0, "quota_blocked": 0, "failed": 0}
     db = facade.SessionLocal()
     try:
+        _recover_unpublished_jobs(db, now)
         facade._reclaim_stale_jobs(db, now)
         candidate_ids = [row[0] for row in db.query(Project.id).join(Tenant, Tenant.id == Project.tenant_id).filter(
             Tenant.status == "active", Project.schedule_interval_days.in_((1, 7, 14, 30)),

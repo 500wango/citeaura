@@ -181,7 +181,7 @@ export default {
             if (!name) return false;
 
             try {
-              const currentConfig = await workspace.getConfig(projectId).catch(() => ({}));
+              const currentConfig = await workspace.getConfig(projectId);
               const currentList = currentConfig.competitors || [];
               const updated = [...currentList, {
                 name,
@@ -210,7 +210,7 @@ export default {
       btn.addEventListener('click', async () => {
         const compName = btn.getAttribute('data-comp');
         try {
-          const currentConfig = await workspace.getConfig(projectId).catch(() => ({}));
+          const currentConfig = await workspace.getConfig(projectId);
           const currentList = currentConfig.competitors || [];
           const updated = currentList.filter((c) => (typeof c === 'string' ? c !== compName : c.name !== compName));
           await workspace.patchConfig(projectId, { competitors: updated });

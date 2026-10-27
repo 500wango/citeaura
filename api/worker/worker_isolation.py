@@ -83,7 +83,7 @@ def resolve_job_funding(tenant_id, project_slug, allow_pool=True):
     return funding, custom_providers
 
 
-def _account_usage(funding, counts, action, job_id, completed=True):
+def _account_usage(funding, counts, action, job_id):
     """把子进程统计的平台调用写回账本；失败时写入补偿队列。"""
     if not counts:
         return
@@ -102,7 +102,7 @@ def _account_usage(funding, counts, action, job_id, completed=True):
         int(count) > 0 and code in funding.get("pool_codes", ())
         for code, count in counts.items()
     )
-    if completed and billable and not persisted:
+    if billable and not persisted:
         raise RuntimeError("platform_usage_accounting_pending")
 
 
@@ -128,10 +128,14 @@ def run_engine_job(tenant_id, project_slug, action, job_id=None, allow_pool=True
         log_path = None
         if job_id is not None:
             log_path = job_log_path(payload["tenant_directory"], project_slug, job_id)
-        with _job_heartbeat(job_id):
-            result, usage, _stderr = job_process.run_job_process(
-                payload, timeout=timeout, log_path=log_path,
-            )
+        try:
+            with _job_heartbeat(job_id):
+                result, usage, _stderr = job_process.run_job_process(
+                    payload, timeout=timeout, log_path=log_path,
+                )
+        except BaseException as exc:
+            _account_usage(funding, getattr(exc, "usage", {}), action, job_id)
+            raise
     else:
         result, usage = job_runner.execute(payload)
     _account_usage(funding, usage, action, job_id)

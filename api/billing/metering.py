@@ -27,6 +27,8 @@ def _ensure_meter_hook():
             if meter is not None and platform in meter["codes"]:
                 with meter["lock"]:
                     meter["counts"][platform] += 1
+                    if meter["on_usage"]:
+                        meter["on_usage"](dict(meter["counts"]))
             return original(platform, *args, **kwargs)
 
         metered._citeaura_meter_hook = True
@@ -34,7 +36,7 @@ def _ensure_meter_hook():
 
 
 @contextmanager
-def meter_platform_calls(engine_codes):
+def meter_platform_calls(engine_codes, on_usage=None):
     """统计通过平台池发出的逻辑引擎调用，覆盖采样及同管线 LLM 调用。"""
     codes = frozenset(engine_codes)
     counts = Counter()
@@ -42,7 +44,7 @@ def meter_platform_calls(engine_codes):
         yield counts
         return
     _ensure_meter_hook()
-    token = _METER_CONTEXT.set({"codes": codes, "counts": counts, "lock": threading.Lock()})
+    token = _METER_CONTEXT.set({"codes": codes, "counts": counts, "lock": threading.Lock(), "on_usage": on_usage})
     try:
         yield counts
     finally:

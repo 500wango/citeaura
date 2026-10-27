@@ -44,7 +44,7 @@ celery_app.conf.update(
     # Redis broker 的可见性超时必须大于长任务硬超时，否则任务被硬杀后会
     # 被重投并在原执行仍在跑的情况下重复执行（重复采样=重复付费）。
     broker_transport_options={
-        "visibility_timeout": 10_800,
+        "visibility_timeout": max(10_800, config.long_task_time_limit_seconds() + 600),
         "socket_connect_timeout": 5,
         "socket_timeout": 30,
     },

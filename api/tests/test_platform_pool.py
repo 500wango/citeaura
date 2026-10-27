@@ -1,7 +1,7 @@
 import base64
 import json
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -259,7 +259,7 @@ def test_pool_meter_records_only_fallback_calls_once_per_job(tmp_path, monkeypat
         )
         db.add(project)
         db.flush()
-        job = Job(project_id=project.id, action="sample", status="running")
+        job = Job(project_id=project.id, action="sample", status="running", budget_reservation_status="review")
         db.add(job)
         db.add(ApiKey(
             tenant_id=tenant.id,
@@ -288,7 +288,12 @@ def test_pool_meter_records_only_fallback_calls_once_per_job(tmp_path, monkeypat
     assert counts == {"gemini": 2}
 
     assert len(platform_pool.record_usage(funding, counts, "sample", job_id=job_id)) == 1
+    with session_factory() as db:
+        db.get(Job, job_id).budget_reservation_status = "review"
+        db.commit()
     assert platform_pool.record_usage(funding, counts, "sample", job_id=job_id) == []
+    with session_factory() as db:
+        assert db.get(Job, job_id).budget_reservation_status == "settled"
     with session_factory() as db:
         usage = db.query(PlatformUsage).one()
         assert usage.tenant_id == tenant_id
@@ -371,24 +376,39 @@ def test_usage_outbox_replays_failed_accounting_once(tmp_path, monkeypatch):
     funding = {
         "tenant_id": tenant_id,
         "project_id": project_id,
-        "pool_codes": frozenset(("openai",)),
-        "rates": {"openai": 5},
+        "pool_codes": frozenset(("openai", "gemini")),
+        "rates": {"openai": 5, "gemini": 2},
     }
     assert platform_pool.persist_usage_outbox(funding, {"openai": 3}, "sample", job_id) == 1
     assert platform_pool.persist_usage_outbox(funding, {"openai": 3}, "sample", job_id) == 0
+    assert platform_pool.persist_usage_outbox(funding, {"gemini": 1}, "sample", job_id) == 1
+    with session_factory() as db:
+        job = db.get(Job, job_id)
+        assert job.budget_reservation_status == "review"
+        sampling_control.release_reservation(job)
+        job.finished_at = datetime.now(timezone.utc) - timedelta(hours=3)
+        db.commit()
+    with monkeypatch.context() as patch:
+        patch.setattr(platform_pool, "record_usage", lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("database unavailable")))
+        assert platform_pool.reconcile_usage_outbox() == 0
+    with session_factory() as db:
+        assert db.get(Job, job_id).budget_reservation_status == "review"
+        for event in db.query(PlatformUsageOutbox).all():
+            event.next_attempt_at = None
+        db.commit()
+    assert platform_pool.reconcile_usage_outbox(limit=1) == 1
     with session_factory() as db:
         assert db.get(Job, job_id).budget_reservation_status == "review"
     assert platform_pool.reconcile_usage_outbox() == 1
     assert platform_pool.reconcile_usage_outbox() == 0
 
     with session_factory() as db:
-        event = db.query(PlatformUsageOutbox).one()
-        usage = db.query(PlatformUsage).one()
-        assert event.status == "processed"
+        assert all(event.status == "processed" for event in db.query(PlatformUsageOutbox).all())
+        usage = db.query(PlatformUsage).filter_by(engine_code="openai").one()
         assert usage.job_id == job_id
         assert usage.calls == 3
         assert db.get(Job, job_id).budget_reservation_status == "settled"
-        assert db.query(UsageCounter).one().platform_cost_cny_fen == 15
+        assert db.query(UsageCounter).one().platform_cost_cny_fen == 17
 
 
 def test_usage_outbox_without_job_updates_one_row_per_action(tmp_path, monkeypatch):

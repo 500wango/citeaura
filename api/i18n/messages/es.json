@@ -2610,5 +2610,8 @@
   "nav.perplexity_seo": "SEO para Perplexity",
   "nav.llm_optimization": "Optimización LLM",
   "nav.ai_brand_monitoring": "Monitorización de marca IA",
-  "nav.compare": "Comparar plataformas"
+  "nav.compare": "Comparar plataformas",
+  "assets.load_failed": "No se pudo cargar el recurso. Inténtalo de nuevo.",
+  "billing.load_failed": "La información de facturación no está disponible. Inténtalo de nuevo.",
+  "overview.tickets_unavailable": "Tickets no disponibles"
 }

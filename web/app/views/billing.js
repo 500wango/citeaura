@@ -66,10 +66,12 @@ export default {
     let plansData = {};
     try {
       [usage, plansData] = await Promise.all([
-        billing.getUsage().catch(() => ({})),
+        billing.getUsage().catch(() => null),
         billing.getPlans().catch(() => ({})),
       ]);
     } catch (e) {}
+
+    if (!usage) return `<div class="app-view-container"><div class="card" role="alert">${t('billing.load_failed', {}, 'Billing information is unavailable. Please retry.')}</div></div>`;
 
     const currentPlan = usage.plan || 'trial';
     const isOwner = ctx.role === 'owner';

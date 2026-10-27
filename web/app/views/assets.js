@@ -126,7 +126,7 @@ export default {
     });
     const firstPath = assets.some((item) => item.path === requestedPath) ? requestedPath : requestedAsset?.path || assets[0]?.path || '';
     const first = firstPath
-      ? await workspace.getAsset(projectId, firstPath).catch(() => ({ path: firstPath, text: '' }))
+      ? await workspace.getAsset(projectId, firstPath).catch(() => ({ path: firstPath, text: '', loadFailed: true }))
       : { path: '', text: '' };
     const campaigns = project?.insights?.campaign_proposals || {};
     const reviewRequired = assets.filter((item) => item.status === 'review_required');
@@ -135,7 +135,7 @@ export default {
         <div class="view-header">
           <div class="view-title-group"><h1 class="view-title">${t('assets.title', {}, 'Campaigns & Assets')}</h1><p class="view-desc">${t('assets.library_desc', {}, 'Review evidence-backed interventions, then prepare the assets required for implementation.')}</p></div>
           <div class="view-actions">${assets.length
-            ? `<button type="button" id="btn-save-asset" class="btn btn-primary btn-sm" ${isViewer ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>${t('common.save', {}, 'Save Asset')}</button>`
+            ? `<button type="button" id="btn-save-asset" class="btn btn-primary btn-sm" ${first.loadFailed ? 'disabled' : ''} ${isViewer ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>${t('common.save', {}, 'Save Asset')}</button>`
             : `<button type="button" id="btn-generate-assets" class="btn btn-primary btn-sm" ${actionBlocked ? `disabled title="${escapeHtml(actionBlockReason)}"` : ''}>${t('assets.generate_btn', {}, 'Generate assets')}</button>`}</div>
         </div>
         ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(actionBlockReason)}</div>` : ''}
@@ -151,6 +151,7 @@ export default {
           </div>
           <div class="field" style="margin:0;">
             <label for="asset-text">${t('assets.contents_label', {}, 'File contents')}</label>
+            ${first.loadFailed ? `<p id="asset-load-error" role="alert">${t('assets.load_failed', {}, 'Could not load this asset. Please retry.')}</p>` : ''}
             <textarea id="asset-text" class="input" rows="24" ${isViewer ? 'readonly' : ''}>${escapeHtml(first.text || '')}</textarea>
           </div>
         </div>` : renderEmpty({ title: 'No generated assets', description: 'Generate project-specific files from the current audit and approved facts library.' })}
@@ -161,9 +162,27 @@ export default {
     const projectId = ctx.activeProjectId;
     const pathSelect = document.getElementById('asset-path');
     const editor = document.getElementById('asset-text');
+    const saveBtn = document.getElementById('btn-save-asset');
+    let loadedPath = saveBtn?.disabled ? null : pathSelect?.value;
+    let requestId = 0;
     pathSelect?.addEventListener('change', async () => {
-      const asset = await workspace.getAsset(projectId, pathSelect.value).catch(() => null);
-      if (asset) editor.value = asset.text || '';
+      const path = pathSelect.value;
+      const currentRequest = ++requestId;
+      loadedPath = null;
+      if (saveBtn) saveBtn.disabled = true;
+      editor.setAttribute('aria-busy', 'true');
+      try {
+        const asset = await workspace.getAsset(projectId, path);
+        if (currentRequest !== requestId) return;
+        editor.value = asset.text || '';
+        loadedPath = path;
+        document.getElementById('asset-load-error')?.remove();
+        if (saveBtn && !editor.readOnly) saveBtn.disabled = false;
+      } catch (err) {
+        if (currentRequest === requestId) toast.error(tError(err));
+      } finally {
+        if (currentRequest === requestId) editor.removeAttribute('aria-busy');
+      }
     });
     const generateBtn = document.getElementById('btn-generate-assets');
     if (generateBtn && !generateBtn.disabled) generateBtn.addEventListener('click', async () => {
@@ -200,10 +219,10 @@ export default {
         }
       });
     });
-    const saveBtn = document.getElementById('btn-save-asset');
-    if (saveBtn && !saveBtn.disabled) saveBtn.addEventListener('click', async () => {
+    if (saveBtn && !editor.readOnly) saveBtn.addEventListener('click', async () => {
+      if (!loadedPath || loadedPath !== pathSelect.value) return;
       try {
-        await workspace.saveAsset(projectId, pathSelect.value, editor.value);
+        await workspace.saveAsset(projectId, loadedPath, editor.value);
         toast.success('Asset saved');
       } catch (err) {
         toast.error(tError(err));

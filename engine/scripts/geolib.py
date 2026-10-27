@@ -427,7 +427,7 @@ def _retry_after_delay(response, fallback: float = 1.5) -> float:
     return min(MAX_RETRY_AFTER, max(0.0, delay)) + random.uniform(0.0, 0.25)
 
 
-def fetch(url: str, timeout: int = 12, retries: int = 1, allow_machine_file: bool = False) -> dict:
+def fetch(url: str, timeout: int = 12, retries: int = 1, allow_machine_file: bool = False, redirect_policy=None) -> dict:
     """Fetch a bounded web document and return normalized response metadata."""
     if not is_fetchable(url, allow_machine_file=allow_machine_file):
         return {"url": url, "final_url": url, "status": 0, "html": "", "content_type": "",
@@ -447,6 +447,10 @@ def fetch(url: str, timeout: int = 12, retries: int = 1, allow_machine_file: boo
                     raise requests.Timeout("fetch wall-clock deadline exceeded")
                 connect_timeout = min(3.0, max(0.1, remaining / 3))
                 read_timeout = max(0.1, remaining - connect_timeout)
+                if redirect_policy is not None and not redirect_policy(current_url):
+                    return {"url": url, "final_url": current_url, "status": 0, "html": "",
+                            "content_type": "", "elapsed": round(time.time() - t0, 2),
+                            "error": "Blocked by crawl policy"}
                 parsed, addresses = _validate_fetch_target(current_url)
                 r = _request_pinned(
                     session,

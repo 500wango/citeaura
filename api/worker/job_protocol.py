@@ -32,6 +32,10 @@ def result_event(result, usage=None):
     return event("result", result=result if isinstance(result, dict) else {}, usage=dict(usage or {}))
 
 
+def usage_event(usage):
+    return event("usage", usage=dict(usage or {}))
+
+
 def error_event(message):
     return event("error", error=str(message)[:2000])
 
@@ -55,6 +59,8 @@ def parse_events(text):
         kind = message.get("type")
         if kind == "result":
             result = message.get("result") or {}
+            usage = message.get("usage") or {}
+        elif kind == "usage":
             usage = message.get("usage") or {}
         elif kind == "error":
             errors.append(str(message.get("error") or "engine job failed"))

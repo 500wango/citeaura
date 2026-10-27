@@ -135,6 +135,7 @@ def dispatch_retry(task_name, tenant_name, project_slug, request, job_id, source
             no_sample=_pipeline_flag(request, "no-sample") or _pipeline_flag(request, "no_sample"),
             job_action=source_action,
             job_id=job_id,
+            **{key: request[key] for key in ("platforms", "repeat") if request.get(key) is not None},
         )
     if source_action == "sample":
         return task_sample.delay(

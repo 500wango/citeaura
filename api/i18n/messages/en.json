@@ -2610,5 +2610,8 @@
   "nav.perplexity_seo": "Perplexity SEO",
   "nav.llm_optimization": "LLM optimization",
   "nav.ai_brand_monitoring": "AI brand monitoring",
-  "nav.compare": "Compare platforms"
+  "nav.compare": "Compare platforms",
+  "assets.load_failed": "Could not load this asset. Please retry.",
+  "billing.load_failed": "Billing information is unavailable. Please retry.",
+  "overview.tickets_unavailable": "Tickets unavailable"
 }

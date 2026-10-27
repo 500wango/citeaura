@@ -2610,5 +2610,8 @@
   "nav.perplexity_seo": "Perplexity SEO",
   "nav.llm_optimization": "LLM最適化",
   "nav.ai_brand_monitoring": "AIブランドモニタリング",
-  "nav.compare": "プラットフォーム比較"
+  "nav.compare": "プラットフォーム比較",
+  "assets.load_failed": "アセットを読み込めませんでした。再試行してください。",
+  "billing.load_failed": "請求情報を取得できません。再試行してください。",
+  "overview.tickets_unavailable": "チケットを取得できません"
 }

@@ -185,8 +185,8 @@ def _lock_platform_pool_budget(db):
 
 
 def release_reservation(job):
-    """释放未结算的平台池预留，保留估算金额供审计。"""
-    if job is not None and job.budget_reservation_status in ("reserved", "review"):
+    """释放未使用的预留；待对账预留由计量补偿处理。"""
+    if job is not None and job.budget_reservation_status == "reserved":
         job.budget_reservation_status = "released"
 
 

@@ -2610,5 +2610,8 @@
   "nav.perplexity_seo": "Perplexity SEO",
   "nav.llm_optimization": "LLM 优化",
   "nav.ai_brand_monitoring": "AI 品牌监测",
-  "nav.compare": "对比平台"
+  "nav.compare": "对比平台",
+  "assets.load_failed": "资产加载失败，请重试。",
+  "billing.load_failed": "账单信息暂不可用，请重试。",
+  "overview.tickets_unavailable": "工单暂不可用"
 }

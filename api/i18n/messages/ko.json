@@ -2610,5 +2610,8 @@
   "nav.perplexity_seo": "Perplexity SEO",
   "nav.llm_optimization": "LLM 최적화",
   "nav.ai_brand_monitoring": "AI 브랜드 모니터링",
-  "nav.compare": "플랫폼 비교"
+  "nav.compare": "플랫폼 비교",
+  "assets.load_failed": "에셋을 불러오지 못했습니다. 다시 시도하세요.",
+  "billing.load_failed": "청구 정보를 불러올 수 없습니다. 다시 시도하세요.",
+  "overview.tickets_unavailable": "티켓을 불러올 수 없습니다"
 }

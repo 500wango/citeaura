@@ -12,6 +12,7 @@ import os
 import re
 import shutil
 import time
+import threading
 from collections import OrderedDict
 from context_executor import ThreadPoolExecutor
 from html import unescape
@@ -347,6 +348,23 @@ def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
     (staging / "html").mkdir(parents=True, exist_ok=True)
 
     robots_txt = G.fetch_text(G.normalize_url(root, "/robots.txt"), allow_machine_file=True)
+    root_parts = urlparse(root)
+    root_origin = f"{root_parts.scheme}://{root_parts.netloc}"
+    robots_by_origin = {root_origin: robots_txt}
+    robots_lock = threading.Lock()
+
+    def allowed(url):
+        if not G.same_site(root, url):
+            return False
+        parts = urlparse(url)
+        origin = f"{parts.scheme}://{parts.netloc}"
+        with robots_lock:
+            if origin not in robots_by_origin:
+                robots_by_origin[origin] = G.fetch_text(origin + "/robots.txt", allow_machine_file=True)
+            robots = robots_by_origin[origin]
+        path = (parts.path or "/") + ("?" + parts.query if parts.query else "")
+        return not robots_disallows(robots, "CiteAuraEngine", path)
+
     llms_txt = G.fetch_text(G.normalize_url(root, "/llms.txt"), allow_machine_file=True)
     sitemap_urls = discover_sitemap(root)
     limit, limit_source = resolve_page_limit(cfg, max_pages, len(sitemap_urls))
@@ -357,8 +375,8 @@ def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
 
     home = (
         {"url": root, "final_url": root, "status": 0, "html": "", "error": "Blocked by robots.txt"}
-        if robots_disallows(robots_txt, "*", urlparse(root).path or "/")
-        else G.fetch(root)
+        if not allowed(root)
+        else G.fetch(root, redirect_policy=allowed)
     )
     link_urls = discover_links(root, home["html"]) if home["html"] else []
 
@@ -366,13 +384,13 @@ def run(slug: str, max_pages: int | None = None, delay: float = 0.5) -> dict:
     candidates = select_candidates(seeds + sitemap_urls + link_urls, root, limit, cfg.get("market", "cn"))
 
     def crawl_one(i: int, u: str) -> dict:
-        if robots_disallows(robots_txt, "*", urlparse(u).path or "/"):
+        if not allowed(u):
             res = {"url": u, "final_url": u, "status": 0, "html": "", "error": "Blocked by robots.txt"}
             page = analyze_page(u, res)
             page["snapshot"] = f"evidence/html/{run_id}/{i:03d}.html"
             page["crawl_run_id"] = run_id
             return page
-        res = home if u.rstrip("/") == root else G.fetch(u)
+        res = home if u.rstrip("/") == root else G.fetch(u, redirect_policy=allowed)
         if res.get("final_url") and not G.same_site(root, res["final_url"]):
             res = {**res, "status": 0, "html": "",
                    "error": f"Redirect left the configured site: {res['final_url']}"}

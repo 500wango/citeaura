@@ -277,3 +277,49 @@ def test_soft_time_limit_terminates_child_group(monkeypatch):
         job_process.run_job_process(_payload("tenant-soft", {}), timeout=30)
 
     assert [process.pid for process in terminated] == [4242]
+
+
+def test_timed_out_child_retains_observed_usage():
+    command = [sys.executable, "-u", "-c", (
+        "import json,time; "
+        "print(json.dumps({'type':'usage','usage':{'openai':2}}), flush=True); "
+        "time.sleep(30)"
+    )]
+    with pytest.raises(job_process.EngineJobTimeout) as caught:
+        job_process.run_job_process(_payload('tenant-a', {}), timeout=1, command=command)
+    assert caught.value.usage == {"openai": 2}
+
+
+def test_lock_loss_stops_running_isolated_child(monkeypatch):
+    import threading
+    from api.adapters import locking
+
+    loss = threading.Event()
+    monkeypatch.setattr(locking, "current_lock_loss", lambda: loss)
+    timer = threading.Timer(0.3, loss.set)
+    timer.start()
+    started = time.monotonic()
+    try:
+        with pytest.raises(job_process.EngineJobError, match="project_lock_lost"):
+            job_process.run_job_process(
+                _payload('tenant-a', {}), timeout=20,
+                command=[sys.executable, '-u', '-c', 'import time; time.sleep(20)'],
+            )
+    finally:
+        timer.cancel()
+    assert time.monotonic() - started < 5
+
+
+def test_failed_isolated_job_accounts_observed_usage(monkeypatch):
+    from api.worker import worker_isolation
+
+    monkeypatch.setenv('CITEAURA_ISOLATED_JOBS', 'true')
+    failure = job_process.EngineJobTimeout('timed out')
+    failure.usage = {'openai': 2}
+    monkeypatch.setattr(job_process, 'run_job_process', lambda *a, **kw: (_ for _ in ()).throw(failure))
+    calls = []
+    monkeypatch.setattr(worker_isolation, '_account_usage', lambda *a, **kw: calls.append((a, kw)))
+    funding = {'tenant_id': 1, 'tenant_directory_slug': 'tenant-a', 'pool_codes': {'openai'}}
+    with pytest.raises(job_process.EngineJobTimeout):
+        worker_isolation.run_engine_job('tenant-a', 'isolation', 'sample', funding=funding)
+    assert calls[0][0][1] == {'openai': 2}

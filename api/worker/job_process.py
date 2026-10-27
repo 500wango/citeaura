@@ -5,11 +5,13 @@ import re
 import signal
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from celery import current_task
 
 from api import config
+from api.adapters import locking
 from api.worker import job_protocol
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -134,6 +136,15 @@ def run_job_process(payload, timeout=None, environ=None, log_path=None, command=
             text=True,
             start_new_session=True,
         )
+        loss = locking.current_lock_loss()
+        stopped = threading.Event()
+        def stop_on_lock_loss():
+            while not stopped.wait(0.1):
+                if loss is not None and loss.is_set():
+                    terminate_process_group(process, grace_seconds=0.1)
+                    return
+        watcher = threading.Thread(target=stop_on_lock_loss, daemon=True)
+        watcher.start()
         try:
             stdout, stderr = process.communicate(
                 job_protocol.encode_job_request(payload),
@@ -142,26 +153,43 @@ def run_job_process(payload, timeout=None, environ=None, log_path=None, command=
         except subprocess.TimeoutExpired:
             terminate_process_group(process)
             stdout, stderr = process.communicate()
-            raise EngineJobTimeout(f"engine job timed out after {timeout}s")
-        except BaseException:
+            exc = EngineJobTimeout(f"engine job timed out after {timeout}s")
+            exc.usage = job_protocol.parse_events(stdout)[1]
+            raise exc
+        except BaseException as exc:
             # 父进程被 Celery 软超时等中断时，子进程在独立会话里不会自动退出：
             # 不回收进程组就会在 Job 已失败后继续调用付费 API 并写入产物。
             terminate_process_group(process)
+            stdout, _ = process.communicate()
+            exc.usage = job_protocol.parse_events(stdout)[1]
             raise
+        finally:
+            stopped.set()
+            watcher.join(timeout=1)
     finally:
         if log_handle is not None:
             log_handle.close()
     if log_handle is not None:
         stderr = "\n".join(_file_tail(log_path))
     result, usage, errors, _progress = job_protocol.parse_events(stdout)
+    if loss is not None and loss.is_set():
+        exc = EngineJobError("project_lock_lost")
+        exc.usage = usage
+        raise exc
     if errors:
-        raise EngineJobError("; ".join(errors)[:2000])
+        exc = EngineJobError("; ".join(errors)[:2000])
+        exc.usage = usage
+        raise exc
     if process.returncode != 0:
         tail = (stderr or "").strip().splitlines()[-8:]
-        raise EngineJobError(
+        exc = EngineJobError(
             f"engine job exited with {process.returncode}: " + " | ".join(tail)[:1500]
         )
+        exc.usage = usage
+        raise exc
     if result is None:
         tail = (stderr or "").strip().splitlines()[-8:]
-        raise EngineJobError("engine job returned no result: " + " | ".join(tail)[:1500])
+        exc = EngineJobError("engine job returned no result: " + " | ".join(tail)[:1500])
+        exc.usage = usage
+        raise exc
     return result, usage, stderr

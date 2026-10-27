@@ -233,7 +233,15 @@ def record_usage(funding, counts, action, job_id=None):
                 reservation_job is not None
                 and reservation_job.budget_reservation_status in ("reserved", "review")
             ):
-                reservation_job.budget_reservation_status = "settled" if accepted else "released"
+                pending = db.query(PlatformUsageOutbox.id).filter(
+                    PlatformUsageOutbox.job_id == valid_job_id,
+                    PlatformUsageOutbox.status == "pending",
+                ).first()
+                if not pending:
+                    existing_usage = accepted or db.query(PlatformUsage.id).filter(
+                        PlatformUsage.job_id == valid_job_id,
+                    ).first()
+                    reservation_job.budget_reservation_status = "settled" if existing_usage else "released"
         db.commit()
         rows = [PlatformUsage(**values) for values in accepted]
         return rows
@@ -333,6 +341,16 @@ def reconcile_usage_outbox(limit=100):
                     row.last_error = "missing_job_id"
                 row.status = "processed"
                 row.processed_at = now
+                db.flush()
+                if row.job_id is not None and row.last_error is None:
+                    pending = db.query(PlatformUsageOutbox.id).filter(
+                        PlatformUsageOutbox.job_id == row.job_id,
+                        PlatformUsageOutbox.status == "pending",
+                    ).first()
+                    if not pending:
+                        job = db.get(Job, row.job_id)
+                        if job is not None and job.budget_reservation_status == "review":
+                            job.budget_reservation_status = "settled"
                 processed += 1
             except Exception as exc:  # noqa: BLE001 - 保留事件等待下一轮补偿
                 row.attempts += 1
@@ -344,6 +362,11 @@ def reconcile_usage_outbox(limit=100):
             Job.budget_reservation_status == "review",
             Job.finished_at.isnot(None),
             Job.finished_at < stale_cutoff,
+            (Job.error.is_(None) | ~Job.error.contains("platform_usage_accounting_pending")),
+            ~db.query(PlatformUsageOutbox.id).filter(
+                PlatformUsageOutbox.job_id == Job.id,
+                PlatformUsageOutbox.status == "pending",
+            ).exists(),
         ).all()
         for job in stale:
             job.budget_reservation_status = "released"

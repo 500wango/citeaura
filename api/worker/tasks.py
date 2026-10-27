@@ -233,7 +233,7 @@ def _find_job(db, tenant_id, project_slug, action, job_id):
 
 
 TASK_DELIVERY_KEY_PREFIX = "citeaura:task-delivery"
-TASK_DELIVERY_TTL_SECONDS = 7200
+TASK_DELIVERY_TTL_SECONDS = max(10_800, config.long_task_time_limit_seconds() + 600) + 3600
 
 
 def _redelivered_task_id():

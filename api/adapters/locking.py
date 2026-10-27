@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 LOCK_PREFIX = "citeaura:project-lock"
 _HELD_LOCKS = ContextVar("citeaura_held_project_locks", default=frozenset())
 _REENTRANT_LOCKS = ContextVar("citeaura_reentrant_project_locks", default=frozenset())
+_LOCK_LOSS = ContextVar("citeaura_project_lock_loss", default=None)
 
 
 @lru_cache(maxsize=8)
@@ -33,6 +34,10 @@ def _client_for_url(url):
 
 def redis_client():
     return _client_for_url(config.redis_url())
+
+
+def current_lock_loss():
+    return _LOCK_LOSS.get()
 
 
 def lock_key(tenant_slug, project_slug):
@@ -106,6 +111,7 @@ def project_lock(tenant_slug, project_slug, allow_reentrant=False):
         daemon=True,
     )
     renewer.start()
+    loss_token = _LOCK_LOSS.set(lost)
     context_token = _HELD_LOCKS.set(held | {key})
     reentrant_token = _REENTRANT_LOCKS.set(_REENTRANT_LOCKS.get() | ({key} if allow_reentrant else set()))
     body_failed = False
@@ -115,6 +121,7 @@ def project_lock(tenant_slug, project_slug, allow_reentrant=False):
         body_failed = True
         raise
     finally:
+        _LOCK_LOSS.reset(loss_token)
         _HELD_LOCKS.reset(context_token)
         _REENTRANT_LOCKS.reset(reentrant_token)
         stop.set()

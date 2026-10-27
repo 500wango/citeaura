@@ -47,6 +47,10 @@ def _job_status(tenant_id, project_slug, action, job_id=None, hold_project_lock=
             return job_id is None
         redelivered_task_id = _task_facade()._redelivered_task_id()
         if job.status == "running" and redelivered_task_id and job.celery_task_id == redelivered_task_id:
+            if job.budget_reservation_status == "reserved":
+                # 前次平台池用量尚不可恢复，不能用同一个计费幂等键重复执行。
+                # 仍存活的任务保持运行；失联任务由陈旧回收器转为 review。
+                return False
             next_attempt = int(job.attempt or 1) + 1
             if next_attempt > _task_facade().MAX_JOB_ATTEMPTS:
                 sampling_control.release_reservation(job)
@@ -189,7 +193,10 @@ def _job_status(tenant_id, project_slug, action, job_id=None, hold_project_lock=
                 job.stage = "failed"
                 job.finished_at = datetime.now(timezone.utc)
                 job.error = error_message
-                sampling_control.release_reservation(job)
+                if "platform_usage_accounting_pending" in error_message and job.budget_reservation_status == "reserved":
+                    job.budget_reservation_status = "review"
+                else:
+                    sampling_control.release_reservation(job)
                 if project is not None:
                     project.status = "failed"
 

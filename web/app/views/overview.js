@@ -39,7 +39,7 @@ export default {
       [project, report, tickets, jobs, visibilityPlan, citationSources, citationFeatures] = await Promise.all([
         projects.get(projectId).catch(() => null),
         projects.getReport(projectId).catch(() => null),
-        projects.getTickets(projectId).catch(() => []),
+        projects.getTickets(projectId).catch(() => null),
         projects.getJobs(projectId).catch(() => []),
         projects.getVisibilityPlan(projectId).catch(() => null),
         projects.getCitationSources(projectId).catch(() => null),
@@ -230,7 +230,7 @@ export default {
         title: t('overview.kpi_mention_detail', {}, 'Share of successful, eligible answers that mention the brand. Brand-named probe questions are excluded.'),
       },
       { label: t('overview.kpi_grade', {}, 'Technical Audit Grade'), value: overallGrade ? gradeBadge(overallGrade) : unmeasured },
-      { label: t('overview.kpi_tickets', {}, 'Action Tickets'), value: `${doneTickets} / ${totalTickets}`, sub: t('overview.tickets_pending', { count: totalTickets - doneTickets }, `${totalTickets - doneTickets} pending`) },
+      { label: t('overview.kpi_tickets', {}, 'Action Tickets'), value: tickets === null ? '—' : `${doneTickets} / ${totalTickets}`, sub: tickets === null ? t('overview.tickets_unavailable', {}, 'Tickets unavailable') : t('overview.tickets_pending', { count: totalTickets - doneTickets }, `${totalTickets - doneTickets} pending`) },
       { label: t('overview.kpi_engines', {}, 'Measured Engines'), value: String(measuredEngines.length), sub: t('overview.engines_in_matrix', { count: engines.length }, `${engines.length} in matrix`), state: measuredEngines.length ? 'measured' : 'unmeasured' },
     ];
 
@@ -488,7 +488,7 @@ export default {
                   .join('')}
               </div>
             `
-                : `<p style="color:var(--muted);font-size:var(--fs-2);">${t('overview.no_tickets', {}, 'No action tickets generated yet.')}</p>`
+                : `<p style="color:var(--muted);font-size:var(--fs-2);">${tickets === null ? t('overview.tickets_unavailable', {}, 'Tickets unavailable') : t('overview.no_tickets', {}, 'No action tickets generated yet.')}</p>`
             }
           </div>
         </div>

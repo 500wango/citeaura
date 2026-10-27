@@ -2610,5 +2610,8 @@
   "nav.perplexity_seo": "SEO Perplexity",
   "nav.llm_optimization": "Optimisation LLM",
   "nav.ai_brand_monitoring": "Suivi de marque IA",
-  "nav.compare": "Comparer les plateformes"
+  "nav.compare": "Comparer les plateformes",
+  "assets.load_failed": "Impossible de charger cet élément. Réessayez.",
+  "billing.load_failed": "Les informations de facturation sont indisponibles. Réessayez.",
+  "overview.tickets_unavailable": "Tickets indisponibles"
 }
