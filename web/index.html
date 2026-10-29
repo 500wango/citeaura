@@ -20,10 +20,12 @@
 </script>
   <link rel="preload" href="/site-assets/fonts/geist-latin-variable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/site-assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/site-assets/fonts/instrument-serif-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/site-assets/styles/tokens.css">
   <link rel="stylesheet" href="/site-assets/styles/base.css">
   <link rel="stylesheet" href="/site-assets/styles/components.css">
   <link rel="stylesheet" href="/site-assets/styles/home.css">
+  <link rel="stylesheet" href="/site-assets/styles/hero-warm.css">
   <noscript><style>.reveal{opacity:1 !important;transform:none !important}</style></noscript>
   <link rel="icon" type="image/png" href="/site-assets/favicon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/site-assets/apple-touch-icon.png">
@@ -302,14 +304,31 @@
             <p class="home-note" data-trial-days="14" data-i18n="landing.home.trial">14-day trial · No credit card required</p>
           </div>
         </div>
-        <figure class="home-evidence" id="core-value">
+        <div class="hero-stage">
+          <div class="hero-answer" aria-hidden="true">
+            <span class="hero-answer-label" data-i18n="landing.hero.answer_label">Illustrative example</span>
+            <p class="hero-answer-q" data-i18n="landing.hero.answer_q">What does ChatGPT say about your brand?</p>
+            <p class="hero-answer-a" data-i18n="landing.hero.answer_a">CiteAura audits the domain and returns a prioritized fix list.</p>
+            <div class="hero-answer-chips"><span>Demo</span><span data-i18n="landing.mode_search">API · Web-grounded retrieval</span></div>
+          </div>
+          <figure class="home-evidence" id="core-value">
           <div class="home-evidence-head">
             <h2 data-i18n="landing.home.evidence_title">Brand overview · Demo workspace</h2>
             <a href="/site-assets/product-overview-en.webp" target="_blank" rel="noopener noreferrer" data-product-shot="overview" data-i18n="common.view">View</a>
           </div>
           <img src="/site-assets/product-overview-en.webp" srcset="/site-assets/product-overview-en-412.webp 412w, /site-assets/product-overview-en-768.webp 768w, /site-assets/product-overview-en.webp 1440w" data-srcset-en="/site-assets/product-overview-en-412.webp 412w, /site-assets/product-overview-en-768.webp 768w, /site-assets/product-overview-en.webp 1440w" sizes="(max-width: 640px) 92vw, (max-width: 1024px) 70vw, 720px" width="1440" height="1000" loading="eager" fetchpriority="high" decoding="async" data-product-shot="overview" data-i18n-alt="landing.home.overview_alt" alt="CiteAura Brand Overview product interface">
           <figcaption data-i18n="landing.home.evidence_caption">Demo · Actual product interface with illustrative workspace data. Not a customer result or endorsement.</figcaption>
-        </figure>
+          </figure>
+        </div>
+      </div>
+      <div class="hero-marquee">
+        <strong class="hero-marquee-label" data-i18n="landing.hero.marquee_label">Sampling surfaces</strong>
+        <div class="hero-marquee-viewport">
+          <div class="hero-marquee-track">
+            <span>ChatGPT</span><span>Claude</span><span>Gemini</span><span>Perplexity</span><span>Copilot</span><span>DeepSeek</span><span>Grok</span><span>AI Overviews</span>
+            <span aria-hidden="true">ChatGPT</span><span aria-hidden="true">Claude</span><span aria-hidden="true">Gemini</span><span aria-hidden="true">Perplexity</span><span aria-hidden="true">Copilot</span><span aria-hidden="true">DeepSeek</span><span aria-hidden="true">Grok</span><span aria-hidden="true">AI Overviews</span>
+          </div>
+        </div>
       </div>
     </section>
 
