@@ -34,6 +34,7 @@ from api.team.router import router as team_router
 from api.ui import router as ui_router
 from api.workspace.router import router as workspace_router
 from api.readiness import readiness_checks
+from api.searchdata.router import router as searchdata_router
 from api.rate_limit import AUTH_PATHS, RateLimitUnavailable, check_request
 
 
@@ -70,6 +71,7 @@ app.include_router(billing_router)
 app.include_router(branding_router)
 app.include_router(outreach_router)
 app.include_router(publishing_router)
+app.include_router(searchdata_router)
 app.include_router(public_projects_router)
 app.include_router(projects_router)
 app.include_router(settings_router)

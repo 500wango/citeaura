@@ -9,6 +9,7 @@ import { gradeBadge, statusPill } from '../components/badge.js';
 import { renderEmpty } from '../components/empty.js';
 import { openModal } from '../components/modal.js';
 import { escapeHtml } from '../safe-html.js';
+import { loadGscDemand, renderGscDemand } from '../components/gsc-demand.js';
 
 export default {
   render: async (ctx) => {
@@ -21,12 +22,14 @@ export default {
     let report = null;
     let deliveries = [];
     let jobs = [];
+    let gscDemand = null;
 
     try {
-      [report, deliveries, jobs] = await Promise.all([
+      [report, deliveries, jobs, gscDemand] = await Promise.all([
         projects.getReport(projectId).catch(() => null),
         projects.getDeliveries(projectId).catch(() => []),
         projects.getJobs(projectId).catch(() => []),
+        loadGscDemand(projectId),
       ]);
     } catch (err) {
       console.error('Failed to load report data:', err);
@@ -136,6 +139,8 @@ export default {
               ? `<ul style="margin:0;padding-left:18px;color:var(--ink-2);font-size:var(--fs-2);line-height:1.6;">${qualityIssues.slice(0, 5).map((issue) => `<li><a href="#/${escapeHtml(issue.route || 'overview')}">${escapeHtml(issueText(issue))}</a>${issue.action ? ` — ${escapeHtml(issueText(issue, 'action'))}` : ''}</li>`).join('')}</ul>`
               : `<p style="margin:0;color:var(--muted);font-size:var(--fs-2);">${t('report.readiness_ready', {}, 'All recorded readiness checks passed for the current artifacts.')}</p>`}
         </section>
+
+        ${renderGscDemand(gscDemand)}
 
         <!-- Deliverables Overview -->
         <div class="card" style="gap:var(--sp-4);">

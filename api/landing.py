@@ -91,7 +91,7 @@ PUBLIC_PAGES = (
     {"path": "/fr/blog/identifier-frequence-mention-marque-ai-mode", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/blog/top-domains-cited-by-llms", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
     {"path": "/fr/blog/principaux-domaines-cites-par-les-llm", "lastmod": "2026-10-06", "changefreq": "monthly", "priority": "0.6"},
-    {"path": "/privacy", "lastmod": "2026-08-19", "changefreq": "monthly", "priority": "0.3"},
+    {"path": "/privacy", "lastmod": "2026-10-29", "changefreq": "monthly", "priority": "0.3"},
     {"path": "/terms", "lastmod": "2026-08-19", "changefreq": "monthly", "priority": "0.3"},
 )
 BLOG_PREFIX = "/blog/"

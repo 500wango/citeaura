@@ -2,10 +2,32 @@
  * Brand onboarding
  */
 
-import { analytics, projects } from '../api.js';
+import { analytics, projects, searchdata } from '../api.js';
+import { openModal } from '../components/modal.js';
 import { t, tError } from '../i18n.js';
 import { toast } from '../components/toast.js';
 import { escapeHtml } from '../safe-html.js';
+
+async function offerSearchConsole(ctx, projectId) {
+  const status = await searchdata.getStatus().catch(() => null);
+  if (!status?.configured) return;
+  openModal({
+    title: t('gsc.onboard_title', {}, 'Add the questions people really search for?'),
+    content: `<p style="margin:0;line-height:1.5;">${t('gsc.onboard_desc', {}, 'Connect Google Search Console (read-only) and CiteAura will suggest up to 20 non-branded queries with the most Google impressions in the last 90 days. You choose which ones become AI sampling questions.')}</p>`,
+    confirmText: t('gsc.connect_btn', {}, 'Connect Search Console'),
+    cancelText: t('gsc.onboard_skip', {}, 'Skip for now'),
+    onConfirm: async () => {
+      try {
+        const { authorization_url: url } = await searchdata.authorizeGsc(projectId);
+        if (url) window.location.assign(url);
+        return true;
+      } catch (err) {
+        toast.error(tError(err));
+        return false;
+      }
+    },
+  });
+}
 
 export default {
   render: () => {
@@ -225,6 +247,8 @@ export default {
             onComplete: async () => {
               await ctx.reloadProjects();
               await ctx.reloadCurrentView();
+              // 只在首次采样之前引导，避免新问题打断刚建立的基线。
+              if (no_sample) offerSearchConsole(ctx, res.project_id);
             },
           });
         }

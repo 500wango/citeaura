@@ -8,12 +8,14 @@ import { toast } from '../components/toast.js';
 import { confirmModal, openModal } from '../components/modal.js';
 import { renderEmpty, bindEmptyAction } from '../components/empty.js';
 import { escapeHtml } from '../safe-html.js';
+import { bindGscCard, handleGscReturn, loadGscCard, renderGscCard } from '../components/gsc-import.js';
 
 let activeProjectMarket = 'global';
 let activeQuestionLanguage = 'auto';
 
 export default {
   render: async (ctx) => {
+    if (handleGscReturn(ctx)) return '';
     const projectId = ctx.activeProjectId;
     if (!projectId) {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
@@ -24,14 +26,16 @@ export default {
     let research = {};
     let insights = {};
     let brandOpportunities = null;
+    let gscSummary = null;
     try {
       let project = null;
-      [questions, expand, project, research, brandOpportunities] = await Promise.all([
+      [questions, expand, project, research, brandOpportunities, gscSummary] = await Promise.all([
         workspace.getQuestions(projectId).catch(() => []),
         workspace.getExpand(projectId).catch(() => ({})),
         projects.get(projectId).catch(() => null),
         workspace.getPromptResearch(projectId).catch(() => ({})),
         projects.getBrandOpportunities(projectId).catch(() => null),
+        loadGscCard(projectId),
       ]);
       insights = project?.insights || {};
       if (project) {
@@ -73,6 +77,7 @@ export default {
         </div>
 
         ${isViewer ? `<div class="read-only-note" role="status">${escapeHtml(readOnlyReason)}</div>` : ''}
+        ${renderGscCard(gscSummary, { isViewer, readOnlyReason, hasBaseline: Number(explorer.measured_count || 0) > 0 })}
         <div class="card" style="gap:var(--sp-3);margin-bottom:var(--sp-4);">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;">
             <div>
@@ -211,6 +216,8 @@ export default {
         },
       });
     };
+
+    if (ctx.role !== 'viewer') bindGscCard(ctx, projectId);
 
     const researchBtn = document.getElementById('btn-run-prompt-research');
     if (researchBtn && !researchBtn.disabled) researchBtn.addEventListener('click', runResearch);

@@ -56,6 +56,14 @@ class MemoryRedis:
             self.delivery[name] = value
             return True
 
+    def get(self, name):
+        with self.values_lock:
+            return self.delivery.get(name)
+
+    def delete(self, *names):
+        with self.values_lock:
+            return sum(1 for name in names if self.delivery.pop(name, None) is not None)
+
 
 @pytest.fixture(autouse=True)
 def project_lock_redis(monkeypatch):

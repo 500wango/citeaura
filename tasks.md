@@ -317,3 +317,75 @@ with with_tenant_context("test-tenant", "example"):
 4. 最后评估 5.6，必须先有真实客户数据再扩展归因和站外连接器。
 
 每个 Task 必须通过 API/Engine 全量回归、文件系统产物校验、租户隔离测试和至少一个浏览器流程验收；不得修改 `engine/` 公共接口。
+
+---
+
+## Phase 6: Search Console 真实需求钩子
+
+目标：用户连接 Google Search Console 后，把近 90 天 Google 展示量最高的非品牌查询转成 AI 采样问题，报告并列展示 Google 需求与 AI 可见性。方案见 `docs/gsc-ga4-evidence-layer-plan.md`（v2）。不改 `engine/`，不保存 Google 凭据，证据层永不接入百度。
+
+### Task 6.1: OAuth 一次性授权（P0）
+
+**状态：已完成代码与测试（2026-10-30）；真实 Google 授权待 OAuth Client 配置后验收**
+
+- `api/searchdata/oauth.py`：授权 URL（PKCE S256 + 签名 `state`，绑定用户、租户、项目，10 分钟有效）、回调换 token
+- 只申请 `webmasters.readonly`，不申请 offline access；access token 只在回调请求内使用，不落库、不写日志
+- 配置 `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`；未配置时接口返回 `gsc_not_configured`，前端隐藏入口
+
+**验收**：`state` 篡改、过期、跨用户使用、PKCE 校验失败、用户拒绝授权都返回明确错误；token 不出现在数据库、日志和快照中。
+
+### Task 6.2: 属性匹配与查询拉取（P0）
+
+**状态：已完成代码与测试（2026-10-30）；真实 Google 授权待 OAuth Client 配置后验收**
+
+- `api/searchdata/gsc.py`：`sites.list` 按 `sc-domain:` → `https://` → `https://www.` → `http://` 匹配项目域名；排除 `siteUnverifiedUser`
+- 多个匹配或无匹配时返回可选属性列表，由用户选择后用同一 token 拉取（token 仅缓存在服务端短期会话内，5 分钟过期，不写磁盘）
+- `searchanalytics.query`：结束日 T-3，往前 90 天，`dimensions=["query"]`，`type=web`，`dataState=final`，`rowLimit=25000`；另取不分维度的总量计算匿名缺口
+
+**验收**：domain 属性、URL 前缀属性、www 变体、无匹配、多个匹配均有测试；HTTP 错误映射为 `gsc_permission_denied` / `gsc_upstream_error`。
+
+### Task 6.3: 候选筛选与快照落盘（P0）
+
+**状态：已完成代码与测试（2026-10-30）；真实 Google 授权待 OAuth Client 配置后验收**
+
+- `api/searchdata/candidates.py`：排除品牌词（品牌名、别名、域名标签）；排除过短查询；意图词优先；按展示量取前 20；问句原样使用，其他查询给模板改写
+- 快照写入 `work/<tenant>/<slug>/searchdata/gsc_snapshot.json`，旧快照移入 `searchdata/history/`；只保留前 200 条查询
+- 读取与删除接口；删除需要 editor 角色
+
+**验收**：品牌词排除、短查询排除、意图排序、不足 20 条、0 条、匿名缺口（含总量为 0）都有测试；跨租户读取和删除被拒绝。
+
+### Task 6.4: 问题库接入（P0）
+
+**状态：已完成代码与测试（2026-10-30）；真实 Google 授权待 OAuth Client 配置后验收**
+
+- 加入问题库时 `source: "gsc"`，附 `gsc` 元数据（查询原文、展示量、点击、平均排名、快照时间）
+- 接口拒绝客户端伪造 `gsc` 元数据：服务端按快照中的查询回填
+- 问题视图新增“从 Search Console 导入”卡片：候选列表、编辑、勾选加入；已有基线时提示新问题会开始新的可比周期
+
+**验收**：加入后的问题带服务端回填的元数据；不在快照中的查询被拒绝；已在问题库中的不重复加入。
+
+### Task 6.5: Onboarding 与报告（P0）
+
+**状态：已完成代码与测试（2026-10-30）；真实 Google 授权待 OAuth Client 配置后验收**
+
+- onboarding 选择“仅审计”创建项目后，若 GSC 已配置，提示“连接 Search Console 获取真实搜索问题”（可跳过）；已选完整基线的项目从问题视图手动导入
+- 报告视图新增“真实需求”一节：每个 GSC 来源问题的 Google 展示量、点击、排名（标注 `GSC·第一方`、属性、拉取时间），以及最近一次采样中各引擎是否提及、提及的竞品（标注采样模式）
+- 顶部汇总“在 N 个 Google 高展示问题里，AI 回答提到你的有 M 个”，以及匿名缺口说明；不并入 GEO 健康分
+
+**验收**：没有 GSC 来源问题时不显示该节；数据少于 5 条与 0 条的提示正确；每个数字可对应到查询、属性、时间窗和拉取时间。
+
+### Task 6.6: 合规、文案与埋点（P0）
+
+**状态：已完成（2026-10-30）；Google OAuth 验证尚未提交**
+
+- 隐私政策新增 Google 用户数据章节（Limited Use 声明、读取范围、保留与删除）
+- 7 种语言文案；埋点 `gsc_connect_started`、`gsc_connect_completed`、`gsc_candidates_shown`、`gsc_questions_added`、`gsc_report_viewed`
+- `.env.example` 新增 Google OAuth 配置
+
+**验收**：i18n 全量测试通过；埋点事件进入白名单且不携带查询原文。
+
+### Phase 6 发布闸门
+
+1. 引擎测试全绿、API 全量测试通过
+2. 用 citeaura.com 的 GSC 属性完成低数据量路径的浏览器验收
+3. Google OAuth 同意屏幕确认 scope 分类后再提交验证；验证结果不阻塞上线

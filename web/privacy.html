@@ -203,7 +203,7 @@
   <main class="legal-content">
     <div class="legal-header">
       <h1 data-i18n="public.privacy.h1">Privacy Policy</h1>
-      <p class="legal-meta" data-i18n="public.privacy.meta">Effective Date: October 24, 2026 · Version 1.5</p>
+      <p class="legal-meta" data-i18n="public.privacy.meta">Effective Date: October 29, 2026 · Version 1.6</p>
     </div>
 
     <div class="legal-body">
@@ -229,6 +229,11 @@
 
         <h3>2.4 Bring Your Own Key (BYOK) Model Credentials</h3>
         <p>If you configure model API keys (e.g. OpenAI, Anthropic, DeepSeek, Google Gemini, Zhipu AI, Moonshot AI, xAI, Perplexity), your credentials are immediately encrypted at rest using AES-256-GCM. Plaintext API keys are never written to logs, never exposed in client-side responses, and only injected temporarily into isolated worker processes during live sampling executions.</p>
+
+        <h3>2.5 Google Search Console Data</h3>
+        <p>If you choose to connect Google Search Console to a project, we request read-only access (<code>webmasters.readonly</code>). We read the list of Search Console properties your Google account can access and, for the property you select, the search queries with their clicks, impressions, and average position for the last 90 days.</p>
+        <p>We use this data only to suggest AI sampling questions and to show those Google figures next to AI visibility results inside your tenant workspace. We do not store your Google OAuth credentials: the access token is used during the connection request and then revoked. A query snapshot is kept in the project until you delete it from the question bank or project settings, or the project is deleted. Only the question text you choose to sample is sent to AI model providers; Google figures and account details are not.</p>
+        <p>We do not use Google user data for advertising, do not sell it, and do not use it to train or improve AI models. CiteAura's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
 
       </section>
 

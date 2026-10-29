@@ -662,3 +662,21 @@ def test_sample_evidence_drawer_and_pdf_export_use_real_contracts():
     assert "openEvidenceDrawer(sample)" in engines
     assert "getDeliveryPdfUrl" in api_js
     assert "projects.getDeliveryPdfUrl" in report
+
+
+def test_search_console_entry_points_are_wired_in_spa():
+    client = TestClient(app)
+    api_js = client.get("/app-assets/api.js").text
+    questions = client.get("/app-assets/views/questions.js").text
+    report = client.get("/app-assets/views/report.js").text
+    onboarding = client.get("/app-assets/views/onboarding.js").text
+    card = client.get("/app-assets/components/gsc-import.js").text
+
+    assert "/searchdata/gsc/authorize" in api_js
+    assert "/searchdata/gsc/demand" in api_js
+    assert "handleGscReturn(ctx)" in questions and "renderGscCard(gscSummary" in questions
+    assert "renderGscDemand(gscDemand)" in report
+    assert "if (no_sample) offerSearchConsole(ctx, res.project_id);" in onboarding
+    # 回跳 URL 里的 session id 只能短暂停留在地址栏。
+    assert "history.replaceState" in card
+    assert "localStorage" not in card

@@ -1,4 +1,4 @@
-import { projects, workspace } from '../api.js';
+import { projects, searchdata, workspace } from '../api.js';
 import { t, tError } from '../i18n.js';
 import { escapeHtml, safeHttpUrl } from '../safe-html.js';
 import { toast } from '../components/toast.js';
@@ -9,7 +9,10 @@ export default {
   render: async (ctx) => {
     const projectId = ctx.activeProjectId;
     if (!projectId) return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
-    const project = await projects.get(projectId).catch(() => null);
+    const [project, gsc] = await Promise.all([
+      projects.get(projectId).catch(() => null),
+      searchdata.getGsc(projectId).catch(() => null),
+    ]);
     if (!project) return `<div class="app-view-container">${t('project_settings.not_found', {}, 'Project not found')}</div>`;
     const isOwner = ctx.role === 'owner';
     const isViewer = ctx.role === 'viewer';
@@ -51,6 +54,14 @@ export default {
               </select>
             </div>
           </div>
+          ${gsc && (gsc.configured || gsc.status === 'ready') ? `<div class="card" style="gap:var(--sp-3);">
+            <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;">${t('gsc.settings_title', {}, 'Google Search Console data')}</h3>
+            <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${t('gsc.settings_desc', {}, 'CiteAura reads Search Console once per authorization and does not keep your Google credentials. Only the query snapshot below is stored in this project.')}</p>
+            ${gsc.status === 'ready'
+              ? `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;font-size:var(--fs-2);"><span class="num">${escapeHtml(gsc.property)}</span><span style="color:var(--muted);">${t('gsc.fetched_at', { time: new Date(gsc.fetched_at).toLocaleString() }, `Fetched ${new Date(gsc.fetched_at).toLocaleString()}`)}</span></div>
+                 <button type="button" id="btn-settings-gsc-delete" class="btn btn-secondary btn-sm" style="align-self:flex-start;" ${isViewer ? `disabled title="${escapeHtml(viewerOnly)}"` : ''}>${t('gsc.delete_btn', {}, 'Delete Search Console data')}</button>`
+              : `<a href="#/questions" class="btn btn-secondary btn-sm" style="align-self:flex-start;">${t('gsc.connect_btn', {}, 'Connect Search Console')}</a>`}
+          </div>` : ''}
           <div class="card" style="border-color:var(--bad);gap:var(--sp-3);">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;color:var(--bad);">${t('project_settings.archive_title', {}, 'Archive project')}</h3>
             <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${t('project_settings.archive_desc', {}, 'Archiving removes the project from the active workspace list and keeps filesystem artifacts on disk. It does not permanently delete files.')}</p>
@@ -71,6 +82,17 @@ export default {
         });
         toast.success(t('project_settings.updated', {}, 'Project settings updated'));
         await ctx.reloadProjects();
+      } catch (err) {
+        toast.error(tError(err));
+      }
+    });
+    if (ctx.role !== 'viewer') document.getElementById('btn-settings-gsc-delete')?.addEventListener('click', async () => {
+      const confirmed = await confirmModal(t('gsc.delete_desc', {}, 'This removes the stored query snapshot for this project. Questions already added to the bank stay, including their recorded Google figures.'), { isDanger: true, confirmText: t('gsc.delete_btn', {}, 'Delete Search Console data') });
+      if (!confirmed) return;
+      try {
+        await searchdata.deleteGsc(projectId);
+        toast.success(t('gsc.deleted', {}, 'Search Console data deleted'));
+        await ctx.reloadCurrentView();
       } catch (err) {
         toast.error(tError(err));
       }

@@ -253,9 +253,22 @@ def test_privacy_policy_has_no_removed_seo_integration_claims():
     response = client.get("/privacy")
 
     assert response.status_code == 200
-    assert "Google Search Console" not in response.text
     assert "Semrush" not in response.text
     assert "TabAPI" not in response.text
+
+
+def test_privacy_policy_discloses_search_console_limited_use():
+    text = client.get("/privacy").text
+
+    assert "2.5 Google Search Console Data" in text
+    assert "<code>webmasters.readonly</code>" in text
+    assert "We do not store your Google OAuth credentials" in text
+    assert "Limited Use requirements" in text
+    assert "https://developers.google.com/terms/api-services-user-data-policy" in text
+    for locale in ("zh", "ja", "ko", "es", "fr", "de"):
+        catalog = client.get(f"/i18n/public/{locale}.json").json()
+        assert "webmasters.readonly" in catalog["public.privacy.sec2"], locale
+        assert "api-services-user-data-policy" in catalog["public.privacy.sec2"], locale
 
 
 def test_landing_assets_are_served():

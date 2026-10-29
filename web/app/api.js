@@ -309,6 +309,20 @@ export const workspace = {
 };
 
 /* ==========================================================================
+   Search Console (one-time read, no stored Google credentials)
+   ========================================================================== */
+export const searchdata = {
+  getStatus: () => request('/api/v1/searchdata/gsc/status'),
+  getGsc: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/gsc`),
+  authorizeGsc: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/gsc/authorize`, { method: 'POST' }),
+  getGscSession: (id, sessionId) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/gsc/session/${encodeURIComponent(sessionId)}`),
+  selectGscProperty: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/gsc/select`, { method: 'POST', body }),
+  addGscQuestions: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/gsc/questions`, { method: 'POST', body }),
+  deleteGsc: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/gsc`, { method: 'DELETE' }),
+  getGscDemand: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/gsc/demand`),
+};
+
+/* ==========================================================================
    Settings API Keys
    ========================================================================== */
 export const settings = {

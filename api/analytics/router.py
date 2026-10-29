@@ -47,6 +47,7 @@ PUBLIC_EVENT_NAMES = frozenset({
     "first_ticket_accepted",
     "retest_completed",
     "renewal",
+    "gsc_report_viewed",
 })
 
 _SENSITIVE_KEYS = frozenset({"email", "password", "token", "secret", "api_key", "cookie"})

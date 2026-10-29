@@ -134,6 +134,18 @@ def aes_key():
     return os.getenv("AES_KEY", "")
 
 
+def google_oauth_client_id():
+    return os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
+
+
+def google_oauth_client_secret():
+    return os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "").strip()
+
+
+def google_oauth_configured():
+    return bool(google_oauth_client_id() and google_oauth_client_secret())
+
+
 def session_cookie_secure():
     # Production proxy mode always uses HTTPS; keep cookies Secure even if an
     # incomplete environment file omitted the explicit flag.
