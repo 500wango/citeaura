@@ -82,7 +82,7 @@
       "description": "Freeze a prompt cohort, label API vs web-grounded vs manual, compute mention_rate with a Wilson interval. No fabricated visibility scores.",
       "url": "https://citeaura.com/blog/measure-if-chatgpt-mentions-your-brand",
       "datePublished": "2026-08-17",
-      "dateModified": "2026-09-14",
+      "dateModified": "2026-10-30",
       "author": {
         "@id": "https://citeaura.com/#research-team"
       },
@@ -448,9 +448,17 @@ curl -s -X POST https://api.citeaura.com/api/v1/projects/123/sample \
 curl -s https://api.citeaura.com/api/v1/projects/123/report \
   -H "Authorization: Bearer $TOKEN" | jq '.report.engines[] | {platform, sampling_mode, mention_rate, sample_count, mention_interval}'</code></pre>
 
-    <div class="blog-cta">
-      <p>Configure automated multi-engine prompt cohorts and track Wilson confidence intervals in the CiteAura workspace.</p>
-      <a class="btn btn-primary" href="/app?auth=register" rel="nofollow">Start free trial</a>
+    <div class="blog-cta" style="flex-direction:column;align-items:stretch;gap:var(--sp-4);">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:var(--sp-3);">
+        <div>
+          <h3 style="margin:0 0 var(--sp-1);font-size:var(--fs-4);">Inspect verifiable multi-pass sampling</h3>
+          <p style="margin:0;color:var(--ink-2);font-size:var(--fs-2);">Explore our benchmark cohort report with raw prompts, model responses, and Wilson confidence interval bounds.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-2);">
+          <a class="btn btn-secondary btn-sm" href="/sample-report">Explore Sample Report</a>
+          <a class="btn btn-primary btn-sm" href="/app?auth=register" rel="nofollow">Start Free Trial</a>
+        </div>
+      </div>
     </div>
 
     <p>For more details on evaluation models, refer to <a href="/docs#measurement">Measurement Concepts</a>.</p>
@@ -492,6 +500,13 @@ curl -s https://api.citeaura.com/api/v1/projects/123/report \
       <p>Because OpenAI and Perplexity offer no referral dashboards or analytics APIs, brand visibility must be measured via systematic multi-round prompt sampling. Run frozen question cohorts across repeated passes to compute empirical mention rates and eliminate stochastic variance.</p>
       <h3>Why does ChatGPT cite my website URL but omit my brand name?</h3>
       <p>This Attribution Gap happens when RAG models retrieve relevant facts and link to the source page, but summarize the core information without extracting unassociated brand tokens. Binding entity Schema (Organization, Brand) directly to claim statements ensures models associate the brand name with the citation.</p>
+      <div style="margin-top:var(--sp-5);padding:var(--sp-4);background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r-md);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:var(--sp-3);">
+        <div>
+          <strong style="display:block;color:var(--text);font-size:var(--fs-3);">Want to replace manual prompt guessing with empirical cohort tracking?</strong>
+          <span style="font-size:var(--fs-2);color:var(--text-muted);">CiteAura runs frozen prompt banks with Wilson score confidence intervals and ticket-ready exports.</span>
+        </div>
+        <a class="btn btn-primary btn-sm" href="/app?auth=register" rel="nofollow">Start Free Trial</a>
+      </div>
     </section>
 
     <aside class="blog-related" aria-labelledby="related-guides">

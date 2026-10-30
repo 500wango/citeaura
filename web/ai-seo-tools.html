@@ -164,15 +164,16 @@
           </tbody>
         </table>
       </div>
+      <p style="margin-top:var(--sp-3);font-size:var(--fs-2);color:var(--ink-2);">For an in-depth framework on evaluating vendor architectures and workflow trade-offs, read our comprehensive guide: <a href="/blog/best-ai-visibility-tools">Best AI Visibility &amp; GEO Monitoring Tools</a>.</p>
     </section>
 
     <section class="seo-section">
       <h2>Why Traditional SEO Metrics Fail in Generative Search</h2>
       <p>Traditional SEO suites rely on three foundational assumptions that break down in answer engines:</p>
       <ol>
-        <li><strong>Static Positions Do Not Exist:</strong> An LLM does not generate a fixed ranking list. A single query evaluated across 10 rounds may produce varying syntax, different citation placements, and distinct competitor comparisons.</li>
-        <li><strong>Crawler Access Is Provider-Specific:</strong> Allowing Googlebot does not automatically ensure access for <code>GPTBot</code>, <code>ClaudeBot</code>, or <code>PerplexityBot</code>. Check each provider's documented user agents, IP ranges, and WAF behavior.</li>
-        <li><strong>Passage Selection Varies:</strong> Retrieval systems may extract passages instead of entire pages. Keep critical facts in rendered HTML, but do not assume a fixed token budget or that a particular layout will always be selected.</li>
+        <li><strong>Static Positions Do Not Exist:</strong> An LLM does not generate a fixed ranking list. A single query evaluated across multiple rounds produces varying syntax and citation distributions. Read our diagnostic on <a href="/blog/measure-if-chatgpt-mentions-your-brand">how to measure brand mentions across repeated passes</a>.</li>
+        <li><strong>Crawler Access Is Provider-Specific:</strong> Allowing Googlebot does not automatically ensure access for <code>GPTBot</code>, <code>ClaudeBot</code>, or <code>PerplexityBot</code>. Test your configuration with our <a href="/crawler-check">free AI crawler checker</a> or read <a href="/blog/gptbot-blocked-by-robots-txt">how to fix GPTBot robots.txt blocks</a>.</li>
+        <li><strong>Passage Selection Varies:</strong> Retrieval systems extract semantic passages rather than indexing whole pages. Learn how to diagnose headless parsing bottlenecks in our <a href="/blog/extractability-audit">DOM extractability guide</a>.</li>
       </ol>
     </section>
 

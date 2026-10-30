@@ -24,7 +24,7 @@
   --ink: #252525;
   --ink-2: #4a453d;
   --muted: #6f6a60;
-  --faint: #7e7669;
+  --faint: #6e675b;
   --line: rgba(37, 37, 37, 0.1);
   --divider: rgba(37, 37, 37, 0.08);
   --border: var(--line);
@@ -331,7 +331,10 @@ footer.home-page-footer,
 [data-theme="dark"] .home-page footer.site-footer a { color: #e0d7c8; }
 .home-page footer.site-footer .footer-copy,
 .home-page footer.site-footer .footer-tagline,
-.home-page footer.site-footer .footer-byline { color: #7e7669; }
+.home-page footer.site-footer .footer-byline { color: #6e675b; }
+[data-theme="dark"] .home-page footer.site-footer .footer-copy,
+[data-theme="dark"] .home-page footer.site-footer .footer-tagline,
+[data-theme="dark"] .home-page footer.site-footer .footer-byline { color: #b3a897; }
 .home-page .site-footer a:hover { color: var(--accent); }
 .home-page .footer-tagline { color: var(--muted); }
 

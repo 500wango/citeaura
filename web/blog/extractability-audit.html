@@ -78,7 +78,7 @@
       "description": "How headless AI text extractors convert HTML into text chunks, why JavaScript hydration traps content, and how to conduct a DOM extractability audit.",
       "url": "https://citeaura.com/blog/extractability-audit",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-01",
+      "dateModified": "2026-10-30",
       "author": {
         "@id": "https://citeaura.com/#research-team"
       },
@@ -215,14 +215,51 @@ Acceptance Criteria:
 2. Trafilatura text extraction recovers &gt; 90% of visible table cells without JS execution.
 3. Wrap main pricing comparisons in semantic `&lt;table&gt;` elements instead of CSS grid `&lt;div&gt;` wrappers.</code></pre>
 
+    <h2>How to Measure the Extractability of a Blog Post</h2>
+    <p>To evaluate whether an individual blog post or guide is structured for headless ingestion, engineers commonly benchmark its <strong>Text Recovery Ratio (TRR)</strong> as a diagnostic heuristic:</p>
+
+    <div style="background:var(--surface-2);padding:var(--sp-4);border-radius:var(--r-md);border:1px solid var(--border);margin:var(--sp-3) 0;">
+      <code style="display:block;font-size:var(--fs-2);color:var(--ink-1);line-height:1.6;">
+        Text Recovery Ratio (%) = (Tokens extracted via headless HTML parser without JS &divide; Visible text tokens in hydrated browser) &times; 100
+      </code>
+    </div>
+
+    <p>While generative search engines deploy proprietary RAG extractors with distinct tokenization policies, the following working heuristic highlights extraction risk:</p>
+    <ul>
+      <li><strong>&gt; 85% (High Fidelity):</strong> Core arguments, step-by-step guides, tables, and code snippets are reliably captured by non-rendering fetchers.</li>
+      <li><strong>50% &ndash; 85% (Partial Extraction):</strong> Supporting context (such as tabbed panels, client-rendered accordions, or dynamic footnotes) is omitted by basic parsers.</li>
+      <li><strong>&lt; 50% (High Extraction Risk):</strong> The initial server response contains minimal body text, substantially diminishing the likelihood that fast headless crawlers can ingest sufficient semantic context for citation grounding.</li>
+    </ul>
+
+    <p><strong>Quick Local Test (Python CLI):</strong> You can benchmark any single blog post against open-source extraction libraries such as <code>trafilatura</code> for local verification:</p>
+    <pre><code># Install and run headless extractor test
+pip install trafilatura
+trafilatura --URL "https://citeaura.com/blog/extractability-audit" --precision</code></pre>
+    <p>If the extracted output omits your primary takeaways or structured comparisons, your content pipeline requires DOM restructuring or Server-Side Rendering (SSR).</p>
+
     <h2>Auditing Site-Wide Extractability with CiteAura</h2>
     <p>CiteAura's <a href="/ai-visibility-audit">AI visibility audit</a> inspects every canonical route across your domain, measuring the text recovery ratio and flagging extractability regressions before they affect your citation rates.</p>
 
     <p><em>Measurement notice: CiteAura audits technical readiness and sampling provenance; it does not guarantee specific generative model outputs or ranking placements.</em></p>
 
-    <div class="blog-cta">
-      <p>Test your website's DOM extractability and unblock your pages for AI search crawlers.</p>
-      <a class="btn btn-primary" href="/app?auth=register" rel="nofollow">Start free trial</a>
+    <div class="blog-cta" style="flex-direction:column;align-items:stretch;gap:var(--sp-4);">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);">
+        <div>
+          <h3 style="margin:0 0 var(--sp-1);font-size:var(--fs-4);">Quick Check: Is your robots.txt letting AI crawlers in?</h3>
+          <p style="margin:0;color:var(--ink-2);font-size:var(--fs-2);">Ensure GPTBot, PerplexityBot, and ClaudeBot can reach your blog URLs before testing DOM extractability.</p>
+        </div>
+        <a class="btn btn-secondary btn-sm" href="/crawler-check">Test AI Crawlers Free</a>
+      </div>
+      <div style="border-top:1px solid var(--line);padding-top:var(--sp-4);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:var(--sp-3);">
+        <div>
+          <h3 style="margin:0 0 var(--sp-1);font-size:var(--fs-4);">Run site-wide DOM &amp; extractability audit</h3>
+          <p style="margin:0;color:var(--ink-2);font-size:var(--fs-2);">Scan all canonical routes, discover hydration traps, and generate dev-ready tickets.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-2);">
+          <a class="btn btn-secondary btn-sm" href="/sample-report">Explore Sample Report</a>
+          <a class="btn btn-primary btn-sm" href="/app?auth=register" rel="nofollow">Start Free Trial</a>
+        </div>
+      </div>
     </div>
 
     <h2>Sources</h2>

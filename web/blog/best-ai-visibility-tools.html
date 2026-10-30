@@ -178,45 +178,50 @@
     </ul>
     <p>A monitoring tool that fails to disclose which path it sampled cannot provide actionable diagnostic data. If a tool records a 0% mention rate, the root cause could be a <code>robots.txt</code> crawl block, an un-rendered JavaScript bundle, missing JSON-LD schema, or simply temperature variance. Below is how the major tool categories compare.</p>
 
+    <div class="blog-callout" style="margin:1.5rem 0;">
+      <p><strong>Editorial &amp; Commercial Disclosure:</strong> CiteAura publishes this evaluation guide. As developers of an engineering-first GEO platform, we focus on technical diagnostics and reproducible evidence. Below, we compare common architectural approaches based on documented capabilities and typical workflow fit as of October 2026.</p>
+    </div>
+
     <div style="overflow-x:auto;margin:1.75rem 0;">
       <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem;">
         <thead>
           <tr style="border-bottom:2px solid var(--border-color, var(--divider));background:var(--bg-subtle, var(--deep));">
-            <th style="padding:0.75rem;">Platform Category</th>
+            <th style="padding:0.75rem;">Platform Approach</th>
             <th style="padding:0.75rem;">Sampling Transparency</th>
             <th style="padding:0.75rem;">Technical Crawl Audit</th>
             <th style="padding:0.75rem;">DOM Extractability</th>
             <th style="padding:0.75rem;">Remediation Delivery</th>
-            <th style="padding:0.75rem;">Billing &amp; Privacy Model</th>
+            <th style="padding:0.75rem;">Billing &amp; Model Access</th>
           </tr>
         </thead>
         <tbody>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><strong>CiteAura</strong></td>
-            <td style="padding:0.75rem;">Explicitly labeled (Parametric vs Web vs Manual)</td>
-            <td style="padding:0.75rem;">Automated bot simulation (OAI-SearchBot, Claude-SearchBot, PerplexityBot)</td>
+            <td style="padding:0.75rem;"><strong>CiteAura (Engineering GEO)</strong></td>
+            <td style="padding:0.75rem;">Explicitly labeled cohorts (Parametric vs Web-grounded vs Manual UI)</td>
+            <td style="padding:0.75rem;">Automated bot simulation (OAI-SearchBot, ClaudeBot, PerplexityBot)</td>
             <td style="padding:0.75rem;">Headless HTML-to-Markdown text recovery analysis</td>
             <td style="padding:0.75rem;">Exportable Jira / Markdown tickets with acceptance criteria</td>
-            <td style="padding:0.75rem;">BYOK + Tenant isolation (Zero data markup)</td>
+            <td style="padding:0.75rem;">BYOK (Bring Your Own Key) + Tenant isolation</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><strong>Legacy SEO Suites</strong></td>
-            <td style="padding:0.75rem;">Undisclosed (SERP scraping only)</td>
-            <td style="padding:0.75rem;">Traditional Googlebot checks only</td>
-            <td style="padding:0.75rem;">Standard HTML keyword density</td>
-            <td style="padding:0.75rem;">Generic keyword advice</td>
-            <td style="padding:0.75rem;">Bundled SaaS seat pricing</td>
+            <td style="padding:0.75rem;"><strong>Enterprise SEO Platforms</strong></td>
+            <td style="padding:0.75rem;">Aggregated across SERP &amp; AI Overview features (varies by vendor)</td>
+            <td style="padding:0.75rem;">Traditional Googlebot crawling (limited dedicated AI bot testing)</td>
+            <td style="padding:0.75rem;">Standard keyword density &amp; traditional on-page factors</td>
+            <td style="padding:0.75rem;">Integrated SEO recommendations &amp; content brief workflows</td>
+            <td style="padding:0.75rem;">Bundled SaaS subscriptions with keyword tracking quotas</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border-color, #e2e8f0);">
-            <td style="padding:0.75rem;"><strong>Prompt Scraper Wrappers</strong></td>
-            <td style="padding:0.75rem;">Single web-interface screenshot</td>
-            <td style="padding:0.75rem;">None</td>
-            <td style="padding:0.75rem;">None</td>
-            <td style="padding:0.75rem;">None</td>
-            <td style="padding:0.75rem;">High per-query markups</td>
+            <td style="padding:0.75rem;"><strong>Lightweight Prompt Trackers</strong></td>
+            <td style="padding:0.75rem;">Browser-based prompt execution or web snapshots</td>
+            <td style="padding:0.75rem;">Typically omitted (focuses on prompt response tracking)</td>
+            <td style="padding:0.75rem;">Not analyzed (focuses on output text matching)</td>
+            <td style="padding:0.75rem;">Spreadsheet / CSV export of mentions</td>
+            <td style="padding:0.75rem;">Per-prompt credits or tiered query subscriptions</td>
           </tr>
         </tbody>
       </table>
+      <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;"><em>Note: Capabilities reflect vendor product tiers and public documentation as of October 2026. Platform capabilities evolve; consult individual vendor documentation for current features.</em></p>
     </div>
 
     <h2>Evaluating the Leading Options</h2>
