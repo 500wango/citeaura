@@ -47,7 +47,7 @@
       "headline": "Perplexity SEO: Citation & Crawler Guide",
       "description": "Perplexity SEO guide: documented PerplexityBot and Perplexity-User behavior, robots.txt and WAF access, citation-ready content, and measurable verification.",
       "datePublished": "2026-08-10",
-      "dateModified": "2026-10-25",
+      "dateModified": "2026-10-31",
       "author": {
         "@id": "https://citeaura.com/#research-team"
       },
@@ -205,12 +205,12 @@ Disallow: /api/
         <article class="seo-panel">
           <span class="seo-label">Step 1: Crawler Verification</span>
           <h3>Audit PerplexityBot Accessibility</h3>
-          <p>We test whether your server response headers, CDN WAFs (such as Cloudflare Super Bot Fight Mode), and robots.txt permit Perplexity crawlers without HTTP 403 or JavaScript timeouts.</p>
+          <p>We test whether your server response headers, CDN WAFs (such as Cloudflare Super Bot Fight Mode), and robots.txt permit Perplexity crawlers without HTTP 403 or JavaScript timeouts. Test access with our <a href="/crawler-check">free AI crawler checker</a>.</p>
         </article>
         <article class="seo-panel">
           <span class="seo-label">Step 2: Citation Cohort Sampling</span>
           <h3>Run Controlled Prompt Cohorts</h3>
-          <p>We sample Perplexity Sonar and Sonar-Pro across fixed, buyer-intent query cohorts, recording raw responses and citation outcomes for comparison.</p>
+          <p>We sample Perplexity Sonar and Sonar-Pro across fixed, buyer-intent query cohorts, recording raw responses and citation outcomes for comparison. See our <a href="/blog/perplexity-citation-audit">Perplexity citation audit guide</a>.</p>
         </article>
         <article class="seo-panel">
           <span class="seo-label">Step 3: Engineering Ticketing</span>
@@ -225,7 +225,10 @@ Disallow: /api/
         <h2>Diagnose your Perplexity citation readiness</h2>
         <p>Inspect your domain with CiteAura's diagnostic workflow, then review the crawl, content, and sample evidence behind any observed citation gap.</p>
       </div>
-      <a class="btn btn-primary" href="/app?auth=register" rel="nofollow">Start free trial <span aria-hidden="true">&rarr;</span></a>
+      <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;">
+        <a class="btn btn-secondary" href="/sample-report">Explore Sample Report</a>
+        <a class="btn btn-primary" href="/app?auth=register" rel="nofollow">Start free trial <span aria-hidden="true">&rarr;</span></a>
+      </div>
     </section>
   </main>
 
