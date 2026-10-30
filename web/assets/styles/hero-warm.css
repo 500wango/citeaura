@@ -155,6 +155,17 @@
   color: var(--w-muted);
 }
 
+/* CJK display sizes: Instrument Serif has no CJK glyphs, and CJK needs looser
+   leading plus no negative tracking, or the second line wraps into an orphan. */
+html:lang(zh) .home-page #simulator #hero-title,
+html:lang(ja) .home-page #simulator #hero-title,
+html:lang(ko) .home-page #simulator #hero-title {
+  font-size: clamp(34px, 3.9vw, 54px);
+  line-height: 1.24;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
 /* ---------- actions ---------- */
 .home-page #simulator .home-actions { gap: 14px 22px; }
 .home-page #simulator .home-actions .btn-primary,
@@ -310,14 +321,15 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 93%, transparent 100%);
-  mask-image: linear-gradient(90deg, #000 0, #000 93%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 3.5%, #000 93%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 3.5%, #000 93%, transparent 100%);
 }
 .hero-marquee-track {
   display: flex;
   width: max-content;
   gap: 30px;
   animation: hero-marquee 36s linear infinite;
+  animation-delay: -4s;
 }
 .hero-marquee:hover .hero-marquee-track { animation-play-state: paused; }
 .hero-marquee-track span {
