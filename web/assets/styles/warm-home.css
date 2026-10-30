@@ -1,0 +1,341 @@
+/* Warm home theme — sections below the hero.
+   Strategy: remap the shared design tokens on body.home-page (tokens.css is not touched),
+   then polish the handful of components that hard-code cool accents.
+   Other public pages and /app keep the original palette. */
+
+/* ---------- token remap (light) ---------- */
+.home-page {
+  --ca-canvas: #fffdfa;
+  --ca-surface: #ffffff;
+  --ca-surface-subtle: #fdf3e7;
+  --ca-text-primary: #252525;
+  --ca-brand-600: #b4551b;
+  --ca-brand-700: #8f4214;
+  --ca-border: rgba(37, 37, 37, 0.1);
+  --ca-border-strong: rgba(37, 37, 37, 0.18);
+  --ca-text-secondary: #4a453d;
+  --ca-text-muted: #6f6a60;
+
+  --page: #fffdfa;
+  --surface: #ffffff;
+  --deep: #fdf3e7;
+  --surface-2: #fdf3e7;
+  --bg-subtle: #fdf3e7;
+  --ink: #252525;
+  --ink-2: #4a453d;
+  --muted: #6f6a60;
+  --faint: #7e7669;
+  --line: rgba(37, 37, 37, 0.1);
+  --divider: rgba(37, 37, 37, 0.08);
+  --border: var(--line);
+  --border-color: var(--line);
+
+  --accent: #b4551b;
+  --accent-strong: #ff6624;
+  --accent-soft: #ffefd9;
+  --accent-line: #f3d6b4;
+  --accent-contrast: #ffffff;
+  --signal: #b4551b;
+  --signal-soft: #ffefd9;
+  --brand: var(--accent);
+  --info: var(--accent);
+  --info-soft: var(--accent-soft);
+
+  --grad-accent: linear-gradient(135deg, #2a2118 12%, #b4551b 92%);
+
+  --good: #2f7a52;
+  --good-soft: #edf7f1;
+  --warn: #a9581a;
+  --warn-soft: #fdf0df;
+  --bad: #a5342a;
+  --bad-soft: #fbedea;
+
+  background: var(--page);
+}
+.home-page ::selection { background: #ffe2be; color: #2a2118; }
+
+/* ---------- token remap (dark) ---------- */
+[data-theme="dark"] .home-page {
+  --ca-canvas: #14100c;
+  --ca-surface: #1d1812;
+  --ca-surface-subtle: #1b1510;
+  --ca-text-primary: #fbf7f1;
+  --ca-brand-600: #ffa95c;
+  --ca-brand-700: #ffc38a;
+  --ca-border: rgba(255, 255, 255, 0.1);
+  --ca-border-strong: rgba(255, 255, 255, 0.18);
+  --ca-text-secondary: #e0d7c8;
+  --ca-text-muted: #b3a897;
+
+  --page: #14100c;
+  --surface: #1d1812;
+  --deep: #1b1510;
+  --surface-2: #1b1510;
+  --bg-subtle: #1b1510;
+  --ink: #fbf7f1;
+  --ink-2: #e0d7c8;
+  --muted: #b3a897;
+  --faint: #9a9083;
+  --line: rgba(255, 255, 255, 0.1);
+  --divider: rgba(255, 255, 255, 0.08);
+
+  --accent: #ffa95c;
+  --accent-strong: #ff6624;
+  --accent-soft: #2a1e12;
+  --accent-line: #3a2a1a;
+  --signal: #ffa95c;
+  --signal-soft: #2a1e12;
+  --grad-accent: linear-gradient(135deg, #fbf7f1 12%, #ffa95c 92%);
+
+  --good: #6fd39c;
+  --good-soft: #16281f;
+  --warn: #ffb26b;
+  --warn-soft: #2a1e12;
+  --bad: #ff8f80;
+  --bad-soft: #2b1714;
+}
+[data-theme="dark"] .home-page ::selection { background: #4a3018; color: #fbf7f1; }
+
+/* ---------- brand mark & wordmark ---------- */
+.home-page .site-header .brand-mark,
+.home-page .site-footer .brand-mark {
+  background: linear-gradient(140deg, #2a2118 12%, #ff6624 92%);
+  -webkit-mask: url("/site-assets/brand/mark.svg") center / contain no-repeat;
+  mask: url("/site-assets/brand/mark.svg") center / contain no-repeat;
+  -webkit-mask-size: contain;
+}
+[data-theme="dark"] .home-page .site-header .brand-mark,
+[data-theme="dark"] .home-page .site-footer .brand-mark {
+  background: linear-gradient(140deg, #fbf7f1 12%, #ffa95c 92%);
+}
+
+/* ---------- editorial headings ---------- */
+.home-page .section > .page-shell > h2,
+.home-page .section-heading > h2,
+.home-page .home-final h2 {
+  font-family: var(--w-serif, "Instrument Serif", Georgia, serif);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+.home-page .section > .page-shell > h2,
+.home-page .section-heading > h2 { font-size: clamp(32px, 3.8vw, 54px); }
+.home-page .home-final h2 { font-size: clamp(38px, 4.8vw, 64px); }
+.home-page .section-heading > p,
+.home-page .home-section-lead { color: var(--muted); }
+
+/* section index numbers (01 / 02 …) keep mono, warm ink instead of blue */
+.home-page #pricing-title::before,
+.home-page #faq-title::before,
+.home-page #free-tool-title::before,
+.home-page #blog-title::before,
+.home-page #product-title::before,
+.home-page #workflow-title::before,
+.home-page #about-title::before { color: var(--accent); }
+
+/* ---------- buttons ---------- */
+.home-page .section .btn-primary,
+.home-page .home-final .btn-primary,
+.home-page .home-tool .btn-primary {
+  background: var(--ink);
+  color: #fffdfa;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  box-shadow: 0 14px 30px -18px rgba(37, 37, 37, 0.6);
+}
+[data-theme="dark"] .home-page .section .btn-primary,
+[data-theme="dark"] .home-page .home-final .btn-primary {
+  background: #fff7ec;
+  color: #2a2118;
+}
+.home-page .section .btn-secondary,
+.home-page .home-tool .btn-secondary {
+  background: transparent;
+  border: 1px solid rgba(37, 37, 37, 0.22);
+  color: var(--ink);
+  border-radius: 999px;
+}
+.home-page .section .btn-secondary:hover,
+.home-page .home-tool .btn-secondary:hover {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  color: var(--ink);
+}
+.home-page .section .btn:hover,
+.home-page .home-final .btn:hover { transform: translateY(-2px); }
+
+/* ---------- workflow ---------- */
+.home-page .home-workflow .home-steps li::before {
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+.home-page .home-steps h3 { font-size: 19px; letter-spacing: -0.012em; }
+.home-page .home-chain {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.home-page .home-workflow .home-steps li::after { background: var(--accent); }
+
+/* ---------- product frames ---------- */
+.home-page .home-product { position: relative; }
+.home-page .home-product-grid figure {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 34px 70px -46px rgba(96, 62, 24, 0.42);
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.4s;
+}
+[data-theme="dark"] .home-page .home-product-grid figure { background: #1d1812; }
+.home-page .home-product-grid figure:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 44px 80px -46px rgba(96, 62, 24, 0.5);
+}
+.home-page .home-product-grid img { filter: saturate(0.86) sepia(0.07) brightness(1.02); }
+.home-page .home-product-grid figcaption {
+  border-top: 1px solid var(--line);
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+/* ---------- method / disclosures / faq ---------- */
+.home-page .home-method,
+.home-page .disclosure-card,
+.home-page .faq-list details,
+.home-page .extract-card,
+.home-page .model-ribbon-card,
+.home-page .home-tool,
+.home-page .blog-preview-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+}
+.home-page .extract-card:hover,
+.home-page .home-tool:hover,
+.home-page .blog-preview-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow: 0 26px 50px -38px rgba(96, 62, 24, 0.5);
+}
+.home-page .extract-card::before { background: var(--accent); }
+.home-page .model-ribbon-badge { background: var(--accent-soft); color: var(--accent); }
+.home-page .model-ribbon-card:hover { background: var(--accent-soft); }
+.home-page .extract-band { background: linear-gradient(180deg, var(--page) 0%, #fdf3e7 26%, #fdf3e7 74%, var(--page) 100%); }
+[data-theme="dark"] .home-page .extract-band { background: linear-gradient(180deg, var(--page) 0%, #1b1510 26%, #1b1510 74%, var(--page) 100%); }
+.home-page #about blockquote {
+  border-left: 2px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+  color: var(--ink-2);
+}
+
+/* ---------- pricing ---------- */
+.home-page .price-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  transition: transform 0.35s, box-shadow 0.35s, border-color 0.35s;
+}
+.home-page .price-card:hover { transform: translateY(-3px); box-shadow: 0 30px 60px -46px rgba(96, 62, 24, 0.45); }
+/* featured plan keeps home.css's dark-surface logic: espresso card, cream text,
+   amber CTA. Overriding the background to cream without flipping the text colours
+   made the price and features invisible. */
+.home-page .price-card-featured {
+  background: #32261a;
+  border: 1px solid #32261a;
+  color: #fdf3e7;
+  box-shadow: 0 0 0 4px rgba(254, 175, 66, 0.16), 0 36px 70px -44px rgba(42, 33, 24, 0.6);
+}
+[data-theme="dark"] .home-page .price-card-featured {
+  background: #2c2013;
+  border-color: rgba(254, 175, 66, 0.45);
+  box-shadow: 0 0 0 4px rgba(254, 175, 66, 0.12), 0 36px 70px -46px rgba(0, 0, 0, 0.7);
+}
+.home-page .price-card-featured .plan-name { color: #feaf42; }
+.home-page .price-card-featured .price strong { color: #fffdfa; }
+.home-page .price-card-featured .price span { color: rgba(253, 243, 231, 0.9); }
+.home-page .price-card-featured .plan-summary { color: rgba(253, 243, 231, 0.97); }
+.home-page .price-card-featured ul { color: rgba(253, 243, 231, 0.94); }
+.home-page .price-card-featured ul li::before { background: #feaf42; }
+.home-page .price-card-featured::before { background: linear-gradient(90deg, #ffefd9, #feaf42, #ff6624); }
+.home-page .price-card .plan-name { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.home-page .price-card .price strong { font-family: var(--w-serif, "Instrument Serif", Georgia, serif); font-weight: 400; letter-spacing: -0.03em; }
+.home-page .price-card .plan-summary { color: var(--muted); }
+.home-page .price-card-featured .btn-primary {
+  background: linear-gradient(96deg, #ffc978 0%, #feaf42 52%, #ff6624 100%);
+  border-color: transparent;
+  color: #2a2118;
+  box-shadow: 0 16px 34px -20px rgba(255, 102, 36, 0.75);
+}
+.home-page .price-card-featured .btn-primary:hover {
+  background: linear-gradient(96deg, #ffd7a1 0%, #ffc06a 52%, #ff7a3f 100%);
+  border-color: transparent;
+  color: #2a2118;
+}
+.home-page .seg { background: var(--deep); border: 1px solid var(--line); border-radius: 999px; }
+.home-page .seg-opt.is-active { background: var(--surface); color: var(--ink); box-shadow: 0 2px 6px -2px rgba(96, 62, 24, 0.35); }
+
+.home-page .price-card:not(.price-card-featured) ul li::before { background: rgba(180, 85, 27, 0.55); }
+
+/* ---------- free tools / guides ---------- */
+.home-page #free-tools { background: linear-gradient(180deg, var(--page), #fdf3e7 40%, #fdf3e7 100%); }
+[data-theme="dark"] .home-page #free-tools { background: linear-gradient(180deg, var(--page), #1b1510 40%, #1b1510 100%); }
+.home-page .home-tool h3 { font-size: 18px; }
+.home-page .blog-preview-kicker { color: var(--accent); }
+.home-page .blog-band { background: var(--page); }
+.home-page .blog-preview-card h3 { font-family: var(--w-serif, "Instrument Serif", Georgia, serif); font-weight: 400; font-size: 21px; letter-spacing: -0.015em; line-height: 1.2; }
+.home-page .blog-preview-card,
+.home-page .home-tool { border-color: rgba(37, 37, 37, 0.12); }
+[data-theme="dark"] .home-page .blog-preview-card,
+[data-theme="dark"] .home-page .home-tool { border-color: rgba(255, 255, 255, 0.14); }
+
+/* ---------- final band + footer ---------- */
+.home-page .home-final {
+  background:
+    radial-gradient(760px 380px at 82% 10%, rgba(255, 102, 36, 0.3), transparent 70%),
+    linear-gradient(120deg, #fff3e2 0%, #ffe1bd 55%, #ffd0a1 100%);
+  color: #2a2118;
+}
+[data-theme="dark"] .home-page .home-final {
+  background:
+    radial-gradient(760px 380px at 82% 10%, rgba(255, 102, 36, 0.22), transparent 70%),
+    linear-gradient(120deg, #1b1510 0%, #241a11 55%, #2c2013 100%);
+  color: #fbf7f1;
+}
+.home-page .home-final h2,
+.home-page .home-final p { color: #2a2118; }
+.home-page .home-final p { color: color-mix(in srgb, #2a2118 78%, transparent); }
+[data-theme="dark"] .home-page .home-final h2 { color: #fbf7f1; }
+[data-theme="dark"] .home-page .home-final p { color: color-mix(in srgb, #fbf7f1 78%, transparent); }
+.home-page .home-final .btn-primary { box-shadow: 0 20px 44px -22px rgba(120, 60, 20, 0.6); }
+footer.home-page-footer,
+.home-page footer.site-footer {
+  background: #fdf6ec;
+  background-image: none;
+  border-top: 1px solid rgba(37, 37, 37, 0.1);
+  color: #5f5a51;
+}
+[data-theme="dark"] .home-page footer.site-footer {
+  background: #1b1510;
+  border-top-color: rgba(255, 255, 255, 0.1);
+  color: #b3a897;
+}
+.home-page footer.site-footer a { color: #4a453d; text-decoration-color: rgba(37, 37, 37, 0.25); }
+.home-page footer.site-footer a:hover { color: #b4551b; }
+[data-theme="dark"] .home-page footer.site-footer a { color: #e0d7c8; }
+.home-page footer.site-footer .footer-copy,
+.home-page footer.site-footer .footer-tagline,
+.home-page footer.site-footer .footer-byline { color: #7e7669; }
+.home-page .site-footer a:hover { color: var(--accent); }
+.home-page .footer-tagline { color: var(--muted); }
+
+/* ---------- responsive guard ---------- */
+@media (max-width: 640px) {
+  .home-page .price-card-featured { box-shadow: 0 0 0 3px rgba(254, 175, 66, 0.14); }
+}
