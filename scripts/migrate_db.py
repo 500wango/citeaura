@@ -114,16 +114,15 @@ def preflight(engine):
 
 
 def backup(engine):
-    """用 pg_dump 做整库备份；返回备份文件路径（不可用时返回 None）。"""
+    """用 pg_dump 做整库备份；返回 (备份路径, 失败原因)，成功时原因为 None。"""
     binary = shutil.which("pg_dump")
     if binary is None:
-        return None
+        return None, "未找到 pg_dump，需要安装 postgresql-client"
     directory = Path(os.getenv("CITEAURA_BACKUP_DIR", "backups"))
     try:
         directory.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
-        print(f"无法创建备份目录 {directory}: {exc}", file=sys.stderr)
-        return None
+        return None, f"无法创建备份目录 {directory}: {exc}"
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     target = directory / f"pre-migrate-{stamp}.dump"
     parsed = engine.url
@@ -139,13 +138,13 @@ def backup(engine):
     completed = subprocess.run(command, env=env, capture_output=True, text=True)
     if completed.returncode != 0:
         print(completed.stderr.strip(), file=sys.stderr)
-        return None
+        return None, "pg_dump 执行失败，原因见上方输出（常见：备份目录不可写、pg_dump 版本低于服务器）"
     # 只看文件存在/大小会把截断的 dump 当成可用备份；pg_restore --list
     # 能验证归档目录完整，失败就按“没有备份”处理并中止迁移。
     restore_binary = shutil.which("pg_restore")
     if restore_binary is None:
         print("未找到 pg_restore，无法校验备份，按备份失败处理", file=sys.stderr)
-        return None
+        return None, "未找到 pg_restore，无法校验备份"
     validated = subprocess.run(
         [restore_binary, "--list", str(target)],
         env=env,
@@ -155,7 +154,7 @@ def backup(engine):
     if validated.returncode != 0:
         print(validated.stderr.strip(), file=sys.stderr)
         print(f"备份校验失败: {target}", file=sys.stderr)
-        return None
+        return None, "备份校验失败，归档不完整"
     # 整库转储包含密码哈希与加密密钥，不能沿用 pg_dump 默认的 0644。
     try:
         target.chmod(0o600)
@@ -163,7 +162,7 @@ def backup(engine):
         print(f"警告：无法收紧备份文件权限 {target}: {exc}", file=sys.stderr)
     for stale in sorted(directory.glob("pre-migrate-*.dump"), key=lambda item: item.stat().st_mtime)[:-BACKUP_RETENTION]:
         stale.unlink(missing_ok=True)
-    return target
+    return target, None
 
 
 def upgrade():
@@ -246,13 +245,13 @@ def main():
         print("\n--dry-run：未做任何修改。")
         return 0
 
-    dump = backup(engine)
+    dump, reason = backup(engine)
     if dump is None:
         if not args.allow_no_backup:
-            print("\npg_dump 不可用，已中止。安装 postgresql-client 后重试，"
-                  "或显式传 --allow-no-backup。", file=sys.stderr)
+            print(f"\n备份失败，已中止：{reason}。修复后重试，或显式传 --allow-no-backup。",
+                  file=sys.stderr)
             return 2
-        print("\n警告：没有备份就继续（--allow-no-backup）。", file=sys.stderr)
+        print(f"\n警告：没有备份就继续（--allow-no-backup）：{reason}", file=sys.stderr)
     else:
         print(f"\n已备份到 {dump}")
 

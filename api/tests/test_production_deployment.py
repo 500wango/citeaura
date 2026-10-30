@@ -356,5 +356,7 @@ def test_migration_backup_rejects_a_dump_pg_restore_cannot_read(tmp_path, monkey
     monkeypatch.setattr(migrate_db.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setattr(migrate_db.subprocess, "run", fake_run)
 
-    assert migrate_db.backup(engine) is None
+    dump, reason = migrate_db.backup(engine)
+    assert dump is None
+    assert "校验" in reason
     assert any("--list" in command for command in calls)
