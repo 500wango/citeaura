@@ -384,6 +384,9 @@ export function openTelemetryModal({
 
   const dialog = root.querySelector('.telemetry-box');
   modalKeydownHandler = (event) => {
+    // 通用弹窗叠在日志弹窗之上时键盘交互归它：否则 ESC 会同时关掉两层，
+    // 两个焦点陷阱也会互相抢 Tab。
+    if (document.querySelector('#modal-root .modal')) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       closeWithCallback();

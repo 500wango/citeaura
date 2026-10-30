@@ -985,7 +985,8 @@ body:has(.auth-wrapper) { background: var(--page); }
   background: oklch(0 0 0 / 0.65);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  z-index: 1000;
+  /* 低于通用弹窗（1000）：从日志弹窗发起的确认框必须压在它上面。 */
+  z-index: 900;
   display: flex;
   align-items: center;
   justify-content: center;

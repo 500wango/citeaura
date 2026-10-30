@@ -238,8 +238,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .banner.good { border-left-color: var(--good); }
 
 /* ----------  ---------- */
+/* 层级：下拉/语言菜单 ≤120 < 全屏日志弹窗 900 < 通用弹窗 1000 < toast 1100。
+   通用弹窗必须盖住全屏日志弹窗：从日志弹窗里发起的确认框不能被它遮掉。 */
 .modal {
-  position: fixed; inset: 0; z-index: 90;
+  position: fixed; inset: 0; z-index: 1000;
   display: grid; place-items: center; padding: var(--sp-6);
   background: color-mix(in oklch, var(--page) 55%, transparent);
   backdrop-filter: blur(8px);
@@ -295,7 +297,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 }
 
 /* ---------- Toast ---------- */
-.toast-stack { position: fixed; right: var(--sp-5); bottom: var(--sp-5); z-index: 120; display: flex; flex-direction: column; gap: var(--sp-2); }
+.toast-stack { position: fixed; right: var(--sp-5); bottom: var(--sp-5); z-index: 1100; display: flex; flex-direction: column; gap: var(--sp-2); }
 .toast {
   max-width: 400px; padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--divider); border-left: 3px solid var(--accent);
