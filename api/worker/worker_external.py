@@ -5,6 +5,7 @@ import json
 from api.db import SessionLocal
 from api.models import IntegrationCredential
 from api.settings.crypto import decrypt_key
+from api.worker import job_cancel
 from api.worker.celery_app import celery_app
 
 
@@ -52,6 +53,7 @@ def task_send_outreach(tenant_id: str, project_slug: str, draft_id: str, job_id=
             raise
         with facade.with_tenant_context(tenant_name, project_slug):
             try:
+                job_cancel.raise_if_canceled()
                 draft = outreach.claim_for_sending(project_slug, draft_id)
                 result = outreach.send_smtp(draft, settings, credentials)
             except Exception as exc:

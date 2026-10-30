@@ -2729,5 +2729,11 @@
   "ga4_state_invalid": "Google Analytics 登录链接已过期或已被使用，请重新连接。",
   "ga4_token_exchange_failed": "Google 未能完成登录，请重试。",
   "ga4_scope_not_granted": "未授予 Google Analytics 只读权限。",
-  "ga4_upstream_error": "Google Analytics 未返回数据，请稍后重试。"
+  "ga4_upstream_error": "Google Analytics 未返回数据，请稍后重试。",
+  "job.cancel_btn": "取消任务",
+  "job.cancel_confirm_title": "取消这个任务？",
+  "job.cancel_confirm_body": "任务会在几秒内停下，已经写入磁盘的产物会保留。",
+  "job.cancel_requested": "正在停止…",
+  "job.canceled": "任务已取消",
+  "job_not_cancelable": "该任务已结束，无法取消。"
 }

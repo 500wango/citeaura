@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from api.adapters import locking
 from api.db import Base
 from api.models import Job, Project, Subscription, Tenant
-from api.worker import tasks
+from api.worker import job_cancel, tasks
 from api.worker.celery_app import celery_app
 
 
@@ -68,7 +68,7 @@ def test_bootstrap_task_uses_tenant_context(monkeypatch):
     monkeypatch.setattr(tasks, "run_engine_job", fake_engine)
     monkeypatch.setattr(tasks.baseline, "normalize_bootstrap_metadata", lambda slug: calls.append(("normalize", slug)))
     monkeypatch.setattr(tasks, "_sync_claim_verification", lambda slug: None)
-    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
+    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug, **kwargs: calls.append(("delivery", slug)))
     monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: calls.append(("legacy-delivery", slug)))
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
@@ -415,7 +415,7 @@ def test_pipeline_task_dispatches_whitelisted_geo_action(monkeypatch):
     }, []))
     monkeypatch.setattr(tasks, "with_tenant_read_context", lambda *args, **kwargs: _empty_context())
     monkeypatch.setattr(tasks, "run_engine_job", fake_engine)
-    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
+    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug, **kwargs: calls.append(("delivery", slug)))
     monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: None)
     monkeypatch.setattr(tasks, "_require_sampling_output", lambda *args, **kwargs: None)
     monkeypatch.setattr(tasks, "_sync_projections", lambda *args, **kwargs: None)
@@ -457,7 +457,7 @@ def test_deliver_task_uses_saas_delivery_renderer(monkeypatch):
     monkeypatch.setattr(tasks.global_scope, "normalize_project", lambda slug: calls.append(("normalize", slug)))
     monkeypatch.setattr(tasks.site_signals, "validate_project_signals", lambda slug: calls.append(("validate", slug)))
     monkeypatch.setattr(tasks, "_prepare_delivery_measurement", lambda *args, **kwargs: None)
-    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)) or "/formal/path")
+    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug, **kwargs: calls.append(("delivery", slug)) or "/formal/path")
     monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: None)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
 
@@ -521,7 +521,7 @@ def test_pipeline_autopilot_uses_resilient_crawl_evidence(monkeypatch):
     monkeypatch.setattr(tasks, "run_engine_job", fake_engine)
     monkeypatch.setattr(tasks, "_job_status", lambda *args, **kwargs: _empty_context())
     monkeypatch.setattr(tasks.baseline, "normalize_bootstrap_metadata", lambda slug: calls.append(("normalize", slug)))
-    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug: calls.append(("delivery", slug)))
+    monkeypatch.setattr(tasks, "ensure_delivery_contract", lambda slug, **kwargs: calls.append(("delivery", slug)))
     monkeypatch.setattr(tasks, "ensure_legacy_deliverables_contract", lambda slug: None)
     monkeypatch.setattr(tasks, "measurement", types.SimpleNamespace(record_sampling=lambda *args, **kwargs: None))
 
@@ -566,10 +566,10 @@ def test_pipeline_autopilot_prepares_delivery_evidence(monkeypatch):
     tasks.task_pipeline.run("tenant-a", "example", "autopilot", params={}, job_id=42)
 
     assert ("prepare", "tenant-a", "example", 42) in calls
-    assert ("delivery", "example", {
-        "measurement_scope": measurement_scope,
-        "require_question_evidence": True,
-    }) in calls
+    delivery_call = next(item for item in calls if item[0] == "delivery")
+    assert delivery_call[2]["measurement_scope"] == measurement_scope
+    assert delivery_call[2]["require_question_evidence"] is True
+    assert callable(delivery_call[2]["checkpoint"])
 
 def test_funded_context_unifies_historical_project_scope(monkeypatch):
     calls = []
@@ -1525,3 +1525,154 @@ def test_redelivered_funded_job_preserves_uncertain_usage(tmp_path, monkeypatch)
         assert job.status == "running"
         assert job.budget_reservation_status == "reserved"
     engine.dispose()
+
+
+def test_job_status_marks_canceled_and_restores_project(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'cancel.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with session_factory() as db:
+        tenant = Tenant(name="tenant-a", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id, slug="example", url="https://example.com",
+            market="both", status="delivering",
+        )
+        db.add(project)
+        db.flush()
+        job = Job(
+            project_id=project.id, action="deliver", status="queued",
+            budget_reservation_status="reserved",
+        )
+        db.add(job)
+        db.commit()
+        job_id, project_id = job.id, project.id
+
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(
+        tasks,
+        "job_log_path",
+        lambda tenant_id, project_slug, job_id: tmp_path / "logs" / f"{job_id}.log",
+    )
+
+    with tasks._job_status("tenant-a", "example", "deliver", job_id) as update:
+        update("compile", 70)
+        raise job_cancel.JobCanceled("canceled_by_user")
+
+    with session_factory() as db:
+        job = db.get(Job, job_id)
+        assert job.status == "canceled"
+        assert job.stage == "canceled"
+        assert job.error == "canceled_by_user"
+        assert job.finished_at is not None
+        assert job.budget_reservation_status == "released"
+        assert db.get(Project, project_id).status == "ready"
+    assert "deliver canceled" in (tmp_path / "logs" / f"{job_id}.log").read_text("utf-8")
+
+
+def test_job_status_completion_respects_pending_cancel(tmp_path, monkeypatch):
+    """取消请求若在任务自然结束前落库，完成分支不能再把 Job 写成 done。"""
+    engine = create_engine(f"sqlite:///{tmp_path / 'cancel-done.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with session_factory() as db:
+        tenant = Tenant(name="tenant-a", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id, slug="example", url="https://example.com",
+            market="both", status="delivering",
+        )
+        db.add(project)
+        db.flush()
+        job = Job(
+            project_id=project.id, action="deliver", status="queued",
+            cancel_requested_at=datetime.now(timezone.utc),
+        )
+        db.add(job)
+        db.commit()
+        job_id, project_id = job.id, project.id
+
+    monkeypatch.setattr(tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(
+        tasks,
+        "job_log_path",
+        lambda tenant_id, project_slug, job_id: tmp_path / "logs" / f"{job_id}.log",
+    )
+
+    with tasks._job_status("tenant-a", "example", "deliver", job_id):
+        pass
+
+    with session_factory() as db:
+        assert db.get(Job, job_id).status == "canceled"
+        assert db.get(Project, project_id).status == "ready"
+
+
+def test_cancel_requested_reads_flag_and_binds_to_job(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'cancel-flag.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with session_factory() as db:
+        tenant = Tenant(name="tenant-a", plan="trial")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id, slug="example", url="https://example.com",
+            market="both", status="delivering",
+        )
+        db.add(project)
+        db.flush()
+        job = Job(
+            project_id=project.id, action="deliver", status="running",
+            cancel_requested_at=datetime.now(timezone.utc),
+        )
+        db.add(job)
+        db.commit()
+        job_id = job.id
+
+    monkeypatch.setattr(job_cancel, "SessionLocal", session_factory)
+    monkeypatch.setattr(job_cancel, "POLL_SECONDS", 0)
+
+    job_cancel.raise_if_canceled()  # 非 Job 上下文：不查库也不抛
+    with job_cancel.bind(job_id):
+        assert job_cancel.cancel_requested() is True
+        with pytest.raises(job_cancel.JobCanceled):
+            job_cancel.raise_if_canceled()
+    job_cancel.raise_if_canceled()  # bind 结束后恢复为空上下文
+
+
+def test_reclaim_stale_jobs_marks_requested_cancel_as_canceled(tmp_path):
+    """失联任务如果已经收到取消请求，回收时落 canceled 而不是 failed。"""
+    engine = create_engine(f"sqlite:///{tmp_path / 'reclaim-cancel.sqlite'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    now = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    with session_factory() as db:
+        tenant = Tenant(name="reclaim-cancel-tenant", plan="pro")
+        db.add(tenant)
+        db.flush()
+        project = Project(
+            tenant_id=tenant.id, slug="reclaim-cancel",
+            url="https://reclaim-cancel.example", status="processing",
+        )
+        db.add(project)
+        db.flush()
+        job = Job(
+            project_id=project.id,
+            action="deliver",
+            status="running",
+            stage="compile",
+            started_at=now - timedelta(hours=3),
+            cancel_requested_at=now - timedelta(hours=2),
+        )
+        db.add(job)
+        db.commit()
+        job_id, project_id = job.id, project.id
+        assert tasks._reclaim_stale_jobs(db, now) == 1
+    with session_factory() as db:
+        job = db.get(Job, job_id)
+        assert job.status == "canceled"
+        assert job.stage == "canceled"
+        assert job.error == "canceled_by_user"
+        assert db.get(Project, project_id).status == "ready"

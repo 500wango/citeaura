@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.db import Base, get_db
 from api.main import app
-from api.models import CustomProvider, Job, Project, PublicAudit, Tenant
+from api.models import CustomProvider, Job, Membership, Project, PublicAudit, Tenant
 from api.projects import router as project_router
 from api.projects import lifecycle_routes, sampling_routes
 from api.adapters import engine as engine_adapter, sampling_control
@@ -932,3 +932,150 @@ def test_retry_rejects_job_attempt_limit(project_client, monkeypatch):
 @contextmanager
 def _empty_context():
     yield
+
+
+def _cancel_job_fixture(session_factory, status="running", cancel_requested_at=None):
+    with session_factory() as db:
+        tenant = db.query(Tenant).order_by(Tenant.id).first()
+        project = Project(
+            tenant_id=tenant.id,
+            slug="cancel-demo",
+            url="https://cancel.example",
+            market="global",
+            status="delivering",
+        )
+        db.add(project)
+        db.flush()
+        job = Job(
+            project_id=project.id,
+            action="deliver",
+            status=status,
+            stage="compile",
+            request_json="{}",
+            cancel_requested_at=cancel_requested_at,
+        )
+        db.add(job)
+        db.commit()
+        return project.id, job.id
+
+
+def test_cancel_queued_job_marks_canceled_and_frees_project(project_client):
+    client, session_factory = project_client
+    headers = _register(client, "cancel-queued@example.com")
+    project_id, job_id = _cancel_job_fixture(session_factory, status="queued")
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/jobs/{job_id}/cancel",
+        headers=headers,
+    )
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["job"]["status"] == "canceled"
+    assert body["job"]["can_cancel"] is False
+    with session_factory() as db:
+        job = db.get(Job, job_id)
+        assert job.status == "canceled"
+        assert job.stage == "canceled"
+        assert job.error == "canceled_by_user"
+        assert job.cancel_requested_at is None
+        assert db.get(Project, project_id).status == "ready"
+
+
+def test_cancel_running_job_only_sets_flag(project_client):
+    client, session_factory = project_client
+    headers = _register(client, "cancel-running@example.com")
+    project_id, job_id = _cancel_job_fixture(session_factory, status="running")
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/jobs/{job_id}/cancel",
+        headers=headers,
+    )
+
+    assert response.status_code == 202
+    assert response.json()["job"]["status"] == "running"
+    assert response.json()["job"]["cancel_requested"] is True
+    assert response.json()["job"]["can_cancel"] is False
+    with session_factory() as db:
+        job = db.get(Job, job_id)
+        assert job.status == "running"
+        assert job.cancel_requested_at is not None
+        assert db.get(Project, project_id).status == "delivering"
+
+    # 重复请求幂等，仍然 202。
+    again = client.post(
+        f"/api/v1/projects/{project_id}/jobs/{job_id}/cancel",
+        headers=headers,
+    )
+    assert again.status_code == 202
+
+
+def test_cancel_finished_job_is_rejected(project_client):
+    client, session_factory = project_client
+    headers = _register(client, "cancel-done@example.com")
+    project_id, job_id = _cancel_job_fixture(session_factory, status="done")
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/jobs/{job_id}/cancel",
+        headers=headers,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"] == "job_not_cancelable"
+
+
+def test_cancel_job_is_tenant_scoped(project_client):
+    client, session_factory = project_client
+    owner_headers = _register(client, "cancel-owner@example.com")
+    other_headers = _register(client, "cancel-other@example.com")
+    project_id, job_id = _cancel_job_fixture(session_factory, status="running")
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/jobs/{job_id}/cancel",
+        headers=other_headers,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "project_not_found"
+    assert client.post(
+        f"/api/v1/projects/{project_id}/jobs/{job_id}/cancel",
+        headers=owner_headers,
+    ).status_code == 202
+
+
+def test_cancel_job_requires_editor_role(project_client):
+    client, session_factory = project_client
+    headers = _register(client, "cancel-viewer@example.com")
+    project_id, job_id = _cancel_job_fixture(session_factory, status="running")
+    with session_factory() as db:
+        membership = db.query(Membership).one()
+        membership.role = "viewer"
+        db.commit()
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/jobs/{job_id}/cancel",
+        headers=headers,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"] == "insufficient_role"
+
+
+def test_canceled_job_can_be_retried(project_client, monkeypatch):
+    client, session_factory = project_client
+    headers = _register(client, "cancel-retry@example.com")
+    project_id, job_id = _cancel_job_fixture(session_factory, status="canceled")
+    monkeypatch.setattr(
+        project_router.task_deliver,
+        "delay",
+        lambda *args, **kwargs: types.SimpleNamespace(id="celery-cancel-retry"),
+    )
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/jobs/{job_id}/retry",
+        headers=headers,
+    )
+
+    assert response.status_code == 202
+    with session_factory() as db:
+        assert db.query(Job).filter(Job.project_id == project_id).count() == 2

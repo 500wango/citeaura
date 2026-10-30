@@ -43,6 +43,9 @@ def job_payload(job: Job, include_log: bool = True, log_offset: int | None = Non
         stage, progress = "complete", 100
     elif job.status == "failed":
         stage = "failed"
+    elif job.status == "canceled":
+        stage = "canceled"
+    cancel_requested = job.cancel_requested_at is not None
     return {
         "id": job.id,
         "project_id": job.project_id,
@@ -54,7 +57,9 @@ def job_payload(job: Job, include_log: bool = True, log_offset: int | None = Non
         "request": request_payload(job.request_json),
         "celery_task_id": job.celery_task_id,
         "retry_of_job_id": job.retry_of_job_id,
-        "can_retry": job.status == "failed" and job.action in RETRYABLE_ACTIONS,
+        "can_retry": job.status in ("failed", "canceled") and job.action in RETRYABLE_ACTIONS,
+        "cancel_requested": cancel_requested,
+        "can_cancel": job.status in ("queued", "running") and not cancel_requested,
         "started_at": job.started_at,
         "finished_at": job.finished_at,
         "error": redact_secrets(translate_engine_log(job.error)) if job.error else None,

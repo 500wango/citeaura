@@ -59,7 +59,7 @@ def retry_project_job(
     source = db.query(Job).filter(Job.id == job_id, Job.project_id == project.id).first()
     if source is None:
         _error(status.HTTP_404_NOT_FOUND, "job_not_found")
-    if source.status != "failed":
+    if source.status not in ("failed", "canceled"):
         _error(status.HTTP_409_CONFLICT, "job_not_failed")
     if source.action not in RETRYABLE_ACTIONS:
         _error(status.HTTP_409_CONFLICT, "job_retry_not_supported")
@@ -127,6 +127,79 @@ def retry_project_job(
         "project_id": project.id,
         "status": project.status,
         "estimate": estimate,
+    }
+
+
+@router.post("/{project_id}/jobs/{job_id}/cancel", status_code=status.HTTP_202_ACCEPTED)
+def cancel_project_job(
+    project_id: int,
+    job_id: int,
+    current_user: User = Depends(require_editor),
+    db: Session = Depends(get_db),
+):
+    """取消任务：排队中直接终止，运行中只写标记、由 worker 自己停下。"""
+    project = _project_for_user(db, current_user, project_id)
+    tenant = _tenant_for_user(db, current_user)
+    job = db.query(Job).filter(Job.id == job_id, Job.project_id == project.id).first()
+    if job is None:
+        _error(status.HTTP_404_NOT_FOUND, "job_not_found")
+    if job.status not in ("queued", "running"):
+        _error(status.HTTP_409_CONFLICT, "job_not_cancelable")
+    now = datetime.now(timezone.utc)
+    if job.status == "queued":
+        claimed = db.query(Job).filter(Job.id == job.id, Job.status == "queued").update(
+            {
+                Job.status: "canceled",
+                Job.stage: "canceled",
+                Job.finished_at: now,
+                Job.error: "canceled_by_user",
+            },
+            synchronize_session=False,
+        )
+        if claimed == 1:
+            sampling_control.release_reservation(job)
+            if project.status != "archived":
+                project.status = "ready"
+            record_product_event(
+                db,
+                "job_cancel_requested",
+                tenant_id=tenant.id,
+                user_id=current_user.id,
+                properties={
+                    "project_id": project.id, "job_id": job.id,
+                    "action": job.action, "phase": "queued",
+                },
+            )
+            db.commit()
+            return {
+                "job": _job_payload(job, include_log=False),
+                "job_id": job.id,
+                "project_id": project.id,
+                "status": job.status,
+            }
+        # 已被 worker 认领：退回运行中路径，让 worker 终止子进程。
+        db.rollback()
+        job = db.query(Job).filter(Job.id == job_id, Job.project_id == project.id).first()
+        if job is None or job.status not in ("queued", "running"):
+            _error(status.HTTP_409_CONFLICT, "job_not_cancelable")
+    if job.cancel_requested_at is None:
+        job.cancel_requested_at = now
+        record_product_event(
+            db,
+            "job_cancel_requested",
+            tenant_id=tenant.id,
+            user_id=current_user.id,
+            properties={
+                "project_id": project.id, "job_id": job.id,
+                "action": job.action, "phase": "running",
+            },
+        )
+        db.commit()
+    return {
+        "job": _job_payload(job, include_log=False),
+        "job_id": job.id,
+        "project_id": project.id,
+        "status": job.status,
     }
 
 

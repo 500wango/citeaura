@@ -47,17 +47,30 @@ def reclaim_stale_jobs(db, now):
     reclaimed = 0
     for job in stale:
         uncertain_usage = job.status == "running" and job.budget_reservation_status == "reserved"
-        # 条件更新：SELECT 与 COMMIT 之间已完成的 Job 不能被覆写成 failed。
+        canceled_by_user = job.cancel_requested_at is not None
+        if canceled_by_user:
+            terminal_status, terminal_stage = "canceled", "canceled"
+            error_message = (
+                "platform_usage_accounting_pending: canceled_by_user"
+                if uncertain_usage else "canceled_by_user"
+            )
+        else:
+            terminal_status, terminal_stage = "failed", "failed"
+            error_message = (
+                "platform_usage_accounting_pending: worker_lost_or_timeout"
+                if uncertain_usage else "worker_lost_or_timeout"
+            )
+        # 条件更新：SELECT 与 COMMIT 之间已完成的 Job 不能被覆写。
         claimed = db.query(Job).filter(
             Job.id == job.id,
             Job.status == job.status,
             func.coalesce(Job.heartbeat_at, Job.started_at, Job.created_at) < cutoff,
         ).update(
             {
-                Job.status: "failed",
-                Job.stage: "failed",
+                Job.status: terminal_status,
+                Job.stage: terminal_stage,
                 Job.finished_at: now,
-                Job.error: "platform_usage_accounting_pending: worker_lost_or_timeout" if uncertain_usage else "worker_lost_or_timeout",
+                Job.error: error_message,
                 Job.budget_reservation_status: "review" if uncertain_usage else job.budget_reservation_status,
             },
             synchronize_session=False,
@@ -74,7 +87,7 @@ def reclaim_stale_jobs(db, now):
             ).first()
             project = db.get(Project, job.project_id)
             if newer_active is None and project is not None and project.status not in ("archived",):
-                project.status = "failed"
+                project.status = "ready" if canceled_by_user else "failed"
         reclaimed += 1
     if reclaimed:
         db.commit()

@@ -201,6 +201,7 @@ export const projects = {
       null,
     ),
   retryJob: (id, jobId) => request(`/api/v1/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}/retry`, { method: 'POST' }),
+  cancelJob: (id, jobId) => request(`/api/v1/projects/${encodeURIComponent(id)}/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' }),
 
   getSchedule: (id) => fieldRequest(request(`/api/v1/projects/${encodeURIComponent(id)}/schedule`), 'schedule', {}),
   updateSchedule: (id, body) => fieldRequest(

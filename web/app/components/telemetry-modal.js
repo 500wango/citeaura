@@ -4,8 +4,9 @@
 
 import { projects } from '../api.js';
 import { setSafeHtml, escapeHtml } from '../safe-html.js';
-import { t, translateText } from '../i18n.js';
+import { t, tError, translateText } from '../i18n.js';
 import { toast } from './toast.js';
+import { confirmModal } from './modal.js';
 
 let activeStreamTimer = null;
 let currentJobId = null;
@@ -252,6 +253,36 @@ async function retryCurrentJob() {
   }
 }
 
+async function cancelCurrentJob() {
+  const button = document.getElementById('tel-cancel-btn');
+  if (!currentProjectId || !currentJobId) return;
+  const confirmed = await confirmModal(
+    t('job.cancel_confirm_body', {}, 'The task stops within a couple of seconds. Work already written to disk stays.'),
+    {
+      title: t('job.cancel_confirm_title', {}, 'Cancel this task?'),
+      confirmText: t('job.cancel_btn', {}, 'Cancel task'),
+      isDanger: true,
+    },
+  );
+  if (!confirmed) return;
+  if (button) {
+    button.disabled = true;
+    button.textContent = t('job.cancel_requested', {}, 'Stopping…');
+  }
+  try {
+    await projects.cancelJob(currentProjectId, currentJobId);
+    toast.info(t('job.cancel_requested', {}, 'Stopping…'));
+    const statusText = document.getElementById('tel-status-text');
+    if (statusText) statusText.textContent = t('job.cancel_requested', {}, 'Stopping…');
+  } catch (error) {
+    toast.error(tError(error));
+    if (button) {
+      button.disabled = false;
+      button.textContent = t('job.cancel_btn', {}, 'Cancel task');
+    }
+  }
+}
+
 export function openTelemetryModal({
   projectId,
   jobId,
@@ -341,6 +372,7 @@ export function openTelemetryModal({
             <span id="tel-status-text">Task running in Celery worker queue</span>
           </div>
           <div class="tel-actions" id="tel-actions-container">
+            <button type="button" class="btn btn-danger btn-sm" id="tel-cancel-btn">${t('job.cancel_btn', {}, 'Cancel task')}</button>
             <button type="button" class="btn btn-secondary btn-sm" id="tel-close-bottom-btn">${t('telemetry.run_bg', {}, 'Run in Background')}</button>
           </div>
         </div>
@@ -375,6 +407,7 @@ export function openTelemetryModal({
 
   document.getElementById('tel-close-btn')?.addEventListener('click', closeWithCallback);
   bindBackgroundButton();
+  document.getElementById('tel-cancel-btn')?.addEventListener('click', cancelCurrentJob);
   document.getElementById('telemetry-backdrop')?.addEventListener('click', (event) => {
     if (event.target.id === 'telemetry-backdrop') closeWithCallback();
   });
@@ -452,6 +485,12 @@ async function fetchLogChunk(token) {
     }
     updateStepperUI(currentStageIndex, highestProgress, job.status);
 
+    const cancelButton = document.getElementById('tel-cancel-btn');
+    if (cancelButton) {
+      cancelButton.disabled = Boolean(job.cancel_requested) || job.can_cancel === false;
+      if (job.cancel_requested) cancelButton.textContent = t('job.cancel_requested', {}, 'Stopping…');
+    }
+
     if (job.status === 'done') {
       stopTimers();
       liveDot?.classList.add('is-done');
@@ -497,6 +536,27 @@ async function fetchLogChunk(token) {
         document.getElementById('tel-open-engine-settings')?.addEventListener('click', () => closeTelemetryModal());
         if (job.can_retry) document.getElementById('tel-retry-btn')?.addEventListener('click', retryCurrentJob);
         else bindBackgroundButton();
+      }
+    } else if (job.status === 'canceled') {
+      stopTimers();
+      liveDot?.classList.add('is-failed');
+      if (statusText) statusText.textContent = t('job.canceled', {}, 'Task canceled');
+      if (subtitle) subtitle.textContent = `${currentStages[currentStageIndex]?.label || t('telemetry.pipeline', {}, 'Pipeline')} · ${t('job.canceled', {}, 'Canceled')}`;
+      if (activity) activity.textContent = t('job.canceled', {}, 'Task canceled');
+      if (actionsContainer) {
+        const retryAction = job.can_retry
+          ? `<button type="button" class="btn btn-danger btn-sm" id="tel-retry-btn">${t('telemetry.retry', {}, 'Retry Job')}</button>`
+          : `<button type="button" class="btn btn-secondary btn-sm" id="tel-close-bottom-btn">${t('common.close', {}, 'Close')}</button>`;
+        setSafeHtml(actionsContainer, retryAction);
+        if (job.can_retry) document.getElementById('tel-retry-btn')?.addEventListener('click', retryCurrentJob);
+        else bindBackgroundButton();
+      }
+      if (!completionHandled) {
+        completionHandled = true;
+        const callback = currentOnComplete;
+        if (typeof callback === 'function') {
+          Promise.resolve(callback(job)).catch((error) => console.warn('Telemetry cancel refresh failed:', error));
+        }
       }
     }
   } catch (error) {

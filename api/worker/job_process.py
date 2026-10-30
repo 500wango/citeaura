@@ -12,7 +12,7 @@ from celery import current_task
 
 from api import config
 from api.adapters import locking
-from api.worker import job_protocol
+from api.worker import job_cancel, job_protocol
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _SECRET_NAME = re.compile(
@@ -137,13 +137,19 @@ def run_job_process(payload, timeout=None, environ=None, log_path=None, command=
             start_new_session=True,
         )
         loss = locking.current_lock_loss()
+        # ContextVar 在新线程里是空的，watcher 必须显式拿 job id 才能查到取消标记。
+        cancel_job_id = (payload or {}).get("job_id")
         stopped = threading.Event()
-        def stop_on_lock_loss():
+        def stop_when_aborted():
             while not stopped.wait(0.1):
                 if loss is not None and loss.is_set():
                     terminate_process_group(process, grace_seconds=0.1)
                     return
-        watcher = threading.Thread(target=stop_on_lock_loss, daemon=True)
+                if job_cancel.cancel_requested(cancel_job_id):
+                    # 用户取消给引擎留出清理时间，比锁丢失宽松。
+                    terminate_process_group(process, grace_seconds=2)
+                    return
+        watcher = threading.Thread(target=stop_when_aborted, daemon=True)
         watcher.start()
         try:
             stdout, stderr = process.communicate(
@@ -172,6 +178,10 @@ def run_job_process(payload, timeout=None, environ=None, log_path=None, command=
     if log_handle is not None:
         stderr = "\n".join(_file_tail(log_path))
     result, usage, errors, _progress = job_protocol.parse_events(stdout)
+    if job_cancel.cancel_requested(cancel_job_id):
+        exc = job_cancel.EngineJobCanceled("canceled_by_user")
+        exc.usage = usage
+        raise exc
     if loss is not None and loss.is_set():
         exc = EngineJobError("project_lock_lost")
         exc.usage = usage

@@ -289,6 +289,7 @@ class Job(Base):
     retry_of_job_id = Column(Integer, ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True)
     started_at = Column(DateTime(timezone=True), nullable=True)
     heartbeat_at = Column(DateTime(timezone=True), nullable=True)
+    cancel_requested_at = Column(DateTime(timezone=True), nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     error = Column(Text, nullable=True)
     log_path = Column(String(2048), nullable=True)

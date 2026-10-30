@@ -397,6 +397,18 @@ with with_tenant_context("test-tenant", "example"):
 
 **验收**：单匹配、多匹配、无属性、拒绝授权、scope 未授予、限流与跨租户路径均有测试；token 不出现在文件、日志、Redis；删除 GA4 后 GSC 快照仍在。
 
+### Task 6.8: 运行中任务可取消（P0）
+
+**状态：已完成代码与测试（2026-10-30）；浏览器与真实 worker 验收待跑**
+
+- Job 新增终态 `canceled` 与 `cancel_requested_at` 标记列（迁移 `0045_job_cancel_request`）
+- `POST /api/v1/projects/{id}/jobs/{job_id}/cancel`：排队中直接落终态并释放项目；运行中只写标记，由 worker 在 1 秒内自行停下
+- 引擎子进程类任务终止整个进程组；交付包在 staging 内的阶段与产物检查点退出，正式交付包与历史包不受影响
+- 取消后预算预留释放、项目回到 `ready`、可立即重试；陈旧回收器把已请求取消的失联任务落成 `canceled` 而不是 `failed`
+- 顶栏进度胶囊新增停止按钮，日志弹窗新增取消入口与「已取消」状态；7 语言文案
+
+**验收**：取消交付包构建后没有半个包落盘；取消采样后没有残留 `job_runner` 进程；取消后能立即重新入队；viewer 无法取消。
+
 ### Phase 6 发布闸门
 
 1. 引擎测试全绿、API 全量测试通过

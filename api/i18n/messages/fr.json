@@ -2729,5 +2729,11 @@
   "ga4_state_invalid": "Le lien de connexion Google Analytics a expiré ou a déjà servi. Reconnectez-vous.",
   "ga4_token_exchange_failed": "Google n'a pas terminé la connexion. Réessayez.",
   "ga4_scope_not_granted": "L'accès en lecture à Google Analytics n'a pas été accordé.",
-  "ga4_upstream_error": "Google Analytics n'a pas renvoyé de données. Réessayez plus tard."
+  "ga4_upstream_error": "Google Analytics n'a pas renvoyé de données. Réessayez plus tard.",
+  "job.cancel_btn": "Annuler la tâche",
+  "job.cancel_confirm_title": "Annuler cette tâche ?",
+  "job.cancel_confirm_body": "La tâche s'arrête en quelques secondes. Ce qui est déjà écrit sur le disque est conservé.",
+  "job.cancel_requested": "Arrêt en cours…",
+  "job.canceled": "Tâche annulée",
+  "job_not_cancelable": "Cette tâche est déjà terminée et ne peut pas être annulée."
 }

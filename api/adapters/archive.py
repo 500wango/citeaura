@@ -14,6 +14,7 @@ from pathlib import Path, PurePosixPath
 
 from api import config
 from api.adapters import engine as engine_adapter
+from api.worker import job_cancel
 
 
 STATE_VERSION = 1
@@ -224,6 +225,7 @@ def _build_snapshot(project_directory, tenant_slug, project_slug, archive_id, cr
         manifest_info.mode = 0o600
         archive.addfile(manifest_info, io.BytesIO(manifest_bytes))
         for item in files:
+            job_cancel.raise_if_canceled()
             archive.add(project_directory / item["path"], arcname=item["path"], recursive=False)
     with tempfile.TemporaryDirectory() as verification_name:
         _extract_verified(
@@ -282,6 +284,7 @@ def create_archive(tenant_name, project_slug, note=""):
             Path(temporary.name),
         )
         temporary.seek(0)
+        job_cancel.raise_if_canceled()
         extra_args = {
             "ContentType": "application/gzip",
             "Metadata": {

@@ -1380,3 +1380,29 @@ def test_custom_provider_label_includes_model_id():
             "provider_model_ids": {"custom_abc123": "vendor/model:exact"},
         },
     ) == "Gateway · vendor/model:exact"
+
+
+def test_delivery_contract_aborts_at_checkpoint_and_keeps_target(tmp_path, monkeypatch):
+    """取消检查点在 staging 内触发：正式交付包保持原样，临时目录被清掉。"""
+    project, output = seed_delivery_project(tmp_path)
+    _patch_project(monkeypatch, project)
+    before = {path.relative_to(output).as_posix() for path in output.rglob("*") if path.is_file()}
+
+    class Canceled(Exception):
+        pass
+
+    calls = []
+
+    def checkpoint():
+        calls.append(1)
+        if len(calls) >= 2:
+            raise Canceled("canceled_by_user")
+
+    with pytest.raises(Canceled):
+        delivery.ensure_delivery_contract("example", output, checkpoint=checkpoint)
+
+    assert len(calls) >= 2
+    after = {path.relative_to(output).as_posix() for path in output.rglob("*") if path.is_file()}
+    assert after == before
+    leftovers = [path.name for path in output.parent.iterdir() if path.name.startswith(".delivery-english-")]
+    assert leftovers == []

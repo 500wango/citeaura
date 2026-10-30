@@ -2729,5 +2729,11 @@
   "ga4_state_invalid": "Google Analytics のログインリンクが期限切れか使用済みです。もう一度接続してください。",
   "ga4_token_exchange_failed": "Google がログインを完了できませんでした。もう一度お試しください。",
   "ga4_scope_not_granted": "Google Analytics の読み取り権限が許可されませんでした。",
-  "ga4_upstream_error": "Google Analytics がデータを返しませんでした。しばらくしてから再試行してください。"
+  "ga4_upstream_error": "Google Analytics がデータを返しませんでした。しばらくしてから再試行してください。",
+  "job.cancel_btn": "タスクを中止",
+  "job.cancel_confirm_title": "このタスクを中止しますか？",
+  "job.cancel_confirm_body": "数秒以内に停止します。すでに書き込まれた成果物は残ります。",
+  "job.cancel_requested": "停止しています…",
+  "job.canceled": "タスクを中止しました",
+  "job_not_cancelable": "このタスクはすでに終了しているため中止できません。"
 }

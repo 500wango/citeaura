@@ -2729,5 +2729,11 @@
   "ga4_state_invalid": "El enlace de acceso de Google Analytics caducó o ya se usó. Vuelve a conectar.",
   "ga4_token_exchange_failed": "Google no completó el acceso. Inténtalo de nuevo.",
   "ga4_scope_not_granted": "No se concedió permiso de lectura de Google Analytics.",
-  "ga4_upstream_error": "Google Analytics no devolvió datos. Inténtalo más tarde."
+  "ga4_upstream_error": "Google Analytics no devolvió datos. Inténtalo más tarde.",
+  "job.cancel_btn": "Cancelar tarea",
+  "job.cancel_confirm_title": "¿Cancelar esta tarea?",
+  "job.cancel_confirm_body": "La tarea se detiene en unos segundos. Lo que ya está en disco se conserva.",
+  "job.cancel_requested": "Deteniendo…",
+  "job.canceled": "Tarea cancelada",
+  "job_not_cancelable": "Esta tarea ya terminó y no se puede cancelar."
 }

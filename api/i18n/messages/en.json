@@ -2729,5 +2729,11 @@
   "ga4_state_invalid": "The Google Analytics sign-in link expired or was already used. Connect again.",
   "ga4_token_exchange_failed": "Google did not complete the sign-in. Try again.",
   "ga4_scope_not_granted": "Google Analytics read access was not granted.",
-  "ga4_upstream_error": "Google Analytics did not return data. Try again later."
+  "ga4_upstream_error": "Google Analytics did not return data. Try again later.",
+  "job.cancel_btn": "Cancel task",
+  "job.cancel_confirm_title": "Cancel this task?",
+  "job.cancel_confirm_body": "The task stops within a couple of seconds. Work already written to disk stays.",
+  "job.cancel_requested": "Stopping…",
+  "job.canceled": "Task canceled",
+  "job_not_cancelable": "This task already finished and cannot be canceled."
 }

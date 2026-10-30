@@ -2729,5 +2729,11 @@
   "ga4_state_invalid": "Google Analytics 로그인 링크가 만료되었거나 이미 사용되었습니다. 다시 연결하세요.",
   "ga4_token_exchange_failed": "Google이 로그인을 완료하지 못했습니다. 다시 시도하세요.",
   "ga4_scope_not_granted": "Google Analytics 읽기 권한이 허용되지 않았습니다.",
-  "ga4_upstream_error": "Google Analytics가 데이터를 반환하지 않았습니다. 잠시 후 다시 시도하세요."
+  "ga4_upstream_error": "Google Analytics가 데이터를 반환하지 않았습니다. 잠시 후 다시 시도하세요.",
+  "job.cancel_btn": "작업 취소",
+  "job.cancel_confirm_title": "이 작업을 취소할까요?",
+  "job.cancel_confirm_body": "몇 초 안에 중지됩니다. 이미 디스크에 기록된 산출물은 유지됩니다.",
+  "job.cancel_requested": "중지 중…",
+  "job.canceled": "작업이 취소되었습니다",
+  "job_not_cancelable": "이미 종료된 작업이라 취소할 수 없습니다."
 }

@@ -157,13 +157,15 @@ def _ensure_delivery_with_measurement(tenant_id, project_slug, job_id=None, stat
         )
     if status_update:
         status_update("compile", 70)
+    job_cancel.raise_if_canceled()
     if measurement_scope is None:
-        target = ensure_delivery_contract(project_slug)
+        target = ensure_delivery_contract(project_slug, checkpoint=job_cancel.raise_if_canceled)
     else:
         target = ensure_delivery_contract(
             project_slug,
             measurement_scope=measurement_scope,
             require_question_evidence=bool(measurement_scope.get("active_cohorts")),
+            checkpoint=job_cancel.raise_if_canceled,
         )
     if status_update:
         status_update("package", 90)
@@ -181,9 +183,12 @@ def _safe_delivery_contract(tenant_id, project_slug, job_id=None, prepare_measur
         if prepare_measurement:
             _ensure_delivery_with_measurement(tenant_id, project_slug, job_id=job_id, status_update=status_update)
         else:
-            ensure_delivery_contract(project_slug)
+            ensure_delivery_contract(project_slug, checkpoint=job_cancel.raise_if_canceled)
         ensure_legacy_deliverables_contract(project_slug)
         return None
+    except job_cancel.JobCanceled:
+        # 取消不是可降级的交付错误，必须冒泡到 _job_status 落 canceled。
+        raise
     except Exception as exc:  # noqa: BLE001
         logger.warning("Delivery contract deferred for %s: %s", project_slug, exc)
         return f"{type(exc).__name__}: {exc}"
@@ -192,6 +197,7 @@ from api.worker.worker_funding import *  # noqa: F401,F403
 from api.worker.worker_pipeline import *  # noqa: F401,F403
 from api.worker.worker_isolation import *  # noqa: F401,F403
 from api.worker.worker_job_lifecycle import _job_status
+from api.worker import job_cancel
 
 def _tenant_record(db, tenant_id):
     """按目录名或租户名称查找租户，不按主键猜测。"""
@@ -390,6 +396,8 @@ def task_sample(
                 funding=funding, custom_providers=custom_providers,
                 wrappers=("normalize_project",), **sample_kwargs,
             )
+            # 子进程已被取消就不再聚合，避免把半途样本写成正式指标。
+            job_cancel.raise_if_canceled()
             if job_id is None:
                 _require_sampling_output(result, project_slug, funding=funding)
             else:
@@ -432,6 +440,7 @@ def task_cycle(tenant_id: str, project_slug: str, job_id=None):
                 wrappers=("normalize_project", "semantic_site_signals", "normalize_generated_outputs"),
                 max_pages=None, limit=None,
             )
+            job_cancel.raise_if_canceled()
             _require_sampling_output(
                 _latest_metrics(project_slug), project_slug, job_id=job_id, started_at=started_at,
                 funding=funding,
@@ -466,6 +475,7 @@ def task_verify(tenant_id: str, project_slug: str, job_id=None):
         )
         runtime_tenant = funding.get("tenant_directory_slug") or str(tenant_id)
         with with_tenant_read_context(runtime_tenant, project_slug):
+            job_cancel.raise_if_canceled()
             return ticket_workflow.record_verification(project_slug, report)
 
 
@@ -530,6 +540,7 @@ def task_pipeline(tenant_id: str, project_slug: str, action: str, params=None, j
             funding=funding, custom_providers=custom_providers,
             wrappers=tuple(wrappers), pipeline_action=action, params=params,
         )
+        job_cancel.raise_if_canceled()
         with with_tenant_read_context(runtime_tenant, project_slug):
             if action in ("bootstrap", "autopilot"):
                 baseline.normalize_bootstrap_metadata(project_slug)

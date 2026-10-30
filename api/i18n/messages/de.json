@@ -2729,5 +2729,11 @@
   "ga4_state_invalid": "Der Google Analytics-Anmeldelink ist abgelaufen oder wurde bereits verwendet. Verbinden Sie erneut.",
   "ga4_token_exchange_failed": "Google hat die Anmeldung nicht abgeschlossen. Versuchen Sie es erneut.",
   "ga4_scope_not_granted": "Der Lesezugriff auf Google Analytics wurde nicht erteilt.",
-  "ga4_upstream_error": "Google Analytics hat keine Daten zurückgegeben. Versuchen Sie es später erneut."
+  "ga4_upstream_error": "Google Analytics hat keine Daten zurückgegeben. Versuchen Sie es später erneut.",
+  "job.cancel_btn": "Aufgabe abbrechen",
+  "job.cancel_confirm_title": "Diese Aufgabe abbrechen?",
+  "job.cancel_confirm_body": "Die Aufgabe stoppt in wenigen Sekunden. Bereits gespeicherte Ergebnisse bleiben erhalten.",
+  "job.cancel_requested": "Wird gestoppt…",
+  "job.canceled": "Aufgabe abgebrochen",
+  "job_not_cancelable": "Diese Aufgabe ist bereits beendet und kann nicht abgebrochen werden."
 }

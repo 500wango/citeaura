@@ -435,6 +435,12 @@ def _write_index(directory, name, site, delivery_date, audit, tickets, blueprint
     (directory / "README.md").write_text(readme, "utf-8")
 
 
+def _run_checkpoint(checkpoint):
+    """可选取消检查点：所有写入都落在 staging 里，抛异常即整体回滚。"""
+    if checkpoint is not None:
+        checkpoint()
+
+
 def _build_delivery(
     project_slug,
     project_directory,
@@ -442,7 +448,9 @@ def _build_delivery(
     delivery_date,
     measurement_scope=None,
     require_question_evidence=False,
+    checkpoint=None,
 ):
+    _run_checkpoint(checkpoint)
     config, audit, task_data, blueprint, metrics, verification, lint = _load_sources(project_directory)
     name, site = _identity(project_directory, project_slug, config, audit)
     display_audit = audit_presentation.present_audit_data(
@@ -492,6 +500,7 @@ def _build_delivery(
         blueprint,
         measurement_scope=measurement_scope,
     )
+    _run_checkpoint(checkpoint)
     if require_question_evidence and isinstance(measurement_scope, dict):
         if measurement_scope.get("active_cohorts") and not measurement_scope.get("ready"):
             missing = sum(
@@ -506,6 +515,7 @@ def _build_delivery(
     risk_summary = _risk_summary(lint, asset_index)
     risk_markdown = _risk_markdown(name, lint, asset_index)
     build_map_markdown = _build_map_markdown(name, blueprint)
+    _run_checkpoint(checkpoint)
     evidence = write_evidence(project_directory, config, directory, name)
 
     _write_document(directory, "01", audit_markdown, [
@@ -540,6 +550,7 @@ def _build_delivery(
     if coverage.get("channel_manual"):
         channel_stats.append(("Manual Confirmation", str(coverage["channel_manual"])))
     _write_document(directory, "06", build_map_markdown, channel_stats)
+    _run_checkpoint(checkpoint)
     for filename, markdown in audience_checklists(tickets).items():
         (directory / filename).write_text(markdown, "utf-8")
     asset_index["quality_gate"] = validate_delivery_quality(directory, display_audit, tickets, asset_index)
@@ -547,8 +558,10 @@ def _build_delivery(
         json.dumps(asset_index, ensure_ascii=False, indent=2) + "\n", "utf-8",
     )
     _write_index(directory, name, site, delivery_date, display_audit, tickets, blueprint, asset_index, evidence)
+    _run_checkpoint(checkpoint)
     apply_delivery_branding(directory)
     validate_delivery_language(directory, config.get("report_language", "en"))
+    _run_checkpoint(checkpoint)
 
 
 def _delivery_target(project_directory, delivery_directory):
@@ -703,6 +716,7 @@ def ensure_delivery_contract(
     measurement_scope=None,
     require_question_evidence=False,
     persist=True,
+    checkpoint=None,
 ):
     """Rebuild a delivery package and fail closed unless every artifact is English-only.
 
@@ -734,7 +748,10 @@ def ensure_delivery_contract(
                 target.name,
                 measurement_scope=measurement_scope,
                 require_question_evidence=require_question_evidence,
+                checkpoint=checkpoint,
             )
+            # 交换目录前最后一道检查：取消不能让新包落盘。
+            _run_checkpoint(checkpoint)
             shutil.rmtree(backup, ignore_errors=True)
             if target.exists():
                 target.rename(backup)

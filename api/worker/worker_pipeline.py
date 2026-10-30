@@ -9,6 +9,7 @@ from api.adapters.engine import ENGINE_MAX_REPEAT, geolib, job_log_path
 from api.db import SessionLocal
 from api.models import Job, Project
 from api.pipeline_catalog import ACTION_DEFAULTS, ACTION_METHODS, PIPELINE_ACTIONS
+from api.worker import job_cancel
 
 
 def _task_facade():
@@ -104,6 +105,7 @@ def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None, status_u
                         "cohort_changed": bool(state.get("cohort_changed")),
                     }, sort_keys=True),
                 )
+            job_cancel.raise_if_canceled()
             _reserve_delivery_gap_sampling(
                 tenant_id,
                 project_slug,
@@ -120,6 +122,7 @@ def _prepare_delivery_measurement(tenant_id, project_slug, job_id=None, status_u
                 repeat=repeat,
                 question_ids=question_ids,
             )
+            job_cancel.raise_if_canceled()
             _task_facade()._require_sampling_output(
                 result,
                 project_slug,
