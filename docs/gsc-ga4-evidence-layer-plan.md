@@ -16,7 +16,7 @@
 ### 非目标
 
 - 不做 GSC 存档、搜索数据浏览器、Winners & Losers、日期对比、导出。GSC 自带这些功能，对获客没有帮助。
-- 不接 GA4，不做效果实验扩展，不做异常提醒。没有客户就没有数据和观察期，这些都做不出结果。
+- GA4 已按 §9 的最小设计落地为 AI 引荐流量（2026-10-30）；效果实验扩展和异常提醒仍不做。没有客户就没有数据和观察期，这两项仍做不出结果。
 - 不长期保存 Google 凭据（见 §3.1）。
 - 证据层永不接入百度数据源。引擎中现有的百度采样、拓词和渠道蓝图不在本方案范围内。
 - 不改 `engine/`。
@@ -228,7 +228,7 @@ v1 的 D1–D7 已全部失效：自带 OAuth Client、存储方案、视图位�
 | 多 Google 账号（边缘情况） | 有客户确实遇到 | 常规做法是一个 Google 账号管多个属性，代理商也通常让客户把代理商账号加为属性用户，所以默认一个租户一个账号、每个项目绑定其中一个属性即可。只有客户坚持不授权给代理商账号时才需要多账号，届时再把 `IntegrationCredential` 唯一约束改为 `tenant_id + provider + account_email` |
 | 搜索数据视图 | 客户要求在 CiteAura 内看 GSC 数据 | 无 1,000 行限制、正则筛选、Winners & Losers、Striking distance，可以从机会一键建单（参照 `/brand-opportunities/tickets`） |
 | 需求加权提及率 | 已有一批 GSC 来源问题和多期采样 | 按展示量加权的提及率，只用于排序和展示，不并入健康分 |
-| GA4 与 AI 引荐流量 | 客户配置了 GA4 | `analytics.readonly`；AI 来源域名表带版本号；连接时检查 key events 是否配置 |
+| GA4 与 AI 引荐流量 | 客户配置了 GA4 | **已实现（2026-10-30）**：`analytics.readonly`；AI 来源域名表带版本号；连接时检查 key events 是否配置；一次性读取，不存 refresh token |
 | 搜索数据实验 | 客户流量足够，且有已部署的工单 | 实验 spec 升到 version 3，新增 `search_outcomes` 子对象，独立状态和 28 天窗口；目标组取工单的 `affected` 页面；流量不足时返回 `inconclusive`，原因 `insufficient_volume` |
 | 异常提醒与 Slack | 客户要求持续监控 | 挂在同步任务之后，不复用只在采样后触发的 `regression_alerts` 入口 |
 | 交付包证据章节 | 代理商客户要向他们的客户交付 | 先确认 GSC 原始查询能不能通过交付包的语言校验（`delivery_evidence._english`） |

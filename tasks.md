@@ -384,6 +384,19 @@ with with_tenant_context("test-tenant", "example"):
 
 **验收**：i18n 全量测试通过；埋点事件进入白名单且不携带查询原文。
 
+### Task 6.7: GA4 AI 引荐流量（P0）
+
+**状态：已完成代码与测试（2026-10-30）；Consent screen scope 与 Analytics API 待线上验收**
+
+- 复用同一个 Google OAuth Client 与回调地址，新增 `analytics.readonly`；state 带 flow，按 `gsc` / `ga4` 分流
+- Analytics Admin API 列出属性，按 web stream `defaultUri` 匹配项目域名；exact 自动选中，parent 与多匹配交给用户选择
+- Data API 拉 28 天 `sessionSource` 的 sessions / totalUsers / keyEvents，服务端按版本化 AI 域名表聚合；另拉全站 sessions 作分母
+- 快照写到 `work/<tenant>/<slug>/searchdata/ga4_snapshot.json`，保留 5 份历史；GSC 与 GA4 删除互不影响
+- 报告新增“AI 引荐流量”区块，标注 `GA4·第一方`、属性、窗口、抓取时间、域名表版本；不并入 GEO 健康分
+- 项目设置新增连接 / 刷新 / 删除卡片；隐私政策新增 2.6 节并同步 6 个语言版本
+
+**验收**：单匹配、多匹配、无属性、拒绝授权、scope 未授予、限流与跨租户路径均有测试；token 不出现在文件、日志、Redis；删除 GA4 后 GSC 快照仍在。
+
 ### Phase 6 发布闸门
 
 1. 引擎测试全绿、API 全量测试通过

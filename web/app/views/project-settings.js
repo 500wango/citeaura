@@ -4,14 +4,16 @@ import { escapeHtml, safeHttpUrl } from '../safe-html.js';
 import { toast } from '../components/toast.js';
 import { confirmModal } from '../components/modal.js';
 import { renderEmpty } from '../components/empty.js';
+import { bindGa4Card, loadGa4Card, renderGa4Card } from '../components/ga4-connect.js';
 
 export default {
   render: async (ctx) => {
     const projectId = ctx.activeProjectId;
     if (!projectId) return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
-    const [project, gsc] = await Promise.all([
+    const [project, gsc, ga4] = await Promise.all([
       projects.get(projectId).catch(() => null),
       searchdata.getGsc(projectId).catch(() => null),
+      loadGa4Card(projectId),
     ]);
     if (!project) return `<div class="app-view-container">${t('project_settings.not_found', {}, 'Project not found')}</div>`;
     const isOwner = ctx.role === 'owner';
@@ -62,6 +64,7 @@ export default {
                  <button type="button" id="btn-settings-gsc-delete" class="btn btn-secondary btn-sm" style="align-self:flex-start;" ${isViewer ? `disabled title="${escapeHtml(viewerOnly)}"` : ''}>${t('gsc.delete_btn', {}, 'Delete Search Console data')}</button>`
               : `<a href="#/questions" class="btn btn-secondary btn-sm" style="align-self:flex-start;">${t('gsc.connect_btn', {}, 'Connect Search Console')}</a>`}
           </div>` : ''}
+          ${renderGa4Card(ga4, { isViewer, readOnlyReason: viewerOnly })}
           <div class="card" style="border-color:var(--bad);gap:var(--sp-3);">
             <h3 style="font-size:var(--fs-4);font-weight:600;margin:0;color:var(--bad);">${t('project_settings.archive_title', {}, 'Archive project')}</h3>
             <p style="color:var(--muted);font-size:var(--fs-2);margin:0;">${t('project_settings.archive_desc', {}, 'Archiving removes the project from the active workspace list and keeps filesystem artifacts on disk. It does not permanently delete files.')}</p>
@@ -97,6 +100,7 @@ export default {
         toast.error(tError(err));
       }
     });
+    bindGa4Card(ctx, projectId);
     if (ctx.role === 'owner') document.getElementById('btn-delete-project')?.addEventListener('click', async () => {
       const confirmed = await confirmModal(t('project_settings.archive_confirm', {}, 'Archive this project? Files will remain on disk and the project can be recreated after cleanup or restore.'), { isDanger: true, confirmText: t('project_settings.archive_btn', {}, 'Archive project') });
       if (!confirmed) return;

@@ -16,7 +16,7 @@ from api.db import get_db
 from api.models import Job, Membership, Project, Tenant, User
 from api.product_events import record_product_event
 from api.rate_limit import RateLimitUnavailable, check_scope
-from api.searchdata import candidates, demand, gsc, oauth
+from api.searchdata import candidates, demand, ga4, ga4_snapshot, gsc, oauth
 
 
 logger = logging.getLogger(__name__)
@@ -29,6 +29,13 @@ class SelectPropertyRequest(BaseModel):
 
     session_id: str = Field(min_length=16, max_length=128)
     site_url: str = Field(min_length=1, max_length=2048)
+
+
+class SelectGa4PropertyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str = Field(min_length=16, max_length=128)
+    property_id: str = Field(min_length=1, max_length=128)
 
 
 class AddCandidatesRequest(BaseModel):
@@ -63,9 +70,9 @@ def _ensure_idle(db, project):
         _error(status.HTTP_409_CONFLICT, "project_job_already_running")
 
 
-def _require_configured():
+def _require_configured(flow="gsc"):
     if not config.google_oauth_configured():
-        _error(status.HTTP_404_NOT_FOUND, "gsc_not_configured")
+        _error(status.HTTP_404_NOT_FOUND, f"{flow}_not_configured")
 
 
 def _event(db, name, tenant_id, user_id, properties):
@@ -77,12 +84,17 @@ def _event(db, name, tenant_id, user_id, properties):
         logger.exception("searchdata product event failed: %s", name)
 
 
-def _app_redirect(project_id, outcome, session_id=None):
-    target = f"{config.public_base_url()}/app/#/questions?gsc={quote(outcome)}"
+def _app_redirect(project_id, outcome, session_id=None, flow="gsc"):
+    if flow == oauth.FLOW_GA4:
+        target = f"{config.public_base_url()}/app/#/report?ga4={quote(outcome)}"
+        session_param = "ga4_session"
+    else:
+        target = f"{config.public_base_url()}/app/#/questions?gsc={quote(outcome)}"
+        session_param = "gsc_session"
     if project_id:
         target += f"&project={int(project_id)}"
     if session_id:
-        target += f"&gsc_session={quote(session_id)}"
+        target += f"&{session_param}={quote(session_id)}"
     response = RedirectResponse(target, status_code=status.HTTP_303_SEE_OTHER)
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
@@ -173,7 +185,7 @@ def authorize_gsc(request: Request, project_id: int, current_user: User = Depend
     return {"authorization_url": url}
 
 
-def _callback_user(db, user_id, tenant_id):
+def _callback_user(db, user_id, tenant_id, flow="gsc"):
     user = db.get(User, user_id)
     membership = db.get(Membership, {"tenant_id": tenant_id, "user_id": user_id})
     tenant = db.get(Tenant, tenant_id)
@@ -182,19 +194,20 @@ def _callback_user(db, user_id, tenant_id):
         or user.status != "active" or tenant.status != "active"
         or membership.role not in EDITOR_ROLES
     ):
-        raise oauth.OAuthError("gsc_state_invalid")
+        raise oauth.OAuthError(f"{flow}_state_invalid")
     return user
 
 
-@router.get("/api/v1/searchdata/gsc/callback", include_in_schema=False)
-def gsc_callback(state: str = "", code: str = "", error: str = "", db: Session = Depends(get_db)):
-    """Google 跳回的入口：只认签名 state，重新校验成员关系与项目归属。"""
-    if not config.google_oauth_configured():
-        return _app_redirect(None, "not_configured")
-    try:
-        user_id, tenant_id, project_id, nonce = oauth.verify_state(state)
-    except oauth.OAuthError:
-        return _app_redirect(None, "state_invalid")
+def _google_error_outcome(error):
+    text = str(error or "").strip()
+    if text == "access_denied":
+        return "denied"
+    if text in ("invalid_scope", "invalid_request"):
+        return "scope_not_granted"
+    return "failed"
+
+
+def _gsc_callback(db, project_id, code, error, nonce, user_id, tenant_id):
     if error or not code:
         return _app_redirect(project_id, "denied")
     try:
@@ -224,6 +237,77 @@ def gsc_callback(state: str = "", code: str = "", error: str = "", db: Session =
     except gsc.GscError as exc:
         oauth.revoke(token)
         return _app_redirect(project.id, str(exc).removeprefix("gsc_"))
+
+
+def _ga4_fetch_and_store(db, tenant, project, token, choice, user_id):
+    fetched = ga4.fetch_ai_referrals(token, choice["property"])
+    key_event_status = ga4.key_events_status(token, choice["property"])
+    property_meta = {"time_zone": ga4.property_time_zone(token, choice["property"])}
+    snapshot = ga4_snapshot.build_snapshot(choice, fetched, key_event_status, property_meta)
+    with with_tenant_context(tenant.directory_slug, project.slug):
+        ga4_snapshot.write_snapshot(project.slug, snapshot)
+    _event(db, "ga4_referrals_shown", tenant.id, user_id, {
+        "project_id": project.id,
+        "sources": len(snapshot["ai_sources"]),
+        "truncated": snapshot["coverage"]["truncated"],
+    })
+    return snapshot
+
+
+def _ga4_callback(db, project_id, code, error, nonce, user_id, tenant_id):
+    if error or not code:
+        return _app_redirect(project_id, _google_error_outcome(error), flow=oauth.FLOW_GA4)
+    token = None
+    try:
+        user = _callback_user(db, user_id, tenant_id, oauth.FLOW_GA4)
+        tenant, project = _project(db, tenant_id, project_id)
+        token = oauth.exchange_code(code, nonce, oauth.FLOW_GA4)
+        properties = ga4.list_properties(token)
+        matched = ga4.match_properties(project.url, properties, token)
+        _event(db, "ga4_connect_completed", tenant.id, user.id, {
+            "project_id": project.id,
+            "matched_properties": len(matched["matched"]),
+            "properties": matched["properties_total"],
+        })
+        exact = [item for item in matched["matched"] if item["match_type"] == "exact"]
+        if len(exact) == 1:
+            _ga4_fetch_and_store(db, tenant, project, token, exact[0], user.id)
+            oauth.revoke(token)
+            token = None
+            return _app_redirect(project.id, "ready", flow=oauth.FLOW_GA4)
+        choices = matched["offered"]
+        if not choices:
+            return _app_redirect(project.id, "no_property", flow=oauth.FLOW_GA4)
+        session_id = oauth.open_session(
+            token, user.id, tenant.id, project.id,
+            flow=oauth.FLOW_GA4, choices=choices,
+        )
+        token = None
+        return _app_redirect(project.id, "choose", session_id, flow=oauth.FLOW_GA4)
+    except oauth.OAuthError as exc:
+        return _app_redirect(project_id, str(exc).removeprefix("ga4_"), flow=oauth.FLOW_GA4)
+    except HTTPException:
+        return _app_redirect(project_id, "state_invalid", flow=oauth.FLOW_GA4)
+    except ga4.Ga4Error as exc:
+        return _app_redirect(project_id, str(exc).removeprefix("ga4_"), flow=oauth.FLOW_GA4)
+    finally:
+        if token:
+            oauth.revoke(token)
+
+
+@router.get("/api/v1/searchdata/gsc/callback", include_in_schema=False)
+def google_callback(state: str = "", code: str = "", error: str = "", db: Session = Depends(get_db)):
+    """Google 跳回的入口：按 state 中的 flow 分流，身份以验签后的 claims 为准。"""
+    if not config.google_oauth_configured():
+        return _app_redirect(None, "not_configured")
+    flow = oauth.peek_flow(state)
+    try:
+        user_id, tenant_id, project_id, nonce = oauth.verify_state(state, flow)
+    except oauth.OAuthError:
+        return _app_redirect(None, "state_invalid", flow=flow)
+    if flow == oauth.FLOW_GA4:
+        return _ga4_callback(db, project_id, code, error, nonce, user_id, tenant_id)
+    return _gsc_callback(db, project_id, code, error, nonce, user_id, tenant_id)
 
 
 @router.get("/api/v1/projects/{project_id}/searchdata/gsc/session/{session_id}")
@@ -306,3 +390,81 @@ def gsc_demand(project_id: int, current_user: User = Depends(get_current_user), 
     tenant, project = _project(db, current_user.tenant_id, project_id)
     with with_tenant_read_context(tenant, project.slug):
         return demand.build(project.slug)
+
+
+@router.get("/api/v1/searchdata/ga4/status")
+def ga4_status(current_user: User = Depends(get_current_user)):
+    return {
+        "configured": config.google_oauth_configured(),
+        "ai_sources_version": ga4_snapshot.ai_sources.TABLE_VERSION,
+    }
+
+
+@router.get("/api/v1/projects/{project_id}/searchdata/ga4")
+def get_ga4_snapshot(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    tenant, project = _project(db, current_user.tenant_id, project_id)
+    with with_tenant_read_context(tenant, project.slug):
+        snapshot = ga4_snapshot.read_snapshot(project.slug)
+    return ga4_snapshot.summary(snapshot, config.google_oauth_configured())
+
+
+@router.post("/api/v1/projects/{project_id}/searchdata/ga4/authorize")
+def authorize_ga4(request: Request, project_id: int, current_user: User = Depends(require_editor), db: Session = Depends(get_db)):
+    _require_configured(oauth.FLOW_GA4)
+    tenant, project = _project(db, current_user.tenant_id, project_id)
+    try:
+        decision = check_scope(request, "ga4-authorize", 10, 60)
+    except RateLimitUnavailable:
+        _error(status.HTTP_503_SERVICE_UNAVAILABLE, "rate_limit_unavailable")
+    if not decision.allowed:
+        _error(status.HTTP_429_TOO_MANY_REQUESTS, "rate_limit_exceeded")
+    try:
+        url = oauth.authorization_url(current_user.id, tenant.id, project.id, oauth.FLOW_GA4)
+    except oauth.OAuthError as exc:
+        _error(status.HTTP_400_BAD_REQUEST, str(exc))
+    _event(db, "ga4_connect_started", tenant.id, current_user.id, {"project_id": project.id})
+    return {"authorization_url": url}
+
+
+@router.get("/api/v1/projects/{project_id}/searchdata/ga4/session/{session_id}")
+def ga4_session(project_id: int, session_id: str, current_user: User = Depends(require_editor), db: Session = Depends(get_db)):
+    tenant, project = _project(db, current_user.tenant_id, project_id)
+    try:
+        data = oauth.read_session(session_id, current_user.id, tenant.id, project.id, oauth.FLOW_GA4)
+    except oauth.OAuthError as exc:
+        _error(status.HTTP_410_GONE, str(exc))
+    return {"properties": data.get("choices") or [], "project_url": project.url}
+
+
+@router.post("/api/v1/projects/{project_id}/searchdata/ga4/select")
+def ga4_select(project_id: int, payload: SelectGa4PropertyRequest, current_user: User = Depends(require_editor), db: Session = Depends(get_db)):
+    tenant, project = _project(db, current_user.tenant_id, project_id)
+    try:
+        data = oauth.read_session(payload.session_id, current_user.id, tenant.id, project.id, oauth.FLOW_GA4)
+    except oauth.OAuthError as exc:
+        _error(status.HTTP_410_GONE, str(exc))
+    choice = next(
+        (item for item in data.get("choices") or [] if item.get("property") == payload.property_id),
+        None,
+    )
+    if choice is None:
+        _error(status.HTTP_400_BAD_REQUEST, "ga4_property_not_offered")
+    try:
+        snapshot = _ga4_fetch_and_store(db, tenant, project, data["token"], choice, current_user.id)
+    except ga4.Ga4Error as exc:
+        _error(status.HTTP_502_BAD_GATEWAY, str(exc))
+    finally:
+        oauth.close_session(payload.session_id, oauth.FLOW_GA4)
+    return ga4_snapshot.summary(snapshot, True)
+
+
+@router.delete("/api/v1/projects/{project_id}/searchdata/ga4")
+def delete_ga4_snapshot(project_id: int, current_user: User = Depends(require_editor), db: Session = Depends(get_db)):
+    tenant, project = _project(db, current_user.tenant_id, project_id)
+    with with_tenant_context(tenant.directory_slug, project.slug):
+        try:
+            existed = ga4_snapshot.delete_snapshot(project.slug)
+        except ValueError:
+            _error(status.HTTP_400_BAD_REQUEST, "invalid_searchdata_directory")
+    _event(db, "ga4_snapshot_deleted", tenant.id, current_user.id, {"project_id": project.id})
+    return {"ok": True, "deleted": existed}

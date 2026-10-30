@@ -10,9 +10,12 @@ import { renderEmpty } from '../components/empty.js';
 import { openModal } from '../components/modal.js';
 import { escapeHtml } from '../safe-html.js';
 import { loadGscDemand, renderGscDemand } from '../components/gsc-demand.js';
+import { handleGa4Return } from '../components/ga4-connect.js';
+import { loadGa4, renderGa4Referrals } from '../components/ga4-referrals.js';
 
 export default {
   render: async (ctx) => {
+    if (handleGa4Return(ctx)) return '';
     const projectId = ctx.activeProjectId;
     if (!projectId) {
       return `<div class="app-view-container">${renderEmpty({ title: t('overview.no_project_title', {}, 'No Brand Selected') })}</div>`;
@@ -23,13 +26,15 @@ export default {
     let deliveries = [];
     let jobs = [];
     let gscDemand = null;
+    let ga4 = null;
 
     try {
-      [report, deliveries, jobs, gscDemand] = await Promise.all([
+      [report, deliveries, jobs, gscDemand, ga4] = await Promise.all([
         projects.getReport(projectId).catch(() => null),
         projects.getDeliveries(projectId).catch(() => []),
         projects.getJobs(projectId).catch(() => []),
         loadGscDemand(projectId),
+        loadGa4(projectId),
       ]);
     } catch (err) {
       console.error('Failed to load report data:', err);
@@ -141,6 +146,7 @@ export default {
         </section>
 
         ${renderGscDemand(gscDemand)}
+        ${renderGa4Referrals(ga4)}
 
         <!-- Deliverables Overview -->
         <div class="card" style="gap:var(--sp-4);">

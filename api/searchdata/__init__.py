@@ -1,1 +1,1 @@
-"""Google Search Console 一次性读取：真实查询转 AI 采样问题。"""
+"""Google 第一方数据一次性读取：Search Console 需求与 GA4 AI 引荐流量。"""

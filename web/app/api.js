@@ -320,6 +320,12 @@ export const searchdata = {
   addGscQuestions: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/gsc/questions`, { method: 'POST', body }),
   deleteGsc: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/gsc`, { method: 'DELETE' }),
   getGscDemand: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/gsc/demand`),
+  getGa4Status: () => request('/api/v1/searchdata/ga4/status'),
+  getGa4: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/ga4`),
+  authorizeGa4: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/ga4/authorize`, { method: 'POST' }),
+  getGa4Session: (id, sessionId) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/ga4/session/${encodeURIComponent(sessionId)}`),
+  selectGa4Property: (id, body) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/ga4/select`, { method: 'POST', body }),
+  deleteGa4: (id) => request(`/api/v1/projects/${encodeURIComponent(id)}/searchdata/ga4`, { method: 'DELETE' }),
 };
 
 /* ==========================================================================

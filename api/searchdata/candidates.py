@@ -2,18 +2,15 @@
 
 import hashlib
 import re
-import shutil
 import unicodedata
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from api.adapters.crawl_evidence import contains_han
-from api.adapters.engine import geolib
+from api.searchdata import snapshot_store
 
 
-SNAPSHOT_DIR = "searchdata"
 SNAPSHOT_FILE = "gsc_snapshot.json"
-HISTORY_KEEP = 5
 MAX_CANDIDATES = 20
 KEEP_ROWS = 200
 LOW_VOLUME_CANDIDATES = 5
@@ -178,41 +175,20 @@ def build_snapshot(site_url, fetched, config, now=None):
     }
 
 
-def _directory(project_slug):
-    return geolib.project_dir(project_slug) / SNAPSHOT_DIR
-
-
 def snapshot_path(project_slug):
-    return _directory(project_slug) / SNAPSHOT_FILE
+    return snapshot_store.path(project_slug, SNAPSHOT_FILE)
 
 
 def read_snapshot(project_slug):
-    data = geolib.read_json(snapshot_path(project_slug), None)
-    return data if isinstance(data, dict) and data.get("schema_version") == SCHEMA_VERSION else None
+    return snapshot_store.read(project_slug, SNAPSHOT_FILE, SCHEMA_VERSION)
 
 
 def write_snapshot(project_slug, snapshot):
-    """新快照覆盖当前文件；旧快照按时间戳移入 history/，只保留最近几份。"""
-    path = snapshot_path(project_slug)
-    if path.is_file():
-        history = path.parent / "history"
-        history.mkdir(parents=True, exist_ok=True)
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-        path.replace(history / f"gsc_snapshot-{stamp}.json")
-        for stale in sorted(history.glob("gsc_snapshot-*.json"))[:-HISTORY_KEEP]:
-            stale.unlink(missing_ok=True)
-    geolib.write_json(path, snapshot)
-    return snapshot
+    return snapshot_store.write(project_slug, SNAPSHOT_FILE, snapshot)
 
 
 def delete_snapshot(project_slug):
-    directory = _directory(project_slug)
-    if directory.is_symlink():
-        raise ValueError("searchdata directory must not be a symlink")
-    existed = directory.exists()
-    if existed:
-        shutil.rmtree(directory)
-    return existed
+    return snapshot_store.delete(project_slug, SNAPSHOT_FILE)
 
 
 def candidate_by_id(snapshot, candidate_id):
