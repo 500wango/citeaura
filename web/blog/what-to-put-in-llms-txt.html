@@ -78,7 +78,7 @@
       "description": "An optional llms.txt draft: checkable facts and public URLs. Google Search does not use it. Skip slogans, rankings, and unverified claims.",
       "url": "https://citeaura.com/blog/what-to-put-in-llms-txt",
       "datePublished": "2026-08-17",
-      "dateModified": "2026-10-25",
+      "dateModified": "2026-10-31",
       "author": {
         "@id": "https://citeaura.com/#research-team"
       },
@@ -428,6 +428,26 @@ grep -oE 'https://[^) ]+' /tmp/llms.txt | xargs -n1 curl -s -o /dev/null -w '%{u
       <h3>What is the recommended size limit for llms.txt vs llms-full.txt?</h3>
       <p>Five kilobytes is practical editorial guidance, not a protocol limit. Large files may be truncated or ignored depending on the client. Keep the index short and link to canonical pages for detail.</p>
     </section>
+
+    <div class="blog-cta" style="flex-direction:column;align-items:stretch;gap:var(--sp-4);">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);">
+        <div>
+          <h3 style="margin:0 0 var(--sp-1);font-size:var(--fs-4);">Quick Check: Generate and validate your llms.txt</h3>
+          <p style="margin:0;color:var(--ink-2);font-size:var(--fs-2);">Test formatting, headers, UTF-8 encoding, and section links with our free tool.</p>
+        </div>
+        <a class="btn btn-secondary btn-sm" href="/llms-txt-tool">Open llms.txt Validator Free</a>
+      </div>
+      <div style="border-top:1px solid var(--line);padding-top:var(--sp-4);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:var(--sp-3);">
+        <div>
+          <h3 style="margin:0 0 var(--sp-1);font-size:var(--fs-4);">Build a verified brand fact library</h3>
+          <p style="margin:0;color:var(--ink-2);font-size:var(--fs-2);">Automate corporate facts and feed verified claims into LLM retrieval via the <a href="/ai-visibility-audit">CiteAura workspace</a>.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-2);">
+          <a class="btn btn-secondary btn-sm" href="/sample-report">Explore Sample Report</a>
+          <a class="btn btn-primary btn-sm" href="/app?auth=register" rel="nofollow">Start Free Trial</a>
+        </div>
+      </div>
+    </div>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related tools &amp; guides</h2>

@@ -78,7 +78,7 @@
       "description": "Longest-match User-agent rules, curl -A GPTBot checks, Cloudflare managed robots prepend, and how to confirm the live file.",
       "url": "https://citeaura.com/blog/gptbot-blocked-by-robots-txt",
       "datePublished": "2026-08-17",
-      "dateModified": "2026-09-14",
+      "dateModified": "2026-10-31",
       "author": {
         "@id": "https://citeaura.com/#research-team"
       },
@@ -444,6 +444,26 @@ curl -I -A "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBo
       <h3>Why does Cloudflare block GPTBot with 403 even after enabling AI Crawl Control?</h3>
       <p>Cloudflare's Bot Fight Mode (BFM) and Browser Integrity Check (BIC) execute at the edge before robots.txt is parsed. BFM challenges automated clients and drops connections with invisible 403 errors that are omitted from Security Events logs. Create a Custom WAF Skip Rule for verified bot traffic or test access using CiteAura's free crawler access checker.</p>
     </section>
+
+    <div class="blog-cta" style="flex-direction:column;align-items:stretch;gap:var(--sp-4);">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);">
+        <div>
+          <h3 style="margin:0 0 var(--sp-1);font-size:var(--fs-4);">Quick Test: Check your robots.txt in 5 seconds</h3>
+          <p style="margin:0;color:var(--ink-2);font-size:var(--fs-2);">Test whether GPTBot, PerplexityBot, ClaudeBot, or Bytespider can crawl your canonical domain.</p>
+        </div>
+        <a class="btn btn-secondary btn-sm" href="/crawler-check">Test AI Crawlers Free</a>
+      </div>
+      <div style="border-top:1px solid var(--line);padding-top:var(--sp-4);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:var(--sp-3);">
+        <div>
+          <h3 style="margin:0 0 var(--sp-1);font-size:var(--fs-4);">Run site-wide crawler &amp; WAF audit</h3>
+          <p style="margin:0;color:var(--ink-2);font-size:var(--fs-2);">Scan all canonical routes, discover edge blocks, and generate developer tickets in the <a href="/ai-visibility-audit">CiteAura workspace</a>.</p>
+        </div>
+        <div style="display:flex;gap:var(--sp-2);">
+          <a class="btn btn-secondary btn-sm" href="/sample-report">Explore Sample Report</a>
+          <a class="btn btn-primary btn-sm" href="/app?auth=register" rel="nofollow">Start Free Trial</a>
+        </div>
+      </div>
+    </div>
 
     <aside class="blog-related" aria-labelledby="related-guides">
       <h2 id="related-guides">Related guides</h2>
