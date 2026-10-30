@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from api.adapters import brand_facts, delivery
+from api.adapters import brand_facts, delivery, delivery_package
 from api.adapters.exceptions import GeoEngineError
 
 
@@ -1406,3 +1406,20 @@ def test_delivery_contract_aborts_at_checkpoint_and_keeps_target(tmp_path, monke
     assert after == before
     leftovers = [path.name for path in output.parent.iterdir() if path.name.startswith(".delivery-english-")]
     assert leftovers == []
+
+
+def test_sweep_delivery_staging_removes_leftovers_but_keeps_only_copy(tmp_path):
+    # 中断构建留下的 staging 与已失效备份都要清掉；目标缺失的备份可能是唯一
+    # 副本，不能自动删除。
+    (tmp_path / ".delivery-english-abandoned").mkdir()
+    (tmp_path / ".legacy-deliverables-abandoned").mkdir()
+    current = tmp_path / "2026-10-30"
+    current.mkdir()
+    (tmp_path / ".2026-10-30.backup").mkdir()
+    only_copy = tmp_path / ".2026-10-29.backup"
+    only_copy.mkdir()
+
+    delivery_package._sweep_delivery_staging(tmp_path)
+
+    names = {path.name for path in tmp_path.iterdir()}
+    assert names == {current.name, only_copy.name}

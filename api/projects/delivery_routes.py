@@ -103,8 +103,11 @@ def deliveries(project_id: int, current_user: User = Depends(get_current_user), 
     tenant = _tenant_for_user(db, current_user)
     directory = tenant_project_dir(tenant, project.slug) / "delivery"
     packages = []
-    directories = sorted((item for item in directory.iterdir() if item.is_dir()), reverse=True) \
-        if directory.exists() else []
+    # 点号开头的是构建中途留下的 staging / 备份目录，不是交付包。
+    directories = sorted(
+        (item for item in directory.iterdir() if item.is_dir() and not item.name.startswith(".")),
+        reverse=True,
+    ) if directory.exists() else []
     for item in directories:
         asset_index = geolib.read_json(item / "assets" / "index.json", {}) or {}
         sendable = bool(

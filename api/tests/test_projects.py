@@ -383,6 +383,8 @@ def test_project_create_list_detail_and_jobs(project_client, monkeypatch, tmp_pa
 
     (project_dir / "delivery" / "2026-07-31").mkdir(parents=True, exist_ok=True)
     (project_dir / "delivery" / "2026-07-31" / "index.html").write_text("<h1>Delivery</h1>", "utf-8")
+    # 中断构建留下的 staging 不能出现在交付包列表里。
+    (project_dir / "delivery" / ".delivery-english-abandoned").mkdir(parents=True, exist_ok=True)
     deliveries = client.get(f"/api/v1/projects/{body['project_id']}/deliveries", headers=headers)
     assert deliveries.status_code == 200
     assert deliveries.json()["deliveries"] == ["2026-07-31"]

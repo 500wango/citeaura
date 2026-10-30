@@ -576,6 +576,26 @@ def _delivery_target(project_directory, delivery_directory):
     return target
 
 
+def _sweep_delivery_staging(parent):
+    """清理上次构建中断留下的 staging 与已失效的 .<date>.backup。
+
+    目录列表只认日期名，但点号开头的残留不该无限累积。目标日期目录仍在时
+    才删备份：目标缺失说明备份是唯一副本，留给人工处理。
+    """
+    if not parent.is_dir():
+        return
+    for item in parent.iterdir():
+        if not item.is_dir() or not item.name.startswith("."):
+            continue
+        if item.name.startswith((".delivery-english-", ".legacy-deliverables-")):
+            shutil.rmtree(item, ignore_errors=True)
+            continue
+        if item.name.endswith(".backup"):
+            target = item.with_name(item.name[1:-len(".backup")])
+            if target.is_dir():
+                shutil.rmtree(item, ignore_errors=True)
+
+
 def _legacy_deliverables_target(project_directory, deliverables_directory):
     root = (project_directory / "deliverables").resolve()
     target = Path(deliverables_directory).resolve()
@@ -645,6 +665,7 @@ def ensure_legacy_deliverables_contract(project_slug: str, deliverables_director
     coverage = global_scope.summarize_channel_coverage(channels)
 
     with geolib.project_lock(project_slug):
+        _sweep_delivery_staging(target.parent)
         staging = Path(tempfile.mkdtemp(prefix=".legacy-deliverables-", dir=target.parent))
         try:
             _write_legacy_document(
@@ -736,11 +757,12 @@ def ensure_delivery_contract(
     target = _delivery_target(project_directory, delivery_directory)
     target.parent.mkdir(parents=True, exist_ok=True)
     with geolib.project_lock(project_slug):
-        staging = Path(tempfile.mkdtemp(prefix=".delivery-english-", dir=target.parent))
         backup = target.with_name(f".{target.name}.backup")
+        if backup.exists() and not target.exists():
+            backup.rename(target)
+        _sweep_delivery_staging(target.parent)
+        staging = Path(tempfile.mkdtemp(prefix=".delivery-english-", dir=target.parent))
         try:
-            if backup.exists() and not target.exists():
-                backup.rename(target)
             _build_delivery(
                 project_slug,
                 project_directory,
