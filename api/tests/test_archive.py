@@ -1,6 +1,9 @@
 import io
 import json
+import os
 import tarfile
+import time
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -339,3 +342,61 @@ def test_archived_project_blocks_workspace_publishing_outreach_and_ui(archive_cl
     # ui (file download)
     ui_resp = client.get("/example-com/index.html", headers=headers)
     assert ui_resp.status_code == 404
+
+
+def test_stale_snapshot_temps_are_swept_and_fresh_ones_kept(tmp_path):
+    snapshots = tmp_path / ".citeaura" / "snapshots"
+    snapshots.mkdir(parents=True)
+    stale = snapshots / ".2026-10-29.tar.gz.deadbeef.tmp"
+    fresh = snapshots / ".2026-10-30.tar.gz.cafebabe.tmp"
+    kept = snapshots / "2026-10-29.tar.gz"
+    for path in (stale, fresh, kept):
+        path.write_bytes(b"x")
+    old = time.time() - archive.STALE_SNAPSHOT_SECONDS - 60
+    os.utime(stale, (old, old))
+
+    assert archive._sweep_local_snapshots(tmp_path) == 1
+    assert not stale.exists()
+    assert fresh.exists()
+    assert kept.exists()
+
+
+class _MultipartClient:
+    def __init__(self, uploads):
+        self.uploads = uploads
+        self.aborted = []
+        self.seen = []
+
+    def list_multipart_uploads(self, **_kwargs):
+        return {"Uploads": list(self.uploads)}
+
+    def get_paginator(self, name):
+        assert name == "list_multipart_uploads"
+        client = self
+
+        class _Paginator:
+            def paginate(self, Bucket, Prefix):
+                client.seen.append((Bucket, Prefix))
+                return [{"Uploads": client.uploads}]
+
+        return _Paginator()
+
+    def abort_multipart_upload(self, Bucket, Key, UploadId):
+        self.aborted.append((Bucket, Key, UploadId))
+
+
+def test_abort_stale_multipart_uploads_only_touches_expired_ones():
+    now = datetime.now(timezone.utc)
+    client = _MultipartClient([
+        {"Key": "none/tenant-a/example-com/old.tar.gz", "UploadId": "old",
+         "Initiated": now - timedelta(days=2)},
+        {"Key": "none/tenant-a/example-com/new.tar.gz", "UploadId": "new",
+         "Initiated": now - timedelta(minutes=5)},
+    ])
+    settings = {"bucket": "archive-bucket", "prefix": "none"}
+
+    assert archive._abort_stale_uploads(client, settings, "tenant-a", "example-com") == 1
+    assert client.aborted == [("archive-bucket", "none/tenant-a/example-com/old.tar.gz", "old")]
+    assert client.seen == [("archive-bucket", "none/tenant-a/example-com/")]
+    # 未配置对象存储（本地快照）没有分片上传可清理。
+    assert archive._abort_stale_uploads(FakeS3(), {"bucket": "", "prefix": "none"}, "t", "s") == 0

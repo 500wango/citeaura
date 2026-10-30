@@ -104,6 +104,28 @@ def list_drafts(project_slug):
     return sorted(_load(project_slug)["drafts"], key=lambda item: item.get("created_at", ""), reverse=True)
 
 
+def expire_stale_sending(project_slug):
+    """把超过租约仍停在 sending 的草稿改回 failed，界面不再永久显示发送中。
+
+    SMTP 是否已送达未知，错误码沿用 claim 时的 send_unknown_after_lease。
+    """
+    with geolib.project_lock(project_slug):
+        state = _load(project_slug)
+        changed = 0
+        for draft in state["drafts"]:
+            if draft.get("status") != "sending" or _sending_lease_active(draft):
+                continue
+            draft.update({
+                "status": "failed",
+                "error": "send_unknown_after_lease",
+                "updated_at": _now(),
+            })
+            changed += 1
+        if changed:
+            _write(project_slug, state)
+        return changed
+
+
 def create_draft(project_slug, ticket, recipient_email):
     if ticket.get("kind") != "offsite":
         raise OutreachError("outreach_requires_offsite_ticket")

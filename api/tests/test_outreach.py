@@ -340,3 +340,32 @@ def test_outreach_worker_releases_queued_draft_if_smtp_was_removed(outreach_clie
     assert state["drafts"][0]["status"] == "failed"
     with session_factory() as db:
         assert db.get(Job, queued["job_id"]).status == "failed"
+
+
+def test_expire_stale_sending_resets_drafts_past_lease(outreach_client):
+    client, session_factory, tmp_path = outreach_client
+    registered, _headers = _register(client)
+    _project_id, root = _seed_project(session_factory, tmp_path, registered["tenant"]["id"])
+    stale = "2020-01-01T00:00:00+00:00"
+    fresh = outreach._now()
+    path = root / "outreach" / "state.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "version": 1,
+        "drafts": [
+            {"id": "outreach-stale", "status": "sending", "sending_at": stale, "created_at": stale},
+            {"id": "outreach-fresh", "status": "sending", "sending_at": fresh, "created_at": fresh},
+            {"id": "outreach-queued", "status": "queued", "created_at": fresh},
+        ],
+    }), "utf-8")
+
+    with engine_adapter.with_tenant_context("tenant-a", "example-com"):
+        assert outreach.expire_stale_sending("example-com") == 1
+        # 已经收尾的草稿不会重复改写。
+        assert outreach.expire_stale_sending("example-com") == 0
+
+    stored = {item["id"]: item for item in json.loads(path.read_text("utf-8"))["drafts"]}
+    assert stored["outreach-stale"]["status"] == "failed"
+    assert stored["outreach-stale"]["error"] == "send_unknown_after_lease"
+    assert stored["outreach-fresh"]["status"] == "sending"
+    assert stored["outreach-queued"]["status"] == "queued"

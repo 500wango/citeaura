@@ -3,18 +3,22 @@
 import hashlib
 import io
 import json
+import logging
 import os
 import re
 import shutil
 import tarfile
 import tempfile
+import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 
 from api import config
 from api.adapters import engine as engine_adapter
 from api.worker import job_cancel
+
+logger = logging.getLogger(__name__)
 
 
 STATE_VERSION = 1
@@ -23,6 +27,10 @@ SNAPSHOT_MANIFEST_NAME = ".citeaura-snapshot.json"
 EXCLUDED_ROOTS = frozenset((".citeaura", ".jobs"))
 MAX_FILES = 100000
 PREFIX_PATTERN = re.compile(r"[A-Za-z0-9._/-]+")
+# 中断的归档在本地留下的临时文件与对象存储里的分片上传：只清理明显过期的，
+# 避免误删并发归档正在用的中间状态。
+STALE_SNAPSHOT_SECONDS = 3600
+STALE_UPLOAD_HOURS = 24
 
 
 class ArchiveError(RuntimeError):
@@ -264,6 +272,51 @@ def _apply_retention(settings, state, project_directory):
         item.pop("retention_error", None)
 
 
+def _sweep_local_snapshots(project_directory, older_than_seconds=STALE_SNAPSHOT_SECONDS):
+    """删除中断的上传在本地留下的 .<name>.<hex>.tmp。"""
+    directory = project_directory / ".citeaura" / "snapshots"
+    if directory.is_symlink() or not directory.is_dir():
+        return 0
+    cutoff = time.time() - older_than_seconds
+    removed = 0
+    for item in directory.iterdir():
+        if not (item.name.startswith(".") and item.name.endswith(".tmp")):
+            continue
+        try:
+            if item.stat().st_mtime >= cutoff:
+                continue
+            item.unlink()
+            removed += 1
+        except OSError:
+            continue
+    return removed
+
+
+def _abort_stale_uploads(client, settings, tenant_slug, project_slug, older_than_hours=STALE_UPLOAD_HOURS):
+    """中止崩溃的上传留下的分片上传；对象本身不可见，但会一直占存储。"""
+    if not settings["bucket"] or not hasattr(client, "list_multipart_uploads"):
+        return 0
+    prefix = "/".join(part for part in (settings["prefix"], tenant_slug, project_slug) if part)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=older_than_hours)
+    aborted = 0
+    try:
+        paginator = client.get_paginator("list_multipart_uploads")
+        for page in paginator.paginate(Bucket=settings["bucket"], Prefix=f"{prefix}/"):
+            for upload in page.get("Uploads") or []:
+                initiated = upload.get("Initiated")
+                if initiated is None or initiated > cutoff:
+                    continue
+                client.abort_multipart_upload(
+                    Bucket=settings["bucket"],
+                    Key=upload["Key"],
+                    UploadId=upload["UploadId"],
+                )
+                aborted += 1
+    except Exception as exc:  # noqa: BLE001 - 清理失败不能让归档任务失败
+        logger.info("Stale multipart cleanup skipped: %s: %s", type(exc).__name__, exc)
+    return aborted
+
+
 def create_archive(tenant_name, project_slug, note=""):
     """创建并校验一个不可变项目快照。"""
     settings = _settings()
@@ -274,6 +327,8 @@ def create_archive(tenant_name, project_slug, note=""):
     archive_id = uuid.uuid4().hex[:16]
     object_key = _object_key(settings, tenant_slug, project_slug, created_at, archive_id)
     client = _client(settings, project_directory=project_directory)
+    _sweep_local_snapshots(project_directory)
+    _abort_stale_uploads(client, settings, tenant_slug, project_slug)
     with tempfile.NamedTemporaryFile(suffix=".tar.gz") as temporary:
         manifest, sha256, size = _build_snapshot(
             project_directory,

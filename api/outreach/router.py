@@ -138,6 +138,8 @@ def _smtp_payload(row):
 
 def _overview(db, tenant, project, can_edit):
     with with_tenant_read_context(tenant, project.slug):
+        if can_edit:
+            outreach.expire_stale_sending(project.slug)
         drafts = outreach.list_drafts(project.slug)
     return {
         "project_id": project.id,
